@@ -58,7 +58,7 @@ preflight_variables:
         fail "CI_REGISTRY_USER is 'gitlab-ci-token' — the project variable is missing, so pushes will be denied."
       fi
       # DOCKER_AUTH_CONFIG must contain the registry host, otherwise
-      # image pulls fail (see ci/README.md section 8)
+      # image pulls fail (see ci/docs/internals.md#registries)
       if [ -n "${DOCKER_AUTH_CONFIG:-}" ] && [ -n "${CI_REGISTRY_URL:-}" ]; then
         registry_host="${CI_REGISTRY_URL%%/*}"
         case "$DOCKER_AUTH_CONFIG" in
@@ -86,8 +86,23 @@ preflight_variables:
         require RELEASE_REGISTRY_TOKEN
       fi
 
+      # Registry credentials are scoped to this environment; a typo means the
+      # jobs get no credentials at all (environment: name: $REGISTRY_ENV).
+      if [ "$[[ inputs.exec_build ]]" = "true" ] || [ "$[[ inputs.exec_deploy ]]" = "true" ]; then
+        require REGISTRY_ENV
+      fi
+
       if [ "$[[ inputs.exec_deploy ]]" = "true" ]; then
         require_file DEPLOYMENT_INSTANCE_SSH_KEY
+        require DEPLOYMENT_INSTANCE_USER
+        require DEPLOYMENT_INSTANCE_PLATFORM_PREFIX
+        if [ -n "${DEPLOYMENT_INSTANCE_PLATFORM_PREFIX:-}" ]; then
+          if ! [[ "$DEPLOYMENT_INSTANCE_PLATFORM_PREFIX" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]]; then
+            fail "DEPLOYMENT_INSTANCE_PLATFORM_PREFIX '$DEPLOYMENT_INSTANCE_PLATFORM_PREFIX' is not a DNS-1123 label (lowercase alphanumerics and hyphens, must start and end alphanumeric)."
+          elif [ "${#DEPLOYMENT_INSTANCE_PLATFORM_PREFIX}" -gt 46 ]; then
+            fail "DEPLOYMENT_INSTANCE_PLATFORM_PREFIX is ${#DEPLOYMENT_INSTANCE_PLATFORM_PREFIX} characters, over the 46 that keep project namespaces within the 63-character k8s limit."
+          fi
+        fi
         if [ -z "$DEPLOYMENT_INSTANCE_FQDN" ]; then
           require_file HARVESTER_KUBECONFIG
           require DEPLOYMENT_INSTANCE_DOMAIN
@@ -117,7 +132,7 @@ preflight_variables:
       if [ -n "$missing" ] || [ -n "$errors" ]; then
         [ -z "$missing" ] || echo "ERROR: required CI variables are empty or missing: $missing"
         [ -z "$errors" ] || echo "ERROR: $errors"
-        echo "Fix them under Settings -> CI/CD -> Variables (see ci/README.md section 8)."
+        echo "Fix them under Settings -> CI/CD -> Variables (see ci/docs/internals.md#registries)."
         exit 1
       fi
       echo "Preflight OK: all required CI variables are set."
@@ -129,7 +144,7 @@ preflight_target:
     - $[[ inputs.runner_tag ]]
   image: $CI_BASE_IMAGE
   rules:
-    - if: '"$[[ inputs.exec_deploy ]]" == "true" && "$[[ inputs.exec_server_installation ]]" != "true" && $DEPLOYMENT_INSTANCE_FQDN != ""'
+    - if: '"$[[ inputs.exec_deploy ]]" == "true" && $DEPLOYMENT_INSTANCE_FQDN != ""'
       when: on_success
     - when: never
   variables:
@@ -138,6 +153,10 @@ preflight_target:
     VM_FQDN: "$DEPLOYMENT_INSTANCE_FQDN"
     VM_USER: "$DEPLOYMENT_INSTANCE_USER"
     CI_EXEC_REDEPLOY: "$[[ inputs.exec_redeploy ]]"
+    CI_EXEC_SERVER_INSTALLATION: "$[[ inputs.exec_server_installation ]]"
+  needs:
+    - job: preflight_variables
+      artifacts: false
   before_script: !reference [.remote_execution_template, before_script]
   script:
     - |
@@ -148,3 +167,10 @@ preflight_target:
   # the table, in color; after_script runs even when the playbook failed
   after_script:
     - cat "$ARTIFACTS_DIR/target_readiness.log" 2>/dev/null || true
+  artifacts:
+    expire_in: 2 weeks
+    paths:
+      - "artifacts/target_readiness.log"
+      - "artifacts/target_readiness.json"
+    when: always
+    access: developer

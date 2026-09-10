@@ -6,12 +6,10 @@ spec:
       type: boolean
     exec_redeploy:
       type: boolean
-    build_arguments:
-      type: string
     runner_tag:
       type: string
 ---
-# Stage: deploy — test VM lifecycle start + platform installation
+# Stage: deploy — deployment VM lifecycle start + platform installation
 # In:  registry (chart/images @ VERSION_TAG); HARVESTER_KUBECONFIG +
 #      DEPLOYMENT_INSTANCE_SSH_KEY (File-type CI variables)
 # Out: artifacts/deployment.env (dotenv: VM_FQDN, VM_USER, VERSION_TAG) —
@@ -69,9 +67,10 @@ prepare_deployment:
     - git fetch --tags
     - VERSION_TAG=$(git describe --tags --always)
     - |
-      if [[ "$[[ inputs.build_arguments ]]" =~ (--latest) && "$VERSION_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
-        BASE_TAG=$(echo "$VERSION_TAG" | sed -E 's/-[0-9]+-g[0-9a-f]+.*//')
-        VERSION_TAG="${BASE_TAG}-latest"
+      if [[ "$CI_EXEC_BUILD_ARGUMENTS" == *--latest* && "$VERSION_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+        # Same rule as build_cli's --latest (container.py, helm_chart.py):
+        # everything before the first "-", then "-latest".
+        VERSION_TAG="${VERSION_TAG%%-*}-latest"
       fi
     - echo "Resolved VERSION_TAG=$VERSION_TAG"
 

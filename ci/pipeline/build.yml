@@ -2,8 +2,6 @@ spec:
   inputs:
     exec_build:
       type: boolean
-    build_arguments:
-      type: string
     exec_docker_prune:
       type: boolean
     runner_tag:
@@ -84,7 +82,7 @@ build_packages:
       export REGISTRY_PW="$REGISTRY_TOKEN"
 
     # Run build, capturing exit code so artifacts are always collected
-    - kaapana-build --default-registry "$REGISTRY_URL" $[[ inputs.build_arguments ]]
+    - kaapana-build --default-registry "$REGISTRY_URL" $CI_EXEC_BUILD_ARGUMENTS
 
   # No docker logout needed: login state dies with the job container.
 

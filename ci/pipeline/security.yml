@@ -2,8 +2,6 @@ spec:
   inputs:
     exec_security_scan:
       type: boolean
-    security_scan_arguments:
-      type: string
     runner_tag:
       type: string
 ---
@@ -19,7 +17,7 @@ spec:
 #      consolidated_misconfiguration_check.json / consolidated_sbom.json — in
 #      reports/. Both are written directly by `kaapana-build --scan-only`
 #      (build_cli's SecurityScanner); this job just calls it, and you can run
-#      the same command by hand for a pure-local scan (see ci/README.md).
+#      the same command by hand for a pure-local scan.
 ##############################################
 # SECURITY
 ##############################################
@@ -35,8 +33,8 @@ security_scan:
       # If build in the pipeline then wait for build, scan nevertheless;
       optional: true
   rules:
-    # Set by the workflow rule for Security-labelled merge requests
-    - if: '$CI_EXEC_SECURITY_SCAN == "true"'
+    # A Security-labelled MR turns the scan on.
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_LABELS =~ /(^|,)Security(,|$)/
       when: on_success
       allow_failure: false
     - if: '"$[[ inputs.exec_security_scan ]]" == "true"'
@@ -50,7 +48,7 @@ security_scan:
       - "$CI_PROJECT_DIR/security-reports/.trivy_cache/"
   script:
     - export REGISTRY_PW="$REGISTRY_TOKEN"
-    - kaapana-build --scan-only $[[ inputs.security_scan_arguments ]] --default-registry "$REGISTRY_URL" --kaapana-dir "$CI_PROJECT_DIR"
+    - kaapana-build --scan-only $CI_EXEC_BUILD_ARGUMENTS $CI_EXEC_SECURITY_SCAN_ARGUMENTS --default-registry "$REGISTRY_URL" --kaapana-dir "$CI_PROJECT_DIR"
   artifacts:
     name: "security_$CI_COMMIT_SHORT_SHA"
     when: always

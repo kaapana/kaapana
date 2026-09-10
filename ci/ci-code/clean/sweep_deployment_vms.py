@@ -17,7 +17,7 @@ import dataclasses
 import os
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import gitlab
@@ -126,9 +126,9 @@ def gitlab_project(server_url: str, project_id: str, api_token: str):
     the age limit would then sweep VMs of running pipelines. So this reads a
     pipeline, not just an endpoint, before any VM is looked at.
     """
-    project = gitlab.Gitlab(
-        url=server_url, private_token=api_token, retry_transient_errors=True
-    ).projects.get(project_id, lazy=True)
+    project = gitlab.Gitlab(url=server_url, private_token=api_token, retry_transient_errors=True).projects.get(
+        project_id, lazy=True
+    )
     project.pipelines.list(per_page=1, get_all=False)
     return project
 
@@ -173,9 +173,7 @@ def collect(kubeconfig: str, namespace: str, project, now: datetime) -> list[Can
                 pipeline_id=pipeline_id,
                 pipeline_state=state,
                 keep_after_pipeline=annotations.get(KEEP_ANNOTATION, "") == "true",
-                hours_since_pipeline_end=(
-                    hours_since(finished_at, now) if finished_at else None
-                ),
+                hours_since_pipeline_end=(hours_since(finished_at, now) if finished_at else None),
             )
         )
     return candidates
@@ -206,16 +204,14 @@ def main() -> int:
         return 1
 
     namespace = os.environ["DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE"]
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     try:
         project = gitlab_project(
             os.environ["CI_SERVER_URL"],
             os.environ["CI_PROJECT_ID"],
             os.environ["GITLAB_READ_API_TOKEN"],
         )
-        candidates = collect(
-            os.environ["HARVESTER_KUBECONFIG"], namespace, project, now
-        )
+        candidates = collect(os.environ["HARVESTER_KUBECONFIG"], namespace, project, now)
     except gitlab.exceptions.GitlabError as error:
         print(
             f"ERROR: GitLab will not answer for pipelines: {error}. Without a "
@@ -231,9 +227,7 @@ def main() -> int:
     # Each decision is printed before it is acted on, so a run that outlasts its
     # job timeout still says what it saw.
     for candidate in candidates:
-        action, reason = decide(
-            candidate, args.grace_hours, args.max_age_hours, args.keep_hours
-        )
+        action, reason = decide(candidate, args.grace_hours, args.max_age_hours, args.keep_hours)
         counts[action] += 1
         print(
             f"  {action:6s} {candidate.name} ({candidate.age_hours:.1f}h): {reason}",
@@ -245,16 +239,12 @@ def main() -> int:
             except subprocess.CalledProcessError as error:
                 counts["failed"] += 1
                 print(
-                    f"  failed {candidate.name}: teardown playbook exited "
-                    f"{error.returncode}",
+                    f"  failed {candidate.name}: teardown playbook exited {error.returncode}",
                     flush=True,
                 )
 
     if args.apply:
-        print(
-            f"  {counts['delete'] - counts['failed']} deleted, "
-            f"{counts['keep']} kept, {counts['failed']} failed"
-        )
+        print(f"  {counts['delete'] - counts['failed']} deleted, {counts['keep']} kept, {counts['failed']} failed")
     else:
         print(f"  {counts['delete']} to delete, {counts['keep']} kept")
 

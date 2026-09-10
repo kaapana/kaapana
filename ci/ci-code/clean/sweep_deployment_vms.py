@@ -186,12 +186,14 @@ def main() -> int:
         action="store_true",
         help="actually delete; without it the sweep only reports",
     )
-    parser.add_argument("--grace-hours", type=float, default=1.0)
-    parser.add_argument("--max-age-hours", type=float, default=12.0)
+    # Required, not defaulted: the thresholds are pipeline variables, and a
+    # default here would be a second answer to what the sweep waits for.
+    parser.add_argument("--grace-hours", type=float, required=True)
+    parser.add_argument("--max-age-hours", type=float, required=True)
     parser.add_argument(
         "--keep-hours",
         type=float,
-        default=4.0,
+        required=True,
         help="how long a VM asking to be kept survives past its pipeline",
     )
     args = parser.parse_args()

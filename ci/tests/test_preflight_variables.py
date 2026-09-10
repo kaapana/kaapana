@@ -11,13 +11,18 @@ import pytest
 from conftest import DEPLOY_INPUTS, jobs, merged_config
 
 
+def write_script(config, directory):
+    """The job's script, preceded by its `variables:` as GitLab exports them."""
+    job = jobs(config)["preflight_variables"]
+    exports = [f'export {name}="{value}"' for name, value in job.get("variables", {}).items()]
+    path = directory / "check_variables.sh"
+    path.write_text("\n".join(exports + job["script"]) + "\n")
+    return path
+
+
 @pytest.fixture(scope="module")
 def script(tmp_path_factory):
-    config = merged_config(inputs=DEPLOY_INPUTS)
-    body = "\n".join(jobs(config)["preflight_variables"]["script"])
-    path = tmp_path_factory.mktemp("preflight") / "check_variables.sh"
-    path.write_text(body + "\n")
-    return path
+    return write_script(merged_config(inputs=DEPLOY_INPUTS), tmp_path_factory.mktemp("preflight"))
 
 
 @pytest.fixture
@@ -143,9 +148,7 @@ def test_a_harvester_run_needs_the_kubeconfig(script, env):
 def test_deploy_variables_are_not_required_when_not_deploying(tmp_path_factory, env):
     """A tests-only run must not demand the deployment target."""
     config = merged_config(inputs=("exec_deploy=false", "exec_build=false"))
-    body = "\n".join(jobs(config)["preflight_variables"]["script"])
-    path = tmp_path_factory.mktemp("preflight_no_deploy") / "check_variables.sh"
-    path.write_text(body + "\n")
+    path = write_script(config, tmp_path_factory.mktemp("preflight_no_deploy"))
     for variable in (
         "DEPLOYMENT_INSTANCE_SSH_KEY",
         "DEPLOYMENT_INSTANCE_USER",

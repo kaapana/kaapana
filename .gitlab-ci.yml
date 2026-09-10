@@ -42,10 +42,6 @@ spec:
       default: false
       type: boolean
       description: "[exec] registry scan of the images this pipeline pushed"
-    exec_docker_prune:
-      default: false
-      type: boolean
-      description: "[exec] true wipes the runner docker cache first (cold build)"
     exec_destroy_delayed:
       default: false
       type: boolean
@@ -142,6 +138,10 @@ variables:
   CI_EXEC_SECURITY_SCAN_ARGUMENTS:
     value: "--vulnerability-scan --offline-packages-scan --configuration-check --create-sboms"
     description: "Flags for the security scan (kaapana-build --scan-only)"
+  CI_EXEC_DOCKER_PRUNE:
+    value: "false"
+    options: ["false", "true"]
+    description: "true wipes the build runner's docker cache before the build (cold build)"
 
   # --- Deployment target:
   DEPLOYMENT_INSTANCE_FQDN:
@@ -223,7 +223,6 @@ include:
     inputs:
       runner_tag: $[[ inputs.build_runner_tag ]]
       exec_build: $[[ inputs.exec_build ]]
-      exec_docker_prune: $[[ inputs.exec_docker_prune ]]
   - local: /ci/pipeline/security.yml
     inputs:
       runner_tag: $[[ inputs.security_runner_tag ]]

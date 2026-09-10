@@ -2,8 +2,6 @@ spec:
   inputs:
     exec_build:
       type: boolean
-    exec_docker_prune:
-      type: boolean
     runner_tag:
       type: string
 ---
@@ -67,7 +65,7 @@ build_packages:
     - when: never
   script:
     - |
-      if [[ "$[[ inputs.exec_docker_prune ]]" == "true" \
+      if [[ "$CI_EXEC_DOCKER_PRUNE" == "true" \
         || "$CI_COMMIT_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
         docker system prune --all --volumes -f
       fi

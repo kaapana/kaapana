@@ -25,6 +25,8 @@ preflight_variables:
   image: python:3.12
   variables:
     GIT_STRATEGY: none # no checkout needed
+    CI_EXEC_BUILD: "$[[ inputs.exec_build ]]"
+    CI_EXEC_DEPLOY: "$[[ inputs.exec_deploy ]]"
   rules:
     - when: always
   script:
@@ -68,7 +70,7 @@ preflight_variables:
       fi
 
       # build and deploy need the registry credentials
-      if [ "$[[ inputs.exec_build ]]" = "true" ] || [ "$[[ inputs.exec_deploy ]]" = "true" ]; then
+      if [ "$CI_EXEC_BUILD" = "true" ] || [ "$CI_EXEC_DEPLOY" = "true" ]; then
         require REGISTRY_URL
         require REGISTRY_USER
         require REGISTRY_TOKEN
@@ -88,11 +90,11 @@ preflight_variables:
 
       # Registry credentials are scoped to this environment; a typo means the
       # jobs get no credentials at all (environment: name: $REGISTRY_ENV).
-      if [ "$[[ inputs.exec_build ]]" = "true" ] || [ "$[[ inputs.exec_deploy ]]" = "true" ]; then
+      if [ "$CI_EXEC_BUILD" = "true" ] || [ "$CI_EXEC_DEPLOY" = "true" ]; then
         require REGISTRY_ENV
       fi
 
-      if [ "$[[ inputs.exec_deploy ]]" = "true" ]; then
+      if [ "$CI_EXEC_DEPLOY" = "true" ]; then
         require_file DEPLOYMENT_INSTANCE_SSH_KEY
         require DEPLOYMENT_INSTANCE_USER
         require DEPLOYMENT_INSTANCE_PLATFORM_PREFIX

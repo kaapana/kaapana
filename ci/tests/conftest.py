@@ -50,7 +50,15 @@ def merged_config(inputs=(), variables=()):
     `inputs` and `variables` are tuples of "name=value" / "name:value" so the
     result can be cached; each call costs a subprocess.
     """
-    cmd = [GITLAB_CI_LOCAL, "--preview", "--variable", "CI_PIPELINE_SOURCE=web"]
+    # --no-evaluate-rule-changes: rules:changes needs a git diff basis, which a
+    # shallow detached CI clone has not got; the tests read rules, not diffs.
+    cmd = [
+        GITLAB_CI_LOCAL,
+        "--preview",
+        "--no-evaluate-rule-changes",
+        "--variable",
+        "CI_PIPELINE_SOURCE=web",
+    ]
     for item in inputs:
         cmd += ["--input", item]
     for item in variables:

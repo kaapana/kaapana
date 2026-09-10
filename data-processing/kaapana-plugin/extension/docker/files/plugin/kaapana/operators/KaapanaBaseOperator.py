@@ -566,9 +566,14 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         volume_mount_conf = client.V1VolumeMount(
             name="workflowconf",
+            # Mount under the raw run_id: that is how WORKFLOW_DIR, the local operators and
+            # the workflow cleaner name the run directory. The cured spelling is only needed
+            # for the ConfigMap name and label; used here it puts conf.json into a directory
+            # the processing container never reads whenever curing changes the run_id, e.g.
+            # for Airflow's own "scheduled__..." run_ids.
             mount_path=os.path.join(
                 PROCESSING_WORKFLOW_DIR,
-                run_id,
+                context["run_id"],
                 "conf",
                 "conf.json",
             ),

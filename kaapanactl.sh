@@ -182,11 +182,11 @@ function get_platform_prefix() {
 
     if [ ! "$QUIET" = "true" ]; then
         echo -e ""
-        echo -e "${YELLOW}Please enter the platform prefix.${NC}" > /dev/stderr
-        echo -e "${YELLOW}Used as the prefix for project namespaces ({prefix}-project-<short_id>).${NC}" > /dev/stderr
+        echo -e "${YELLOW}Please enter the platform prefix.${NC}" >&2
+        echo -e "${YELLOW}Used as the prefix for project namespaces ({prefix}-project-<short_id>).${NC}" >&2
         read -e -p "**** platform prefix: " -i "$PLATFORM_PREFIX" PLATFORM_PREFIX
     else
-        echo -e "${GREEN}QUIET: true -> PLATFORM_PREFIX: $PLATFORM_PREFIX ${NC}" > /dev/stderr
+        echo -e "${GREEN}QUIET: true -> PLATFORM_PREFIX: $PLATFORM_PREFIX ${NC}" >&2
     fi
 
     validate_platform_prefix
@@ -1604,25 +1604,25 @@ function get_domain {
         DOMAIN=${DOMAIN%.*}
         echo -e "${YELLOW}DOMAIN: $DOMAIN${NC}";
     else
-        echo -e "${GREEN}Server domain (FQDN): $DOMAIN ${NC}" > /dev/stderr;
+        echo -e "${GREEN}Server domain (FQDN): $DOMAIN ${NC}" >&2;
     fi
 
     if [ ! "$QUIET" = "true" ];then
         echo -e ""
-        echo -e "${YELLOW}Please enter the domain (FQDN) of the server.${NC}" > /dev/stderr;
-        echo -e "${YELLOW}The suggestion could be incorrect!${NC}" > /dev/stderr;
-        echo -e "${YELLOW}The IP address should work as well (not recommended - will not work with valid certificates.)${NC}" > /dev/stderr;
+        echo -e "${YELLOW}Please enter the domain (FQDN) of the server.${NC}" >&2;
+        echo -e "${YELLOW}The suggestion could be incorrect!${NC}" >&2;
+        echo -e "${YELLOW}The IP address should work as well (not recommended - will not work with valid certificates.)${NC}" >&2;
         read -e -p "**** server domain (FQDN): " -i "$DOMAIN" DOMAIN
     else
-        echo -e "${GREEN}QUIET: true -> DOMAIN: $DOMAIN ${NC}" > /dev/stderr;
+        echo -e "${GREEN}QUIET: true -> DOMAIN: $DOMAIN ${NC}" >&2;
     fi
 
     if [ -z "$DOMAIN" ]; then
-        echo -e "${RED}DOMAIN not set!";  > /dev/stderr;
-        echo -e "Please restart the process. ${NC}";  > /dev/stderr;
+        echo -e "${RED}DOMAIN not set!" >&2;
+        echo -e "Please restart the process. ${NC}" >&2;
         exit 1
     else
-        echo -e "${GREEN}Server domain (FQDN): $DOMAIN ${NC}" > /dev/stderr;
+        echo -e "${GREEN}Server domain (FQDN): $DOMAIN ${NC}" >&2;
     fi
 }
 

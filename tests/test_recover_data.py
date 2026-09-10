@@ -54,14 +54,20 @@ def test_surviving_directory_is_bound_to_recreated_claim(tmp_path):
     assert pvc["spec"]["volumeName"] == minio_dir.name
     assert pvc["spec"]["storageClassName"] == "kaapana-hostpath-slow-data-dir"
     assert pvc["metadata"]["annotations"]["meta.helm.sh/release-name"] == "kaapana-platform-chart"
-    # project namespaces are owned by a release named like the namespace
+    # ... in the Helm namespace the platform release lives in ("default", where kube-helm installs
+    # it), never the namespace its pods run in - Helm refuses to adopt the claim otherwise
+    assert pvc["metadata"]["annotations"]["meta.helm.sh/release-namespace"] == "default"
+    # project namespaces are owned by a release named like the namespace, installed in admin
     project_ns = docs[("Namespace", "jip-project-admin")]
     assert project_ns["metadata"]["annotations"]["meta.helm.sh/release-name"] == "jip-project-admin"
+    assert project_ns["metadata"]["annotations"]["meta.helm.sh/release-namespace"] == "admin"
     assert docs[("PersistentVolumeClaim", "workflow-data-pv-claim")]["metadata"]["namespace"] == "project-test-p1"
     assert ("PersistentVolumeClaim", "jupyterlab-xyz-pv-claim") not in docs
     # a claims-file row hands the claim to the extension's release, the namespace stays with the platform
     extension_pvc = docs[("PersistentVolumeClaim", "my-extension-data-pv-claim")]
     assert extension_pvc["metadata"]["annotations"]["meta.helm.sh/release-name"] == "my-extension"
     assert extension_pvc["spec"]["storageClassName"] == "kaapana-hostpath-fast-data-dir"
-    assert docs[("Namespace", "services")]["metadata"]["annotations"]["meta.helm.sh/release-name"] == "kaapana-platform-chart"
+    services_ns = docs[("Namespace", "services")]["metadata"]["annotations"]
+    assert services_ns["meta.helm.sh/release-name"] == "kaapana-platform-chart"
+    assert services_ns["meta.helm.sh/release-namespace"] == "default"
     assert "Recovered (4):" in result and "Skipped (1):" in result

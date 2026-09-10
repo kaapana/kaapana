@@ -53,7 +53,7 @@ Options (defaults match kaapanactl.sh):
   --services-namespace NS      (default: services)
   --admin-namespace NS         (default: admin)
   --extensions-namespace NS    (default: extensions)
-  --helm-namespace NS          namespace of the admin chart release (default: default)
+  --helm-namespace NS          Helm namespace of the admin and platform chart releases (default: default)
   --volume-slow-data SIZE      size of the slow-data claims (default: 100Gi)
   --claims-file FILE           extra claims to recover, one per line:
                                  <namespace>/<claim> <class> <size> <release> <release-namespace>
@@ -192,11 +192,14 @@ load_claims_file() {
 
 # Helm release that owns a namespace and its claims, as "<release>|<release namespace>".
 # Helm only adopts pre-existing resources whose ownership annotations name the
-# release that is about to install them; a wrong owner fails the deploy.
+# release that is about to install them; a wrong owner fails the deploy. The
+# second field is the Helm namespace the release lives in, not the namespace its
+# pods run in: kube-helm installs the platform chart, like the admin chart, in
+# HELM_NAMESPACE ("default"), so services and extensions are owned from there.
 owner_of_namespace() {
     case "$1" in
         "$ADMIN_NAMESPACE") echo "$ADMIN_RELEASE_NAME|$HELM_NAMESPACE" ;;
-        "$SERVICES_NAMESPACE"|"$EXTENSIONS_NAMESPACE") echo "$PLATFORM_RELEASE_NAME|$ADMIN_NAMESPACE" ;;
+        "$SERVICES_NAMESPACE"|"$EXTENSIONS_NAMESPACE") echo "$PLATFORM_RELEASE_NAME|$HELM_NAMESPACE" ;;
         # Project namespaces are installed by kube-helm as a release named like the
         # namespace, in the admin namespace (access-information-interface kubehelm.py).
         *) echo "$1|$ADMIN_NAMESPACE" ;;

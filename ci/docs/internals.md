@@ -48,16 +48,11 @@ Each stage file under [`ci/pipeline/`](../pipeline/) declares its own
 substitution, not a variable: it resolves when the pipeline is created, so it
 works in `rules:` and `tags:`, where a variable would not.
 
-The flip side is why `CI_EXEC_BUILD_ARGUMENTS` and
-`CI_EXEC_SECURITY_SCAN_ARGUMENTS` are *not* inputs: they are only pasted into a
-script line, nothing needs them at compile time, and as variables a schedule or
-project variable can set them without threading an input through every
-`include:`.
+
+## Stage by stage
 
 Every stage file opens with a header stating what the stage takes in and hands
 out. An MR that adds a dependency between stages extends that header.
-
-## Stage by stage
 
 ### preflight
 

@@ -95,7 +95,7 @@ glab api "/runners/<ID>"                         # tag_list, paused, projects
 `limit`, `pull_policy` or the volumes take effect on
 `docker restart gitlab-runner`.
 
-**`exec_docker_prune:true` wipes your host docker.** `build_packages` runs
+**`CI_EXEC_DOCKER_PRUNE=true` wipes your host docker.** `build_packages` runs
 `docker system prune --all --volumes -f` through the mounted socket: every
 image no running container holds, and every unused volume, yours included.
 

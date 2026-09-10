@@ -96,7 +96,6 @@ Every stage toggle. Grouped as `[exec]` in the run form.
 | `exec_unit_tests` | `true` | tests stage: unit tests + documentation build |
 | `exec_lint` | `true` | tests stage: ruff check + code quality report |
 | `exec_build` | `true` | build stage: full platform build |
-| `exec_docker_prune` | `false` | wipe the build runner's docker cache first (cold build) |
 | `exec_security_scan` | `false` | trivy scan of the images this commit resolves to. A failed scan still publishes what it managed to check |
 | `exec_deploy` | `true` | deploy stage: deployment VM/target + platform installation |
 | `exec_server_installation` | `true` | `true` installs microk8s and helm on the target (needs passwordless sudo). `false` assumes a prepared target and checks it read-only |
@@ -126,3 +125,4 @@ Free-form flag strings handed straight to `kaapana-build`. Build arguments like 
 |---|---|---|
 | `CI_EXEC_BUILD_ARGUMENTS` | `"--cache-from -pp 8 --keep-buildx-builder"` | extra `kaapana-build` flags for `build_packages`, e.g. `--build-only`, `--cache-from`. |
 | `CI_EXEC_SECURITY_SCAN_ARGUMENTS` | `--vulnerability-scan --offline-packages-scan --configuration-check --create-sboms` | flags for `security_scan` |
+| `CI_EXEC_DOCKER_PRUNE` | `false` | `true` wipes the build runner's docker cache before the build (cold build) |

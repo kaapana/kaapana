@@ -10,6 +10,10 @@ spec:
       default: true
       type: boolean
       description: "[exec] tests stage: unit tests + documentation build"
+    exec_lint:
+      default: true
+      type: boolean
+      description: "[exec] tests stage: ruff format/lint check + code quality report"
     exec_build:
       default: true
       type: boolean
@@ -208,6 +212,10 @@ include:
   - local: /ci/pipeline/ci-image.yml
     inputs:
       runner_tag: $[[ inputs.build_runner_tag ]]
+  - local: /ci/pipeline/lint.yml
+    inputs:
+      runner_tag: $[[ inputs.tests_runner_tag ]]
+      exec_lint: $[[ inputs.exec_lint ]]
   - local: /ci/pipeline/unit-tests.yml
     inputs:
       runner_tag: $[[ inputs.tests_runner_tag ]]

@@ -18,18 +18,14 @@ spec:
       default: true
       type: boolean
       description: "[exec] build stage: full platform build"
-    exec_build_arguments:
-      default: ""
-      type: string
-      description: '[exec] extra kaapana-build flags, e.g. "--latest"'
     exec_deploy:
       default: true
       type: boolean
-      description: "[exec] deploy stage: provision test VM + server install + platform deploy"
+      description: "[exec] deploy stage: provision deployment VM + server install + platform deploy"
     exec_server_installation:
       default: true
       type: boolean
-      description: "[exec] false skips the OS/microk8s install and runs target_readiness instead"
+      description: "[exec] false skips the OS/microk8s install — for an already-prepared target"
     exec_redeploy:
       default: false
       type: boolean
@@ -37,15 +33,15 @@ spec:
     exec_integration_tests:
       default: true
       type: boolean
-      description: "[exec] test stage: pytest + Playwright against the test VM"
+      description: "[exec] test stage: pytest + Playwright against the deployment VM"
+    exec_integration_test_jobs:
+      default: ""
+      type: string
+      description: "[exec] comma-separated allowlist of integration-test jobs (scan_ports, first_login, install_extensions, send_data, run_workflows). Empty runs all of them"
     exec_security_scan:
       default: false
       type: boolean
       description: "[exec] registry scan of the images this pipeline pushed"
-    exec_security_scan_arguments:
-      default: --vulnerability-scan --configuration-check
-      type: string
-      description: "[exec] flags for the security scan above"
     exec_docker_prune:
       default: false
       type: boolean
@@ -53,7 +49,7 @@ spec:
     exec_destroy_delayed:
       default: false
       type: boolean
-      description: "[exec] true keeps the test VM for 4h after the pipeline"
+      description: "[exec] true keeps the deployment VM for 4h after the pipeline"
 
     # --- [runner] runner tag per stage group.
     build_runner_tag:
@@ -105,10 +101,6 @@ workflow:
       when: always
     - if: $CI_PIPELINE_SOURCE == "schedule"
       when: always
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_LABELS =~ /(^|,)Security(,|$)/
-      when: always
-      variables:
-        CI_EXEC_SECURITY_SCAN: "true"
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       when: always
     - when: never
@@ -143,6 +135,13 @@ variables:
   # (it outranks these defaults) — no pipeline change needed.
   GITLAB_API_TOKEN: $CI_REGISTRY_TOKEN
   BLABLADOR_API_TOKEN: $CI_REGISTRY_TOKEN
+
+  CI_EXEC_BUILD_ARGUMENTS:
+    value: "--cache-from -pp 8 --keep-buildx-builder"
+    description: "Extra kaapana-build flags for build_packages"
+  CI_EXEC_SECURITY_SCAN_ARGUMENTS:
+    value: "--vulnerability-scan --offline-packages-scan --configuration-check --create-sboms"
+    description: "Flags for the security scan (kaapana-build --scan-only)"
 
   # --- Deployment target:
   DEPLOYMENT_INSTANCE_FQDN:
@@ -179,7 +178,7 @@ variables:
   KAAPANA_READTHEDOCS_TOKEN: $KAAPANA_READTHEDOCS_TOKEN # secret — project variable (masked)
 
   # --- DKFZ network proxy. NO_PROXY is mandatory alongside: without the
-  # exemptions, requests to localhost and internal targets (test VMs, Harvester
+  # exemptions, requests to localhost and internal targets (deployment VMs, Harvester
   # API) hairpin through the proxy and time out.
   HTTP_PROXY: "http://www-int2.dkfz-heidelberg.de:80"
   HTTPS_PROXY: "http://www-int2.dkfz-heidelberg.de:80"
@@ -225,23 +224,21 @@ include:
       runner_tag: $[[ inputs.build_runner_tag ]]
       exec_build: $[[ inputs.exec_build ]]
       exec_docker_prune: $[[ inputs.exec_docker_prune ]]
-      build_arguments: $[[ inputs.exec_build_arguments ]]
   - local: /ci/pipeline/security.yml
     inputs:
       runner_tag: $[[ inputs.security_runner_tag ]]
       exec_security_scan: $[[ inputs.exec_security_scan ]]
-      security_scan_arguments: $[[ inputs.exec_security_scan_arguments ]]
   - local: /ci/pipeline/deploy.yml
     inputs:
       runner_tag: $[[ inputs.deploy_runner_tag ]]
       exec_deploy: $[[ inputs.exec_deploy ]]
       exec_server_installation: $[[ inputs.exec_server_installation ]]
       exec_redeploy: $[[ inputs.exec_redeploy ]]
-      build_arguments: $[[ inputs.exec_build_arguments ]]
   - local: /ci/pipeline/integration-tests.yml
     inputs:
       runner_tag: $[[ inputs.deploy_runner_tag ]]
       exec_integration_tests: $[[ inputs.exec_integration_tests ]]
+      exec_integration_test_jobs: $[[ inputs.exec_integration_test_jobs ]]
       exec_deploy: $[[ inputs.exec_deploy ]]
   - local: /ci/pipeline/clean.yml
     inputs:

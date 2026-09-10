@@ -2,6 +2,8 @@ spec:
   inputs:
     exec_integration_tests:
       type: boolean
+    exec_integration_test_jobs:
+      type: string
     exec_deploy:
       type: boolean
     runner_tag:
@@ -88,7 +90,7 @@ setup_integration_tests:
 scan_ports:
   extends: .integration_test_local
   rules:
-    - if: $CI_EXEC_INTEGRATION_TEST_JOBS !~ /(^|,)\s*scan_ports\s*(,|$)/
+    - if: '"$[[ inputs.exec_integration_test_jobs ]]" != "" && "$[[ inputs.exec_integration_test_jobs ]]" !~ /(^|,)\s*scan_ports\s*(,|$)/'
       when: never
     - !reference [.integration_test_local, rules]
   variables:
@@ -99,7 +101,7 @@ scan_ports:
 first_login:
   extends: .integration_test_local
   rules:
-    - if: $CI_EXEC_INTEGRATION_TEST_JOBS !~ /(^|,)\s*first_login\s*(,|$)/
+    - if: '"$[[ inputs.exec_integration_test_jobs ]]" != "" && "$[[ inputs.exec_integration_test_jobs ]]" !~ /(^|,)\s*first_login\s*(,|$)/'
       when: never
     - !reference [.integration_test_local, rules]
   variables:
@@ -110,7 +112,7 @@ first_login:
 install_extensions:
   extends: .integration_test_local
   rules:
-    - if: $CI_EXEC_INTEGRATION_TEST_JOBS !~ /(^|,)\s*install_extensions\s*(,|$)/
+    - if: '"$[[ inputs.exec_integration_test_jobs ]]" != "" && "$[[ inputs.exec_integration_test_jobs ]]" !~ /(^|,)\s*install_extensions\s*(,|$)/'
       when: never
     - !reference [.integration_test_local, rules]
   needs:
@@ -135,7 +137,7 @@ install_extensions:
 send_data:
   extends: .integration_test_local
   rules:
-    - if: $CI_EXEC_INTEGRATION_TEST_JOBS !~ /(^|,)\s*send_data\s*(,|$)/
+    - if: '"$[[ inputs.exec_integration_test_jobs ]]" != "" && "$[[ inputs.exec_integration_test_jobs ]]" !~ /(^|,)\s*send_data\s*(,|$)/'
       when: never
     - !reference [.integration_test_local, rules]
   needs:
@@ -160,7 +162,7 @@ run_workflows:
   timeout: 2 hours
   allow_failure: true
   rules:
-    - if: $CI_EXEC_INTEGRATION_TEST_JOBS !~ /(^|,)\s*run_workflows\s*(,|$)/
+    - if: '"$[[ inputs.exec_integration_test_jobs ]]" != "" && "$[[ inputs.exec_integration_test_jobs ]]" !~ /(^|,)\s*run_workflows\s*(,|$)/'
       when: never
     - !reference [.integration_test_local, rules]
   needs:

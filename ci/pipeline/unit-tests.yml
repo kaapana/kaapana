@@ -400,3 +400,37 @@ check_readthedocs:
     - when: never
   script:
     - bash $KAAPANA_DIR/ci/ci-code/build/check_readthedocs.sh
+
+##############################################
+# CI configuration tests — the pipeline's own unit tests
+##############################################
+# Runs only when this MR touches CI files.
+ci_config_tests:
+  stage: tests
+  tags:
+    - $[[ inputs.runner_tag ]]
+  image: python:3.12
+  timeout: 5m
+  rules:
+    - changes:
+        - .gitlab-ci.yml
+        - ci/pipeline/**/*
+        - ci/ci-code/deploy/**/*
+        - ci/tests/**/*
+      when: on_success
+    - when: never
+  variables:
+    GITLAB_CI_LOCAL_VERSION: "4.75.1"
+  before_script:
+    - |
+      curl -fsSL "https://github.com/firecow/gitlab-ci-local/releases/download/$GITLAB_CI_LOCAL_VERSION/gitlab-ci-local-linux-amd64.tar.gz" \
+        | tar -xz -C /usr/local/bin
+    - gitlab-ci-local --version
+    - pip install --no-cache-dir "pytest==8.4.2" "PyYAML==6.0.3"
+  script:
+    - pytest ci/tests --junitxml=ci_config_report.xml
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - ci_config_report.xml

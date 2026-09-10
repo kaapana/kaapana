@@ -13,7 +13,7 @@ GitLab involved.
 
 Everything you steer is a pipeline input — `-i name:value` on the command line,
 or the same fields on the **Run pipeline** form. General reference:
-[ci/README.md](README.md).
+[ci/README.md](../README.md).
 
 ## Scenario 1: run the jobs on your machine
 
@@ -45,7 +45,7 @@ docker run --rm -v ~/.gitlab-runner:/etc/gitlab-runner --entrypoint sh \
 ```
 
 Register. One runner takes build, tests and deploy, which is why the socket is
-mounted at a non-default path ([ci/README.md section 6](README.md#6-runners)):
+mounted at a non-default path ([ci/README.md](../README.md#runners)):
 
 ```bash
 docker run --rm -v ~/.gitlab-runner:/etc/gitlab-runner \
@@ -61,7 +61,7 @@ docker run --rm -v ~/.gitlab-runner:/etc/gitlab-runner \
 ```
 
 Keep `CI_BASE_IMAGE_TAG` equal to `CI_IMAGES_TAG` in
-[`.gitlab-ci.yml`](../.gitlab-ci.yml). A stale tag here only bites jobs that
+[`.gitlab-ci.yml`](../../.gitlab-ci.yml). A stale tag here only bites jobs that
 do not set `image:` themselves.
 
 Check the config:
@@ -114,12 +114,8 @@ glab ci run -b my-branch \
 
 Set one, two, or all three; whatever you leave out stays on the shared runners.
 
-```bash
-glab ci status -b my-branch --live
-```
-
-If a job stays pending, the tag does not match a runner registered to *this*
-project — `glab api "/runners/<ID>"` shows `tag_list`, `paused` and `projects`.
+A job that stays pending means the tag matches no runner registered to *this*
+project: `glab api "/runners/<ID>"` shows `tag_list`, `paused` and `projects`.
 
 ### Reset everything
 
@@ -213,15 +209,15 @@ The platform still ends up on a domain nobody outside that network resolves.
 
 ### Targets the proxy cannot reach
 
-`NO_PROXY` in [`.gitlab-ci.yml`](../.gitlab-ci.yml) exempts only `localhost`,
+`NO_PROXY` in [`.gitlab-ci.yml`](../../.gitlab-ci.yml) exempts only `localhost`,
 `127.0.0.1`, `.dkfz.de`, `.dkfz-heidelberg.de` and the Harvester API. A target
 addressed by IP, or on any other domain, is not exempt: every HTTP request the
 deploy and test jobs make to it hairpins through `www-int2` and times out. SSH
 is unaffected, so `preflight_target` passes and the failure surfaces later.
 
-Add the target to both casings for that run. `--variables` splits its argument
-on commas and demands `KEY:VALUE` in every piece, so a `NO_PROXY` list cannot
-go through it — use a JSON file and `--variables-from`:
+Add the target to both casings for that run. A `NO_PROXY` list contains commas,
+so it has to go through a `--variables-from` JSON file
+([glab.md](glab.md)) rather than `--variables`:
 
 ```json
 [
@@ -232,13 +228,9 @@ go through it — use a JSON file and `--variables-from`:
 ]
 ```
 
-```bash
-glab ci run -b my-branch --variables-from deploy-vars.json ...
-```
-
 Not in a run with `exec_unit_tests:true`. Pipeline variables outrank job
 variables, so these would clobber the four job-level exemptions in
-[`ci/pipeline/unit-tests.yml`](pipeline/unit-tests.yml) that the dind and
+[`ci/pipeline/unit-tests.yml`](../pipeline/unit-tests.yml) that the dind and
 chromium jobs rely on.
 
 ### Using your own SSH key
@@ -276,17 +268,18 @@ glab ci run -b my-branch \
   --variables DEPLOYMENT_INSTANCE_USER:$USER
 ```
 
-| Input / variable | Meaning |
-|---|---|
-| `DEPLOYMENT_INSTANCE_FQDN` | variable, not an input. Your machine. Empty means "create a Harvester VM". Max 57 characters. Must resolve *from inside the job container* — see [Targets with no DNS name](#targets-with-no-dns-name) |
-| `DEPLOYMENT_INSTANCE_USER` | variable, not an input. SSH user on it. Defaults to `ubuntu` |
-| `exec_server_installation` | `false` for a prepared machine, `true` to let CI install microk8s and helm |
-| `exec_redeploy` | `false` makes an existing platform a fatal readiness check; `true` runs `undeploy_platform.yaml` (a plain `kaapanactl.sh deploy --undeploy`) before the deployment. That undeploy still leaves releases stuck sometimes (kaapana#2293, #2257) — the job then fails instead of forcing the removal |
-| `exec_unit_tests`, `exec_integration_tests` | `false` while you only care about the deployment |
+`DEPLOYMENT_INSTANCE_FQDN` and `_USER` are variables, not inputs; the `exec_*`
+knobs are inputs. Defaults and full descriptions are in
+[ci/README.md](../README.md#inputs--what-runs-and-where). Two that behave
+differently here than the table suggests:
 
-`glab` sends every `-i` value as a string unless you type it, and the `exec_*`
-inputs are declared `boolean` — write `-i "exec_build:bool(false)"`, not
-`-i exec_build:false`.
+- `DEPLOYMENT_INSTANCE_FQDN` must resolve *from inside the job container*, not
+  just from your workstation — see
+  [Targets with no DNS name](#targets-with-no-dns-name).
+- `exec_redeploy:true` runs `undeploy_platform.yaml` (a plain
+  `kaapanactl.sh deploy --undeploy`) first. That undeploy still leaves releases
+  stuck sometimes (kaapana#2293, #2257) — the job then fails instead of forcing
+  the removal.
 
 Deploying onto a bare target needs a chart for this commit in the registry, so
 either leave `exec_build` at its default or build the commit first. Building
@@ -304,7 +297,7 @@ glab ci run -b my-branch \
 | Job | What it means, what to read |
 |---|---|
 | `preflight_target` | ran → the FQDN path was taken. The check table is printed in the job log by `after_script`; there is no artifact |
-| `target_readiness` | ran → CI provisioned a VM instead, i.e. `DEPLOYMENT_INSTANCE_FQDN` did not reach the pipeline. Table in the log and in the `target_readiness.log` artifact |
+| `preflight_target` **missing** | `DEPLOYMENT_INSTANCE_FQDN` did not reach the pipeline, or `exec_server_installation` was left at `true` — either way CI provisioned a VM instead |
 | `prepare_deployment` | logs *using existing deployment target*; no VM created |
 | `platform_deployment` | `deployment.log`, and `system_check.json` listing every resource and its health. With `exec_redeploy:true` also `undeploy.log`, written before the deployment starts. The Keycloak admin password is at the end of the log |
 | `destroy_deployment` | **absent from the pipeline.** A target given by FQDN is never destroyed by the clean stage |
@@ -362,6 +355,10 @@ gitlab-ci-local --stage tests --variable CI_PIPELINE_SOURCE=web --privileged
 - Logs, artifacts and the copied tree land in `.gitlab-ci-local/` (gitignored).
 - Off the DKFZ network:
   `--unset-variable HTTP_PROXY --unset-variable HTTPS_PROXY`.
+- Rules comparing an **undefined** variable with `!~` diverge from GitLab:
+  gitlab-ci-local evaluates them true, GitLab false. A job gated that way is
+  listed differently here than it runs for real. Rules written against an input
+  are safe — an input always has a value.
 
 `--preview` resolves `spec:inputs`, so it is how you check an inputs or include
 change before pushing. `glab ci lint` cannot: it mixes the root config of one
@@ -371,31 +368,3 @@ This covers the tests stage. Build, deploy and test jobs need registry
 credentials, the SSH key and a target, so their File-type variables would have
 to come from a local `.gitlab-ci-local-variables.yml` — scenario 1 or 2 is the
 easier way to run those.
-
-## Covering the deployment paths
-
-The deploy stage branches on two inputs, and each combination runs a different
-job. Worth walking through all of them after touching the deploy stage:
-
-| `DEPLOYMENT_INSTANCE_FQDN` | `exec_server_installation` | Readiness job | Platform lands on | VM destroyed |
-|---|---|---|---|---|
-| empty | `true` | none | fresh Harvester VM | yes |
-| empty | `false` | `target_readiness` (deploy stage) | fresh Harvester VM | yes |
-| set | `false` | `preflight_target` (preflight stage) | your host | no |
-| set | `true` | none | your host | no |
-
-The two `none` rows have no readiness gate at all, so a target problem first
-shows up inside `platform_deployment`. `server_installation` can report success
-and the deploy still die on `microk8s status --wait-ready` — ansible runs a
-non-interactive shell, and `/snap/bin` is only on its `PATH` if
-`/etc/environment` carries a `PATH=` line. Check that before blaming the
-install.
-
-Plus `exec_redeploy`, which only matters when a platform is already on the
-target. `false` must fail whichever readiness job the row above selected, with
-a message telling you to undeploy; `true` demotes that check to a warning and
-`platform_deployment` runs `undeploy_platform.yaml` first. Check the target's
-free disk before relying on the `true` path — see the table above.
-
-Cheapest order: one tests-only run to confirm the runner tags work, one build,
-then the four rows above reusing that build with `exec_build:false`.

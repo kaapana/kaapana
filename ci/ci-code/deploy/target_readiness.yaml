@@ -11,9 +11,11 @@
     # NodePorts the platform publishes: http, https, DICOM
     required_ports: "80,443,11112"
     min_disk_gib: 80
-    redeploy: "{{ lookup('ansible.builtin.env', 'CI_EXEC_REDEPLOY') | default('false', true) }}"
+    redeploy: "{{ lookup('ansible.builtin.env', 'CI_EXEC_REDEPLOY') }}"
     kaapana_dir: "{{ lookup('ansible.builtin.env', 'CI_PROJECT_DIR') }}"
+    advisory: "{{ lookup('ansible.builtin.env', 'CI_EXEC_SERVER_INSTALLATION') }}"
     remote_log: /tmp/target_readiness.log
+    remote_json: /tmp/target_readiness.json
     admin_chart: "{{ lookup('ansible.builtin.env', 'DEPLOYMENT_INSTANCE_ADMIN_CHART') }}"
     helm_namespace: "{{ lookup('ansible.builtin.env', 'DEPLOYMENT_INSTANCE_HELM_NAMESPACE') }}"
 
@@ -22,6 +24,7 @@
       ansible.builtin.wait_for_connection:
         timeout: 30
       ignore_unreachable: true
+      ignore_errors: true
       register: ssh_probe
 
     - name: Fail when the target cannot be reached over SSH
@@ -44,17 +47,17 @@
           --required-ports {{ required_ports | quote }}
           --min-disk-gib {{ min_disk_gib }}
           --redeploy {{ redeploy | quote }}
+          --admin-chart {{ admin_chart | quote }}
+          --helm-namespace {{ helm_namespace | quote }}
           --log {{ remote_log | quote }}
+          --json {{ remote_json | quote }}
+          {{ '--advisory' if advisory else '' }}
           --color
         executable: /usr/bin/python3
       register: readiness
       changed_when: false
-      # rc 1 is "target not ready" — the last task reports that, once the
-      # table is out. Anything else means the check itself broke.
       failed_when: readiness.rc not in [0, 1]
 
-    # A file, not stdout: ansible escapes captured output into one line.
-    # The job cats this, so the table stays readable and colored.
     - name: Fetch the readiness table
       ansible.builtin.fetch:
         src: "{{ remote_log }}"
@@ -62,16 +65,18 @@
         flat: true
         fail_on_missing: false
 
-    # A platform already deployed here without '-i exec_redeploy:true' stops
-    # the run, so report the state of that platform, not just its presence.
-    # Prints the platform prefix of the release found here, or nothing when
-    # there is no platform. --check-system needs that prefix: it checks
-    # <prefix>-project-admin, and ours is not the prefix someone else deployed
-    # with.
+    - name: Fetch the readiness checks as JSON
+      ansible.builtin.fetch:
+        src: "{{ remote_json }}"
+        dest: "{{ artifacts_dir }}/target_readiness.json"
+        flat: true
+        fail_on_missing: false
+
     - name: Read the platform already deployed on the target
       ansible.builtin.shell:
         cmd: |
           set -o pipefail
+          export PATH=/snap/bin:/usr/local/bin:$PATH
           helm -n {{ helm_namespace }} ls --short --no-headers \
             | grep -qFx {{ admin_chart | quote }} || exit 0
           helm -n {{ helm_namespace }} get values {{ admin_chart }} -o json \
@@ -93,11 +98,19 @@
       failed_when: false
       when: existing_prefix.stdout | default('') | trim | length > 0
 
+    # In advisory mode only the rows server_installation cannot fix are still
+    # failures, and a platform already deployed here is the one that counts.
     - name: Fail when the target is not ready
       ansible.builtin.fail:
         msg: >-
           {{ vm_fqdn }} is not ready — see the failed rows and their fixes in
-          the table below, or re-run with '-i exec_server_installation:true'.
+          the table below.
+          {% if existing_prefix.stdout | default('') | trim | length > 0 %}
+
+          A Kaapana platform is already deployed on this target. Undeploy it
+          ('./kaapanactl.sh deploy --undeploy'), or re-run with
+          '-i exec_redeploy:bool(true)' to have platform_deployment replace it.
+          {% endif %}
           {% if platform_check.stdout | default('') | length > 0 %}
 
           The platform already deployed on this target reports:

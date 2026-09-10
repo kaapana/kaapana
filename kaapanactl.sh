@@ -1805,6 +1805,7 @@ function run_migration_chart() {
         --set-string global.services_namespace="$SERVICES_NAMESPACE" \
         --set-string global.admin_namespace="$ADMIN_NAMESPACE" \
         --set-string global.platform_prefix="$PLATFORM_PREFIX" \
+        --set-string global.admin_release_name="$PLATFORM_NAME" \
         --set-string global.pull_policy_images="$PULL_POLICY_IMAGES" \
         --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
         --set-string global.kaapana_build_version="$PLATFORM_VERSION" \

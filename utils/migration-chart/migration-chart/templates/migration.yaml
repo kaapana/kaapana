@@ -36,6 +36,10 @@ spec:
           value: "{{ .Values.global.services_namespace }}"
         - name: ADMIN_NAMESPACE
           value: "{{ .Values.global.admin_namespace }}"
+        # Release the deploy installs the admin chart as; the migration annotates
+        # the admin namespace for it. Empty falls back to the script's default.
+        - name: ADMIN_RELEASE_NAME
+          value: "{{ .Values.global.admin_release_name }}"
         - name: PLATFORM_PREFIX
           value: "{{ .Values.global.platform_prefix }}"
         - name: VOLUME_SLOW_DATA

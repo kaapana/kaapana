@@ -8,6 +8,10 @@ STORAGE_CLASS_WORKFLOW="${STORAGE_CLASS_WORKFLOW}"
 SERVICES_NAMESPACE="${SERVICES_NAMESPACE}"
 ADMIN_NAMESPACE="${ADMIN_NAMESPACE}"
 VOLUME_SLOW_DATA="${VOLUME_SLOW_DATA}"
+# The admin release is named after the platform chart kaapanactl deploys
+# (--name-template "$PLATFORM_NAME"), so its name is not fixed. Default to the
+# kaapana chart for callers that do not pass it.
+ADMIN_RELEASE_NAME="${ADMIN_RELEASE_NAME:-kaapana-admin-chart}"
 
 echo "Using STORAGE_PROVIDER:${STORAGE_PROVIDER}"
 
@@ -25,10 +29,14 @@ fi
 
 
 declare -A PVC_CONFIG
+# namespace -> "<release that installs it>|<Helm namespace of that release>".
+# Helm adopts an existing namespace only when both match exactly: kube-helm
+# installs platform charts in "default" (resolve_install_target) and project
+# charts in the admin namespace.
 declare -A NS_HELM_MAP=(
-  [$SERVICES_NAMESPACE]="kaapana-platform-chart|admin"
+  [$SERVICES_NAMESPACE]="kaapana-platform-chart|default"
   [project-admin]="project-admin|admin"
-  [$ADMIN_NAMESPACE]="kaapana-admin-chart|default"
+  [$ADMIN_NAMESPACE]="$ADMIN_RELEASE_NAME|default"
 )
 PARALLEL_MIGRATIONS=4
 define_pvcs() {
@@ -450,7 +458,9 @@ migrate_all_data() {
     echo "Data migration completed"
     print_migration_summary "$status_file"
 
-    return 0 #$failed
+    # A failed PVC migration must fail the job, or the deploy continues on
+    # incomplete data while reporting success.
+    [[ "$failed" -eq 0 ]]
 }
 
 print_migration_summary() {

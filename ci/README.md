@@ -197,7 +197,7 @@ eventually collect it.
 
 For an unattended run, create a pipeline schedule (CI/CD → Schedules) on
 `develop` carrying `CI_EXEC_VM_SWEEP=true` and `VM_SWEEP_APPLY=true`, plus
-`CI_EXEC_UNIT_TESTS`, `CI_EXEC_BUILD`, `CI_EXEC_DEPLOY` and
+`CI_EXEC_UNIT_TESTS`, `CI_EXEC_LINT`, `CI_EXEC_BUILD`, `CI_EXEC_DEPLOY` and
 `CI_EXEC_INTEGRATION_TESTS` on `"false"`, so that no stage but maintenance
 runs. The run still carries `preflight_variables` and `check_readthedocs`,
 which no `CI_EXEC` toggle covers. Daily is enough, because the grace period

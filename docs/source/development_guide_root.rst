@@ -8,6 +8,8 @@ algorithms packaged as :doc:`OCI containers <development_guide/preview/processin
 data-processing pipelines as :doc:`workflows <development_guide/preview/workflow_development>`, or
 server applications with backend and frontend services.
 
+When extending Kaapana's Python code apply style documented in :doc:`development_guide/code_formatting`.
+
 For deployments older than version 0.7.0, refer to the
 :doc:`Legacy Development Guide <development_guide/legacy_dev_guide_root>`,
 which covers workflow and application extension development for those releases.
@@ -19,7 +21,7 @@ which covers workflow, task and extension development with new and cleaner APIs.
     :maxdepth: 2
     :hidden:
 
-    
+    development_guide/code_formatting
     development_guide/legacy_dev_guide_root
     development_guide/feature_preview_root
     development_guide/legacy_workflow_migration

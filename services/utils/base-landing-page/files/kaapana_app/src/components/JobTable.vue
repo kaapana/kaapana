@@ -24,8 +24,12 @@
         :search="search"
         sort-by="time_updated"
         sort-desc="sort-desc"
-        :items-per-page="itemsPerPage"
-        @update:options="options = $event"
+        :items-per-page="options.itemsPerPage"
+        :loading="loading"
+        :server-items-length="totalItems"
+        :options="options"
+        :footer-props="{ 'items-per-page-options': [10, 25, 50, 100] }"
+        @update:options="emitOptions"
       >
       <template v-slot:item.time_updated="{ item }">
         {{ new Date(item.time_updated).toLocaleString() }}
@@ -33,25 +37,15 @@
       <template v-slot:item.time_created="{ item }">
         {{ new Date(item.time_created).toLocaleString() }}
       </template>
-        <template v-slot:bottom>
-          <div class="text-center pt-2">
-            <v-pagination
-              v-model="page"
-              :length="options.pageCount"
-              @page-update="page = $event"
-            ></v-pagination>
-            <v-text-field
-              :model-value="itemsPerPage"
-              class="pa-2"
-              label="Items per page"
-              type="number"
-              min="-1"
-              max="15"
-              hide-details
-              @update:model-value="itemsPerPage = parseInt($event, 10)"
-            ></v-text-field>
-          </div>
-        </template>
+      <!-- Run ID column: shows the Airflow run_id instead of dag_id,
+           which is redundant within an expanded workflow batch.
+           Shows "pending" if the job has not yet been submitted to Airflow. -->
+      <template v-slot:item.run_id="{ item }">
+        <span v-if="item.run_id" style="font-family: monospace; font-size: 0.85em;">
+          {{ item.run_id }}
+        </span>
+        <span v-else style="color: grey; font-style: italic;">pending</span>
+      </template>
         <template v-slot:item.conf_data="{ item }">
           <v-icon color="secondary" dark="" @click="openConfData(item.conf_data)">
               mdi-email
@@ -179,15 +173,27 @@
       dag_run_datetime: '',
       dag_run_ms: '',
       dag_run_tasks_n_states: {},
-      options: { pageCount: 1 },
-      page: 1,
-      itemsPerPage: 10,
     }),
 
     props: {
       jobs: {
         type: Array,
         required: true
+      },
+      loading: {
+        type: Boolean,
+        default: false
+      },
+      totalItems: {
+        type: Number,
+        default: 0
+      },
+      options: {
+        type: Object,
+        default: () => ({
+          page: 1,
+          itemsPerPage: 25
+        })
       }
     },
 
@@ -211,9 +217,11 @@
       },
       headers() {
           let headers = []
+          // Show run_id instead of dag_id: dag_id is redundant within an expanded
+          // workflow batch; run_id identifies the individual Airflow dag run.
           headers.push({
-            text: 'Dag ID',
-            value: 'dag_id'
+            text: 'Run ID',
+            value: 'run_id'
           })
           headers.push({
             text: 'Created',
@@ -251,6 +259,11 @@
     },
 
     methods: {
+      emitOptions (options) {
+        // Delegate pagination back to WorkflowTable so the backend can page the
+        // expanded workflow instead of rendering every job in the browser.
+        this.$emit('update:options', options)
+      },
       // General Methods
       openConfData (conf_data) {
         this.prettyConfData = conf_data

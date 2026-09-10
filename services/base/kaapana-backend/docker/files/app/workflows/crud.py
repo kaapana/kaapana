@@ -427,65 +427,59 @@ def get_jobs(
     status: str = None,
     remote: bool = True,
     limit=None,
+    offset: int = 0,
+    include_total: bool = False,
 ):
     if instance_name is not None and status is not None:
-        return (
+        query = (
             db.query(models.Job)
             .filter_by(status=status)
             .join(aliased(models.Job.kaapana_instance))
             .filter_by(instance_name=instance_name)
-            .order_by(desc(models.Job.time_updated))
-            .limit(limit)
-            .all()
         )  # same as org but w/o filtering by remote
     elif workflow_name is not None and status is not None:
-        return (
+        query = (
             db.query(models.Job)
             .filter_by(status=status)
             .join(aliased(models.Job.workflow))
             .filter_by(workflow_name=workflow_name)
-            .order_by(desc(models.Job.time_updated))
-            .limit(limit)
-            .all()
         )
     elif instance_name is not None:
-        return (
+        query = (
             db.query(models.Job)
             .join(aliased(models.Job.kaapana_instance))
             .filter_by(instance_name=instance_name)
-            .order_by(desc(models.Job.time_updated))
-            .limit(limit)
-            .all()
         )  # same as org but w/o filtering by remote
     elif workflow_name is not None:
-        return (
+        query = (
             db.query(models.Job)
             .join(aliased(models.Job.workflow))
             .filter_by(workflow_name=workflow_name)
-            .order_by(desc(models.Job.time_updated))
-            .limit(limit)
-            .all()
         )
     elif status is not None:
-        return (
+        query = (
             db.query(models.Job)
             .filter_by(status=status)
             .join(aliased(models.Job.kaapana_instance))
-            .order_by(desc(models.Job.time_updated))
-            .limit(limit)
-            .all()
         )  # same as org but w/o filtering by remote
     else:
-        return (
+        query = (
             db.query(models.Job)
             .join(aliased(models.Job.workflow))
             .join(aliased(models.Job.kaapana_instance))
             .filter_by(remote=remote)
-            .order_by(desc(models.Job.time_updated))
-            .limit(limit)
-            .all()
         )
-        # explanation: db.query(models.Job) returns a Query object; .join() creates more narrow Query objects ; filter_by() applies the filter criterion to the remaining Query (source: https://docs.sqlalchemy.org/en/14/orm/query.html#sqlalchemy.orm.Query)
+        # explanation: db.query(models.Job) returns a Query object; .join()
+        # creates more narrow Query objects; filter_by() applies the filter
+        # criterion to the remaining Query.
+
+    query = query.order_by(desc(models.Job.time_updated))
+    total_count = query.order_by(None).count() if include_total else None
+    jobs = query.limit(limit).offset(offset).all()
+
+    if include_total:
+        return jobs, total_count
+    return jobs
 
 
 def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
@@ -874,6 +868,12 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
         if db_job.run_id not in [job["run_id"] for job in airflow_jobs_in_state]
     ]
 
+    # Both diff directions must be processed in every cycle. They are NOT
+    # mutually exclusive: on a busy instance there is almost always at least one
+    # new airflow job in this state (diff_airflow_to_db > 0). Handling only that
+    # direction would permanently starve diff_db_to_airflow, i.e. db_jobs that
+    # already finished/failed in airflow but are still "queued"/"running" in the
+    # db would never get their final state pulled and stay stuck in the UI.
     if len(diff_airflow_to_db) > 0:
         # request airflow for states of all jobs in diff_airflow_to_db && update db_jobs of all jobs in diff_airflow_to_db
         for diff_job_af in diff_airflow_to_db:
@@ -895,7 +895,8 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
                     diff_job_runid=diff_job_af["run_id"],
                     status=status,
                 )
-    elif len(diff_db_to_airflow) > 0:
+
+    if len(diff_db_to_airflow) > 0:
         # request airflow for states of all jobs in diff_db_to_airflow && update db_jobs of all jobs in diff_db_to_airflow
         for diff_db_job in diff_db_to_airflow:
             if diff_db_job.run_id is None:
@@ -914,11 +915,6 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
             if status == "running":
                 # update running job's operator states
                 update_running_jobs_operator(db, diff_db_job)
-
-    elif len(diff_airflow_to_db) == 0 and len(diff_db_to_airflow) == 0:
-        pass  # airflow and db in sync :)
-    else:
-        logging.error("Error while syncing kaapana-backend with Airflow")
 
     # check operator details for jobs in status="running"
     if status == "running":
@@ -1016,7 +1012,7 @@ def create_and_update_service_workflows_and_jobs(
     db_job = create_job(db, job, service_job=True)
 
     # check whether service-workflow for that kind of service-job already exists
-    db_service_workflow = get_workflow(db, dag_id=db_job.dag_id)
+    db_service_workflow = get_service_workflow_by_dag_id(db, db_job.dag_id)
     if db_service_workflow:
         # if yes: compose WorkflowUpdate and append service-jobs to service-workflow via crud.put_workflow_jobs()
         workflow_update = schemas.WorkflowUpdate(
@@ -1034,7 +1030,7 @@ def create_and_update_service_workflows_and_jobs(
             f"{''.join([substring[0] for substring in db_job.dag_id.split('-')])}"
         )
         # should normally be not necessary, but additional safety net to not create 2x the same service-workflow
-        db_service_workflow = get_workflow(db, dag_id=workflow_id)
+        db_service_workflow = get_service_workflow_by_dag_id(db, db_job.dag_id)
         if not db_service_workflow:
             workflow_create = schemas.WorkflowCreate(
                 **{
@@ -1413,127 +1409,174 @@ def queue_generate_jobs_and_add_to_workflow(
     if db is None:
         db = SessionLocal()
 
-    conf_data = json_schema_data.conf_data
-    # get variables
-    single_execution = (
-        "workflow_form" in conf_data
-        and "single_execution" in conf_data["workflow_form"]
-        and conf_data["workflow_form"]["single_execution"] is True
-    )
-
-    dataset_limit = (
-        int(conf_data["data_form"]["dataset_limit"])
-        if (
-            "data_form" in conf_data
-            and "dataset_limit" in conf_data["data_form"]
-            and conf_data["data_form"]["dataset_limit"] is not None
+    # Any failure in here leaves the workflow stuck in status "queuing" forever,
+    # because this runs in a background thread and nobody else clears the status.
+    # So roll back the partial transaction and reset the status before re-raising.
+    try:
+        conf_data = json_schema_data.conf_data
+        # get variables
+        single_execution = (
+            "workflow_form" in conf_data
+            and "single_execution" in conf_data["workflow_form"]
+            and conf_data["workflow_form"]["single_execution"] is True
         )
-        else None
-    )
 
-    username = (
-        conf_data["workflow_form"]["username"]
-        if "username" in conf_data["workflow_form"]
-        else json_schema_data.username
-    )
+        dataset_limit = (
+            int(conf_data["data_form"]["dataset_limit"])
+            if (
+                "data_form" in conf_data
+                and "dataset_limit" in conf_data["data_form"]
+                and conf_data["data_form"]["dataset_limit"] is not None
+            )
+            else None
+        )
 
-    # if json_schema_data.federated:
-    #     db_kaapana_instances = get_kaapana_instance(db, instance_name=)
-    # else:
-    db_kaapana_instances = get_kaapana_instances(
-        db,
-        filter_kaapana_instances=schemas.FilterKaapanaInstances(
-            **{
-                "instance_names": (
-                    conf_data["workflow_form"]["runner_instances"]
-                    if not json_schema_data.federated
-                    else json_schema_data.instance_names
-                ),
-            }
-        ),
-    )
-    db_jobs = []
-    for db_kaapana_instance in db_kaapana_instances:
-        identifiers = []
-        if "data_form" in conf_data and "dataset_name" in conf_data["data_form"]:
-            project: dict = conf_data["project_form"]
-            dataset: dict = conf_data["data_form"]["dataset_name"]
-            if not db_kaapana_instance.remote:
-                db_dataset = get_dataset(
-                    db,
-                    dataset.get("name"),
-                    access_level=dataset.get("access_level"),
-                    project_id=project.get("id"),
-                    username=dataset.get("username"),
-                )
-                identifiers = [idx.id for idx in db_dataset.identifiers]
+        username = (
+            conf_data["workflow_form"]["username"]
+            if "username" in conf_data["workflow_form"]
+            else json_schema_data.username
+        )
+
+        # if json_schema_data.federated:
+        #     db_kaapana_instances = get_kaapana_instance(db, instance_name=)
+        # else:
+        db_kaapana_instances = get_kaapana_instances(
+            db,
+            filter_kaapana_instances=schemas.FilterKaapanaInstances(
+                **{
+                    "instance_names": (
+                        conf_data["workflow_form"]["runner_instances"]
+                        if not json_schema_data.federated
+                        else json_schema_data.instance_names
+                    ),
+                }
+            ),
+        )
+        db_jobs = []
+        for db_kaapana_instance in db_kaapana_instances:
+            identifiers = []
+            if "data_form" in conf_data and "dataset_name" in conf_data["data_form"]:
+                project: dict = conf_data["project_form"]
+                dataset: dict = conf_data["data_form"]["dataset_name"]
+                if not db_kaapana_instance.remote:
+                    db_dataset = get_dataset(
+                        db,
+                        dataset.get("name"),
+                        access_level=dataset.get("access_level"),
+                        project_id=project.get("id"),
+                        username=dataset.get("username"),
+                    )
+                    identifiers = [idx.id for idx in db_dataset.identifiers]
+                else:
+                    for dataset_info in db_kaapana_instance.allowed_datasets:
+                        if dataset_info["name"] == dataset.get("name"):
+                            identifiers = (
+                                dataset_info["identifiers"]
+                                if "identifiers" in dataset_info
+                                else []
+                            )
+                            break
+
+                conf_data["data_form"].update({"identifiers": identifiers})
+
+            # compose queued_jobs according to 'single_execution'
+            queued_jobs = []
+            if single_execution is True:
+                for identifier in conf_data["data_form"]["identifiers"][:dataset_limit]:
+                    # Copying due to reference?!
+                    single_conf_data = copy.deepcopy(conf_data)
+                    single_conf_data["data_form"]["identifiers"] = [identifier]
+                    queued_jobs.append(
+                        {
+                            "conf_data": single_conf_data,
+                            "dag_id": json_schema_data.dag_id,
+                            "username": username,
+                        }
+                    )
             else:
-                for dataset_info in db_kaapana_instance.allowed_datasets:
-                    if dataset_info["name"] == dataset.get("name"):
-                        identifiers = (
-                            dataset_info["identifiers"]
-                            if "identifiers" in dataset_info
-                            else []
-                        )
-                        break
-
-            conf_data["data_form"].update({"identifiers": identifiers})
-
-        # compose queued_jobs according to 'single_execution'
-        queued_jobs = []
-        if single_execution is True:
-            for identifier in conf_data["data_form"]["identifiers"][:dataset_limit]:
-                # Copying due to reference?!
-                single_conf_data = copy.deepcopy(conf_data)
-                single_conf_data["data_form"]["identifiers"] = [identifier]
-                queued_jobs.append(
+                # if identifiers:
+                #     conf_data["data_form"].update({"identifiers": identifiers})
+                queued_jobs = [
                     {
-                        "conf_data": single_conf_data,
+                        "conf_data": conf_data,
                         "dag_id": json_schema_data.dag_id,
+                        # 'dag_id': json_schema_data.dag_id if json_schema_data.federated == False else conf_data['external_schema_federated_form']['remote_dag_id'],
                         "username": username,
                     }
+                ]
+            for jobs_to_create in queued_jobs:
+                # If the workflow was aborted or deleted while jobs are still being
+                # queued, stop creating new jobs early to avoid unnecessary work
+                # and prevent new Airflow runs from being scheduled after delete.
+                # Note: query status via the thread's own db session (db_workflow may
+                # belong to a different session when running in a Thread).
+                current_status = (
+                    db.query(models.Workflow.status)
+                    .filter_by(workflow_id=db_workflow.workflow_id)
+                    .scalar()
                 )
-        else:
-            # if identifiers:
-            #     conf_data["data_form"].update({"identifiers": identifiers})
-            queued_jobs = [
-                {
-                    "conf_data": conf_data,
-                    "dag_id": json_schema_data.dag_id,
-                    # 'dag_id': json_schema_data.dag_id if json_schema_data.federated == False else conf_data['external_schema_federated_form']['remote_dag_id'],
-                    "username": username,
-                }
-            ]
-        for jobs_to_create in queued_jobs:
-            job = schemas.JobCreate(
-                **{
-                    "status": "queued",
-                    "kaapana_instance_id": db_kaapana_instance.id,
-                    "owner_kaapana_instance_name": settings.instance_name,
-                    "automatic_execution": db_workflow.automatic_execution,
-                    **jobs_to_create,
-                }
-            )
-            db_job = create_job(db, job)
-            db_jobs.append(db_job)
+                if current_status in ("aborting", "deleting"):
+                    logging.info(
+                        f"Workflow {db_workflow.workflow_id} status is '{current_status}' during queuing — stopping job creation."
+                    )
+                    break
 
-    # update workflow w/ created db_jobs
-    workflow = schemas.WorkflowUpdate(
-        **{
-            "workflow_id": db_workflow.workflow_id,
-            "workflow_name": db_workflow.workflow_name,
-            "workflow_jobs": db_jobs,
+                job = schemas.JobCreate(
+                    **{
+                        "status": "queued",
+                        "kaapana_instance_id": db_kaapana_instance.id,
+                        "owner_kaapana_instance_name": settings.instance_name,
+                        "automatic_execution": db_workflow.automatic_execution,
+                        **jobs_to_create,
+                    }
+                )
+                db_job = create_job(db, job)
+                # Associate job with workflow immediately (not at the end) so the
+                # frontend can show incrementing status counts during batch creation.
+                # Previously, jobs were only linked via put_workflow_jobs() after ALL
+                # jobs were created, causing the UI to show zeros the entire time.
+                db_job.workflow_id = db_workflow.workflow_id
+                db.commit()
+                db_jobs.append(db_job)
+
+        # update workflow w/ created db_jobs (also updates workflow.time_updated)
+        workflow = schemas.WorkflowUpdate(
+            **{
+                "workflow_id": db_workflow.workflow_id,
+                "workflow_name": db_workflow.workflow_name,
+                "workflow_jobs": db_jobs,
+            }
+        )
+        db_workflow = put_workflow_jobs(db, workflow)
+
+        # Clear the "queuing" status now that all jobs have been created.
+        # (If status changed to "aborting" mid-queue, keep that status for the abort handler to clear.)
+        current_status = (
+            db.query(models.Workflow.status)
+            .filter_by(workflow_id=db_workflow.workflow_id)
+            .scalar()
+        )
+        if current_status == "queuing":
+            db_workflow.status = None
+            db.commit()
+
+        return {
+            "workflow": db_workflow,
+            "jobs": db_jobs,
         }
-    )
-    db_workflow = put_workflow_jobs(db, workflow)
+    except Exception:
+        logging.exception(
+            "Workflow %s failed while queuing jobs.",
+            db_workflow.workflow_id,
+        )
+        db.rollback()
 
-    # would be better to solve this with a lamba function instead of putting it directly here
-    # db.close()
+        db_workflow_current = get_workflow(db, workflow_id=db_workflow.workflow_id)
+        if db_workflow_current and db_workflow_current.status == "queuing":
+            db_workflow_current.status = None
+            db.commit()
 
-    return {
-        "workflow": db_workflow,
-        "jobs": db_jobs,
-    }
+        raise
 
 
 def get_workflow(
@@ -1548,6 +1591,16 @@ def get_workflow(
     # if not db_workflow:
     #     raise HTTPException(status_code=404, detail="Workflow not found")
     # return db_workfloq
+
+
+# Service workflows are grouped by dag_id. Filter on service_workflow as well so the
+# lookup cannot pick up a regular workflow that happens to carry the same dag_id.
+def get_service_workflow_by_dag_id(db: Session, dag_id: str):
+    return (
+        db.query(models.Workflow)
+        .filter_by(dag_id=dag_id, service_workflow=True)
+        .first()
+    )
 
 
 def get_workflows(
@@ -1599,6 +1652,50 @@ def get_workflows(
     )
     total_count = db.execute(total_count_subquery).scalar()
     return workflows, total_count
+
+
+def get_workflow_list_metadata(db: Session, workflow_ids: List[str]):
+    """Return compact per-workflow job metadata for the workflow list."""
+    if not workflow_ids:
+        return {}, {}
+
+    job_counts = {workflow_id: {} for workflow_id in workflow_ids}
+    count_rows = (
+        db.query(
+            models.Job.workflow_id,
+            models.Job.status,
+            func.count(models.Job.id),
+        )
+        .filter(models.Job.workflow_id.in_(workflow_ids))
+        .group_by(models.Job.workflow_id, models.Job.status)
+        .all()
+    )
+    for workflow_id, status, count in count_rows:
+        job_counts.setdefault(workflow_id, {})[status] = count
+
+    dataset_name_by_workflow = {}
+    # data_form.dataset_name is a JSON object ({name, username, access_level}); "#>"
+    # returns it as such. Skip jobs that carry the federated form, as the former
+    # per-workflow validator did, so a federated workflow reports the dataset of the
+    # next regular job instead.
+    dataset_name_expr = models.Job.conf_data.op("#>")("{data_form,dataset_name}")
+    dataset_rows = (
+        db.query(
+            models.Job.workflow_id,
+            dataset_name_expr.label("dataset_name"),
+        )
+        .filter(models.Job.workflow_id.in_(workflow_ids))
+        .filter(models.Job.service_job.is_(False))
+        .filter(~models.Job.conf_data.has_key("external_schema_federated_form"))
+        .filter(dataset_name_expr.isnot(None))
+        .distinct(models.Job.workflow_id)
+        .order_by(models.Job.workflow_id, models.Job.id)
+        .all()
+    )
+    for workflow_id, dataset_name in dataset_rows:
+        dataset_name_by_workflow[workflow_id] = dataset_name
+
+    return job_counts, dataset_name_by_workflow
 
 
 def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):
@@ -1761,11 +1858,36 @@ def put_workflow_jobs(db: Session, workflow=schemas.WorkflowUpdate):
 
 
 def delete_workflow(db: Session, workflow_id: str):
+    import time
+
     # get db's db_workflow object
     db_workflow = get_workflow(db, workflow_id)
 
+    # Mark workflow as "deleting" so the UI shows an indicator chip
+    # while individual jobs are being removed.  This also signals the
+    # job-creation thread (queue_generate_jobs_and_add_to_workflow) to
+    # stop creating new jobs for this workflow.
+    db_workflow.status = "deleting"
+    db.commit()
+
+    # Give the queuing thread time to notice the "deleting" status and
+    # finish its current create_job() call before we start deleting.
+    time.sleep(2)
+
+    # Re-query all jobs associated with this workflow to capture any
+    # that were added between the status change and now.
+    db.refresh(db_workflow)
+
     # iterate over jobs of to-be-deleted workflow
     for db_workflow_current_job in db_workflow.workflow_jobs:
+        # Abort any jobs still active in Airflow before deleting from DB,
+        # so that running dag runs don't continue after the workflow is removed.
+        if db_workflow_current_job.status in ("queued", "scheduled", "running", "pending"):
+            if db_workflow_current_job.run_id and not db_workflow_current_job.kaapana_instance.remote:
+                job_update = schemas.JobUpdate(
+                    job_id=db_workflow_current_job.id, status="abort"
+                )
+                abort_job(db, job_update, remote=False)
         # deletes local and remote jobs
         delete_job(db, job_id=db_workflow_current_job.id, remote=False)
 

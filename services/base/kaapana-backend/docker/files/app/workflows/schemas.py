@@ -1,9 +1,9 @@
 import datetime
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 from enum import Enum
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing_extensions import Self
 
 
@@ -287,6 +287,14 @@ class WorkflowUpdate(WorkflowBase):
 class WorkflowWithKaapanaInstance(Workflow):
     kaapana_instance: Optional[KaapanaInstance] = None
     # involved_kaapana_instances: list = []
+
+
+class WorkflowListItem(WorkflowWithKaapanaInstance):
+    # Compact workflow-list metadata. Large service workflows can contain
+    # thousands of jobs, so the list endpoint must return counts instead of jobs.
+    workflow_jobs: List[str] = Field(default_factory=list)
+    workflow_job_counts: Dict[str, int] = Field(default_factory=dict)
+    dataset_name: Optional[dict] = None
 
 
 class KaapanaInstanceWithWorkflows(KaapanaInstance):

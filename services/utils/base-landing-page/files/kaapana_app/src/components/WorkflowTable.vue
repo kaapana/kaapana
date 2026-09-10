@@ -78,6 +78,7 @@
         {{ new Date(item.time_updated).toLocaleString() }}
       </template>
       <template v-slot:item.status="{ item }">
+        <!-- Job status count chips: one per status with count of jobs in that state -->
         <v-btn
           v-for="state in getStatesColorMap(item, $vuetify.theme.dark)"
           :color="state.color"
@@ -90,11 +91,51 @@
             getJobsOfWorkflow(
               item.workflow_name,
               state.status,
-              (collapse = false)
+              false,
+              true
             )
           "
         >
           {{ state.count }}
+        </v-btn>
+        <!-- Transitional indicator chips: shown while the backend is processing
+             a long-running batch operation (queuing jobs, aborting, or deleting).
+             Automatically removed when the operation finishes and status becomes null. -->
+        <v-btn
+          v-if="item.status === 'queuing'"
+          color="amber"
+          class="ml-1 my-chip"
+          dense
+          x-small
+          rounded
+          outlined
+        >
+          <v-icon x-small left>mdi-timer-sand</v-icon>
+          Queuing
+        </v-btn>
+        <v-btn
+          v-if="item.status === 'aborting'"
+          color="red"
+          class="ml-1 my-chip"
+          dense
+          x-small
+          rounded
+          outlined
+        >
+          <v-icon x-small left>mdi-progress-close</v-icon>
+          Aborting
+        </v-btn>
+        <v-btn
+          v-if="item.status === 'deleting'"
+          color="brown"
+          class="ml-1 my-chip"
+          dense
+          x-small
+          rounded
+          outlined
+        >
+          <v-icon x-small left>mdi-progress-close</v-icon>
+          Deleting
         </v-btn>
       </template>
       <template v-slot:item.actions="{ item }">
@@ -189,7 +230,11 @@
           <job-table
             v-if="jobsofExpandedWorkflow"
             :jobs="jobsofExpandedWorkflow"
+            :loading="loading"
+            :total-items="jobTotalItems"
+            :options="jobTableOptions"
             @refreshView="refreshClient()"
+            @update:options="updateJobOptions"
           ></job-table>
         </td>
       </template>
@@ -232,6 +277,7 @@ export default {
       expandedWorkflow: "",
       jobsofExpandedWorkflow: [],
       jobsofWorkflows: [],
+      jobTotalItems: 0,
       filteredJobState: undefined,
       manual_startID: "",
       abortID: "",
@@ -245,6 +291,10 @@ export default {
         page: 1,
         itemsPerPage: 10,
         search: ''
+      },
+      jobTableOptions: {
+        page: 1,
+        itemsPerPage: 25,
       },
     };
   },
@@ -271,21 +321,23 @@ export default {
 
   computed: {
     filteredWorkflows() {
-      if (this.workflows !== null) {
-        if (this.expandedWorkflow) {
-          this.getJobsOfWorkflow(
-            this.expandedWorkflow.workflow_name,
-            this.filteredJobState
-          );
-        }
-        return this.workflows;
-      }
+      return this.workflows || [];
     },
   },
 
   watch: {
     extLoading() {
       this.loading = this.extLoading;
+    },
+    workflows() {
+      // Polling refreshes the workflow list regularly. Refresh the expanded job
+      // page explicitly once per poll instead of retriggering from a computed property.
+      if (this.expandedWorkflow && this.expandedWorkflow.workflow_name) {
+        this.getJobsOfWorkflow(
+          this.expandedWorkflow.workflow_name,
+          this.filteredJobState
+        );
+      }
     },
     search(newValue, oldValue) {
       console.log("Search backend for: ", newValue);
@@ -311,6 +363,15 @@ export default {
       this.options = options;
       this.$emit("update:options", options);
     },
+    updateJobOptions(options) {
+      this.jobTableOptions = options;
+      if (this.expandedWorkflow && this.expandedWorkflow.workflow_name) {
+        this.getJobsOfWorkflow(
+          this.expandedWorkflow.workflow_name,
+          this.filteredJobState
+        );
+      }
+    },
     expandRow(item) {
       if (this.shouldExpand == true) {
         if (item === this.expanded[0]) {
@@ -320,6 +381,8 @@ export default {
             this.expanded = [];
             this.filteredJobState = undefined;
             this.expandedWorkflow = "";
+            this.jobsofExpandedWorkflow = [];
+            this.jobTotalItems = 0;
             this.loading = false;
           } else {
             this.shouldCollapse = true;
@@ -329,19 +392,23 @@ export default {
           // Clicked row is not expanded, so expand it
           this.expanded = [item];
           this.expandedWorkflow = item;
-          if (!this.jobsofExpandedWorkflow) {
-            this.getJobsOfWorkflow(
-              this.expandedWorkflow.workflow_name,
-              this.filteredJobState
-            );
-          }
+          // A new expansion should start at the first page to keep large batches responsive.
+          this.jobTableOptions = {
+            ...this.jobTableOptions,
+            page: 1,
+          };
+          this.getJobsOfWorkflow(
+            this.expandedWorkflow.workflow_name,
+            this.filteredJobState
+          );
         }
       } else {
         this.shouldExpand = true;
       }
     },
     getStatesColorMap(item, darkTheme) {
-      const states = item.workflow_jobs; // .map(job => job.status)
+      const states = item.workflow_jobs || []; // .map(job => job.status)
+      const counts = item.workflow_job_counts || {};
       const colorMap = {
         queued: "grey",
         scheduled: "blue",
@@ -353,7 +420,7 @@ export default {
       return Object.entries(colorMap).map(([state, color]) => ({
         status: state,
         color: color,
-        count: states.filter((_state) => _state === state).length,
+        count: counts[state] || states.filter((_state) => _state === state).length,
       }));
     },
     redirectToAirflow() {
@@ -396,25 +463,47 @@ export default {
           console.log(err);
         });
     },
-    getJobsOfWorkflow(workflow_name, state, collapse = true) {
+    getJobsOfWorkflow(workflow_name, state, collapse = true, resetPage = false) {
       if (typeof state !== "undefined") {
         this.filteredJobState = state;
+        if (resetPage) {
+          // Switching to a status-filtered subset changes the result set, so restart paging.
+          this.jobTableOptions = {
+            ...this.jobTableOptions,
+            page: 1,
+          };
+        }
       }
       this.loading = true;
       if (!collapse) {
         this.shouldCollapse = collapse;
       }
+      const page = this.jobTableOptions.page || 1;
+      const itemsPerPage = this.jobTableOptions.itemsPerPage || 25;
       kaapanaApiService
         .federatedClientApiGet("/jobs", {
           workflow_name: workflow_name,
           status: state,
+          limit: itemsPerPage,
+          offset: (page - 1) * itemsPerPage,
         })
         .then((response) => {
+          this.jobTotalItems = Number(response.headers["x-total-count"] || 0);
           if (response.data.length !== 0) {
             this.loading = false;
           } else {
-            // no jobs could be get from backend from this workflow in this state
-            // check whether workflow has at least any jobs
+            // If the current page became invalid after polling or deletion, jump
+            // back to the first page instead of reporting a false "no jobs" state.
+            if (this.jobTotalItems > 0 && page > 1) {
+              this.jobTableOptions = {
+                ...this.jobTableOptions,
+                page: 1,
+              };
+              this.getJobsOfWorkflow(workflow_name, state, collapse);
+              return;
+            }
+            // No jobs were returned at all for the selected workflow/status.
+            this.loading = false;
             this.getSingleJobOfWorkflow(workflow_name);
           }
           if (this.expanded.length > 0) {

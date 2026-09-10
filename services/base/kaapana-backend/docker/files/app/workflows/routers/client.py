@@ -305,15 +305,27 @@ def get_job(job_id: int = None, run_id: str = None, db: Session = Depends(get_db
 @router.get("/jobs", response_model=List[schemas.JobWithWorkflowWithKaapanaInstance])
 # also okay: JobWithWorkflow; JobWithKaapanaInstance
 def get_jobs(
+    response: Response,
     instance_name: str = None,
     workflow_name: str = None,
     status: str = None,
     limit: int = None,
+    offset: int = 0,
     db: Session = Depends(get_db),
 ):
-    jobs = crud.get_jobs(
-        db, instance_name, workflow_name, status, remote=False, limit=limit
+    jobs, total_count = crud.get_jobs(
+        db,
+        instance_name,
+        workflow_name,
+        status,
+        remote=False,
+        limit=limit,
+        offset=offset,
+        include_total=True,
     )
+    # Keep the response body backward compatible and expose the total via a header
+    # so the expanded workflow table can page large batches on demand.
+    response.headers["X-Total-Count"] = str(total_count)
     for job in jobs:
         if job.kaapana_instance:
             job.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
@@ -880,14 +892,10 @@ def create_workflow(
     )
     db_workflow = crud.create_workflow(db=db, workflow=workflow)
 
-    # async function call to queue jobs and generate db_jobs + adding them to db_workflow
-    # TODO moved methodcall outside of async framwork because our database implementation is not async compatible
-    # asyncio.create_task(
-    #     crud.queue_generate_jobs_and_add_to_workflow(db, db_workflow, json_schema_data)
-    #     )
-
-    # all sync
-    # crud.queue_generate_jobs_and_add_to_workflow(db, db_workflow, json_schema_data)
+    # Mark workflow as "queuing" so the UI can show an indicator chip
+    # while jobs are being created and submitted to Airflow.
+    db_workflow.status = "queuing"
+    db.commit()
 
     # thread async w/ db session in thread
     if (
@@ -926,7 +934,7 @@ def get_workflow(
 # get_workflows
 @router.get(
     "/workflows",
-    response_model=Tuple[List[schemas.WorkflowWithKaapanaInstanceWithJobs], int],
+    response_model=Tuple[List[schemas.WorkflowListItem], int],
 )
 # also okay: response_model=List[schemas.Workflow] ; List[schemas.WorkflowWithKaapanaInstance]
 def get_workflows(
@@ -949,21 +957,60 @@ def get_workflows(
         search=search,
         project_id=project.get("id"),
     )
+    workflow_ids = [workflow.workflow_id for workflow in workflows]
+    job_counts, dataset_names = crud.get_workflow_list_metadata(db, workflow_ids)
+    workflow_items = []
     for workflow in workflows:
         if workflow.kaapana_instance:
             workflow.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
                 workflow.kaapana_instance
             )
+        workflow_items.append(
+            {
+                "workflow_id": workflow.workflow_id,
+                "workflow_name": workflow.workflow_name,
+                "workflow_status": None,
+                "dag_id": workflow.dag_id,
+                "service_workflow": workflow.service_workflow,
+                "federated": workflow.federated,
+                "username": workflow.username,
+                "status": workflow.status,
+                "time_created": workflow.time_created,
+                "time_updated": workflow.time_updated,
+                "automatic_execution": workflow.automatic_execution,
+                "involved_kaapana_instances": workflow.involved_kaapana_instances,
+                "kaapana_instance": workflow.kaapana_instance,
+                "dataset_name": dataset_names.get(workflow.workflow_id),
+                "workflow_job_counts": job_counts.get(workflow.workflow_id, {}),
+                "workflow_jobs": [],
+            }
+        )
 
-    return workflows, total_items
+    return workflow_items, total_items
 
 
 # put/update_workflow
 @router.put("/workflow", response_model=schemas.Workflow)
 def put_workflow(workflow: schemas.WorkflowUpdate, db: Session = Depends(get_db)):
     if workflow.workflow_status == "abort":
+        import time
+
         # iterate over workflow's jobs and execute crud.abort_job() and crud.update_job() and at the end also crud.update_workflow()
         db_workflow = crud.get_workflow(db, workflow.workflow_id)
+
+        # Mark workflow as "aborting" so the UI shows an indicator chip
+        # while individual jobs are being aborted in Airflow.
+        # This also signals the job-creation thread to stop queuing new jobs.
+        db_workflow.status = "aborting"
+        db.commit()
+
+        # Give the queuing thread time to notice the "aborting" status and
+        # finish its current create_job() call before we start aborting.
+        time.sleep(2)
+
+        # Re-query jobs to capture any that were added in the race window.
+        db.refresh(db_workflow)
+
         for db_job in db_workflow.workflow_jobs:
             # if (not db_workflow.federated and not db_job.kaapana_instance.remote) or (db_workflow.federated and "external_schema_federated_form" in db_job.conf_data):
             if not db_job.kaapana_instance.remote:
@@ -979,6 +1026,10 @@ def put_workflow(workflow: schemas.WorkflowUpdate, db: Session = Depends(get_db)
                 crud.abort_job(db, job, remote=False)
                 job.status = "failed"
                 crud.update_job(db, job, remote=False)  # update db_job to failed
+
+        # Clear "aborting" status now that all jobs have been aborted
+        db_workflow.status = None
+        db.commit()
 
         # update aborted workflow
         return crud.update_workflow(db, workflow)

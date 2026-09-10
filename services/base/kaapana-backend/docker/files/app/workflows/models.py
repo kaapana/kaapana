@@ -133,6 +133,9 @@ class Workflow(Base):
     service_workflow = Column(Boolean(), default=False, index=True)
     federated = Column(Boolean(), default=False, index=True)
     project_id = Column(UUID(as_uuid=True), nullable=False)
+    # Transient workflow-level status: "queuing", "aborting", "deleting", or NULL when idle.
+    # Used by the frontend to display indicator chips during long-running batch operations.
+    status = Column(String(64), nullable=True)
 
     # many-to-one relationships
     kaapana_id = Column(Integer, ForeignKey("kaapana_instance.id"))

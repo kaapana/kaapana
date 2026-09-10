@@ -40,6 +40,29 @@ app.add_middleware(middlewares.SanitizeQueryParams)
 
 
 @app.on_event("startup")
+def cleanup_stale_workflow_statuses():
+    """Reset any non-NULL workflow.status left over from a crash or restart.
+
+    If the backend was interrupted while a workflow was in a transitional state
+    (queuing, aborting, deleting), those statuses would be stuck forever.
+    This runs once on startup to clear them.
+    """
+    with SessionLocal() as db:
+        stale = (
+            db.query(models.Workflow)
+            .filter(models.Workflow.status.isnot(None))
+            .all()
+        )
+        for wf in stale:
+            logging.info(
+                f"Clearing stale workflow status '{wf.status}' on workflow {wf.workflow_id}"
+            )
+            wf.status = None
+        if stale:
+            db.commit()
+
+
+@app.on_event("startup")
 @repeat_every(seconds=float(os.getenv("REMOTE_SYNC_INTERVAL", 2.5)))
 @only_one_process(lock_file="/tmp/remote_sync.lock")
 def periodically_get_remote_updates():

@@ -7,7 +7,6 @@ Best Practices
     :maxdepth: 4
 
     how_to_Dockerfile
-    code_formatting
 
 
     

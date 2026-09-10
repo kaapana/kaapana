@@ -97,26 +97,32 @@ fi
 
 
 declare -A PVC_CONFIG
-# namespace -> "<helm release that owns it>|<helm release namespace>", used
+# namespace -> "<helm release that owns it>|<helm namespace that release lives in>", used
 # for the meta.helm.sh ownership annotations written by ensure_namespace.
 # Release names come from the configurable env above instead of hardcoded
-# kaapana-* defaults.
+# kaapana-* defaults. The second field is the HELM namespace of the release,
+# not the namespace its pods run in: Helm adopts an existing object only when
+# both fields name exactly the release that installs it. kube-helm installs
+# the admin and platform charts in "default" (helm_install in its utils.py),
+# project charts in the admin namespace. With the admin namespace here the
+# platform chart install failed with 'Namespace "services" ... exists and
+# cannot be imported into the current release'.
 declare -A NS_HELM_MAP=(
-  [$SERVICES_NAMESPACE]="$PLATFORM_RELEASE_NAME|$ADMIN_NAMESPACE"
+  [$SERVICES_NAMESPACE]="$PLATFORM_RELEASE_NAME|default"
   [project-admin]="project-admin|$ADMIN_NAMESPACE"
   [$ADMIN_NAMESPACE]="$ADMIN_RELEASE_NAME|default"
 )
 PARALLEL_MIGRATIONS=4
 
 # Derive the Helm ownership mapping for a namespace that is not in the static
-# map: project namespaces are their own release, everything else belongs to
-# the platform release.
+# map: project namespaces are their own release (installed in the admin
+# namespace), everything else belongs to the platform release (in "default").
 add_namespace_helm_mapping() {
     local namespace="$1"
     if [[ "$namespace" =~ ^project- ]]; then
         NS_HELM_MAP["$namespace"]="$namespace|$ADMIN_NAMESPACE"
     else
-        NS_HELM_MAP["$namespace"]="$PLATFORM_RELEASE_NAME|$ADMIN_NAMESPACE"
+        NS_HELM_MAP["$namespace"]="$PLATFORM_RELEASE_NAME|default"
     fi
 }
 

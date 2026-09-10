@@ -3,7 +3,7 @@ import base64
 import re
 import time
 from enum import Enum
-from kubernetes import client, config, watch
+from kubernetes import client, config
 from task_api.processing_container import task_models, pc_models
 from task_api.processing_container.resources import compute_memory_resources
 from task_api.processing_container.common import (
@@ -230,7 +230,6 @@ class KubernetesRunner(BaseRunner):
             log_timeout (int): Max time in seconds to stream logs before raising TimeoutError.
         """
         cls._logger.debug("Waiting for pod to start running...")
-        w = watch.Watch()
 
         # Wait until pod is in Running state
         cls.wait_for_task_status(
@@ -301,21 +300,31 @@ class KubernetesRunner(BaseRunner):
         Raise:
             TimeoutError: If Pod did not reach any of the PodPhases in states within timeout seconds.
         """
-        w = watch.Watch()
-
-        for event in w.stream(
-            cls.api.list_namespaced_pod,
-            namespace=task_run.config.namespace,
-            field_selector=f"metadata.name={task_run.id}",
-            timeout_seconds=timeout,
-        ):
-            pod_obj = event["object"]
-            if pod_obj.status.phase in states:
-                cls._logger.debug(f"Pod entered phase: {pod_obj.status.phase}")
-                w.stop()
-                return pod_obj.status.phase
-            else:
-                cls._logger.warning(f"Pod in phase: {pod_obj.status.phase}")
+        # A watch without resourceVersion is only served once the apiserver's watch
+        # cache has caught up with the storage revision (k8s >= 1.30). If that cache
+        # lags, the request fails with 504 "Too large resource version", and the
+        # kubernetes client does not retry a watch that has timeout_seconds set.
+        # A GET of the named pod is served from storage and bypasses that cache.
+        deadline = time.monotonic() + timeout
+        last_phase = None
+        while True:
+            try:
+                phase = cls.api.read_namespaced_pod(
+                    name=task_run.id, namespace=task_run.config.namespace
+                ).status.phase
+            except client.ApiException as e:
+                if e.status != 404:
+                    raise
+                phase = None  # pod not visible yet
+            if phase in states:
+                cls._logger.debug(f"Pod entered phase: {phase}")
+                return phase
+            if time.monotonic() >= deadline:
+                break
+            if phase != last_phase:
+                cls._logger.warning(f"Pod in phase: {phase}")
+                last_phase = phase
+            time.sleep(1)
         raise TimeoutError(
             f"Pod {task_run.id} in namespace {task_run.config.namespace} did not reach one of the states {states} in {timeout} seconds."
         )

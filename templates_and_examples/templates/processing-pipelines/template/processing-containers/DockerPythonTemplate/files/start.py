@@ -15,7 +15,7 @@ execution_timeout = 10
 processed_count = 0
 
 
-# Process smth
+# Example: process smth in Python (unused; the shell variant below is the one wired in)
 def process_input_file_python(filepath):
     global processed_count
 
@@ -23,7 +23,7 @@ def process_input_file_python(filepath):
     return True, filepath
 
 
-# Alternative Process smth via shell-command
+# Process smth via shell-command
 def process_input_file(filepath):
     global processed_count, execution_timeout
 

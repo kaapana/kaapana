@@ -112,7 +112,6 @@ class ValidationResult2Meta:
         logger.info(f"Tags 2 add: {validation_tags}")
 
         self.os_client.get(index=self.opensearch_index, id=series_instance_uid)
-        # logger.info(doc)
 
         if clear_results:
             # Write Tags back

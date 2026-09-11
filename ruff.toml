@@ -8,7 +8,7 @@ extend-exclude = [
     "services/flow/airflow/docker/files/task_command_2.10.3_adapted.py",
     "utils/internet-benchmark/docker/files/speedtest.py",
 ]
-# pre-commit passes file names explicitly; apply the excludes to those too.
+# Honour the excludes for explicitly passed paths too (editor and LSP invocations).
 force-exclude = true
 
 [lint]

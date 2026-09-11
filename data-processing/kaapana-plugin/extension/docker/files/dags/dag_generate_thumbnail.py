@@ -54,8 +54,7 @@ skip_no_thumbnail = LocalDcmBranchingOperator(
     dag=dag,
     name="skip-no-thumbnail",
     input_operator=get_dcm_input,
-    condition=lambda ds: str(ds.get("Modality", "")).strip().upper()
-    not in NO_THUMBNAIL_MODALITIES,
+    condition=lambda ds: str(ds.get("Modality", "")).strip().upper() not in NO_THUMBNAIL_MODALITIES,
     branch_true_operator="has_ref_series",
     branch_false_operator="clean",
 )
@@ -98,16 +97,13 @@ def upload_thumbnails_into_project_bucket(ds, **kwargs):
     minio = get_minio_client()
     conf = kwargs["dag_run"].conf
     project_id = conf["project_form"]["id"]
-    response = requests.get(
-        f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects/{project_id}"
-    )
+    response = requests.get(f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects/{project_id}")
     response.raise_for_status()
     project = response.json()
 
     batch_dir = Path(AIRFLOW_WORKFLOW_DIR) / kwargs["dag_run"].run_id / BATCH_NAME
     batch_folder = [f for f in glob.glob(os.path.join(batch_dir, "*"))]
     for batch_element_dir in batch_folder:
-
         thumbnail_dir = Path(batch_element_dir) / generate_thumbnail.operator_out_dir
 
         if not thumbnail_dir.exists():

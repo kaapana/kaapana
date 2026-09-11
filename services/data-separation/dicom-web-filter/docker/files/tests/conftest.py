@@ -22,9 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 def make_request():
     """Build the minimal ASGI scope the project-scope helpers read."""
 
-    def _make_request(
-        header: str | None = None, *, admin: bool = False, projects: list[str]
-    ) -> Request:
+    def _make_request(header: str | None = None, *, admin: bool = False, projects: list[str]) -> Request:
         headers = [(b"project", header.encode())] if header is not None else []
         return Request(
             {

@@ -139,9 +139,7 @@ def handle_task_failure_alert(context):
 
     send_email = workflow_form.get("send_email", False)
     if send_email:
-        logger.info(
-            "Not triggering send-mail DAG, as an email will be sent with the results."
-        )
+        logger.info("Not triggering send-mail DAG, as an email will be sent with the results.")
         return
 
     if not check_email_required(workflow_name, run_id):
@@ -203,11 +201,7 @@ def check_email_required(calling_workflow: str, calling_run_id: str):
     keys_to_select = ["status"]
 
     task_list_filtered = [
-        {
-            key: value
-            for key, value in entry.items()
-            if key in keys_to_select and value == "failed"
-        }
+        {key: value for key, value in entry.items() if key in keys_to_select and value == "failed"}
         for entry in task_list
     ]
 

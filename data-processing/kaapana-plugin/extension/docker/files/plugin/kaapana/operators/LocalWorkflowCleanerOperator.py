@@ -48,9 +48,7 @@ class LocalWorkflowCleanerOperator(KaapanaBaseOperator):
 
     def post_execute(self, context, result=None):
         run_id = context["run_id"]
-        run_id_cured = cure_invalid_name(
-            context["run_id"], r"(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?"
-        )
+        run_id_cured = cure_invalid_name(context["run_id"], r"(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?")
         configmap_name = f"{run_id_cured}-config"
         namespace = self.namespace
         self.delete_conf_configmap(configmap_name, namespace)
@@ -58,9 +56,7 @@ class LocalWorkflowCleanerOperator(KaapanaBaseOperator):
         conf = context["dag_run"].conf or {}
         # federed workflows run in SERVICES_NAMESPACE, so the cleanup can also be local only
         clean_previous_dag_run(self.airflow_workflow_dir, conf, "from_previous_dag_run")
-        clean_previous_dag_run(
-            self.airflow_workflow_dir, conf, "before_previous_dag_run"
-        )
+        clean_previous_dag_run(self.airflow_workflow_dir, conf, "before_previous_dag_run")
 
         run_dir = Path(AIRFLOW_WORKFLOW_DIR, run_id)
         # removes task_run_files created locally

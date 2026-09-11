@@ -48,13 +48,7 @@ def wait_for_file_in_opensearch(os_client, index, series_uid):
         "bool": {
             "must": [
                 {"match_all": {}},
-                {
-                    "match_phrase": {
-                        "0020000E SeriesInstanceUID_keyword.keyword": {
-                            "query": series_uid
-                        }
-                    }
-                },
+                {"match_phrase": {"0020000E SeriesInstanceUID_keyword.keyword": {"query": series_uid}}},
             ],
             "filter": [],
             "should": [],
@@ -83,9 +77,7 @@ def wait_for_file_in_opensearch(os_client, index, series_uid):
             time.sleep(5)
 
 
-def send_dicom_data(
-    path_to_dicom_files: str, dataset: str = "kp-phantom", project: str = "kp-admin"
-):
+def send_dicom_data(path_to_dicom_files: str, dataset: str = "kp-phantom", project: str = "kp-admin"):
     """
     Send all dicom files in the directory path_to_dicom_files to the kaapana ctp.
     Assign it to the provided project and add it to the provided dataset.
@@ -155,14 +147,10 @@ if __name__ == "__main__":
             access_token = get_project_user_access_token()
             break
         except KeyError:
-            logger.warning(
-                "Receiving the access token for the system user failed. Retry..."
-            )
+            logger.warning("Receiving the access token for the system user failed. Retry...")
             time.sleep(10)
     if not access_token:
-        raise KeyError(
-            "Could not receive an access token for the system user from Keycloak."
-        )
+        raise KeyError("Could not receive an access token for the system user from Keycloak.")
     os_client = get_opensearch_client(access_token=access_token)
 
     wait_for_opensearch_index(os_client=os_client, index=project_index)
@@ -176,9 +164,7 @@ if __name__ == "__main__":
         "series_uid": "1.3.12.2.1107.5.1.4.73104.30000020081307523376400012735",
     }
 
-    wait_for_file_in_pacs(
-        study_uid=example_phantom_send["study_uid"], access_token=access_token
-    )
+    wait_for_file_in_pacs(study_uid=example_phantom_send["study_uid"], access_token=access_token)
 
     wait_for_file_in_opensearch(
         os_client=os_client,

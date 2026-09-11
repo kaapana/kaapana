@@ -11,9 +11,7 @@ class RepositoryExistsException(Exception):
 
 class NotSupportedExtensionStateTransition(Exception):
     def __init__(self, is_state: ExtensionStatus, soll_state: ExtensionStatus):
-        super().__init__(
-            f"State transition from {is_state} to {soll_state} no supported!"
-        )
+        super().__init__(f"State transition from {is_state} to {soll_state} no supported!")
 
 
 class LockedExtensionException(Exception):

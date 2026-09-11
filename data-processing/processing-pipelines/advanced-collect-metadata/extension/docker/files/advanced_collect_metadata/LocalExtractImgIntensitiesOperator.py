@@ -50,12 +50,8 @@ class LocalExtractImgIntensitiesOperator(KaapanaPythonBaseOperator):
 
             # check if json_operator is defined; if yes load existing json file from json_operator's dir
             if self.json_operator:
-                batch_element_json_in_dir = os.path.join(
-                    batch_element_dir, self.json_operator
-                )
-                json_fname = glob.glob(
-                    os.path.join(batch_element_json_in_dir, "*.json"), recursive=True
-                )[0]
+                batch_element_json_in_dir = os.path.join(batch_element_dir, self.json_operator)
+                json_fname = glob.glob(os.path.join(batch_element_json_in_dir, "*.json"), recursive=True)[0]
                 # load json file
                 f = open(json_fname)
                 json_data = json.load(f)
@@ -74,17 +70,13 @@ class LocalExtractImgIntensitiesOperator(KaapanaPythonBaseOperator):
             ### via DICOM ###
             # load batch-element's nifti image form input_operator's dir
             batch_element_in_dir = os.path.join(batch_element_dir, self.input_operator)
-            dcm_fnames = glob.glob(
-                os.path.join(batch_element_in_dir, "*.dcm"), recursive=True
-            )
+            dcm_fnames = glob.glob(os.path.join(batch_element_in_dir, "*.dcm"), recursive=True)
 
             # read slices and stack along depth axis
             slices = [pydicom.dcmread(file).pixel_array for file in dcm_fnames]
             new_slices = []
             for arr in slices:
-                new_slices.append(
-                    arr
-                )  # Note: should work with arr.ndim=3 and arr.ndim=2
+                new_slices.append(arr)  # Note: should work with arr.ndim=3 and arr.ndim=2
             slices = new_slices
             volume = np.stack(slices, axis=-1)
 
@@ -93,20 +85,12 @@ class LocalExtractImgIntensitiesOperator(KaapanaPythonBaseOperator):
             slope = (
                 ds.RescaleSlope
                 if "RescaleSlope" in ds
-                else (
-                    ds.SharedFunctionalGroupsSequence[0]
-                    .PixelValueTransformationSequence[0]
-                    .RescaleSlope
-                )
+                else (ds.SharedFunctionalGroupsSequence[0].PixelValueTransformationSequence[0].RescaleSlope)
             )  # ds.RescaleSlope; (0028,1053)
             intercept = (
                 ds.RescaleIntercept
                 if "RescaleIntercept" in ds
-                else (
-                    ds.SharedFunctionalGroupsSequence[0]
-                    .PixelValueTransformationSequence[0]
-                    .RescaleIntercept
-                )
+                else (ds.SharedFunctionalGroupsSequence[0].PixelValueTransformationSequence[0].RescaleIntercept)
             )  # ds.RescaleIntercept; 	(0028,1052)
             volume = volume * slope + intercept
             print(f"MIN Value: {np.min(volume)} ; MAX value: {np.max(volume)}")
@@ -117,9 +101,7 @@ class LocalExtractImgIntensitiesOperator(KaapanaPythonBaseOperator):
 
             # retrieve grayscale histo values and add to histo_dict
             unique_values, counts = np.unique(volume, return_counts=True)
-            histo_dict_el = {
-                f"{value}": f"{count}" for value, count in zip(unique_values, counts)
-            }
+            histo_dict_el = {f"{value}": f"{count}" for value, count in zip(unique_values, counts)}
             for key, value in histo_dict_el.items():
                 if key not in histo_dict:
                     histo_dict[key] = int(value)
@@ -130,9 +112,7 @@ class LocalExtractImgIntensitiesOperator(KaapanaPythonBaseOperator):
             concat_json_data[basename(batch_element_dir)] = json_data
 
         # sort histo_dict with increasing grayscale values
-        sorted_histo_dict = dict(
-            sorted(histo_dict.items(), key=lambda item: float(item[0]))
-        )
+        sorted_histo_dict = dict(sorted(histo_dict.items(), key=lambda item: float(item[0])))
 
         # merge concat_json_data and histo_dict dicts
         concat_json_data["histo_values"] = sorted_histo_dict
@@ -145,9 +125,7 @@ class LocalExtractImgIntensitiesOperator(KaapanaPythonBaseOperator):
             "w",
             encoding="utf-8",
         ) as fp:
-            json.dump(
-                concat_json_data, fp, indent=4, sort_keys=False, ensure_ascii=False
-            )
+            json.dump(concat_json_data, fp, indent=4, sort_keys=False, ensure_ascii=False)
 
     def __init__(
         self,

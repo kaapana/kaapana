@@ -96,25 +96,19 @@ def _seed_pvc(pvc_root: Path, run_id: str) -> Path:
 
 @pytest.mark.asyncio
 async def test_is_clean_true_when_both_missing(adapter):
-    assert (
-        await adapter.is_workflow_run_data_clean("any-dag::missing", PROJECT_ID) is True
-    )
+    assert await adapter.is_workflow_run_data_clean("any-dag::missing", PROJECT_ID) is True
 
 
 @pytest.mark.asyncio
 async def test_is_clean_false_when_only_local_present(adapter):
     _seed_local(adapter, "run-2")
-    assert (
-        await adapter.is_workflow_run_data_clean("any-dag::run-2", PROJECT_ID) is False
-    )
+    assert await adapter.is_workflow_run_data_clean("any-dag::run-2", PROJECT_ID) is False
 
 
 @pytest.mark.asyncio
 async def test_is_clean_false_when_only_pvc_present(adapter, pvc_root):
     _seed_pvc(pvc_root, "run-2b")
-    assert (
-        await adapter.is_workflow_run_data_clean("any-dag::run-2b", PROJECT_ID) is False
-    )
+    assert await adapter.is_workflow_run_data_clean("any-dag::run-2b", PROJECT_ID) is False
 
 
 @pytest.mark.asyncio

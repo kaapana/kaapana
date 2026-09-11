@@ -167,15 +167,11 @@ def build_and_push_processing_containers(
             subprocess.run(login_cmd, check=True)
         except subprocess.CalledProcessError as e:
             # Abort early - login failed
-            return [
-                {"container": "<login>", "status": "error", "message": f"docker login failed: {e}"}
-            ]
+            return [{"container": "<login>", "status": "error", "message": f"docker login failed: {e}"}]
 
     for c in containers:
         if not c.has_dockerfile:
-            results.append(
-                {"container": c.path.name, "status": "skipped", "message": "no Dockerfile"}
-            )
+            results.append({"container": c.path.name, "status": "skipped", "message": "no Dockerfile"})
             continue
 
         image_name = c.name.split("/")[-1]

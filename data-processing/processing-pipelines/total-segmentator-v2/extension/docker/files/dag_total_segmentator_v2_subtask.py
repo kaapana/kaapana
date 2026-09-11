@@ -27,7 +27,8 @@ dag = DAG(
     schedule_interval=None,
 )
 
-get_input = GetInputOperator(dag=dag, parallel_downloads=5, check_modality=True, data_type ='all')
+get_input = GetInputOperator(dag=dag, parallel_downloads=5, check_modality=True, data_type="all")
+
 
 def move_metadata_json(ds, **kwargs):
     batch_dir = Path(AIRFLOW_WORKFLOW_DIR) / kwargs["dag_run"].run_id / BATCH_NAME
@@ -36,15 +37,16 @@ def move_metadata_json(ds, **kwargs):
         json_dir = Path(batch_element_dir) / get_input.operator_out_dir
         dest_dir = Path(batch_element_dir) / dcm2nifti.operator_out_dir
         json_files = [f for f in json_dir.glob("*.json")]
-        print('from callback:', json_files)
+        print("from callback:", json_files)
         shutil.copy(json_files[0], dest_dir)
+
 
 put_metadata_json = KaapanaPythonBaseOperator(
     name="put_metajson",
     python_callable=move_metadata_json,
     dag=dag,
 )
-  
+
 dcm2nifti = DcmConverterOperator(
     dag=dag,
     input_operator=get_input,
@@ -60,10 +62,7 @@ total_segmentator_subtask = TotalSegmentatorV2Operator(
 )
 
 combine_masks_subtask = UpdateSegInfoJSONOperator(
-    dag=dag,
-    input_operator=total_segmentator_subtask,
-    parallel_id=ta,
-    mode='update_json'
+    dag=dag, input_operator=total_segmentator_subtask, parallel_id=ta, mode="update_json"
 )
 
 nrrd2dcmSeg_multi_subtask = Itk2DcmSegOperator(

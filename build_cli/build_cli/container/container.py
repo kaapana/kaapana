@@ -20,9 +20,7 @@ BUILDX_BUILDER_NAME = "kaapana-buildx"
 class Status(Enum):
     NOT_BUILT = auto()  # initial state|waiting for dependencies
     SKIPPED = auto()  # Container was intentionally skipped (e.g., build_ignore)
-    BUILT_ONLY = (
-        auto()
-    )  # Containers that are BUILT and should not be pushed (local containers, build-only flag)
+    BUILT_ONLY = auto()  # Containers that are BUILT and should not be pushed (local containers, build-only flag)
     BUILT = auto()  # build succeeded
     PUSHED = auto()  # push succeeded
     NOTHING_CHANGED = auto()  # build succeeded but no changes
@@ -65,9 +63,7 @@ class BaseImage:
         domain_component = r"(?:[a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9])"
         optional_port = r"(?::[0-9]+)?"
         tag_pat = r"[\w][\w.-]{0,127}"
-        digest_pat = (
-            r"[A-Za-z][A-Za-z0-9]*(?:[-_+.][A-Za-z][A-Za-z0-9]*)*:[a-fA-F0-9]{32,}"
-        )
+        digest_pat = r"[A-Za-z][A-Za-z0-9]*(?:[-_+.][A-Za-z][A-Za-z0-9]*)*:[a-fA-F0-9]{32,}"
         ipv6 = r"\[(?:[a-fA-F0-9:]+)\]"
         domain_name = rf"{domain_component}(?:\.{domain_component})*"
         host = rf"(?:{domain_name}|{ipv6})"
@@ -103,9 +99,7 @@ class BaseImage:
             domain, path = "", full_name
 
         if len(path) > 255:  # RepositoryNameTotalLengthMax
-            raise ValueError(
-                f"{tag}: repository name must not be more than 255 characters"
-            )
+            raise ValueError(f"{tag}: repository name must not be more than 255 characters")
         if not tag_val and not digest_val:
             raise ValueError(f"{tag}: missing tag or digest")
 
@@ -179,9 +173,7 @@ class Container:
             "build_time": self.build_time,
             "push_time": self.push_time,
             "local_image": self.local_image,
-            "base_images": [
-                b.tag if isinstance(b, Container) else str(b) for b in self.base_images
-            ],
+            "base_images": [b.tag if isinstance(b, Container) else str(b) for b in self.base_images],
         }
 
     @classmethod
@@ -234,19 +226,13 @@ class Container:
             local_image = True
             # If cache_enabled: Use the git-derived image version also for local-images, as they are pushed to the registry.
             repo_version = (
-                cls._compute_repo_version(dockerfile, build_config)
-                if build_config.cache_enabled
-                else "latest"
+                cls._compute_repo_version(dockerfile, build_config) if build_config.cache_enabled else "latest"
             )
         else:
             repo_version = cls._compute_repo_version(dockerfile, build_config)
 
         registry = registry or build_config.default_registry
-        tag = (
-            f"{registry}/{image_name}:{repo_version}"
-            if image_name and repo_version
-            else None
-        )
+        tag = f"{registry}/{image_name}:{repo_version}" if image_name and repo_version else None
 
         if not image_name or not repo_version:
             logger.debug(f"{dockerfile.parent}: could not extract container infos!")
@@ -312,16 +298,16 @@ class Container:
         build_args.extend(
             [
                 "--build-context",
-                f"constraints={config.kaapana_dir / "constraints"}",
+                f"constraints={config.kaapana_dir / 'constraints'}",
                 "--build-context",
-                f"lib={config.kaapana_dir / "lib"}",
+                f"lib={config.kaapana_dir / 'lib'}",
             ]
         )
         if self.image_name == "kaapana-extension-collection":
             build_args.extend(
                 [
                     "--build-context",
-                    f"charts={config.build_dir /"kaapana-admin-chart" / "kaapana-extension-collection"  }",
+                    f"charts={config.build_dir / 'kaapana-admin-chart' / 'kaapana-extension-collection'}",
                 ]
             )
 
@@ -330,9 +316,7 @@ class Container:
                 ### Use buildkit to push image directly
                 build_args.extend(["--push"])
                 if self.local_image:
-                    self.tag = (
-                        f"{config.default_registry}/{self.image_name}:{self.version}"
-                    )
+                    self.tag = f"{config.default_registry}/{self.image_name}:{self.version}"
             if config.cache_to:
                 build_args.extend(
                     [
@@ -392,11 +376,7 @@ class Container:
                 stderr=stderr_f,
                 universal_newlines=True,
                 timeout=6000,
-                cwd=(
-                    self.container_build_dir
-                    if self.container_build_dir
-                    else self.dockerfile.parent
-                ),
+                cwd=(self.container_build_dir if self.container_build_dir else self.dockerfile.parent),
                 env=dict(
                     os.environ,
                     DOCKER_BUILDKIT=f"{config.enable_build_kit}",
@@ -423,9 +403,7 @@ class Container:
                     self.push_time = end_time - start_time
             else:
                 if "---> Running in" in output.stdout:
-                    self.status = (
-                        Status.BUILT_ONLY if self.local_image else Status.BUILT
-                    )
+                    self.status = Status.BUILT_ONLY if self.local_image else Status.BUILT
                     logger.debug(f"{self.tag}: Build sucessful.")
                 else:
                     self.status = Status.NOTHING_CHANGED
@@ -467,9 +445,7 @@ class Container:
             # microk8s import <- stdin
             cmd_import = ["microk8s", "ctr", "image", "import", "-"]
 
-            save_proc = subprocess.Popen(
-                cmd_save, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-            )
+            save_proc = subprocess.Popen(cmd_save, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             import_proc = subprocess.Popen(
                 cmd_import,
                 stdin=save_proc.stdout,
@@ -526,9 +502,7 @@ class Container:
             return issue
 
         if self.status not in {Status.BUILT, Status.NOTHING_CHANGED}:
-            logger.warning(
-                f"{self.tag}: Skipping push since image has not been built successfully!"
-            )
+            logger.warning(f"{self.tag}: Skipping push since image has not been built successfully!")
             logger.warning(f"{self.tag}: container_build_status: {self.status}")
             IssueTracker.generate_issue(
                 component=self.__class__.__name__,

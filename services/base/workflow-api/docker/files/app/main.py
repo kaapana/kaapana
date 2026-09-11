@@ -62,9 +62,7 @@ app.add_middleware(
 
 
 @app.websocket("/ws")
-async def websocket_endpoint(
-    websocket: WebSocket, con_mgr=Depends(get_connection_manager)
-):
+async def websocket_endpoint(websocket: WebSocket, con_mgr=Depends(get_connection_manager)):
     await con_mgr.connect(websocket)
     try:
         while True:
@@ -97,9 +95,7 @@ async def service_exception_handler(request: Request, exc: errors.ServiceError):
 
 
 # Versioned routers
-app.include_router(
-    workflow_runs.router, prefix=f"/{API_VERSION}", tags=["workflow runs"]
-)
+app.include_router(workflow_runs.router, prefix=f"/{API_VERSION}", tags=["workflow runs"])
 app.include_router(workflows.router, prefix=f"/{API_VERSION}", tags=["workflow"])
 app.include_router(health_check.router, prefix=f"/{API_VERSION}", tags=["health"])
 

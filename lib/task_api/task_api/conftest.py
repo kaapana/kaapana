@@ -29,10 +29,8 @@ def push_to_registry():
         password=os.environ["REGISTRY_PASSWORD"],
         registry=os.environ["REGISTRY_URL"],
     )
-    client.images.build(
-        path=f"{TASK_DIR}/dummy/", tag=f"{os.environ["REGISTRY_URL"]}/dummy:latest"
-    )
-    client.images.push(repository=f"{os.environ["REGISTRY_URL"]}/dummy", tag="latest")
+    client.images.build(path=f"{TASK_DIR}/dummy/", tag=f"{os.environ['REGISTRY_URL']}/dummy:latest")
+    client.images.push(repository=f"{os.environ['REGISTRY_URL']}/dummy", tag="latest")
 
 
 def k8s_cluster_available():

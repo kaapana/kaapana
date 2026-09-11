@@ -38,12 +38,8 @@ def upgrade() -> None:
         sa.Column("ssl_check", sa.Boolean(), nullable=True),
         sa.Column("fernet_key", sa.String(length=100), nullable=True),
         sa.Column("encryption_key", sa.String(length=100), nullable=True),
-        sa.Column(
-            "allowed_dags", postgresql.JSONB(astext_type=sa.Text()), nullable=True
-        ),
-        sa.Column(
-            "allowed_datasets", postgresql.JSONB(astext_type=sa.Text()), nullable=True
-        ),
+        sa.Column("allowed_dags", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("allowed_datasets", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column("time_created", sa.DateTime(timezone=True), nullable=True),
         sa.Column("time_updated", sa.DateTime(timezone=True), nullable=True),
         sa.Column("automatic_update", sa.Boolean(), nullable=True),
@@ -64,21 +60,15 @@ def upgrade() -> None:
         ["automatic_workflow_execution"],
         unique=False,
     )
-    op.create_index(
-        op.f("ix_kaapana_instance_host"), "kaapana_instance", ["host"], unique=False
-    )
-    op.create_index(
-        op.f("ix_kaapana_instance_port"), "kaapana_instance", ["port"], unique=False
-    )
+    op.create_index(op.f("ix_kaapana_instance_host"), "kaapana_instance", ["host"], unique=False)
+    op.create_index(op.f("ix_kaapana_instance_port"), "kaapana_instance", ["port"], unique=False)
     op.create_index(
         op.f("ix_kaapana_instance_protocol"),
         "kaapana_instance",
         ["protocol"],
         unique=False,
     )
-    op.create_index(
-        op.f("ix_kaapana_instance_remote"), "kaapana_instance", ["remote"], unique=False
-    )
+    op.create_index(op.f("ix_kaapana_instance_remote"), "kaapana_instance", ["remote"], unique=False)
     op.create_index(
         op.f("ix_kaapana_instance_ssl_check"),
         "kaapana_instance",
@@ -125,9 +115,7 @@ def upgrade() -> None:
             ["kaapana_instance.id"],
         ),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint(
-            "username", "instance_name", "key", name="uq_username_instance_key"
-        ),
+        sa.UniqueConstraint("username", "instance_name", "key", name="uq_username_instance_key"),
     )
     op.create_table(
         "workflow",
@@ -154,9 +142,7 @@ def upgrade() -> None:
         ["automatic_execution"],
         unique=False,
     )
-    op.create_index(
-        op.f("ix_workflow_federated"), "workflow", ["federated"], unique=False
-    )
+    op.create_index(op.f("ix_workflow_federated"), "workflow", ["federated"], unique=False)
     op.create_index(
         op.f("ix_workflow_involved_kaapana_instances"),
         "workflow",
@@ -210,9 +196,7 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(
-        op.f("ix_job_automatic_execution"), "job", ["automatic_execution"], unique=False
-    )
+    op.create_index(op.f("ix_job_automatic_execution"), "job", ["automatic_execution"], unique=False)
     op.create_index(op.f("ix_job_description"), "job", ["description"], unique=False)
     op.create_index(op.f("ix_job_run_id"), "job", ["run_id"], unique=False)
     op.create_index(op.f("ix_job_service_job"), "job", ["service_job"], unique=False)
@@ -262,9 +246,7 @@ def downgrade() -> None:
         op.f("ix_kaapana_instance_automatic_workflow_execution"),
         table_name="kaapana_instance",
     )
-    op.drop_index(
-        op.f("ix_kaapana_instance_automatic_update"), table_name="kaapana_instance"
-    )
+    op.drop_index(op.f("ix_kaapana_instance_automatic_update"), table_name="kaapana_instance")
     op.drop_table("kaapana_instance")
     op.drop_table("identifiers")
     # ### end Alembic commands ###

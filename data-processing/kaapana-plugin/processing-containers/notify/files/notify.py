@@ -53,11 +53,7 @@ def main():
         topic=notification_settings.topic if notification_settings.topic else dag_id,
         title=notification_settings.title,
         description=notification_settings.description,
-        icon=(
-            notification_settings.icon
-            if notification_settings.icon
-            else "mdi-information"
-        ),
+        icon=(notification_settings.icon if notification_settings.icon else "mdi-information"),
         link=(
             notification_settings.link
             if notification_settings.link

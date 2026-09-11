@@ -32,9 +32,7 @@ class CommandUtils:
                 env=env,
             )
         except Exception as e:
-            logger.error(
-                f"{'[' + context + '] ' if context else ''}Command failed: {e}"
-            )
+            logger.error(f"{'[' + context + '] ' if context else ''}Command failed: {e}")
             if hints:
                 for hint in hints:
                     logger.error(f"hint: {hint}")

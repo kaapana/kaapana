@@ -38,13 +38,9 @@ class LocalRemoveDicomTagsOperator(KaapanaPythonBaseOperator):
         batch_folders: List[Path] = list((run_dir / self.batch_name).glob("*"))
         logger.info(f"Number of series: {len(batch_folders)}")
         for batch_element_dir in batch_folders:
-            files: List[Path] = sorted(
-                list((batch_element_dir / self.operator_in_dir).rglob("*.dcm"))
-            )
+            files: List[Path] = sorted(list((batch_element_dir / self.operator_in_dir).rglob("*.dcm")))
             if len(files) == 0:
-                raise FileNotFoundError(
-                    f"No dicom file found in {batch_element_dir / self.operator_in_dir}"
-                )
+                raise FileNotFoundError(f"No dicom file found in {batch_element_dir / self.operator_in_dir}")
             logger.info(f"length {len(files)}")
             for dcm_file_path in files:
                 logger.info(f"Remove tags for dicom file at {dcm_file_path}")

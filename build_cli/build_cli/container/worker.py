@@ -8,7 +8,6 @@ from build_cli.container.container_helper import (
 
 
 class BuildWorker:
-
     def process_container(self, container: Container, event_queue: EventQueue) -> None:
         """
         Process a single container.
@@ -25,9 +24,7 @@ class BuildWorker:
         if build_issue:
             container.status = Status.FAILED
             self._emit_event(
-                BuildEvent(
-                    type=BuildEventType.FAILED, container=container, issue=build_issue
-                ),
+                BuildEvent(type=BuildEventType.FAILED, container=container, issue=build_issue),
                 event_queue,
             )
             return
@@ -51,9 +48,7 @@ class BuildWorker:
         push_issue = container.push(ContainerHelper._build_config)
         if push_issue:
             self._emit_event(
-                BuildEvent(
-                    type=BuildEventType.FAILED, container=container, issue=push_issue
-                ),
+                BuildEvent(type=BuildEventType.FAILED, container=container, issue=push_issue),
                 event_queue,
             )
             return

@@ -14,11 +14,7 @@ router = APIRouter(tags=["workflows"])
 async def dags(service: WorkflowService = Depends(get_workflow_service)):
     resp, err = service.get_dags()
     if err:
-        return {
-            "get_dags failed with Status Code: {0} , Error: {1}".format(
-                err.detail, err.status_code
-            )
-        }
+        return {"get_dags failed with Status Code: {0} , Error: {1}".format(err.detail, err.status_code)}
     return resp
 
 
@@ -33,9 +29,7 @@ async def trigger_workflow(
     resp, err = service.trigger_workflow(db_client_kaapana, conf_data, dry_run)
     if err:
         raise HTTPException(
-            "trigger_workflow failed with Status Code: {0} , Error: {1} , ".format(
-                err.detail, err.status_code
-            )
+            "trigger_workflow failed with Status Code: {0} , Error: {1} , ".format(err.detail, err.status_code)
         )
     return resp
 
@@ -46,17 +40,13 @@ async def running_dags(service: WorkflowService = Depends(get_workflow_service))
     resp, err = service.get_running_dags()
     if err:
         raise HTTPException(
-            "get_running_dags failed with Status Code: {0} , Error: {1}".format(
-                err.detail, err.status_code
-            )
+            "get_running_dags failed with Status Code: {0} , Error: {1}".format(err.detail, err.status_code)
         )
     return resp
 
 
 @router.get("/history/{dag_id}")
-async def dag_history(
-    dag_id: str, service: WorkflowService = Depends(get_workflow_service)
-):
+async def dag_history(dag_id: str, service: WorkflowService = Depends(get_workflow_service)):
     ###### returns [dag_id] for currently running DAGs ######
     resp, err = service.get_dag_history(dag_id)
     if err:

@@ -36,6 +36,4 @@ class MenuSection(BaseModel):
 
 
 class MenuResponse(BaseModel):
-    items: list[
-        MenuSection | MenuEntry
-    ]  # pre-sorted; sections and top-level entries interleaved
+    items: list[MenuSection | MenuEntry]  # pre-sorted; sections and top-level entries interleaved

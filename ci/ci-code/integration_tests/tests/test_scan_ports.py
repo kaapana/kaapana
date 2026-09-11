@@ -18,7 +18,4 @@ def test_scan_ports(ip_address, allowed_ports):
     else:
         logger.info("No open ports found.")
 
-    assert ok, (
-        f"Unexpected open ports on {ip_address}! "
-        f"Allowed: {allowed_ports}, Found: {open_ports}"
-    )
+    assert ok, f"Unexpected open ports on {ip_address}! Allowed: {allowed_ports}, Found: {open_ports}"

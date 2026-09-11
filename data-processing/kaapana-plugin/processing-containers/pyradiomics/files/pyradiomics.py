@@ -139,30 +139,20 @@ def get_radiomics_features(seg_file, img_file="ct.nii.gz"):
             extractor.enableFeatureClassByName("firstorder")
             features = extractor.execute(str(img_file), str(seg_file))
 
-            features = {
-                k.replace("original_", ""): v
-                for k, v in features.items()
-                if k.startswith("original_")
-            }
+            features = {k.replace("original_", ""): v for k, v in features.items() if k.startswith("original_")}
         else:
             print("WARNING: Entire mask is 0 or 1. Setting all features to 0")
             features = {feat: 0 for feat in standard_features}
     except Exception as e:
-        print(
-            f"WARNING: radiomics raised an exception (settings all features to 0): {e}"
-        )
+        print(f"WARNING: radiomics raised an exception (settings all features to 0): {e}")
         features = {feat: 0 for feat in standard_features}
 
-    features = {
-        k: round(float(v), 4) for k, v in features.items()
-    }  # round to 4 decimals and cast to python float
+    features = {k: round(float(v), 4) for k, v in features.items()}  # round to 4 decimals and cast to python float
 
     return seg_file.name.split(".")[0], features
 
 
-def get_radiomics_features_for_entire_dir(
-    ct_file: Path, mask_dir: Path, file_out: Path
-):
+def get_radiomics_features_for_entire_dir(ct_file: Path, mask_dir: Path, file_out: Path):
     masks = sorted(list(mask_dir.glob("*.nii.gz")))
     stats = p_map(
         partial(get_radiomics_features, img_file=ct_file),
@@ -186,15 +176,11 @@ if not radiomics:
     print()
     exit(126)
 
-batch_folders: List[Path] = sorted(
-    [*Path("/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"]).glob("*")]
-)
+batch_folders: List[Path] = sorted([*Path("/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"]).glob("*")])
 for batch_element_dir in batch_folders:
     element_input_dir = batch_element_dir / os.environ["OPERATOR_IN_DIR"]
     element_output_dir = batch_element_dir / os.environ["OPERATOR_OUT_DIR"]
-    segmentation_input_dir = (
-        batch_element_dir / os.environ["OPERATOR_IN_SEGMENATIONS_DIR"]
-    )
+    segmentation_input_dir = batch_element_dir / os.environ["OPERATOR_IN_SEGMENATIONS_DIR"]
     element_output_dir.mkdir(exist_ok=True)
     # The processing algorithm
     print(f"{element_input_dir= }")

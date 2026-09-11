@@ -59,9 +59,7 @@ class LocalTaggingOperator(KaapanaPythonBaseOperator):
         tags2add: List[str] = [],
         tags2delete: List[str] = [],
     ):
-        logger.info(
-            f"Update tags for {series_instance_uid=} in {self.opensearch_index=}"
-        )
+        logger.info(f"Update tags for {series_instance_uid=} in {self.opensearch_index=}")
         logger.info(f"Tags 2 add: {tags2add}")
         logger.info(f"Tags 2 delete: {tags2delete}")
 
@@ -70,19 +68,12 @@ class LocalTaggingOperator(KaapanaPythonBaseOperator):
         logger.info(doc)
         index_tags = doc["_source"].get(self.tag_field, [])
 
-        final_tags = list(
-            set(tags)
-            .union(set(index_tags))
-            .difference(set(tags2delete))
-            .union(set(tags2add))
-        )
+        final_tags = list(set(tags).union(set(index_tags)).difference(set(tags2delete)).union(set(tags2add)))
         logger.info(f"Final tags: {final_tags}")
 
         # Write Tags back
         body = {"doc": {self.tag_field: final_tags}}
-        self.os_client.update(
-            index=self.opensearch_index, id=series_instance_uid, body=body
-        )
+        self.os_client.update(index=self.opensearch_index, id=series_instance_uid, body=body)
 
     def start(self, ds, **kwargs):
         logger.info("Start tagging")
@@ -108,9 +99,7 @@ class LocalTaggingOperator(KaapanaPythonBaseOperator):
         logger.info(f"Action: {action}")
         logger.info(f"Tags from form: {tags}")
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
-        batch_folder = [
-            f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))
-        ]
+        batch_folder = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))]
 
         for batch_element_dir in batch_folder:
             json_files = sorted(

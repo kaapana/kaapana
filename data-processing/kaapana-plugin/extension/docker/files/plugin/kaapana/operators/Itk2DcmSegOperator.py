@@ -81,10 +81,8 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
             or "",  # Name used for multi-label segmentation object, if it will be created
             "FAIL_ON_NO_SEGMENTATION_FOUND": f"{fail_on_no_segmentation_found}",
             # "OPERATOR_IMAGE_LIST_INPUT_DIR":  segmentation_operator.operator_out_dir, # directory that contains segmentaiton objects
-            "SERIES_DESCRIPTION": "{}".format(
-                series_description or alg_name or "UNKOWN SEGMENTATION ALGORITHM"
-            ),
-            "ALGORITHM_NAME": f'{alg_name or "kaapana"}',
+            "SERIES_DESCRIPTION": "{}".format(series_description or alg_name or "UNKOWN SEGMENTATION ALGORITHM"),
+            "ALGORITHM_NAME": f"{alg_name or 'kaapana'}",
             "CREATOR_NAME": creator_name,
             "ALGORITHM_TYPE": alg_type,
             "SERIES_NUMBER": "300",
@@ -100,13 +98,9 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
             env_vars["OPERATOR_IMAGE_LIST_INPUT_DIR"] = str(segmentation_in_dir)
         else:
             if segmentation_operator is not None and segmentation_in_dir is None:
-                env_vars["OPERATOR_IMAGE_LIST_INPUT_DIR"] = str(
-                    segmentation_operator.operator_out_dir
-                )
+                env_vars["OPERATOR_IMAGE_LIST_INPUT_DIR"] = str(segmentation_operator.operator_out_dir)
             else:
-                raise NameError(
-                    "Either segmentation_operator or operator_in_dir has to be set."
-                )
+                raise NameError("Either segmentation_operator or operator_in_dir has to be set.")
 
         super().__init__(
             dag=dag,

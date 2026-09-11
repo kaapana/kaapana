@@ -64,8 +64,6 @@ def downgrade() -> None:
         table_name="dataset",
         postgresql_where=sa.text("access_level = 'private'"),
     )
-    op.create_unique_constraint(
-        "dataset_project_id_name_key", "dataset", ["project_id", "name"]
-    )
+    op.create_unique_constraint("dataset_project_id_name_key", "dataset", ["project_id", "name"])
     op.drop_column("dataset", "access_level")
     # ### end Alembic commands ###

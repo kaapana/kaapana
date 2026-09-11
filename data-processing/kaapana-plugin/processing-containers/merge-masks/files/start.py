@@ -28,9 +28,7 @@ def remove_special_characters(input_string):
     return result
 
 
-def combine(
-    seg_info_list, target_seg_info_dict, input_files, target_nifti_path, target_dir
-):
+def combine(seg_info_list, target_seg_info_dict, input_files, target_nifti_path, target_dir):
     global processed_count, input_file_extension
 
     # define base_imgs for combining process
@@ -58,9 +56,7 @@ def combine(
             logger.warning("")
             logger.warning("")
             logger.warning("")
-            logger.warning(
-                f"Segmentation {basename(label_name)} does not exist -> skipping ..."
-            )
+            logger.warning(f"Segmentation {basename(label_name)} does not exist -> skipping ...")
             logger.warning("")
             logger.warning("")
             logger.warning("")
@@ -107,9 +103,7 @@ def combine(
             exit(1)
 
         # check whether label_int of current label was already combined with a previous nifti; if yes --> throw error
-        duplicates_found = [
-            x for x in nifti_labels_found if x != 0 and x in base_img_labels
-        ]
+        duplicates_found = [x for x in nifti_labels_found if x != 0 and x in base_img_labels]
         for duplicate in duplicates_found:
             logger.error("")
             logger.error(f"Label {duplicate} has already been found! -> Error")
@@ -125,9 +119,7 @@ def combine(
         if overlap_percentage > 0:
             logger.error("")
             logger.error(label_nifti_path)
-            logger.error(
-                f"Overlap ({overlap_percentage} %) has been identified! -> copy org nifti"
-            )
+            logger.error(f"Overlap ({overlap_percentage} %) has been identified! -> copy org nifti")
             logger.error("")
             continue
 
@@ -197,9 +189,7 @@ def fuse(
 
     # first get the key specified in conf
     fused_label_name_key = getenv("FUSED_LABEL_NAME_KEY", "None")
-    fused_label_name_key = (
-        fused_label_name_key if fused_label_name_key.lower() != "none" else None
-    )
+    fused_label_name_key = fused_label_name_key if fused_label_name_key.lower() != "none" else None
     assert fused_label_name_key is not None
     # get the actual value
     fused_label_name = getenv(fused_label_name_key, "None")
@@ -223,11 +213,7 @@ def fuse(
     fusion_list = []
     for fuse_label in fuse_labels:
         # find fitting nifti file to current label
-        fitting_nifti_found = [
-            x
-            for x in input_files
-            if f"{fuse_label}.nii.gz" in remove_special_characters(x)
-        ]
+        fitting_nifti_found = [x for x in input_files if f"{fuse_label}.nii.gz" in remove_special_characters(x)]
 
         # check whether fuse_label is in seg_info and get index
         fuse_label_index_in_seg_info = [
@@ -238,18 +224,14 @@ def fuse(
 
         # check whether fuse_labels are in seg_info_list and input_files
         if len(fitting_nifti_found) == 0 or len(fuse_label_index_in_seg_info) == 0:
-            logger.warning(
-                f"Segmentation {fuse_label} does not exist -> fusion process aborted!"
-            )
+            logger.warning(f"Segmentation {fuse_label} does not exist -> fusion process aborted!")
             break
 
         for i in range(0, len(fitting_nifti_found)):
             # compose a fuse_label_dict of current fuse_label
             fuse_label_dict = {}
             fuse_label_dict["label_name"] = fuse_label
-            fuse_label_dict["label_int"] = seg_info_list[
-                fuse_label_index_in_seg_info[i]
-            ]["label_int"]
+            fuse_label_dict["label_int"] = seg_info_list[fuse_label_index_in_seg_info[i]]["label_int"]
             fuse_label_dict["nifti_fname"] = fitting_nifti_found[i]
             nifti_loaded = nib.load(fuse_label_dict["nifti_fname"])
             fuse_label_dict["nifti_np_array"] = nifti_loaded.get_fdata().astype(int)
@@ -265,9 +247,7 @@ def fuse(
 
         # check dims of fused label masks
         nifti_np_arrays = [item["nifti_np_array"] for item in fusion_list]
-        dimensions_are_same = all(
-            arr.shape == nifti_np_arrays[0].shape for arr in nifti_np_arrays
-        )
+        dimensions_are_same = all(arr.shape == nifti_np_arrays[0].shape for arr in nifti_np_arrays)
         assert dimensions_are_same
 
         # fuse them to single nifti file and set all non-zero label_ints to fused_label_int
@@ -285,23 +265,17 @@ def fuse(
             + fused_label_name
             + ".nii.gz"
         )
-        result_nifti = nib.Nifti1Image(
-            fused_nifti_np, nifti_loaded.affine, nifti_loaded.header
-        )
+        result_nifti = nib.Nifti1Image(fused_nifti_np, nifti_loaded.affine, nifti_loaded.header)
         result_nifti.to_filename(result_nifti_fname)
 
     # adapt seg_info JSON
     # add non-fuse labels
     target_seg_info_dict = [
-        entry
-        for entry in seg_info_list
-        if remove_special_characters(entry["label_name"]) not in fuse_labels
+        entry for entry in seg_info_list if remove_special_characters(entry["label_name"]) not in fuse_labels
     ]
     # add fused label
     if len(fusion_list) > 0:
-        target_seg_info_dict.append(
-            {"label_name": fused_label_name, "label_int": fused_label_int}
-        )
+        target_seg_info_dict.append({"label_name": fused_label_name, "label_int": fused_label_int})
 
     # adapt meta_json_dict JSON
     mod_segmentAttributes = []
@@ -311,11 +285,7 @@ def fuse(
         if segment_label in fuse_labels:
             if added_fused_label is False:
                 # add fused label to mod_segmentAttributes
-                mod_segment = json.loads(
-                    json.dumps(segment[0]).replace(
-                        segment[0]["SegmentLabel"], fused_label_name
-                    )
-                )
+                mod_segment = json.loads(json.dumps(segment[0]).replace(segment[0]["SegmentLabel"], fused_label_name))
                 mod_segment["labelID"] = fused_label_int
                 # ensure that 'CodeMeaning' attribute is the same as 'SegmentLabel'
                 if (
@@ -323,17 +293,13 @@ def fuse(
                     and "SegmentedPropertyTypeCodeSequence" in mod_segment
                 ):
                     if (
-                        "CodeMeaning"
-                        in mod_segment["SegmentedPropertyCategoryCodeSequence"]
-                        and "CodeMeaning"
-                        in mod_segment["SegmentedPropertyTypeCodeSequence"]
+                        "CodeMeaning" in mod_segment["SegmentedPropertyCategoryCodeSequence"]
+                        and "CodeMeaning" in mod_segment["SegmentedPropertyTypeCodeSequence"]
                     ):
-                        mod_segment["SegmentedPropertyCategoryCodeSequence"][
-                            "CodeMeaning"
-                        ] = mod_segment["SegmentLabel"]
-                        mod_segment["SegmentedPropertyTypeCodeSequence"][
-                            "CodeMeaning"
-                        ] = mod_segment["SegmentLabel"]
+                        mod_segment["SegmentedPropertyCategoryCodeSequence"]["CodeMeaning"] = mod_segment[
+                            "SegmentLabel"
+                        ]
+                        mod_segment["SegmentedPropertyTypeCodeSequence"]["CodeMeaning"] = mod_segment["SegmentLabel"]
                 mod_segmentAttributes.append([mod_segment])
                 added_fused_label = True
             else:
@@ -354,24 +320,16 @@ def fuse(
     )
 
     # write meta_json_dict to output_dir
-    meta_json_in_dir = glob(
-        join(Path(dirname(input_files[0])), "*.json"), recursive=True
-    )[0]
-    meta_json_out_dir = meta_json_in_dir.replace(
-        getenv("OPERATOR_IN_DIR"), getenv("OPERATOR_OUT_DIR")
-    )
+    meta_json_in_dir = glob(join(Path(dirname(input_files[0])), "*.json"), recursive=True)[0]
+    meta_json_out_dir = meta_json_in_dir.replace(getenv("OPERATOR_IN_DIR"), getenv("OPERATOR_OUT_DIR"))
     with open(meta_json_out_dir, "w") as fp:
         json.dump(meta_json_dict, fp, indent=4)
 
     # copy non-fusde nifti files to output dir
     fusion_nifti_fnames = [entry["nifti_fname"] for entry in fusion_list]
-    unmodified_nifti_fnames = [
-        fname for fname in input_files if fname not in fusion_nifti_fnames
-    ]
+    unmodified_nifti_fnames = [fname for fname in input_files if fname not in fusion_nifti_fnames]
     for unmod_nifti_fname in unmodified_nifti_fnames:
-        el_out_dir = unmod_nifti_fname.replace(
-            getenv("OPERATOR_IN_DIR"), getenv("OPERATOR_OUT_DIR")
-        )
+        el_out_dir = unmod_nifti_fname.replace(getenv("OPERATOR_IN_DIR"), getenv("OPERATOR_OUT_DIR"))
         shutil.copyfile(unmod_nifti_fname, el_out_dir)
 
     logger.info(f"Done {processed_count=}")
@@ -424,9 +382,7 @@ def merge_mask_niftis(nifti_dir, target_dir, mode=None):
     nifti_search_query = join(nifti_dir, "*.nii.gz")
     logger.info(f"Collecting NIFTIs @{nifti_search_query}")
     input_files = glob(nifti_search_query, recursive=False)
-    logger.info(
-        f"Found {len(input_files)} NIFTI files vs {len(seg_info_list)} seg infos ..."
-    )
+    logger.info(f"Found {len(input_files)} NIFTI files vs {len(seg_info_list)} seg infos ...")
     assert len(input_files) > 0
 
     if mode == "combine":
@@ -449,9 +405,7 @@ def merge_mask_niftis(nifti_dir, target_dir, mode=None):
     else:
         # given mode is not supported --> through error
         logger.error("#")
-        logger.error(
-            "# MODE not supported! Choose either mode 'combine' or 'fuse' segmentation label masks!"
-        )
+        logger.error("# MODE not supported! Choose either mode 'combine' or 'fuse' segmentation label masks!")
         logger.error("#")
         exit(1)
 

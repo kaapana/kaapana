@@ -25,9 +25,7 @@ def get_credentials() -> Optional[Dict[str, str]]:
     return None
 
 
-def _save_all_credentials(
-    username: str, password: str, registry: str, repo: str
-) -> None:
+def _save_all_credentials(username: str, password: str, registry: str, repo: str) -> None:
     """Save all credentials, registry and repo info to .kaapana/credentials.json.
 
     WARNING: All data is stored unencrypted on disk!

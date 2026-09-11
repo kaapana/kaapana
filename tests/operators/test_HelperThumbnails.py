@@ -6,10 +6,7 @@ import pytest
 
 sys.path.insert(
     0,
-    str(
-        Path(__file__).resolve().parents[2]
-        / "data-processing/kaapana-plugin/extension/docker/files/plugin"
-    ),
+    str(Path(__file__).resolve().parents[2] / "data-processing/kaapana-plugin/extension/docker/files/plugin"),
 )
 
 from kaapana.operators.HelperThumbnails import NO_THUMBNAIL_MODALITIES, has_ref_series

@@ -22,12 +22,8 @@ logger.setLevel(logging.INFO)
 
 SERVICES_NAMESPACE = ProjectSettings().services_namespace
 
-DEFAULT_DICOM_WEB_RS_ENDPOINT = (
-    f"http://dicom-web-filter-service.{SERVICES_NAMESPACE}.svc:8080"
-)
-DEFAULT_DICOM_WEB_URI_ENDPOINT = (
-    f"http://dicom-web-filter-service.{SERVICES_NAMESPACE}.svc:8080/wado-uri/wado"
-)
+DEFAULT_DICOM_WEB_RS_ENDPOINT = f"http://dicom-web-filter-service.{SERVICES_NAMESPACE}.svc:8080"
+DEFAULT_DICOM_WEB_URI_ENDPOINT = f"http://dicom-web-filter-service.{SERVICES_NAMESPACE}.svc:8080/wado-uri/wado"
 
 
 class HelperDcmWeb:
@@ -133,9 +129,7 @@ class HelperDcmWeb:
         file_path = os.path.join(target_dir, f"{instance_number}.dcm")
         dicom_file.save_as(file_path)
 
-    def download_instance(
-        self, study_uid: str, series_uid: str, instance_uid: str, target_dir: str
-    ) -> bool:
+    def download_instance(self, study_uid: str, series_uid: str, instance_uid: str, target_dir: str) -> bool:
         """This function downloads a single instance from the DICOMWeb server. It sends a GET request to the DICOMWeb server to retrieve the instance and saves the DICOM file to the target directory.
 
         Args:
@@ -198,15 +192,11 @@ class HelperDcmWeb:
         num_retries = 10
         for i in range(num_retries):
             try:
-                url = (
-                    f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series/{series_uid}"
-                )
+                url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series/{series_uid}"
                 response = self.session.get(url)
                 response.raise_for_status()
 
-                multipart_data = decoder.MultipartDecoder.from_response(
-                    response=response
-                )
+                multipart_data = decoder.MultipartDecoder.from_response(response=response)
 
                 del response
                 with ThreadPoolExecutor() as executor:
@@ -216,19 +206,13 @@ class HelperDcmWeb:
                     del multipart_data
 
                 if i > 0:
-                    logger.info(
-                        f"Successfully downloaded series {series_uid} of study {study_uid} after {i} retries"
-                    )
+                    logger.info(f"Successfully downloaded series {series_uid} of study {study_uid} after {i} retries")
                 return True
 
             except Exception as e:
-                logger.error(
-                    f"Error downloading series {series_uid} of study {study_uid}: {e}"
-                )
+                logger.error(f"Error downloading series {series_uid} of study {study_uid}: {e}")
                 if i < num_retries - 1:
-                    logger.info(
-                        f"Retrying download of series {series_uid} of study {study_uid}"
-                    )
+                    logger.info(f"Retrying download of series {series_uid} of study {study_uid}")
                     # Wait for 5 seconds before retrying
                     time.sleep(5)
                     continue
@@ -238,9 +222,7 @@ class HelperDcmWeb:
 
         # Get not downloaded instances
         not_downloaded_instances = [
-            object_uid[1]
-            for object_uid in list_of_object_uids
-            if object_uid[1] not in downloaded_instances
+            object_uid[1] for object_uid in list_of_object_uids if object_uid[1] not in downloaded_instances
         ]
 
         logging.error(
@@ -268,9 +250,7 @@ class HelperDcmWeb:
         if response.status_code == 200:
             response_json = response.json()
             study_uid = response_json[0]["0020000D"]["Value"][0]
-            logger.info(
-                f"Looked up study UID {study_uid} for series UID {series_uid} (Could potentially be wrong)"
-            )
+            logger.info(f"Looked up study UID {study_uid} for series UID {series_uid} (Could potentially be wrong)")
             return study_uid
         else:
             response.raise_for_status()
@@ -294,9 +274,7 @@ class HelperDcmWeb:
                 (
                     resultObject["0020000D"]["Value"][0],  # StudyInstanceUID
                     resultObject["00080018"]["Value"][0],  # SOPInstanceUID
-                    resultObject.get("00280008", {}).get("Value", [None])[
-                        0
-                    ],  # NumberOfFrames
+                    resultObject.get("00280008", {}).get("Value", [None])[0],  # NumberOfFrames
                 )
                 for resultObject in response_json
             ]
@@ -382,9 +360,7 @@ class HelperDcmWeb:
             response.raise_for_status()
             return response.json()
 
-    def get_instances_of_series(
-        self, study_uid: str, series_uid: str, params: Dict[str, Any] = None
-    ) -> List[dict]:
+    def get_instances_of_series(self, study_uid: str, series_uid: str, params: Dict[str, Any] = None) -> List[dict]:
         """This function retrieves all instances of a series from the PACS.
 
         Args:
@@ -436,15 +412,9 @@ class HelperDcmWeb:
         Returns:
             bytes: The encoded part of the multipart message containing the DICOM file.
         """
-        return (
-            f"--{boundary}\r\nContent-Type: application/dicom\r\n\r\n".encode("utf-8")
-            + payload
-            + b"\r\n"
-        )
+        return f"--{boundary}\r\nContent-Type: application/dicom\r\n\r\n".encode("utf-8") + payload + b"\r\n"
 
-    def __retrieve_clinical_trial_protocol_info(
-        self, dicom_file: pydicom.FileDataset
-    ) -> dict:
+    def __retrieve_clinical_trial_protocol_info(self, dicom_file: pydicom.FileDataset) -> dict:
         """This function retrieves the clinical trial protocol information from the DICOM file. Later this information is appended to the request as query parameters.
            This information will be used to map the uploaded DICOM files to the clinical trial protocol in the dicom-web-filter service.
 
@@ -502,17 +472,13 @@ class HelperDcmWeb:
 
                 # Retrieve clinical trial protocol information
                 instance_uid = dicom_file.get(0x0020000E).value
-                clinical_trial_protocol_info[instance_uid] = (
-                    self.__retrieve_clinical_trial_protocol_info(dicom_file)
-                )
+                clinical_trial_protocol_info[instance_uid] = self.__retrieve_clinical_trial_protocol_info(dicom_file)
 
                 # Encode the DICOM file and add to the body
                 with BytesIO() as buffer:
                     dicom_file.save_as(buffer)
                     buffer.seek(0)
-                    body += self.__encode_multipart_message_part(
-                        boundary, buffer.getvalue()
-                    )
+                    body += self.__encode_multipart_message_part(boundary, buffer.getvalue())
 
         body += f"--{boundary}--\r\n".encode("utf-8")
         content_type = f"multipart/related; type=application/dicom; boundary={boundary}"
@@ -525,9 +491,7 @@ class HelperDcmWeb:
             },
             data=body,
             # append the clinical trial protocol information to the request
-            params={
-                "clinical_trial_protocol_info": json.dumps(clinical_trial_protocol_info)
-            },
+            params={"clinical_trial_protocol_info": json.dumps(clinical_trial_protocol_info)},
         )
 
         # Catch any exceptions

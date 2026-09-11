@@ -28,17 +28,10 @@ def add_tag(batch_element_dir, tag):
             json.dump(metadata, fp, indent=4, sort_keys=True)
 
 
-print(
-    f"Using train_tag: {train_tag}, test_tag: {test_tag}, split: {split} and random_seed: {random_seed}"
-)
+print(f"Using train_tag: {train_tag}, test_tag: {test_tag}, split: {split} and random_seed: {random_seed}")
 
 batch_folders = sorted(
-    [
-        f
-        for f in glob.glob(
-            os.path.join("/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"], "*")
-        )
-    ]
+    [f for f in glob.glob(os.path.join("/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"], "*"))]
 )
 
 

@@ -38,30 +38,20 @@ class NotificationBase(BaseModel):
 
 class Notification(NotificationBase):
     id: UUID
-    timestamp: datetime = Field(
-        ..., desciption="Timestamp when notification was created"
-    )
-    receivers: list[str] = Field(
-        ..., desciption="IDs of the users receiving this notification"
-    )
-    receviers_read: dict[str, datetime | None] = Field(
-        ..., desciption="Receiver IDs mapped to reading timestamps"
-    )
+    timestamp: datetime = Field(..., desciption="Timestamp when notification was created")
+    receivers: list[str] = Field(..., desciption="IDs of the users receiving this notification")
+    receviers_read: dict[str, datetime | None] = Field(..., desciption="Receiver IDs mapped to reading timestamps")
 
 
 class NotificationUser(NotificationBase):
     id: UUID
-    timestamp: datetime = Field(
-        ..., desciption="Timestamp when notification was created"
-    )
+    timestamp: datetime = Field(..., desciption="Timestamp when notification was created")
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class NotificationCreate(NotificationBase):
-    receivers: list[str] = Field(
-        ..., desciption="IDs of the users receiving this notification"
-    )
+    receivers: list[str] = Field(..., desciption="IDs of the users receiving this notification")
 
 
 class NotificationCreateNoReceivers(NotificationBase): ...

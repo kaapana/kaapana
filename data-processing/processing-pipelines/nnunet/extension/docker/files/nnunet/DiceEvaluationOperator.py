@@ -26,12 +26,8 @@ class DiceEvaluationOperator(KaapanaBaseOperator):
         **kwargs,
     ):
         envs = {
-            "GT_IN_DIR": str(gt_operator.operator_out_dir)
-            if gt_operator is not None
-            else str(None),
-            "ENSEMBLE_IN_DIR": str(ensemble_operator.operator_out_dir)
-            if ensemble_operator is not None
-            else str(None),
+            "GT_IN_DIR": str(gt_operator.operator_out_dir) if gt_operator is not None else str(None),
+            "ENSEMBLE_IN_DIR": str(ensemble_operator.operator_out_dir) if ensemble_operator is not None else str(None),
             "ANONYMIZE": str(anonymize),
             "THREADS": str(parallel_processes),
         }

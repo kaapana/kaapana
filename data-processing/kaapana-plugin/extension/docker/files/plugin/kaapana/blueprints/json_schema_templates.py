@@ -122,9 +122,7 @@ def schema_minio_form(
         )
         object_names = [obj.object_name for obj in objects]
         filtered_minio_objects = [
-            object_name
-            for object_name in object_names
-            if object_name.endswith(whitelist_object_endings)
+            object_name for object_name in object_names if object_name.endswith(whitelist_object_endings)
         ]
 
         filtered_minio_directories = []

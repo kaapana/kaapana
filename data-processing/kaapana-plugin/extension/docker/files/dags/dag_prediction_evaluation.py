@@ -206,9 +206,7 @@ dcm2nifti_ct = DcmConverterOperator(
 
 get_model = GetModelFromPacsOperator(dag=dag, name="get-model")
 
-dcm2bin = Bin2DcmOperator(
-    dag=dag, input_operator=get_model, name="extract-binary", file_extensions="*.dcm"
-)
+dcm2bin = Bin2DcmOperator(dag=dag, input_operator=get_model, name="extract-binary", file_extensions="*.dcm")
 
 extract_model = NnUnetModelOperator(
     dag=dag,
@@ -228,9 +226,7 @@ nnunet_predict = NnUnetOperator(
     # dev_server="code-server"
 )
 
-mask2nifti_gt = Mask2nifitiOperator(
-    dag=dag, input_operator=get_gt_seg, parallel_id="gt", batch_name="nnunet-dataset"
-)
+mask2nifti_gt = Mask2nifitiOperator(dag=dag, input_operator=get_gt_seg, parallel_id="gt", batch_name="nnunet-dataset")
 
 filter_gt = LocalFilterMasksOperator(
     dag=dag,
@@ -293,14 +289,6 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 get_model >> dcm2bin >> extract_model >> nnunet_predict
 get_gt_seg >> get_ref_ct >> dcm2nifti_ct >> nnunet_predict
 nnunet_predict >> evaluation
-(
-    get_gt_seg
-    >> mask2nifti_gt
-    >> filter_gt
-    >> fuse_gt
-    >> rename_gt
-    >> combine_gt
-    >> evaluation
-)
+(get_gt_seg >> mask2nifti_gt >> filter_gt >> fuse_gt >> rename_gt >> combine_gt >> evaluation)
 
 evaluation >> put_to_minio >> clean

@@ -14,12 +14,27 @@ from totalsegmentator.python_api import totalsegmentator
 
 # Process each file
 def process_input_file(input_path, output_path):
-    global processed_count, task, output_type, multilabel, fast, preview, statistics, radiomics, body_seg, force_split, quiet, verbose, nr_thr_resamp, nr_thr_saving, roi_subset
+    global \
+        processed_count, \
+        task, \
+        output_type, \
+        multilabel, \
+        fast, \
+        preview, \
+        statistics, \
+        radiomics, \
+        body_seg, \
+        force_split, \
+        quiet, \
+        verbose, \
+        nr_thr_resamp, \
+        nr_thr_saving, \
+        roi_subset
     logger.info(f"{basename(input_path)}: start processing ...")
     Path(output_path).mkdir(parents=True, exist_ok=True)
     if multilabel:
         total_output_path = join(output_path, f"total-segmentator-{task}-ml.nii.gz")
-    if task not in ['total', 'total_mr']: # disable fast for all sub tasks
+    if task not in ["total", "total_mr"]:  # disable fast for all sub tasks
         fast = False
     try:
         totalsegmentator(
@@ -72,7 +87,7 @@ if __name__ == "__main__":
     issue_occurred = False
 
     tasks = ast.literal_eval(getenv("TASKS", "[]"))
-    tasks = ['total'] if not tasks else tasks
+    tasks = ["total"] if not tasks else tasks
 
     workflow_dir = getenv("WORKFLOW_DIR", "None")
     workflow_dir = workflow_dir if workflow_dir.lower() != "none" else None
@@ -94,7 +109,7 @@ if __name__ == "__main__":
     task = task if task.lower() != "none" else None
 
     # To check if correct modality is set for the selected task
-    task_modality = getenv('TASK_MODALITY', 'CT')
+    task_modality = getenv("TASK_MODALITY", "CT")
 
     # output_type: choices=["nifti", "dicom"] "Select if segmentations shall be saved as Nifti or as Dicom RT Struct image."
     output_type = getenv("OUTPUT_TYPE", "None")
@@ -148,48 +163,38 @@ if __name__ == "__main__":
     # if not cuda_available or not torch.cuda.is_available():
     if not torch.cuda.is_available():
         logger.warning("")
-        logger.warning(
-            "###############################################################################"
-        )
-        logger.warning(
-            "#                                                                             #"
-        )
-        logger.warning(
-            "#      CUDA is not available! -> switching to CPU and enforce --fast !!       #"
-        )
-        logger.warning(
-            "#                                                                             #"
-        )
-        logger.warning(
-            "###############################################################################"
-        )
+        logger.warning("###############################################################################")
+        logger.warning("#                                                                             #")
+        logger.warning("#      CUDA is not available! -> switching to CPU and enforce --fast !!       #")
+        logger.warning("#                                                                             #")
+        logger.warning("###############################################################################")
         logger.warning("")
         fast = True
-    
+
     task_available = {
         "total": "CT",
-        "total_mr":"MR",
-        "body":"CT",
-        "body_mr":"MR",
-        "lung_vessels":"CT",
-        "hip_implant":"CT",
-        "liver_segments":"CT",
-        "vertebrae_mr":"MR",
-        "cerebral_bleed":"CT",
-        "pleural_pericard_effusion":"CT",
-        "head_glands_cavities":"CT",
-        "head_muscles":"CT",
-        "headneck_bones_vessels":"CT",
-        "headneck_muscles":"CT",
-        "liver_vessels":"CT",
-        "oculomotor_muscles":"CT",
-        "lung_nodules":"CT",
-        "kidney_cysts":"CT",
-        "breasts":"CT",
-        "liver_segments_mr":"MR",
-        "craniofacial_structures":"CT",
-        "abdominal_muscles":"CT",
-        "teeth":"CT"
+        "total_mr": "MR",
+        "body": "CT",
+        "body_mr": "MR",
+        "lung_vessels": "CT",
+        "hip_implant": "CT",
+        "liver_segments": "CT",
+        "vertebrae_mr": "MR",
+        "cerebral_bleed": "CT",
+        "pleural_pericard_effusion": "CT",
+        "head_glands_cavities": "CT",
+        "head_muscles": "CT",
+        "headneck_bones_vessels": "CT",
+        "headneck_muscles": "CT",
+        "liver_vessels": "CT",
+        "oculomotor_muscles": "CT",
+        "lung_nodules": "CT",
+        "kidney_cysts": "CT",
+        "breasts": "CT",
+        "liver_segments_mr": "MR",
+        "craniofacial_structures": "CT",
+        "abdominal_muscles": "CT",
+        "teeth": "CT",
     }
     assert task in task_available.keys()
 
@@ -263,27 +268,21 @@ if __name__ == "__main__":
             json.dump(seg_info_dict, fp, indent=4)
 
         # creating output dir
-        input_files = glob(
-            join(element_input_dir, input_file_extension), recursive=True
-        )
+        input_files = glob(join(element_input_dir, input_file_extension), recursive=True)
         logger.info(f"# Found {len(input_files)} input-files -> start processing ...")
 
-        metadata_file = glob(
-            join(element_input_dir, 'metadata.json'), recursive=True
-        )
+        metadata_file = glob(join(element_input_dir, "metadata.json"), recursive=True)
         logger.info(f"# Found {len(metadata_file)} metadata-files -> start processing ...")
         if len(metadata_file) == 1:
             with open(metadata_file[0], encoding="utf-8") as meta_data_lookup:
                 meta_data_lookup = json.load(meta_data_lookup)
-            curated_modality =  meta_data_lookup["00000000 CuratedModality_keyword"]
+            curated_modality = meta_data_lookup["00000000 CuratedModality_keyword"]
             assert task_available[task] == curated_modality
         else:
             print("No metadata found:::::::::::::::::")
 
         for input_file in input_files:
-            success, input_file = process_input_file(
-                input_path=input_file, output_path=element_output_dir
-            )
+            success, input_file = process_input_file(input_path=input_file, output_path=element_output_dir)
             if not success:
                 issue_occurred = True
 
@@ -322,17 +321,13 @@ if __name__ == "__main__":
                 json.dump(seg_info_dict, fp, indent=4)
 
             # creating output dir
-            input_files = glob(
-                join(batch_input_dir, input_file_extension), recursive=True
-            )
+            input_files = glob(join(batch_input_dir, input_file_extension), recursive=True)
             logger.info(f"# Found {len(input_files)} input-files!")
 
             # Single process:
             # Loop for every input-file found with extension 'input_file_extension'
             for input_file in input_files:
-                success, input_file = process_input_file(
-                    input_path=input_file, output_path=batch_output_dir
-                )
+                success, input_file = process_input_file(input_path=input_file, output_path=batch_output_dir)
                 if not success:
                     issue_occurred = True
 

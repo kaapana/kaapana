@@ -140,9 +140,7 @@ def _collect_all_pages(minio, results_prefix, relative_prefix, page_size):
     seen_pages = 0
     while True:
         start_after = routers._results_start_after(token) if token else None
-        objects = minio.list_objects(
-            "bucket", prefix=results_prefix, recursive=False, start_after=start_after
-        )
+        objects = minio.list_objects("bucket", prefix=results_prefix, recursive=False, start_after=start_after)
         items, token = routers._list_results_tree_page(
             objects, results_prefix, relative_prefix, page_size, lambda name: name
         )
@@ -157,9 +155,7 @@ def _collect_all_pages(minio, results_prefix, relative_prefix, page_size):
 def test_no_sibling_is_skipped_or_re_emitted_across_pages():
     minio = FakeMinio(LEVEL_KEYS)
 
-    names = _collect_all_pages(
-        minio, results_prefix="", relative_prefix="", page_size=2
-    )
+    names = _collect_all_pages(minio, results_prefix="", relative_prefix="", page_size=2)
 
     # Every entry appears exactly once: nothing skipped, nothing duplicated.
     assert names == [
@@ -182,17 +178,11 @@ def test_old_zero_boundary_would_have_dropped_the_gap_sibling():
     minio = FakeMinio(LEVEL_KEYS)
 
     old_start_after = "report-1.html" + "0"  # previous behaviour
-    old_next = [
-        o.object_name
-        for o in minio.list_objects("b", prefix="", start_after=old_start_after)
-    ]
+    old_next = [o.object_name for o in minio.list_objects("b", prefix="", start_after=old_start_after)]
     assert "report-1.html data/" not in old_next  # dropped by the old code
 
     fixed_start_after = routers._results_start_after("report-1.html")
-    fixed_next = [
-        o.object_name
-        for o in minio.list_objects("b", prefix="", start_after=fixed_start_after)
-    ]
+    fixed_next = [o.object_name for o in minio.list_objects("b", prefix="", start_after=fixed_start_after)]
     assert "report-1.html data/" in fixed_next  # kept by the fix
 
 

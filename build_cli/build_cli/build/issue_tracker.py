@@ -103,9 +103,7 @@ class IssueTracker:
         stdout_lines = output.stdout.splitlines()[-100:]
 
         # Non-empty stderr lines with "ERROR:" prefix
-        stderr_lines = [
-            f"ERROR: {line}" for line in output.stderr.splitlines() if line.strip()
-        ]
+        stderr_lines = [f"ERROR: {line}" for line in output.stderr.splitlines() if line.strip()]
 
         # Combine both lists
         combined_lines = stdout_lines + stderr_lines

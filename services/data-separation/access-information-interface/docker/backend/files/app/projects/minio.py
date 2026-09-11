@@ -44,9 +44,7 @@ class MinioHelper:
         """
         Retrieve a token Cookie for access to the MinIO Console
         """
-        access_key_id, secret_access_key, session_token = minio_credentials(
-            self.access_token
-        )
+        access_key_id, secret_access_key, session_token = minio_credentials(self.access_token)
         payload = {
             "accessKey": access_key_id,
             "secretKey": secret_access_key,
@@ -100,9 +98,7 @@ class MinioHelper:
             assert claim_value
             policy_name = f"{claim_value}_{project.id}"
             logger.info(f"Create policy for {policy_name=}")
-            policy = get_policy_for_role_and_bucket(
-                claim_value=claim_value, bucket_name=bucket_name
-            )
+            policy = get_policy_for_role_and_bucket(claim_value=claim_value, bucket_name=bucket_name)
             self.create_policy(policy_name=policy_name, policy=policy)
 
     def wait_for_service(self, max_retries=60, delay=5):

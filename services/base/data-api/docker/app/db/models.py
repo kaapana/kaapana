@@ -23,9 +23,7 @@ class Base(DeclarativeBase):
 class DataEntityORM(Base):
     __tablename__ = "data_entities"
 
-    id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), primary_key=True, default=uuid4, index=True
-    )
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -115,7 +113,5 @@ class MetadataSchemaORM(Base):
     __tablename__ = "metadata_schemas"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    key: Mapped[str] = mapped_column(
-        String(255), unique=True, index=True, nullable=False
-    )
+    key: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     schema: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)

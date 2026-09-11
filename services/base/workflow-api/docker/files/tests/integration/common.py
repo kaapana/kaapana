@@ -29,9 +29,7 @@ async def create_workflow(workflow_create: schemas.WorkflowCreate) -> httpx.Resp
         )
 
 
-async def get_workflows_by_title(
-    title: str, params: Optional[dict] = None
-) -> httpx.Response:
+async def get_workflows_by_title(title: str, params: Optional[dict] = None) -> httpx.Response:
     async with httpx.AsyncClient(base_url=API_BASE_URL, verify=False) as client:
         merged = {"title": title, **(params or {})}
         return await client.get("/workflows", params=merged)

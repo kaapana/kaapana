@@ -119,9 +119,7 @@ def send_dcm_dir(input_dir):
 if __name__ == "__main__":
     cwd = os.getcwd()
     parser = ArgumentParser()
-    parser.add_argument(
-        "-i", "--input", dest="input_dir", default=cwd, help="Path with DICOM files"
-    )
+    parser.add_argument("-i", "--input", dest="input_dir", default=cwd, help="Path with DICOM files")
     parser.add_argument(
         "-s",
         "--server",

@@ -9,9 +9,7 @@ class WorkflowService:
     def __init__(self, airflow_api: str):
         self.airflow_api = airflow_api
         self.log = logging.getLogger(__name__)
-        self.log.info(
-            "Initalized WorkflowService (using %s as airflow endpoint", airflow_api
-        )
+        self.log.info("Initalized WorkflowService (using %s as airflow endpoint", airflow_api)
 
     def __get_airflow_api_json(
         self, url: str, params: dict = None, text_response: bool = False
@@ -24,9 +22,7 @@ class WorkflowService:
             self.log.error(e)
             return (
                 None,
-                HTTPException(
-                    status_code=r.status_code, detail="{0} {1}".format(e, r.text)
-                ),
+                HTTPException(status_code=r.status_code, detail="{0} {1}".format(e, r.text)),
             )
 
         if text_response:
@@ -54,12 +50,7 @@ class WorkflowService:
         #     {'query': conf_data['conf']['query']}
         # )
 
-        if not all(
-            [
-                bool(set(d) & set(db_client_kaapana.allowed_datasets))
-                for d in queried_data
-            ]
-        ):
+        if not all([bool(set(d) & set(db_client_kaapana.allowed_datasets)) for d in queried_data]):
             return (
                 None,
                 HTTPException(
@@ -82,9 +73,7 @@ class WorkflowService:
             self.log.error(e)
             return (
                 None,
-                HTTPException(
-                    status_code=r.status_code, detail="{0} {1}".format(e, r.text)
-                ),
+                HTTPException(status_code=r.status_code, detail="{0} {1}".format(e, r.text)),
             )
         return (r.json(), None)
 
@@ -96,9 +85,7 @@ class WorkflowService:
         dags = list(r_dags.keys())
         running_dags = []
         for dag_id in dags:
-            r, err = self.__get_airflow_api_json(
-                "/dags/{0}/dagRuns/state/running/count".format(dag_id)
-            )
+            r, err = self.__get_airflow_api_json("/dags/{0}/dagRuns/state/running/count".format(dag_id))
             if err:
                 return (None, err)
             num_runs = r["number_of_dagruns"]

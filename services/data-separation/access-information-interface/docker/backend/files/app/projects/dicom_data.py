@@ -14,10 +14,7 @@ _kaapana_settings = KaapanaSettings()
 _services_ns = _kaapana_settings.services_namespace
 
 DICOM_WEB_FILTER_URL = f"http://dicom-web-filter-service.{_services_ns}.svc:8080"
-AIRFLOW_TRIGGER_URL = (
-    f"http://airflow-webserver-service.{_services_ns}.svc:8080"
-    "/flow/kaapana/api/trigger/delete-series"
-)
+AIRFLOW_TRIGGER_URL = f"http://airflow-webserver-service.{_services_ns}.svc:8080/flow/kaapana/api/trigger/delete-series"
 
 
 def _auth_headers() -> dict:
@@ -54,7 +51,7 @@ def clear_project_mappings(project_id: UUID) -> int:
 
 def trigger_delete_series_dag(admin_project: Project, series_uids: List[str]) -> None:
     """
-    Trigger delete-series DAG in admin project's context. 
+    Trigger delete-series DAG in admin project's context.
     """
     if not series_uids:
         return

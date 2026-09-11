@@ -42,9 +42,7 @@ async def upload_artifact(
         metadata_entry = MetadataEntryORM(key=key, data={})
         entity.metadata_entries.append(metadata_entry)
 
-    existing_artifact = next(
-        (a for a in metadata_entry.artifacts if a.artifact_id == artifact_id), None
-    )
+    existing_artifact = next((a for a in metadata_entry.artifacts if a.artifact_id == artifact_id), None)
     if existing_artifact is not None:
         metadata_entry.artifacts.remove(existing_artifact)
 
@@ -81,9 +79,7 @@ async def download_artifact(
     if metadata_entry is None:
         raise HTTPException(status_code=404, detail="Metadata entry not found")
 
-    artifact = next(
-        (a for a in metadata_entry.artifacts if a.artifact_id == artifact_id), None
-    )
+    artifact = next((a for a in metadata_entry.artifacts if a.artifact_id == artifact_id), None)
     if artifact is None:
         raise HTTPException(status_code=404, detail="Artifact not found")
 

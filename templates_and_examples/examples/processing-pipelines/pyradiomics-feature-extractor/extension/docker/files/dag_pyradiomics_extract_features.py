@@ -52,17 +52,13 @@ args = {
 }
 
 # Airflow DAG instance
-dag = DAG(
-    dag_id="pyradiomics-extract-features", default_args=args, schedule_interval=None
-)
+dag = DAG(dag_id="pyradiomics-extract-features", default_args=args, schedule_interval=None)
 
 # Get dicom files from the PACS
 get_input = GetInputOperator(dag=dag)
 
 # Convert dicom data to specified format (nifti or nrrd)
-convert_to_nifti = DcmConverterOperator(
-    dag=dag, input_operator=get_input, output_format="nii.gz"
-)
+convert_to_nifti = DcmConverterOperator(dag=dag, input_operator=get_input, output_format="nii.gz")
 
 # Pyradiomics Extractor Operator that extracts radiomics features from nifti files
 pyradiomics_extractor = PyradiomicsExtractorOperator(

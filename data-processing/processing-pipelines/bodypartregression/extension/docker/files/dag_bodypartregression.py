@@ -51,15 +51,11 @@ dag = DAG(
 
 get_input = GetInputOperator(dag=dag, parallel_downloads=5, check_modality=False)
 
-dcm2nifti = DcmConverterOperator(
-    dag=dag, input_operator=get_input, output_format="nii.gz"
-)
+dcm2nifti = DcmConverterOperator(dag=dag, input_operator=get_input, output_format="nii.gz")
 
 bodypartregression = BprOperator(dag=dag, stringify_json=True, input_operator=dcm2nifti)
 
-push_json = Json2MetaOperator(
-    dag=dag, dicom_operator=get_input, json_operator=bodypartregression
-)
+push_json = Json2MetaOperator(dag=dag, dicom_operator=get_input, json_operator=bodypartregression)
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 

@@ -13,9 +13,7 @@ class AdvancedCollectMetadataFederatedTraining(KaapanaFederatedTrainingBase):
         super().__init__(workflow_dir=workflow_dir)
 
     @timeit
-    def upload_workflow_dir_to_minio_object(
-        self, federated_round, tmp_central_site_info
-    ):
+    def upload_workflow_dir_to_minio_object(self, federated_round, tmp_central_site_info):
         # Overwrite base function since no upload back to minio is needed
         pass
 

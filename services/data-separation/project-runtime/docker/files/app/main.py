@@ -80,9 +80,7 @@ def measure(request: MeasureRequest):
         target_size = max(
             [
                 sum_of_file_sizes(
-                    target_path=_resolve_under_root(
-                        item_path, request.scale_rule.target_dir or ""
-                    ),
+                    target_path=_resolve_under_root(item_path, request.scale_rule.target_dir or ""),
                     target_glob=request.scale_rule.target_glob or "*",
                     target_regex=request.scale_rule.target_regex or ".*",
                 )
@@ -110,9 +108,7 @@ def delete(request: FilesystemPathRequest):
 
     target = _resolve_under_root(WORKFLOW_DATA_DIR, request.sub_path)
     if target == WORKFLOW_DATA_DIR.resolve():
-        raise HTTPException(
-            status_code=400, detail="Refusing to delete the volume root"
-        )
+        raise HTTPException(status_code=400, detail="Refusing to delete the volume root")
 
     if not target.exists():
         return DeleteResponse(deleted=False)

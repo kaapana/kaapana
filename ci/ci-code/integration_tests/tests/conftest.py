@@ -28,13 +28,9 @@ logging.basicConfig(level=logging.INFO)
 # Pytest CLI options
 # ---------------------------------------------------------------------------
 def pytest_addoption(parser):
-    parser.addoption(
-        "--ip-address", default=None, action="store", help="IP address to scan"
-    )
+    parser.addoption("--ip-address", default=None, action="store", help="IP address to scan")
     parser.addoption("--host", default=None, help="Host URL of the Kaapana instance")
-    parser.addoption(
-        "--client-secret", default=None, help="Client secret for Kaapana instance"
-    )
+    parser.addoption("--client-secret", default=None, help="Client secret for Kaapana instance")
     parser.addoption(
         "--allowed-ports",
         default="22,80,443,6443,9000,9001",
@@ -45,18 +41,10 @@ def pytest_addoption(parser):
         default=None,
         help="JSON file with extension parameters",
     )
-    parser.addoption(
-        "--timeout", type=int, default=300, help="Timeout for long operations"
-    )
-    parser.addoption(
-        "--source-directory", default=None, help="Directory containing dataset files"
-    )
-    parser.addoption(
-        "--download-directory", default=None, help="Directory to download datasets"
-    )
-    parser.addoption(
-        "--force-download", action="store_true", help="Force dataset re-download"
-    )
+    parser.addoption("--timeout", type=int, default=300, help="Timeout for long operations")
+    parser.addoption("--source-directory", default=None, help="Directory containing dataset files")
+    parser.addoption("--download-directory", default=None, help="Directory to download datasets")
+    parser.addoption("--force-download", action="store_true", help="Force dataset re-download")
     parser.addoption(
         "--test-data-cache-dir",
         default=None,
@@ -71,12 +59,8 @@ def pytest_addoption(parser):
         help="Directory of <dataset>/<series-uid>.zip archives that already "
         "exists, tried after the cache instead of cloning. Repeat for several.",
     )
-    parser.addoption(
-        "--files", nargs="*", default=None, help="Specific test files to collect"
-    )
-    parser.addoption(
-        "--test-dir", default=None, help="Specific test directories to collect"
-    )
+    parser.addoption("--files", nargs="*", default=None, help="Specific test files to collect")
+    parser.addoption("--test-dir", default=None, help="Specific test directories to collect")
 
 
 # ---------------------------------------------------------------------------
@@ -84,9 +68,7 @@ def pytest_addoption(parser):
 # ---------------------------------------------------------------------------
 def auto_host():
     try:
-        return subprocess.check_output(
-            ["hostname", "-I", "|", "awk", "'{print $1}'"], text=True
-        ).strip()
+        return subprocess.check_output(["hostname", "-I", "|", "awk", "'{print $1}'"], text=True).strip()
     except Exception:
         return None
 
@@ -106,11 +88,7 @@ def get_host(config):
 
 def get_client_secret(config):
     # CLI → ENV → fallback
-    return (
-        config.getoption("--client-secret")
-        or os.getenv("CLIENT_SECRET")
-        or auto_client_secret()
-    )
+    return config.getoption("--client-secret") or os.getenv("CLIENT_SECRET") or auto_client_secret()
 
 
 def get_timeout(config):
@@ -152,9 +130,7 @@ def get_json_extension_params(config):
 
 def get_files(config):
     return (
-        config.getoption("--files")
-        or os.getenv("FILES")
-        or list(Path(__file__).parents[4].glob("**/ci-config.yaml"))
+        config.getoption("--files") or os.getenv("FILES") or list(Path(__file__).parents[4].glob("**/ci-config.yaml"))
     )
 
 
@@ -179,9 +155,7 @@ def client_secret(pytestconfig):
 
 @pytest.fixture(scope="session")
 def ip_address(pytestconfig):
-    return (
-        pytestconfig.getoption("--ip-address") or os.getenv("IP_ADDRESS") or "127.0.0.1"
-    )
+    return pytestconfig.getoption("--ip-address") or os.getenv("IP_ADDRESS") or "127.0.0.1"
 
 
 @pytest.fixture(scope="session")
@@ -274,9 +248,7 @@ def generate_extension_tests(metafunc):
     if not extensions:
         pytest.fail("No extensions found")
 
-    metafunc.parametrize(
-        "extension", extensions, ids=[ext["chart_name"] for ext in extensions]
-    )
+    metafunc.parametrize("extension", extensions, ids=[ext["chart_name"] for ext in extensions])
 
 
 def generate_dataset_tests(metafunc):
@@ -286,9 +258,7 @@ def generate_dataset_tests(metafunc):
         return
 
     logging.info(f"Looking for datasets in: {source_path}")
-    datasets = sorted(
-        list(source_path.glob("*.tcia")) + list(source_path.glob("*.url"))
-    )
+    datasets = sorted(list(source_path.glob("*.tcia")) + list(source_path.glob("*.url")))
     if not datasets:
         pytest.fail("No dataset found.")
         return
@@ -312,12 +282,9 @@ def generate_workflow_tests(metafunc):
     except ValueError as invalid_declaration:
         raise pytest.UsageError(str(invalid_declaration)) from None
 
-    if any(case.after for case in planned) and not _distribution_keeps_groups(
-        metafunc.config
-    ):
+    if any(case.after for case in planned) and not _distribution_keeps_groups(metafunc.config):
         raise pytest.UsageError(
-            "testcases declare ci_after, which needs --dist loadgroup to keep a group "
-            "on one worker"
+            "testcases declare ci_after, which needs --dist loadgroup to keep a group on one worker"
         )
 
     params = []

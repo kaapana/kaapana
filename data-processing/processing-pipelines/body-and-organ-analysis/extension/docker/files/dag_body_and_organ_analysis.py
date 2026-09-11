@@ -153,9 +153,7 @@ get_models = GetZenodoModelOperator(
 
 get_input = GetInputOperator(dag=dag, parallel_downloads=5, check_modality=True)
 
-dcm2nifti = DcmConverterOperator(
-    dag=dag, input_operator=get_input, output_format="nii.gz"
-)
+dcm2nifti = DcmConverterOperator(dag=dag, input_operator=get_input, output_format="nii.gz")
 
 boa = BodyAndOrganAnalysisOperator(dag=dag, input_operator=dcm2nifti)
 

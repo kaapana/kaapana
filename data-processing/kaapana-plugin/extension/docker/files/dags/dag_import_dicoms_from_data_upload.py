@@ -75,9 +75,7 @@ unzip_files = ZipUnzipOperator(
     namespace=SERVICES_NAMESPACE,
 )
 
-dicom_send = DcmSendOperator(
-    dag=dag, input_operator=unzip_files, level="batch", namespace=SERVICES_NAMESPACE
-)
+dicom_send = DcmSendOperator(dag=dag, input_operator=unzip_files, level="batch", namespace=SERVICES_NAMESPACE)
 
 remove_object_from_file_uploads = LocalVolumeMountOperator(
     dag=dag,

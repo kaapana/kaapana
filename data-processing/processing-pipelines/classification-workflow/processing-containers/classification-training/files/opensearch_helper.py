@@ -23,9 +23,7 @@ HOST = f"opensearch-service.{SERVICES_NAMESPACE}.svc"
 PORT = "9200"
 workflow_config = load_workflow_config()
 project_form = workflow_config.get("project_form", {})
-opensearch_index = project_form.get(
-    "opensearch_index", OpensearchSettings().default_index
-)
+opensearch_index = project_form.get("opensearch_index", OpensearchSettings().default_index)
 os_client = get_opensearch_client()
 
 

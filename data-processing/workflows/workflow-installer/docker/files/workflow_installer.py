@@ -18,9 +18,7 @@ from pydantic_settings import BaseSettings
 from schemas import WorkflowCreate
 from validation_rules import ValidationConfig, WorkflowValidator
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -31,13 +29,9 @@ class Settings(BaseSettings):
         default="",
         description="Base URL of the Workflow API",
     )
-    workflow_dir: Path = Field(
-        default=Path("/workflows"), description="Directory containing workflow files"
-    )
+    workflow_dir: Path = Field(default=Path("/workflows"), description="Directory containing workflow files")
     timeout: int = Field(default=30, description="Request timeout in seconds")
-    max_retries: int = Field(
-        default=5, description="Maximum number of retries for API calls"
-    )
+    max_retries: int = Field(default=5, description="Maximum number of retries for API calls")
     patch_workflows_if_conflict: bool = Field(
         default=True,
         description="When True, PATCH an existing workflow with the same title; when False, leave it as-is.",
@@ -52,9 +46,7 @@ def load_workflow_definition(workflow_dir: Path) -> str:
     Files are separated by comments indicating the filename.
     """
     # Get all files except workflow.json
-    all_files = [
-        f for f in workflow_dir.iterdir() if f.is_file() and f.name != "workflow.json"
-    ]
+    all_files = [f for f in workflow_dir.iterdir() if f.is_file() and f.name != "workflow.json"]
 
     if not all_files:
         raise FileNotFoundError(
@@ -126,19 +118,14 @@ async def submit_workflow(
     if response.status_code == 201:
         result = response.json()
         logger.info(
-            f"Created: workflow '{result.get('title')}' "
-            f"(id={result.get('id')}, increment={result.get('increment')})"
+            f"Created: workflow '{result.get('title')}' (id={result.get('id')}, increment={result.get('increment')})"
         )
         return True
 
     if response.status_code == 409:
-        return await _handle_conflict(
-            client, api_url, workflow_data, response, patch_if_conflict
-        )
+        return await _handle_conflict(client, api_url, workflow_data, response, patch_if_conflict)
 
-    logger.error(
-        f"HTTP {response.status_code} submitting workflow '{title}': {response.text}"
-    )
+    logger.error(f"HTTP {response.status_code} submitting workflow '{title}': {response.text}")
     return False
 
 
@@ -153,20 +140,12 @@ async def _handle_conflict(
     title = workflow_data.title
 
     if not patch_if_conflict:
-        logger.warning(
-            f"Workflow '{title}' already exists; patch_workflows_if_conflict=False, leaving as-is."
-        )
+        logger.warning(f"Workflow '{title}' already exists; patch_workflows_if_conflict=False, leaving as-is.")
         return True
 
-    existing_id = (
-        (conflict_response.json().get("detail") or {})
-        .get("existing_workflow", {})
-        .get("id")
-    )
+    existing_id = (conflict_response.json().get("detail") or {}).get("existing_workflow", {}).get("id")
     if not existing_id:
-        logger.error(
-            f"409 on '{title}' but no existing_workflow.id in body: {conflict_response.text}"
-        )
+        logger.error(f"409 on '{title}' but no existing_workflow.id in body: {conflict_response.text}")
         return False
 
     return await _patch_workflow(client, api_url, existing_id, workflow_data)
@@ -181,25 +160,17 @@ async def _patch_workflow(
     """PATCH content fields (definition, parameters, labels) onto an existing workflow."""
     title = workflow_data.title
     endpoint = f"{api_url}/workflows/{workflow_id}"
-    payload = workflow_data.model_dump(
-        mode="json", include={"definition", "workflow_parameters", "labels"}
-    )
+    payload = workflow_data.model_dump(mode="json", include={"definition", "workflow_parameters", "labels"})
 
     logger.info(f"PATCHing '{title}' at {endpoint}")
-    response = await client.patch(
-        endpoint, json=payload, headers={"Content-Type": "application/json"}
-    )
+    response = await client.patch(endpoint, json=payload, headers={"Content-Type": "application/json"})
 
     if response.status_code == 200:
         result = response.json()
-        logger.info(
-            f"PATCH succeeded: workflow '{result.get('title')}' now at increment={result.get('increment')}"
-        )
+        logger.info(f"PATCH succeeded: workflow '{result.get('title')}' now at increment={result.get('increment')}")
         return True
 
-    logger.error(
-        f"PATCH on '{title}' returned HTTP {response.status_code}: {response.text}"
-    )
+    logger.error(f"PATCH on '{title}' returned HTTP {response.status_code}: {response.text}")
     return False
 
 
@@ -252,9 +223,7 @@ def load_and_validate_workflow(settings: Settings) -> tuple[str, dict]:
     return definition, metadata
 
 
-def create_and_validate_workflow_schema(
-    definition: str, metadata: dict
-) -> WorkflowCreate:
+def create_and_validate_workflow_schema(definition: str, metadata: dict) -> WorkflowCreate:
     """Create and validate workflow schema."""
     logger.info("\nValidating workflow schema...")
     try:
@@ -298,15 +267,11 @@ def log_workflow_info(workflow_data: WorkflowCreate) -> None:
             logger.info(f"    • {label.key}: {label.value}")
 
 
-def run_validation_checks(
-    settings: Settings, metadata: dict, workflow_engine: str
-) -> None:
+def run_validation_checks(settings: Settings, metadata: dict, workflow_engine: str) -> None:
     """Run workflow validation checks."""
     logger.info("\nRunning validation checks...")
     validator = WorkflowValidator(ValidationConfig())
-    validation_results = validator.validate_all(
-        settings.workflow_dir, metadata, workflow_engine
-    )
+    validation_results = validator.validate_all(settings.workflow_dir, metadata, workflow_engine)
 
     # Display validation results
     for result in validation_results:
@@ -326,9 +291,7 @@ def run_validation_checks(
         sys.exit(1)
 
 
-async def process_workflow_submission(
-    settings: Settings, workflow_data: WorkflowCreate
-) -> None:
+async def process_workflow_submission(settings: Settings, workflow_data: WorkflowCreate) -> None:
     """Handle workflow submission to API."""
     transport = httpx.AsyncHTTPTransport(retries=settings.max_retries)
     timeout = httpx.Timeout(settings.timeout)

@@ -48,13 +48,9 @@ dag = DAG(
 )
 
 get_input = GetInputOperator(dag=dag)
-anonymizer = LocalDcmAnonymizerOperator(
-    dag=dag, input_operator=get_input, single_slice=True
-)
+anonymizer = LocalDcmAnonymizerOperator(dag=dag, input_operator=get_input, single_slice=True)
 extract_metadata = LocalDcm2JsonOperator(dag=dag, input_operator=anonymizer)
-concat_metadata = LocalConcatJsonOperator(
-    dag=dag, name="concatenated-metadata", input_operator=extract_metadata
-)
+concat_metadata = LocalConcatJsonOperator(dag=dag, name="concatenated-metadata", input_operator=extract_metadata)
 put_to_minio = MinioOperator(
     dag=dag,
     action="put",

@@ -48,9 +48,7 @@ def test_admin_may_scope_to_a_project_they_are_no_member_of(make_request):
     assert get_scoped_project_ids(request) == [UUID(FOREIGN)]
 
 
-@pytest.mark.parametrize(
-    "raw", ["not json", '"abc"', '{"project": "a"}', '{"id": "not-a-uuid"}']
-)
+@pytest.mark.parametrize("raw", ["not json", '"abc"', '{"project": "a"}', '{"id": "not-a-uuid"}'])
 def test_unparseable_header_is_rejected_and_logged(make_request, caplog, raw):
     request = make_request(raw, projects=[PROJECT_A])
 
@@ -60,18 +58,12 @@ def test_unparseable_header_is_rejected_and_logged(make_request, caplog, raw):
 
     assert exc.value.status_code == 400
     assert exc.value.detail == "Invalid Project header"
-    warnings = [
-        r
-        for r in caplog.records
-        if r.name == "app.utils" and r.levelno == logging.WARNING
-    ]
+    warnings = [r for r in caplog.records if r.name == "app.utils" and r.levelno == logging.WARNING]
     assert len(warnings) == 1
     assert raw in warnings[0].getMessage()
 
 
 def test_only_admins_without_a_project_context_see_everything(make_request):
     assert is_unscoped_admin(make_request(projects=[PROJECT_A], admin=True))
-    assert not is_unscoped_admin(
-        make_request(header(PROJECT_A), projects=[PROJECT_A], admin=True)
-    )
+    assert not is_unscoped_admin(make_request(header(PROJECT_A), projects=[PROJECT_A], admin=True))
     assert not is_unscoped_admin(make_request(projects=[PROJECT_A]))

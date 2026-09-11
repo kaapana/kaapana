@@ -76,9 +76,7 @@ class Bin2DcmOperator(KaapanaBaseOperator):
 
         if dataset_info_operator_in_dir is None:
             dataset_info_operator_in_dir = (
-                dataset_info_operator.operator_out_dir
-                if dataset_info_operator is not None
-                else ""
+                dataset_info_operator.operator_out_dir if dataset_info_operator is not None else ""
             )
 
         envs = {
@@ -97,11 +95,7 @@ class Bin2DcmOperator(KaapanaBaseOperator):
             "SOP_CLASS_UID": str(sop_class_uid),
             "SIZE_LIMIT_MB": str(size_limit),
             "EXTENSIONS": file_extensions,
-            "DICOM_IN_DIR": (
-                str(dicom_operator.operator_out_dir)
-                if dicom_operator is not None
-                else str(None)
-            ),
+            "DICOM_IN_DIR": (str(dicom_operator.operator_out_dir) if dicom_operator is not None else str(None)),
         }
         env_vars.update(envs)
 

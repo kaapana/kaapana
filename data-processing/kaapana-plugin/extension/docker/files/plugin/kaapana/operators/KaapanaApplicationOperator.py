@@ -25,9 +25,7 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
     def start(self, ds, **kwargs):
         print(kwargs)
         conf = kwargs["dag_run"].conf
-        release_name = (
-            get_release_name(kwargs) if self.release_name is None else self.release_name
-        )
+        release_name = get_release_name(kwargs) if self.release_name is None else self.release_name
 
         try:
             project_form = conf.get("project_form")
@@ -59,12 +57,12 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
                 "global.project_id": project_form.get("id"),
                 "global.display_name": self.display_name,
                 **dynamic_volumes,
-                "mount_path": f'{self.data_dir}/{kwargs["run_id"]}',
-                "workflow_dir": f'{str(PROCESSING_WORKFLOW_DIR)}/{kwargs["run_id"]}',
+                "mount_path": f"{self.data_dir}/{kwargs['run_id']}",
+                "workflow_dir": f"{str(PROCESSING_WORKFLOW_DIR)}/{kwargs['run_id']}",
                 "batch_name": str(self.batch_name),
                 "operator_out_dir": str(self.operator_out_dir),
                 "operator_in_dir": str(self.operator_in_dir),
-                "batches_input_dir": f'{str(PROCESSING_WORKFLOW_DIR)}/{kwargs["run_id"]}/{self.batch_name}',
+                "batches_input_dir": f"{str(PROCESSING_WORKFLOW_DIR)}/{kwargs['run_id']}/{self.batch_name}",
             },
         }
 

@@ -113,9 +113,7 @@ dcm_send_seg = DcmSendOperator(
     namespace=SERVICES_NAMESPACE,
 )
 
-dcm_send_img = DcmSendOperator(
-    name="dcm-send-img", dag=dag, input_operator=convert, namespace=SERVICES_NAMESPACE
-)
+dcm_send_img = DcmSendOperator(name="dcm-send-img", dag=dag, input_operator=convert, namespace=SERVICES_NAMESPACE)
 
 remove_object_from_uploads = LocalVolumeMountOperator(
     dag=dag,
@@ -134,11 +132,7 @@ clean = LocalWorkflowCleanerOperator(
 
 
 def branching_zipping_callable(**kwargs):
-    download_dir = (
-        Path(AIRFLOW_WORKFLOW_DIR)
-        / kwargs["dag_run"].run_id
-        / get_object_from_uploads.operator_out_dir
-    )
+    download_dir = Path(AIRFLOW_WORKFLOW_DIR) / kwargs["dag_run"].run_id / get_object_from_uploads.operator_out_dir
     conf = kwargs["dag_run"].conf
     if "action_files" in conf["data_form"]:
         return [unzip_files.name]

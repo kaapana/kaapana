@@ -194,6 +194,7 @@ new_ver = ExtensionUtilityLibrary.bump_version("1.2.3", "patch")  # → "1.2.4"
 new_ver = ExtensionUtilityLibrary.bump_version("1.2.3", "minor")  # → "1.3.0"
 new_ver = ExtensionUtilityLibrary.bump_version("1.2.3", "major")  # → "2.0.0"
 
+
 # All registry operations are async — use async with
 async def main():
     async with ExtensionUtilityLibrary(
@@ -208,7 +209,7 @@ async def main():
         tag = await lib.push(Path("dist/my-extension-v1.0.0.tar.gz"), overwrite=True)
 
         # Build + push in one call
-        results = await lib.publish("my-extension/", bump="minor")       # [(source, tag), ...]
+        results = await lib.publish("my-extension/", bump="minor")  # [(source, tag), ...]
         results = await lib.publish("git+https://git.example.com/repo.git@main#my-extension")
 
         # Pull
@@ -216,13 +217,14 @@ async def main():
 
         # List / inspect
         tags = await lib.list_tags()
-        manifest = await lib.get_extension(tags[0])       # extension_manifest dict
-        manifests = await lib.get_extensions()            # list of all manifests
-        config = await lib.get(tags[0])                   # full registry config blob
-        all_meta = await lib.get_all_metadata()           # [(tag, config), ...]
+        manifest = await lib.get_extension(tags[0])  # extension_manifest dict
+        manifests = await lib.get_extensions()  # list of all manifests
+        config = await lib.get(tags[0])  # full registry config blob
+        all_meta = await lib.get_all_metadata()  # [(tag, config), ...]
 
         # Delete
         await lib.delete_tag("aaaaaaaa-0000-0000-0000-000000000001-v1.0.0")
+
 
 asyncio.run(main())
 ```

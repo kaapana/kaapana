@@ -7,9 +7,7 @@ import requests
 SERVICES_NAMESPACE = os.getenv("SERVICES_NAMESPACE", None)
 assert SERVICES_NAMESPACE
 
-prometheus_base_url = (
-    f"http://prometheus-service.{SERVICES_NAMESPACE}.svc:9090/prometheus/api/v1/query"
-)
+prometheus_base_url = f"http://prometheus-service.{SERVICES_NAMESPACE}.svc:9090/prometheus/api/v1/query"
 prometheus_url = f"{prometheus_base_url}?query="
 
 memory_query = "floor(node_memory_MemTotal_bytes{job='Node-Exporter'}/1048576)"
@@ -22,18 +20,10 @@ cpu_core_query = "machine_cpu_cores"
 cpu_util_per_query = 'sum (rate (container_cpu_usage_seconds_total{id="/"}[1m])) / sum (machine_cpu_cores) * 100'
 cpu_util_cores_used_query = 'sum(rate (container_cpu_usage_seconds_total{id="/"}[1m]))'
 
-gpu_count_query = (
-    "count(DCGM_FI_DEV_POWER_USAGE{kubernetes_name='nvidia-dcgm-exporter'})"
-)
-gpu_mem_used_device_query = (
-    "DCGM_FI_DEV_FB_USED{kubernetes_name='nvidia-dcgm-exporter',gpu=~'<replace>'}"
-)
-gpu_mem_available_device_query = (
-    "DCGM_FI_DEV_FB_FREE{kubernetes_name='nvidia-dcgm-exporter',gpu=~'<replace>'}"
-)
-gpu_infos_query_memory = (
-    '{__name__=~"DCGM_FI_DEV_FB_(FREE|USED|RESERVED)",app="nvidia-dcgm-exporter"}'
-)
+gpu_count_query = "count(DCGM_FI_DEV_POWER_USAGE{kubernetes_name='nvidia-dcgm-exporter'})"
+gpu_mem_used_device_query = "DCGM_FI_DEV_FB_USED{kubernetes_name='nvidia-dcgm-exporter',gpu=~'<replace>'}"
+gpu_mem_available_device_query = "DCGM_FI_DEV_FB_FREE{kubernetes_name='nvidia-dcgm-exporter',gpu=~'<replace>'}"
+gpu_infos_query_memory = '{__name__=~"DCGM_FI_DEV_FB_(FREE|USED|RESERVED)",app="nvidia-dcgm-exporter"}'
 
 
 def get_node_info(query, logger=logging):
@@ -152,15 +142,10 @@ def get_node_requested_memory(logger=None):
 
     if not success1 or not success2:
         if logger != None:
-            logger.error(
-                "+++++++++ Could not fetch node-info: get_node_requested_memory"
-            )
+            logger.error("+++++++++ Could not fetch node-info: get_node_requested_memory")
         return None
 
-    return (
-        memory_requested_from_pods_in_services_namespace
-        + memory_requested_from_pods_in_admin_namespace
-    )
+    return memory_requested_from_pods_in_services_namespace + memory_requested_from_pods_in_admin_namespace
 
 
 def get_node_mem_percent(logger=None):
@@ -187,9 +172,7 @@ def get_node_cpu_util_percent(logger=None):
     cpu_util_per, success = get_node_info(query=cpu_util_per_query)
     if not success:
         if logger != None:
-            logger.error(
-                "+++++++++ Could not fetch node-info: get_node_cpu_util_percent"
-            )
+            logger.error("+++++++++ Could not fetch node-info: get_node_cpu_util_percent")
         return None
 
     return cpu_util_per

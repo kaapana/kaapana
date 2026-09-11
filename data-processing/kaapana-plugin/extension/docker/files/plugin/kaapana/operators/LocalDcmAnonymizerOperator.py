@@ -30,9 +30,7 @@ class LocalDcmAnonymizerOperator(KaapanaPythonBaseOperator):
             print("DCMDICTPATH not found...")
             raise ValueError("ERROR")
 
-        anonymize_dict_path = (
-            os.path.dirname(os.path.realpath(__file__)) + "/anonymize-tags.json"
-        )
+        anonymize_dict_path = os.path.dirname(os.path.realpath(__file__)) + "/anonymize-tags.json"
 
         with open(anonymize_dict_path) as data_file:
             anonymize_tags = json.load(data_file)
@@ -53,9 +51,7 @@ class LocalDcmAnonymizerOperator(KaapanaPythonBaseOperator):
         anon_command = "dcmodify --no-backup --ignore-missing-tags " + erase_tags + " "
 
         for batch_element_dir in batch_dirs:
-            batch_element_out_dir = os.path.join(
-                batch_element_dir, self.operator_out_dir
-            )
+            batch_element_out_dir = os.path.join(batch_element_dir, self.operator_out_dir)
             dcm_files = sorted(
                 glob.glob(
                     os.path.join(batch_element_dir, self.operator_in_dir, "*.dcm*"),
@@ -63,9 +59,7 @@ class LocalDcmAnonymizerOperator(KaapanaPythonBaseOperator):
                 )
             )
             for dcm_file in dcm_files:
-                output_filepath = os.path.join(
-                    batch_element_out_dir, os.path.basename(dcm_file)
-                )
+                output_filepath = os.path.join(batch_element_out_dir, os.path.basename(dcm_file))
                 if not os.path.exists(os.path.dirname(output_filepath)):
                     os.makedirs(os.path.dirname(output_filepath))
 
@@ -104,6 +98,4 @@ class LocalDcmAnonymizerOperator(KaapanaPythonBaseOperator):
             print("++++++++++++++++++++++++++++++++++++++++++++++++++++++")
             raise ValueError("ERROR")
 
-        super().__init__(
-            dag=dag, name="dcm-anonymizer", python_callable=self.start, **kwargs
-        )
+        super().__init__(dag=dag, name="dcm-anonymizer", python_callable=self.start, **kwargs)

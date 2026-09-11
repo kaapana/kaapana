@@ -33,9 +33,7 @@ if __name__ == "__main__":
     print(f"# task_modalities: {task_modalities}")
     print("#")
 
-    batches_dir = os.path.join(
-        "/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"]
-    )
+    batches_dir = os.path.join("/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"])
     batch_folders = sorted([f for f in glob.glob(os.path.join(batches_dir, "*"))])
     print("# batches_dir {}".format(batches_dir))
     print("# Found {} batches".format(len(batch_folders)))
@@ -54,9 +52,7 @@ if __name__ == "__main__":
         protocol_index = 0
         for input_nfiti in input_dirs:
             nifti_dir = os.path.join(batch_element_dir, input_nfiti)
-            nifti_files = sorted(
-                glob.glob(os.path.join(nifti_dir, "*.nii*"), recursive=True)
-            )
+            nifti_files = sorted(glob.glob(os.path.join(nifti_dir, "*.nii*"), recursive=True))
             nifti_count = len(nifti_files)
 
             print("# NIFTI_DIR: {}".format(nifti_dir))
@@ -73,9 +69,7 @@ if __name__ == "__main__":
 
             for nifti_file in nifti_files:
                 file_name = os.path.basename(nifti_file).split(".nii.gz")[0]
-                target_path = os.path.join(
-                    output_dir, "{}_{:04d}.nii.gz".format(file_name, protocol_index)
-                )
+                target_path = os.path.join(output_dir, "{}_{:04d}.nii.gz".format(file_name, protocol_index))
                 print("# Copy NIFTI: {} -> {}".format(nifti_file, target_path))
                 shutil.copyfile(nifti_file, target_path)
                 protocol_index += 1

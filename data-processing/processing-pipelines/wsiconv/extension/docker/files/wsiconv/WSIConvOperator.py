@@ -8,9 +8,7 @@ from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 
 
 class WSIconvOperator(KaapanaBaseOperator):
-    def __init__(
-        self, dag, name=None, execution_timeout=timedelta(minutes=90), *args, **kwargs
-    ) -> None:
+    def __init__(self, dag, name=None, execution_timeout=timedelta(minutes=90), *args, **kwargs) -> None:
         name = name if name is not None else "PixelMed-converter"
 
         super().__init__(
@@ -21,8 +19,8 @@ class WSIconvOperator(KaapanaBaseOperator):
             execution_timeout=execution_timeout,
             ram_mem_mb=6000,
             ram_mem_mb_lmt=12000,
-            #cmds=["tail"], 
-            #arguments=["-f", "/dev/null"],
+            # cmds=["tail"],
+            # arguments=["-f", "/dev/null"],
             *args,
             **kwargs,
         )

@@ -140,32 +140,24 @@ class KaapanaFederatedTrainingBase(ABC):
     # Todo move in Jonas library as normal function
     def apply_untar_action(src_filename, dst_dir):
         print(f"Untar {src_filename} to {dst_dir}")
-        with tarfile.open(
-            src_filename, "r:gz" if src_filename.endswith("gz") is True else "r"
-        ) as tar:
+        with tarfile.open(src_filename, "r:gz" if src_filename.endswith("gz") is True else "r") as tar:
             tar.extractall(dst_dir)
 
     # Todo move in Jonas library as normal function
     def apply_tar_action(dst_filename, src_dir):
         print(f"Tar {src_dir} to {dst_filename}")
-        with tarfile.open(
-            dst_filename, "w:gz" if dst_filename.endswith("gz") is True else "w"
-        ) as tar:
+        with tarfile.open(dst_filename, "w:gz" if dst_filename.endswith("gz") is True else "w") as tar:
             tar.add(src_dir, arcname=os.path.basename(src_dir))
 
     # Todo move in Jonas library as normal function
     @staticmethod
     def raise_kaapana_connection_error(r):
         if r.history:
-            raise ConnectionError(
-                "You were redirect to the auth page. Your token is not valid!"
-            )
+            raise ConnectionError("You were redirect to the auth page. Your token is not valid!")
         try:
             r.raise_for_status()
         except:
-            raise ValueError(
-                f"Something was not okay with your request code {r}: {r.text}!"
-            )
+            raise ValueError(f"Something was not okay with your request code {r}: {r.text}!")
 
     def get_conf(self, workflow_dir=None):
         with open(os.path.join("/", workflow_dir, "conf", "conf.json"), "r") as f:
@@ -178,13 +170,9 @@ class KaapanaFederatedTrainingBase(ABC):
             conf_data["external_schema_federated_form"]["remote_dag_id"],
         )
 
-        federated_dir = conf_data["external_schema_federated_form"].get(
-            "federated_dir", self.federated_dir
-        )
+        federated_dir = conf_data["external_schema_federated_form"].get("federated_dir", self.federated_dir)
         # Store the combined path back in federated_dir
-        conf_data["external_schema_federated_form"]["federated_dir"] = os.path.join(
-            federated_folder, federated_dir
-        )
+        conf_data["external_schema_federated_form"]["federated_dir"] = os.path.join(federated_folder, federated_dir)
 
         return conf_data
 
@@ -225,13 +213,9 @@ class KaapanaFederatedTrainingBase(ABC):
 
         self.json_writer = JsonWriter(log_dir=self.fl_working_dir)
 
-        self.client_url = (
-            f"http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000/client"
-        )
+        self.client_url = f"http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000/client"
         with requests.Session() as s:
-            r = requests_retry_session(session=s).get(
-                f"{self.client_url}/kaapana-instance"
-            )
+            r = requests_retry_session(session=s).get(f"{self.client_url}/kaapana-instance")
         KaapanaFederatedTrainingBase.raise_kaapana_connection_error(r)
         self.client_network = r.json()
 
@@ -240,16 +224,9 @@ class KaapanaFederatedTrainingBase(ABC):
         else:
             instance_names = []
 
-        if (
-            "federated_form" in self.remote_conf_data
-            and "federated_round" in self.remote_conf_data["federated_form"]
-        ):
-            self.federated_round_start = (
-                self.remote_conf_data["federated_form"]["federated_round"] + 1
-            )
-            print(
-                f"Running in recovery mode and starting from round {self.federated_round_start}"
-            )
+        if "federated_form" in self.remote_conf_data and "federated_round" in self.remote_conf_data["federated_form"]:
+            self.federated_round_start = self.remote_conf_data["federated_form"]["federated_round"] + 1
+            print(f"Running in recovery mode and starting from round {self.federated_round_start}")
         else:
             self.federated_round_start = 0
         print(instance_names)
@@ -267,17 +244,17 @@ class KaapanaFederatedTrainingBase(ABC):
         # FL aggregation strategy
         if "aggregation_strategy" in self.remote_conf_data["federated_form"]:
             # get defined FL aggregation strategy
-            self.aggregation_strategy = self.remote_conf_data["federated_form"][
-                "aggregation_strategy"
-            ]["agg_strategy_method"]
+            self.aggregation_strategy = self.remote_conf_data["federated_form"]["aggregation_strategy"][
+                "agg_strategy_method"
+            ]
             # special params for FedDC
             if self.aggregation_strategy == "feddc":
-                self.agg_rate = self.remote_conf_data["federated_form"][
-                    "aggregation_strategy"
-                ]["feddc_aggregation_rate"]
-                self.dc_rate = self.remote_conf_data["federated_form"][
-                    "aggregation_strategy"
-                ]["feddc_daisychaining_rate"]
+                self.agg_rate = self.remote_conf_data["federated_form"]["aggregation_strategy"][
+                    "feddc_aggregation_rate"
+                ]
+                self.dc_rate = self.remote_conf_data["federated_form"]["aggregation_strategy"][
+                    "feddc_daisychaining_rate"
+                ]
 
     @timeit
     def distribute_jobs(self, federated_round):
@@ -289,20 +266,14 @@ class KaapanaFederatedTrainingBase(ABC):
             if site_info["instance_name"] not in self.tmp_federated_site_info:
                 self.tmp_federated_site_info[site_info["instance_name"]] = {}
                 self.remote_conf_data["federated_form"]["from_previous_dag_run"] = None
-                self.remote_conf_data["federated_form"][
-                    "before_previous_dag_run"
-                ] = None
+                self.remote_conf_data["federated_form"]["before_previous_dag_run"] = None
             else:
-                self.remote_conf_data["federated_form"]["before_previous_dag_run"] = (
-                    self.tmp_federated_site_info[site_info["instance_name"]][
-                        "before_previous_dag_run"
-                    ]
-                )
-                self.remote_conf_data["federated_form"]["from_previous_dag_run"] = (
-                    self.tmp_federated_site_info[site_info["instance_name"]][
-                        "from_previous_dag_run"
-                    ]
-                )
+                self.remote_conf_data["federated_form"]["before_previous_dag_run"] = self.tmp_federated_site_info[
+                    site_info["instance_name"]
+                ]["before_previous_dag_run"]
+                self.remote_conf_data["federated_form"]["from_previous_dag_run"] = self.tmp_federated_site_info[
+                    site_info["instance_name"]
+                ]["from_previous_dag_run"]
 
             # create at local instance jobs for remote sites
             with requests.Session() as s:
@@ -310,15 +281,11 @@ class KaapanaFederatedTrainingBase(ABC):
                     f"{self.client_url}/workflow_jobs",
                     json={
                         "federated": True,
-                        "dag_id": self.remote_conf_data["federated_form"][
-                            "remote_dag_id"
-                        ],
+                        "dag_id": self.remote_conf_data["federated_form"]["remote_dag_id"],
                         "conf_data": self.remote_conf_data,
                         "username": self.local_conf_data["workflow_form"]["username"],
                         "instance_names": [site_info["instance_name"]],
-                        "workflow_id": self.local_conf_data["workflow_form"][
-                            "workflow_id"
-                        ],
+                        "workflow_id": self.local_conf_data["workflow_form"]["workflow_id"],
                     },
                     verify=self.client_network["ssl_check"],
                 )
@@ -335,14 +302,12 @@ class KaapanaFederatedTrainingBase(ABC):
 
     @timeit
     def wait_for_jobs(self, federated_round):
-        updated = {
-            instance_name: False for instance_name in self.tmp_federated_site_info
-        }
+        updated = {instance_name: False for instance_name in self.tmp_federated_site_info}
         # Waiting for updated files
         print("Waiting for updates")
         for idx in range(10000):
             if idx % 6 == 0:
-                print(f"{10*idx} seconds")
+                print(f"{10 * idx} seconds")
 
             time.sleep(10)
 
@@ -356,9 +321,9 @@ class KaapanaFederatedTrainingBase(ABC):
                 job = r.json()
                 if job["status"] == "finished":
                     updated[instance_name] = True
-                    tmp_site_info["before_previous_dag_run"] = job["conf_data"][
-                        "federated_form"
-                    ]["from_previous_dag_run"]
+                    tmp_site_info["before_previous_dag_run"] = job["conf_data"]["federated_form"][
+                        "from_previous_dag_run"
+                    ]
                     tmp_site_info["from_previous_dag_run"] = job["run_id"]
                 elif job["status"] == "failed":
                     raise ValueError(
@@ -370,14 +335,10 @@ class KaapanaFederatedTrainingBase(ABC):
             print("Update list")
             for k, v in updated.items():
                 print(k, v)
-            raise ValueError(
-                "There are lacking updates, please check what is going on!"
-            )
+            raise ValueError("There are lacking updates, please check what is going on!")
 
     @timeit
-    def download_minio_objects_to_workflow_dir(
-        self, federated_round, tmp_central_site_info
-    ):
+    def download_minio_objects_to_workflow_dir(self, federated_round, tmp_central_site_info):
         project_bucket = self.remote_conf_data["project_form"]["s3_bucket"]
         if federated_round > 0:
             previous_federated_round_dir = os.path.join(
@@ -412,9 +373,7 @@ class KaapanaFederatedTrainingBase(ABC):
                     obj.is_dir
                     or not obj.object_name.endswith(".tar")
                     or os.path.basename(obj.object_name).replace(".tar", "")
-                    not in self.remote_conf_data["federated_form"][
-                        "federated_operators"
-                    ]
+                    not in self.remote_conf_data["federated_form"]["federated_operators"]
                     or "from_server" in obj.object_name
                 ):
                     continue
@@ -429,18 +388,12 @@ class KaapanaFederatedTrainingBase(ABC):
                     file_dir = os.path.dirname(file_path)  # file_path.rsplit('/', 2)[0]
                     os.makedirs(file_dir, exist_ok=True)
                     minio_client = self.minioSession.get_client()
-                    minio_client.fget_object(
-                        project_bucket, obj.object_name, file_path
-                    )
-                    KaapanaFederatedTrainingBase.fernet_decryptfile(
-                        file_path, tmp_site_info["fernet_key"]
-                    )
+                    minio_client.fget_object(project_bucket, obj.object_name, file_path)
+                    KaapanaFederatedTrainingBase.fernet_decryptfile(file_path, tmp_site_info["fernet_key"])
                     KaapanaFederatedTrainingBase.apply_untar_action(file_path, file_dir)
                     tmp_site_info["file_paths"].append(file_path)
                     tmp_site_info["next_object_names"].append(
-                        obj.object_name.replace(
-                            current_federated_round_dir, next_federated_round_dir
-                        )
+                        obj.object_name.replace(current_federated_round_dir, next_federated_round_dir)
                     )
             print("Removing objects from previous federated_round_dir on Minio")
 
@@ -464,15 +417,13 @@ class KaapanaFederatedTrainingBase(ABC):
         """
         print("Load checkpoints and return as dict.")
         site_model_weights_dict = collections.OrderedDict()
-        for idx, fname in enumerate(
-            current_federated_round_dir.rglob("checkpoint_final.pth")
-        ):
+        for idx, fname in enumerate(current_federated_round_dir.rglob("checkpoint_final.pth")):
             print(f"Loading model_weights from: {fname}")
             # using weights_only=False for backwards compatability to keep torch <2.6 behavior
             # TODO: get rid of it via
             # Option 1 : updating the model saving to ensure all checkpoint objects are native Python types instead of NumPy types before torch.save()
             # Option 2: using safe_globals to whitelist the specific numpy scalar type found in legacy checkpoints
-            checkpoint = torch.load(fname, map_location=torch.device("cpu"), weights_only=False) 
+            checkpoint = torch.load(fname, map_location=torch.device("cpu"), weights_only=False)
 
             # retrieve site_name from current_federated_round_dir
             modified_fname = str(fname).replace(str(current_federated_round_dir), "")
@@ -499,30 +450,20 @@ class KaapanaFederatedTrainingBase(ABC):
         num_samples_per_client = dict()
         client_instance_names = []
 
-        dataset_limit = self.remote_conf_data.get("data_form", {}).get(
-            "dataset_limit", None
-        )
+        dataset_limit = self.remote_conf_data.get("data_form", {}).get("dataset_limit", None)
         for site_idx, _ in enumerate(self.remote_sites):
             client_instance_names.append(self.remote_sites[site_idx]["instance_name"])
             dataset_name = self.remote_conf_data["data_form"]["dataset_name"]
             allowed_datasets = self.remote_sites[site_idx]["allowed_datasets"]
             identifiers = next(
-                (
-                    dataset["identifiers"]
-                    for dataset in allowed_datasets
-                    if dataset["name"] == dataset_name
-                ),
+                (dataset["identifiers"] for dataset in allowed_datasets if dataset["name"] == dataset_name),
                 [],
             )
             num_identifiers_in_dataset = len(identifiers)
             num_samples_per_client[self.remote_sites[site_idx]["instance_name"]] = (
                 num_identifiers_in_dataset
                 if dataset_limit is None
-                else (
-                    num_identifiers_in_dataset
-                    if num_identifiers_in_dataset < dataset_limit
-                    else dataset_limit
-                )
+                else (num_identifiers_in_dataset if num_identifiers_in_dataset < dataset_limit else dataset_limit)
             )
         num_all_samples = sum(num_samples_per_client.values())
         print(
@@ -550,14 +491,12 @@ class KaapanaFederatedTrainingBase(ABC):
                     # network weights of client_instance_names [0] are already in network_weights
                     # we still need to weight client 0's model params with it's dataset size
                     network_weights[address_key_dict[a][0]] = (
-                        network_weights[address_key_dict[a][0]]
-                        * num_samples_per_client[client_instance_name]
+                        network_weights[address_key_dict[a][0]] * num_samples_per_client[client_instance_name]
                     )
                 else:
                     # weighted sum
                     network_weights[address_key_dict[a][0]] += (
-                        net[address_key_dict[a][0]]
-                        * num_samples_per_client[client_instance_name]
+                        net[address_key_dict[a][0]] * num_samples_per_client[client_instance_name]
                     )
             # divided by num_all_samples
             network_weights[address_key_dict[a][0]] /= num_all_samples
@@ -607,9 +546,7 @@ class KaapanaFederatedTrainingBase(ABC):
         if ((federated_round % self.agg_rate) != (self.agg_rate - 1)) and (
             (federated_round % self.dc_rate) != (self.dc_rate - 1)
         ):
-            raise ValueError(
-                "Error while FedDC: Neither Daisy Chaining nor Aggregation was computed!"
-            )
+            raise ValueError("Error while FedDC: Neither Daisy Chaining nor Aggregation was computed!")
         return return_model_weights_dict
 
     # @timeit
@@ -628,48 +565,34 @@ class KaapanaFederatedTrainingBase(ABC):
         torch.save(checkpoint, str(fname))
 
     # @timeit
-    def save_model_weights(
-        self, current_federated_round_dir=None, processed_site_model_weights_dict=None
-    ):
+    def save_model_weights(self, current_federated_round_dir=None, processed_site_model_weights_dict=None):
         """
         Save processed model to site-corresponding minio folders.
         """
         print("Saving processed model checkpoints")
-        for idx, fname in enumerate(
-            current_federated_round_dir.rglob("checkpoint_final.pth")
-        ):
+        for idx, fname in enumerate(current_federated_round_dir.rglob("checkpoint_final.pth")):
             # retrieve site_name from current_federated_round_dir
             modified_fname = str(fname).replace(str(current_federated_round_dir), "")
             site_name = modified_fname.split("/")[1]
 
             print(f"Save centrally processed model to {site_name}")
 
-            self._save_model_weights(
-                str(fname), processed_site_model_weights_dict[site_name]
-            )
+            self._save_model_weights(str(fname), processed_site_model_weights_dict[site_name])
 
         return str(fname)
 
     @timeit
-    def upload_workflow_dir_to_minio_object(
-        self, federated_round, tmp_central_site_info
-    ):
+    def upload_workflow_dir_to_minio_object(self, federated_round, tmp_central_site_info):
         # Push objects:
         for instance_name, tmp_site_info in tmp_central_site_info.items():
-            for file_path, next_object_name in zip(
-                tmp_site_info["file_paths"], tmp_site_info["next_object_names"]
-            ):
+            for file_path, next_object_name in zip(tmp_site_info["file_paths"], tmp_site_info["next_object_names"]):
                 file_path = file_path.replace("/from_client", "")
                 file_path = file_path.replace("/from_server", "")
                 file_dir = file_path.replace(".tar", "")
                 KaapanaFederatedTrainingBase.apply_tar_action(file_path, file_dir)
-                KaapanaFederatedTrainingBase.fernet_encryptfile(
-                    file_path, self.client_network["fernet_key"]
-                )
-                next_object_name = next_object_name.replace(
-                    "from_client", "from_server"
-                )
-                print(f"Uploading {file_path } to {next_object_name}")
+                KaapanaFederatedTrainingBase.fernet_encryptfile(file_path, self.client_network["fernet_key"])
+                next_object_name = next_object_name.replace("from_client", "from_server")
+                print(f"Uploading {file_path} to {next_object_name}")
                 minio_client = self.minioSession.get_client()
                 minio_client.fput_object(
                     self.remote_conf_data["project_form"]["s3_bucket"],  # minio bucket
@@ -688,9 +611,7 @@ class KaapanaFederatedTrainingBase(ABC):
         self.download_minio_objects_to_workflow_dir(
             federated_round=federated_round, tmp_central_site_info=tmp_central_site_info
         )
-        self.update_data(
-            federated_round=federated_round, tmp_central_site_info=tmp_central_site_info
-        )
+        self.update_data(federated_round=federated_round, tmp_central_site_info=tmp_central_site_info)
         self.upload_workflow_dir_to_minio_object(
             federated_round=federated_round, tmp_central_site_info=tmp_central_site_info
         )
@@ -702,38 +623,28 @@ class KaapanaFederatedTrainingBase(ABC):
 
         self.wait_for_jobs(federated_round=federated_round)
         tmp_central_site_info = {
-            instance_name: tmp_site_info
-            for instance_name, tmp_site_info in self.tmp_federated_site_info.items()
+            instance_name: tmp_site_info for instance_name, tmp_site_info in self.tmp_federated_site_info.items()
         }
         self.on_wait_for_jobs_end(federated_round=federated_round)
         self.create_recovery_conf(federated_round=federated_round)
         if (
             self.run_in_parallel is True
-            and (federated_round + 1)
-            < self.remote_conf_data["federated_form"]["federated_total_rounds"]
+            and (federated_round + 1) < self.remote_conf_data["federated_form"]["federated_total_rounds"]
         ):
             self.distribute_jobs(federated_round=federated_round + 1)
 
-        self.central_steps(
-            federated_round=federated_round, tmp_central_site_info=tmp_central_site_info
-        )
+        self.central_steps(federated_round=federated_round, tmp_central_site_info=tmp_central_site_info)
 
     def create_recovery_conf(self, federated_round):
         print("Recovery conf for round {}")
         self.tmp_federated_site_info = {
-            instance_name: {
-                k: tmp_site_info[k]
-                for k in ["from_previous_dag_run", "before_previous_dag_run"]
-            }
+            instance_name: {k: tmp_site_info[k] for k in ["from_previous_dag_run", "before_previous_dag_run"]}
             for instance_name, tmp_site_info in self.tmp_federated_site_info.items()
         }
         recovery_conf = {
             "remote": False,
             "dag_id": os.getenv("DAG_ID"),
-            "instance_names": [
-                instance_name
-                for instance_name, _ in self.tmp_federated_site_info.items()
-            ],
+            "instance_names": [instance_name for instance_name, _ in self.tmp_federated_site_info.items()],
             "workflow_form": {
                 **self.local_conf_data,
                 **{f"external_schema_{k}": v for k, v in self.remote_conf_data.items()},
@@ -744,15 +655,11 @@ class KaapanaFederatedTrainingBase(ABC):
         print(json.dumps(recovery_conf, indent=2))
         print("Recovery conf in one line")
         print(json.dumps(recovery_conf))
-        recovery_path = os.path.join(
-            self.fl_working_dir, str(federated_round), "recovery_conf.json"
-        )
+        recovery_path = os.path.join(self.fl_working_dir, str(federated_round), "recovery_conf.json")
         # os.makedirs(os.path.basename(recovery_path), exist_ok=True)
         os.makedirs(os.path.dirname(recovery_path), exist_ok=True)
         with open(recovery_path, "w", encoding="utf-8") as jsonData:
-            json.dump(
-                recovery_conf, jsonData, indent=2, sort_keys=True, ensure_ascii=True
-            )
+            json.dump(recovery_conf, jsonData, indent=2, sort_keys=True, ensure_ascii=True)
 
         minio_recovery_path = os.path.join(
             self.federated_dir,
@@ -777,9 +684,7 @@ class KaapanaFederatedTrainingBase(ABC):
         ):
             self.train_step(federated_round=federated_round)
             if federated_round > 0:
-                previous_fl_working_round_dir = os.path.join(
-                    self.fl_working_dir, str(federated_round - 1)
-                )
+                previous_fl_working_round_dir = os.path.join(self.fl_working_dir, str(federated_round - 1))
                 print(f"Removing previous round files {previous_fl_working_round_dir}")
                 if os.path.isdir(previous_fl_working_round_dir):
                     shutil.rmtree(previous_fl_working_round_dir)

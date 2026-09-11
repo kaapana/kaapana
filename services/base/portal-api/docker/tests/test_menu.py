@@ -13,9 +13,7 @@ def ing(
     **ui: str,
 ) -> IngressInfo:
     """IngressInfo with kaapana.ai/ui.* annotations from kwargs (underscores -> dashes)."""
-    annotations = {
-        f"kaapana.ai/ui.{key.replace('_', '-')}": value for key, value in ui.items()
-    }
+    annotations = {f"kaapana.ai/ui.{key.replace('_', '-')}": value for key, value in ui.items()}
     return IngressInfo(
         namespace=namespace,
         name=ingress_name,
@@ -29,14 +27,7 @@ def items(*ingresses: IngressInfo) -> list:
 
 
 def test_ingress_without_ui_name_is_excluded() -> None:
-    assert (
-        items(
-            IngressInfo(
-                "services", "plain", {"kaapana.ai/type": "application"}, "/plain"
-            )
-        )
-        == []
-    )
+    assert items(IngressInfo("services", "plain", {"kaapana.ai/type": "application"}, "/plain")) == []
 
 
 def test_entry_defaults_and_path_fallback_to_rule_path() -> None:
@@ -100,9 +91,7 @@ def test_project_defaults_to_none_and_rejects_unknown_values() -> None:
 
 
 def test_badge_path_parsed_and_defaults_empty() -> None:
-    (entry,) = items(
-        ing("a", first_path="/a", name="A", badge_path="/kube-helm-api/x-count")
-    )
+    (entry,) = items(ing("a", first_path="/a", name="A", badge_path="/kube-helm-api/x-count"))
     assert entry.badgePath == "/kube-helm-api/x-count"
     (entry,) = items(ing("b", first_path="/b", name="B"))
     assert entry.badgePath == ""
@@ -187,8 +176,7 @@ def test_malformed_dev_link_pair_skipped_and_entry_kept() -> None:
             "a",
             first_path="/a",
             name="A",
-            dev_links="no-separator,Missing Path=,=/orphan,Relative=kaapana-backend/docs,"
-            "Good=/data-api/docs",
+            dev_links="no-separator,Missing Path=,=/orphan,Relative=kaapana-backend/docs,Good=/data-api/docs",
         )
     )
     assert entry.label == "A"
@@ -218,9 +206,7 @@ def test_empty_dev_links_annotation_is_silent(
 
 
 def test_ui_id_overrides_slug() -> None:
-    (entry,) = items(
-        ing("docs", first_path="/docs", name="Documentation", id="Documentation")
-    )
+    (entry,) = items(ing("docs", first_path="/docs", name="Documentation", id="Documentation"))
     assert entry.id == "Documentation"
 
 
@@ -345,9 +331,7 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     return TestClient(fastapi_app)
 
 
-def test_menu_within_the_ttl_is_served_from_cache(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_menu_within_the_ttl_is_served_from_cache(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     calls = 0
 
     async def counted() -> list[IngressInfo]:

@@ -17,18 +17,14 @@ router = APIRouter(prefix="/entities", tags=["entity-queries"])
 
 
 @router.post("/query", response_model=QueryResponse, summary="Query data entities")
-async def query_entities(
-    request: QueryRequest, db: AsyncSession = Depends(get_async_db)
-) -> QueryResponse:
+async def query_entities(request: QueryRequest, db: AsyncSession = Depends(get_async_db)) -> QueryResponse:
     try:
         results, total_count, next_cursor = await execute_entity_query(db, request)
     except QueryTranslationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return QueryResponse(
-        results=results, next_cursor=next_cursor, total_count=total_count
-    )
+    return QueryResponse(results=results, next_cursor=next_cursor, total_count=total_count)
 
 
 @router.post(
@@ -37,9 +33,7 @@ async def query_entities(
     summary="Stream IDs that match a query",
     description="Returns the full ordered list of entity IDs that match the provided query filter, allowing clients to hydrate large result sets without issuing thousands of cursor requests.",
 )
-async def stream_query_index(
-    request: QueryIndexRequest, db: AsyncSession = Depends(get_async_db)
-) -> StreamingResponse:
+async def stream_query_index(request: QueryIndexRequest, db: AsyncSession = Depends(get_async_db)) -> StreamingResponse:
     try:
         total_count, stmt = await prepare_query_index_statement(db, request)
     except QueryTranslationError as exc:

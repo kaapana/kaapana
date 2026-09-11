@@ -72,7 +72,6 @@ if __name__ == "__main__":
     batch = {}
 
     for patient in os.listdir(os.environ["BATCHES_INPUT_DIR"]):
-        
         # Log
         logger.debug(f"Preprocessing for case {patient} started")
 
@@ -90,13 +89,9 @@ if __name__ == "__main__":
         spacing = patient_dict["image"].GetSpacing()
 
         if len(spacing) > 3:
-            raise ValueError(
-                "Not covering the scope of >3-dimensional arrays: E.g. 2 images in one"
-            )
+            raise ValueError("Not covering the scope of >3-dimensional arrays: E.g. 2 images in one")
 
-        patient_dict["stats"] = compute_statistics(
-            sitk.GetArrayFromImage(patient_dict["image"])
-        )
+        patient_dict["stats"] = compute_statistics(sitk.GetArrayFromImage(patient_dict["image"]))
 
         # Resample
         data_resampled = resample_image(patient_dict)
@@ -105,12 +100,9 @@ if __name__ == "__main__":
         normalizer = ZScoreNormalizer()
         data_normalized = normalizer.normalize(data_resampled)
 
-        target_dir = os.path.join(
-            os.environ["BATCHES_INPUT_DIR"], patient, os.environ["OPERATOR_OUT_DIR"]
-        )
+        target_dir = os.path.join(os.environ["BATCHES_INPUT_DIR"], patient, os.environ["OPERATOR_OUT_DIR"])
         os.makedirs(target_dir, exist_ok=True)
         np.save(os.path.join(target_dir, patient + ".npy"), data_normalized)
 
-        #Log
+        # Log
         logger.debug(f"{patient} was preprocessed")
-        

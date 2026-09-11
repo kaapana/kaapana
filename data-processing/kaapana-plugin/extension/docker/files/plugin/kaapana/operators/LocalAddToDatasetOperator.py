@@ -30,9 +30,7 @@ class LocalAddToDatasetOperator(KaapanaPythonBaseOperator):
         run_dir = Path(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folder = list(Path(run_dir, self.batch_name).glob("*"))
         for batch_element_dir in batch_folder:
-            json_files = sorted(
-                list(Path(batch_element_dir, self.operator_in_dir).rglob("*.json*"))
-            )
+            json_files = sorted(list(Path(batch_element_dir, self.operator_in_dir).rglob("*.json*")))
 
             for meta_files in json_files:
                 print(f"Do assignment for file {meta_files}")
@@ -40,13 +38,9 @@ class LocalAddToDatasetOperator(KaapanaPythonBaseOperator):
                     metadata = json.load(fs)
                     series_uid = metadata["0020000E SeriesInstanceUID_keyword"]
                     if self.from_other_project:
-                        self.select_project_from_other_project(
-                            series_uid=series_uid, **kwargs
-                        )
+                        self.select_project_from_other_project(series_uid=series_uid, **kwargs)
                     else:
-                        self.select_project_and_add_dataset(
-                            metadata=metadata, series_uid=series_uid
-                        )
+                        self.select_project_and_add_dataset(metadata=metadata, series_uid=series_uid)
 
     def select_project_and_add_dataset(self, metadata: dict, series_uid: str):
         """
@@ -55,9 +49,7 @@ class LocalAddToDatasetOperator(KaapanaPythonBaseOperator):
         """
         clinical_trail_tag = metadata.get("00120020 ClinicalTrialProtocolID_keyword")
         try:
-            project = get_project_by_id_or_name(
-                metadata.get("00120020 ClinicalTrialProtocolID_keyword")
-            )
+            project = get_project_by_id_or_name(metadata.get("00120020 ClinicalTrialProtocolID_keyword"))
         except:
             project = get_project_by_id_or_name("admin")
 
@@ -98,9 +90,7 @@ class LocalAddToDatasetOperator(KaapanaPythonBaseOperator):
         if dataset_name:
             projects = workflow_form.get("projects")
             for project_name in projects:
-                logger.info(
-                    f"Add {series_uid} to dataset {dataset_name} of project {project_name}"
-                )
+                logger.info(f"Add {series_uid} to dataset {dataset_name} of project {project_name}")
                 project = get_project_by_id_or_name(project_name)
                 add_identifier_to_dataset_in_project(
                     identifiers=[series_uid],
@@ -112,9 +102,7 @@ class LocalAddToDatasetOperator(KaapanaPythonBaseOperator):
         self,
         dag,
         name: str = "add2dataset",
-        tags_to_add_from_file: List[str] = [
-            "00120010 ClinicalTrialSponsorName_keyword"
-        ],
+        tags_to_add_from_file: List[str] = ["00120010 ClinicalTrialSponsorName_keyword"],
         from_other_project=False,
         *args,
         **kwargs,
@@ -128,9 +116,7 @@ class LocalAddToDatasetOperator(KaapanaPythonBaseOperator):
         super().__init__(dag=dag, name=name, python_callable=self.start, **kwargs)
 
 
-def add_identifier_to_dataset_in_project(
-    identifiers: list, dataset_name: str, project: dict
-):
+def add_identifier_to_dataset_in_project(identifiers: list, dataset_name: str, project: dict):
     """
     Add a list of series uids as identifiers to the dataset in project via the API of the kaapana-backend.
     """
@@ -159,8 +145,6 @@ def get_project_by_id_or_name(project_identifier: str):
     Raises:
         HttpException: If the response from the access-information code has status code >= 400.
     """
-    response = requests.get(
-        f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_identifier}"
-    )
+    response = requests.get(f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_identifier}")
     response.raise_for_status()
     return response.json()

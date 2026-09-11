@@ -3,9 +3,7 @@ import os
 
 
 def get_task_info(task):
-    tasks_json_path = os.path.join(
-        os.path.dirname(os.path.realpath(__file__)), "prediction_tasks.json"
-    )
+    tasks_json_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "prediction_tasks.json")
     task_info = {}
     print("Getting task-info...")
 

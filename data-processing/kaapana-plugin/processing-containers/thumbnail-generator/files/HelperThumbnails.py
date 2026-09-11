@@ -4,9 +4,7 @@
 # this copy must be updated as well.
 from __future__ import annotations
 
-NO_THUMBNAIL_MODALITIES: frozenset[str] = frozenset(
-    {"SR", "KO", "PR", "RTPLAN", "REG", "FID", "AU", "RWVM"}
-)
+NO_THUMBNAIL_MODALITIES: frozenset[str] = frozenset({"SR", "KO", "PR", "RTPLAN", "REG", "FID", "AU", "RWVM"})
 
 
 def has_ref_series(ds) -> bool:

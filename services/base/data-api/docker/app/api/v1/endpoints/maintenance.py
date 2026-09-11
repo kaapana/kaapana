@@ -11,13 +11,9 @@ router = APIRouter(prefix="/artifacts", tags=["maintenance"])
 
 
 class ArtifactPruneResponse(BaseModel):
-    scanned_files: int = Field(
-        ..., description="Total artifact files discovered on disk"
-    )
+    scanned_files: int = Field(..., description="Total artifact files discovered on disk")
     deleted_files: int = Field(..., description="Number of orphaned files removed")
-    skipped_files: int = Field(
-        ..., description="Files that still map to active entities"
-    )
+    skipped_files: int = Field(..., description="Files that still map to active entities")
 
 
 @router.post(

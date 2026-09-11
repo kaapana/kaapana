@@ -24,30 +24,25 @@ def _load_json(json_str_or_path: str) -> dict:
 def _make_client(
     registry_url: str, repository: str, username: Optional[str], password: Optional[str]
 ) -> OCIRegistryDiscovery:
-    return OCIRegistryDiscovery(
-        registry_url, repository, username=username, password=password
-    )
+    return OCIRegistryDiscovery(registry_url, repository, username=username, password=password)
 
 
 def _async_command(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         return asyncio.run(func(*args, **kwargs))
+
     return wrapper
 
 
 @app.command()
 @_async_command
 async def publish(
-    registry_url: str = typer.Argument(
-        ..., help="Base registry URL (e.g., https://ghcr.io)"
-    ),
+    registry_url: str = typer.Argument(..., help="Base registry URL (e.g., https://ghcr.io)"),
     repository: str = typer.Argument(..., help="Repository path (e.g., user/project)"),
     tag: str = typer.Argument(..., help="Tag to publish"),
     metadata_json: str = typer.Argument(..., help="Metadata JSON string or path"),
-    files: Optional[List[str]] = typer.Option(
-        None, help="Optional list of files to include"
-    ),
+    files: Optional[List[str]] = typer.Option(None, help="Optional list of files to include"),
     username: Optional[str] = typer.Option(None, help="Username for authentication"),
     password: Optional[str] = typer.Option(None, help="Password for authentication"),
 ):
@@ -97,9 +92,7 @@ async def metadata(
     registry_url: str = typer.Argument(...),
     repository: str = typer.Argument(...),
     tag: Optional[str] = typer.Argument(None, help="Specific tag (optional)"),
-    download_dir: Optional[str] = typer.Option(
-        None, help="Download directory for associated files"
-    ),
+    download_dir: Optional[str] = typer.Option(None, help="Download directory for associated files"),
     username: Optional[str] = typer.Option(None),
     password: Optional[str] = typer.Option(None),
 ):
@@ -116,9 +109,7 @@ async def metadata(
                 typer.echo(json.dumps(data, indent=2))
                 if download_dir:
                     typer.echo(f"Downloading files for {tag_name}...")
-                    tag_dir = (
-                        os.path.join(download_dir, tag_name) if not tag else download_dir
-                    )
+                    tag_dir = os.path.join(download_dir, tag_name) if not tag else download_dir
                     await client.download_files(tag_name, tag_dir)
     except typer.Exit:
         raise

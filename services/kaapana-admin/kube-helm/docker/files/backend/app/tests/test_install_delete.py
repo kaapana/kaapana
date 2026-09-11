@@ -13,34 +13,24 @@ def test_nnunet_pending():
         if ext["name"] == "nnunet-workflow":
             nnunet = ext
             break
-    assert (
-        nnunet is not None
-    ), f"could not find nnunet-workflow in extensions list {ext_list=}"
+    assert nnunet is not None, f"could not find nnunet-workflow in extensions list {ext_list=}"
 
     # delete if already installed
     if len(nnunet["available_versions"]["03-22"]["deployments"]) > 0:
         print("########## nnunet already installed")
         delete_nnunet()
-        installed = check_nnunet_installed(
-            return_on_install=False, interval=2, iterations=15
-        )
+        installed = check_nnunet_installed(return_on_install=False, interval=2, iterations=15)
 
     # install
     install_nnunet()
-    installed = check_nnunet_installed(
-        return_on_install=True, interval=2, iterations=15
-    )
+    installed = check_nnunet_installed(return_on_install=True, interval=2, iterations=15)
     if installed:
         print("########## uninstalling nnunet before finish...")
         delete_nnunet()
 
 
-def check_nnunet_installed(
-    return_on_install: bool = True, interval: int = 2, iterations: int = 15
-):
-    print(
-        f"checking if nnunet is installed every {interval} seconds for {iterations} iterations"
-    )
+def check_nnunet_installed(return_on_install: bool = True, interval: int = 2, iterations: int = 15):
+    print(f"checking if nnunet is installed every {interval} seconds for {iterations} iterations")
 
     for i in range(0, iterations):
         time.sleep(interval)
@@ -52,9 +42,7 @@ def check_nnunet_installed(
             if ext["name"] == "nnunet-workflow":
                 nnunet = ext
                 break
-        assert (
-            nnunet is not None
-        ), f"could not find nnunet-workflow in extensions list {ext_list}"
+        assert nnunet is not None, f"could not find nnunet-workflow in extensions list {ext_list}"
         if len(nnunet["available_versions"]["03-22"]["deployments"]) > 0:
             print("nnunet is installed")
             print(nnunet["available_versions"]["03-22"]["deployments"])

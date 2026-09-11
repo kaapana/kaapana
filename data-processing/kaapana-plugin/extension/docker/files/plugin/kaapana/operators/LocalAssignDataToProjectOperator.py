@@ -85,9 +85,7 @@ class LocalAssignDataToProjectOperator(KaapanaPythonBaseOperator):
         """
         series_instance_uid = metadata.get("0020000E SeriesInstanceUID_keyword")
         study_uid = metadata.get("0020000D StudyInstanceUID_keyword")
-        clinical_trial_protocol_id = metadata.get(
-            "00120020 ClinicalTrialProtocolID_keyword"
-        )
+        clinical_trial_protocol_id = metadata.get("00120020 ClinicalTrialProtocolID_keyword")
 
         ### Create the series as datapoint in the dicom-web-filter
         payload = {"study_uid": study_uid, "description": "Dicom data"}
@@ -109,9 +107,7 @@ class LocalAssignDataToProjectOperator(KaapanaPythonBaseOperator):
 
         ### Create the project-data mapping for the project stored in the dicom tag: ClinicalTrialProtocolID_keyword
         try:
-            self.add_data_to_project(
-                series_instance_uid, project_id=clinical_trial_protocol_id
-            )
+            self.add_data_to_project(series_instance_uid, project_id=clinical_trial_protocol_id)
         except (IndexError, requests.exceptions.HTTPError) as e:
             logger.warning(
                 f"{series_instance_uid=} is not assigned to a project! This does not fail the task. The series will still be assigned to the default admin project, when the data arrives at the Dicom-Web-Filter: {e}"
@@ -132,8 +128,6 @@ class LocalAssignDataToProjectOperator(KaapanaPythonBaseOperator):
             return str(UUID(str(identifier)))
         except ValueError:
             pass
-        response = requests.get(
-            f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{identifier}"
-        )
+        response = requests.get(f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{identifier}")
         response.raise_for_status()
         return response.json()["id"]

@@ -38,9 +38,7 @@ def upgrade():
     # Add UUID columns to tables
     op.add_column(
         "projects",
-        sa.Column(
-            "project_uuid", UUID(as_uuid=True), nullable=True, default=uuid.uuid4
-        ),
+        sa.Column("project_uuid", UUID(as_uuid=True), nullable=True, default=uuid.uuid4),
     )
     op.add_column(
         "users_projects_roles",
@@ -166,9 +164,7 @@ def downgrade() -> None:
     )
 
     # Drop the old foreign key constraints
-    op.drop_constraint(
-        "software_mappings_project_id_fkey", "software_mappings", type_="foreignkey"
-    )
+    op.drop_constraint("software_mappings_project_id_fkey", "software_mappings", type_="foreignkey")
     op.drop_constraint(
         "users_projects_roles_project_id_fkey",
         "users_projects_roles",

@@ -36,14 +36,10 @@ class LocalSortGtOperator(KaapanaPythonBaseOperator):
                 if (
                     (0x3006, 0x0010) in incoming_dcm
                     and (0x3006, 0x0012) in incoming_dcm[0x3006, 0x0010].value[0]
-                    and (0x3006, 0x0014)
-                    in incoming_dcm[0x3006, 0x0010].value[0][0x3006, 0x0012].value[0]
+                    and (0x3006, 0x0014) in incoming_dcm[0x3006, 0x0010].value[0][0x3006, 0x0012].value[0]
                 ):
                     ref_series_items = (
-                        incoming_dcm[0x3006, 0x0010]
-                        .value[0][0x3006, 0x0012]
-                        .value[0][0x3006, 0x0014]
-                        .value
+                        incoming_dcm[0x3006, 0x0010].value[0][0x3006, 0x0012].value[0][0x3006, 0x0014].value
                     )
 
                 assert ref_series_items is not None
@@ -56,27 +52,19 @@ class LocalSortGtOperator(KaapanaPythonBaseOperator):
                         print(f"#### Adding new base_image: {ref_ct_id}")
                         base_images_list[ref_ct_id] = []
                     else:
-                        print(
-                            f"#### base_image: {ref_ct_id} already exists in list ..."
-                        )
+                        print(f"#### base_image: {ref_ct_id} already exists in list ...")
                     base_images_list[ref_ct_id].append(seg_dicom_path)
 
         for base_image, corr_batch_elements in base_images_list.items():
-            print(
-                f"# Found base_image with {len(corr_batch_elements)} corresponding segmentation..."
-            )
+            print(f"# Found base_image with {len(corr_batch_elements)} corresponding segmentation...")
             assert len(corr_batch_elements) != 0
 
             if len(corr_batch_elements) == 1:
                 corr_seg_file = corr_batch_elements[0]
                 org_input_dir = dirname(corr_seg_file)
-                new_batch_element_name = join(
-                    run_dir, self.batch_name, base_image, self.operator_in_dir
-                )
+                new_batch_element_name = join(run_dir, self.batch_name, base_image, self.operator_in_dir)
 
-                print(
-                    "# Only one corresponding image -> change batch_element name to base_id .."
-                )
+                print("# Only one corresponding image -> change batch_element name to base_id ..")
                 print(f"# {org_input_dir} -> {new_batch_element_name}")
                 move(org_input_dir, new_batch_element_name)
                 print("#")

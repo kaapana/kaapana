@@ -41,9 +41,7 @@ class LocalDeleteFromMetaOperator(KaapanaPythonBaseOperator):
             self.os_client.delete_by_query(index=self.os_index, body=query)
         else:
             run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
-            batch_folder = [
-                f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))
-            ]
+            batch_folder = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))]
 
             dicoms_to_delete = []
             for batch_element_dir in batch_folder:
@@ -64,9 +62,7 @@ class LocalDeleteFromMetaOperator(KaapanaPythonBaseOperator):
                 else:
                     json_files = sorted(
                         glob.glob(
-                            os.path.join(
-                                batch_element_dir, self.operator_in_dir, "*.json*"
-                            ),
+                            os.path.join(batch_element_dir, self.operator_in_dir, "*.json*"),
                             recursive=True,
                         )
                     )
@@ -75,29 +71,19 @@ class LocalDeleteFromMetaOperator(KaapanaPythonBaseOperator):
                             metadata = json.load(fs)
                             dicoms_to_delete.append(
                                 {
-                                    "study_uid": metadata[
-                                        "0020000D StudyInstanceUID_keyword"
-                                    ],
-                                    "series_uid": metadata[
-                                        "0020000E SeriesInstanceUID_keyword"
-                                    ],
+                                    "study_uid": metadata["0020000D StudyInstanceUID_keyword"],
+                                    "series_uid": metadata["0020000E SeriesInstanceUID_keyword"],
                                 }
                             )
 
             if self.delete_complete_study:
-                query = {
-                    "query": {
-                        "terms": {"0020000D StudyInstanceUID_keyword": dicoms_to_delete}
-                    }
-                }
+                query = {"query": {"terms": {"0020000D StudyInstanceUID_keyword": dicoms_to_delete}}}
             else:
                 query = {"query": {"terms": {"_id": dicoms_to_delete}}}
 
             self.os_client.delete_by_query(index=self.os_index, body=query)
 
-    def __init__(
-        self, dag, delete_all_documents=False, delete_complete_study=False, **kwargs
-    ):
+    def __init__(self, dag, delete_all_documents=False, delete_complete_study=False, **kwargs):
         """
         :param delete_all_documents: Specifies the amount of removed data to all documents.
         :param delete_complete_study: Specifies the amount of removed data to all series of a specified study.
@@ -106,6 +92,4 @@ class LocalDeleteFromMetaOperator(KaapanaPythonBaseOperator):
         self.delete_all_documents = delete_all_documents
         self.delete_complete_study = delete_complete_study
 
-        super().__init__(
-            dag=dag, name="delete-meta", python_callable=self.start, **kwargs
-        )
+        super().__init__(dag=dag, name="delete-meta", python_callable=self.start, **kwargs)

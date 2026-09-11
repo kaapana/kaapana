@@ -435,9 +435,7 @@ async def create_generated_workflows_and_runs():
                 response = await create_workflow(workflow_create=workflow)
                 response.raise_for_status()
                 created_workflow = Workflow(**response.json())
-                print(
-                    f"Created generated workflow: {created_workflow.title} (v{created_workflow.increment})"
-                )
+                print(f"Created generated workflow: {created_workflow.title} (v{created_workflow.increment})")
 
                 # randomly create 1-3 additional versions for ~30% of generated workflows
                 if randint(1, 1) <= 3:
@@ -447,9 +445,7 @@ async def create_generated_workflows_and_runs():
                         resp2 = await create_workflow(workflow_create=workflow)
                         resp2.raise_for_status()
                         created2 = Workflow(**resp2.json())
-                        print(
-                            f"  -> Created extra version: {created2.title} (v{created2.increment})"
-                        )
+                        print(f"  -> Created extra version: {created2.title} (v{created2.increment})")
 
             except Exception as e:
                 print(f"Failed to create generated workflow '{workflow.title}': {e}")
@@ -485,9 +481,7 @@ async def create_generated_workflows_and_runs():
                     # pick a random existing (uuid, increment) for this title
                     chosen_id, chosen_increment = choice(candidates)
                     run_payload = schemas.WorkflowRunCreate(
-                        workflow=schemas.WorkflowRef(
-                            id=chosen_id, increment=chosen_increment
-                        ),
+                        workflow=schemas.WorkflowRef(id=chosen_id, increment=chosen_increment),
                         labels=[],
                         workflow_parameters=PARAMETERS,
                     )
@@ -507,13 +501,9 @@ async def create_predetermined_workflows():
                 response = await create_workflow(workflow_create=workflow)
                 response.raise_for_status()
                 created_workflow = Workflow(**response.json())
-                print(
-                    f"Created predetermined workflow: {created_workflow.title} (v{created_workflow.increment})"
-                )
+                print(f"Created predetermined workflow: {created_workflow.title} (v{created_workflow.increment})")
             except Exception as e:
-                print(
-                    f"Failed to create predetermined workflow '{workflow.title}': {e}"
-                )
+                print(f"Failed to create predetermined workflow '{workflow.title}': {e}")
                 traceback.print_exc()
             await asyncio.sleep(0.5)
 
@@ -544,9 +534,7 @@ async def delete_all_workflows():
                     except httpx.HTTPStatusError as e:
                         # Check if it's a 405 Method Not Allowed or 404 Not Found
                         if e.response.status_code in [404, 405]:
-                            print(
-                                "WARNING: DELETE endpoint for workflow runs not implemented - skipping workflow runs"
-                            )
+                            print("WARNING: DELETE endpoint for workflow runs not implemented - skipping workflow runs")
                             break
                         print(f"Failed to delete workflow run {run_id}: {e}")
         except Exception as e:
@@ -566,14 +554,10 @@ async def delete_all_workflows():
 
 
 async def main():
-    parser = argparse.ArgumentParser(
-        description="Workflow CLI (async) for generating or deleting workflows"
-    )
+    parser = argparse.ArgumentParser(description="Workflow CLI (async) for generating or deleting workflows")
     subparsers = parser.add_subparsers(dest="command")
     subparsers.add_parser("generate", help="Generate workflows")
-    subparsers.add_parser(
-        "generate-many", help="Generate many workflows and sample runs for UI testing"
-    )
+    subparsers.add_parser("generate-many", help="Generate many workflows and sample runs for UI testing")
     subparsers.add_parser("delete", help="Delete all workflows")
     subparsers.add_parser("dump", help="Dump all workflows")
 

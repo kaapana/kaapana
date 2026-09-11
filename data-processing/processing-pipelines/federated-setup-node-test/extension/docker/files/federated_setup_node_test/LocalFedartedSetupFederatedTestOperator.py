@@ -17,9 +17,7 @@ class LocalFedartedSetupFederatedTestOperator(KaapanaPythonBaseOperator):
         print("conf", conf)
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
 
-        from_previous_json_path = os.path.join(
-            run_dir, self.operator_in_dir, "from_previous.json"
-        )
+        from_previous_json_path = os.path.join(run_dir, self.operator_in_dir, "from_previous.json")
         with open(from_previous_json_path, "r", encoding="utf-8") as jsonData:
             print("Yippie from previous seems to be available")
             print(json.load(jsonData))
@@ -38,8 +36,7 @@ class LocalFedartedSetupFederatedTestOperator(KaapanaPythonBaseOperator):
 
         if (
             "simulate_fail_round" in conf["workflow_form"]
-            and conf["workflow_form"]["simulate_fail_round"]
-            == conf["federated_form"]["federated_round"]
+            and conf["workflow_form"]["simulate_fail_round"] == conf["federated_form"]["federated_round"]
         ):
             raise ValueError("Simulating an Error!")
         return

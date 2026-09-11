@@ -78,9 +78,7 @@ dag = DAG(
 
 radiomics_federated_central = RadiomicsFederatedOperator(dag=dag)
 
-put_radiomics_to_minio = MinioOperator(
-    dag=dag, action="put", none_batch_input_operators=[radiomics_federated_central]
-)
+put_radiomics_to_minio = MinioOperator(dag=dag, action="put", none_batch_input_operators=[radiomics_federated_central])
 
 get_notebook_from_minio = MinioOperator(
     dag=dag,
@@ -109,10 +107,4 @@ put_report_to_minio = MinioOperator(
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 radiomics_federated_central >> put_radiomics_to_minio >> clean
-(
-    radiomics_federated_central
-    >> get_notebook_from_minio
-    >> radiomics_reporting
-    >> put_report_to_minio
-    >> clean
-)
+(radiomics_federated_central >> get_notebook_from_minio >> radiomics_reporting >> put_report_to_minio >> clean)

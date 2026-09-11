@@ -20,9 +20,7 @@ _EXPIRY_BUFFER_SECONDS = 10
 # Services exposed under a /project/<id>/ IngressRoute that read the injected
 # `Project` header. Keep in step with the other two copies of this list:
 # base-ui's httpClient interceptor and docs .../preview/project_scoping.rst.
-_PROJECT_SCOPED = re.compile(
-    r"^/?(kaapana-backend|kube-helm-api|workflow-api|dicom-web-filter)(/|$)"
-)
+_PROJECT_SCOPED = re.compile(r"^/?(kaapana-backend|kube-helm-api|workflow-api|dicom-web-filter)(/|$)")
 
 
 class KaapanaApiService:
@@ -321,8 +319,7 @@ class KaapanaApiService:
                 time.sleep(self._device_poll_interval)
 
             logger.warning(
-                "Device code expired before authentication completed. "
-                "Starting a new device authorization grant."
+                "Device code expired before authentication completed. Starting a new device authorization grant."
             )
             self._get_device_code()
 
@@ -357,9 +354,7 @@ def get_api_service_from_env():
     service_settings = settings.get_services_settings()
 
     if not project_settings.project_id:
-        logger.warning(
-            "Project id is not set as environment variable. Could not provide KaapanaApiService"
-        )
+        logger.warning("Project id is not set as environment variable. Could not provide KaapanaApiService")
         return
 
     return KaapanaApiService(

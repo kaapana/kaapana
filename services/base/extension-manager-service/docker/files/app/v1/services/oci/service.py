@@ -14,7 +14,6 @@ logger = get_logger(__name__)
 
 
 class ociService:
-
     def __init__(self, repository_url: str, authentication: str) -> None:
         """
         Initializes the ociService instance.
@@ -76,9 +75,7 @@ class ociService:
                 return set()
             raise
 
-    async def get_extension_manifests(
-        self, tags: set[str] | None = None
-    ) -> dict[str, ExtensionManifest]:
+    async def get_extension_manifests(self, tags: set[str] | None = None) -> dict[str, ExtensionManifest]:
         """
         Fetches the manifests of the extensions in the given repository.
 
@@ -88,10 +85,7 @@ class ociService:
         """
         existing_tags = await self.get_extensions_for_repository()
         target_tags = existing_tags.intersection(tags) if tags else existing_tags
-        return {
-            tag: ExtensionManifest(**await self.extension_lib.get_extension(tag))
-            for tag in target_tags
-        }
+        return {tag: ExtensionManifest(**await self.extension_lib.get_extension(tag)) for tag in target_tags}
 
     async def get_extension_manifest(self, tag: str) -> ExtensionManifest:
         """
@@ -103,9 +97,7 @@ class ociService:
         """
         existing_tags = await self.get_extensions_for_repository()
         if tag not in existing_tags:
-            raise ExtensionNotFoundException(
-                f"Extension with tag {tag} not found in {self.repository_url}"
-            )
+            raise ExtensionNotFoundException(f"Extension with tag {tag} not found in {self.repository_url}")
 
         return ExtensionManifest(**await self.extension_lib.get_extension(tag))
 
@@ -122,10 +114,6 @@ class ociService:
 
         existing_tags = await self.get_extensions_for_repository()
         if tag not in existing_tags:
-            raise ExtensionNotFoundException(
-                f"Extension with tag {tag} not found in {self.repository_url}"
-            )
+            raise ExtensionNotFoundException(f"Extension with tag {tag} not found in {self.repository_url}")
 
-        return await self.extension_lib.pull(
-            tag=tag, output_dir=self.extensions_download_dir / tag
-        )
+        return await self.extension_lib.pull(tag=tag, output_dir=self.extensions_download_dir / tag)

@@ -121,9 +121,7 @@ async def delete_all_data_project_mappings(
     session: AsyncSession = Depends(get_session),
 ):
     """Bulk-remove every DataProjects row for project_id"""
-    deleted = await crud.remove_all_project_mappings(
-        session=session, project_id=project_id
-    )
+    deleted = await crud.remove_all_project_mappings(session=session, project_id=project_id)
     return {"deleted": deleted}
 
 

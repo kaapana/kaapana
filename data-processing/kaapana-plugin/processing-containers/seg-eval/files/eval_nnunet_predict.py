@@ -45,9 +45,7 @@ exit_on_error = exit_on_error if exit_on_error.lower() != "none" else None
 assert exit_on_error is not None
 
 eval_metrics_str = getenv("METRICS", "None")
-eval_metrics_ast = (
-    ast.literal_eval(eval_metrics_str) if eval_metrics_str.lower() != "none" else None
-)
+eval_metrics_ast = ast.literal_eval(eval_metrics_str) if eval_metrics_str.lower() != "none" else None
 assert eval_metrics_ast is not None
 eval_metrics: list = list(eval_metrics_ast)
 
@@ -65,9 +63,7 @@ def calculate_surface_dice(gt_mask, pred_mask, class_thresholds=[0.5]):
 
     # for binary seg.
     class_thresholds = [0.5]
-    res = compute_surface_dice(
-        pred_mask, gt_mask, class_thresholds=class_thresholds, include_background=False
-    )
+    res = compute_surface_dice(pred_mask, gt_mask, class_thresholds=class_thresholds, include_background=False)
     res = np.array([v.numpy() for v in res]).tolist()
     return res
 
@@ -95,11 +91,7 @@ def get_all_ids(path):
 
 
 def get_all_niftis(path):
-    ids = [
-        i.name.split(".nii.gz")[0]
-        for i in list(path.glob("*"))
-        if (".nii.gz" in i.name and not i.is_dir())
-    ]
+    ids = [i.name.split(".nii.gz")[0] for i in list(path.glob("*")) if (".nii.gz" in i.name and not i.is_dir())]
     return ids
 
 
@@ -122,9 +114,7 @@ def get_dataset_map_of_nnunet_predict():
     test_path = wf_path / "batch"
     model_series_uids = os.listdir(test_path)
     if len(model_series_uids) == 0:
-        print(
-            f"ERROR: No model series uid found for nnunet predict under {test_path}, aborting..."
-        )
+        print(f"ERROR: No model series uid found for nnunet predict under {test_path}, aborting...")
         exit(1)
 
     elif len(model_series_uids) > 1:
@@ -195,33 +185,21 @@ def evaluate_segmentation(dataset_map):
             gt_path = Path(data["gt_path"])
             test_path = Path(data["test_path"])
 
-            filtered_gt = [
-                i for i in gt_path.glob("*") if "combined_masks.nii.gz" in str(i)
-            ]
-            filtered_test = [
-                i for i in test_path.glob("*") if "combined_masks.nii.gz" in str(i)
-            ]
+            filtered_gt = [i for i in gt_path.glob("*") if "combined_masks.nii.gz" in str(i)]
+            filtered_test = [i for i in test_path.glob("*") if "combined_masks.nii.gz" in str(i)]
 
             filtered_test = [test_path]
 
             print(f"# {filtered_gt=}, {filtered_test=}")
 
             # should not be empty
-            assert (
-                len(filtered_gt) > 0
-            ), f"Failed to find combined_masks for {data['gt_id']} under path {gt_path}"
-            assert (
-                len(filtered_test) > 0
-            ), f"Failed to find combined_masks for {data['test_id']} under path {test_path}"
+            assert len(filtered_gt) > 0, f"Failed to find combined_masks for {data['gt_id']} under path {gt_path}"
+            assert len(filtered_test) > 0, f"Failed to find combined_masks for {data['test_id']} under path {test_path}"
 
             if len(filtered_gt) > 1:
-                print(
-                    f"More than one combine_mask.nii.gz files found under path {gt_path}, using the first one"
-                )
+                print(f"More than one combine_mask.nii.gz files found under path {gt_path}, using the first one")
             if len(filtered_test) > 1:
-                print(
-                    f"More than one combine_mask.nii.gz files found under path {test_path}, using the first one"
-                )
+                print(f"More than one combine_mask.nii.gz files found under path {test_path}, using the first one")
 
             # Read ground truth and test masks
             gt_mask = convert_to_tensor(read_nifti_file(filtered_gt[0]))
@@ -235,9 +213,7 @@ def evaluate_segmentation(dataset_map):
                 print(f"# Calculating surface dice for test mask {data['test_id']} ...")
                 metric["surface_dice"] = calculate_surface_dice(gt_mask, pred_mask)
             if "hausdorff_distance" in eval_metrics:
-                print(
-                    f"# Calculating hausdorff distance for test mask {data['test_id']} ..."
-                )
+                print(f"# Calculating hausdorff distance for test mask {data['test_id']} ...")
                 metric["hausdorff"] = calculate_hausdorff(gt_mask, pred_mask)
             if "average_surface_distance" in eval_metrics:
                 print(f"# Calculating ASD for test mask {data['test_id']} ...")

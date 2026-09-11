@@ -42,9 +42,7 @@ def cca(nifti_dir, json_dir, connectivity=26):
 
         # compute cca
         res_cca_from_nifti = compute_cca(nifti_numpy, connectivity)
-        res_cca["connected_component_analysis"][
-            basename(nifti_file)
-        ] = res_cca_from_nifti
+        res_cca["connected_component_analysis"][basename(nifti_file)] = res_cca_from_nifti
 
         processed_count += 1
 
@@ -143,9 +141,7 @@ if __name__ == "__main__":
                     json_info = json_info[0]
                 else:
                     logger.info("#")
-                    logger.info(
-                        f"# No JSON file in {json_info_dir}! ==> No SEG file, so skip!"
-                    )
+                    logger.info(f"# No JSON file in {json_info_dir}! ==> No SEG file, so skip!")
                     logger.info("#")
                     continue
 

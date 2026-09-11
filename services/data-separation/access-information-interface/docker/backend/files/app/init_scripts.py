@@ -30,15 +30,11 @@ async def initial_database_population():
     config_files = {
         "initial_rights": os.path.join(config_path, "initial_rights.json"),
         "initial_roles": os.path.join(config_path, "initial_roles.json"),
-        "initial_roles_rights_mapping": os.path.join(
-            config_path, "initial_roles_rights_mapping.json"
-        ),
+        "initial_roles_rights_mapping": os.path.join(config_path, "initial_roles_rights_mapping.json"),
         "initial_projects": os.path.join(config_path, "initial_projects.json"),
     }
 
-    config_data = {
-        key: load_config(path) for key, path in config_files.items()
-    }  # Load the config files
+    config_data = {key: load_config(path) for key, path in config_files.items()}  # Load the config files
 
     async with async_session() as session:
         # Init rights
@@ -70,8 +66,6 @@ async def initial_database_population():
                 try:
                     await create_roles_rights_mapping(session, role[0].id, right[0].id)
                 except IntegrityError:
-                    logger.warning(
-                        f"RolesRights mapping for {role_mapping['role']} and {right_name} already exists"
-                    )
+                    logger.warning(f"RolesRights mapping for {role_mapping['role']} and {right_name} already exists")
                     await session.rollback()
                     role = await get_roles(session, name=role_mapping["role"])

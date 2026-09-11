@@ -51,9 +51,7 @@ def trigger_dag(dag_id):
 
     execution_date = None
     try:
-        dr = trigger(
-            dag_id, run_id, tmp_conf, execution_date, replace_microseconds=False
-        )
+        dr = trigger(dag_id, run_id, tmp_conf, execution_date, replace_microseconds=False)
     except AirflowException as err:
         _log.error(err)
         response = jsonify(error="{}".format(err))
@@ -79,15 +77,11 @@ def get_dagrun_tasks(dag_id, run_id):
     - return tasks
     """
     dag_objects = DagBag().dags  # returns all DAGs available on platform
-    desired_dag = dag_objects[
-        dag_id
-    ]  # filter desired_dag from all available dags via dag_id
+    desired_dag = dag_objects[dag_id]  # filter desired_dag from all available dags via dag_id
     session = settings.Session()
     message = []
 
-    task_ids = [
-        task.task_id for task in desired_dag.tasks
-    ]  # get task_ids of desired_dag
+    task_ids = [task.task_id for task in desired_dag.tasks]  # get task_ids of desired_dag
     tis = session.query(
         TaskInstance
     ).filter(  # query TaskInstances which are part of desired_dag wit run_id=run_id and task_ids
@@ -121,9 +115,7 @@ def abort_dag_run(dag_id, run_id):
     desired_dag = dag_objects[dag_id]
 
     session = settings.Session()
-    dag_runs_of_desired_dag = session.query(DagRun).filter(
-        DagRun.dag_id == desired_dag.dag_id
-    )
+    dag_runs_of_desired_dag = session.query(DagRun).filter(DagRun.dag_id == desired_dag.dag_id)
     for dag_run_of_desired_dag in dag_runs_of_desired_dag:
         if dag_run_of_desired_dag.run_id == run_id:
             desired_execution_date = dag_run_of_desired_dag.execution_date
@@ -158,11 +150,7 @@ def abort_dag_run(dag_id, run_id):
         # _set_dag_run_state(dag.dag_id, run_id, DagRunState.FAILED, session)
         # definition: def _set_dag_run_state(dag_id: str, run_id: str, state: DagRunState, session: SASession = NEW_SESSION)
         dag_run_state = DagRunState.FAILED
-        dag_run = (
-            session.query(DagRun)
-            .filter(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
-            .one()
-        )
+        dag_run = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == run_id).one()
         dag_run.state = dag_run_state
         if dag_run_state == State.RUNNING:
             dag_run.start_date = timezone.utcnow()
@@ -183,9 +171,7 @@ def abort_dag_run(dag_id, run_id):
     if commit:
         for ti in tis_r:
             message.append(f"Running Task {ti} and its state {ti.state}")
-            ti.set_state(
-                State.FAILED
-            )  # set non-running and not finished tasks to skipped
+            ti.set_state(State.FAILED)  # set non-running and not finished tasks to skipped
 
     # Mark non-finished and not running tasks as SKIPPED.
     tis = session.query(TaskInstance).filter(
@@ -199,9 +185,7 @@ def abort_dag_run(dag_id, run_id):
     if commit:
         for ti in tis:
             message.append(f"Non-finished Task {ti} and its state {ti.state}")
-            ti.set_state(
-                State.SKIPPED
-            )  # set non-running and not finished tasks to skipped
+            ti.set_state(State.SKIPPED)  # set non-running and not finished tasks to skipped
 
     # Mark tasks in state None as SKIPPED
     tis_n = session.query(TaskInstance).filter(
@@ -325,11 +309,7 @@ def get_dags_endpoint():
             continue
 
         dag_id = dag_dict["dag_id"]
-        if (
-            dag_id in dag_objects
-            and dag_objects[dag_id] is not None
-            and hasattr(dag_objects[dag_id], "default_args")
-        ):
+        if dag_id in dag_objects and dag_objects[dag_id] is not None and hasattr(dag_objects[dag_id], "default_args"):
             default_args = dag_objects[dag_id].default_args
             for default_arg in default_args.keys():
                 if default_arg[:3] == "ui_":
@@ -382,12 +362,7 @@ def get_dag_runs(dag_id):
     if error_response:
         return error_response
 
-    dag_runs = (
-        session.query(DagRun)
-        .filter(DagRun.dag_id == dag_id)
-        .order_by(DagRun.execution_date)
-        .all()
-    )
+    dag_runs = session.query(DagRun).filter(DagRun.dag_id == dag_id).order_by(DagRun.execution_date).all()
     run_ids = [dag_run.run_id for dag_run in dag_runs]
 
     return jsonify(dag_id=dag_id, run_ids=run_ids)
@@ -419,11 +394,7 @@ def dag_run_status(dag_id, run_id):
         return error_response
 
     try:
-        dag_run = (
-            session.query(DagRun)
-            .filter(and_(DagRun.dag_id == dag_id, DagRun.run_id == run_id))
-            .one()
-        )
+        dag_run = session.query(DagRun).filter(and_(DagRun.dag_id == dag_id, DagRun.run_id == run_id)).one()
     except NoResultFound:
         return Response(
             "RunId {} does not exist for Dag {}".format(run_id, dag_id),

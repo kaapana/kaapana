@@ -89,9 +89,7 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
             with open(batch_el_json_file) as data_file:
                 incoming_seg_info = json.load(data_file)
         # ensure that incoming_seg_info is of type dict and stlye: {"seg_info": [ { <segment1> }, { <segment2> }, ... ]}
-        if not isinstance(incoming_seg_info, dict) and isinstance(
-            incoming_seg_info, list
-        ):
+        if not isinstance(incoming_seg_info, dict) and isinstance(incoming_seg_info, list):
             temp_incoming_seg_info = {}
             temp_incoming_seg_info["seg_info"] = incoming_seg_info
             incoming_seg_info = temp_incoming_seg_info
@@ -111,17 +109,13 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
 
         # seg_info holds ground-truth -> delete segments from metainfo_json if they are not in seg_info
         segments_in_seg_info = [
-            self.remove_special_characters(item["label_name"])
-            for item in incoming_seg_info["seg_info"]
+            self.remove_special_characters(item["label_name"]) for item in incoming_seg_info["seg_info"]
         ]
         # Iterate through segmentAttributes in reverse order to safely remove elements
         for i in range(len(incoming_metainfo["segmentAttributes"]) - 1, -1, -1):
             segment_attribute = incoming_metainfo["segmentAttributes"][i][0]
             # Check if SegmentLabel is not in segments_in_seg_info
-            if (
-                self.remove_special_characters(segment_attribute["SegmentLabel"])
-                not in segments_in_seg_info
-            ):
+            if self.remove_special_characters(segment_attribute["SegmentLabel"]) not in segments_in_seg_info:
                 # Remove the entire segmentAttribute if not in the list
                 del incoming_metainfo["segmentAttributes"][i]
         # print(f"# POTENTIALLY CORRECTED incoming_metainfo:")
@@ -130,13 +124,9 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
         # iterate over self.old_label_names and replace them by corresponding self.new_label_names in incoming_seg_info
         for old_label_name in self.old_label_names:
             # find corresponding new label name
-            new_label_name = self.new_label_names[
-                self.old_label_names.index(old_label_name)
-            ]
+            new_label_name = self.new_label_names[self.old_label_names.index(old_label_name)]
             print("#")
-            print(
-                f"# FOUND OLD SEGMENTATION LABEL NAME = {old_label_name} IN LIST OF OLD LABEL NAMES."
-            )
+            print(f"# FOUND OLD SEGMENTATION LABEL NAME = {old_label_name} IN LIST OF OLD LABEL NAMES.")
             print(f"# REPLACE BY NEW SEGMENTATION LABEL NAME: {new_label_name}")
             print("#")
 
@@ -144,9 +134,7 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
             print(f"{old_label_name=}")
             if old_label_name in self.remove_special_characters(
                 json.dumps(incoming_seg_info)
-            ) or old_label_name in self.remove_special_characters(
-                json.dumps(incoming_metainfo)
-            ):
+            ) or old_label_name in self.remove_special_characters(json.dumps(incoming_metainfo)):
                 print("#")
                 print(
                     f"# FOUND OLD SEGMENTATION LABEL NAME = {old_label_name} IN INCOMING_SEG_INFO OR INCOMING_METAINFO."
@@ -156,9 +144,7 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
                 # replace old_label_name with new_label_name in incoming_seg_info
                 for seg_info_item in incoming_seg_info["seg_info"]:
                     # Convert label_name to lowercase and replace spaces and commas
-                    formatted_label_name = self.remove_special_characters(
-                        seg_info_item["label_name"]
-                    )
+                    formatted_label_name = self.remove_special_characters(seg_info_item["label_name"])
                     # print(f"{formatted_label_name=}")
                     # Check if formatted label_name matches old_label_name
                     if formatted_label_name == old_label_name:
@@ -173,18 +159,12 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
                     # get segment_attribute
                     segment_attribute = incoming_metainfo["segmentAttributes"][i][0]
                     # Convert label_name to lowercase and replace spaces and commas
-                    formatted_label_name = self.remove_special_characters(
-                        segment_attribute["SegmentLabel"]
-                    )
+                    formatted_label_name = self.remove_special_characters(segment_attribute["SegmentLabel"])
                     # print(f"{formatted_label_name=}")
-                    if formatted_label_name == self.remove_special_characters(
-                        old_label_name
-                    ):
+                    if formatted_label_name == self.remove_special_characters(old_label_name):
                         # segment_attribute["SegmentLabel"] = new_label_name
                         segment_attribute = json.loads(
-                            json.dumps(segment_attribute).replace(
-                                segment_attribute["SegmentLabel"], new_label_name
-                            )
+                            json.dumps(segment_attribute).replace(segment_attribute["SegmentLabel"], new_label_name)
                         )
                         # print(f"{segment_attribute=}")
                         incoming_metainfo["segmentAttributes"][i][0] = segment_attribute
@@ -202,10 +182,7 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
 
         # restructure incoming_metainfo such that "segmentAttributes" is in the right format to support multi_label itkimage2dcmimage functionalities
         segmentAttributes = incoming_metainfo["segmentAttributes"]
-        if (
-            len(segmentAttributes) > 1
-            and sum(isinstance(element, list) for element in segmentAttributes) > 1
-        ):
+        if len(segmentAttributes) > 1 and sum(isinstance(element, list) for element in segmentAttributes) > 1:
             # segmentAttributes is a list of multiple lists ==> restructuring necessary
             print("#")
             print("#")
@@ -296,9 +273,7 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
                     # copy nifti_file with new label name to output dir
                     src_path = found_nifti
                     dest_path = (
-                        os.path.dirname(found_nifti).replace(
-                            self.operator_in_dir, self.operator_out_dir
-                        )
+                        os.path.dirname(found_nifti).replace(self.operator_in_dir, self.operator_out_dir)
                         + "/"
                         + os.path.basename(found_nifti).split("--")[0]  # uid
                         + "--"
@@ -315,14 +290,10 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
                     # break for-loop over label names to continue with next nifti file
                     break
         # copy all non-processed nifti files to output dir
-        non_processed_niftis = [
-            element for element in found_niftis if element not in processed_niftis
-        ]
+        non_processed_niftis = [element for element in found_niftis if element not in processed_niftis]
         for non_processed_nifti in non_processed_niftis:
             src_path = non_processed_nifti
-            dest_path = non_processed_nifti.replace(
-                self.operator_in_dir, self.operator_out_dir
-            )
+            dest_path = non_processed_nifti.replace(self.operator_in_dir, self.operator_out_dir)
             shutil.copy(src_path, dest_path)
 
         print("#")
@@ -340,28 +311,18 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
 
         # define input dirs
         self.run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
-        batch_dirs = [
-            f for f in glob.glob(os.path.join(self.run_dir, self.batch_name, "*"))
-        ]
+        batch_dirs = [f for f in glob.glob(os.path.join(self.run_dir, self.batch_name, "*"))]
 
         # load user input's label renaming look-up table
         conf = kwargs["dag_run"].conf
         print("CONF:")
         print(conf["workflow_form"])
-        if ("old_labels" in conf["workflow_form"]) and (
-            "new_labels" in conf["workflow_form"]
-        ):
+        if ("old_labels" in conf["workflow_form"]) and ("new_labels" in conf["workflow_form"]):
             self.old_label_names = conf["workflow_form"]["old_labels"].split(",")
-            self.old_label_names = [
-                self.remove_special_characters(x) for x in self.old_label_names
-            ]
+            self.old_label_names = [self.remove_special_characters(x) for x in self.old_label_names]
 
-            self.new_label_names = (
-                conf["workflow_form"]["new_labels"].replace(" ", "").lower().split(",")
-            )
-            self.new_label_names = [
-                self.remove_special_characters(x) for x in self.new_label_names
-            ]
+            self.new_label_names = conf["workflow_form"]["new_labels"].replace(" ", "").lower().split(",")
+            self.new_label_names = [self.remove_special_characters(x) for x in self.new_label_names]
         else:
             self.old_label_names = []
             self.new_label_names = []

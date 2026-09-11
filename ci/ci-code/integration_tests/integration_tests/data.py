@@ -20,9 +20,7 @@ from integration_tests.utils.logger import get_logger
 
 logger = get_logger(__name__, logging.INFO)
 
-TCIA_GETIMAGE_URL = (
-    "https://services.cancerimagingarchive.net/nbia-api/services/v1/getImage"
-)
+TCIA_GETIMAGE_URL = "https://services.cancerimagingarchive.net/nbia-api/services/v1/getImage"
 CONNECT_AND_READ_TIMEOUT = (10, 60)
 TCIA_ATTEMPTS = 3
 
@@ -53,9 +51,7 @@ class DataEndpoints(KaapanaAuth):
         try:
             backend_dataset = self.get_dataset_from_backend(kaapana_dataset)
         except:
-            logger.warning(
-                f"Request to backend failed! Suppose not all series found for dataset {kaapana_dataset=}."
-            )
+            logger.warning(f"Request to backend failed! Suppose not all series found for dataset {kaapana_dataset=}.")
             return False
 
         if backend_dataset.get("detail", None) == "Dataset not found":
@@ -76,9 +72,7 @@ class DataEndpoints(KaapanaAuth):
         start_time = time.time()
         while abs(start_time - time.time()) < max_time:
             time.sleep(15)
-            if self.check_if_dataset_complete(
-                kaapana_dataset=kaapana_dataset, series_uids=series_uids
-            ):
+            if self.check_if_dataset_complete(kaapana_dataset=kaapana_dataset, series_uids=series_uids):
                 logger.info(
                     f"All series uids found as identifiers in dataset {kaapana_dataset=}. Dataset is complete. Stop waiting."
                 )
@@ -96,9 +90,9 @@ class DataEndpoints(KaapanaAuth):
 
     def check_if_service_dags_finished(self, max_time=300):
         start = time.time()
-        while self.check_running_dags(
-            "service-extract-metadata"
-        ) or self.check_running_dags("service-process-incoming-dcm"):
+        while self.check_running_dags("service-extract-metadata") or self.check_running_dags(
+            "service-process-incoming-dcm"
+        ):
             if abs(time.time() - start) > max_time:
                 return False
         return True
@@ -196,9 +190,7 @@ def list_of_series_in_dir(dir):
     list_of_series = []
     dicom_files = glob.glob(os.path.join(dir, "**/*.dcm"), recursive=True)
     for file in dicom_files:
-        if (
-            series_uid := os.path.dirname(file).split("/")[-1]
-        ) and series_uid not in list_of_series:
+        if (series_uid := os.path.dirname(file).split("/")[-1]) and series_uid not in list_of_series:
             list_of_series.append(series_uid)
     return list_of_series
 
@@ -206,9 +198,7 @@ def list_of_series_in_dir(dir):
 def clone_test_data_repo(entry: dict, dest: Path) -> Path:
     url, token = entry["url"], entry.get("token", "")
     path = entry.get("path", "ci_integration_tests")
-    authed_url = (
-        url.replace("https://", f"https://oauth2:{token}@", 1) if token else url
-    )
+    authed_url = url.replace("https://", f"https://oauth2:{token}@", 1) if token else url
     env = {**os.environ, "GIT_LFS_SKIP_SMUDGE": "1", "GIT_TERMINAL_PROMPT": "0"}
     shutil.rmtree(dest, ignore_errors=True)
     for cmd in (
@@ -231,9 +221,7 @@ def clone_test_data_repo(entry: dict, dest: Path) -> Path:
         if result.returncode != 0:
             shutil.rmtree(dest, ignore_errors=True)
             without_token = result.stderr.strip().replace(authed_url, url)
-            raise SeriesUnavailable(
-                without_token.replace(token, "***") if token else without_token
-            )
+            raise SeriesUnavailable(without_token.replace(token, "***") if token else without_token)
     return dest / path
 
 
@@ -301,13 +289,9 @@ def archive_sources(name, dataset, cache_dir, repo_dirs, remote_label, remote):
     yield remote_label, remote, True
 
 
-def download_archive(
-    name, outdir, remote_label, remote, dataset, cache_dir=None, repo_dirs=None
-):
+def download_archive(name, outdir, remote_label, remote, dataset, cache_dir=None, repo_dirs=None):
     failures = []
-    for label, fetch, worth_caching in archive_sources(
-        name, dataset, cache_dir, repo_dirs, remote_label, remote
-    ):
+    for label, fetch, worth_caching in archive_sources(name, dataset, cache_dir, repo_dirs, remote_label, remote):
         try:
             payload = fetch()
             extract_archive(payload, outdir)
@@ -335,9 +319,7 @@ def already_unpacked(outdir) -> bool:
     return path.is_dir() and any(path.iterdir())
 
 
-def download_data(
-    source_file: Path, target_dir: Path, force=False, cache_dir=None, repo_dirs=None
-):
+def download_data(source_file: Path, target_dir: Path, force=False, cache_dir=None, repo_dirs=None):
     """Collect every archive of one dataset, cache first and origin last."""
     dataset = Path(target_dir).name
     archives = list(dataset_archives(source_file, target_dir))
@@ -357,11 +339,7 @@ def download_data(
             served["already on disk"] += 1
             continue
         try:
-            served[
-                download_archive(
-                    name, outdir, remote_label, remote, dataset, cache_dir, repo_dirs
-                )
-            ] += 1
+            served[download_archive(name, outdir, remote_label, remote, dataset, cache_dir, repo_dirs)] += 1
         except SeriesUnavailable as error:
             unavailable.append(str(error))
 
@@ -370,6 +348,4 @@ def download_data(
     if unavailable:
         for failure in unavailable:
             logger.error(f"{dataset}: {failure}")
-        raise SeriesUnavailable(
-            f"{dataset}: {len(unavailable)} of {len(archives)} archives unavailable"
-        )
+        raise SeriesUnavailable(f"{dataset}: {len(unavailable)} of {len(archives)} archives unavailable")

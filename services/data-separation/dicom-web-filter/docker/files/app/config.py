@@ -10,6 +10,4 @@ ACCESS_INFORMATION_INTERFACE_HOST = os.environ["ACCESS_INFORMATION_INTERFACE_URL
 DWF_IDENTITY_OPENID_CONFIG_URL = os.environ["DWF_IDENTITY_OPENID_CONFIG_URL"]
 DWF_IDENTITY_OPENID_CLIENT_ID = os.environ["DWF_IDENTITY_OPENID_CLIENT_ID"]
 
-CTP_DICOMWEB_URL = os.environ.get(
-    "CTP_DICOMWEB_URL", "http://ctp-internal-service.services.svc:7777"
-)
+CTP_DICOMWEB_URL = os.environ.get("CTP_DICOMWEB_URL", "http://ctp-internal-service.services.svc:7777")

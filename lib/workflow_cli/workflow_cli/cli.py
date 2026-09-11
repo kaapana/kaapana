@@ -21,9 +21,7 @@ console = Console()
 # ---------------------------------------------------------------------------
 
 
-def load_build_config(
-    kaapana_dir: Path, build_config: Optional[Path], registry_prefix: Optional[str]
-):
+def load_build_config(kaapana_dir: Path, build_config: Optional[Path], registry_prefix: Optional[str]):
     """
     Loads build-config.yaml and resolves registry settings and container engine overrides.
     """
@@ -35,11 +33,7 @@ def load_build_config(
     registry_url = registry_prefix
 
     if build_config:
-        config_path = (
-            (kaapana_dir / build_config).resolve()
-            if not build_config.is_absolute()
-            else build_config
-        )
+        config_path = (kaapana_dir / build_config).resolve() if not build_config.is_absolute() else build_config
     else:
         default_cfg = kaapana_dir / "build_cli" / "build-config.yaml"
         if default_cfg.exists():
@@ -118,9 +112,7 @@ def list_workflows(kaapana_dir: Path, format: str):
         console.print("No workflows directory found")
         return
 
-    workflows = sorted(
-        [w for w in workflows_dir.iterdir() if w.is_dir()], key=lambda x: x.name.lower()
-    )
+    workflows = sorted([w for w in workflows_dir.iterdir() if w.is_dir()], key=lambda x: x.name.lower())
 
     if not workflows:
         console.print("No workflows found")

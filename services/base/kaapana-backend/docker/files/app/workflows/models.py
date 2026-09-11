@@ -29,9 +29,7 @@ identifiers2dataset = Table(
 class Identifier(Base):
     __tablename__ = "identifiers"
     id = Column(String, primary_key=True)
-    datasets = relationship(
-        "Dataset", secondary=identifiers2dataset, back_populates="identifiers"
-    )
+    datasets = relationship("Dataset", secondary=identifiers2dataset, back_populates="identifiers")
 
 
 class Dataset(Base):
@@ -41,9 +39,7 @@ class Dataset(Base):
     username = Column(String(64), nullable=False)
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
-    identifiers = relationship(
-        "Identifier", secondary=identifiers2dataset, back_populates="datasets"
-    )
+    identifiers = relationship("Identifier", secondary=identifiers2dataset, back_populates="datasets")
     access_level = Column(
         Enum("private", "project", name="access_level_enum"),
         nullable=False,
@@ -94,13 +90,9 @@ class KaapanaInstance(Base):
     automatic_workflow_execution = Column(Boolean(), default=False, index=True)
 
     # one-to-many relationships
-    workflows = relationship(
-        "Workflow", back_populates="kaapana_instance", cascade="all, delete"
-    )
+    workflows = relationship("Workflow", back_populates="kaapana_instance", cascade="all, delete")
     jobs = relationship("Job", back_populates="kaapana_instance", cascade="all, delete")
-    datasets = relationship(
-        "Dataset", back_populates="kaapana_instance", cascade="all, delete"
-    )
+    datasets = relationship("Dataset", back_populates="kaapana_instance", cascade="all, delete")
     # many-to-one relationships
     workflow_in_which_involved = Column(
         String(64), index=True
@@ -109,14 +101,10 @@ class KaapanaInstance(Base):
     # #https://stackoverflow.com/questions/5033547/sqlalchemy-cascade-delete
     # jobs = relationship("Job", back_populates="kaapana_instance", passive_deletes=True)
 
-    __table_args__ = (
-        UniqueConstraint("instance_name", "remote", name="_instance_name_remote"),
-    )
+    __table_args__ = (UniqueConstraint("instance_name", "remote", name="_instance_name_remote"),)
 
     def __repr__(self):
-        return "<KaapanaInstance {}://{}:{}>".format(
-            self.protocol, self.host, self.port
-        )
+        return "<KaapanaInstance {}://{}:{}>".format(self.protocol, self.host, self.port)
 
 
 class Workflow(Base):
@@ -139,9 +127,7 @@ class Workflow(Base):
     kaapana_instance = relationship("KaapanaInstance", back_populates="workflows")
     # one-to-many relationships
     involved_kaapana_instances = Column(String(51200), default="[]", index=True)
-    workflow_jobs = relationship(
-        "Job", back_populates="workflow"
-    )  # , cascade="all, delete")
+    workflow_jobs = relationship("Job", back_populates="workflow")  # , cascade="all, delete")
 
 
 class Job(Base):

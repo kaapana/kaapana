@@ -53,9 +53,7 @@ class LocalDcmBranchingOperator(KaapanaBranchPythonBaseOperator):
         Returns:
             str: The task_id of the operator to branch to based on the condition.
         """
-        batch_root = (
-            Path(self.airflow_workflow_dir) / kwargs["dag_run"].run_id / self.batch_name
-        )
+        batch_root = Path(self.airflow_workflow_dir) / kwargs["dag_run"].run_id / self.batch_name
         batch_folders = batch_root.glob("*")
 
         none_satisfies_condition = True

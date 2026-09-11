@@ -84,9 +84,7 @@ def download_dicom_series(dcm_uid_objects: dict, parallel_downloads: int, output
                 )
                 logger.info("Series per second: %.2f" % (num_done / time_elapsed))
     if len(series_download_fail) > 0:
-        raise Exception(
-            "Some series could not be downloaded: {}".format(series_download_fail)
-        )
+        raise Exception("Some series could not be downloaded: {}".format(series_download_fail))
     logger.info("All series downloaded successfully")
 
 
@@ -121,9 +119,7 @@ def parse_arguments():
 if __name__ == "__main__":
     args = parse_arguments()
 
-    project = get_project(
-        identifier=args.project, aii_root_url=os.getenv("KAAPANA_AII_URL")
-    )
+    project = get_project(identifier=args.project, aii_root_url=os.getenv("KAAPANA_AII_URL"))
 
     identifiers = get_identifiers(
         project=project,
@@ -131,9 +127,7 @@ if __name__ == "__main__":
         kaapana_backend_root_url=os.getenv("KAAPANA_BACKEND_URL"),
     )
 
-    dcm_uid_objects = get_dcm_uid_objcets(
-        identifiers=identifiers, opensearch_index=project.get("opensearch_index")
-    )
+    dcm_uid_objects = get_dcm_uid_objcets(identifiers=identifiers, opensearch_index=project.get("opensearch_index"))
 
     download_dicom_series(
         dcm_uid_objects=dcm_uid_objects,

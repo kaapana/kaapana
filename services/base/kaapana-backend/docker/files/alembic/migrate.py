@@ -46,9 +46,7 @@ def main():
         command.upgrade(alembic_cfg, "head")
     else:
         print("⚠️ DB revision is not part of current migration chain!")
-        print(
-            f"Assuming DB is migrated to 0.4.0. Stamping to revision {INITIAL_REVISION}"
-        )
+        print(f"Assuming DB is migrated to 0.4.0. Stamping to revision {INITIAL_REVISION}")
         command.stamp(alembic_cfg, INITIAL_REVISION, purge=True)
 
         command.upgrade(alembic_cfg, "head")

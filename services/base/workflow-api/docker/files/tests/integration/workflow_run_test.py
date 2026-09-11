@@ -146,6 +146,4 @@ async def test_get_workflow_runs_perf_under_200ms():
         resp = await client.get("/workflow-runs", params={"skip": 0, "limit": 100})
         elapsed_ms = (time.perf_counter() - start) * 1000
         assert resp.status_code == 200
-        assert (
-            elapsed_ms < 200
-        ), f"GET /workflow-runs took {elapsed_ms:.1f}ms, expected <200ms"
+        assert elapsed_ms < 200, f"GET /workflow-runs took {elapsed_ms:.1f}ms, expected <200ms"

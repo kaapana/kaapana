@@ -50,12 +50,8 @@ class BuildHelper:
     @classmethod
     def report_unused_containers(cls):
         logger.debug("\nCollect unused containers:\n")
-        unused_containers_json_path = (
-            cls._build_config.build_dir / "build_containers_unused.json"
-        )
-        unused_containers = (
-            cls._build_state.containers_available - cls._build_state.selected_containers
-        )
+        unused_containers_json_path = cls._build_config.build_dir / "build_containers_unused.json"
+        unused_containers = cls._build_state.containers_available - cls._build_state.selected_containers
 
         with open(unused_containers_json_path, "w") as fp:
             json.dump([c.to_dict() for c in unused_containers], fp, indent=4)
@@ -77,9 +73,7 @@ class BuildHelper:
     @classmethod
     def report_available_containers(cls):
         logger.debug("\nCollect all containers:\n")
-        built_containers_json_path = (
-            cls._build_config.build_dir / "containers_available.json"
-        )
+        built_containers_json_path = cls._build_config.build_dir / "containers_available.json"
 
         with open(built_containers_json_path, "w") as fp:
             json.dump(
@@ -91,9 +85,7 @@ class BuildHelper:
     @classmethod
     def report_available_charts(cls):
         logger.debug("\nCollect all charts:\n")
-        built_containers_json_path = (
-            cls._build_config.build_dir / "charts_available.json"
-        )
+        built_containers_json_path = cls._build_config.build_dir / "charts_available.json"
 
         with open(built_containers_json_path, "w") as fp:
             json.dump(
@@ -124,11 +116,7 @@ class BuildHelper:
 
     @classmethod
     def generate_build_tree(cls, platform_chart: HelmChart):
-        build_tree_file = (
-            cls._build_config.build_dir
-            / platform_chart.name
-            / f"tree-{platform_chart.name}.txt"
-        )
+        build_tree_file = cls._build_config.build_dir / platform_chart.name / f"tree-{platform_chart.name}.txt"
         build_tree_file.parent.mkdir(parents=True, exist_ok=True)
         build_tree = cls._build_tree(platform_chart, include_containers=True)
 
@@ -168,13 +156,9 @@ class BuildHelper:
 
             # Step 2: perform fuzzy multiselect
             if choice == "Charts":
-                selected_chart_names = interactive_select(
-                    [c.name for c in all_charts], "chart"
-                )
+                selected_chart_names = interactive_select([c.name for c in all_charts], "chart")
             elif choice == "Containers":
-                selected_container_names = interactive_select(
-                    [c.image_name for c in all_containers], "container"
-                )
+                selected_container_names = interactive_select([c.image_name for c in all_containers], "container")
 
         else:  # Non-interactive
             if cls._build_config.containers_to_build_by_charts:
@@ -185,32 +169,20 @@ class BuildHelper:
 
         # If any containers are specified, we do not resolve charts.
         if selected_container_names:
-            containers = {
-                ContainerHelper.get_container(name) for name in selected_container_names
-            }
-            cls._build_state.selected_containers = (
-                ContainerHelper.collect_all_local_base_containers(containers)
-            )
+            containers = {ContainerHelper.get_container(name) for name in selected_container_names}
+            cls._build_state.selected_containers = ContainerHelper.collect_all_local_base_containers(containers)
             return None
 
         G = cls._build_state.build_graph
         if selected_chart_names:
             containers_from_charts = set()
-            charts = {
-                chart
-                for name in selected_chart_names
-                if (chart := HelmChartHelper.get_chart(name)) is not None
-            }
+            charts = {chart for name in selected_chart_names if (chart := HelmChartHelper.get_chart(name)) is not None}
             for chart in charts:
-                containers_from_chart = {
-                    n for n in nx.descendants(G, chart) if isinstance(n, Container)
-                }
+                containers_from_chart = {n for n in nx.descendants(G, chart) if isinstance(n, Container)}
                 containers_from_charts.update(containers_from_chart)
         else:
             charts = cls._build_state.charts_available
-            containers_from_charts = {
-                n for n, _ in G.nodes(data=True) if isinstance(n, Container)
-            }
+            containers_from_charts = {n for n, _ in G.nodes(data=True) if isinstance(n, Container)}
         cls._build_state.selected_charts = charts
         cls._build_state.selected_containers = containers_from_charts
 
@@ -303,9 +275,7 @@ class BuildHelper:
                 build_tree.create_node("containers", containers_id, parent=tree_id)
 
                 for container in chart.chart_containers:
-                    container_path = (
-                        f"{containers_path}/{container.image_name}:{container.version}"
-                    )
+                    container_path = f"{containers_path}/{container.image_name}:{container.version}"
                     c_id = BuildHelper.hash_id(container_path)
                     build_tree.create_node(container.tag, c_id, parent=containers_id)
 
@@ -315,9 +285,7 @@ class BuildHelper:
                         base_id = BuildHelper.hash_id(base_path)
                         build_tree.create_node("base-images", base_id, parent=c_id)
                         for base in container.base_images:
-                            base_img_path = (
-                                f"{base_path}/{base.image_name}:{base.version}"
-                            )
+                            base_img_path = f"{base_path}/{base.image_name}:{base.version}"
                             base_img_id = BuildHelper.hash_id(base_img_path)
                             build_tree.create_node(
                                 f"{base.image_name}:{base.version}",

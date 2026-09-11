@@ -59,28 +59,16 @@ class HelperMinio(Minio):
         )
         xml_response = r.text
         root = ET.fromstring(xml_response)
-        credentials = root.find(
-            ".//{https://sts.amazonaws.com/doc/2011-06-15/}Credentials"
-        )
-        access_key_id = credentials.find(
-            ".//{https://sts.amazonaws.com/doc/2011-06-15/}AccessKeyId"
-        ).text
-        secret_access_key = credentials.find(
-            ".//{https://sts.amazonaws.com/doc/2011-06-15/}SecretAccessKey"
-        ).text
-        session_token = credentials.find(
-            ".//{https://sts.amazonaws.com/doc/2011-06-15/}SessionToken"
-        ).text
+        credentials = root.find(".//{https://sts.amazonaws.com/doc/2011-06-15/}Credentials")
+        access_key_id = credentials.find(".//{https://sts.amazonaws.com/doc/2011-06-15/}AccessKeyId").text
+        secret_access_key = credentials.find(".//{https://sts.amazonaws.com/doc/2011-06-15/}SecretAccessKey").text
+        session_token = credentials.find(".//{https://sts.amazonaws.com/doc/2011-06-15/}SessionToken").text
         return access_key_id, secret_access_key, session_token
 
-    def get_custom_presigend_url(
-        self, method, bucket_name, object_name, expires=timedelta(days=7)
-    ):
+    def get_custom_presigend_url(self, method, bucket_name, object_name, expires=timedelta(days=7)):
         if method not in ["GET", "PUT"]:
             raise NameError("Method must be either GET or PUT")
-        presigend_url = self.get_presigned_url(
-            method, bucket_name, object_name, expires=expires
-        )
+        presigend_url = self.get_presigned_url(method, bucket_name, object_name, expires=expires)
         return {
             "method": method.lower(),
             "path": presigend_url.replace(
@@ -179,13 +167,9 @@ def get_dag_list(
     :param: kind_of_dags: One of ['all', 'minio', 'dataset','import']. If 'minio' or 'dataset' only include DAGs with specific properties in the ui-form. If 'import' include only DAGs with tag 'import'.
     """
     if kind_of_dags not in ["all", "minio", "dataset", "import"]:
-        raise HTTPException(
-            "kind_of_dags must be one of ['all', 'minio', 'dataset','import']"
-        )
+        raise HTTPException("kind_of_dags must be one of ['all', 'minio', 'dataset','import']")
 
-    with CachedSession(
-        "kaapana_cache", expire_after=5, stale_if_error=True, use_temp=True
-    ) as s:
+    with CachedSession("kaapana_cache", expire_after=5, stale_if_error=True, use_temp=True) as s:
         r = requests_retry_session(session=s, retries=1).get(
             f"http://airflow-webserver-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/getdags",
             timeout=TIMEOUT,
@@ -235,13 +219,8 @@ def get_dag_list(
             return dags
 
 
-def check_dag_id_and_dataset(
-    db_client_kaapana, conf_data, dag_id, owner_kaapana_instance_name
-):
-    if (
-        owner_kaapana_instance_name is not None
-        and db_client_kaapana.instance_name != owner_kaapana_instance_name
-    ):
+def check_dag_id_and_dataset(db_client_kaapana, conf_data, dag_id, owner_kaapana_instance_name):
+    if owner_kaapana_instance_name is not None and db_client_kaapana.instance_name != owner_kaapana_instance_name:
         if dag_id not in db_client_kaapana.allowed_dags:
             return f"Dag {dag_id} is not allowed to be triggered from remote!"
         if "data_form" in conf_data:

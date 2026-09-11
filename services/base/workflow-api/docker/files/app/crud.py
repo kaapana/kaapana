@@ -82,9 +82,7 @@ def latest_revision(db_workflow: models.Workflow) -> models.WorkflowRevision:
 # Labels
 
 
-async def upsert_labels(
-    db: AsyncSession, labels: List[schemas.Label]
-) -> List[models.Label]:
+async def upsert_labels(db: AsyncSession, labels: List[schemas.Label]) -> List[models.Label]:
     """
     Insert any missing (key, value) label rows and return the full ORM set.
     Existing rows are reused (UNIQUE on key+value, ON CONFLICT DO NOTHING).
@@ -99,9 +97,7 @@ async def upsert_labels(
         )
         await db.execute(insert_stmt)
         # fetch the label
-        stmt = select(models.Label).where(
-            models.Label.key == label.key, models.Label.value == label.value
-        )
+        stmt = select(models.Label).where(models.Label.key == label.key, models.Label.value == label.value)
         result = await db.execute(stmt)
         db_label = result.scalars().first()
         if db_label is None:
@@ -196,9 +192,7 @@ async def get_workflow(
     return result.scalars().first()
 
 
-async def create_workflow(
-    db: AsyncSession, workflow: schemas.WorkflowCreate
-) -> models.Workflow:
+async def create_workflow(db: AsyncSession, workflow: schemas.WorkflowCreate) -> models.Workflow:
     """Create a new workflow with its first revision (increment=1)"""
     params_json = jsonable_encoder(workflow.workflow_parameters or [])
     db_labels = await upsert_labels(db, workflow.labels or [])
@@ -235,25 +229,17 @@ async def update_workflow(
     current = latest_revision(db_workflow)
 
     versioned_change = (
-        update.definition is not None
-        or update.workflow_parameters is not None
-        or update.labels is not None
+        update.definition is not None or update.workflow_parameters is not None or update.labels is not None
     )
 
     if versioned_change:
-        new_definition = (
-            update.definition if update.definition is not None else current.definition
-        )
+        new_definition = update.definition if update.definition is not None else current.definition
         new_params = (
             jsonable_encoder(update.workflow_parameters)
             if update.workflow_parameters is not None
             else current.workflow_parameters
         )
-        new_labels = (
-            await upsert_labels(db, update.labels)
-            if update.labels is not None
-            else list(current.labels)
-        )
+        new_labels = await upsert_labels(db, update.labels) if update.labels is not None else list(current.labels)
 
         next_increment = current.increment + 1
         new_rev = models.WorkflowRevision(
@@ -291,13 +277,9 @@ async def restore_workflow_revision(
     db: AsyncSession, db_workflow: models.Workflow, target_increment: int
 ) -> models.Workflow:
     """Append a new revision whose snapshot copies the requested earlier increment."""
-    target = next(
-        (r for r in db_workflow.revisions if r.increment == target_increment), None
-    )
+    target = next((r for r in db_workflow.revisions if r.increment == target_increment), None)
     if target is None:
-        raise ValueError(
-            f"Workflow {db_workflow.id} has no revision with increment={target_increment}"
-        )
+        raise ValueError(f"Workflow {db_workflow.id} has no revision with increment={target_increment}")
     current = latest_revision(db_workflow)
     assert current is not None
     next_increment = current.increment + 1
@@ -329,9 +311,7 @@ async def get_workflow_revision(
     return result.scalars().first()
 
 
-async def get_workflow_revision_by_id(
-    db: AsyncSession, revision_id: uuid.UUID
-) -> Optional[models.WorkflowRevision]:
+async def get_workflow_revision_by_id(db: AsyncSession, revision_id: uuid.UUID) -> Optional[models.WorkflowRevision]:
     query = (
         select(models.WorkflowRevision)
         .where(models.WorkflowRevision.id == revision_id)
@@ -411,9 +391,7 @@ async def create_workflow_run(
         )
         await db.execute(insert_stmt)
 
-        stmt = select(models.Label).where(
-            models.Label.key == label.key, models.Label.value == label.value
-        )
+        stmt = select(models.Label).where(models.Label.key == label.key, models.Label.value == label.value)
         result = await db.execute(stmt)
         db_label = result.scalars().first()
         if not db_label:
@@ -488,9 +466,7 @@ async def transition_lifecycle_and_claim_cleanup(
         # Cleanup was already dispatched (or completed/failed). Lifecycle
         # still needs to be updated — same transaction.
         await db.execute(
-            update(models.WorkflowRun)
-            .where(models.WorkflowRun.id == run_id)
-            .values(lifecycle_status=lifecycle_status)
+            update(models.WorkflowRun).where(models.WorkflowRun.id == run_id).values(lifecycle_status=lifecycle_status)
         )
     await db.commit()
     return claimed
@@ -508,20 +484,14 @@ async def update_workflow_run_cleanup_state(
         cleaned_at = datetime.now(timezone.utc)
     if cleaned_at is not None:
         values["cleaned_at"] = cleaned_at
-    await db.execute(
-        update(models.WorkflowRun)
-        .where(models.WorkflowRun.id == run_id)
-        .values(**values)
-    )
+    await db.execute(update(models.WorkflowRun).where(models.WorkflowRun.id == run_id).values(**values))
     await db.commit()
 
 
 async def update_workflow_run(
     db: AsyncSession, run_id: int, workflow_run_update: schemas.WorkflowRunUpdate
 ) -> models.WorkflowRun:
-    result = await db.execute(
-        select(models.WorkflowRun).filter(models.WorkflowRun.id == run_id)
-    )
+    result = await db.execute(select(models.WorkflowRun).filter(models.WorkflowRun.id == run_id))
     db_workflow_run = result.scalars().first()
     if not db_workflow_run:
         logger.error(f"Failed to update WorkflowRun {run_id=}")
@@ -582,12 +552,8 @@ async def get_task(
     return result.scalars().first()
 
 
-async def create_task(
-    db: AsyncSession, task: schemas.TaskCreate, workflow_revision_id: uuid.UUID
-) -> models.Task:
-    logger.info(
-        f"Creating task {task.title} for workflow_revision_id {workflow_revision_id}"
-    )
+async def create_task(db: AsyncSession, task: schemas.TaskCreate, workflow_revision_id: uuid.UUID) -> models.Task:
+    logger.info(f"Creating task {task.title} for workflow_revision_id {workflow_revision_id}")
 
     db_task = models.Task(
         workflow_revision_id=workflow_revision_id,
@@ -603,9 +569,7 @@ async def create_task(
     return db_task
 
 
-async def add_downstream_task(
-    db: AsyncSession, task_id: int, downstream_task_id: int
-) -> models.DownstreamTask:
+async def add_downstream_task(db: AsyncSession, task_id: int, downstream_task_id: int) -> models.DownstreamTask:
     stmt = select(models.DownstreamTask).where(
         models.DownstreamTask.task_id == task_id,
         models.DownstreamTask.downstream_task_id == downstream_task_id,
@@ -679,9 +643,7 @@ async def create_or_update_task_run(
     )
     # check if task run already exists
 
-    db_task_run = await get_task_run_by_workflow_run_and_task_title(
-        db, workflow_run_id, task_run_update.task_title
-    )
+    db_task_run = await get_task_run_by_workflow_run_and_task_title(db, workflow_run_id, task_run_update.task_title)
     if db_task_run:
         logger.debug("updating existing task run id=%s", db_task_run.id)
         # update existing task run
@@ -752,9 +714,7 @@ async def create_task_run(
         workflow_run_id=task_run.workflow_run_id,
         external_id=task_run.external_id,
         lifecycle_status=(
-            schemas.TaskRunStatus.CREATED
-            if task_run.lifecycle_status == ""
-            else task_run.lifecycle_status
+            schemas.TaskRunStatus.CREATED if task_run.lifecycle_status == "" else task_run.lifecycle_status
         ),
     )
     db.add(db_task_run)
@@ -763,12 +723,8 @@ async def create_task_run(
     return db_task_run
 
 
-async def update_task_run_lifecycle(
-    db: AsyncSession, task_run_id: int, lifecycle_status: str
-) -> models.TaskRun:
-    result = await db.execute(
-        select(models.TaskRun).filter(models.TaskRun.id == task_run_id)
-    )
+async def update_task_run_lifecycle(db: AsyncSession, task_run_id: int, lifecycle_status: str) -> models.TaskRun:
+    result = await db.execute(select(models.TaskRun).filter(models.TaskRun.id == task_run_id))
     db_task_run = result.scalars().first()
     if not db_task_run:
         logger.error(f"Failed to update TaskRun {task_run_id=}")

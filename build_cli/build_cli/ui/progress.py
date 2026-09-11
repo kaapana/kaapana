@@ -62,9 +62,7 @@ class ProgressBar:
         self._alive_cm = None
         self._alive_bar = None
 
-        self.container_width = max(
-            [len(c.tag) for c in self.containers] + [len("Container")]
-        )
+        self.container_width = max([len(c.tag) for c in self.containers] + [len("Container")])
         self.status_width = max([len(str(s)) for s in Status] + [len("Status")])
         self.build_time_width = len("Build Time")
         self.push_time_width = len("Push Time")
@@ -166,14 +164,10 @@ class ProgressBar:
         with self._lock:
             tag = f"{last_processed_container.tag:<{self.container_width}}"
             build_time = (
-                f"{last_processed_container.build_time:0.2f}s"
-                if last_processed_container.build_time != "-"
-                else "-"
+                f"{last_processed_container.build_time:0.2f}s" if last_processed_container.build_time != "-" else "-"
             )
             push_time = (
-                f"{last_processed_container.push_time:0.2f}s"
-                if last_processed_container.push_time != "-"
-                else "-"
+                f"{last_processed_container.push_time:0.2f}s" if last_processed_container.push_time != "-" else "-"
             )
             status = f"{str(last_processed_container.status):<{self.status_width}}"
 

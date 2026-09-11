@@ -9,9 +9,7 @@ from task_api.runners.DockerRunner import DockerRunner
 
 
 def is_valid_pod_name(name: str) -> bool:
-    pod_name_regex = re.compile(
-        r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
-    )
+    pod_name_regex = re.compile(r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$")
     """Check if a string is a valid Kubernetes pod name."""
     if not isinstance(name, str):
         return False
@@ -196,6 +194,4 @@ def test_cli_run(tmp_output_dir):
 def test_cli_processing_container(tmp_output_dir):
     from task_api import cli
 
-    cli.processing_container(
-        image=f"{LOCAL_REGISTRY}/dummy:latest", mode=cli.Modes.docker
-    )
+    cli.processing_container(image=f"{LOCAL_REGISTRY}/dummy:latest", mode=cli.Modes.docker)

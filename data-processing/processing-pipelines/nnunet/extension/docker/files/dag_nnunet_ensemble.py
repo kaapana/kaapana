@@ -161,9 +161,7 @@ get_test_images = LocalGetInputDataOperator(
     check_modality=False,
 )
 
-sort_gt = LocalSortGtOperator(
-    dag=dag, batch_name="nnunet-dataset", input_operator=get_test_images
-)
+sort_gt = LocalSortGtOperator(dag=dag, batch_name="nnunet-dataset", input_operator=get_test_images)
 
 
 get_ref_ct_series_from_gt = GetRefSeriesOperator(
@@ -225,9 +223,7 @@ dcm2nifti_ct = DcmConverterOperator(
 
 get_input = GetModelFromPacsOperator(dag=dag, name="get-models")
 
-dcm2bin = Bin2DcmOperator(
-    dag=dag, input_operator=get_input, name="extract-binary", file_extensions="*.dcm"
-)
+dcm2bin = Bin2DcmOperator(dag=dag, input_operator=get_input, name="extract-binary", file_extensions="*.dcm")
 
 extract_model = NnUnetModelOperator(
     dag=dag,

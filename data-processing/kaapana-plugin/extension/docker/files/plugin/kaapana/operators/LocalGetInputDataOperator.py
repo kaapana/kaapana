@@ -90,15 +90,11 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                 study_uid=studyUID, series_uid=seriesUID, target_dir=Path(target_dir)
             )
             if not download_successful:
-                logger.error(
-                    f"Could not download DICOM series {seriesUID} from {self.dcmweb_helper}"
-                )
+                logger.error(f"Could not download DICOM series {seriesUID} from {self.dcmweb_helper}")
                 download_successful = False
 
         elif self.data_type == "json":
-            meta_data = self.os_helper.os_client.get(
-                id=seriesUID, index=self.opensearch_index
-            )["_source"]
+            meta_data = self.os_helper.os_client.get(id=seriesUID, index=self.opensearch_index)["_source"]
             json_path = join(target_dir, "metadata.json")
             with open(json_path, "w", encoding="utf8") as fp:
                 json.dump(meta_data, fp, indent=4, sort_keys=True)
@@ -123,9 +119,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
     def ctp_input(self):
         series_uid = self.conf.get("seriesInstanceUID")
 
-        dcm_path = join(
-            "/kaapana/mounted/ctpinput", "incoming", self.conf.get("dicom_path")
-        )
+        dcm_path = join("/kaapana/mounted/ctpinput", "incoming", self.conf.get("dicom_path"))
         logger.info(f"# Dicom-path: {dcm_path}")
         target = join(
             self.airflow_workflow_dir,
@@ -135,9 +129,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             self.operator_out_dir,
         )
 
-        if not exists(target) or not any(
-            fname.endswith(".dcm") for fname in os.listdir(target)
-        ):
+        if not exists(target) or not any(fname.endswith(".dcm") for fname in os.listdir(target)):
             self.move_series(src_dcm_path=dcm_path, target=target)
         else:
             logger.warning("Files have already been moved -> skipping")
@@ -147,9 +139,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         A CTP restart with untransferred dirs to Airflow have to be handled:
         An Airflow trigger is created for each dicom dir, during CTP start
         """
-        batch_folder = join(
-            "/kaapana/mounted/ctpinput", "incoming", self.conf.get("dicom_path")
-        )
+        batch_folder = join("/kaapana/mounted/ctpinput", "incoming", self.conf.get("dicom_path"))
         logger.info(f"# Batch folder: {batch_folder}")
         dcm_series_paths = [f for f in glob.glob(batch_folder + "/*")]
         for dcm_series_path in dcm_series_paths:
@@ -164,9 +154,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                     series_uid,
                     self.operator_out_dir,
                 )
-                if exists(target) and any(
-                    fname.endswith(".dcm") for fname in os.listdir(target)
-                ):
+                if exists(target) and any(fname.endswith(".dcm") for fname in os.listdir(target)):
                     logger.warning("Files have already been moved -> skipping")
                 else:
                     self.move_series(src_dcm_path=dcm_series_path, target=target)
@@ -219,16 +207,12 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                 logger.info("Setting data_form from conf object")
                 self.data_form = self.conf["data_form"]
             else:
-                logger.info(
-                    "No data_form in config or object found! Data seems to be present already..."
-                )
+                logger.info("No data_form in config or object found! Data seems to be present already...")
                 logger.info("Skipping...")
                 return
 
         if "query" in self.data_form and "identifiers" in self.data_form:
-            raise Exception(
-                "You defined 'identifiers' and a 'query', only one definition is supported!"
-            )
+            raise Exception("You defined 'identifiers' and a 'query', only one definition is supported!")
         if "query" in self.data_form:
             logger.info(
                 self.os_helper.get_query_dataset(
@@ -250,19 +234,13 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         self.dataset_limit = dataset_limit if dataset_limit > 0 else None
 
         if len(self.data_form["identifiers"]) > 0:
-            logger.info(
-                f"{self.include_custom_tag_property=}, {self.exclude_custom_tag_property=}"
-            )
+            logger.info(f"{self.include_custom_tag_property=}, {self.exclude_custom_tag_property=}")
             include_custom_tag = ""
             exclude_custom_tag = ""
             if self.include_custom_tag_property != "":
-                include_custom_tag = self.conf["workflow_form"][
-                    self.include_custom_tag_property
-                ]
+                include_custom_tag = self.conf["workflow_form"][self.include_custom_tag_property]
             if self.exclude_custom_tag_property != "":
-                exclude_custom_tag = self.conf["workflow_form"][
-                    self.exclude_custom_tag_property
-                ]
+                exclude_custom_tag = self.conf["workflow_form"][self.exclude_custom_tag_property]
             self.dicom_data_infos = self.os_helper.get_dcm_uid_objects(
                 index=self.opensearch_index,
                 series_instance_uids=self.data_form["identifiers"],
@@ -328,11 +306,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
         logger.debug(f"SERIES FOUND: {len(download_list)}")
         logger.debug(f"SERIES LIMIT: {self.dataset_limit}")
-        download_list = (
-            download_list[: self.dataset_limit]
-            if self.dataset_limit is not None
-            else download_list
-        )
+        download_list = download_list[: self.dataset_limit] if self.dataset_limit is not None else download_list
         logger.debug(f"SERIES TO LOAD: {len(download_list)}")
         if len(download_list) == 0:
             raise Exception("No series to download !!")
@@ -355,9 +329,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                     time_elapsed = time.time() - time_start
                     logger.info(f"{num_done}/{num_total} done")
                     # Format nicely in minutes and seconds
-                    logger.info(
-                        "Time elapsed: %d:%02d minutes" % divmod(time_elapsed, 60)
-                    )
+                    logger.info("Time elapsed: %d:%02d minutes" % divmod(time_elapsed, 60))
                     # Format nicely in minutes and seconds
                     logger.info(
                         "Estimated time remaining: %d:%02d minutes"
@@ -367,11 +339,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                     logger.info("Series per second: %.2f" % (num_done / time_elapsed))
 
             if len(series_download_fail) > 0:
-                raise Exception(
-                    "Some series could not be downloaded: {}".format(
-                        series_download_fail
-                    )
-                )
+                raise Exception("Some series could not be downloaded: {}".format(series_download_fail))
 
         logger.info("## All series downloaded successfully")
 

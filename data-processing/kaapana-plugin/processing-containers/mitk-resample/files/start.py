@@ -151,9 +151,7 @@ print("#")
 # Loop for every batch-element (usually series)
 batch_folders = sorted([f for f in glob(join("/", workflow_dir, batch_name, "*"))])
 for batch_element_dir in batch_folders:
-    print(
-        "####################################################################################################"
-    )
+    print("####################################################################################################")
     print("#")
     print("#")
     print(f"# Processing batch-element {batch_element_dir}")
@@ -176,9 +174,7 @@ for batch_element_dir in batch_folders:
 
     # creating output dir
     input_files = glob(join(element_input_dir, input_file_extension), recursive=False)
-    original_files = glob(
-        join(element_org_input_dir, input_file_extension), recursive=False
-    )
+    original_files = glob(join(element_org_input_dir, input_file_extension), recursive=False)
     assert len(original_files) == 1
     original_path = original_files[0]
     original_shape = nib.load(original_path).shape
@@ -192,9 +188,7 @@ for batch_element_dir in batch_folders:
             target_dir=element_output_dir,
         )
     print("#")
-    print(
-        "####################################################################################################"
-    )
+    print("####################################################################################################")
     print("#")
     print(f"# Batch-element {batch_element_dir} done.")
 
@@ -231,9 +225,7 @@ if processed_count == 0:
         Path(batch_output_dir).mkdir(parents=True, exist_ok=True)
 
         input_files = glob(join(batch_input_dir, input_file_extension), recursive=False)
-        original_files = glob(
-            join(batch_org_input_dir, input_file_extension), recursive=False
-        )
+        original_files = glob(join(batch_org_input_dir, input_file_extension), recursive=False)
         assert len(original_files) == 1
 
         original_path = original_files[0]

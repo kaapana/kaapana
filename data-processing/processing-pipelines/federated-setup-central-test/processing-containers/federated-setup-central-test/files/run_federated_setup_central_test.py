@@ -13,9 +13,7 @@ from kaapana_federated.KaapanaFederatedTraining import (
 class FederatedSetupTestFederatedTraining(KaapanaFederatedTrainingBase):
     def __init__(self, workflow_dir=None):
         # make sure that workflow_dir is defined and get it from environmentals
-        workflow_dir = (
-            os.getenv("WORKFLOW_DIR", None) if workflow_dir is None else workflow_dir
-        )
+        workflow_dir = os.getenv("WORKFLOW_DIR", None) if workflow_dir is None else workflow_dir
         assert workflow_dir
 
         super().__init__(workflow_dir=workflow_dir)

@@ -110,9 +110,7 @@ class ContainerHelper:
                     timeout=60,
                     context="buildx-create",
                     exit_on_error=cls._build_config.exit_on_error,
-                    hints=[
-                        "Cache export (--cache-to) requires the docker-container driver."
-                    ],
+                    hints=["Cache export (--cache-to) requires the docker-container driver."],
                 )
 
     @classmethod
@@ -128,9 +126,7 @@ class ContainerHelper:
         if cls._build_config.container_engine != "docker":
             return
         if cls._build_config.keep_buildx_builder:
-            logger.info(
-                f"-> Keeping buildx builder {BUILDX_BUILDER_NAME} (--keep-buildx-builder)"
-            )
+            logger.info(f"-> Keeping buildx builder {BUILDX_BUILDER_NAME} (--keep-buildx-builder)")
             return
 
         logger.info(f"-> Removing buildx builder: {BUILDX_BUILDER_NAME}")
@@ -143,9 +139,7 @@ class ContainerHelper:
                 context="buildx-rm",
             )
         except Exception as e:
-            logger.warning(
-                f"Failed to remove buildx builder {BUILDX_BUILDER_NAME}: {e}"
-            )
+            logger.warning(f"Failed to remove buildx builder {BUILDX_BUILDER_NAME}: {e}")
 
     @classmethod
     def _buildx_proxy_driver_opts(cls) -> list:
@@ -198,11 +192,7 @@ class ContainerHelper:
         nameservers = []
         for line in resolv_conf.splitlines():
             parts = line.split()
-            if (
-                len(parts) == 2
-                and parts[0] == "nameserver"
-                and not parts[1].startswith("127.")
-            ):
+            if len(parts) == 2 and parts[0] == "nameserver" and not parts[1].startswith("127."):
                 nameservers.append(parts[1])
         if not nameservers:
             return []
@@ -288,9 +278,7 @@ class ContainerHelper:
             if (registry, username) in seen:
                 continue
             seen.add((registry, username))
-            cls.container_registry_login(
-                registry=registry, username=username, password=password
-            )
+            cls.container_registry_login(registry=registry, username=username, password=password)
 
     @classmethod
     def collect_containers(cls) -> Set[Container]:
@@ -314,49 +302,35 @@ class ContainerHelper:
         logger.info("")
         logger.info(f"-> Found {len(dockerfiles_found)} Dockerfiles @Kaapana")
 
-        if (
-            cls._build_config.external_source_dirs is not None
-            and len(cls._build_config.external_source_dirs) > 0
-        ):
+        if cls._build_config.external_source_dirs is not None and len(cls._build_config.external_source_dirs) > 0:
             for external_source in cls._build_config.external_source_dirs:
                 logger.info("")
                 logger.info(f"-> adding external sources: {external_source}")
                 external_dockerfiles_found = [
                     path
                     for path in Path(external_source).rglob("Dockerfile")
-                    if Path(cls._build_config.kaapana_dir)
-                    not in path.parents  # TODO Why filter here?
+                    if Path(cls._build_config.kaapana_dir) not in path.parents  # TODO Why filter here?
                 ]
                 dockerfiles_found.extend(external_dockerfiles_found)
                 logger.info(f"Found {len(dockerfiles_found)} Dockerfiles")
                 logger.info("")
 
         if len(dockerfiles_found) != len(set(dockerfiles_found)):
-            logger.warning(
-                f"-> Duplicate Dockerfiles found: {len(dockerfiles_found)} vs {len(set(dockerfiles_found))}"
-            )
-            for duplicate in set(
-                [x for x in dockerfiles_found if dockerfiles_found.count(x) > 1]
-            ):
+            logger.warning(f"-> Duplicate Dockerfiles found: {len(dockerfiles_found)} vs {len(set(dockerfiles_found))}")
+            for duplicate in set([x for x in dockerfiles_found if dockerfiles_found.count(x) > 1]):
                 logger.warning(duplicate)
             logger.warning("")
 
         dockerfiles_found = sorted(set(dockerfiles_found))
 
-        with alive_bar(
-            len(dockerfiles_found), dual_line=True, title="Collect container"
-        ) as bar:
+        with alive_bar(len(dockerfiles_found), dual_line=True, title="Collect container") as bar:
             for dockerfile in dockerfiles_found:
                 bar()
-                if should_ignore_path(
-                    dockerfile, cls._build_config.build_ignore_patterns
-                ):
+                if should_ignore_path(dockerfile, cls._build_config.build_ignore_patterns):
                     logger.debug(f"Ignoring Dockerfile {dockerfile}")
                     continue
 
-                container = Container.from_dockerfile(
-                    dockerfile, build_config=cls._build_config
-                )
+                container = Container.from_dockerfile(dockerfile, build_config=cls._build_config)
                 bar.text(container.image_name)
                 cls._build_state.add_container(container)
 
@@ -385,9 +359,7 @@ class ContainerHelper:
                 ):
                     container.missing_base_images.append(base_image)
                     logger.error("")
-                    logger.error(
-                        f"-> {container.tag} - base_image missing: {base_image.tag}"
-                    )
+                    logger.error(f"-> {container.tag} - base_image missing: {base_image.tag}")
                     logger.error("")
                     if cls._build_config.exit_on_error:
                         exit(1)
@@ -412,9 +384,7 @@ class ContainerHelper:
             command,
             logger=logger,
             timeout=6000,
-            env=dict(
-                os.environ, DOCKER_BUILDKIT=f"{cls._build_config.enable_build_kit}"
-            ),
+            env=dict(os.environ, DOCKER_BUILDKIT=f"{cls._build_config.enable_build_kit}"),
         )
 
     @classmethod
@@ -463,9 +433,7 @@ class ContainerHelper:
         ]
 
         if len(matches) != 1:
-            logger.error(
-                f"{image_name}: expected 1 container for {registry}/{image_name}, found {len(matches)}"
-            )
+            logger.error(f"{image_name}: expected 1 container for {registry}/{image_name}, found {len(matches)}")
             for match in matches:
                 logger.error(f"Dockerfile found: {match.dockerfile}")
 
@@ -516,9 +484,7 @@ class ContainerHelper:
                 size = cls.convert_size(size_str)
                 images_stats[f"{image_name}:{image_tag}"] = {"size": size}
 
-        command = [
-            f"{cls._build_config.container_engine} system df -v | grep {version}"
-        ]
+        command = [f"{cls._build_config.container_engine} system df -v | grep {version}"]
         output = run(
             command,
             shell=True,

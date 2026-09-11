@@ -16,9 +16,7 @@ from sqlalchemy.dialects.postgresql import TEXT
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-async def create_project(
-    session: AsyncSession, project: schemas.CreateProject
-) -> Projects:
+async def create_project(session: AsyncSession, project: schemas.CreateProject) -> Projects:
 
     new_project = Projects(
         name=project.name,
@@ -32,9 +30,7 @@ async def create_project(
 
 
 async def get_admin_project(session: AsyncSession):
-    result = await session.execute(
-        select(Projects).join(AdminProject, Projects.id == AdminProject.project_id)
-    )
+    result = await session.execute(select(Projects).join(AdminProject, Projects.id == AdminProject.project_id))
     return result.scalars().first()
 
 
@@ -132,18 +128,14 @@ async def get_role(session: AsyncSession, role_id: int):
     return result.scalars().first()
 
 
-async def create_roles_rights_mapping(
-    session: AsyncSession, role_id: int, right_id: int
-):
+async def create_roles_rights_mapping(session: AsyncSession, role_id: int, right_id: int):
     new_role_rights = RolesRights(role_id=role_id, right_id=right_id)
     session.add(new_role_rights)
     await session.commit()
     return True
 
 
-async def delete_roles_rights_mapping(
-    session: AsyncSession, role_id: int, right_id: int
-):
+async def delete_roles_rights_mapping(session: AsyncSession, role_id: int, right_id: int):
     stmt = delete(RolesRights).where(
         RolesRights.role_id == role_id,
         RolesRights.right_id == right_id,
@@ -165,9 +157,7 @@ async def delete_all_rights_for_role(session: AsyncSession, role_id: int):
     await session.commit()
 
 
-async def get_users_projects_roles_mapping(
-    session: AsyncSession, project_id: UUID, keycloak_id: str
-):
+async def get_users_projects_roles_mapping(session: AsyncSession, project_id: UUID, keycloak_id: str):
     # Create the select UserProjectRoles statement
     stmt = select(UsersProjectsRoles).where(
         UsersProjectsRoles.project_id == project_id,
@@ -179,12 +169,8 @@ async def get_users_projects_roles_mapping(
     return result.scalars().first()
 
 
-async def create_users_projects_roles_mapping(
-    session: AsyncSession, project_id: UUID, role_id: int, keycloak_id
-):
-    new_user_project_role = UsersProjectsRoles(
-        project_id=project_id, role_id=role_id, keycloak_id=keycloak_id
-    )
+async def create_users_projects_roles_mapping(session: AsyncSession, project_id: UUID, role_id: int, keycloak_id):
+    new_user_project_role = UsersProjectsRoles(project_id=project_id, role_id=role_id, keycloak_id=keycloak_id)
     session.add(new_user_project_role)
     await session.commit()
     return True
@@ -218,9 +204,7 @@ async def update_users_projects_roles_mapping(
     return True
 
 
-async def delete_users_projects_roles_mapping(
-    session: AsyncSession, project_id: UUID, keycloak_id: str
-):
+async def delete_users_projects_roles_mapping(session: AsyncSession, project_id: UUID, keycloak_id: str):
     # Create the delete statement
     stmt = delete(UsersProjectsRoles).where(
         UsersProjectsRoles.project_id == project_id,
@@ -279,20 +263,14 @@ async def get_software_mappings_by_project_id(session: AsyncSession, project_id:
     return software_mappings
 
 
-async def create_software_mapping(
-    session: AsyncSession, project_id: UUID, software_uuid: str
-):
-    new_software_mapping = SoftwareMappings(
-        software_uuid=software_uuid, project_id=project_id
-    )
+async def create_software_mapping(session: AsyncSession, project_id: UUID, software_uuid: str):
+    new_software_mapping = SoftwareMappings(software_uuid=software_uuid, project_id=project_id)
     session.add(new_software_mapping)
     await session.commit()
     return new_software_mapping
 
 
-async def delete_software_mapping(
-    session: AsyncSession, project_id: UUID, software_uuid: str
-):
+async def delete_software_mapping(session: AsyncSession, project_id: UUID, software_uuid: str):
     stmt = delete(SoftwareMappings).where(
         SoftwareMappings.project_id == project_id,
         SoftwareMappings.software_uuid == software_uuid,
@@ -302,9 +280,7 @@ async def delete_software_mapping(
     return True
 
 
-async def get_multiinstallable_whitelist_by_project_id(
-    session: AsyncSession, project_id: UUID
-) -> list[str]:
+async def get_multiinstallable_whitelist_by_project_id(session: AsyncSession, project_id: UUID) -> list[str]:
     stmt = select(Projects).where(Projects.id == project_id)
     result = await session.execute(stmt)
     project = result.scalars().first()
@@ -316,23 +292,14 @@ async def get_multiinstallable_whitelist_by_project_id(
 async def update_multiinstallable_whitelist_by_project_id(
     session: AsyncSession, project_id: UUID, app_names: list[str]
 ) -> list[str]:
-    stmt = (
-        update(Projects)
-        .where(Projects.id == project_id)
-        .values(multiinstallable_whitelist=app_names)
-    )
+    stmt = update(Projects).where(Projects.id == project_id).values(multiinstallable_whitelist=app_names)
     await session.execute(stmt)
     await session.commit()
     return app_names
 
-async def update_project(
-    session: AsyncSession, project_id: UUID, project_update: schemas.UpdateProject
-):
-    stmt = (
-        update(Projects)
-        .where(Projects.id == project_id)
-        .values(**project_update.model_dump(exclude_none=True))
-    )
+
+async def update_project(session: AsyncSession, project_id: UUID, project_update: schemas.UpdateProject):
+    stmt = update(Projects).where(Projects.id == project_id).values(**project_update.model_dump(exclude_none=True))
     await session.execute(stmt)
     await session.commit()
 
@@ -341,14 +308,8 @@ async def update_project(
     return schemas.Project.model_validate(row)
 
 
-async def set_project_archived(
-    session: AsyncSession, project_id: UUID, archived: bool
-) -> schemas.Project:
-    stmt = (
-        update(Projects)
-        .where(Projects.id == project_id)
-        .values(is_archived=archived)
-    )
+async def set_project_archived(session: AsyncSession, project_id: UUID, archived: bool) -> schemas.Project:
+    stmt = update(Projects).where(Projects.id == project_id).values(is_archived=archived)
     await session.execute(stmt)
     await session.commit()
 
@@ -359,12 +320,8 @@ async def set_project_archived(
 
 async def delete_project(session: AsyncSession, project_id: UUID):
     # Delete dependent rows first to avoid FK violations
-    await session.execute(
-        delete(UsersProjectsRoles).where(UsersProjectsRoles.project_id == project_id)
-    )
-    await session.execute(
-        delete(SoftwareMappings).where(SoftwareMappings.project_id == project_id)
-    )
+    await session.execute(delete(UsersProjectsRoles).where(UsersProjectsRoles.project_id == project_id))
+    await session.execute(delete(SoftwareMappings).where(SoftwareMappings.project_id == project_id))
     await session.execute(delete(Projects).where(Projects.id == project_id))
     await session.commit()
     return True

@@ -16,9 +16,7 @@ class Dispatcher:
     async def uninstall_content(self, content: Content):
         content_installer = self.find_installer(content)
         if not content.location:
-            logger.warning(
-                f"Content {content.name} does not have a location for uninstallation"
-            )
+            logger.warning(f"Content {content.name} does not have a location for uninstallation")
             return None
         await content_installer.uninstall(content)
 

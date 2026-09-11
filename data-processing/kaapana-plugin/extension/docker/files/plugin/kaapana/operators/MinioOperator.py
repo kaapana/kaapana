@@ -81,12 +81,8 @@ class MinioOperator(KaapanaBaseOperator):
             "SOURCE_FILES": ",".join(source_files),
             "WHITELISTED_FILE_EXTENSIONS": ",".join(whitelisted_file_extensions),
             "ZIP_FILES": str(zip_files),
-            "BATCH_INPUT_OPERATORS": ",".join(
-                [op.operator_out_dir for op in batch_input_operators]
-            ),
-            "NONE_BATCH_INPUT_OPERATORS": ",".join(
-                [op.operator_out_dir for op in none_batch_input_operators]
-            ),
+            "BATCH_INPUT_OPERATORS": ",".join([op.operator_out_dir for op in batch_input_operators]),
+            "NONE_BATCH_INPUT_OPERATORS": ",".join([op.operator_out_dir for op in none_batch_input_operators]),
         }
 
         env_vars.update(envs)

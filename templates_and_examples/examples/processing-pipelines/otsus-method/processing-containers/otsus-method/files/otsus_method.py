@@ -11,12 +11,7 @@ import SimpleITK as sitk
 
 ### Get data from <workflow-dir>/batch folder
 batch_folders = sorted(
-    [
-        f
-        for f in glob.glob(
-            os.path.join("/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"], "*")
-        )
-    ]
+    [f for f in glob.glob(os.path.join("/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"], "*"))]
 )
 
 for batch_element_dir in batch_folders:
@@ -26,9 +21,7 @@ for batch_element_dir in batch_folders:
     if not os.path.exists(element_output_dir):
         os.makedirs(element_output_dir)
 
-    nddr_files = sorted(
-        glob.glob(os.path.join(element_input_dir, "*.nrrd"), recursive=True)
-    )
+    nddr_files = sorted(glob.glob(os.path.join(element_input_dir, "*.nrrd"), recursive=True))
 
     if len(nddr_files) == 0:
         print("No nrrd file found!")

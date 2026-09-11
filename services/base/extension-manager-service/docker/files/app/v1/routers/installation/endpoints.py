@@ -70,9 +70,7 @@ async def install_extension(
 
     except IntegrityError:
         await db.rollback()
-        db_extensions = await crud.list_extensions(
-            db, repository_id=repository_id, tag=tag
-        )
+        db_extensions = await crud.list_extensions(db, repository_id=repository_id, tag=tag)
         db_extension = db_extensions[0]
 
         try:
@@ -116,9 +114,7 @@ async def get_extensions(
 async def get_extension(extension_id: UUID, db=Depends(database.get_async_db)):
     db_extension = await crud.get_extension(db, extension_id=extension_id)
     if not db_extension:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Extension not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Extension not found")
     return db_extension
 
 
@@ -143,7 +139,5 @@ async def uninstall_extension(
             detail=f"Cannot uninstall the extension with id {extension_id}, because the extension is already processed",
         ) from e
     except NoResultFound:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Extension not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Extension not found")
     background_tasks.add_task(uninstall_extension_background_task, db_extension.id)

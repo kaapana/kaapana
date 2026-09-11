@@ -117,9 +117,7 @@ class ValidationResult2Meta:
         if clear_results:
             # Write Tags back
             body = {"doc": {self.tag_field: None}}
-            self.os_client.update(
-                index=self.opensearch_index, id=series_instance_uid, body=body
-            )
+            self.os_client.update(index=self.opensearch_index, id=series_instance_uid, body=body)
 
         final_tags = {}
 
@@ -134,6 +132,4 @@ class ValidationResult2Meta:
 
         # Write validation results to doc
         body = {"doc": {self.tag_field: final_tags}}
-        self.os_client.update(
-            index=self.opensearch_index, id=series_instance_uid, body=body
-        )
+        self.os_client.update(index=self.opensearch_index, id=series_instance_uid, body=body)

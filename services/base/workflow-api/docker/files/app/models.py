@@ -67,14 +67,10 @@ class Workflow(Base):
         ),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, primary_key=True, default=uuid.uuid4, index=True
-    )
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4, index=True)
     title: Mapped[str] = mapped_column(String, index=True)
     workflow_engine: Mapped[str] = mapped_column(String)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     removed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     revisions: Mapped[List["WorkflowRevision"]] = relationship(
@@ -92,24 +88,14 @@ class WorkflowRevision(Base):
     __tablename__ = "workflow_revisions"
     __table_args__ = (UniqueConstraint("workflow_id", "increment"),)
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, primary_key=True, default=uuid.uuid4, index=True
-    )
-    workflow_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, ForeignKey("workflows.id"), index=True
-    )
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4, index=True)
+    workflow_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("workflows.id"), index=True)
     increment: Mapped[int] = mapped_column(Integer, nullable=False)
     definition: Mapped[str] = mapped_column(String)
-    workflow_parameters: Mapped[list] = mapped_column(
-        JSONB, nullable=True, default=list
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
-    )
+    workflow_parameters: Mapped[list] = mapped_column(JSONB, nullable=True, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
-    workflow: Mapped["Workflow"] = relationship(
-        "Workflow", back_populates="revisions", lazy="selectin"
-    )
+    workflow: Mapped["Workflow"] = relationship("Workflow", back_populates="revisions", lazy="selectin")
 
     labels: Mapped[List["Label"]] = relationship(
         "Label",
@@ -124,21 +110,15 @@ class WorkflowRevision(Base):
         cascade="save-update, merge",
     )  # NOTE: only update operations cascade, deletes don't. Task might be related to historical workflow runs
 
-    runs: Mapped[List["WorkflowRun"]] = relationship(
-        "WorkflowRun", back_populates="workflow_revision"
-    )
+    runs: Mapped[List["WorkflowRun"]] = relationship("WorkflowRun", back_populates="workflow_revision")
 
 
 class WorkflowRun(Base):
     __tablename__ = "workflow_runs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    workflow_revision_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, ForeignKey("workflow_revisions.id"), index=True
-    )
-    workflow_parameters: Mapped[list] = mapped_column(
-        JSONB, nullable=True, default=list
-    )
+    workflow_revision_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("workflow_revisions.id"), index=True)
+    workflow_parameters: Mapped[list] = mapped_column(JSONB, nullable=True, default=list)
     lifecycle_status: Mapped[WorkflowRunStatus] = mapped_column(
         SqlEnum(WorkflowRunStatus), default=WorkflowRunStatus.CREATED, nullable=False
     )
@@ -149,9 +129,7 @@ class WorkflowRun(Base):
         lazy="selectin",
     )
     external_id: Mapped[str | None] = mapped_column(String, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -181,12 +159,8 @@ class WorkflowRun(Base):
         default=CleanupStatus.NOT_REQUIRED,
         server_default=CleanupStatus.NOT_REQUIRED.name,
     )
-    cleaned_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    task_runs: Mapped[List["TaskRun"]] = relationship(
-        "TaskRun", back_populates="workflow_run", lazy="selectin"
-    )
+    cleaned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    task_runs: Mapped[List["TaskRun"]] = relationship("TaskRun", back_populates="workflow_run", lazy="selectin")
 
 
 class Label(Base):
@@ -213,9 +187,7 @@ class Task(Base):
     __tablename__ = "tasks"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    workflow_revision_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, ForeignKey("workflow_revisions.id")
-    )
+    workflow_revision_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("workflow_revisions.id"))
     title: Mapped[str] = mapped_column(String, index=True)
     display_name: Mapped[str] = mapped_column(String, nullable=True)
     type: Mapped[str] = mapped_column(String)
@@ -242,9 +214,7 @@ class DownstreamTask(Base):
     task_id: Mapped[int] = mapped_column(Integer, ForeignKey("tasks.id"))
     downstream_task_id: Mapped[int] = mapped_column(Integer, ForeignKey("tasks.id"))
 
-    task = relationship(
-        "Task", foreign_keys=[task_id], back_populates="downstream_tasks"
-    )
+    task = relationship("Task", foreign_keys=[task_id], back_populates="downstream_tasks")
     downstream_task = relationship("Task", foreign_keys=[downstream_task_id])
     __table_args__ = (UniqueConstraint("task_id", "downstream_task_id"),)
 
@@ -254,20 +224,14 @@ class TaskRun(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     task_id: Mapped[int] = mapped_column(Integer, ForeignKey("tasks.id"))
-    workflow_run_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("workflow_runs.id")
-    )
+    workflow_run_id: Mapped[int] = mapped_column(Integer, ForeignKey("workflow_runs.id"))
     external_id: Mapped[str] = mapped_column(String, nullable=False)
     lifecycle_status: Mapped[TaskRunStatus] = mapped_column(
         SqlEnum(TaskRunStatus), default=TaskRunStatus.CREATED, nullable=False
     )
 
-    task: Mapped["Task"] = relationship(
-        "Task", back_populates="task_runs", lazy="selectin"
-    )
-    workflow_run: Mapped["WorkflowRun"] = relationship(
-        "WorkflowRun", back_populates="task_runs"
-    )
+    task: Mapped["Task"] = relationship("Task", back_populates="task_runs", lazy="selectin")
+    workflow_run: Mapped["WorkflowRun"] = relationship("WorkflowRun", back_populates="task_runs")
 
     @property
     def task_title(self) -> str | None:

@@ -87,9 +87,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             token = request.headers.get("x-forwarded-access-token")
 
         if not token:
-            raise HTTPException(
-                status_code=403, detail="Authorization token missing or invalid"
-            )
+            raise HTTPException(status_code=403, detail="Authorization token missing or invalid")
 
         payload = await self.authenticate(token)
 

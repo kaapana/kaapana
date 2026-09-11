@@ -129,8 +129,7 @@ def main():
     logger.info("Migration chain generated. Validatin migration chain")
     for major_from, minor_from, major_to, minor_to in version_chain:
         migration_script_path = (
-            migration_scripts_dir
-            / f"migration-{major_from}.{minor_from}.x-{major_to}.{minor_to}.x.sh"
+            migration_scripts_dir / f"migration-{major_from}.{minor_from}.x-{major_to}.{minor_to}.x.sh"
         )
         if not migration_script_path.exists():
             logger.error(f"No migration script found: {migration_script_path}")
@@ -139,8 +138,7 @@ def main():
 
     for major_from, minor_from, major_to, minor_to in version_chain:
         migration_script_path = (
-            migration_scripts_dir
-            / f"migration-{major_from}.{minor_from}.x-{major_to}.{minor_to}.x.sh"
+            migration_scripts_dir / f"migration-{major_from}.{minor_from}.x-{major_to}.{minor_to}.x.sh"
         )
         try:
             logger.info(f"Running migration script: {migration_script_path}")
@@ -153,9 +151,7 @@ def main():
                 text=True,
             )
 
-            logger.info(
-                f"Migration script completed successfully.\nOutput:\n{result.stdout}"
-            )
+            logger.info(f"Migration script completed successfully.\nOutput:\n{result.stdout}")
             if result.stderr:
                 logger.warning(f"Migration script warnings/errors:\n{result.stderr}")
 
@@ -170,9 +166,7 @@ def main():
 
         logger.info("Check version file is the newest version")
         minor_final = (fast_data_dir / "version").read_text().split(".")[1]
-        assert int(minor_final) == int(
-            minor_to
-        ), f"Not finished on the same version!: {minor_to=} -> {minor_final=}"
+        assert int(minor_final) == int(minor_to), f"Not finished on the same version!: {minor_to=} -> {minor_final=}"
 
 
 if __name__ == "__main__":

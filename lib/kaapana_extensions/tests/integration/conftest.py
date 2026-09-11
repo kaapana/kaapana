@@ -111,8 +111,6 @@ def ext_dir(tmp_path):
 
 @pytest.fixture
 def ext_archive(ext_dir, tmp_path):
-    archives = list(
-        ExtensionUtilityLibrary.build(str(ext_dir), output=tmp_path / "build")
-    )
+    archives = list(ExtensionUtilityLibrary.build(str(ext_dir), output=tmp_path / "build"))
     assert len(archives) == 1
     return archives[0][1]

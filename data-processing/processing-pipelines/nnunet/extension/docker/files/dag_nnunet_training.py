@@ -307,9 +307,7 @@ dag = DAG(
     schedule_interval=None,
 )
 
-get_input = LocalGetInputDataOperator(
-    dag=dag, check_modality=True, parallel_downloads=5
-)
+get_input = LocalGetInputDataOperator(dag=dag, check_modality=True, parallel_downloads=5)
 
 
 get_ref_ct_series_from_seg = GetRefSeriesOperator(
@@ -350,9 +348,7 @@ modify_seg_label_names = LocalModifySegLabelNamesOperator(
     trigger_rule="all_done",
 )
 
-dcm2nifti_ct = DcmConverterOperator(
-    dag=dag, input_operator=get_ref_ct_series_from_seg, output_format="nii.gz"
-)
+dcm2nifti_ct = DcmConverterOperator(dag=dag, input_operator=get_ref_ct_series_from_seg, output_format="nii.gz")
 
 check_seg = SegCheckOperator(
     dag=dag,
@@ -500,14 +496,7 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
     >> modify_seg_label_names
     >> check_seg
 )
-(
-    get_input
-    >> get_ref_ct_series_from_seg
-    >> dcm2nifti_ct
-    >> check_seg
-    >> nnunet_preprocess
-    >> nnunet_train
-)
+(get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> check_seg >> nnunet_preprocess >> nnunet_train)
 
 (
     nnunet_train

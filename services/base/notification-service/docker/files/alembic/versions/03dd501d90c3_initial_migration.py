@@ -36,12 +36,8 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("receivers", sa.ARRAY(sa.String()), nullable=True),
-        sa.Column(
-            "receviers_read", postgresql.JSONB(astext_type=sa.Text()), nullable=True
-        ),
-        sa.CheckConstraint(
-            "array_ndims(receivers) = 1", name="receivers_one_dimensional"
-        ),
+        sa.Column("receviers_read", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.CheckConstraint("array_ndims(receivers) = 1", name="receivers_one_dimensional"),
         sa.PrimaryKeyConstraint("id"),
     )
 

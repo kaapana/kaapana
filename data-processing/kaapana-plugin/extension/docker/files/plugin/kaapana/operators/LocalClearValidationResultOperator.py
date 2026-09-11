@@ -29,9 +29,7 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
     """
 
     def get_project_by_id(self, project_id: str):
-        response = requests.get(
-            f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_id}"
-        )
+        response = requests.get(f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_id}")
         response.raise_for_status()
         project = response.json()
         return project
@@ -67,9 +65,7 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
         files = []
         for item in allresults:
             if item.is_dir:
-                files.extend(
-                    self.get_all_files_from_result_bucket(prefix=item.object_name)
-                )
+                files.extend(self.get_all_files_from_result_bucket(prefix=item.object_name))
             else:
                 files.append(item.object_name)
         return files
@@ -104,9 +100,7 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
         if response["result"] == "updated":
             print(f"{tagfield} is deleted from the {seriesuid} in OpenSearch")
         else:
-            print(
-                f"Warning!! {tagfield} could not be deleted from the {seriesuid} document in OpenSearch"
-            )
+            print(f"Warning!! {tagfield} could not be deleted from the {seriesuid} document in OpenSearch")
 
         return
 
@@ -131,9 +125,7 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
             return
 
         for result in seriesresults:
-            self.minio_client.remove_object(
-                bucket_name=self.result_bucket, object_name=result
-            )
+            self.minio_client.remove_object(bucket_name=self.result_bucket, object_name=result)
             print(f"{result} is removed from minio")
 
         return
@@ -169,9 +161,7 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
         print("Start Deleting Validation results")
 
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
-        batch_folder = [
-            f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))
-        ]
+        batch_folder = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))]
 
         self._init_clients(dag_run)
 
@@ -199,14 +189,10 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
                         self.result_bucket = project_config["s3_bucket"]
                         self.opensearch_index = project_config["opensearch_index"]
 
-                seriesuid = metadata[
-                    DicomTags.series_uid_tag
-                ]  # "0020000E SeriesInstanceUID_keyword"
+                seriesuid = metadata[DicomTags.series_uid_tag]  # "0020000E SeriesInstanceUID_keyword"
 
                 self.remove_from_minio(seriesuid)
-                self.remove_field_in_opensearch(
-                    seriesuid, tagfield=self.validation_field
-                )
+                self.remove_field_in_opensearch(seriesuid, tagfield=self.validation_field)
 
     def __init__(
         self,

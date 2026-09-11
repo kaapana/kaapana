@@ -14,10 +14,14 @@ runner = CliRunner()
 _STABLE_ID = "aaaaaaaa-0000-0000-0000-000000000001"
 _STABLE_TAG = f"{_STABLE_ID}-v1.0.0"
 _REGISTRY_OPTS = [
-    "--registry", "https://registry.example.com",
-    "--repo", "user/repo",
-    "--user", "user",
-    "--password", "pass",
+    "--registry",
+    "https://registry.example.com",
+    "--repo",
+    "user/repo",
+    "--user",
+    "user",
+    "--password",
+    "pass",
 ]
 
 
@@ -55,13 +59,23 @@ def _mock_lib(return_values: dict | None = None, side_effects: dict | None = Non
 # login / logout / whoami
 # ---------------------------------------------------------------------------
 
+
 class TestLogin:
     def test_success(self):
         with patch("kaapana_extensions.cli.oci_login"):
             result = runner.invoke(
                 app,
-                ["login", "--registry", "https://registry.example.com",
-                 "--repo", "user/repo", "--user", "testuser", "--password", "testpass"],
+                [
+                    "login",
+                    "--registry",
+                    "https://registry.example.com",
+                    "--repo",
+                    "user/repo",
+                    "--user",
+                    "testuser",
+                    "--password",
+                    "testpass",
+                ],
             )
         assert result.exit_code == 0
         assert "LOGIN SUCCESSFUL" in result.output
@@ -95,6 +109,7 @@ class TestWhoami:
 # list
 # ---------------------------------------------------------------------------
 
+
 class TestListCli:
     def test_exits_0_and_prints_tags(self):
         mock = _mock_lib(return_values={"list_tags": ["ext-v1.0.0", "ext-v2.0.0"]})
@@ -123,6 +138,7 @@ class TestListCli:
 # pull
 # ---------------------------------------------------------------------------
 
+
 class TestPullCli:
     def test_exits_0_and_prints_path(self, tmp_path):
         mock = _mock_lib(return_values={"pull": tmp_path})
@@ -142,6 +158,7 @@ class TestPullCli:
 # ---------------------------------------------------------------------------
 # push
 # ---------------------------------------------------------------------------
+
 
 class TestPushCli:
     def test_exits_0_and_prints_tag(self, ext_archive):
@@ -174,6 +191,7 @@ class TestPushCli:
 # ---------------------------------------------------------------------------
 # build
 # ---------------------------------------------------------------------------
+
 
 class TestBuildCli:
     def test_local_build_prints_archive(self, ext_archive):

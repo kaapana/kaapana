@@ -50,12 +50,8 @@ def upgrade() -> None:
     )
 
     # workflow_engine becomes NOT NULL.
-    op.execute(
-        "UPDATE workflows SET workflow_engine = 'dummy' WHERE workflow_engine IS NULL"
-    )
-    op.alter_column(
-        "workflows", "workflow_engine", existing_type=sa.String(), nullable=False
-    )
+    op.execute("UPDATE workflows SET workflow_engine = 'dummy' WHERE workflow_engine IS NULL")
+    op.alter_column("workflows", "workflow_engine", existing_type=sa.String(), nullable=False)
 
     # 2. workflow_revisions table.
     op.create_table(
@@ -77,9 +73,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=True),
         sa.UniqueConstraint("workflow_id", "increment"),
     )
-    op.create_index(
-        "ix_workflow_revisions_id", "workflow_revisions", ["id"], unique=False
-    )
+    op.create_index("ix_workflow_revisions_id", "workflow_revisions", ["id"], unique=False)
     op.create_index(
         "ix_workflow_revisions_workflow_id",
         "workflow_revisions",
@@ -89,12 +83,7 @@ def upgrade() -> None:
 
     # 3. Backfill workflow_revisions, one row per existing workflow.
     workflows = (
-        bind.execute(
-            sa.text(
-                "SELECT id, id_new, version, definition, workflow_parameters, created_at "
-                "FROM workflows"
-            )
-        )
+        bind.execute(sa.text("SELECT id, id_new, version, definition, workflow_parameters, created_at FROM workflows"))
         .mappings()
         .all()
     )
@@ -102,11 +91,7 @@ def upgrade() -> None:
     int_to_revision_uuid: dict[int, uuid.UUID] = {}
     for w in workflows:
         rev_uuid = uuid.uuid4()
-        params_value = (
-            json.dumps(w["workflow_parameters"])
-            if w["workflow_parameters"] is not None
-            else None
-        )
+        params_value = json.dumps(w["workflow_parameters"]) if w["workflow_parameters"] is not None else None
         bind.execute(
             sa.text(
                 "INSERT INTO workflow_revisions "
@@ -133,9 +118,7 @@ def upgrade() -> None:
     )
     for old_int, rev_uuid in int_to_revision_uuid.items():
         bind.execute(
-            sa.text(
-                "UPDATE tasks SET workflow_revision_id = :r WHERE workflow_id = :w"
-            ),
+            sa.text("UPDATE tasks SET workflow_revision_id = :r WHERE workflow_id = :w"),
             {"r": rev_uuid, "w": old_int},
         )
 
@@ -145,16 +128,10 @@ def upgrade() -> None:
         sa.Column("workflow_revision_id", postgresql.UUID(as_uuid=True), nullable=True),
     )
     # `updated_at` already exists from the initial migration (721d0352a128), only backfill it for legacy rows where it was never populated.
-    bind.execute(
-        sa.text(
-            "UPDATE workflow_runs SET updated_at = created_at WHERE updated_at IS NULL"
-        )
-    )
+    bind.execute(sa.text("UPDATE workflow_runs SET updated_at = created_at WHERE updated_at IS NULL"))
     for old_int, rev_uuid in int_to_revision_uuid.items():
         bind.execute(
-            sa.text(
-                "UPDATE workflow_runs SET workflow_revision_id = :r WHERE workflow_id = :w"
-            ),
+            sa.text("UPDATE workflow_runs SET workflow_revision_id = :r WHERE workflow_id = :w"),
             {"r": rev_uuid, "w": old_int},
         )
 
@@ -186,9 +163,7 @@ def upgrade() -> None:
 
     # 8. Drop old FK columns and constraints from tasks / workflow_runs / workflow_label.
     op.drop_table("workflow_label")
-    op.drop_constraint(
-        "workflow_runs_workflow_id_fkey", "workflow_runs", type_="foreignkey"
-    )
+    op.drop_constraint("workflow_runs_workflow_id_fkey", "workflow_runs", type_="foreignkey")
     op.drop_column("workflow_runs", "workflow_id")
     op.drop_constraint("tasks_workflow_id_fkey", "tasks", type_="foreignkey")
     op.drop_column("tasks", "workflow_id")
@@ -235,12 +210,8 @@ def upgrade() -> None:
         ["id"],
     )
     # Orphan rows (tasks/workflow_runs whose old workflow_id pointed at a workflow row that no longer exists) cannot be backfilled and must be removed.
-    deleted_tasks = bind.execute(
-        sa.text("DELETE FROM tasks WHERE workflow_revision_id IS NULL")
-    ).rowcount
-    deleted_runs = bind.execute(
-        sa.text("DELETE FROM workflow_runs WHERE workflow_revision_id IS NULL")
-    ).rowcount
+    deleted_tasks = bind.execute(sa.text("DELETE FROM tasks WHERE workflow_revision_id IS NULL")).rowcount
+    deleted_runs = bind.execute(sa.text("DELETE FROM workflow_runs WHERE workflow_revision_id IS NULL")).rowcount
     if deleted_tasks or deleted_runs:
         op.execute(
             sa.text(

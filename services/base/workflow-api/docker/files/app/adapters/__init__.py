@@ -17,15 +17,10 @@ def discover_workflow_engine_adapters() -> List[Type[WorkflowEngineAdapter]]:
     Discover all workflow engine adapters in the code base
     """
     discovered_adapters = []
-    for _, modname, _ in pkgutil.walk_packages(
-        adapters.__path__, adapters.__name__ + "."
-    ):
+    for _, modname, _ in pkgutil.walk_packages(adapters.__path__, adapters.__name__ + "."):
         module = importlib.import_module(modname)
         for name, cls in inspect.getmembers(module, inspect.isclass):
-            if (
-                issubclass(cls, WorkflowEngineAdapter)
-                and cls is not WorkflowEngineAdapter
-            ):
+            if issubclass(cls, WorkflowEngineAdapter) and cls is not WorkflowEngineAdapter:
                 discovered_adapters.append(cls)
     logger.info(f"Discovered adapters: {discovered_adapters=}")
     return discovered_adapters

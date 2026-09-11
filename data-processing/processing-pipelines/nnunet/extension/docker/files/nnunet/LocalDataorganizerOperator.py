@@ -16,20 +16,12 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
         if len(json_list) == 1:
             return json_list[0]
         elif len(json_list) > 1:
-            filter_id = (
-                basename(filename).replace(".nii.gz", "").replace("_combination_", "-")
-            )
+            filter_id = basename(filename).replace(".nii.gz", "").replace("_combination_", "-")
             print(f"# filter_id: {filter_id}")
             json_file_filtered = [
-                json_file
-                for json_file in json_list
-                if filter_id in json_file or "seg_info" in json_file
+                json_file for json_file in json_list if filter_id in json_file or "seg_info" in json_file
             ]
-            ensemble_file_filtered = [
-                json_file
-                for json_file in json_list
-                if "ensemble_seg_info.json" in json_file
-            ]
+            ensemble_file_filtered = [json_file for json_file in json_list if "ensemble_seg_info.json" in json_file]
             if len(ensemble_file_filtered) > 0:
                 return ensemble_file_filtered[0]
 
@@ -53,11 +45,7 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
         print(f"# nifti_files: {nifti_files}")
 
         print(f"# filter_id: {filter_id}")
-        nifti_filtered = [
-            dirname(dirname(nifti_file))
-            for nifti_file in nifti_files
-            if f"{filter_id}" in nifti_file
-        ]
+        nifti_filtered = [dirname(dirname(nifti_file)) for nifti_file in nifti_files if f"{filter_id}" in nifti_file]
         print(f"# get_batch_element nifti_filtered: {nifti_filtered}")
         if len(nifti_filtered) == 1:
             return nifti_filtered[0]
@@ -86,9 +74,7 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
         if self.origin == "batch":
             iter_dirs = [run_dir]
         elif self.origin == "batchelement":
-            iter_dirs = sorted(
-                [f for f in glob(os.path.join(run_dir, self.batch_name, "*"))]
-            )
+            iter_dirs = sorted([f for f in glob(os.path.join(run_dir, self.batch_name, "*"))])
 
         print(f"# Found {len(iter_dirs)} iter_dirs")
         model_id = 0

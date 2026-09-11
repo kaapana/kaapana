@@ -99,7 +99,5 @@ def test_path_traversal_rejected(client, endpoint, bad):
 
 @pytest.mark.parametrize("endpoint", ["/filesystem/delete", "/filesystem/usage"])
 def test_unsupported_claim_name_rejected(client, endpoint):
-    resp = client.post(
-        endpoint, json={"sub_path": "run-1", "claim_name": "some-other-pvc"}
-    )
+    resp = client.post(endpoint, json={"sub_path": "run-1", "claim_name": "some-other-pvc"})
     assert resp.status_code == 400

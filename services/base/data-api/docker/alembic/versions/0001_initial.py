@@ -37,12 +37,8 @@ def upgrade() -> None:
         ),
         sa.Column("parent_id", postgresql.UUID(as_uuid=True), nullable=True),
     )
-    op.create_index(
-        "ix_data_entities_created_at", "data_entities", ["created_at"], unique=False
-    )
-    op.create_index(
-        "ix_data_entities_parent_id", "data_entities", ["parent_id"], unique=False
-    )
+    op.create_index("ix_data_entities_created_at", "data_entities", ["created_at"], unique=False)
+    op.create_index("ix_data_entities_parent_id", "data_entities", ["parent_id"], unique=False)
     op.create_foreign_key(
         "fk_data_entities_parent",
         "data_entities",
@@ -58,9 +54,7 @@ def upgrade() -> None:
         sa.Column("key", sa.String(length=255), nullable=False),
         sa.Column("schema", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
     )
-    op.create_index(
-        op.f("ix_metadata_schemas_key"), "metadata_schemas", ["key"], unique=True
-    )
+    op.create_index(op.f("ix_metadata_schemas_key"), "metadata_schemas", ["key"], unique=True)
 
     op.create_table(
         "storage_coordinates",
@@ -104,9 +98,7 @@ def upgrade() -> None:
         ["entity_id"],
         unique=False,
     )
-    op.create_index(
-        op.f("ix_metadata_entries_key"), "metadata_entries", ["key"], unique=False
-    )
+    op.create_index(op.f("ix_metadata_entries_key"), "metadata_entries", ["key"], unique=False)
     op.create_index(
         "ix_metadata_entries_data_gin",
         "metadata_entries",
@@ -146,9 +138,7 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_metadata_entries_entity_id"), table_name="metadata_entries")
     op.drop_table("metadata_entries")
 
-    op.drop_index(
-        op.f("ix_storage_coordinates_entity_id"), table_name="storage_coordinates"
-    )
+    op.drop_index(op.f("ix_storage_coordinates_entity_id"), table_name="storage_coordinates")
     op.drop_table("storage_coordinates")
 
     op.drop_index(op.f("ix_metadata_schemas_key"), table_name="metadata_schemas")

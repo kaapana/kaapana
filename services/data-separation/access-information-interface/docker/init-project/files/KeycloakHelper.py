@@ -23,13 +23,9 @@ class KeycloakHelper:
         keycloak_host=None,
         keycloak_https_port=None,
     ):
-        self.client_secret = (
-            client_secret or os.environ["KEYCLOAK_SERVICE_CLIENT_SECRET"]
-        )
+        self.client_secret = client_secret or os.environ["KEYCLOAK_SERVICE_CLIENT_SECRET"]
         self.keycloak_host = keycloak_host or os.environ["KEYCLOAK_HOST"]
-        self.keycloak_https_port = keycloak_https_port or os.getenv(
-            "KEYCLOAK_HTTPS_PORT", 443
-        )
+        self.keycloak_https_port = keycloak_https_port or os.getenv("KEYCLOAK_HTTPS_PORT", 443)
         self.auth_url = f"https://{self.keycloak_host}:{self.keycloak_https_port}/auth/admin/realms/"
         self.service_access_token = self.get_access_token(
             self.client_secret,
@@ -85,9 +81,7 @@ class KeycloakHelper:
             logger.warning("Ressource already exists.")
             if update_url:
                 logger.info("Ressource will be updated!")
-                r = self.make_authorized_request(
-                    update_url, requests.put, payload, timeout=timeout, **kwargs
-                )
+                r = self.make_authorized_request(update_url, requests.put, payload, timeout=timeout, **kwargs)
                 logger.info("Ressource was updated!")
                 r.raise_for_status()
             else:
@@ -106,9 +100,7 @@ class KeycloakHelper:
             url = self.auth_url + f"kaapana/users/{user_id}/reset-password"
             reset_payload = payload.get("credentials")[0]
             reset_payload["temporary"] = False
-            reset_response = self.make_authorized_request(
-                url, requests.put, reset_payload, **kwargs
-            )
+            reset_response = self.make_authorized_request(url, requests.put, reset_payload, **kwargs)
             reset_response.raise_for_status()
             logger.info(f"Reset password for user {user_id} ")
 

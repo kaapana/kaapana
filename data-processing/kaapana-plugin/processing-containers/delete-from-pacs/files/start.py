@@ -15,7 +15,6 @@ SERVICES_NAMESPACE = KaapanaSettings().services_namespace
 
 
 class DeleteFromPacsOperator:
-
     def __init__(
         self,
         delete_complete_study: bool = False,
@@ -50,9 +49,7 @@ class DeleteFromPacsOperator:
         )
         logging.info(f"Delete entire study set to {self.delete_complete_study}")
 
-        batch_folder = [
-            f for f in glob.glob(os.path.join(self.workflow_dir, self.batch_name, "*"))
-        ]
+        batch_folder = [f for f in glob.glob(os.path.join(self.workflow_dir, self.batch_name, "*"))]
 
         series_of_studies_which_should_be_deleted = {}
 
@@ -70,18 +67,12 @@ class DeleteFromPacsOperator:
 
                     if self.delete_complete_study:
                         logging.info(f"Deleting study: {study_uid}")
-                        self.dcmweb_helper.delete_study(
-                            project_id=project_form.get("id"), study_uid=study_uid
-                        )
+                        self.dcmweb_helper.delete_study(project_id=project_form.get("id"), study_uid=study_uid)
                     else:
                         if study_uid in series_of_studies_which_should_be_deleted:
-                            series_of_studies_which_should_be_deleted[study_uid].append(
-                                series_uid
-                            )
+                            series_of_studies_which_should_be_deleted[study_uid].append(series_uid)
                         else:
-                            series_of_studies_which_should_be_deleted[study_uid] = [
-                                series_uid
-                            ]
+                            series_of_studies_which_should_be_deleted[study_uid] = [series_uid]
 
         # If we are not deleting the complete study, we need to delete the series one by one
         for study_uid, series_uids in series_of_studies_which_should_be_deleted.items():
@@ -95,7 +86,6 @@ class DeleteFromPacsOperator:
 
 
 if __name__ == "__main__":
-
     delete_complete_study = getenv("DELETE_COMPLETE_STUDY", "false").lower() == "true"
 
     operator = DeleteFromPacsOperator(

@@ -126,15 +126,13 @@ def execute_search_after_search(
             "query": query,
             "_source": _source,
             "sort": sort
-            + [
-                {"_id": "asc"}
-            ],  # add _id for unique search, otherwise search_after could sort after missing values.
+            + [{"_id": "asc"}],  # add _id for unique search, otherwise search_after could sort after missing values.
             "size": selected_size,
             "pit": {"id": pit_id, "keep_alive": "1m"},
         }
         if search_after:
             body["search_after"] = search_after
-        
+
         # ❗ Do not include `index` here!, since pit is already index specific.
         res = os_client.search(body=body)
         return res
@@ -144,9 +142,7 @@ def execute_search_after_search(
     search_before = math.floor(start_from / MAX_RETURN_LIMIT)
 
     for _ in range(search_before):
-        response = _execute_search_after(
-            selected_size=MAX_RETURN_LIMIT, search_after=search_after
-        )
+        response = _execute_search_after(selected_size=MAX_RETURN_LIMIT, search_after=search_after)
         hits = response["hits"]["hits"]
         if not hits:
             break
@@ -155,17 +151,13 @@ def execute_search_after_search(
     # diff between selected page and hit count:
     missing = start_from - search_before * MAX_RETURN_LIMIT
     if missing > 0:
-        response = _execute_search_after(
-            selected_size=missing, search_after=search_after
-        )
+        response = _execute_search_after(selected_size=missing, search_after=search_after)
         hits = response["hits"]["hits"]
         if hits:
             search_after = hits[-1]["sort"]
 
     # the final actuall wanted results including _source value
-    response = _execute_search_after(
-        selected_size=size, _source=source, search_after=search_after
-    )
+    response = _execute_search_after(selected_size=size, _source=source, search_after=search_after)
 
     return response["hits"]["hits"]
 
@@ -194,7 +186,7 @@ def execute_initial_search(
         )
     else:
         # Create a PIT
-        pit_id = create_pit(os_client=os_client,index=index)
+        pit_id = create_pit(os_client=os_client, index=index)
         # initially only the patitenid is needed, for resorting later
         patient_source = {
             "includes": [
@@ -229,18 +221,14 @@ def execute_initial_search(
     return hits
 
 
-def requery_and_fill_missing_series_for_patients(
-    os_client, index, query, source, sort, page_length, hits
-):
+def requery_and_fill_missing_series_for_patients(os_client, index, query, source, sort, page_length, hits):
     """
     The initial search result list() is sorted depending on the sort value. So the result
     does not contain every result for the indiviual patients. Therefore if structured
     (and sorted patient depending)
     the results have to be requeried, with the same query but individual for this page patients
     """
-    patients = list(
-        {hit["_source"].get("00100020 PatientID_keyword", "N/A") for hit in hits}
-    )
+    patients = list({hit["_source"].get("00100020 PatientID_keyword", "N/A") for hit in hits})
     # remove duplicates but keep order
     selected_patients = list(dict.fromkeys(patients))
     final_hits = []
@@ -307,9 +295,7 @@ async def get_metadata(os_client, index, series_instance_uid: str) -> Dict[str, 
     }
 
 
-def check_sort_field(
-    sort: List[Dict[str, str]], os_client, index
-) -> List[Dict[str, str]]:
+def check_sort_field(sort: List[Dict[str, str]], os_client, index) -> List[Dict[str, str]]:
     """
     Check if the sort field is part of the mapping,
     if not sort=[] is returned
@@ -340,23 +326,15 @@ def get_field_mapping(os_client, index) -> Dict:
     import re
 
     try:
-        res = os_client.indices.get_mapping(index=index)[index]["mappings"][
-            "properties"
-        ]
+        res = os_client.indices.get_mapping(index=index)[index]["mappings"]["properties"]
     except KeyError:
         logging.info("Index key error, no properties in mappings")
         # Newly created projects have no "properties" (since no data in opensearch yet)
         return {}
 
-    name_field_map = {
-        camel_case_to_space(k): k + type_suffix(v) for k, v in res.items()
-    }
+    name_field_map = {camel_case_to_space(k): k + type_suffix(v) for k, v in res.items()}
 
-    name_field_map = {
-        k: v
-        for k, v in name_field_map.items()
-        if len(re.findall("\d", k)) == 0 and k != "" and v != ""
-    }
+    name_field_map = {k: v for k, v in name_field_map.items() if len(re.findall("\d", k)) == 0 and k != "" and v != ""}
     return name_field_map
 
 
@@ -373,11 +351,7 @@ def get_max_clause_count(os_client) -> int:
         for setting_type in ["persistent", "transient", "defaults"]:
             if setting_type in settings:
                 max_clause = (
-                    settings[setting_type]
-                    .get("indices", {})
-                    .get("query", {})
-                    .get("bool", {})
-                    .get("max_clause_count")
+                    settings[setting_type].get("indices", {}).get("query", {}).get("bool", {}).get("max_clause_count")
                 )
                 if max_clause is not None:
                     return int(max_clause)
@@ -390,11 +364,11 @@ def get_max_clause_count(os_client) -> int:
 def get_present_searchable_fields(os_client, index) -> List[str]:
     """
     Get all searchable (text/keyword) fields from the index mapping.
-    
+
     Returns base field names (without .keyword suffix) so that:
     - Text fields use analyzed search (partial matching)
     - Pure keyword fields still require exact match
-    
+
     :param os_client: OpenSearch client
     :param index: Index to search
     :return: List of searchable field names (sorted alphabetically)
@@ -406,13 +380,11 @@ def get_present_searchable_fields(os_client, index) -> List[str]:
     field_mapping = get_field_mapping(os_client, index)
     if not field_mapping:
         return []
-    
+
     # Get fields that have text/keyword mapping (those with .keyword suffix)
     # Return base names (without .keyword) for text-analyzed search
-    result_fields = sorted([
-        field.removesuffix(".keyword")
-        for field in field_mapping.values() 
-        if field.endswith(".keyword")
-    ])
-    
+    result_fields = sorted(
+        [field.removesuffix(".keyword") for field in field_mapping.values() if field.endswith(".keyword")]
+    )
+
     return result_fields

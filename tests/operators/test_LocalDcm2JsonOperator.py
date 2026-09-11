@@ -111,10 +111,7 @@ def test_standard_ct(op):
     op.start()
     json_ct = read_ct()
 
-    assert (
-        json_ct["00100010 PatientName_keyword_alphabetic"]
-        == 'SAIC_Pfenning_Prop++luss"2"^1.Messung'
-    )
+    assert json_ct["00100010 PatientName_keyword_alphabetic"] == 'SAIC_Pfenning_Prop++luss"2"^1.Messung'
 
 
 # PatientAge

@@ -228,14 +228,7 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 get_gt_images >> dcm2nifti_gt >> filter_gt >> fuse_gt >> evaluation
 
-(
-    get_test_images
-    >> get_ref_ct_from_test
-    >> dcm2nifti_test
-    >> filter_test
-    >> fuse_test
-    >> evaluation
-)
+(get_test_images >> get_ref_ct_from_test >> dcm2nifti_test >> filter_test >> fuse_test >> evaluation)
 get_ref_ct_from_test >> dcmconverter_test >> evaluation
 
 evaluation >> put_to_minio >> clean

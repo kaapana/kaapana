@@ -38,11 +38,7 @@ class KubernetsUtils:
                         command=["sleep", "3600"],
                     )
                 ],
-                image_pull_secrets=(
-                    [client.V1LocalObjectReference(name=registry_secret)]
-                    if registry_secret
-                    else None
-                ),
+                image_pull_secrets=([client.V1LocalObjectReference(name=registry_secret)] if registry_secret else None),
             ),
         )
 
@@ -94,16 +90,12 @@ class KubernetsUtils:
                     raise Exception("Failed to extract file from tar")
         finally:
             try:
-                core.delete_namespaced_pod(
-                    name=name, namespace=namespace, body=client.V1DeleteOptions()
-                )
+                core.delete_namespaced_pod(name=name, namespace=namespace, body=client.V1DeleteOptions())
             except Exception as e:
                 cls.logger.warning(f"Failed to delete pod {name}: {e}")
 
     @staticmethod
-    def _wait_for_pod_ready(
-        core_api: client.CoreV1Api, pod_name: str, namespace: str, timeout: int = 60
-    ):
+    def _wait_for_pod_ready(core_api: client.CoreV1Api, pod_name: str, namespace: str, timeout: int = 60):
         start = time.time()
         while True:
             pod = core_api.read_namespaced_pod(name=pod_name, namespace=namespace)

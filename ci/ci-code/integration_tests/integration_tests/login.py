@@ -7,6 +7,7 @@ Exports:
 - `first_login(driver, logger, ...)`
 - `refresh_until_loadable(...)`
 """
+
 import logging
 import time
 
@@ -53,7 +54,13 @@ def set_new_password(driver, new_password: str = "admin") -> None:
             pass
 
 
-def first_login(driver, logger: logging.Logger, user: str = "kaapana", default_password: str = "kaapana", new_password: str = "admin") -> bool:
+def first_login(
+    driver,
+    logger: logging.Logger,
+    user: str = "kaapana",
+    default_password: str = "kaapana",
+    new_password: str = "admin",
+) -> bool:
     logger.info("Performing first login to Kaapana")
     if refresh_until_loadable(driver, user=user, password=default_password):
         logger.info("Setting new password")

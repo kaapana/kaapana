@@ -61,15 +61,9 @@ def minio_credentials(access_token):
     xml_response = r.text
     root = ET.fromstring(xml_response)
     credentials = root.find(".//{https://sts.amazonaws.com/doc/2011-06-15/}Credentials")
-    access_key_id = credentials.find(
-        ".//{https://sts.amazonaws.com/doc/2011-06-15/}AccessKeyId"
-    ).text
-    secret_access_key = credentials.find(
-        ".//{https://sts.amazonaws.com/doc/2011-06-15/}SecretAccessKey"
-    ).text
-    session_token = credentials.find(
-        ".//{https://sts.amazonaws.com/doc/2011-06-15/}SessionToken"
-    ).text
+    access_key_id = credentials.find(".//{https://sts.amazonaws.com/doc/2011-06-15/}AccessKeyId").text
+    secret_access_key = credentials.find(".//{https://sts.amazonaws.com/doc/2011-06-15/}SecretAccessKey").text
+    session_token = credentials.find(".//{https://sts.amazonaws.com/doc/2011-06-15/}SessionToken").text
     return access_key_id, secret_access_key, session_token
 
 
@@ -104,10 +98,7 @@ _session.mount("http://", HTTPAdapter(max_retries=retries))
 
 def _token_endpoint():
     keycloak_settings = KeycloakSettings()
-    return (
-        f"{keycloak_settings.keycloak_url}/auth/realms/"
-        f"{keycloak_settings.client_id}/protocol/openid-connect/token"
-    )
+    return f"{keycloak_settings.keycloak_url}/auth/realms/{keycloak_settings.client_id}/protocol/openid-connect/token"
 
 
 def _fetch_new_token():

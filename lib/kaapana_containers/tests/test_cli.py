@@ -34,9 +34,7 @@ class TestListTagsCli:
         assert "v2.0.0" in result.output
 
     def test_oci_error_exits_1(self):
-        mock = _mock_client(
-            side_effects={"list_tags": OCIError("not found", code="NAME_UNKNOWN")}
-        )
+        mock = _mock_client(side_effects={"list_tags": OCIError("not found", code="NAME_UNKNOWN")})
         with patch("kaapana_containers.registries.cli.OCIRegistryDiscovery", return_value=mock):
             result = runner.invoke(app, ["list-tags", REGISTRY, REPO])
         assert result.exit_code == 1
@@ -56,9 +54,7 @@ class TestPublishCli:
         metadata_file.write_text(json.dumps({"name": "ext", "version": "1.0.0"}))
         mock = _mock_client(return_values={"create_or_update_tag": True})
         with patch("kaapana_containers.registries.cli.OCIRegistryDiscovery", return_value=mock):
-            result = runner.invoke(
-                app, ["publish", REGISTRY, REPO, "v1.0.0", str(metadata_file)]
-            )
+            result = runner.invoke(app, ["publish", REGISTRY, REPO, "v1.0.0", str(metadata_file)])
         assert result.exit_code == 0
         assert "Successfully published" in result.output
 
@@ -69,9 +65,7 @@ class TestPublishCli:
             side_effects={"create_or_update_tag": OCIError("upload failed", code="BLOB_UPLOAD_INVALID")}
         )
         with patch("kaapana_containers.registries.cli.OCIRegistryDiscovery", return_value=mock):
-            result = runner.invoke(
-                app, ["publish", REGISTRY, REPO, "v1.0.0", str(metadata_file)]
-            )
+            result = runner.invoke(app, ["publish", REGISTRY, REPO, "v1.0.0", str(metadata_file)])
         assert result.exit_code == 1
         assert "BLOB_UPLOAD_INVALID" in result.output
 
@@ -85,9 +79,7 @@ class TestDeleteCli:
         assert "Successfully deleted" in result.output
 
     def test_oci_error_exits_1(self):
-        mock = _mock_client(
-            side_effects={"delete_tag": OCIError("unknown tag", code="MANIFEST_UNKNOWN")}
-        )
+        mock = _mock_client(side_effects={"delete_tag": OCIError("unknown tag", code="MANIFEST_UNKNOWN")})
         with patch("kaapana_containers.registries.cli.OCIRegistryDiscovery", return_value=mock):
             result = runner.invoke(app, ["delete", REGISTRY, REPO, "v1.0.0"])
         assert result.exit_code == 1

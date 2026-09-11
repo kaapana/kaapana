@@ -137,9 +137,7 @@ class Job(JobBase):
             "deleted",
         ]
         if v not in allowed_states:
-            raise ValueError(
-                f'status must be on of the following values: {", ".join(allowed_states)}'
-            )
+            raise ValueError(f"status must be on of the following values: {', '.join(allowed_states)}")
         return v
 
     @field_validator("time_created", mode="before")
@@ -321,9 +319,7 @@ class WorkflowWithKaapanaInstanceWithJobs(WorkflowWithKaapanaInstance):
                 continue
             if "data_form" in job.conf_data and job.service_job == False:
                 dataset_name = (
-                    job.conf_data["data_form"]["dataset_name"]
-                    if "dataset_name" in job.conf_data["data_form"]
-                    else None
+                    job.conf_data["data_form"]["dataset_name"] if "dataset_name" in job.conf_data["data_form"] else None
                 )
                 self.dataset_name = dataset_name
                 # after getting the dataset_name from a workflow_job, break the for loop

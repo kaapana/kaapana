@@ -72,9 +72,7 @@ unzip_files = ZipUnzipOperator(
     namespace=SERVICES_NAMESPACE,
 )
 
-wsi_conv = WSIconvOperator(
-    dag=dag, input_operator=unzip_files, namespace=SERVICES_NAMESPACE
-)
+wsi_conv = WSIconvOperator(dag=dag, input_operator=unzip_files, namespace=SERVICES_NAMESPACE)
 
 dicom_send = DcmSendOperator(
     dag=dag,
@@ -92,9 +90,7 @@ remove_object_from_uploads = LocalVolumeMountOperator(
     whitelisted_file_endings=(".zip",),
 )
 
-clean = LocalWorkflowCleanerOperator(
-    dag=dag, trigger_rule="none_failed_min_one_success", clean_workflow_dir=True
-)
+clean = LocalWorkflowCleanerOperator(dag=dag, trigger_rule="none_failed_min_one_success", clean_workflow_dir=True)
 
 
 def branching_cleaning_uploads_callable(**kwargs):
@@ -113,12 +109,6 @@ branching_cleaning_uploads = BranchPythonOperator(
     dag=dag,
 )
 
-(
-    get_object_from_uploads
-    >> unzip_files
-    >> wsi_conv
-    >> dicom_send
-    >> branching_cleaning_uploads
-)
+(get_object_from_uploads >> unzip_files >> wsi_conv >> dicom_send >> branching_cleaning_uploads)
 branching_cleaning_uploads >> remove_object_from_uploads >> clean
 branching_cleaning_uploads >> clean

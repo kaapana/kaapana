@@ -73,9 +73,7 @@ def test_resolved_project_strips_prefix_and_sets_header(monkeypatch, opa_recorde
     assert json.loads(resp.headers["Project"]) == PROJECT
 
 
-def test_unresolvable_id_leaves_prefix_unstripped_and_no_header(
-    monkeypatch, opa_recorder
-):
+def test_unresolvable_id_leaves_prefix_unstripped_and_no_header(monkeypatch, opa_recorder):
     # (a) authenticated so the finding-2 gate does not mask the None path:
     # this isolates fetch_project returning None (unknown id).
     async def fake_fetch(identifier):
@@ -86,9 +84,7 @@ def test_unresolvable_id_leaves_prefix_unstripped_and_no_header(
     resp = _auth_check("/project/deadbeef/data-gallery-ui")
 
     assert resp.status_code == 200
-    assert (
-        opa_recorder["input"]["requested_prefix"] == "/project/deadbeef/data-gallery-ui"
-    )
+    assert opa_recorder["input"]["requested_prefix"] == "/project/deadbeef/data-gallery-ui"
     assert "project" not in opa_recorder["input"]
     assert "Project" not in resp.headers
 
@@ -105,9 +101,7 @@ def test_aii_request_exception_is_deny_safe(monkeypatch, opa_recorder):
     resp = _auth_check("/project/11111111/data-gallery-ui")
 
     assert resp.status_code == 403
-    assert (
-        opa_recorder["input"]["requested_prefix"] == "/project/11111111/data-gallery-ui"
-    )
+    assert opa_recorder["input"]["requested_prefix"] == "/project/11111111/data-gallery-ui"
     assert "project" not in opa_recorder["input"]
 
 
@@ -148,9 +142,7 @@ def test_unauthenticated_request_is_not_enriched(monkeypatch, opa_recorder):
 
     assert resp.status_code == 200
     assert called is False
-    assert (
-        opa_recorder["input"]["requested_prefix"] == "/project/11111111/data-gallery-ui"
-    )
+    assert opa_recorder["input"]["requested_prefix"] == "/project/11111111/data-gallery-ui"
     assert "project" not in opa_recorder["input"]
     assert "Project" not in resp.headers
 
@@ -210,9 +202,7 @@ def test_admin_scoped_to_foreign_project_is_allowed(monkeypatch, opa_recorder):
         ("/project/11111111?x=1", "/?x=1"),  # query string
     ],
 )
-def test_shell_document_route_is_not_membership_gated(
-    monkeypatch, opa_recorder, uri, expected_prefix
-):
+def test_shell_document_route_is_not_membership_gated(monkeypatch, opa_recorder, uri, expected_prefix):
     # The bare /project/<id> SPA shell document carries no project data of its
     # own, so the membership gate skips it: all three shapes normalize to a
     # stripped path of "/" (plus any query) and go on to OPA instead of being
@@ -308,16 +298,11 @@ def _cookie_header(value):
         None,
         # Exactly what the removed landing page wrote: URL-encoded JSON with
         # name + id. It must now be inert -- no AII lookup, no header.
-        _cookie_header(
-            "%7B%22name%22%3A%20%22p%22%2C%20%22id%22%3A%20%22"
-            "11111111-2222-3333-4444-555555555555%22%7D"
-        ),
+        _cookie_header("%7B%22name%22%3A%20%22p%22%2C%20%22id%22%3A%20%2211111111-2222-3333-4444-555555555555%22%7D"),
     ],
     ids=["no-cookie", "legacy-cookie-ignored"],
 )
-def test_unprefixed_request_carries_no_project(
-    monkeypatch, opa_recorder, extra_headers
-):
+def test_unprefixed_request_carries_no_project(monkeypatch, opa_recorder, extra_headers):
     # Pins the cookie removal: an authenticated caller can no longer scope an
     # unprefixed request via the Project cookie — that ungated bypass is closed.
     called = False
@@ -333,9 +318,7 @@ def test_unprefixed_request_carries_no_project(
 
     assert resp.status_code == 200
     assert called is False
-    assert (
-        opa_recorder["input"]["requested_prefix"] == "/kaapana-backend/client/datasets"
-    )
+    assert opa_recorder["input"]["requested_prefix"] == "/kaapana-backend/client/datasets"
     assert "project" not in opa_recorder["input"]
     assert "Project" not in resp.headers
 
@@ -344,14 +327,10 @@ def test_client_supplied_x_forwarded_prefix_is_ignored(monkeypatch, opa_recorder
     # auth-check runs as an entrypoint middleware, so traefik never sets
     # x-forwarded-prefix -- only a client can. Honouring it would let a caller
     # substitute "/" (allowed unconditionally by the policy) for the real path.
-    resp = _auth_check(
-        "/kaapana-backend/client/datasets", extra_headers={"x-forwarded-prefix": "/"}
-    )
+    resp = _auth_check("/kaapana-backend/client/datasets", extra_headers={"x-forwarded-prefix": "/"})
 
     assert resp.status_code == 200
-    assert (
-        opa_recorder["input"]["requested_prefix"] == "/kaapana-backend/client/datasets"
-    )
+    assert opa_recorder["input"]["requested_prefix"] == "/kaapana-backend/client/datasets"
 
 
 # --- fetch_project shape validation (the finding-1 fix), tested directly ---

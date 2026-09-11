@@ -4,8 +4,8 @@ Re-key existing project datastores from the 0.6.x name-based scheme to the 0.7.x
     0.6.x: bucket project-<name>     / index project_<name>
     0.7.x: bucket project-<short_id> / index project_<short_id>
 
-This is a one-off step of the 0.6.x -> 0.7.x migration. 
-Copy it into the running Access Information Interface pod and run it there. 
+This is a one-off step of the 0.6.x -> 0.7.x migration.
+Copy it into the running Access Information Interface pod and run it there.
 It reuses that pod's MinIO/OpenSearch clients, credentials and database connection:
 
     NS=<services_namespace>
@@ -13,8 +13,8 @@ It reuses that pod's MinIO/OpenSearch clients, credentials and database connecti
     kubectl exec -i -n $NS "$POD" -c access-information-interface   -- sh -c 'cd /app && python3 -' < utils/migration-chart/docker/files/rekey_projects.py
 
 * Minio objects are copied into the new buckets (and the old buckets are removed).
-* OpenSearch gets an alias project_<short_id> pointing at the existing project_<name> index. 
-* Both steps are idempotent: re-running skips projects that are already migrated. 
+* OpenSearch gets an alias project_<short_id> pointing at the existing project_<name> index.
+* Both steps are idempotent: re-running skips projects that are already migrated.
 * Note that the admin project keeps short_id "admin", so its datastore names are unchanged and it is skipped.
 """
 
@@ -59,9 +59,7 @@ async def _rekey_minio(minio_helper, project: Project, session) -> None:
                 [ComposeSource(old_bucket, obj.object_name)],
             )
         else:
-            client.copy_object(
-                new_bucket, obj.object_name, CopySource(old_bucket, obj.object_name)
-            )
+            client.copy_object(new_bucket, obj.object_name, CopySource(old_bucket, obj.object_name))
         copied += 1
     logger.info(f"[{project.name}] MinIO: copied {copied} objects {old_bucket} -> {new_bucket}")
 
@@ -90,8 +88,7 @@ async def _rekey_opensearch(os_helper: OpenSearchHelper, project: Project) -> No
         if doc_count == 0:
             client.indices.delete(index=new_alias)
             logger.info(
-                f"[{project.name}] OpenSearch: removed empty index {new_alias!r} "
-                "so it can alias the migrated data"
+                f"[{project.name}] OpenSearch: removed empty index {new_alias!r} so it can alias the migrated data"
             )
         else:
             logger.warning(
@@ -134,8 +131,7 @@ async def rekey_all_projects() -> None:
 
     if failures:
         logger.error(
-            f"Project re-key finished with failures: {', '.join(failures)}. "
-            "Fix the cause and re-run (idempotent)."
+            f"Project re-key finished with failures: {', '.join(failures)}. Fix the cause and re-run (idempotent)."
         )
         raise SystemExit(1)
     logger.info("Project re-key finished.")

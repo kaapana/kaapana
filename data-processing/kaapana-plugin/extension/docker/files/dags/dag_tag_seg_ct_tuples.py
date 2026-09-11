@@ -56,9 +56,7 @@ dag = DAG(
     schedule_interval=None,
 )
 
-get_input_dicom = GetInputOperator(
-    dag=dag, name="get-input-dicom", check_modality=True, parallel_downloads=5
-)
+get_input_dicom = GetInputOperator(dag=dag, name="get-input-dicom", check_modality=True, parallel_downloads=5)
 
 get_input_json = GetInputOperator(
     dag=dag,
@@ -77,9 +75,7 @@ get_ref_ct_series_from_seg = GetRefSeriesOperator(
     data_type="json",
 )
 
-tag_cts = LocalTaggingOperator(
-    dag=dag, name="tag-cts", input_operator=get_ref_ct_series_from_seg
-)
+tag_cts = LocalTaggingOperator(dag=dag, name="tag-cts", input_operator=get_ref_ct_series_from_seg)
 tag_segs = LocalTaggingOperator(dag=dag, name="tag-segs", input_operator=get_input_json)
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)

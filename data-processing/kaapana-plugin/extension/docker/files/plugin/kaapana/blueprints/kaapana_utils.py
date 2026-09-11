@@ -43,18 +43,10 @@ def generate_minio_credentials(x_auth_token):
     assume_role_with_web_identity_result = tree.find(
         "{https://sts.amazonaws.com/doc/2011-06-15/}AssumeRoleWithWebIdentityResult"
     )
-    credentials = assume_role_with_web_identity_result.find(
-        "{https://sts.amazonaws.com/doc/2011-06-15/}Credentials"
-    )
-    access_key = credentials.find(
-        "{https://sts.amazonaws.com/doc/2011-06-15/}AccessKeyId"
-    ).text
-    secret_key = credentials.find(
-        "{https://sts.amazonaws.com/doc/2011-06-15/}SecretAccessKey"
-    ).text
-    session_token = credentials.find(
-        "{https://sts.amazonaws.com/doc/2011-06-15/}SessionToken"
-    ).text
+    credentials = assume_role_with_web_identity_result.find("{https://sts.amazonaws.com/doc/2011-06-15/}Credentials")
+    access_key = credentials.find("{https://sts.amazonaws.com/doc/2011-06-15/}AccessKeyId").text
+    secret_key = credentials.find("{https://sts.amazonaws.com/doc/2011-06-15/}SecretAccessKey").text
+    session_token = credentials.find("{https://sts.amazonaws.com/doc/2011-06-15/}SessionToken").text
     return access_key, secret_key, session_token
 
 
@@ -64,9 +56,7 @@ def cure_invalid_name(name, regex, max_length=None):
             invalid_characters = re.sub(regex, "", name)
             for c in invalid_characters:
                 name = name.replace(c, "")
-            print(
-                f"Your name does not fullfill the regex {regex}, we adapt it to {name} to work with Kubernetes"
-            )
+            print(f"Your name does not fullfill the regex {regex}, we adapt it to {name} to work with Kubernetes")
         return name
 
     name = re.sub(r"[^-a-z0-9]", "", name)
@@ -87,9 +77,7 @@ def get_operator_properties(airflow_workflow_dir, *args, **kwargs):
         downstream_tasks = kwargs["context"]["task"].get_flat_relatives(upstream=False)
 
     elif type(args) == tuple and len(args) == 1 and "run_id" in args[0]:
-        raise ValueError(
-            "Just to check if this case needs to be supported!", args, kwargs
-        )
+        raise ValueError("Just to check if this case needs to be supported!", args, kwargs)
         run_id = args[0]["run_id"]
     else:
         run_id = kwargs["run_id"]
@@ -183,16 +171,10 @@ def trying_request_action(func, *args, **kwargs):
 
 
 def clean_previous_dag_run(airflow_workflow_dir, conf, run_identifier):
-    if (
-        conf is not None
-        and "federated_form" in conf
-        and conf["federated_form"] is not None
-    ):
+    if conf is not None and "federated_form" in conf and conf["federated_form"] is not None:
         federated = conf["federated_form"]
         if run_identifier in federated and federated[run_identifier] is not None:
-            dag_run_dir = os.path.join(
-                airflow_workflow_dir, conf["federated_form"][run_identifier]
-            )
+            dag_run_dir = os.path.join(airflow_workflow_dir, conf["federated_form"][run_identifier])
             print(f"Removing batch files from {run_identifier}: {dag_run_dir}")
             if os.path.isdir(dag_run_dir):
                 shutil.rmtree(dag_run_dir)
@@ -201,15 +183,8 @@ def clean_previous_dag_run(airflow_workflow_dir, conf, run_identifier):
 def parse_ui_dict(dag_dict):
     if "ui_forms" in dag_dict and dag_dict["ui_forms"] is not None:
         # First if condition only as a work around for dags with empty data_forms
-        if (
-            "data_form" in dag_dict["ui_forms"]
-            and not dag_dict["ui_forms"]["data_form"]
-        ):
+        if "data_form" in dag_dict["ui_forms"] and not dag_dict["ui_forms"]["data_form"]:
             dag_dict["ui_forms"].pop("data_form")
-        elif (
-            "ui_visible" in dag_dict
-            and dag_dict["ui_visible"] is True
-            and "data_form" not in dag_dict["ui_forms"]
-        ):
+        elif "ui_visible" in dag_dict and dag_dict["ui_visible"] is True and "data_form" not in dag_dict["ui_forms"]:
             dag_dict["ui_forms"].update(**schema_dataset_form())
     return dag_dict

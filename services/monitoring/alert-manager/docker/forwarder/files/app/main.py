@@ -14,17 +14,11 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    timeout = httpx.Timeout(
-        settings.http_timeout, connect=settings.http_connect_timeout
-    )
+    timeout = httpx.Timeout(settings.http_timeout, connect=settings.http_connect_timeout)
     client = httpx.AsyncClient(timeout=timeout)
     app.state.http_client = client
-    app.state.admin_resolver = AdminProjectResolver(
-        client, settings.aii_base_url, settings.admin_project_cache_ttl
-    )
-    app.state.notification_forwarder = NotificationForwarder(
-        client, settings.notification_service_url
-    )
+    app.state.admin_resolver = AdminProjectResolver(client, settings.aii_base_url, settings.admin_project_cache_ttl)
+    app.state.notification_forwarder = NotificationForwarder(client, settings.notification_service_url)
     yield
     await client.aclose()
 

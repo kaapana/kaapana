@@ -77,15 +77,11 @@ def run_dicom_validation(
     exit_on_error: bool = False,
     results_2_meta: ValidationResult2Meta = None,
 ):
-    completeness_items = check_completeness(
-        Path(operator_in_dir), Path(operator_out_dir), update_os=True
-    )
+    completeness_items = check_completeness(Path(operator_in_dir), Path(operator_out_dir), update_os=True)
 
     # The processing algorithm
     print(f"Checking {operator_in_dir} for dcm files")
-    dcm_files = sorted(
-        glob.glob(os.path.join(operator_in_dir, "*.dcm*"), recursive=True)
-    )
+    dcm_files = sorted(glob.glob(os.path.join(operator_in_dir, "*.dcm*"), recursive=True))
 
     if len(dcm_files) == 0:
         return False, f"No dicom file found in {operator_in_dir}"
@@ -128,18 +124,14 @@ def run_dicom_validation(
 
     if not completeness_items.is_series_complete:
         attributes["Series Complete"] = False
-        attributes["Missing instances"] = len(
-            completeness_items.missing_instance_numbers
-        )
+        attributes["Missing instances"] = len(completeness_items.missing_instance_numbers)
 
     if results_2_meta:
         n_errors = len(errors.keys())
         n_warnings = len(warnings.keys())
 
         tags_tuple = [
-            ValdationResultItem(
-                "Errors", "integer", n_errors
-            ),  # (key, opensearch datatype, value)
+            ValdationResultItem("Errors", "integer", n_errors),  # (key, opensearch datatype, value)
             ValdationResultItem("Warnings", "integer", n_warnings),
             ValdationResultItem("Date", "datetime", validation_time),
         ]
@@ -164,9 +156,7 @@ def run_dicom_validation(
         with open(os.path.join(operator_out_dir, f"results-{run_id}.html"), "w") as f:
             f.write(htmlout)
 
-        logger.info(
-            f"Validation Results file created in {operator_out_dir} with the name results-{run_id}.html"
-        )
+        logger.info(f"Validation Results file created in {operator_out_dir} with the name results-{run_id}.html")
 
     if len(errors.keys()) > 0 and exit_on_error:
         raise ValueError(
@@ -216,9 +206,7 @@ if __name__ == "__main__":
     tags_whitelist = [t for t in tags_whitelist if validate_dicom_tag(t)]
     dicom_defintion_root = "/kaapana/dicom-revisions"
 
-    logger.info(
-        "All required directories and environment variables are validated successfully."
-    )
+    logger.info("All required directories and environment variables are validated successfully.")
 
     logger.info("Starting thumbnail generation")
 

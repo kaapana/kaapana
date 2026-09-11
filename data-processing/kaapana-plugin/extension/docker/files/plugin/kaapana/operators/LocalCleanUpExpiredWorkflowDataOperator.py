@@ -36,12 +36,10 @@ class LocalCleanUpExpiredWorkflowDataOperator(KaapanaPythonBaseOperator):
             age_in_seconds = time.time() - youngest_time
             print(f"Checking in {dag_id}")
             print(f"Age of directory {timedelta(seconds=age_in_seconds)}")
-            print(
-                f'Last changed {datetime.fromtimestamp(modified_time).strftime("%A, %B %d, %Y %I:%M:%S")}'
-            )
+            print(f"Last changed {datetime.fromtimestamp(modified_time).strftime('%A, %B %d, %Y %I:%M:%S')}")
             if age_in_seconds > self.expired_period.total_seconds():
                 print(
-                    f'Removing folder since it was last modified on the {datetime.fromtimestamp(modified_time).strftime("%A, %B %d, %Y %I:%M:%S")}'
+                    f"Removing folder since it was last modified on the {datetime.fromtimestamp(modified_time).strftime('%A, %B %d, %Y %I:%M:%S')}"
                 )
                 shutil.rmtree(target_dir, ignore_errors=True)
         return
@@ -54,6 +52,4 @@ class LocalCleanUpExpiredWorkflowDataOperator(KaapanaPythonBaseOperator):
 
         self.expired_period = expired_period
 
-        super().__init__(
-            dag=dag, name="clean-up", python_callable=self.start, **kwargs
-        )
+        super().__init__(dag=dag, name="clean-up", python_callable=self.start, **kwargs)

@@ -5,6 +5,7 @@ Revises: fa8abfc02de3
 Create Date: 2026-06-09
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -16,9 +17,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.execute(
-        "ALTER TABLE installed_models ADD COLUMN IF NOT EXISTS kind VARCHAR(50) DEFAULT 'nnunet'"
-    )
+    op.execute("ALTER TABLE installed_models ADD COLUMN IF NOT EXISTS kind VARCHAR(50) DEFAULT 'nnunet'")
 
 
 def downgrade() -> None:

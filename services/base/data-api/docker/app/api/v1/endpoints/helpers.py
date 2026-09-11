@@ -37,9 +37,7 @@ async def commit_and_return_entity(db: AsyncSession, entity_id: UUID) -> DataEnt
     return await require_entity_response(db, entity_id)
 
 
-async def get_metadata_schema_optional(
-    db: AsyncSession, key: str
-) -> MetadataSchemaORM | None:
+async def get_metadata_schema_optional(db: AsyncSession, key: str) -> MetadataSchemaORM | None:
     stmt = select(MetadataSchemaORM).where(MetadataSchemaORM.key == key)
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
@@ -48,9 +46,7 @@ async def get_metadata_schema_optional(
 async def get_metadata_schema(db: AsyncSession, key: str) -> MetadataSchemaORM:
     schema = await get_metadata_schema_optional(db, key)
     if schema is None:
-        raise HTTPException(
-            status_code=400, detail="Metadata schema not registered for key"
-        )
+        raise HTTPException(status_code=400, detail="Metadata schema not registered for key")
     return schema
 
 
@@ -67,16 +63,12 @@ def _broadcast_event(resource: EventResource, action: EventAction, **data: Any) 
     asyncio.create_task(_send())
 
 
-async def broadcast_entity_event(
-    action: EventAction, entity: DataEntity | UUID
-) -> None:
+async def broadcast_entity_event(action: EventAction, entity: DataEntity | UUID) -> None:
     entity_id = entity.id if isinstance(entity, DataEntity) else entity
     _broadcast_event(EventResource.DATA_ENTITY, action, id=str(entity_id))
 
 
-async def broadcast_metadata_key_event(
-    action: EventAction, key: str, schema: dict | None = None
-) -> None:
+async def broadcast_metadata_key_event(action: EventAction, key: str, schema: dict | None = None) -> None:
     payload: dict[str, Any] = {"key": key}
     if schema is not None:
         payload["schema"] = schema
@@ -88,9 +80,7 @@ def cleanup_entity_artifacts(entity_id: UUID | str) -> None:
     try:
         store.delete_entity(str(entity_id))
     except Exception:  # pragma: no cover - filesystem best effort
-        logger.warning(
-            "Failed to delete artifacts for entity %s", entity_id, exc_info=True
-        )
+        logger.warning("Failed to delete artifacts for entity %s", entity_id, exc_info=True)
 
 
 def cleanup_metadata_artifacts(entity_id: UUID | str, key: str) -> None:
@@ -106,9 +96,7 @@ def cleanup_metadata_artifacts(entity_id: UUID | str, key: str) -> None:
         )
 
 
-async def set_entity_parent(
-    db: AsyncSession, entity: DataEntityORM, parent_id: UUID | None
-) -> None:
+async def set_entity_parent(db: AsyncSession, entity: DataEntityORM, parent_id: UUID | None) -> None:
     if parent_id is None:
         entity.parent = None
         return
@@ -123,9 +111,7 @@ async def set_entity_parent(
     ancestor = parent
     while ancestor is not None:
         if ancestor.id == entity.id:
-            raise HTTPException(
-                status_code=400, detail="Parent link would create a cycle"
-            )
+            raise HTTPException(status_code=400, detail="Parent link would create a cycle")
         ancestor = ancestor.parent
 
     entity.parent = parent

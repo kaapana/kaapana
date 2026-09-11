@@ -38,7 +38,7 @@ class PyRadiomicsOperator(KaapanaBaseOperator):
         envs = {
             # directory that contains the segmentation objects
             "OPERATOR_IN_SEGMENATIONS_DIR": segmentation_operator.operator_out_dir,
-            "ALGORITHM_NAME": f'{alg_name or "kaapana"}',
+            "ALGORITHM_NAME": f"{alg_name or 'kaapana'}",
         }
         env_vars.update(envs)
 

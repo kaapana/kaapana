@@ -11,18 +11,14 @@ logger = get_logger(__name__)
 def check_url(url: str, timeout: int):
     logger.info("Checking URL: {}".format(url))
     try:
-        request = requests.get(
-            url, timeout=timeout, allow_redirects=False, verify=False
-        )
+        request = requests.get(url, timeout=timeout, allow_redirects=False, verify=False)
         request.raise_for_status()
         return 0
     except requests.exceptions.ConnectionError:
         logger.warning(f"Connection to {url} could not be established.")
         return 1
     except requests.exceptions.ReadTimeout:
-        logger.warning(
-            f"Request to {url} timed out. Maybe you have to increase timeout."
-        )
+        logger.warning(f"Request to {url} timed out. Maybe you have to increase timeout.")
         return 1
 
 
@@ -39,9 +35,7 @@ def check_port(host, port, DELAY, timeout):
         logger.warning(f"Connection to {host} could not be established.")
         return 1
     except requests.exceptions.ReadTimeout:
-        logger.warning(
-            f"Request to {host} timed out. Maybe you have to increase timeout."
-        )
+        logger.warning(f"Request to {host} timed out. Maybe you have to increase timeout.")
         return 1
 
 
@@ -58,9 +52,7 @@ def main():
     logger.debug(f"{TIMEOUT=}")
 
     if WAIT == None and FILES_AND_FOLDERS_EXISTS == None:
-        logger.error(
-            "Environment variables WAIT, FILES_AND_FOLDERS_EXISTS cannot be both undeclared."
-        )
+        logger.error("Environment variables WAIT, FILES_AND_FOLDERS_EXISTS cannot be both undeclared.")
         logger.warning("Usage:")
         logger.warning("WAIT='postgres,localhost,5432;...'")
         logger.warning("DELAY=2")

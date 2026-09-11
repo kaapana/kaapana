@@ -109,9 +109,7 @@ async def retrieve_series(study: str, request: Request) -> Response:
         Response: Response object
     """
     # Perform a HEAD request to check the response code without retrieving the body
-    head_response = await head_request(
-        f"{DICOMWEB_BASE_URL}/studies/{study}/series", request
-    )
+    head_response = await head_request(f"{DICOMWEB_BASE_URL}/studies/{study}/series", request)
 
     if head_response.status_code == HTTP_204_NO_CONTENT:
         # If the response is 204 No Content, return it directly
@@ -141,9 +139,7 @@ async def retrieve_instances(study: str, series: str, request: Request) -> Respo
         Response: Response object
     """
     # Perform a HEAD request to check the response code without retrieving the body
-    head_response = await head_request(
-        f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/instances", request
-    )
+    head_response = await head_request(f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/instances", request)
 
     if head_response.status_code == HTTP_204_NO_CONTENT:
         # If the response is 204 No Content, return it directly
@@ -184,9 +180,7 @@ async def query_studies(
     offset, limit = pop_pagination_params(query_params)
 
     if "SeriesInstanceUID" in request.query_params:
-        requested_series_instance_uids = request.query_params.getlist(
-            "SeriesInstanceUID"
-        )
+        requested_series_instance_uids = request.query_params.getlist("SeriesInstanceUID")
 
         series = await crud.get_mapped_series_by_project_and_series_uids(
             session, project_ids_of_user, requested_series_instance_uids

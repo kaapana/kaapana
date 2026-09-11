@@ -16,9 +16,7 @@ logger = get_logger(__name__)
 # init
 errors_during_preinstalling = False
 logger.info("Preinstalling extensions")
-preinstall_extensions = json.loads(
-    os.environ.get("PREINSTALL_EXTENSIONS", "[]").replace(",]", "]")
-)
+preinstall_extensions = json.loads(os.environ.get("PREINSTALL_EXTENSIONS", "[]").replace(",]", "]"))
 releases_installed = {}
 
 # check if tgz file exists in the folder
@@ -26,10 +24,7 @@ for extension in preinstall_extensions:
     extension_found = False
     for _ in range(10):
         time.sleep(1)
-        extension_path = (
-            Path(settings.helm_extensions_cache)
-            / f'{extension["name"]}-{extension["version"]}.tgz'
-        )
+        extension_path = Path(settings.helm_extensions_cache) / f"{extension['name']}-{extension['version']}.tgz"
         if extension_path.is_file():
             extension_found = True
             continue
@@ -38,9 +33,7 @@ for extension in preinstall_extensions:
 
     # if the file does not exist
     if extension_found is False:
-        logger.warning(
-            f"Skipping {extension_path}, since we could find the extension in the file system"
-        )
+        logger.warning(f"Skipping {extension_path}, since we could find the extension in the file system")
         errors_during_preinstalling = True
         continue
 
@@ -74,9 +67,7 @@ for extension in preinstall_extensions:
             raise Exception(error_message)
 
     except Exception as e:
-        logger.error(
-            f"Skipping {extension_path}, problems installing the extension {e}"
-        )
+        logger.error(f"Skipping {extension_path}, problems installing the extension {e}")
         errors_during_preinstalling = True
         raise e
 
@@ -99,9 +90,7 @@ for _ in range(1800):
         )
 
         if not success:
-            logger.warning(
-                f"Some Kubernetes objects for release {release_name} are not successful yet"
-            )
+            logger.warning(f"Some Kubernetes objects for release {release_name} are not successful yet")
             continue
 
         installed = True
@@ -118,13 +107,9 @@ for _ in range(1800):
                 break
 
         if installed:
-            logger.info(
-                f"All Kubernetes objects for release {release_name} are successful"
-            )
+            logger.info(f"All Kubernetes objects for release {release_name} are successful")
         else:
-            logger.warning(
-                f"Some Kubernetes objects for release {release_name} are not successful yet"
-            )
+            logger.warning(f"Some Kubernetes objects for release {release_name} are not successful yet")
         releases_installed[release_name] = {
             "version": extension["version"],
             "installed": installed,
@@ -133,13 +118,11 @@ for _ in range(1800):
 
     s = sum([i["installed"] for i in list(releases_installed.values())])
     if s == len(releases_installed):
-        logger.info(f'Sucessfully installed {" ".join(releases_installed.keys())}')
+        logger.info(f"Sucessfully installed {' '.join(releases_installed.keys())}")
         break
 
 s = sum([i["installed"] for i in list(releases_installed.values())])
 if s != len(releases_installed):
-    logger.warning(
-        f'Not all releases were installed successfully {" ".join(releases_installed.keys())}'
-    )
+    logger.warning(f"Not all releases were installed successfully {' '.join(releases_installed.keys())}")
 
 logger.info(f"preinstall extensions completed {releases_installed=}")

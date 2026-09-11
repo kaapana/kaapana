@@ -48,12 +48,8 @@ class MinioOperatorArguments(BaseSettings):
         validation_alias=AliasChoices("SOURCE_FILES"),
     )
 
-    batch_input_operators: str = Field(
-        "", validation_alias=AliasChoices("BATCH_INPUT_OPERATORS")
-    )
-    none_batch_input_operators: str = Field(
-        "", validation_alias=AliasChoices("NONE_BATCH_INPUT_OPERATORS")
-    )
+    batch_input_operators: str = Field("", validation_alias=AliasChoices("BATCH_INPUT_OPERATORS"))
+    none_batch_input_operators: str = Field("", validation_alias=AliasChoices("NONE_BATCH_INPUT_OPERATORS"))
 
     @field_validator("bucket_name", mode="before")
     @classmethod
@@ -140,9 +136,7 @@ def download_objects(
     for file_path in source_files:
         target_path = os.path.join(target_dir, file_path)
         object_path = os.path.join(minio_prefix, file_path)
-        minio_client.fget_object(
-            bucket_name, object_name=object_path, file_path=target_path
-        )
+        minio_client.fget_object(bucket_name, object_name=object_path, file_path=target_path)
 
 
 def get_absolute_batch_operator_source_directories(
@@ -154,9 +148,7 @@ def get_absolute_batch_operator_source_directories(
 
     :param batch_operator_source_directories: List of directories that are operator_out_dir of an upstream operator.
     """
-    workflow_batch_directory = Path(
-        os.path.join(OPERATOR_SETTINGS.workflow_dir, OPERATOR_SETTINGS.batch_name)
-    )
+    workflow_batch_directory = Path(os.path.join(OPERATOR_SETTINGS.workflow_dir, OPERATOR_SETTINGS.batch_name))
     if not workflow_batch_directory.is_dir():
         logger.warning(f"{workflow_batch_directory=} does not exist!")
         return []  # dir.iterdir() raises FileNotFoundError if dir doesn't exist
@@ -245,12 +237,8 @@ def upload_objects(
         logger.info(f"Collect {absoulute_file_path=} for upload!")
 
     if len(files_to_upload) == 0:
-        logger.error(
-            f"No files were collected for upload. Maybe you have to adapt {whitelisted_file_extensions=}."
-        )
-        raise ValueError(
-            f"No files were found for upload. Maybe you have to adapt {whitelisted_file_extensions=}."
-        )
+        logger.error(f"No files were collected for upload. Maybe you have to adapt {whitelisted_file_extensions=}.")
+        raise ValueError(f"No files were found for upload. Maybe you have to adapt {whitelisted_file_extensions=}.")
 
     for file_path in files_to_upload:
         relative_file_path = Path(file_path).relative_to(
@@ -271,9 +259,7 @@ def upload_objects(
 
     if zip_files and len(files_to_upload) > 0:
         logger.info("Compress files into zip archive before uploading")
-        timestamp = datetime.datetime.now(pytz.timezone(TIMEZONE)).strftime(
-            "%y-%m-%d-%H:%M:%S%f"
-        )
+        timestamp = datetime.datetime.now(pytz.timezone(TIMEZONE)).strftime("%y-%m-%d-%H:%M:%S%f")
         run_id = OPERATOR_SETTINGS.run_id
         archive_name = f"{run_id}_{timestamp}.zip"
         minio_path = os.path.join(minio_prefix, archive_name)
@@ -292,20 +278,13 @@ if __name__ == "__main__":
     action = operator_arguments.action
     zip_files = WORKFLOW_CONFIG.get("zip_files") or operator_arguments.zip_files
     bucket_name = WORKFLOW_CONFIG.get("bucket_name") or operator_arguments.bucket_name
-    minio_prefix = (
-        WORKFLOW_CONFIG.get("minio_prefix") or operator_arguments.minio_prefix
-    )
+    minio_prefix = WORKFLOW_CONFIG.get("minio_prefix") or operator_arguments.minio_prefix
     whitelisted_file_extensions = (
-        WORKFLOW_CONFIG.get("whitelisted_file_extensions")
-        or operator_arguments.whitelisted_file_extensions
+        WORKFLOW_CONFIG.get("whitelisted_file_extensions") or operator_arguments.whitelisted_file_extensions
     )
-    source_files = (
-        WORKFLOW_CONFIG.get("action_files") or operator_arguments.source_files
-    )
+    source_files = WORKFLOW_CONFIG.get("action_files") or operator_arguments.source_files
     batch_input_operator_directories = operator_arguments.batch_input_operators
-    none_batch_input_operator_directories = (
-        operator_arguments.none_batch_input_operators
-    )
+    none_batch_input_operator_directories = operator_arguments.none_batch_input_operators
 
     source_directories = get_absolute_batch_operator_source_directories(
         batch_operator_source_directories=batch_input_operator_directories

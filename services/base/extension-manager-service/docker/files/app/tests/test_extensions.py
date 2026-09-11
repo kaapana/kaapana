@@ -24,9 +24,7 @@ async def test_read_uninstall_extension_404(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_post_repo_read_extensions_install_extension(
-    client: AsyncClient, mocked_installer
-):
+async def test_post_repo_read_extensions_install_extension(client: AsyncClient, mocked_installer):
     response = await client.post(
         "/repositories",
         json={
@@ -49,9 +47,7 @@ async def test_post_repo_read_extensions_install_extension(
     assert response.status_code == 200
     tag = response.json()[0]
 
-    response = await client.post(
-        f"/extensions/install?repository_id={repository_id}&tag={tag}"
-    )
+    response = await client.post(f"/extensions/install?repository_id={repository_id}&tag={tag}")
     assert response.status_code == 201
     extension_location = response.headers["Location"]
 
@@ -99,9 +95,7 @@ async def test_post_repo_read_extensions_install_extension_uninstall_extension(
     assert response.status_code == 200
     tag = response.json()[0]
 
-    response = await client.post(
-        f"/extensions/install?repository_id={repository_id}&tag={tag}"
-    )
+    response = await client.post(f"/extensions/install?repository_id={repository_id}&tag={tag}")
     assert response.status_code == 201
     extension_location = response.headers["Location"]
 

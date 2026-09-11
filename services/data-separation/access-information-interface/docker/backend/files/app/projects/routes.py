@@ -27,9 +27,7 @@ logger = logging.getLogger(__name__)
 async def projects(
     project: schemas.CreateProject,
     session: AsyncSession = Depends(get_session),
-    opensearch_helper: opensearch.OpenSearchHelper = Depends(
-        opensearch.get_opensearch_helper
-    ),
+    opensearch_helper: opensearch.OpenSearchHelper = Depends(opensearch.get_opensearch_helper),
     minio_helper: minio.MinioHelper = Depends(minio.get_minio_helper),
 ):
     """
@@ -66,13 +64,9 @@ async def projects(
     created_project_id = created_project.id
     for mapping in default_software:
         try:
-            await crud.create_software_mapping(
-                session, created_project_id, mapping.get("software_uuid")
-            )
+            await crud.create_software_mapping(session, created_project_id, mapping.get("software_uuid"))
         except IntegrityError:
-            logger.warning(
-                f"Software mapping {mapping.get('software_uuid')} already exists!"
-            )
+            logger.warning(f"Software mapping {mapping.get('software_uuid')} already exists!")
             await session.rollback()
 
     return schemas.Project(**created_project.__dict__)
@@ -92,9 +86,7 @@ async def get_admin_project(session: AsyncSession = Depends(get_session)):
 
 
 @router.get("/rights", response_model=List[schemas.Right], tags=["Projects"])
-async def get_rights(
-    session: AsyncSession = Depends(get_session), name: Optional[str] = None
-):
+async def get_rights(session: AsyncSession = Depends(get_session), name: Optional[str] = None):
     return await crud.get_rights(session, name=name)
 
 
@@ -181,11 +173,8 @@ async def reset_role_rights(
 
 
 @router.get("/roles", response_model=List[schemas.Role], tags=["Projects"])
-async def get_roles(
-    session: AsyncSession = Depends(get_session), name: Optional[str] = None
-):
+async def get_roles(session: AsyncSession = Depends(get_session), name: Optional[str] = None):
     return await crud.get_roles(session, name=name)
-
 
 
 @router.get("/roles/{role_id}/rights", response_model=List[schemas.Right], tags=["Projects"])
@@ -220,9 +209,7 @@ async def remove_right_from_role(
 
 
 @router.get("/{project_identifier}", response_model=schemas.Project, tags=["Projects"])
-async def get_project(
-    project_identifier: str | UUID, session: AsyncSession = Depends(get_session)
-):
+async def get_project(project_identifier: str | UUID, session: AsyncSession = Depends(get_session)):
     # convert to str in case type is UUID
     project_identifier = str(project_identifier)
 
@@ -234,9 +221,7 @@ async def get_project(
         projects = await crud.get_projects(session, project_id=UUID(project_identifier))
     except ValueError:
         if len(project_identifier) == 8:
-            projects = await crud.get_projects(
-                session, project_short_id=project_identifier
-            )
+            projects = await crud.get_projects(session, project_short_id=project_identifier)
         else:
             projects = []
 
@@ -255,9 +240,7 @@ async def update_project(
     project_id: UUID,
     project_update: schemas.UpdateProject,
     session: AsyncSession = Depends(get_session),
-    opensearch_helper: opensearch.OpenSearchHelper = Depends(
-        opensearch.get_opensearch_helper
-    ),
+    opensearch_helper: opensearch.OpenSearchHelper = Depends(opensearch.get_opensearch_helper),
 ):
     """
     Edit a project's name, description or external_id.
@@ -284,9 +267,7 @@ async def update_project(
     # Propagate a name change to aliases / labels
     new_name = updated_project.name
     if project_update.name is not None and new_name != old_name:
-        await opensearch_helper.update_project_alias(
-            project=updated_project, old_name=old_name
-        )
+        await opensearch_helper.update_project_alias(project=updated_project, old_name=old_name)
         # TODO: Patch the k8s namespace label via and Helm label (if exists) via a Helm upgrade
 
     return schemas.Project(**updated_project.__dict__)
@@ -309,9 +290,7 @@ async def archive_project(
     return await crud.set_project_archived(session, project_id, archived=True)
 
 
-@router.post(
-    "/{project_id}/unarchive", response_model=schemas.Project, tags=["Projects"]
-)
+@router.post("/{project_id}/unarchive", response_model=schemas.Project, tags=["Projects"])
 async def unarchive_project(
     project_id: UUID,
     session: AsyncSession = Depends(get_session),
@@ -328,9 +307,7 @@ async def unarchive_project(
 async def delete_project(
     project_id: UUID,
     session: AsyncSession = Depends(get_session),
-    opensearch_helper: opensearch.OpenSearchHelper = Depends(
-        opensearch.get_opensearch_helper
-    ),
+    opensearch_helper: opensearch.OpenSearchHelper = Depends(opensearch.get_opensearch_helper),
     minio_helper: minio.MinioHelper = Depends(minio.get_minio_helper),
 ):
     """
@@ -352,14 +329,10 @@ async def delete_project(
     # Targets the DAG at admin's context since admin always holds every series.
     if admin_project is not None:
         admin_project_schema = schemas.Project.model_validate(admin_project)
-        orphan_series = dicom_data.get_orphan_series(
-            project_id=project_id, admin_project_id=admin_project.id
-        )
+        orphan_series = dicom_data.get_orphan_series(project_id=project_id, admin_project_id=admin_project.id)
         dicom_data.clear_project_mappings(project_id=project_id)
         try:
-            dicom_data.trigger_delete_series_dag(
-                admin_project=admin_project_schema, series_uids=orphan_series
-            )
+            dicom_data.trigger_delete_series_dag(admin_project=admin_project_schema, series_uids=orphan_series)
         except Exception as e:
             logger.warning(f"delete-series DAG trigger failed for {project_id}: {e}")
 
@@ -411,16 +384,12 @@ async def get_keycloak_user(keycloak_id: str):
     response_model=schemas.Role,
     tags=["Projects"],
 )
-async def get_project_user_role(
-    project_id: UUID, user_id: str, session: AsyncSession = Depends(get_session)
-):
+async def get_project_user_role(project_id: UUID, user_id: str, session: AsyncSession = Depends(get_session)):
     project: schemas.Project = await get_project(project_id, session)
     user: KeycloakUser = await get_keycloak_user(user_id)
 
     try:
-        return await crud.get_user_role_in_project(
-            session, keycloak_id=user.id, project_id=project.id
-        )
+        return await crud.get_user_role_in_project(session, keycloak_id=user.id, project_id=project.id)
     except Exception:
         raise HTTPException(status_code=204, detail="No Role found for the User")
 
@@ -430,16 +399,12 @@ async def get_project_user_role(
     response_model=List[schemas.Right],
     tags=["Projects"],
 )
-async def get_project_user_rights(
-    project_id: UUID, user_id: str, session: AsyncSession = Depends(get_session)
-):
+async def get_project_user_rights(project_id: UUID, user_id: str, session: AsyncSession = Depends(get_session)):
     project: schemas.Project = await get_project(project_id, session)
     user: KeycloakUser = await get_keycloak_user(user_id)
 
     try:
-        result = await crud.get_user_rights_in_project(
-            session, keycloak_id=user.id, project_id=project.id
-        )
+        result = await crud.get_user_rights_in_project(session, keycloak_id=user.id, project_id=project.id)
     except Exception:
         raise HTTPException(status_code=204, detail="No Rights found for the User")
 
@@ -466,9 +431,7 @@ async def post_user_project_role_mapping(
     if db_project[0].is_archived:
         raise HTTPException(status_code=403, detail="Cannot modify an archived project")
 
-    current_user_mapping = await crud.get_users_projects_roles_mapping(
-        session, db_project[0].id, user_id
-    )
+    current_user_mapping = await crud.get_users_projects_roles_mapping(session, db_project[0].id, user_id)
 
     if current_user_mapping:
         raise HTTPException(
@@ -476,9 +439,7 @@ async def post_user_project_role_mapping(
             detail="Mapping already exists. Try updating if you want to update the role for the User.",
         )
     else:
-        return await crud.create_users_projects_roles_mapping(
-            session, db_project[0].id, db_role[0].id, user_id
-        )
+        return await crud.create_users_projects_roles_mapping(session, db_project[0].id, db_role[0].id, user_id)
 
 
 @router.put("/{project_id}/user/{user_id}/rolemapping", tags=["Projects"])
@@ -498,9 +459,7 @@ async def update_user_project_role_mapping(
     if db_project[0].is_archived:
         raise HTTPException(status_code=403, detail="Cannot modify an archived project")
 
-    current_user_mapping = await crud.get_users_projects_roles_mapping(
-        session, db_project[0].id, user_id
-    )
+    current_user_mapping = await crud.get_users_projects_roles_mapping(session, db_project[0].id, user_id)
 
     if current_user_mapping:
         return await crud.update_users_projects_roles_mapping(
@@ -528,14 +487,10 @@ async def delete_user_project_role_mapping(
     if db_project[0].is_archived:
         raise HTTPException(status_code=403, detail="Cannot modify an archived project")
 
-    current_user_mapping = await crud.get_users_projects_roles_mapping(
-        session, db_project[0].id, user_id
-    )
+    current_user_mapping = await crud.get_users_projects_roles_mapping(session, db_project[0].id, user_id)
 
     if current_user_mapping:
-        return await crud.delete_users_projects_roles_mapping(
-            session, db_project[0].id, user_id
-        )
+        return await crud.delete_users_projects_roles_mapping(session, db_project[0].id, user_id)
     else:
         raise HTTPException(status_code=404, detail="Mapping not found")
 
@@ -571,9 +526,7 @@ async def create_software_mappings(
         raise HTTPException(status_code=403, detail="Cannot modify an archived project")
 
     return [
-        await crud.create_software_mapping(
-            session, project_id=project.id, software_uuid=software.software_uuid
-        )
+        await crud.create_software_mapping(session, project_id=project.id, software_uuid=software.software_uuid)
         for software in softwares
     ]
 
@@ -593,9 +546,7 @@ async def delete_software_mappings(
         raise HTTPException(status_code=403, detail="Cannot modify an archived project")
 
     for software in softwares:
-        await crud.delete_software_mapping(
-            session, project_id=project.id, software_uuid=software.software_uuid
-        )
+        await crud.delete_software_mapping(session, project_id=project.id, software_uuid=software.software_uuid)
 
     return Response(status_code=204)
 
@@ -624,6 +575,4 @@ async def update_multiinstallable_whitelist(
     session: AsyncSession = Depends(get_session),
 ) -> List[str]:
     project: schemas.Project = await get_project(str(project_id), session)
-    return await crud.update_multiinstallable_whitelist_by_project_id(
-        session, project.id, payload.app_names
-    )
+    return await crud.update_multiinstallable_whitelist_by_project_id(session, project.id, payload.app_names)

@@ -34,15 +34,11 @@ args = {
     "retry_delay": timedelta(seconds=30),
 }
 
-dag = DAG(
-    dag_id="example-dcm-extract-study-id", default_args=args, schedule_interval=None
-)
+dag = DAG(dag_id="example-dcm-extract-study-id", default_args=args, schedule_interval=None)
 
 
 get_input = GetInputOperator(dag=dag)
-extract = ExtractStudyIdOperator(
-    dag=dag, input_operator=get_input
-)
+extract = ExtractStudyIdOperator(dag=dag, input_operator=get_input)
 put_to_minio = MinioOperator(dag=dag, action="put", batch_input_operators=[extract])
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 

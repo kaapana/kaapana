@@ -38,9 +38,7 @@ def test_is_valid_dicom_ae_title() -> bool:
 
     for title_tuple in test_ae_titles:
         valid_response = is_valid_dicom_ae_title(title_tuple[0])
-        assert (
-            title_tuple[1] == valid_response
-        ), f"{title_tuple[0]} assertion failed, response {valid_response}"
+        assert title_tuple[1] == valid_response, f"{title_tuple[0]} assertion failed, response {valid_response}"
         success = title_tuple[1] == valid_response
 
     assert success

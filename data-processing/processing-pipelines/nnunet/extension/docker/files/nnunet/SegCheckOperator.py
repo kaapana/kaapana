@@ -45,9 +45,7 @@ class SegCheckOperator(KaapanaBaseOperator):
             "DELETE_MERGED_DATA": str(delete_merged_data),
             "MERGE_FOUND_NIFTIS": str(merge_found_niftis),
             "TARGET_DICT_DIR": (
-                str(target_dict_operator.operator_out_dir)
-                if target_dict_operator is not None
-                else str(None)
+                str(target_dict_operator.operator_out_dir) if target_dict_operator is not None else str(None)
             ),
             "DELETE_NON_TARGET_LABELS": str(delete_non_target_labels),
             "INTERPOLATOR": str(interpolator),

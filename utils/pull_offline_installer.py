@@ -51,25 +51,19 @@ def _oci_registry_cls():
 
 def parse_args(argv=None):
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument(
-        "--registry-url", required=True, help="e.g. https://registry.example.com"
-    )
+    p.add_argument("--registry-url", required=True, help="e.g. https://registry.example.com")
     p.add_argument("--repository", default="offline-installer")
     p.add_argument("--tag", required=True, help="Platform version / tag to pull")
     p.add_argument("--target-dir", required=True, type=Path)
     p.add_argument("--username", default=os.environ.get("KAAPANA_REGISTRY_USERNAME"))
     p.add_argument("--password", default=os.environ.get("KAAPANA_REGISTRY_PASSWORD"))
-    p.add_argument(
-        "--ca-cert", help="CA bundle for TLS verification (HTTPS with a private CA)"
-    )
+    p.add_argument("--ca-cert", help="CA bundle for TLS verification (HTTPS with a private CA)")
     p.add_argument(
         "--insecure",
         action="store_true",
         help="Disable TLS verification (NOT recommended)",
     )
-    p.add_argument(
-        "--keep-archive", action="store_true", help="Keep the .tar.gz after extraction"
-    )
+    p.add_argument("--keep-archive", action="store_true", help="Keep the .tar.gz after extraction")
     return p.parse_args(argv)
 
 
@@ -89,11 +83,7 @@ def _safe_extract_archive(archive, target_dir):
             target_dir = Path(target_dir).resolve()
             for member in tar.getmembers():
                 target_path = (target_dir / member.name).resolve()
-                if (
-                    not target_path.is_relative_to(target_dir)
-                    or member.issym()
-                    or member.islnk()
-                ):
+                if not target_path.is_relative_to(target_dir) or member.issym() or member.islnk():
                     raise SystemExit(f"Refusing unsafe archive member: {member.name}")
 
             tar.extractall(target_dir)

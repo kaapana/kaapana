@@ -25,9 +25,7 @@ threads_nifiti = getenv("INF_THREADS_NIFTI", "None")
 threads_nifiti = int(threads_nifiti) if threads_nifiti.lower() != "none" else 2
 
 pred_min_combination = getenv("PRED_MIN_COMBINATION", "None")
-pred_min_combination = (
-    int(pred_min_combination) if pred_min_combination.lower() != "none" else None
-)
+pred_min_combination = int(pred_min_combination) if pred_min_combination.lower() != "none" else None
 
 override = True
 store_npz = True
@@ -179,7 +177,17 @@ def main():
     >>> main()
     """
 
-    global batch_name, workflow_dir, operator_in_dir, operator_out_dir, threads_nifiti, pred_min_combination, override, store_npz, postprocessing_file, global_seg_info
+    global \
+        batch_name, \
+        workflow_dir, \
+        operator_in_dir, \
+        operator_out_dir, \
+        threads_nifiti, \
+        pred_min_combination, \
+        override, \
+        store_npz, \
+        postprocessing_file, \
+        global_seg_info
 
     print("##################################################")
     print("#")
@@ -215,9 +223,7 @@ def main():
     assert len(global_seg_info) > 0
 
     if len(global_seg_info) > 1:
-        global_seg_info = sorted(
-            global_seg_info, key=lambda k: len(k["inference_dirs"]), reverse=True
-        )
+        global_seg_info = sorted(global_seg_info, key=lambda k: len(k["inference_dirs"]), reverse=True)
 
         for skipped_models in global_seg_info[1:]:
             print("#")
@@ -253,9 +259,7 @@ def main():
         print("#")
         exit(0)
 
-    pred_min_combination = (
-        pred_min_combination if pred_min_combination is not None else len(ensemble_dirs)
-    )
+    pred_min_combination = pred_min_combination if pred_min_combination is not None else len(ensemble_dirs)
     pred_min_combination = 2 if pred_min_combination < 2 else pred_min_combination
 
     model_combinations = []
@@ -267,9 +271,7 @@ def main():
 
     for combination_index in range(0, len(model_combinations)):
         model_combination = model_combinations[combination_index]
-        combination_output_dir = os.path.join(
-            "/", workflow_dir, operator_out_dir, f"combination_{combination_index}"
-        )
+        combination_output_dir = os.path.join("/", workflow_dir, operator_out_dir, f"combination_{combination_index}")
         Path(combination_output_dir).mkdir(parents=True, exist_ok=True)
         print("#")
         print(f"# Evaluating combination: {combination_index}: {model_combination}")
@@ -296,13 +298,9 @@ def main():
     print("#")
 
     final_target = join("/", workflow_dir, operator_out_dir)
-    combination_output_dirs = sorted(
-        [f for f in glob(join("/", workflow_dir, operator_out_dir, "*"))]
-    )
+    combination_output_dirs = sorted([f for f in glob(join("/", workflow_dir, operator_out_dir, "*"))])
     for combination_output_dir in combination_output_dirs:
-        print(
-            f"# -> moving files from {basename(combination_output_dir)} to operator_out_dir"
-        )
+        print(f"# -> moving files from {basename(combination_output_dir)} to operator_out_dir")
 
         assert "combination_" in combination_output_dir
         combination_id = int(combination_output_dir.split("_")[-1])
@@ -314,9 +312,7 @@ def main():
                 extension = basename(combination_file).split(".")[-1]
             target_file_path = join(
                 final_target,
-                basename(combination_file).replace(
-                    f".{extension}", f"_combination_{combination_id}.{extension}"
-                ),
+                basename(combination_file).replace(f".{extension}", f"_combination_{combination_id}.{extension}"),
             )
             print(f"# {basename(combination_file)} -> {basename(target_file_path)}")
             shutil.move(src=combination_file, dst=target_file_path)

@@ -59,13 +59,8 @@ async def execute_entity_query(
 
     stmt = stmt.order_by(*entity_repository._creation_order()).limit(limit + 1)
     if request.cursor:
-        created_at, cursor_id = await entity_repository._cursor_tuple(
-            session, request.cursor
-        )
-        stmt = stmt.where(
-            tuple_(DataEntityORM.created_at, DataEntityORM.id)
-            > tuple_(created_at, cursor_id)
-        )
+        created_at, cursor_id = await entity_repository._cursor_tuple(session, request.cursor)
+        stmt = stmt.where(tuple_(DataEntityORM.created_at, DataEntityORM.id) > tuple_(created_at, cursor_id))
 
     result = await session.execute(stmt)
     rows = result.scalars().unique().all()
@@ -83,28 +78,19 @@ async def prepare_query_index_statement(
     total_count = await _count_entities(session, predicate)
 
     stmt = (
-        select(DataEntityORM.id)
-        .order_by(*entity_repository._creation_order())
-        .execution_options(stream_results=True)
+        select(DataEntityORM.id).order_by(*entity_repository._creation_order()).execution_options(stream_results=True)
     )
     if predicate is not None:
         stmt = stmt.where(predicate)
 
     if request.cursor:
-        created_at, cursor_id = await entity_repository._cursor_tuple(
-            session, request.cursor
-        )
-        stmt = stmt.where(
-            tuple_(DataEntityORM.created_at, DataEntityORM.id)
-            > tuple_(created_at, cursor_id)
-        )
+        created_at, cursor_id = await entity_repository._cursor_tuple(session, request.cursor)
+        stmt = stmt.where(tuple_(DataEntityORM.created_at, DataEntityORM.id) > tuple_(created_at, cursor_id))
 
     return total_count, stmt
 
 
-async def _count_entities(
-    session: AsyncSession, predicate: ColumnElement[bool] | None
-) -> int:
+async def _count_entities(session: AsyncSession, predicate: ColumnElement[bool] | None) -> int:
     stmt = select(func.count(DataEntityORM.id))
     if predicate is not None:
         stmt = stmt.where(predicate)
@@ -122,11 +108,7 @@ def _build_query_predicate(node: QueryNode | None) -> ColumnElement[bool] | None
 
 
 def _build_group_predicate(node: GroupNode) -> ColumnElement[bool] | None:
-    clauses = [
-        clause
-        for child in node.children
-        if (clause := _build_query_predicate(child)) is not None
-    ]
+    clauses = [clause for child in node.children if (clause := _build_query_predicate(child)) is not None]
     if not clauses:
         return None
     if node.op == "and":
@@ -185,9 +167,7 @@ def _build_id_predicate(op: QueryOp, value: Any) -> ColumnElement[bool]:
 
 
 def _build_storage_any_predicate(op: QueryOp, value: Any) -> ColumnElement[bool]:
-    storage_exists = exists(
-        select(1).where(StorageCoordinateORM.entity_id == DataEntityORM.id)
-    )
+    storage_exists = exists(select(1).where(StorageCoordinateORM.entity_id == DataEntityORM.id))
     if op is QueryOp.EQ:
         return storage_exists if _coerce_bool(value) else ~storage_exists
     if op is QueryOp.IN:
@@ -213,9 +193,7 @@ def _build_storage_any_predicate(op: QueryOp, value: Any) -> ColumnElement[bool]
         QueryOp.ENDS_WITH,
     }:
         return false()
-    raise QueryTranslationError(
-        f"Operator '{op}' is not supported for field 'storage.any'"
-    )
+    raise QueryTranslationError(f"Operator '{op}' is not supported for field 'storage.any'")
 
 
 def _build_storage_type_predicate(op: QueryOp, value: Any) -> ColumnElement[bool]:
@@ -289,14 +267,10 @@ def _build_storage_type_predicate(op: QueryOp, value: Any) -> ColumnElement[bool
         )
         return ~exists(stmt)
 
-    raise QueryTranslationError(
-        f"Operator '{op}' is not supported for field 'storage.type'"
-    )
+    raise QueryTranslationError(f"Operator '{op}' is not supported for field 'storage.type'")
 
 
-def _build_metadata_predicate(
-    field: ParsedMetadataField, op: QueryOp, value: Any
-) -> ColumnElement[bool]:
+def _build_metadata_predicate(field: ParsedMetadataField, op: QueryOp, value: Any) -> ColumnElement[bool]:
     metadata_alias = aliased(MetadataEntryORM)
     stmt = select(1).where(
         metadata_alias.entity_id == DataEntityORM.id,
@@ -325,9 +299,7 @@ def _apply_metadata_operator(json_expr, op: QueryOp, value: Any) -> ColumnElemen
         return _metadata_not_contains_expr(json_expr, value)
     if op in {QueryOp.STARTS_WITH, QueryOp.ENDS_WITH}:
         return _metadata_string_match_expr(json_expr, op, value)
-    raise QueryTranslationError(
-        f"Operator '{op}' is not supported for metadata filters"
-    )
+    raise QueryTranslationError(f"Operator '{op}' is not supported for metadata filters")
 
 
 def _metadata_eq_expr(json_expr, value: Any) -> ColumnElement[bool]:
@@ -362,9 +334,7 @@ def _metadata_not_in_expr(json_expr, value: Any) -> ColumnElement[bool]:
     return ~or_(*clauses)
 
 
-def _metadata_comparison_expr(
-    json_expr, op: QueryOp, value: Any
-) -> ColumnElement[bool]:
+def _metadata_comparison_expr(json_expr, op: QueryOp, value: Any) -> ColumnElement[bool]:
     if isinstance(value, bool):
         guard = func.jsonb_typeof(json_expr) == literal("boolean")
         numeric_expr = cast(cast(json_expr.astext, Boolean), Numeric)
@@ -383,9 +353,7 @@ def _metadata_comparison_expr(
             guard,
             _string_compare(text_expr, value, op),
         )
-    raise QueryTranslationError(
-        "Comparison operators require numeric or string values for metadata fields"
-    )
+    raise QueryTranslationError("Comparison operators require numeric or string values for metadata fields")
 
 
 def _metadata_contains_expr(json_expr, value: Any) -> ColumnElement[bool]:
@@ -426,9 +394,7 @@ def _metadata_not_contains_expr(json_expr, value: Any) -> ColumnElement[bool]:
     return and_(*clauses)
 
 
-def _metadata_string_match_expr(
-    json_expr, op: QueryOp, value: Any
-) -> ColumnElement[bool]:
+def _metadata_string_match_expr(json_expr, op: QueryOp, value: Any) -> ColumnElement[bool]:
     token = _string_value(value)
     guard = func.jsonb_typeof(json_expr) == literal("string")
     text_expr = json_expr.astext
@@ -481,9 +447,7 @@ def _coerce_numeric(value: Any) -> float:
     raise QueryTranslationError("Numeric comparison requires an int or float value")
 
 
-def _numeric_compare(
-    expr: ColumnElement[Any], target: float, op: QueryOp
-) -> ColumnElement[bool]:
+def _numeric_compare(expr: ColumnElement[Any], target: float, op: QueryOp) -> ColumnElement[bool]:
     if op is QueryOp.LT:
         return expr < target
     if op is QueryOp.LTE:
@@ -495,9 +459,7 @@ def _numeric_compare(
     raise QueryTranslationError("Unsupported numeric comparison operator")
 
 
-def _string_compare(
-    expr: ColumnElement[Any], target: str, op: QueryOp
-) -> ColumnElement[bool]:
+def _string_compare(expr: ColumnElement[Any], target: str, op: QueryOp) -> ColumnElement[bool]:
     if op is QueryOp.LT:
         return expr < target
     if op is QueryOp.LTE:

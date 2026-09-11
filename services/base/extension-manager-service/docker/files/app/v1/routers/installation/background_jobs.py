@@ -25,18 +25,12 @@ async def install_extension_background_task(
                 db, extension_id=extension_id, status=models.ExtensionStatus.PULLING
             )
         except NotSupportedExtensionStateTransition:
-            logger.warning(
-                f"Cannot change status of extension with id {extension_id} to pulling. Cancel installation!"
-            )
+            logger.warning(f"Cannot change status of extension with id {extension_id} to pulling. Cancel installation!")
             return
         except NoResultFound:
-            logger.warning(
-                f"Extension with id {extension_id} not found. Cancel installation."
-            )
+            logger.warning(f"Extension with id {extension_id} not found. Cancel installation.")
             return
-        db_repository = await crud.get_registered_repository(
-            db, db_extension.repository_id
-        )
+        db_repository = await crud.get_registered_repository(db, db_extension.repository_id)
         if not db_repository:
             logger.warning("Repository not found. Cancel installation.")
             await crud.update_extension(
@@ -112,7 +106,9 @@ async def install_extension_background_task(
                         content_exceptions.append(e)
 
             except Exception as e:
-                logger.error("Unexpected error during installation of extension '%s': %s", db_extension.tag, e, exc_info=True)
+                logger.error(
+                    "Unexpected error during installation of extension '%s': %s", db_extension.tag, e, exc_info=True
+                )
                 await crud.update_extension(
                     db,
                     extension_id=extension_id,
@@ -124,7 +120,8 @@ async def install_extension_background_task(
             if content_exceptions:
                 logger.error(
                     "%d content(s) failed to install for extension '%s'",
-                    len(content_exceptions), db_extension.tag,
+                    len(content_exceptions),
+                    db_extension.tag,
                 )
                 await crud.update_extension(
                     db,
@@ -196,7 +193,9 @@ async def uninstall_extension_background_task(
                     content_exceptions.append(e)
 
         except Exception as e:
-            logger.error("Unexpected error during uninstallation of extension id=%s: %s", extension_id, e, exc_info=True)
+            logger.error(
+                "Unexpected error during uninstallation of extension id=%s: %s", extension_id, e, exc_info=True
+            )
             await crud.update_extension(
                 db,
                 extension_id=extension_id,
@@ -207,7 +206,8 @@ async def uninstall_extension_background_task(
         if content_exceptions:
             logger.error(
                 "%d content(s) failed to uninstall for extension id=%s",
-                len(content_exceptions), extension_id,
+                len(content_exceptions),
+                extension_id,
             )
             await crud.update_extension(
                 db,
@@ -219,9 +219,7 @@ async def uninstall_extension_background_task(
                 content_exceptions,
             )
 
-        await crud.update_extension(
-            db, extension_id=extension_id, status=models.ExtensionStatus.UNINSTALLED
-        )
+        await crud.update_extension(db, extension_id=extension_id, status=models.ExtensionStatus.UNINSTALLED)
 
     await asyncio.sleep(30)
     async with database.async_session() as db2:

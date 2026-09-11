@@ -128,9 +128,7 @@ def get_ai_model_data(api_key: str) -> List[Dict]:
     return response.json()["data"]
 
 
-def submit_ai_request(
-    messages: List[Dict[str, str]], model: str, token: str
-) -> requests.Response:
+def submit_ai_request(messages: List[Dict[str, str]], model: str, token: str) -> requests.Response:
     """
     Submits a message request to the AI model for processing.
 
@@ -292,9 +290,7 @@ def create_error_logs_report(error_logs: Dict[str, str]) -> str:
     for filename, content in error_logs.items():
         report_lines.append(f"### File: {filename}\n")
         report_lines.append("```log")
-        report_lines.append(
-            content.strip() if content else "_No relevant log entries found._"
-        )
+        report_lines.append(content.strip() if content else "_No relevant log entries found._")
         report_lines.append("```\n")
 
     return "\n".join(report_lines)
@@ -433,9 +429,7 @@ def main():
 
     # We won't create a new issue if the there is already open ticket.
     # New ticket however, can be created if one issue is already closed, but different error persists
-    existing_issues = project_kaapana.issues.list(
-        state="opened", labels=["CI"], search=commit_sha
-    )
+    existing_issues = project_kaapana.issues.list(state="opened", labels=["CI"], search=commit_sha)
     if not existing_issues:
         issue = create_issue_for_commit(
             project=project_kaapana,

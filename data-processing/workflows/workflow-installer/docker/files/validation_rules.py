@@ -14,17 +14,13 @@ class ValidationRule(BaseModel):
     """Base class for validation rules."""
 
     enabled: bool = True
-    severity: str = Field(
-        default="error", description="error, warning, or info"
-    )  # error, warning, info
+    severity: str = Field(default="error", description="error, warning, or info")  # error, warning, info
 
 
 class RequiredLabelsRule(ValidationRule):
     """Validate that specific labels are present."""
 
-    required_labels: List[str] = Field(
-        default_factory=list, description="List of required label keys"
-    )
+    required_labels: List[str] = Field(default_factory=list, description="List of required label keys")
 
 
 class IconFileRule(ValidationRule):
@@ -58,9 +54,7 @@ class ValidationConfig(BaseModel):
             enabled=True, required_labels=["provider", "category"], severity="error"
         )
     )
-    icon_file: IconFileRule = Field(
-        default_factory=lambda: IconFileRule(enabled=True, severity="warning")
-    )
+    icon_file: IconFileRule = Field(default_factory=lambda: IconFileRule(enabled=True, severity="warning"))
     workflow_engine: WorkflowEngineRule = Field(
         default_factory=lambda: WorkflowEngineRule(enabled=True, severity="error")
     )
@@ -82,9 +76,7 @@ class WorkflowValidator:
         self.config = config or ValidationConfig()
         self.results: List[ValidationResult] = []
 
-    def validate_required_labels(
-        self, labels: List[Dict[str, str]]
-    ) -> ValidationResult:
+    def validate_required_labels(self, labels: List[Dict[str, str]]) -> ValidationResult:
         """Check if required labels are present."""
         rule = self.config.required_labels
         if not rule.enabled:
@@ -136,10 +128,7 @@ class WorkflowValidator:
 
         # Check for any file with allowed extensions
         for file in workflow_dir.iterdir():
-            if (
-                file.suffix.lower() in rule.allowed_extensions
-                and "icon" in file.name.lower()
-            ):
+            if file.suffix.lower() in rule.allowed_extensions and "icon" in file.name.lower():
                 return ValidationResult(
                     rule_name="icon_file",
                     severity=rule.severity,
@@ -203,9 +192,7 @@ class WorkflowValidator:
             message=f"Invalid workflow engine '{workflow_engine}'. Allowed values{discovery_note}: {', '.join(allowed_engines)}",
         )
 
-    def validate_all(
-        self, workflow_dir: Path, metadata: Dict, workflow_engine: str
-    ) -> List[ValidationResult]:
+    def validate_all(self, workflow_dir: Path, metadata: Dict, workflow_engine: str) -> List[ValidationResult]:
         """Run all validation rules."""
         self.results = []
 
@@ -223,16 +210,11 @@ class WorkflowValidator:
 
     def has_errors(self) -> bool:
         """Check if any validation resulted in errors."""
-        return any(
-            not result.passed and result.severity == "error" for result in self.results
-        )
+        return any(not result.passed and result.severity == "error" for result in self.results)
 
     def has_warnings(self) -> bool:
         """Check if any validation resulted in warnings."""
-        return any(
-            not result.passed and result.severity == "warning"
-            for result in self.results
-        )
+        return any(not result.passed and result.severity == "warning" for result in self.results)
 
     def get_summary(self) -> str:
         """Get a summary of validation results."""

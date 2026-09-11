@@ -10,7 +10,7 @@ _key = os.environ.get("CREDENTIAL_ENCRYPTION_KEY")
 if not _key:
     raise RuntimeError(
         "CREDENTIAL_ENCRYPTION_KEY environment variable is not set. "
-        "Set it to a Fernet key (generate one with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\")"
+        'Set it to a Fernet key (generate one with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")'
     )
 
 fernet = Fernet(_key.encode())

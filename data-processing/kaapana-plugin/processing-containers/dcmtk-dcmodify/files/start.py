@@ -80,9 +80,7 @@ operator_out_dir = operator_out_dir if operator_out_dir.lower() != "none" else N
 assert operator_out_dir is not None
 
 dcm_tags_to_modify = getenv("DICOM_TAGS_TO_MODIFY", "None")
-dcm_tags_to_modify = (
-    dcm_tags_to_modify if dcm_tags_to_modify.lower() != "none" else None
-)
+dcm_tags_to_modify = dcm_tags_to_modify if dcm_tags_to_modify.lower() != "none" else None
 assert dcm_tags_to_modify is not None
 
 dcm_tags_to_modify = dcm_tags_to_modify.split(";")

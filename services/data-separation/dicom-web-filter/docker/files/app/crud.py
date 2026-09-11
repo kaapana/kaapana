@@ -7,9 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .models import DataProjects, DicomData
 
 
-async def get_all_studies_mapped_to_projects(
-    session: AsyncSession, project_ids: List[UUID]
-) -> List[str]:
+async def get_all_studies_mapped_to_projects(session: AsyncSession, project_ids: List[UUID]) -> List[str]:
     stmt = (
         select(DicomData.study_instance_uid)
         .join(
@@ -102,9 +100,7 @@ async def check_if_series_in_given_study_is_mapped_to_projects(
     return len(series) > 0
 
 
-async def count_studies_mapped_to_projects(
-    session: AsyncSession, project_ids: List[UUID]
-) -> int:
+async def count_studies_mapped_to_projects(session: AsyncSession, project_ids: List[UUID]) -> int:
     stmt = (
         select(func.count(distinct(DicomData.study_instance_uid)))
         .join(
@@ -145,23 +141,15 @@ async def get_data_of_project(session: AsyncSession, project_id: UUID):
     return data
 
 
-async def add_data_project_mapping(
-    session: AsyncSession, series_instance_uid: str, project_id: UUID
-) -> DataProjects:
-    new_mapping = DataProjects(
-        series_instance_uid=series_instance_uid, project_id=project_id
-    )
+async def add_data_project_mapping(session: AsyncSession, series_instance_uid: str, project_id: UUID) -> DataProjects:
+    new_mapping = DataProjects(series_instance_uid=series_instance_uid, project_id=project_id)
     session.add(new_mapping)
     await session.commit()
     return new_mapping
 
 
-async def get_all_series_of_study(
-    session: AsyncSession, study_instance_uid: str
-) -> List[str]:
-    stmt = select(DicomData.series_instance_uid).where(
-        DicomData.study_instance_uid == study_instance_uid
-    )
+async def get_all_series_of_study(session: AsyncSession, study_instance_uid: str) -> List[str]:
+    stmt = select(DicomData.series_instance_uid).where(DicomData.study_instance_uid == study_instance_uid)
     result = await session.execute(stmt)
     series = result.scalars().all()
     return series
@@ -177,9 +165,7 @@ async def get_data_project_mapping(session, series_instance_uid: str, project_id
     return result.scalars().all()
 
 
-async def remove_data_project_mapping(
-    session: AsyncSession, series_instance_uid: str, project_id: UUID
-):
+async def remove_data_project_mapping(session: AsyncSession, series_instance_uid: str, project_id: UUID):
     """
     Delete a DataProject mapping.
     """
@@ -191,39 +177,25 @@ async def remove_data_project_mapping(
     return None
 
 
-async def series_is_mapped_to_multiple_projects(
-    session: AsyncSession, series_instance_uid: str
-) -> bool:
-    stmt = select(DataProjects.project_id).where(
-        DataProjects.series_instance_uid == series_instance_uid
-    )
+async def series_is_mapped_to_multiple_projects(session: AsyncSession, series_instance_uid: str) -> bool:
+    stmt = select(DataProjects.project_id).where(DataProjects.series_instance_uid == series_instance_uid)
     result = await session.execute(stmt)
     projects = result.scalars().all()
     return len(projects) > 1
 
 
-async def study_is_mapped_to_multiple_projects(
-    session: AsyncSession, study_instance_uid: str
-) -> bool:
-    stmt = (
-        select(DataProjects.project_id)
-        .join(DicomData)
-        .where(DicomData.study_instance_uid == study_instance_uid)
-    )
+async def study_is_mapped_to_multiple_projects(session: AsyncSession, study_instance_uid: str) -> bool:
+    stmt = select(DataProjects.project_id).join(DicomData).where(DicomData.study_instance_uid == study_instance_uid)
     result = await session.execute(stmt)
     projects = result.scalars().all()
     return len(projects) > 1
 
 
-async def get_project_ids_by_study_uid(
-    session: AsyncSession, study_instance_uid: str
-) -> List[UUID]:
+async def get_project_ids_by_study_uid(session: AsyncSession, study_instance_uid: str) -> List[UUID]:
     """Return the distinct project IDs that any series of the given study is mapped to."""
     stmt = (
         select(DataProjects.project_id)
-        .join(
-            DicomData, DicomData.series_instance_uid == DataProjects.series_instance_uid
-        )
+        .join(DicomData, DicomData.series_instance_uid == DataProjects.series_instance_uid)
         .where(DicomData.study_instance_uid == study_instance_uid)
         .distinct()
     )
@@ -235,9 +207,7 @@ async def get_project_ids_of_series(session: AsyncSession, series_instance_uid: 
     """
     Return the ids of all projects that contain series_instance_uid.
     """
-    stmt = select(DataProjects.project_id).where(
-        DataProjects.series_instance_uid == series_instance_uid
-    )
+    stmt = select(DataProjects.project_id).where(DataProjects.series_instance_uid == series_instance_uid)
     result = await session.execute(stmt)
     project_ids = result.scalars().all()
     return project_ids
@@ -253,9 +223,7 @@ async def get_orphan_series_of_project(
     Used before hard-deleting projects to find series safe to remove from: PACS, admin os index and admin MinIO bucket.
     """
     allowed = {project_id, admin_project_id}
-    series_in_project = select(DataProjects.series_instance_uid).where(
-        DataProjects.project_id == project_id
-    )
+    series_in_project = select(DataProjects.series_instance_uid).where(DataProjects.project_id == project_id)
     stmt = (
         select(DataProjects.series_instance_uid)
         .where(DataProjects.series_instance_uid.in_(series_in_project))

@@ -36,9 +36,7 @@ args = {
 }
 
 
-dag = DAG(
-    dag_id="example-dcm-pool-study-ids", default_args=args, schedule_interval=None
-)
+dag = DAG(dag_id="example-dcm-pool-study-ids", default_args=args, schedule_interval=None)
 
 
 get_input = GetInputOperator(dag=dag)

@@ -27,9 +27,7 @@ def apply_action_to_file(
     :param file_white_tuples: List of file extensions - action is only performed if file_path ends with a listed extension. If not set action is always applied.
     """
     logger.debug(file_path)
-    if file_white_tuples is not None and not file_path.lower().endswith(
-        file_white_tuples
-    ):
+    if file_white_tuples is not None and not file_path.lower().endswith(file_white_tuples):
         logger.warning(
             f"Not applying action to object {object_name}, since this action is only allowed for files that end with {file_white_tuples}!"
         )
@@ -136,9 +134,7 @@ def apply_action_to_object_dirs(
                 object_name = bucket_obj.object_name
                 file_path = os.path.join(local_root_dir, object_name)
                 path_object_name = pathlib.Path(object_name)
-                if not object_dirs or str(path_object_name.parents[0]).startswith(
-                    tuple(object_dirs)
-                ):
+                if not object_dirs or str(path_object_name.parents[0]).startswith(tuple(object_dirs)):
                     apply_action_to_file(
                         minio_client=minio_client,
                         action=action,

@@ -14,6 +14,7 @@ def get_logger(name, level=logging.DEBUG, log_file=None):
       attaches a file handler at `${ARTIFACTS_DIR}/{name}.log`.
     """
     import os
+
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
@@ -40,7 +41,9 @@ def get_logger(name, level=logging.DEBUG, log_file=None):
         formatter = logging.Formatter("%(levelname)s - %(asctime)s - %(message)s")
         fh.setFormatter(formatter)
         # Avoid adding duplicate file handlers for the same file
-        existing_files = [getattr(h, "baseFilename", None) for h in logger.handlers if isinstance(h, logging.FileHandler)]
+        existing_files = [
+            getattr(h, "baseFilename", None) for h in logger.handlers if isinstance(h, logging.FileHandler)
+        ]
         if str(getattr(fh, "baseFilename", chosen_log_file)) not in existing_files:
             logger.addHandler(fh)
 

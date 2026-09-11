@@ -55,9 +55,7 @@ dag = DAG(
 
 get_input = GetInputOperator(dag=dag)
 branch_get_ref_series = LocalBranchGetReferenceSeries(dag=dag, input_operator=get_input)
-get_ref_series = GetRefSeriesOperator(
-    dag=dag, input_operator=branch_get_ref_series, skip_empty_ref_dir=True
-)
+get_ref_series = GetRefSeriesOperator(dag=dag, input_operator=branch_get_ref_series, skip_empty_ref_dir=True)
 mitk = LocalMiktInputOperator(
     dag=dag,
     input_operator=get_input,

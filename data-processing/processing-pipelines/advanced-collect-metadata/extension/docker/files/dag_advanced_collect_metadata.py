@@ -133,21 +133,6 @@ clean = LocalWorkflowCleanerOperator(
     clean_workflow_dir=True,
 )
 
-(
-    get_input
-    >> anonymizer
-    >> extract_metadata
-    >> extract_img_intensities
-    >> merge_branches
-    >> put_to_minio
-    >> clean
-)
-(
-    extract_metadata
-    >> dcm2nifti_seg
-    >> extract_seg_metadata
-    >> cca
-    >> concat_metadata
-    >> merge_branches
-)
+(get_input >> anonymizer >> extract_metadata >> extract_img_intensities >> merge_branches >> put_to_minio >> clean)
+(extract_metadata >> dcm2nifti_seg >> extract_seg_metadata >> cca >> concat_metadata >> merge_branches)
 (get_input >> dcm2nifti_ct >> extract_seg_metadata)

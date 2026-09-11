@@ -54,7 +54,6 @@ def mocked_installer():
     mock_dispatcher._find_installer = MagicMock(return_value=MockedInstaller())
     mock_dispatcher.uninstall_content = AsyncMock(return_value=None)
     with patch("v1.services.dispatch.dispatcher", new=mock_dispatcher):
-
         yield mock_dispatcher
 
 
@@ -70,19 +69,13 @@ async def mock_ociService(session: AsyncSession):
     async def override(repository_id: UUID):
         repository = await crud.get_registered_repository(session, repository_id)
         if not repository:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found"
-            )
-        async with MockOciService(
-            repository_url="test", authentication=encryption.encrypt("", "")
-        ) as svc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found")
+        async with MockOciService(repository_url="test", authentication=encryption.encrypt("", "")) as svc:
             yield svc
 
     app.dependency_overrides[get_oci_service_for_repository] = override
 
-    with patch(
-        "v1.routers.installation.background_jobs.ociService", new=MockOciService
-    ):
+    with patch("v1.routers.installation.background_jobs.ociService", new=MockOciService):
         yield
 
     app.dependency_overrides.pop(get_oci_service_for_repository, None)
@@ -115,9 +108,7 @@ async def session_fixture():
         await conn.run_sync(Base.metadata.create_all)
 
     # Create session maker
-    async_session_maker = sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
+    async_session_maker = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     # Yield session for test
     with patch("v1.services.database.database.async_session", new=async_session_maker):
@@ -147,9 +138,7 @@ async def client_fixture(session: AsyncSession):
 
     app.dependency_overrides[get_async_db] = get_async_db_override
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
 
     app.dependency_overrides.clear()

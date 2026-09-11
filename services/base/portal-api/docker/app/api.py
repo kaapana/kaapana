@@ -20,10 +20,7 @@ _fetched_at: float = 0.0
 @router.get("/menu", summary="Discovered menu structure")
 async def get_menu() -> MenuResponse:
     global _menu, _fetched_at
-    if (
-        _menu is not None
-        and time.monotonic() - _fetched_at < get_settings().CACHE_TTL_SECONDS
-    ):
+    if _menu is not None and time.monotonic() - _fetched_at < get_settings().CACHE_TTL_SECONDS:
         return _menu
     try:
         ingresses = await ingress_source.list_ingresses()

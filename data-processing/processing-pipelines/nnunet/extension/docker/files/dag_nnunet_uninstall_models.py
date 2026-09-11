@@ -47,9 +47,7 @@ dag = DAG(
 )
 
 
-model_management = NnUnetModelOperator(
-    dag=dag, name="uninstall-model", action="uninstall"
-)
+model_management = NnUnetModelOperator(dag=dag, name="uninstall-model", action="uninstall")
 
 clean = LocalWorkflowCleanerOperator(
     dag=dag,

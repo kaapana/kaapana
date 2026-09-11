@@ -74,9 +74,7 @@ def test_create_admin_client_creates_and_grants_master_admin_role():
     kc.make_authorized_request.side_effect = fake_request
 
     # Client missing on first lookup, present on the second (after creation).
-    with patch.object(
-        boot, "_get_master_client_uuid", side_effect=[None, "client-uuid"]
-    ):
+    with patch.object(boot, "_get_master_client_uuid", side_effect=[None, "client-uuid"]):
         boot._create_admin_client(kc, "secret123")
 
     calls = kc.make_authorized_request.call_args_list
@@ -85,10 +83,7 @@ def test_create_admin_client_creates_and_grants_master_admin_role():
     # Client was created in the master realm with the persisted secret.
     create_calls = [c for c in calls if c.args[0].endswith("master/clients")]
     assert create_calls, "expected a POST to master/clients"
-    assert any(
-        len(c.args) >= 3 and c.args[2].get("secret") == "secret123"
-        for c in create_calls
-    )
+    assert any(len(c.args) >= 3 and c.args[2].get("secret") == "secret123" for c in create_calls)
 
     # master 'admin' realm role was assigned to the service account.
     assert any("master/users/sa-user-id/role-mappings/realm" in u for u in urls)

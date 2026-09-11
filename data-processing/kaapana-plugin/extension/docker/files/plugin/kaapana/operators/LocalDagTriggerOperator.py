@@ -25,9 +25,7 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
         study_uid = dicom_series["dcm-uid"]["study-uid"]
         series_uid = dicom_series["dcm-uid"]["series-uid"]
 
-        output_dir = join(
-            self.run_dir, self.batch_name, series_uid, self.operator_out_dir
-        )
+        output_dir = join(self.run_dir, self.batch_name, series_uid, self.operator_out_dir)
         # ctpet-prep batch 1.3.12.2.1107.5.8.15.101314.30000019092314381173500002262normalization
 
         object_dirs = [join(self.batch_name, series_uid, cache_operator)]
@@ -47,19 +45,11 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
 
         if loaded_from_cache:
             print()
-            print(
-                "✔ Chache data found for series: {}".format(
-                    dicom_series["dcm-uid"]["series-uid"]
-                )
-            )
+            print("✔ Chache data found for series: {}".format(dicom_series["dcm-uid"]["series-uid"]))
             print()
         else:
             print()
-            print(
-                "✘ NO data found for series: {}".format(
-                    dicom_series["dcm-uid"]["series-uid"]
-                )
-            )
+            print("✘ NO data found for series: {}".format(dicom_series["dcm-uid"]["series-uid"]))
             print()
 
         return loaded_from_cache
@@ -84,15 +74,11 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
                 dcm_file_list = glob(input_dir + "/*.dcm", recursive=True)
                 if len(dcm_file_list) == 0:
                     print()
-                    print(
-                        "#############################################################"
-                    )
+                    print("#############################################################")
                     print()
                     print("Couldn't find any DICOM file in dir: {}".format(input_dir))
                     print()
-                    print(
-                        "#############################################################"
-                    )
+                    print("#############################################################")
                     print()
                     continue
                 no_data_processed = False
@@ -101,9 +87,7 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
                 series_uid = dicom_file[0x0020, 0x000E].value
                 modality = dicom_file[0x0008, 0x0060].value
                 if self.from_data_dir:
-                    dicom_info_list.append(
-                        {"input-dir": input_dir, "series-uid": series_uid}
-                    )
+                    dicom_info_list.append({"input-dir": input_dir, "series-uid": series_uid})
                 else:
                     dicom_info_list.append(
                         {
@@ -136,15 +120,11 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
                 if "opensearch-query" in input:
                     opensearch_query = input["opensearch-query"]
                     if "query" not in opensearch_query:
-                        print(
-                            "'query' not found in 'opensearch-query': {}".format(input)
-                        )
+                        print("'query' not found in 'opensearch-query': {}".format(input))
                         print("abort...")
                         raise ValueError("ERROR")
                     if "index" not in opensearch_query:
-                        print(
-                            "'index' not found in 'opensearch-query': {}".format(input)
-                        )
+                        print("'index' not found in 'opensearch-query': {}".format(input))
                         print("abort...")
                         raise ValueError("ERROR")
 
@@ -267,9 +247,7 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
             target_list = set()
             for dicom_series in dicom_info_list:
                 src = dicom_series["input-dir"]
-                target_dir = (
-                    self.operator_out_dir if self.operator_out_dir else "get-input-data"
-                )
+                target_dir = self.operator_out_dir if self.operator_out_dir else "get-input-data"
                 target = join(
                     self.airflow_workflow_dir,
                     dag_run_id,
@@ -328,23 +306,19 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
         self.dag_run_id = kwargs["dag_run"].run_id
 
         if self.extra_conf:
-            def merge_conf(conf:dict, extra_conf:dict):
+
+            def merge_conf(conf: dict, extra_conf: dict):
                 for k, v in extra_conf.items():
-                    if k in conf \
-                        and isinstance(conf[k], dict) \
-                        and isinstance(v, dict):
-                            merge_conf(conf[k], v)
+                    if k in conf and isinstance(conf[k], dict) and isinstance(v, dict):
+                        merge_conf(conf[k], v)
                     else:
-                        conf[k] = v 
+                        conf[k] = v
                 return conf
-                    
+
             merge_conf(self.conf, self.extra_conf)
 
-
         if self.trigger_dag_id == "":
-            print(
-                f"trigger_dag_id is empty, setting to {self.conf['workflow_form']['trigger_dag_id']}"
-            )
+            print(f"trigger_dag_id is empty, setting to {self.conf['workflow_form']['trigger_dag_id']}")
             self.trigger_dag_id = self.conf["workflow_form"]["trigger_dag_id"]
 
         print(f"{self.use_dcm_files=}")
@@ -379,50 +353,34 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
                     if self.use_dcm_files:
                         for series in pending_dag.conf["inputs"]:
                             for cache_operator in self.cache_operators:
-                                if not self.check_cache(
-                                    dicom_series=series, cache_operator=cache_operator
-                                ):
+                                if not self.check_cache(dicom_series=series, cache_operator=cache_operator):
                                     print()
-                                    print(
-                                        "#############################################################"
-                                    )
+                                    print("#############################################################")
                                     print()
-                                    print(
-                                        "Could still not find the data after the sub-dag."
-                                    )
+                                    print("Could still not find the data after the sub-dag.")
                                     print("This is unexpected behaviour -> error")
                                     print()
-                                    print(
-                                        "#############################################################"
-                                    )
+                                    print("#############################################################")
                                     raise ValueError("ERROR")
 
                 elif state == "failed":
                     print()
-                    print(
-                        "#############################################################"
-                    )
+                    print("#############################################################")
                     print()
                     print(f"Triggered Dag Failed: {pending_dag.id}")
                     print()
-                    print(
-                        "#############################################################"
-                    )
+                    print("#############################################################")
                     print()
                     raise ValueError("ERROR")
                 else:
                     print()
-                    print(
-                        "#############################################################"
-                    )
+                    print("#############################################################")
                     print()
                     print("Unknown DAG-state!")
                     print(f"DAG:   {pending_dag.id}")
                     print(f"STATE: {state}")
                     print()
-                    print(
-                        "#############################################################"
-                    )
+                    print("#############################################################")
                     print()
                     raise ValueError("ERROR")
 
@@ -447,15 +405,13 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
         use_dcm_files=True,
         from_data_dir=False,
         delay=10,
-        extra_conf:dict=None,
+        extra_conf: dict = None,
         **kwargs,
     ):
         self.trigger_dag_id = trigger_dag_id
         self.wait_till_done = wait_till_done
         self.trigger_mode = trigger_mode.lower()
-        self.cache_operators = (
-            cache_operators if isinstance(cache_operators, list) else [cache_operators]
-        )
+        self.cache_operators = cache_operators if isinstance(cache_operators, list) else [cache_operators]
         self.target_bucket = target_bucket
         self.use_dcm_files = use_dcm_files
         self.from_data_dir = from_data_dir

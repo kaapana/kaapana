@@ -55,9 +55,7 @@ async def __forward_to_ctp(body: bytes, headers: dict, url: str = "studies"):
         headers (dict): Original request headers
         url (str, optional): URL path to send the request to. Defaults to "studies".
     """
-    forward_headers = {
-        k: v for k, v in headers.items() if k.lower() in ("content-type", "accept")
-    }
+    forward_headers = {k: v for k, v in headers.items() if k.lower() in ("content-type", "accept")}
     async with httpx.AsyncClient(timeout=None) as client:
         response = await client.post(
             f"{config.CTP_DICOMWEB_URL}/{url}",
@@ -104,9 +102,7 @@ def extract_uids_from_multipart(body: bytes, content_type: str) -> dict[str, str
     """
     boundary = _extract_boundary(content_type)
     if not boundary:
-        logger.warning(
-            "Could not parse multipart boundary from Content-Type: %s", content_type
-        )
+        logger.warning("Could not parse multipart boundary from Content-Type: %s", content_type)
         return {}
 
     result: dict[str, str] = {}
@@ -178,15 +174,11 @@ def enrich_dicom_parts_with_project(
         mime_headers, dicom_bytes = parsed
         try:
             ds = pydicom.dcmread(io.BytesIO(dicom_bytes))
-            ds.ClinicalTrialProtocolID = (
-                project_short_id  # (0012,0020) → project assignment
-            )
+            ds.ClinicalTrialProtocolID = project_short_id  # (0012,0020) → project assignment
             ds.ClinicalTrialSponsorName = dataset_name  # (0012,0010) → dataset name
             buf = io.BytesIO()
             ds.save_as(buf)
-            new_parts.append(
-                b"\r\n" + mime_headers + b"\r\n\r\n" + buf.getvalue() + b"\r\n"
-            )
+            new_parts.append(b"\r\n" + mime_headers + b"\r\n\r\n" + buf.getvalue() + b"\r\n")
         except Exception as e:
             logger.warning("Failed to enrich DICOM part with project context: %s", e)
             new_parts.append(part)
@@ -206,13 +198,9 @@ async def __map_dicom_series_to_project(
         request (Request): Request object
 
     """
-    logger.info(
-        project_id
-    )  # Extract the 'clinical_trial_protocol_info' query parameter
+    logger.info(project_id)  # Extract the 'clinical_trial_protocol_info' query parameter
     # This parameter was set in the dcmweb helper
-    clinical_trial_protocol_info = json.loads(
-        request.query_params.get("clinical_trial_protocol_info")
-    )
+    clinical_trial_protocol_info = json.loads(request.query_params.get("clinical_trial_protocol_info"))
 
     for series_instance_uid in clinical_trial_protocol_info:
         # Add the dicom data to the database
@@ -220,9 +208,7 @@ async def __map_dicom_series_to_project(
             await crud.add_dicom_data(
                 session,
                 series_instance_uid=series_instance_uid,
-                study_instance_uid=clinical_trial_protocol_info[series_instance_uid][
-                    "study_instance_uid"
-                ],
+                study_instance_uid=clinical_trial_protocol_info[series_instance_uid]["study_instance_uid"],
                 description="Dicom data",
             )
         except IntegrityError:
@@ -238,9 +224,7 @@ async def __map_dicom_series_to_project(
             )
         except IntegrityError:
             await session.rollback()
-            logger.warning(
-                f"{series_instance_uid=} already exists in the project mapping"
-            )
+            logger.warning(f"{series_instance_uid=} already exists in the project mapping")
 
 
 async def __map_viewer_series_to_project(

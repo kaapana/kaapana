@@ -110,10 +110,7 @@ class UtilService:
             try:
                 gpu_reserved_mb[reservation_key] += int(gpu_mem)
             except (TypeError, ValueError):
-                logger.warning(
-                    "Ignoring invalid gpu_device reservation in "
-                    f"executor_config: {gpu_device}"
-                )
+                logger.warning(f"Ignoring invalid gpu_device reservation in executor_config: {gpu_device}")
                 continue
             gpu_reserved_count[reservation_key] += 1
 
@@ -141,9 +138,7 @@ class UtilService:
         k8s.config.load_incluster_config()
         UtilService.core_v1 = k8s.client.CoreV1Api()
         UtilService.ureg = UnitRegistry()
-        units_file_path = os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), "kubernetes_units.txt"
-        )
+        units_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "kubernetes_units.txt")
 
         assert os.path.isfile(units_file_path)
         UtilService.ureg.load_definitions(units_file_path)
@@ -167,24 +162,14 @@ class UtilService:
                 stats["pid_pressure"] = False
                 for condition in conditions:
                     if condition.type == "MemoryPressure":
-                        stats["memory_pressure"] = (
-                            True if condition.status == "True" else False
-                        )
+                        stats["memory_pressure"] = True if condition.status == "True" else False
                     elif condition.type == "DiskPressure":
-                        stats["disk_pressure"] = (
-                            True if condition.status == "True" else False
-                        )
+                        stats["disk_pressure"] = True if condition.status == "True" else False
                     elif condition.type == "PIDPressure":
-                        stats["pid_pressure"] = (
-                            True if condition.status == "True" else False
-                        )
+                        stats["pid_pressure"] = True if condition.status == "True" else False
 
                 max_pods = int(int(allocatable["pods"]) * 1.5)
-                field_selector = (
-                    "status.phase!=Succeeded,status.phase!=Failed,"
-                    + "spec.nodeName="
-                    + node_name
-                )
+                field_selector = "status.phase!=Succeeded,status.phase!=Failed," + "spec.nodeName=" + node_name
 
                 stats["cpu_alloc"] = UtilService.Q_(allocatable["cpu"])
                 stats["mem_alloc"] = UtilService.Q_(allocatable["memory"])
@@ -218,32 +203,16 @@ class UtilService:
                 data[node_name] = stats
 
             node_info = next(iter(data.values()))
-            UtilService.cpu_alloc = (
-                node_info["cpu_alloc"].to_base_units().magnitude * 1000
-            )
+            UtilService.cpu_alloc = node_info["cpu_alloc"].to_base_units().magnitude * 1000
             UtilService.cpu_req = node_info["cpu_req"].to_base_units().magnitude * 1000
             UtilService.cpu_lmt = node_info["cpu_lmt"].to_base_units().magnitude * 1000
-            UtilService.cpu_req_per = int(
-                node_info["cpu_req_per"].to_base_units().magnitude * 1000
-            )
-            UtilService.cpu_lmt_per = int(
-                node_info["cpu_lmt_per"].to_base_units().magnitude * 1000
-            )
-            UtilService.mem_alloc = int(
-                node_info["mem_alloc"].to_base_units().magnitude // 1024 // 1024
-            )
-            UtilService.mem_req = int(
-                node_info["mem_req"].to_base_units().magnitude // 1024 // 1024
-            )
-            UtilService.mem_lmt = int(
-                node_info["mem_lmt"].to_base_units().magnitude // 1024 // 1024
-            )
-            UtilService.mem_req_per = int(
-                node_info["mem_req_per"].to_base_units().magnitude
-            )
-            UtilService.mem_lmt_per = int(
-                node_info["mem_lmt_per"].to_base_units().magnitude
-            )
+            UtilService.cpu_req_per = int(node_info["cpu_req_per"].to_base_units().magnitude * 1000)
+            UtilService.cpu_lmt_per = int(node_info["cpu_lmt_per"].to_base_units().magnitude * 1000)
+            UtilService.mem_alloc = int(node_info["mem_alloc"].to_base_units().magnitude // 1024 // 1024)
+            UtilService.mem_req = int(node_info["mem_req"].to_base_units().magnitude // 1024 // 1024)
+            UtilService.mem_lmt = int(node_info["mem_lmt"].to_base_units().magnitude // 1024 // 1024)
+            UtilService.mem_req_per = int(node_info["mem_req_per"].to_base_units().magnitude)
+            UtilService.mem_lmt_per = int(node_info["mem_lmt_per"].to_base_units().magnitude)
             UtilService.gpu_dev_count = int(node_info["gpu_dev_count"])
 
             UtilService.memory_pressure = node_info["memory_pressure"]
@@ -251,15 +220,9 @@ class UtilService:
             UtilService.pid_pressure = node_info["pid_pressure"]
 
             UtilService.cpu_available_req = UtilService.cpu_alloc - UtilService.cpu_req
-            UtilService.cpu_available_limit = (
-                UtilService.cpu_alloc - UtilService.cpu_lmt
-            )
-            UtilService.memory_available_req = abs(
-                UtilService.mem_alloc - UtilService.mem_req
-            )
-            UtilService.memory_available_limit = abs(
-                UtilService.mem_alloc - UtilService.mem_lmt
-            )
+            UtilService.cpu_available_limit = UtilService.cpu_alloc - UtilService.cpu_lmt
+            UtilService.memory_available_req = abs(UtilService.mem_alloc - UtilService.mem_req)
+            UtilService.memory_available_limit = abs(UtilService.mem_alloc - UtilService.mem_lmt)
             pool_id = "NODE_GPU_COUNT"
             if (
                 UtilService.pool_gpu_count == None
@@ -277,9 +240,7 @@ class UtilService:
 
                 if UtilService.gpu_dev_count > 0:
                     UtilService.node_gpu_list = (
-                        get_node_gpu_infos(logger=logger)
-                        if UtilService.gpu_dev_count > 0
-                        else []
+                        get_node_gpu_infos(logger=logger) if UtilService.gpu_dev_count > 0 else []
                     )
                     if len(UtilService.node_gpu_list) == 0:
                         UtilService.pool_gpu_count = None
@@ -304,11 +265,7 @@ class UtilService:
                             )
             else:
                 UtilService.pool_gpu_count = UtilService.gpu_dev_count
-                UtilService.node_gpu_list = (
-                    get_node_gpu_infos(logger=logger)
-                    if UtilService.gpu_dev_count > 0
-                    else []
-                )
+                UtilService.node_gpu_list = get_node_gpu_infos(logger=logger) if UtilService.gpu_dev_count > 0 else []
             tmp_node_requested_memory = get_node_requested_memory(logger=logger)
             if UtilService.node_requested_memory != tmp_node_requested_memory:
                 new_processing_memory = abs(
@@ -326,10 +283,7 @@ class UtilService:
                 UtilService.node_requested_memory = tmp_node_requested_memory
 
             pool_id = "NODE_CPU_CORES"
-            if (
-                UtilService.pool_cpu == None
-                or UtilService.pool_cpu != UtilService.cpu_alloc
-            ):
+            if UtilService.pool_cpu == None or UtilService.pool_cpu != UtilService.cpu_alloc:
                 UtilService.create_pool(
                     pool_name=pool_id,
                     pool_slots=UtilService.cpu_alloc,
@@ -365,9 +319,7 @@ class UtilService:
             logger.debug("#####################################")
 
         except Exception as e:
-            logger.error(
-                "+++++++++++++++++++++++++++++++++++++++++ COULD NOT FETCH NODES!"
-            )
+            logger.error("+++++++++++++++++++++++++++++++++++++++++ COULD NOT FETCH NODES!")
             logger.error(e)
             return False
 
@@ -387,29 +339,19 @@ class UtilService:
         if UtilService.last_update == None:
             UtilService.init_util_service()
             UtilService.get_utilization(logger=logger)
-        elif (
-            datetime.now() - UtilService.last_update
-        ).total_seconds() > job_scheduler_delay:
+        elif (datetime.now() - UtilService.last_update).total_seconds() > job_scheduler_delay:
             UtilService.get_utilization(logger=logger)
-        logging.info(
-            f"last_update: {UtilService.last_update.strftime('%Y-%m-%d %H:%M:%S.%f')}"
-        )
+        logging.info(f"last_update: {UtilService.last_update.strftime('%Y-%m-%d %H:%M:%S.%f')}")
 
         if schedule_lockfile.exists():
             logger.warning("##############################################")
             logger.warning("")
-            logger.warning(
-                "UtilService: schedule lockfile found -> skipping scheduling !!!!"
-            )
+            logger.warning("UtilService: schedule lockfile found -> skipping scheduling !!!!")
             logger.warning("")
             logger.warning("##############################################")
-            lockfile_age_seconds = round(
-                time.time() - schedule_lockfile.stat().st_mtime
-            )
+            lockfile_age_seconds = round(time.time() - schedule_lockfile.stat().st_mtime)
             if lockfile_age_seconds > schedule_lockfile_max_duration_seconds:
-                logger.warning(
-                    f"UtilService: {lockfile_age_seconds=} -> Forcefully removing lockfile!"
-                )
+                logger.warning(f"UtilService: {lockfile_age_seconds=} -> Forcefully removing lockfile!")
                 schedule_lockfile.unlink(missing_ok=True)
             else:
                 return False, None
@@ -433,17 +375,10 @@ class UtilService:
             # TODO
             pass
 
-        if (
-            "ram_mem_mb" in task_instance.executor_config
-            and task_instance.executor_config["ram_mem_mb"] != None
-        ):
+        if "ram_mem_mb" in task_instance.executor_config and task_instance.executor_config["ram_mem_mb"] != None:
             mem_offset = round(UtilService.mem_alloc * default_memory_offset_percent)
-            if task_instance.executor_config["ram_mem_mb"] >= (
-                UtilService.memory_available_req - mem_offset
-            ):
-                logger.error(
-                    "TI ram_mem_mb > UtilService.memory_available_req -> not scheduling!"
-                )
+            if task_instance.executor_config["ram_mem_mb"] >= (UtilService.memory_available_req - mem_offset):
+                logger.error("TI ram_mem_mb > UtilService.memory_available_req -> not scheduling!")
                 return False, None
 
         if (
@@ -454,13 +389,13 @@ class UtilService:
             logger.error(f"START: {task_instance.executor_config}")
 
             if "gpu_device" in task_instance.executor_config:
-                logger.info(
-                    f"GPU config already set! ({task_instance.executor_config['gpu_device']=})"
-                )
+                logger.info(f"GPU config already set! ({task_instance.executor_config['gpu_device']=})")
             else:
                 gpu_mem_mb = task_instance.executor_config["gpu_mem_mb"]
-                (gpu_reserved_mb, gpu_reserved_count) = UtilService.get_active_gpu_reservations(session=session, logger=logger)
-                logger.info("Active GPU reservations: " f"{dict(gpu_reserved_mb)}")
+                (gpu_reserved_mb, gpu_reserved_count) = UtilService.get_active_gpu_reservations(
+                    session=session, logger=logger
+                )
+                logger.info(f"Active GPU reservations: {dict(gpu_reserved_mb)}")
 
                 for i in range(0, len(UtilService.node_gpu_list)):
                     gpu_info = UtilService.node_gpu_list[i]
@@ -489,9 +424,7 @@ class UtilService:
                 for gpu_info in UtilService.node_gpu_list:
                     logger.info(json.dumps(gpu_info, indent=4))
 
-                for i in range(
-                    0, len(UtilService.node_gpu_list)
-                ):  # Check if queued_left has enough ram
+                for i in range(0, len(UtilService.node_gpu_list)):  # Check if queued_left has enough ram
                     gpu_info = UtilService.node_gpu_list[i]
                     gpu_id = gpu_info["gpu_id"]
                     pool_id = gpu_info["pool_id"]
@@ -501,17 +434,11 @@ class UtilService:
                     queued_mb = gpu_info["queued_mb"]
                     queued_left = capacity - queued_mb
 
-                    if (
-                        capacity >= gpu_mem_mb
-                        and free >= gpu_mem_mb
-                        and queued_left >= gpu_mem_mb
-                    ):
+                    if capacity >= gpu_mem_mb and free >= gpu_mem_mb and queued_left >= gpu_mem_mb:
                         UtilService.node_gpu_queued_dict[pool_id] += 1
                         UtilService.node_gpu_list[i]["queued_count"] += 1
                         UtilService.node_gpu_list[i]["queued_mb"] += gpu_mem_mb
-                        logger.error(
-                            f"1) Identified GPU for TI: {gpu_id=} {gpu_mem_mb=}"
-                        )
+                        logger.error(f"1) Identified GPU for TI: {gpu_id=} {gpu_mem_mb=}")
                         return True, {
                             "gpu_id": gpu_id,
                             "gpu_uuid": gpu_info.get("gpu_uuid"),

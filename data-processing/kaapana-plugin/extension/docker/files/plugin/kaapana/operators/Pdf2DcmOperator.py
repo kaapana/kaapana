@@ -65,9 +65,7 @@ class Pdf2DcmOperator(KaapanaBaseOperator):
             "MANUFACTURER": str(manufacturer),
             "SOP_CLASS_UID": str(sop_class_uid),
             "PDF_TITLE": str(pdf_title),
-            "DICOM_IN_DIR": str(dicom_operator.operator_out_dir)
-            if dicom_operator is not None
-            else str(None),
+            "DICOM_IN_DIR": str(dicom_operator.operator_out_dir) if dicom_operator is not None else str(None),
         }
 
         env_vars.update(envs)

@@ -47,9 +47,7 @@ def periodically_get_remote_updates():
         try:
             get_remote_updates(db, periodically=True)
         except Exception:
-            logging.warning(
-                "Something went wrong updating in crud.get_remote_updates()"
-            )
+            logging.warning("Something went wrong updating in crud.get_remote_updates()")
             logging.warning(traceback.format_exc())
 
 
@@ -63,9 +61,7 @@ def periodically_sync_states_from_airflow():
             sync_states_from_airflow(db, status="scheduled", periodically=True)
             sync_states_from_airflow(db, status="running", periodically=True)
         except Exception:
-            logging.warning(
-                "Something went wrong updating in crud.sync_states_from_airflow()"
-            )
+            logging.warning("Something went wrong updating in crud.sync_states_from_airflow()")
             logging.warning(traceback.format_exc())
 
 

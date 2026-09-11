@@ -26,9 +26,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 cleanup_policy_enum = sa.Enum("NEVER", "ON_SUCCESS", "ALWAYS", name="cleanuppolicy")
-cleanup_status_enum = sa.Enum(
-    "NOT_REQUIRED", "PENDING", "RUNNING", "CLEANED", "FAILED", name="cleanupstatus"
-)
+cleanup_status_enum = sa.Enum("NOT_REQUIRED", "PENDING", "RUNNING", "CLEANED", "FAILED", name="cleanupstatus")
 
 
 def upgrade() -> None:

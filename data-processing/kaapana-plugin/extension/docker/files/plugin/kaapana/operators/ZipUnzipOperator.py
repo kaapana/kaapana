@@ -50,18 +50,12 @@ class ZipUnzipOperator(KaapanaBaseOperator):
             env_vars = {}
 
         envs = {
-            "TARGET_FILENAME": target_filename
-            if target_filename is not None
-            else "NONE",
+            "TARGET_FILENAME": target_filename if target_filename is not None else "NONE",
             "MODE": mode if mode is not None else "NONE",
             "SUBDIR": subdir if subdir is not None else "NONE",
             "BATCH_LEVEL": str(batch_level),
-            "WHITELIST_FILES": whitelist_files
-            if whitelist_files is not None
-            else "NONE",
-            "BLACKLIST_FILES": blacklist_files
-            if blacklist_files is not None
-            else "NONE",
+            "WHITELIST_FILES": whitelist_files if whitelist_files is not None else "NONE",
+            "BLACKLIST_FILES": blacklist_files if blacklist_files is not None else "NONE",
         }
 
         env_vars.update(envs)

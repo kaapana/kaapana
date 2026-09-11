@@ -50,18 +50,11 @@ dag = DAG(
     schedule_interval=None,
 )
 
-federated_setup_from_previous_test = LocalFederatedSetupFromPreviousTestOperator(
-    dag=dag
-)
+federated_setup_from_previous_test = LocalFederatedSetupFromPreviousTestOperator(dag=dag)
 federated_setup_federated_test = LocalFedartedSetupFederatedTestOperator(
     dag=dag, input_operator=federated_setup_from_previous_test
 )
 federated_setup_skip_test = LocalFederatedSetupSkipTestOperator(dag=dag)
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-(
-    federated_setup_from_previous_test
-    >> federated_setup_federated_test
-    >> federated_setup_skip_test
-    >> clean
-)
+(federated_setup_from_previous_test >> federated_setup_federated_test >> federated_setup_skip_test >> clean)

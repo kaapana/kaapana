@@ -29,6 +29,7 @@ def _mock_response(status_code: int, body: dict | None = None, text: str = "") -
 # OCIError
 # ---------------------------------------------------------------------------
 
+
 class TestOCIError:
     def test_str_with_code(self):
         assert str(OCIError("not found", code="NAME_UNKNOWN")) == "NAME_UNKNOWN: not found"
@@ -70,15 +71,14 @@ class TestOCIError:
 # check_login
 # ---------------------------------------------------------------------------
 
+
 class TestCheckLogin:
     async def test_success_returns_true(self, client):
         client._request_with_auth_retry.return_value = _mock_response(200)
         assert await client.check_login() is True
 
     async def test_unauthorized_raises(self, client):
-        client._request_with_auth_retry.side_effect = OCIError(
-            "auth required", code="UNAUTHORIZED"
-        )
+        client._request_with_auth_retry.side_effect = OCIError("auth required", code="UNAUTHORIZED")
         with pytest.raises(OCIError) as exc_info:
             await client.check_login()
         assert exc_info.value.code == "UNAUTHORIZED"
@@ -94,30 +94,23 @@ class TestCheckLogin:
 # list_tags
 # ---------------------------------------------------------------------------
 
+
 class TestListTags:
     async def test_returns_tag_list(self, client):
-        client._request_with_auth_retry.return_value = _mock_response(
-            200, body={"tags": ["v1.0.0", "v2.0.0"]}
-        )
+        client._request_with_auth_retry.return_value = _mock_response(200, body={"tags": ["v1.0.0", "v2.0.0"]})
         assert await client.list_tags() == ["v1.0.0", "v2.0.0"]
 
     async def test_empty_repository_returns_empty_list(self, client):
-        client._request_with_auth_retry.return_value = _mock_response(
-            200, body={"tags": None}
-        )
+        client._request_with_auth_retry.return_value = _mock_response(200, body={"tags": None})
         assert await client.list_tags() == []
 
     async def test_name_unknown_propagates(self, client):
-        client._request_with_auth_retry.side_effect = OCIError(
-            "repository not found", code="NAME_UNKNOWN"
-        )
+        client._request_with_auth_retry.side_effect = OCIError("repository not found", code="NAME_UNKNOWN")
         with pytest.raises(OCIError) as exc_info:
             await client.list_tags()
         assert exc_info.value.code == "NAME_UNKNOWN"
 
     async def test_other_oci_error_propagates(self, client):
-        client._request_with_auth_retry.side_effect = OCIError(
-            "server error", code="INTERNAL_ERROR"
-        )
+        client._request_with_auth_retry.side_effect = OCIError("server error", code="INTERNAL_ERROR")
         with pytest.raises(OCIError, match="server error"):
             await client.list_tags()

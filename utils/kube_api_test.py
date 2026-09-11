@@ -20,9 +20,7 @@ def _load_kube_config(in_cluster, cluster_context, config_file):
     return client.CoreV1Api(), client.BatchV1Api(), client.NetworkingV1Api()
 
 
-_client, _batch_client, _extensions_client = _load_kube_config(
-    "in_cluster", cluster_context=None, config_file=None
-)
+_client, _batch_client, _extensions_client = _load_kube_config("in_cluster", cluster_context=None, config_file=None)
 namespace = "default"
 
 try:

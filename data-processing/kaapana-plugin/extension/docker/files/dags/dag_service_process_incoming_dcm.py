@@ -71,17 +71,11 @@ extract_metadata = LocalDcm2JsonOperator(dag=dag, input_operator=get_input)
 
 add_to_dataset = LocalAddToDatasetOperator(dag=dag, input_operator=extract_metadata)
 
-assign_to_project = LocalAssignDataToProjectOperator(
-    dag=dag, input_operator=extract_metadata
-)
+assign_to_project = LocalAssignDataToProjectOperator(dag=dag, input_operator=extract_metadata)
 
-push_json = LocalJson2MetaOperator(
-    dag=dag, input_operator=get_input, json_operator=extract_metadata
-)
+push_json = LocalJson2MetaOperator(dag=dag, input_operator=get_input, json_operator=extract_metadata)
 
-validate = DcmValidatorOperator(
-    dag=dag, input_operator=get_input, exit_on_error=False, namespace=SERVICES_NAMESPACE
-)
+validate = DcmValidatorOperator(dag=dag, input_operator=get_input, exit_on_error=False, namespace=SERVICES_NAMESPACE)
 
 save_to_meta = LocalValidationResult2MetaOperator(
     dag=dag,
@@ -128,9 +122,7 @@ def fetch_bucket_name_and_put_html_to_minio_admin_bucket(ds, **kwargs):
         result_files = [f for f in validator_results_dir.glob("*.html")]
 
         # get admin project id
-        response = requests.get(
-            f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects/admin"
-        )
+        response = requests.get(f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects/admin")
         response.raise_for_status()
 
         admin_project = response.json()
@@ -139,9 +131,7 @@ def fetch_bucket_name_and_put_html_to_minio_admin_bucket(ds, **kwargs):
         if len(result_files) > 0 and project_short_id != admin_project_short_id:
             root_path = Path(AIRFLOW_WORKFLOW_DIR) / kwargs["dag_run"].run_id
             for file_path in result_files:
-                object_path = (
-                    f"{target_dir_prefix}/{str(file_path.relative_to(root_path))}"
-                )
+                object_path = f"{target_dir_prefix}/{str(file_path.relative_to(root_path))}"
                 minio.fput_object(
                     bucket_name=admin_project.get("s3_bucket"),
                     object_name=object_path,
@@ -163,8 +153,7 @@ skip_no_thumbnail = LocalDcmBranchingOperator(
     dag=dag,
     name="skip-no-thumbnail",
     input_operator=get_input,
-    condition=lambda ds: str(ds.get("Modality", "")).strip().upper()
-    not in NO_THUMBNAIL_MODALITIES,
+    condition=lambda ds: str(ds.get("Modality", "")).strip().upper() not in NO_THUMBNAIL_MODALITIES,
     branch_true_operator="branch-has-ref",
     branch_false_operator="generate-thumbnail",
 )
@@ -309,9 +298,7 @@ def upload_series_to_data_api(ds, **kwargs):
         instance_uid = metadata.get(DicomTags.SOPInstanceUID_tag)
 
         if not series_uid or not study_uid:
-            print(
-                f"Warning: Missing series UID or study UID in metadata file {metadata_file}"
-            )
+            print(f"Warning: Missing series UID or study UID in metadata file {metadata_file}")
             continue
 
         # Generate UUID for entity ID
@@ -339,9 +326,7 @@ def upload_series_to_data_api(ds, **kwargs):
                 headers={"Content-Type": "application/json"},
             )
             response.raise_for_status()
-            print(
-                f"Successfully created/updated entity {entity_id} for series {series_uid}"
-            )
+            print(f"Successfully created/updated entity {entity_id} for series {series_uid}")
         except requests.exceptions.RequestException as e:
             print(f"Error creating entity for series {series_uid}: {e}")
             continue
@@ -370,20 +355,14 @@ def upload_series_to_data_api(ds, **kwargs):
         project = None
         if project_short_id:
             try:
-                response = requests.get(
-                    f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects"
-                )
+                response = requests.get(f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects")
                 response.raise_for_status()
                 projects = response.json()
-                matching_projects = [
-                    p for p in projects if p.get("short_id") == project_short_id
-                ]
+                matching_projects = [p for p in projects if p.get("short_id") == project_short_id]
                 if matching_projects:
                     project = matching_projects[0]
                 else:
-                    print(
-                        f"Warning: Project with short_id '{project_short_id}' not found"
-                    )
+                    print(f"Warning: Project with short_id '{project_short_id}' not found")
             except requests.exceptions.RequestException as e:
                 print(f"Warning: Failed to fetch projects: {e}")
 
@@ -401,9 +380,7 @@ def upload_series_to_data_api(ds, **kwargs):
                     headers={"Content-Type": "application/json"},
                 )
                 response.raise_for_status()
-                print(
-                    f"Added permissions metadata to entity {entity_id} for project {project.get('id')}"
-                )
+                print(f"Added permissions metadata to entity {entity_id} for project {project.get('id')}")
             except requests.exceptions.RequestException as e:
                 print(f"Error adding permissions metadata for entity {entity_id}: {e}")
 
@@ -421,9 +398,7 @@ def upload_series_to_data_api(ds, **kwargs):
                     with open(validation_json_files[0], "r") as vf:
                         validation_payload = json.load(vf)
                 except Exception as e:
-                    print(
-                        f"Warning: Failed to load validation JSON '{validation_json_files[0]}': {e}"
-                    )
+                    print(f"Warning: Failed to load validation JSON '{validation_json_files[0]}': {e}")
 
             # Fallback to a minimal payload with report names if JSON is unavailable
             if validation_payload is None:
@@ -464,13 +439,9 @@ def upload_series_to_data_api(ds, **kwargs):
                                 files=files,
                             )
                             response.raise_for_status()
-                            print(
-                                f"Uploaded validation report artifact '{artifact_id}' for entity {entity_id}"
-                            )
+                            print(f"Uploaded validation report artifact '{artifact_id}' for entity {entity_id}")
                     except requests.exceptions.RequestException as e:
-                        print(
-                            f"Error uploading validation report '{report_path.name}' for entity {entity_id}: {e}"
-                        )
+                        print(f"Error uploading validation report '{report_path.name}' for entity {entity_id}: {e}")
             except requests.exceptions.RequestException as e:
                 print(f"Error adding validation metadata for entity {entity_id}: {e}")
 
@@ -500,14 +471,8 @@ def upload_thumbnails_into_project_bucket(ds, **kwargs):
         project_short_id = metadata.get(DicomTags.clinical_trial_protocol_id_tag)
         series_uid = metadata.get(DicomTags.series_uid_tag)
 
-        response = requests.get(
-            f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects"
-        )
-        project = [
-            project
-            for project in response.json()
-            if project["short_id"] == project_short_id
-        ][0]
+        response = requests.get(f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects")
+        project = [project for project in response.json() if project["short_id"] == project_short_id][0]
         if not thumbnail_dir.exists():
             continue
         thumbnails = [f for f in thumbnail_dir.glob("*.png")]
@@ -521,9 +486,7 @@ def upload_thumbnails_into_project_bucket(ds, **kwargs):
             file_path=thumbnail_path,
         )
         if project["name"] != "admin":
-            response = requests.get(
-                f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects/admin"
-            )
+            response = requests.get(f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects/admin")
             admin_project = response.json()
             minio.fput_object(
                 bucket_name=admin_project.get("s3_bucket"),
@@ -561,11 +524,7 @@ remove_tags >> dcm_send
 dcm_send >> (push_json, add_to_dataset, assign_to_project)
 
 push_json >> (validate, skip_no_thumbnail)
-(
-    validate
-    >> save_to_meta
-    >> (put_html_to_minio, put_results_html_to_minio_admin_bucket, generate_thumbnail)
-)
+(validate >> save_to_meta >> (put_html_to_minio, put_results_html_to_minio_admin_bucket, generate_thumbnail))
 skip_no_thumbnail >> branch_by_has_ref_series >> (get_ref_ct_series, generate_thumbnail)
 
 

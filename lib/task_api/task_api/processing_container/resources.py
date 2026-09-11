@@ -26,9 +26,7 @@ def compute_target_size(
 
     local_path = getattr(io.volume_source, "host_path", None)
     if not local_path:
-        raise ValueError(
-            f"Cannot compute scale_rule for unsupported volume source {type(io.volume_source)}"
-        )
+        raise ValueError(f"Cannot compute scale_rule for unsupported volume source {type(io.volume_source)}")
 
     target_path = Path(local_path, scale_rule.target_dir)
 
@@ -57,20 +55,14 @@ def compute_target_size(
             ]
         )
 
-    raise ValueError(
-        f"Mode must be one of ['sum','max_file_size','max_item_sum'] not {scale_rule.mode}"
-    )
+    raise ValueError(f"Mode must be one of ['sum','max_file_size','max_item_sum'] not {scale_rule.mode}")
 
 
-def sum_of_file_sizes(
-    target_path: Path, target_glob: str = "*", target_regex: str = ".*"
-):
+def sum_of_file_sizes(target_path: Path, target_glob: str = "*", target_regex: str = ".*"):
     target_size = 0
     pattern = re.compile(target_regex)
     for file_path in target_path.rglob(target_glob):
-        if file_path.is_file() and pattern.fullmatch(
-            str(file_path.relative_to(target_path))
-        ):
+        if file_path.is_file() and pattern.fullmatch(str(file_path.relative_to(target_path))):
             target_size += file_path.stat().st_size
     return target_size
 
@@ -79,9 +71,7 @@ def max_file_size(target_path: Path, target_glob: str = "*", target_regex: str =
     target_size = 0
     pattern = re.compile(target_regex)
     for file_path in target_path.rglob(target_glob):
-        if file_path.is_file() and pattern.fullmatch(
-            str(file_path.relative_to(target_path))
-        ):
+        if file_path.is_file() and pattern.fullmatch(str(file_path.relative_to(target_path))):
             target_size = max(file_path.stat().st_size, target_size)
     return target_size
 
@@ -153,9 +143,7 @@ def compute_pvc_target_size(
         method="POST",
     )
     try:
-        with urllib.request.urlopen(
-            request, timeout=PROJECT_RUNTIME_TIMEOUT
-        ) as response:
+        with urllib.request.urlopen(request, timeout=PROJECT_RUNTIME_TIMEOUT) as response:
             data = json.loads(response.read().decode("utf-8"))
     except urllib.error.URLError as e:
         raise RuntimeError(
@@ -180,15 +168,9 @@ def compute_memory_resources(
     else:
         task_resources = pc_models.Resources(limits={}, requests={})
     memory_request = (
-        calculate_bytes(task_resources.requests.get("memory"))
-        if task_resources.requests.get("memory")
-        else 0
+        calculate_bytes(task_resources.requests.get("memory")) if task_resources.requests.get("memory") else 0
     )
-    memory_limit = (
-        calculate_bytes(task_resources.limits.get("memory"))
-        if task_resources.limits.get("memory")
-        else 0
-    )
+    memory_limit = calculate_bytes(task_resources.limits.get("memory")) if task_resources.limits.get("memory") else 0
     for channel in task_instance.inputs:
         if rule := channel.scale_rule:
             if rule.type.value == "limit":

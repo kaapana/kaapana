@@ -65,10 +65,7 @@ class SourceRef:
             )
 
         if source.startswith(("http://", "https://")):
-            raise ValueError(
-                f"Plain HTTP/HTTPS URLs are not accepted. "
-                f"Use pip-style format: git+{source}"
-            )
+            raise ValueError(f"Plain HTTP/HTTPS URLs are not accepted. Use pip-style format: git+{source}")
 
         # Local path
         return cls(url=source, is_git=False)
@@ -164,20 +161,15 @@ class ExtensionUtilityLibrary:
             recursive: Discover all extensions under source, not just the top-level one.
         """
         source_ref = SourceRef.parse(str(source))
-        effective_output = (
-            output if (output is not None or not source_ref.is_git) else Path.cwd()
-        )
-        ext_dir, clone_root, tmpdir = ExtensionUtilityLibrary._resolve_source(
-            source_ref
-        )
+        effective_output = output if (output is not None or not source_ref.is_git) else Path.cwd()
+        ext_dir, clone_root, tmpdir = ExtensionUtilityLibrary._resolve_source(source_ref)
         try:
-            extensions = ExtensionUtilityLibrary._find_extensions(
-                ext_dir, clone_root, source_ref, recursive
-            )
+            extensions = ExtensionUtilityLibrary._find_extensions(ext_dir, clone_root, source_ref, recursive)
             return [
-                (ext_source, ExtensionUtilityLibrary._build_dir(
-                    d, effective_output, require_stable_id=source_ref.is_git
-                ))
+                (
+                    ext_source,
+                    ExtensionUtilityLibrary._build_dir(d, effective_output, require_stable_id=source_ref.is_git),
+                )
                 for d, ext_source in extensions
             ]
         finally:
@@ -197,9 +189,7 @@ class ExtensionUtilityLibrary:
         await self._manager.download_files(tag, str(output_dir))
         metadata = await self._manager.get(tag)
         ext_manifest = metadata.get("user_metadata", {}).get("extension_manifest", {})
-        (output_dir / "extension_manifest.json").write_text(
-            json.dumps(ext_manifest, indent=2)
-        )
+        (output_dir / "extension_manifest.json").write_text(json.dumps(ext_manifest, indent=2))
         return output_dir
 
     async def push(
@@ -223,9 +213,7 @@ class ExtensionUtilityLibrary:
             The registry tag the extension was pushed under.
         """
         if ext_path.is_dir():
-            raise ValueError(
-                "push expects a .tar.gz archive — use publish to build and push a directory"
-            )
+            raise ValueError("push expects a .tar.gz archive — use publish to build and push a directory")
 
         with tempfile.TemporaryDirectory() as tmp:
             ext_dir = Path(tmp) / "ext"
@@ -248,9 +236,7 @@ class ExtensionUtilityLibrary:
             ext_id = ext_manifest.get("id")
             ext_version = str(ext_manifest.get("version"))
             if not ext_name or not ext_id or not ext_version:
-                raise ValueError(
-                    "extension_manifest.json must contain 'name', 'id', and 'version'"
-                )
+                raise ValueError("extension_manifest.json must contain 'name', 'id', and 'version'")
 
             self._validate_extension_files(ext_dir, ext_manifest)
 
@@ -271,15 +257,9 @@ class ExtensionUtilityLibrary:
             if bump:
                 prefix = f"{ext_id}-v"
                 matches = (
-                    re.match(r"^(\d+)\.(\d+)\.(\d+)", t[len(prefix) :])
-                    for t in existing_tags
-                    if t.startswith(prefix)
+                    re.match(r"^(\d+)\.(\d+)\.(\d+)", t[len(prefix) :]) for t in existing_tags if t.startswith(prefix)
                 )
-                existing_versions = [
-                    (int(m.group(1)), int(m.group(2)), int(m.group(3)))
-                    for m in matches
-                    if m
-                ]
+                existing_versions = [(int(m.group(1)), int(m.group(2)), int(m.group(3))) for m in matches if m]
 
                 next_version = (
                     self.bump_version("{}.{}.{}".format(*max(existing_versions)), bump)
@@ -294,9 +274,7 @@ class ExtensionUtilityLibrary:
             for content in ext_manifest.get("contents", []):
                 content_name = content.get("name", "")
                 for fe in content.get("files", []):
-                    path = (
-                        f"{content_name}/{fe['path']}" if content_name else fe["path"]
-                    )
+                    path = f"{content_name}/{fe['path']}" if content_name else fe["path"]
                     if not (ext_dir / path).is_file():
                         raise RuntimeError(f"File not found in archive: {path}")
                     relative_paths.append(path)
@@ -333,9 +311,7 @@ class ExtensionUtilityLibrary:
             overwrite: Allow overwriting an existing tag.
         """
         with tempfile.TemporaryDirectory() as build_tmp:
-            archives = await asyncio.to_thread(
-                ExtensionUtilityLibrary.build, source, Path(build_tmp), recursive
-            )
+            archives = await asyncio.to_thread(ExtensionUtilityLibrary.build, source, Path(build_tmp), recursive)
             return [
                 (ext_source, await self.push(archive, bump=bump, overwrite=overwrite))
                 for ext_source, archive in archives
@@ -361,9 +337,7 @@ class ExtensionUtilityLibrary:
         try:
             jsonschema.validate(instance=manifest, schema=schema)
         except jsonschema.ValidationError as ve:
-            errors.append(
-                f"Schema error at {'/'.join(map(str, ve.path))}: {ve.message}"
-            )
+            errors.append(f"Schema error at {'/'.join(map(str, ve.path))}: {ve.message}")
         except jsonschema.SchemaError as se:
             errors.append(f"Invalid schema: {se}")
 
@@ -416,15 +390,9 @@ class ExtensionUtilityLibrary:
         for item in manifest.get("contents", []):
             content_name = item.get("name", "")
             if content_name and not (source_dir / content_name).is_dir():
-                raise RuntimeError(
-                    f"Content folder '{content_name}' not found in {source_dir}"
-                )
+                raise RuntimeError(f"Content folder '{content_name}' not found in {source_dir}")
             for fe in item.get("files", []):
-                rel = (
-                    f"{content_name}/{fe.get('path', '')}"
-                    if content_name
-                    else fe.get("path", "")
-                )
+                rel = f"{content_name}/{fe.get('path', '')}" if content_name else fe.get("path", "")
                 if not (source_dir / rel).is_file():
                     raise RuntimeError(f"File not found: {source_dir / rel}")
 
@@ -443,9 +411,7 @@ class ExtensionUtilityLibrary:
             return ext_dir, root, None
 
         tmpdir = tempfile.TemporaryDirectory()
-        clone_root = ExtensionUtilityLibrary._clone_from_git(
-            source.url, source.ref, Path(tmpdir.name) / "cloned"
-        )
+        clone_root = ExtensionUtilityLibrary._clone_from_git(source.url, source.ref, Path(tmpdir.name) / "cloned")
         ext_dir = clone_root / source.subdir if source.subdir else clone_root
         return ext_dir, clone_root, tmpdir
 
@@ -461,15 +427,9 @@ class ExtensionUtilityLibrary:
             manifests = list(ext_dir.rglob("extension_manifest.json"))
             if not manifests:
                 raise ValueError(f"No extensions found under {ext_dir}")
-            return [
-                (m.parent, f"{source.url} :: {m.parent.relative_to(clone_root)}")
-                for m in manifests
-            ]
+            return [(m.parent, f"{source.url} :: {m.parent.relative_to(clone_root)}") for m in manifests]
         if not (ext_dir / "extension_manifest.json").exists():
-            raise ValueError(
-                f"No extension_manifest.json in {ext_dir}"
-                " — use recursive=True to search subfolders"
-            )
+            raise ValueError(f"No extension_manifest.json in {ext_dir} — use recursive=True to search subfolders")
         return [(ext_dir, str(source.url))]
 
     @staticmethod
@@ -514,18 +474,13 @@ class ExtensionUtilityLibrary:
         for item in manifest.get("contents", []):
             content_name = item.get("name", "")
             for fe in item.get("files", []):
-                rel = (
-                    f"{content_name}/{fe.get('path', '')}"
-                    if content_name
-                    else fe.get("path", "")
-                )
+                rel = f"{content_name}/{fe.get('path', '')}" if content_name else fe.get("path", "")
                 file_paths.append(source_dir / rel)
 
         output_dir = output if output is not None else source_dir.parent
         output_dir.mkdir(parents=True, exist_ok=True)
         archive_path = (
-            output_dir
-            / f"{manifest.get('name', source_dir.name)}-v{manifest.get('version', '0.0.0')}.tar.gz"
+            output_dir / f"{manifest.get('name', source_dir.name)}-v{manifest.get('version', '0.0.0')}.tar.gz"
         )
         tmp_path = archive_path.with_suffix(".tar.gz.tmp")
 
@@ -545,9 +500,7 @@ class ExtensionUtilityLibrary:
         return archive_path
 
     @staticmethod
-    def _clone_from_git(
-        git_url: str, ref: Optional[str] = None, target_dir: Optional[Path] = None
-    ) -> Path:
+    def _clone_from_git(git_url: str, ref: Optional[str] = None, target_dir: Optional[Path] = None) -> Path:
         """Clone a git repository and check out an optional ref."""
         if target_dir is None:
             target_dir = Path(tempfile.mkdtemp())

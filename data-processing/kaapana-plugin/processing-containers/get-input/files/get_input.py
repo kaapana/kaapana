@@ -44,31 +44,23 @@ class GetInputOperator:
         """
         workflow_modality = self.workflow_config.get("workflow_form").get("input")
         if not type(workflow_modality) == str:
-            raise TypeError(
-                f"{workflow_modality=} has not the expected type of str. {self.workflow_config=}"
-            )
+            raise TypeError(f"{workflow_modality=} has not the expected type of str. {self.workflow_config=}")
         valid_modalities = workflow_modality.lower().split(",")
 
         if modality.lower() not in valid_modalities:
-            raise ValueError(
-                f"Data modality {modality.lower()} is not one of {valid_modalities=}"
-            )
+            raise ValueError(f"Data modality {modality.lower()} is not one of {valid_modalities=}")
 
     def get_data_from_pacs(self, target_dir: str, studyUID: str, seriesUID: str):
         """
         Download the dicom file of a series from a PACS into target_dir
         """
-        return self.dcmweb_helper.download_series(
-            study_uid=studyUID, series_uid=seriesUID, target_dir=target_dir
-        )
+        return self.dcmweb_helper.download_series(study_uid=studyUID, series_uid=seriesUID, target_dir=target_dir)
 
     def get_data_from_opensearch(self, target_dir: str, seriesUID: str):
         """
         Download metadata of a series from opensearch and store it as a json file into target_dir
         """
-        meta_data = self.os_helper.os_client.get(
-            id=seriesUID, index=self.project_index
-        )["_source"]
+        meta_data = self.os_helper.os_client.get(id=seriesUID, index=self.project_index)["_source"]
         json_path = os.path.join(target_dir, "metadata.json")
         with open(json_path, "w") as fp:
             json.dump(meta_data, fp, indent=4, sort_keys=True)
@@ -94,21 +86,17 @@ class GetInputOperator:
         series_uid = dcm_uid_object.get("dcm-uid").get("series-uid")
         study_uid = dcm_uid_object.get("dcm-uid").get("study-uid")
         target_dir = self.make_target_dir_for_series(series_uid=series_uid)
-        
+
         json_download_successful = dicom_download_successful = True
         if data_type == "json" or data_type == "all":
-            json_download_successful = self.get_data_from_opensearch(
-                target_dir=target_dir, seriesUID=series_uid
-            )
+            json_download_successful = self.get_data_from_opensearch(target_dir=target_dir, seriesUID=series_uid)
         if data_type == "dicom" or data_type == "all":
             dicom_download_successful = self.get_data_from_pacs(
                 target_dir=target_dir, studyUID=study_uid, seriesUID=series_uid
             )
 
-        if data_type not in ['dicom', 'json', 'all']:
-            raise NotImplementedError(
-                f"{data_type=} not supported! Must be one of ['json','dicom']"
-            )
+        if data_type not in ["dicom", "json", "all"]:
+            raise NotImplementedError(f"{data_type=} not supported! Must be one of ['json','dicom']")
 
         return (json_download_successful & dicom_download_successful), series_uid
 
@@ -152,12 +140,8 @@ class GetInputOperator:
         )
 
         if len(dcm_uid_objects) == 0:
-            logger.error(
-                f"No metadata found in {self.project_index=} for {identifiers=}"
-            )
-            raise ValueError(
-                f"No metadata found in {self.project_index=} for {identifiers=}"
-            )
+            logger.error(f"No metadata found in {self.project_index=} for {identifiers=}")
+            raise ValueError(f"No metadata found in {self.project_index=} for {identifiers=}")
 
         dataset_limit = self.workflow_config.get("data_form").get("dataset_limit")
         if self.workflow_config.get("data_form").get("dataset_limit"):
@@ -177,18 +161,14 @@ class GetInputOperator:
                 if num_done % 10 == 0:
                     time_elapsed = time.time() - time_start
                     logger.info(f"{num_done}/{num_total} done")
-                    logger.info(
-                        "Time elapsed: %d:%02d minutes" % divmod(time_elapsed, 60)
-                    )
+                    logger.info("Time elapsed: %d:%02d minutes" % divmod(time_elapsed, 60))
                     logger.info(
                         "Estimated time remaining: %d:%02d minutes"
                         % divmod(time_elapsed / num_done * (num_total - num_done), 60)
                     )
                     logger.info("Series per second: %.2f" % (num_done / time_elapsed))
         if len(series_download_fail) > 0:
-            raise Exception(
-                "Some series could not be downloaded: {}".format(series_download_fail)
-            )
+            raise Exception("Some series could not be downloaded: {}".format(series_download_fail))
         logger.info("All series downloaded successfully")
 
 

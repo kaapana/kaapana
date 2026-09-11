@@ -8,8 +8,7 @@ import warnings
 import kaapana_client
 
 warnings.warn(
-    "kaapanapy is deprecated and will be removed in a future release. "
-    "Use kaapana_client instead.",
+    "kaapanapy is deprecated and will be removed in a future release. Use kaapana_client instead.",
     DeprecationWarning,
     stacklevel=2,
 )

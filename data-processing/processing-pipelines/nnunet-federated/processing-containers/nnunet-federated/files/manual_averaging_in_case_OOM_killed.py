@@ -27,9 +27,7 @@ self = Namespace(
         "fl_working_dir": current_dir,
     }
 )
-current_federated_round_dir = Path(
-    os.path.join(self.fl_working_dir, str(federated_round))
-)
+current_federated_round_dir = Path(os.path.join(self.fl_working_dir, str(federated_round)))
 print(psutil.Process(os.getpid()).memory_info().rss / 1024**2)
 
 
@@ -60,9 +58,7 @@ def _save_state_dict(fname, averaged_state_dict):
 
 
 print("Loading averaged checkpoints")
-for idx, fname in enumerate(
-    current_federated_round_dir.rglob("model_final_checkpoint.model")
-):
+for idx, fname in enumerate(current_federated_round_dir.rglob("model_final_checkpoint.model")):
     print(fname)
     _sum_state_dicts(fname, idx)
     print(psutil.Process(os.getpid()).memory_info().rss / 1024**2)
@@ -79,26 +75,20 @@ for key, value in sum_state_dict.items():
     averaged_state_dict[key] = sum_state_dict[key] / (idx + 1.0)
 
 print("Saving averaged checkpoints")
-for idx, fname in enumerate(
-    current_federated_round_dir.rglob("model_final_checkpoint.model")
-):
+for idx, fname in enumerate(current_federated_round_dir.rglob("model_final_checkpoint.model")):
     print(fname)
     _save_state_dict(fname, averaged_state_dict)
     print(psutil.Process(os.getpid()).memory_info().rss / 1024**2)
 
 
 for instance_name in instance_names:
-    file_path = (
-        f"{current_dir}/{str(federated_round)}/{instance_name}/nnunet-training.tar"
-    )
+    file_path = f"{current_dir}/{str(federated_round)}/{instance_name}/nnunet-training.tar"
     if os.path.exists(file_path):
         os.remove(file_path)
-    next_object_name = (
-        f"{current_dir}/{str(federated_round+1)}/{instance_name}/nnunet-training.tar"
-    )
+    next_object_name = f"{current_dir}/{str(federated_round + 1)}/{instance_name}/nnunet-training.tar"
     file_dir = file_path.replace(".tar", "")
     KaapanaFederatedTrainingBase.apply_tar_action(file_path, file_dir)
-    print(f"Uploading {file_path } to {next_object_name}")
+    print(f"Uploading {file_path} to {next_object_name}")
 
     dst = os.path.join("nnunet-training", next_object_name)
     os.makedirs(os.path.dirname(dst), exist_ok=True)

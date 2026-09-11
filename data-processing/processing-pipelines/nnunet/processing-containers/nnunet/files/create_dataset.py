@@ -43,20 +43,12 @@ def check_if_encoding_in_use(label_encoding):
 
         assert next_free_label is not None
         print("#")
-        print(
-            "###################################### WARNING ###################################### "
-        )
+        print("###################################### WARNING ###################################### ")
         print("#")
-        print(
-            f"# Label encoding '{label_encoding}' has already been used for a different label!!"
-        )
-        print(
-            f"# -> switching to next free label: {label_encoding} -> {next_free_label}"
-        )
+        print(f"# Label encoding '{label_encoding}' has already been used for a different label!!")
+        print(f"# -> switching to next free label: {label_encoding} -> {next_free_label}")
         print("#")
-        print(
-            "##################################################################################### "
-        )
+        print("##################################################################################### ")
         print("#")
         label_encoding = next_free_label
 
@@ -74,9 +66,7 @@ def process_seg_nifti(seg_nifti):
     print("#")
     if "--" in seg_nifti:
         seg_info = seg_nifti.split("--")
-        extracted_label_tag = (
-            seg_info[-1].split(".")[0].replace("_", " ").replace("++", "/")
-        )
+        extracted_label_tag = seg_info[-1].split(".")[0].replace("_", " ").replace("++", "/")
         seg_id = seg_info[1]
 
     meta_info_json_path = glob.glob(join(dirname(seg_nifti), "*.json"), recursive=False)
@@ -89,9 +79,7 @@ def process_seg_nifti(seg_nifti):
         if "segmentAttributes" in meta_info:
             for entries in meta_info["segmentAttributes"]:
                 for part in entries:
-                    if "labelID" in part and (
-                        seg_id is None or str(part["labelID"]) == seg_id
-                    ):
+                    if "labelID" in part and (seg_id is None or str(part["labelID"]) == seg_id):
                         if "labelID" in part and seg_id is None:
                             seg_id = int(part["labelID"])
                         if "SegmentLabel" in part:
@@ -151,9 +139,7 @@ def process_seg_nifti(seg_nifti):
         label_int = check_if_encoding_in_use(label_int)
 
         if label_int != nifti_bin_encoding:
-            print(
-                f"# replacing labels: {label_tag} -> from {nifti_bin_encoding} -> to {label_int}"
-            )
+            print(f"# replacing labels: {label_tag} -> from {nifti_bin_encoding} -> to {label_int}")
             nii_array = np.where(nii_array == nifti_bin_encoding, label_int, nii_array)
             nifti_bin_encoding = label_int
 
@@ -165,11 +151,9 @@ def process_seg_nifti(seg_nifti):
                 print("#")
                 print("###################### WARNING ###################### ")
                 print("#")
-                print(
-                    f"# Label '{label_tag}' has already been found but the integer encoding differs to the NIFTI !"
-                )
+                print(f"# Label '{label_tag}' has already been found but the integer encoding differs to the NIFTI !")
                 print(f"# New NIFTI encoding:  {nifti_bin_encoding}")
-                print(f"# Existing encoding:   {label_names_found[label_tag] }")
+                print(f"# Existing encoding:   {label_names_found[label_tag]}")
                 print("#")
                 print(
                     f"# replacing labels: {label_tag} -> from {nifti_bin_encoding} -> to {label_names_found[label_tag]}"
@@ -181,9 +165,7 @@ def process_seg_nifti(seg_nifti):
                 print(
                     f"# replacing labels: {label_tag} -> from {nifti_bin_encoding} -> to {label_names_found[label_tag]}"
                 )
-            nii_array = np.where(
-                nii_array == nifti_bin_encoding, label_names_found[label_tag], nii_array
-            )
+            nii_array = np.where(nii_array == nifti_bin_encoding, label_names_found[label_tag], nii_array)
             nifti_bin_encoding = label_names_found[label_tag]
         else:
             print("# NIFTI encoding -> ok")
@@ -209,28 +191,20 @@ def prepare_dataset(datset_list, dataset_id):
 
         for i in range(0, len(input_modality_dirs)):
             modality_nifti_dir = join(series, input_modality_dirs[i])
-            modality_nifti = glob.glob(
-                join(modality_nifti_dir, "*.nii.gz"), recursive=True
-            )
+            modality_nifti = glob.glob(join(modality_nifti_dir, "*.nii.gz"), recursive=True)
             if len(modality_nifti) != 1:
                 print("# ")
                 print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
                 print("# ")
                 print("# Error with training image-file!")
-                print(
-                    "# Found {} files at: {}".format(
-                        len(modality_nifti), modality_nifti_dir
-                    )
-                )
+                print("# Found {} files at: {}".format(len(modality_nifti), modality_nifti_dir))
                 print("# Expected exactly one file! -> abort.")
                 print("# ")
                 print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
                 print("# ")
                 exit(1)
             modality_nifti = modality_nifti[0]
-            target_modality_path = join(
-                images_path, base_file_path.replace(".nii.gz", f"_{i:04}.nii.gz")
-            )
+            target_modality_path = join(images_path, base_file_path.replace(".nii.gz", f"_{i:04}.nii.gz"))
             Path(dirname(target_modality_path)).mkdir(parents=True, exist_ok=True)
             if copy_target_data:
                 shutil.copy2(modality_nifti, target_modality_path)
@@ -254,9 +228,7 @@ def prepare_dataset(datset_list, dataset_id):
         seg_nifti = seg_nifti_list[0]
         Path(dirname(target_seg_path)).mkdir(parents=True, exist_ok=True)
 
-        meta_info_json_path = glob.glob(
-            join(dirname(seg_nifti), "*.json"), recursive=False
-        )
+        meta_info_json_path = glob.glob(join(dirname(seg_nifti), "*.json"), recursive=False)
         assert len(meta_info_json_path) == 1
 
         if len(meta_info_json_path) == 1 and exists(meta_info_json_path[0]):
@@ -270,9 +242,7 @@ def prepare_dataset(datset_list, dataset_id):
                     seg_id = None
                     extracted_label_tag = None
                     for part in entries:
-                        if "labelID" in part and (
-                            seg_id is None or str(part["labelID"]) == seg_id
-                        ):
+                        if "labelID" in part and (seg_id is None or str(part["labelID"]) == seg_id):
                             if "labelID" in part and seg_id is None:
                                 seg_id = int(part["labelID"])
                             if "SegmentLabel" in part:
@@ -301,7 +271,7 @@ def prepare_dataset(datset_list, dataset_id):
     print("#")
 
 
-task_name = f'Task{int(os.getenv("TASK_NUM")):03}_{os.getenv("TASK_DESCRIPTION")}'
+task_name = f"Task{int(os.getenv('TASK_NUM')):03}_{os.getenv('TASK_DESCRIPTION')}"
 licence = os.getenv("LICENCE", "N/A")
 version = os.getenv("VERSION", "N/A")
 training_name = task_name
@@ -311,18 +281,14 @@ shuffle_seed = int(os.getenv("SHUFFLE_SEED", "0"))
 network_trainer = os.getenv("TRAIN_NETWORK_TRAINER", "N/A")
 model_architecture = os.getenv("MODEL", "UNKNOWN")  # -> model 2d,3d_lowres etc
 test_percentage = int(os.getenv("TEST_PERCENTAGE", "0"))
-copy_target_data = (
-    True if os.getenv("PREP_COPY_DATA", "False").lower() == "true" else False
-)
+copy_target_data = True if os.getenv("PREP_COPY_DATA", "False").lower() == "true" else False
 tensor_size = os.getenv("TENSOR_SIZE", "3D")
 instance_name = os.getenv("INSTANCE_NAME", "N/A").replace(" ", "_")
 max_epochs = os.getenv("TRAIN_MAX_EPOCHS", "N/A")
 
 input_modalities = os.getenv("PREP_MODALITIES", "")
 input_label_dirs = os.getenv("PREP_LABEL_DIRS", "")
-exit_on_issue = (
-    True if os.getenv("PREP_EXIT_ON_ISSUE", "True").lower() == "true" else False
-)
+exit_on_issue = True if os.getenv("PREP_EXIT_ON_ISSUE", "True").lower() == "true" else False
 input_modality_dirs = os.getenv("INPUT_MODALITY_DIRS", "")
 
 batch_dir = join("/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"])
@@ -330,12 +296,10 @@ operator_out_dir = join("/", os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_OU
 task_dir = join(
     operator_out_dir,
     "nnUNet_raw",
-    f'Dataset{int(os.getenv("TASK_NUM")):03}_{os.getenv("TASK_DESCRIPTION")}',
+    f"Dataset{int(os.getenv('TASK_NUM')):03}_{os.getenv('TASK_DESCRIPTION')}",
 )
 
-use_nifti_labels = (
-    True if os.getenv("PREP_USE_NIFITI_LABELS", "False").lower() == "true" else False
-)
+use_nifti_labels = True if os.getenv("PREP_USE_NIFITI_LABELS", "False").lower() == "true" else False
 global_label_index = 0
 
 thread_count = 5
@@ -468,9 +432,7 @@ labels = {}
 for key, value in label_names_found.items():
     labels[str(value)] = key
 # bring labels in nnunetv2 format
-sorted_labels = {
-    v: int(k) for k, v in sorted(labels.items(), key=lambda item: int(item[0]))
-}
+sorted_labels = {v: int(k) for k, v in sorted(labels.items(), key=lambda item: int(item[0]))}
 # rename "Clear label" to "background" (necessary for nnunetv2)
 sorted_labels["background"] = sorted_labels.pop("Clear Label")
 
@@ -491,9 +453,7 @@ with open(join(task_dir, "dataset.json"), "w") as fp:
     json.dump(template_dataset_json, fp, indent=4, sort_keys=False)
 
 with open(
-    join(
-        "/", os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_OUT_DIR"], "dataset.json"
-    ),
+    join("/", os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_OUT_DIR"], "dataset.json"),
     "w",
 ) as fp:
     # One could make this smoother, so not saving a copy of the file...

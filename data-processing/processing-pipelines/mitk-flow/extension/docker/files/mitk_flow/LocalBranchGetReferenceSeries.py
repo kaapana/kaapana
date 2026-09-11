@@ -27,17 +27,13 @@ class LocalBranchGetReferenceSeries(KaapanaBranchPythonBaseOperator):
             run_dir (str): The directory path of the workflow execution
             tasks (list): List of task objects to be dumped
         """
-        batch_folders = (
-            Path(self.airflow_workflow_dir) / kwargs["dag_run"].run_id / self.batch_name
-        ).glob("*")
+        batch_folders = (Path(self.airflow_workflow_dir) / kwargs["dag_run"].run_id / self.batch_name).glob("*")
         input_is_segmentation = False
         for batch_element_dir in batch_folders:
             element_input_dir = os.path.join(batch_element_dir, self.operator_in_dir)
             print("Processing directory:", element_input_dir)
             dcm_file = next(
-                iter(
-                    glob.glob(os.path.join(element_input_dir, "*.dcm*"), recursive=True)
-                ),
+                iter(glob.glob(os.path.join(element_input_dir, "*.dcm*"), recursive=True)),
                 None,
             )
             assert dcm_file
@@ -56,17 +52,8 @@ class LocalBranchGetReferenceSeries(KaapanaBranchPythonBaseOperator):
             return self.branch_to_next_operator
 
     def __init__(
-        self,
-        dag,
-        branch_to_ref_operator="get-ref-series",
-        branch_to_next_operator="get-mitk-input",
-        **kwargs
+        self, dag, branch_to_ref_operator="get-ref-series", branch_to_next_operator="get-mitk-input", **kwargs
     ):
         self.branch_to_ref_operator = branch_to_ref_operator
         self.branch_to_next_operator = branch_to_next_operator
-        super().__init__(
-            dag=dag,
-            name="branch-get-reference",
-            python_callable=self.branch_if_seg,
-            **kwargs
-        )
+        super().__init__(dag=dag, name="branch-get-reference", python_callable=self.branch_if_seg, **kwargs)

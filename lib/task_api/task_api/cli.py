@@ -47,42 +47,26 @@ def monitor_container_memory(task_run: task_models.TaskRun):
     typer.echo(f"Peak memory usage of container: {max_memory_usage}")
 
     for channel in task_run.inputs:
-        sum_input_size = human_readable_size(
-            sum_of_file_sizes(target_path=Path(channel.volume_source.host_path))
-        )
-        max_input_size = human_readable_size(
-            max_file_size(target_path=Path(channel.volume_source.host_path))
-        )
+        sum_input_size = human_readable_size(sum_of_file_sizes(target_path=Path(channel.volume_source.host_path)))
+        max_input_size = human_readable_size(max_file_size(target_path=Path(channel.volume_source.host_path)))
 
         typer.echo(f"Sum of all files for channel: {channel.name}: {sum_input_size}")
-        typer.echo(
-            f"Size of largest file for channel: {channel.name}: {max_input_size}"
-        )
+        typer.echo(f"Size of largest file for channel: {channel.name}: {max_input_size}")
 
         if channel.scale_rule:
-            size_scale_rule_target = human_readable_size(
-                compute_target_size(io=channel)
-            )
-            typer.echo(
-                f"Calculated size for ScaleRule for channel: {channel.name}: {size_scale_rule_target}"
-            )
+            size_scale_rule_target = human_readable_size(compute_target_size(io=channel))
+            typer.echo(f"Calculated size for ScaleRule for channel: {channel.name}: {size_scale_rule_target}")
             scaleRule_outcome = human_readable_size(compute_memory_requirement(channel))
-            typer.echo(
-                f"Calculated resource requirement for channel: {channel.name}: {scaleRule_outcome}"
-            )
+            typer.echo(f"Calculated resource requirement for channel: {channel.name}: {scaleRule_outcome}")
 
             if calculate_bytes(scaleRule_outcome) <= calculate_bytes(max_memory_usage):
                 msg = "WARNING: Calculated resource requirement for channel: {} is smaller than the peak memory usage {} < {}"
-                typer.echo(
-                    msg.format(channel.name, scaleRule_outcome, max_memory_usage)
-                )
+                typer.echo(msg.format(channel.name, scaleRule_outcome, max_memory_usage))
 
 
 @app.command()
 def processing_container(
-    image: str = typer.Argument(
-        ..., help="Image to get the processing-container.json for"
-    ),
+    image: str = typer.Argument(..., help="Image to get the processing-container.json for"),
     mode: Optional[Modes] = typer.Option(
         Modes.docker.value,
         help="Environemnt in which to run the container.",
@@ -97,9 +81,7 @@ def processing_container(
 
 @app.command()
 def check_task_run(
-    task_run: Path = typer.Argument(
-        ..., help="task_run.pkl file to run a container for."
-    ),
+    task_run: Path = typer.Argument(..., help="task_run.pkl file to run a container for."),
     watch: bool = typer.Option(True, help="Wether to check the state until finished."),
 ):
     """ """
@@ -116,17 +98,13 @@ def check_task_run(
 
 @app.command()
 def run(
-    input: Path = typer.Argument(
-        ..., help="Path to task.json file to run a container for."
-    ),
+    input: Path = typer.Argument(..., help="Path to task.json file to run a container for."),
     mode: Optional[Modes] = typer.Option(
         Modes.docker.value,
         help="Environemnt in which to run the container. One of ['docker', 'kubernetes'].",
     ),
     watch: Optional[bool] = typer.Option(False, help="Stream logs to stdout."),
-    output: Optional[Path] = typer.Option(
-        None, help="Path to dump the task_run object."
-    ),
+    output: Optional[Path] = typer.Option(None, help="Path to dump the task_run object."),
     monitor_memory: bool = typer.Option(
         False,
         help="Monitor memory utilization of the processing-container in Docker. Does not work in conjunction with watch!",

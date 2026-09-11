@@ -43,7 +43,7 @@ class TotalSegmentatorV2Operator(KaapanaBaseOperator):
         roi_subset=None,
         nr_thr_resamp=1,
         nr_thr_saving=6,
-        modality='CT',
+        modality="CT",
         env_vars=None,
         execution_timeout=timedelta(minutes=120),
         **kwargs,
@@ -65,10 +65,10 @@ class TotalSegmentatorV2Operator(KaapanaBaseOperator):
             "ROI_SUBSET": "None" if not roi_subset else " ".join(roi_subset),
             "NR_THR_RESAMP": str(nr_thr_resamp),
             "NR_THR_SAVING": str(nr_thr_saving),
-            "TASK_MODALITY": str(modality)
+            "TASK_MODALITY": str(modality),
         }
         if task:
-            envs['TASK'] = str(task)
+            envs["TASK"] = str(task)
         ram_mem_mb = 16000
         gpu_mem_mb = 11900
 

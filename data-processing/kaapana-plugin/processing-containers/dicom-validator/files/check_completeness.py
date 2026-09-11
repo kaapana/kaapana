@@ -43,9 +43,7 @@ def get_opensearch_series_metadata(
         )
         return series_metadata
     except ValidationError as e:
-        logger.error(
-            "Series found in OpenSearch, but series completeness metadata are missing."
-        )
+        logger.error("Series found in OpenSearch, but series completeness metadata are missing.")
         logger.error(e)
         return None
 
@@ -77,9 +75,7 @@ def update_opensearch(
     logger.info(f"missing={series_metadata.missing_instance_numbers}")
 
 
-def check_completeness(
-    operator_in_dir: Path, operator_out_dir: Path, update_os: bool = True
-):
+def check_completeness(operator_in_dir: Path, operator_out_dir: Path, update_os: bool = True):
     """
     Checks if a DICOM series in `operator_in_dir` is complete by comparing
     the expected number of instances with the actual number of files present.
@@ -103,28 +99,18 @@ def check_completeness(
     if not dicom_filenames:
         return False, "No DICOM files found in the directory."
 
-    dicom_files = [
-        pydicom.dcmread(dicom_filename) for dicom_filename in dicom_filenames
-    ]
+    dicom_files = [pydicom.dcmread(dicom_filename) for dicom_filename in dicom_filenames]
     series_uid = dicom_files[0].SeriesInstanceUID
     modality = dicom_files[0].Modality
 
     if len(dicom_files) == 1:
         dicom_files[0].InstanceNumber = "1"
 
-    if all(
-        [
-            hasattr(ds, "InstanceNumber") and str(ds.InstanceNumber).isdigit()
-            for ds in dicom_files
-        ]
-    ):
-
+    if all([hasattr(ds, "InstanceNumber") and str(ds.InstanceNumber).isdigit() for ds in dicom_files]):
         instance_numbers = [ds.InstanceNumber for ds in dicom_files]
         min_instance_number = min(instance_numbers)
         max_instance_number = max(instance_numbers)
-        expected_instance_numbers = set(
-            range(min_instance_number, max_instance_number + 1)
-        )
+        expected_instance_numbers = set(range(min_instance_number, max_instance_number + 1))
 
         missing_instance_numbers = expected_instance_numbers - set(instance_numbers)
         is_series_complete = len(missing_instance_numbers) == 0
@@ -134,9 +120,7 @@ def check_completeness(
             is_series_complete=is_series_complete,
             missing_instance_numbers=sorted(list(missing_instance_numbers)),
         )
-        old_series_metadata = get_opensearch_series_metadata(
-            client, opensearch_index, series_uid
-        )
+        old_series_metadata = get_opensearch_series_metadata(client, opensearch_index, series_uid)
         if not old_series_metadata:
             updated_series_metadata = new_series_metadata
         else:
@@ -146,15 +130,11 @@ def check_completeness(
             )
 
         if update_os:
-            update_opensearch(
-                client, opensearch_index, series_uid, updated_series_metadata
-            )
+            update_opensearch(client, opensearch_index, series_uid, updated_series_metadata)
 
         return updated_series_metadata
     else:
-        logger.error(
-            "Required Dicom Tag InstanceNumber must be present in all instances"
-        )
+        logger.error("Required Dicom Tag InstanceNumber must be present in all instances")
         return None
 
 
@@ -169,9 +149,7 @@ def get_available_instance_numbers(metadata: SeriesCompletenessMetadata) -> set:
     Returns:
         set: A set of available instance numbers.
     """
-    full_range = set(
-        range(metadata.min_instance_number, metadata.max_instance_number + 1)
-    )
+    full_range = set(range(metadata.min_instance_number, metadata.max_instance_number + 1))
     return full_range - set(metadata.missing_instance_numbers)
 
 
@@ -195,20 +173,14 @@ def update_metadata(
     Returns:
         The updated series metadata.
     """
-    min_instance_number = min(
-        old_series_metadata.min_instance_number, new_series_metadata.min_instance_number
-    )
+    min_instance_number = min(old_series_metadata.min_instance_number, new_series_metadata.min_instance_number)
 
-    max_instance_number = max(
-        old_series_metadata.max_instance_number, new_series_metadata.max_instance_number
-    )
+    max_instance_number = max(old_series_metadata.max_instance_number, new_series_metadata.max_instance_number)
     expected_instance_numbers = set(range(min_instance_number, max_instance_number + 1))
     old_available_instance_numbers = get_available_instance_numbers(old_series_metadata)
     new_available_instance_numbers = get_available_instance_numbers(new_series_metadata)
     missing_instance_numbers = (
-        expected_instance_numbers
-        - old_available_instance_numbers
-        - new_available_instance_numbers
+        expected_instance_numbers - old_available_instance_numbers - new_available_instance_numbers
     )
     is_series_complete = len(missing_instance_numbers) == 0
 

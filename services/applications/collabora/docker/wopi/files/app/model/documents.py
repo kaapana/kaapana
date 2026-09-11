@@ -61,9 +61,7 @@ class DocumentStore:
         path = self.doc_lookup.get(file_id)
         return path
 
-    def find_documents(
-        self, minio: Minio, extension_list: List[str], ignore_regex: str = None
-    ):
+    def find_documents(self, minio: Minio, extension_list: List[str], ignore_regex: str = None):
         """
         Find all documents in MinIO with matching extension and not matching ignore_regex.
         Populate self.docs and self.doc_lookup
@@ -74,9 +72,7 @@ class DocumentStore:
         for bucket in minio.list_buckets():
             for object in minio.list_objects(bucket.name, recursive=True):
                 extension = object.object_name.split(".")[-1]
-                if extension not in extension_list or (
-                    ignore_re and ignore_re.match(object.object_name)
-                ):
+                if extension not in extension_list or (ignore_re and ignore_re.match(object.object_name)):
                     continue
                 docs.append(
                     MinioDocument(

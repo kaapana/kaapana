@@ -33,9 +33,7 @@ async def create_registered_repository(
     repository_url: str,
     authentication: Optional[str],
 ) -> RegisteredRepository:
-    selection = await session.execute(
-        select(RegisteredRepository).where(RegisteredRepository.name == name)
-    )
+    selection = await session.execute(select(RegisteredRepository).where(RegisteredRepository.name == name))
     existing_repo = selection.scalar_one_or_none()
     if existing_repo:
         repository_id = existing_repo.id
@@ -75,12 +73,8 @@ async def list_registered_repositories(
     return list(result.scalars().all())
 
 
-async def get_registered_repository(
-    session: AsyncSession, repository_id: UUID
-) -> Optional[RegisteredRepository]:
-    result = await session.execute(
-        select(RegisteredRepository).where(RegisteredRepository.id == repository_id)
-    )
+async def get_registered_repository(session: AsyncSession, repository_id: UUID) -> Optional[RegisteredRepository]:
+    result = await session.execute(select(RegisteredRepository).where(RegisteredRepository.id == repository_id))
     return result.scalar_one_or_none()
 
 
@@ -94,9 +88,7 @@ async def update_registered_repository(
 ) -> RegisteredRepository:
     try:
         result = await session.execute(
-            select(RegisteredRepository)
-            .where(RegisteredRepository.id == id)
-            .with_for_update()
+            select(RegisteredRepository).where(RegisteredRepository.id == id).with_for_update()
         )
         repo = result.scalar_one()
 
@@ -119,9 +111,7 @@ async def update_registered_repository(
             raise e
 
 
-async def delete_registered_repository(
-    session: AsyncSession, repository_id: UUID
-) -> None:
+async def delete_registered_repository(session: AsyncSession, repository_id: UUID) -> None:
     stmt = delete(RegisteredRepository).where(RegisteredRepository.id == repository_id)
     await session.execute(stmt)
     await session.commit()
@@ -149,13 +139,9 @@ async def create_extension(
     return ext
 
 
-async def get_extension(
-    session: AsyncSession, extension_id: UUID
-) -> Optional[Extension]:
+async def get_extension(session: AsyncSession, extension_id: UUID) -> Optional[Extension]:
     result = await session.execute(
-        select(Extension)
-        .options(selectinload(Extension.contents))
-        .where(Extension.id == extension_id)
+        select(Extension).options(selectinload(Extension.contents)).where(Extension.id == extension_id)
     )
     return result.scalar_one_or_none()
 
@@ -199,9 +185,7 @@ async def update_extension(
         db_extension = selection.scalar_one()
 
         if status not in ALLOWED_EXTENSION_STATUS_TRANSITIONS[db_extension.status]:
-            raise NotSupportedExtensionStateTransition(
-                is_state=db_extension.status, soll_state=status
-            )
+            raise NotSupportedExtensionStateTransition(is_state=db_extension.status, soll_state=status)
 
         db_extension.status = status
         await session.commit()
@@ -230,9 +214,7 @@ async def delete_extension(session: AsyncSession, extension_id: UUID) -> None:
 # ---------- Content CRUD ----------
 
 
-async def create_content(
-    session: AsyncSession, extension_id: UUID, content_type: str, name: str
-) -> Content:
+async def create_content(session: AsyncSession, extension_id: UUID, content_type: str, name: str) -> Content:
     content = Content(
         name=name,
         extension_id=extension_id,
@@ -259,14 +241,9 @@ async def update_content(
 ) -> Content:
 
     try:
-        selection = await session.execute(
-            select(Content).where(Content.id == content_id).with_for_update(nowait=True)
-        )
+        selection = await session.execute(select(Content).where(Content.id == content_id).with_for_update(nowait=True))
         db_content = selection.scalar_one()
-        if (
-            status
-            and status not in ALLOWED_CONTENT_STATUS_TRANSITIONS[db_content.status]
-        ):
+        if status and status not in ALLOWED_CONTENT_STATUS_TRANSITIONS[db_content.status]:
             raise Exception(
                 f"Invalid status transition from {db_content.status} to {status} for content with id {content_id}"
             )

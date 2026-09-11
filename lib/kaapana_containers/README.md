@@ -16,8 +16,8 @@ async with OCIRegistryDiscovery(
     password="mytoken",
 ) as client:
     await client.check_login()
-    tags   = await client.list_tags()
-    meta   = await client.get("my-tag-v1.0.0")
+    tags = await client.list_tags()
+    meta = await client.get("my-tag-v1.0.0")
     await client.create_or_update_tag("my-tag-v1.0.0", user_metadata={...}, files=["file.tar.gz"])
     await client.download_files("my-tag-v1.0.0", output_dir="/tmp/out")
     await client.delete_tag("my-tag-v1.0.0")
@@ -31,8 +31,8 @@ All failures raise `OCIError(message, code=...)`. Error codes follow the [OCI Di
 try:
     await client.list_tags()
 except OCIError as e:
-    print(e.code)   # e.g. "UNAUTHORIZED", "NAME_UNKNOWN", "MANIFEST_UNKNOWN"
-    print(str(e))   # human-readable detail
+    print(e.code)  # e.g. "UNAUTHORIZED", "NAME_UNKNOWN", "MANIFEST_UNKNOWN"
+    print(str(e))  # human-readable detail
 ```
 
 ## License

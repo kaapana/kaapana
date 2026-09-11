@@ -9,14 +9,11 @@ from .models import ExtensionManifest
 
 
 class ociService:
-
     def __init__(self, repository_url: str, authentication: str) -> None:
         self.repository_url = repository_url
         self._authentication = decrypt(authentication)
 
-        self.extension_dir = Path(
-            f"{Path(__file__).parent.parent.parent}/mock_data"
-        ).absolute()
+        self.extension_dir = Path(f"{Path(__file__).parent.parent.parent}/mock_data").absolute()
 
     async def __aenter__(self):
         self._session = None
@@ -32,9 +29,7 @@ class ociService:
     async def get_extensions_for_repository(self) -> set[str]:
         return set([str(tag.name) for tag in self.extension_dir.iterdir()])
 
-    async def get_extension_manifests(
-        self, tags: set[str] | None = None
-    ) -> dict[str, ExtensionManifest]:
+    async def get_extension_manifests(self, tags: set[str] | None = None) -> dict[str, ExtensionManifest]:
         manifests = {}
         existing_tags = await self.get_extensions_for_repository()
         if tags:
@@ -53,9 +48,7 @@ class ociService:
     async def get_extension_manifest(self, tag: str) -> ExtensionManifest:
         existing_tags = await self.get_extensions_for_repository()
         if tag not in existing_tags:
-            raise ExtensionNotFoundException(
-                f"Extension with tag {tag} not found in {self.repository_url}"
-            )
+            raise ExtensionNotFoundException(f"Extension with tag {tag} not found in {self.repository_url}")
 
         with open(self.extension_dir / tag / "extension_manifest.json") as manifest:
             manifest_json = json.load(manifest)
@@ -65,9 +58,7 @@ class ociService:
     async def pull_extension(self, tag: str) -> Path:
         existing_tags = await self.get_extensions_for_repository()
         if tag not in existing_tags:
-            raise ExtensionNotFoundException(
-                f"Extension with tag {tag} not found in {self.repository_url}"
-            )
+            raise ExtensionNotFoundException(f"Extension with tag {tag} not found in {self.repository_url}")
 
         source = Path(self.extension_dir / tag)
         dest = Path(__file__).parent.parent.parent / "tags"

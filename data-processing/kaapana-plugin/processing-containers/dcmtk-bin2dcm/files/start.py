@@ -63,9 +63,7 @@ def xml_to_dicom(target_dir, delete_xml=True):
         print("#")
         print(f"# convert XML to DICOM: {xml_path} -> {dcm_path}")
         command = ["xml2dcm", xml_path, dcm_path]
-        output = run(
-            command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=320
-        )
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=320)
 
         if output.returncode != 0:
             print("# Could not convert XML to DICOM!")
@@ -101,9 +99,7 @@ def dicom_to_xml(dicom_dir, target_dir):
         print("#")
         print(f"# command: {command}")
         print("#")
-        output = run(
-            command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=320
-        )
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=320)
 
         if output.returncode != 0:
             print("# Could not convert dicom to xml!")
@@ -134,34 +130,22 @@ def xml_to_binary(target_dir, delete_xml=True):
         hex_data = None
         expected_file_count = None
         for ev, el in context:
-            if (
-                ev == "start"
-                and el.tag == "element"
-                and el.attrib["name"] == "ImageComments"
-            ):
+            if ev == "start" and el.tag == "element" and el.attrib["name"] == "ImageComments":
                 filename = el.text
                 if filename:
                     print(f"# Found filename: {filename}")
                 else:
                     filename = "filname_not_found.txt"
                     print("#")
-                    print(
-                        f"# WARNING: no filename found in XML element {el.attrib['name']}"
-                    )
+                    print(f"# WARNING: no filename found in XML element {el.attrib['name']}")
                     print(f"# Proceed with the following filename: {filename}")
                     print("#")
                 # might extract expected_file_count from filename, if filename follows schema e.g. = "aggregated_metrics---1.txt"
-                expected_file_count = (
-                    int(filename.split(".")[0].split("---")[1])
-                    if "---" in filename
-                    else 1
-                )
+                expected_file_count = int(filename.split(".")[0].split("---")[1]) if "---" in filename else 1
                 if len(xml_files) != expected_file_count:
                     print("# ERROR!!")
                     print("#")
-                    print(
-                        f"# Expected {expected_file_count} files -> found {len(xml_files)}"
-                    )
+                    print(f"# Expected {expected_file_count} files -> found {len(xml_files)}")
                     print("# Abort")
                     print("#")
                     exit(1)
@@ -177,9 +161,7 @@ def xml_to_binary(target_dir, delete_xml=True):
                 hex_data = el.text.strip().replace("\\", "")
                 print("# Found Hex-Data!")
                 root.clear()
-            elif (
-                ev == "end" and el.tag == "pixel-item" and el.attrib["binary"] == "yes"
-            ):
+            elif ev == "end" and el.tag == "pixel-item" and el.attrib["binary"] == "yes":
                 hex_data = el.text.strip().replace("\\", "")
                 print("# Found Hex-Data!")
                 root.clear()
@@ -246,9 +228,7 @@ def generate_xml(
     study_datetime = study_date + study_time
     study_uid = study_uid if study_uid.lower() != "none" else pydicom.uid.generate_uid()
     study_description = os.getenv("STUDY_DESCRIPTION", "None")
-    study_description = (
-        study_description if study_description.lower() != "none" else None
-    )
+    study_description = study_description if study_description.lower() != "none" else None
 
     if study_description == None and dataset_info != None and "labels" in dataset_info:
         labels = dataset_info["labels"]
@@ -262,9 +242,7 @@ def generate_xml(
     series_uid = pydicom.uid.generate_uid()
     series_description = os.getenv("SERIES_DESCRIPTION", "None")
     series_description = (
-        series_description
-        if series_description.lower() != "none"
-        else f"bin2dcm {pretty_datetime_now}"
+        series_description if series_description.lower() != "none" else f"bin2dcm {pretty_datetime_now}"
     )
 
     patient_name = os.getenv("PATIENT_NAME", "")
@@ -321,10 +299,7 @@ def generate_xml(
         # version_uid = pydicom.uid.generate_uid()
 
         filename = basename(binary_path)
-        new_filename = (
-            filename.split(".")[0]
-            + f"---{split_part_count}{''.join(pathlib.Path(filename).suffixes)}"
-        )
+        new_filename = filename.split(".")[0] + f"---{split_part_count}{''.join(pathlib.Path(filename).suffixes)}"
         xml_output_path = join(target_dir, f"{new_filename}.xml")
 
         xml_template = minidom.parse(template_path)
@@ -337,11 +312,7 @@ def generate_xml(
         for element in elements:
             el_name = element.attributes["name"].value
 
-            if (
-                el_name == "InstanceCreationDate"
-                or el_name == "StudyDate"
-                or el_name == "ContentDate"
-            ):
+            if el_name == "InstanceCreationDate" or el_name == "StudyDate" or el_name == "ContentDate":
                 element.firstChild.data = study_date
 
             elif el_name == "InstanceCreationTime" or el_name == "StudyTime":
@@ -375,7 +346,7 @@ def generate_xml(
                 element.firstChild.data = manufacturer_model_name
 
             elif el_name == "SeriesNumber":
-                element.firstChild.data = f"{i+1}"
+                element.firstChild.data = f"{i + 1}"
 
             elif el_name == "ImageComments":
                 element.firstChild.data = new_filename
@@ -412,9 +383,7 @@ def generate_xml(
             ):
                 element.attributes["len"].value = str(len(element.firstChild.data))
                 element.attributes["vm"].value = "1"
-                print(
-                    f"# {el_name}: {element.firstChild.data} : {element.attributes['len'].value}"
-                )
+                print(f"# {el_name}: {element.firstChild.data} : {element.attributes['len'].value}")
 
         print("# Generated XML from template -> export file...")
         with open(xml_output_path, "w") as xml_file:
@@ -427,14 +396,7 @@ def generate_xml(
 
 # START
 binary_file_extensions = os.getenv("EXTENSIONS", "*.zip").split(",")
-batch_folders = sorted(
-    [
-        f
-        for f in glob.glob(
-            join("/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"], "*")
-        )
-    ]
-)
+batch_folders = sorted([f for f in glob.glob(join("/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"], "*"))])
 
 # set to None by default
 dicom_input_dir = None
@@ -442,11 +404,7 @@ for batch_element_dir in batch_folders:
     element_input_dir = join(batch_element_dir, os.getenv("OPERATOR_IN_DIR", ""))
     element_output_dir = join(batch_element_dir, os.getenv("OPERATOR_OUT_DIR", ""))
     dicom_input_dir = os.getenv("DICOM_IN_DIR", "None")
-    dicom_input_dir = (
-        None
-        if dicom_input_dir == "None"
-        else join("/", dirname(element_input_dir), dicom_input_dir)
-    )
+    dicom_input_dir = None if dicom_input_dir == "None" else join("/", dirname(element_input_dir), dicom_input_dir)
 
     binaries_found = []
     for extension in binary_file_extensions:
@@ -463,9 +421,7 @@ for batch_element_dir in batch_folders:
         print("# --> identified DICOM --> execute dcm2binary")
         print("#")
         print("# --> extract xml")
-        extracted_xml = dicom_to_xml(
-            dicom_dir=element_input_dir, target_dir=element_output_dir
-        )
+        extracted_xml = dicom_to_xml(dicom_dir=element_input_dir, target_dir=element_output_dir)
         print("#")
         print("# --> get_binary_from_xml")
         xml_to_binary(target_dir=element_output_dir)

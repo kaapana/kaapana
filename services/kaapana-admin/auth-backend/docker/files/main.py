@@ -61,19 +61,13 @@ async def fetch_project(identifier: str) -> dict | None:
     """
     # Bounded: this runs on the auth path of every project-scoped request, so
     # a hung AII must not hang the whole platform.
-    aii_response = await client.get(
-        f"http://aii-service.services.svc:8080/projects/{identifier}", timeout=5
-    )
+    aii_response = await client.get(f"http://aii-service.services.svc:8080/projects/{identifier}", timeout=5)
     if not aii_response.is_success:
         return None
     project = aii_response.json()
     # id + short_id are sibling computed fields of the AII Project model; their
     # presence distinguishes a real project from a Right/Role list entry.
-    if (
-        not isinstance(project, dict)
-        or "id" not in project
-        or "short_id" not in project
-    ):
+    if not isinstance(project, dict) or "id" not in project or "short_id" not in project:
         return None
     return project
 
@@ -114,9 +108,7 @@ async def auth_check(request: Request, response: Response):
     if access_token is None:
         decoded_access_token = {}
     else:
-        decoded_access_token = jwt.decode(
-            access_token, options={"verify_signature": False}
-        )
+        decoded_access_token = jwt.decode(access_token, options={"verify_signature": False})
 
     method = request.headers.get("x-forwarded-method")
     input = {
@@ -191,33 +183,19 @@ async def auth_check(request: Request, response: Response):
                 # either would hand out admin and skip the check below — and a
                 # non-dict `realm_access` would raise instead of denying.
                 realm_access = decoded_access_token.get("realm_access")
-                roles = (
-                    realm_access.get("roles")
-                    if isinstance(realm_access, dict)
-                    else None
-                )
+                roles = realm_access.get("roles") if isinstance(realm_access, dict) else None
                 is_admin = isinstance(roles, list) and "admin" in roles
                 token_projects = decoded_access_token.get("projects") or []
                 if not isinstance(token_projects, list):
                     token_projects = []
-                member_ids = {
-                    p["id"]
-                    for p in token_projects
-                    if isinstance(p, dict) and isinstance(p.get("id"), str)
-                }
-                if (
-                    is_scoped_service_request
-                    and not is_admin
-                    and project.get("id") not in member_ids
-                ):
+                member_ids = {p["id"] for p in token_projects if isinstance(p, dict) and isinstance(p.get("id"), str)}
+                if is_scoped_service_request and not is_admin and project.get("id") not in member_ids:
                     message = (
                         f"User is not a member of project {project.get('id')} "
                         f"-> restricting access to {requested_prefix}"
                     )
                     logger.warning(message)
-                    return HTMLResponse(
-                        content=error_page, status_code=status.HTTP_403_FORBIDDEN
-                    )
+                    return HTMLResponse(content=error_page, status_code=status.HTTP_403_FORBIDDEN)
                 input["input"]["project"] = project
                 input["input"]["requested_prefix"] = stripped_prefix
     except httpx.RequestError as e:

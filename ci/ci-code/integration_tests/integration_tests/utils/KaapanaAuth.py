@@ -10,9 +10,7 @@ logger = logging.getLogger(__name__)
 # Services exposed under a /project/<id>/ IngressRoute that read the injected
 # `Project` header. Keep in step with the other two copies of this list:
 # base-ui's httpClient interceptor and docs .../preview/project_scoping.rst.
-PROJECT_SCOPED = re.compile(
-    r"^/?(kaapana-backend|kube-helm-api|workflow-api|dicom-web-filter)(/|$)"
-)
+PROJECT_SCOPED = re.compile(r"^/?(kaapana-backend|kube-helm-api|workflow-api|dicom-web-filter)(/|$)")
 
 
 class KaapanaAuth:
@@ -27,9 +25,7 @@ class KaapanaAuth:
         self.host = host
         self.client_secret = client_secret or os.environ.get("CLIENT_SECRET")
         if not self.client_secret:
-            raise RuntimeError(
-                "CLIENT_SECRET not provided to KaapanaAuth (argument or CLIENT_SECRET env)"
-            )
+            raise RuntimeError("CLIENT_SECRET not provided to KaapanaAuth (argument or CLIENT_SECRET env)")
 
         # create a session and configure TLS verification
         self.session = requests.Session()
@@ -78,14 +74,10 @@ class KaapanaAuth:
         is routing traffic correctly before we attempt a POST request.
         """
         # Using the well-known OIDC config endpoint as a health check
-        url = (
-            f"https://{self.host}/auth/realms/kaapana/.well-known/openid-configuration"
-        )
+        url = f"https://{self.host}/auth/realms/kaapana/.well-known/openid-configuration"
         start_time = time.time()
 
-        logger.info(
-            f"Warming up: Checking if Kaapana platform at {self.host} is ready..."
-        )
+        logger.info(f"Warming up: Checking if Kaapana platform at {self.host} is ready...")
 
         while time.time() - start_time < timeout:
             try:
@@ -96,17 +88,13 @@ class KaapanaAuth:
                     logger.info("Platform is ready. Proceeding to authentication.")
                     return True
                 else:
-                    logger.warning(
-                        f"Platform returned {r.status_code}. Still waiting..."
-                    )
+                    logger.warning(f"Platform returned {r.status_code}. Still waiting...")
             except requests.exceptions.RequestException as e:
                 logger.debug(f"Connection attempt failed: {e}")
 
             time.sleep(interval)
 
-        raise TimeoutError(
-            f"Kaapana platform at {self.host} did not become ready within {timeout}s"
-        )
+        raise TimeoutError(f"Kaapana platform at {self.host} did not become ready within {timeout}s")
 
     def get_access_token(
         self,
@@ -137,13 +125,9 @@ class KaapanaAuth:
                 return access_token
             except requests.exceptions.RequestException as e:
                 if attempt == retries:
-                    logger.error(
-                        f"Failed to get access token after {retries} attempts."
-                    )
+                    logger.error(f"Failed to get access token after {retries} attempts.")
                     raise
-                logger.warning(
-                    f"Attempt {attempt} failed: {e}. Retrying in {delay}s..."
-                )
+                logger.warning(f"Attempt {attempt} failed: {e}. Retrying in {delay}s...")
                 time.sleep(delay)
 
     def request(

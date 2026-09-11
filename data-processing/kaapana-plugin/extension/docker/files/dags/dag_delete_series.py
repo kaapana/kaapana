@@ -62,12 +62,8 @@ dag = DAG(
 )
 
 get_input = GetInputOperator(dag=dag, data_type="json")
-delete_dcm_pacs = DeleteFromPacsOperator(
-    dag=dag, input_operator=get_input, delete_complete_study=False, retries=1
-)
-delete_dcm_meta = DeleteFromMetaOperator(
-    dag=dag, input_operator=get_input, delete_complete_study=False, retries=1
-)
+delete_dcm_pacs = DeleteFromPacsOperator(dag=dag, input_operator=get_input, delete_complete_study=False, retries=1)
+delete_dcm_meta = DeleteFromMetaOperator(dag=dag, input_operator=get_input, delete_complete_study=False, retries=1)
 
 
 def remove_thumbnail_from_project_bucket(ds, **kwargs):
@@ -80,9 +76,7 @@ def remove_thumbnail_from_project_bucket(ds, **kwargs):
     minio = get_minio_client()
     conf = kwargs["dag_run"].conf
     project_id = conf["project_form"]["id"]
-    response = requests.get(
-        f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects/{project_id}"
-    )
+    response = requests.get(f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects/{project_id}")
     response.raise_for_status()
     project = response.json()
 
@@ -111,10 +105,4 @@ remove_thumbnail_from_project_bucket = KaapanaPythonBaseOperator(
 )
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-(
-    get_input
-    >> delete_dcm_pacs
-    >> delete_dcm_meta
-    >> remove_thumbnail_from_project_bucket
-    >> clean
-)
+(get_input >> delete_dcm_pacs >> delete_dcm_meta >> remove_thumbnail_from_project_bucket >> clean)

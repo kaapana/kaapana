@@ -32,9 +32,7 @@ class Itk2DcmOperator(KaapanaBaseOperator):
         Converted Dicoms. Associated segmentations are not converted yet, but prepared to be converted by the Itk2DcmSegOperator.
     """
 
-    def __init__(
-        self, dag, name=None, execution_timeout=timedelta(minutes=90), *args, **kwargs
-    ) -> None:
+    def __init__(self, dag, name=None, execution_timeout=timedelta(minutes=90), *args, **kwargs) -> None:
         name = name if name is not None else "itk2dcm-converter"
 
         super().__init__(

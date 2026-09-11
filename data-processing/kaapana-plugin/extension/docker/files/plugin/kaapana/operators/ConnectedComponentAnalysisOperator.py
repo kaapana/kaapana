@@ -33,12 +33,8 @@ class ConnectedComponentAnalysisOperator(KaapanaBaseOperator):
             env_vars = {}
 
         envs = {
-            "JSON_INFO_DIR": str(json_operator.operator_out_dir)
-            if json_operator is not None
-            else str(None),
-            "CONNECTIVITY": str(connectivity)
-            if connectivity is not None
-            else str(None),
+            "JSON_INFO_DIR": str(json_operator.operator_out_dir) if json_operator is not None else str(None),
+            "CONNECTIVITY": str(connectivity) if connectivity is not None else str(None),
         }
 
         env_vars.update(envs)

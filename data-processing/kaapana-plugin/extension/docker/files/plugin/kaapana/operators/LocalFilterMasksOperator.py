@@ -54,9 +54,7 @@ class LocalFilterMasksOperator(KaapanaPythonBaseOperator):
                     print("### ERROR ###")
                     print("#")
                     print(f"# {self.label_filter_key} IS NOT SET CORRECTLY")
-                    print(
-                        "# CORRECT FORMAT: e.g. 'Keep: liver' or 'Ignore: spleen,liver'"
-                    )
+                    print("# CORRECT FORMAT: e.g. 'Keep: liver' or 'Ignore: spleen,liver'")
                     print("#")
                     exit(1)
             else:
@@ -91,9 +89,7 @@ class LocalFilterMasksOperator(KaapanaPythonBaseOperator):
         self.set_label_filters(conf)
 
         self.mode = self.remove_special_characters(self.mode)
-        self.label_filter = [
-            self.remove_special_characters(label) for label in self.label_filter
-        ]
+        self.label_filter = [self.remove_special_characters(label) for label in self.label_filter]
         print("#")
         print(f"GIVEN self.mode: {self.mode}")
         print(f"GIVEN self.label_filter: {self.label_filter}")
@@ -110,9 +106,7 @@ class LocalFilterMasksOperator(KaapanaPythonBaseOperator):
             # get meta_info json
             batch_el_json_files = sorted(
                 glob.glob(
-                    os.path.join(
-                        batch_element_dir, self.operator_in_dir, "**", "*.json*"
-                    ),
+                    os.path.join(batch_element_dir, self.operator_in_dir, "**", "*.json*"),
                     recursive=True,
                 )
             )
@@ -128,21 +122,15 @@ class LocalFilterMasksOperator(KaapanaPythonBaseOperator):
 
             if self.mode == "keep" or self.mode == "ignore":
                 # output dir for meta_info json
-                metainfo_output_path = batch_el_json_files[0].replace(
-                    self.operator_in_dir, self.operator_out_dir
-                )
+                metainfo_output_path = batch_el_json_files[0].replace(self.operator_in_dir, self.operator_out_dir)
                 # make output directory
-                Path(os.path.dirname(metainfo_output_path)).mkdir(
-                    parents=True, exist_ok=True
-                )
+                Path(os.path.dirname(metainfo_output_path)).mkdir(parents=True, exist_ok=True)
 
             # NIFTI files
             # get all nifti files of current batch element
             nifti_files = sorted(
                 glob.glob(
-                    os.path.join(
-                        batch_element_dir, self.operator_in_dir, "**", "*.nii.gz"
-                    ),
+                    os.path.join(batch_element_dir, self.operator_in_dir, "**", "*.nii.gz"),
                     recursive=True,
                 )
             )
@@ -154,13 +142,15 @@ class LocalFilterMasksOperator(KaapanaPythonBaseOperator):
                 for nifti_fname in nifti_files:
                     # check if current nifti_fname is of ignored label_name; if yes, don't copy to out_dir
                     copy = any(
-                        label_name in self.remove_special_characters(nifti_fname)
-                        for label_name in self.label_filter
+                        label_name in self.remove_special_characters(nifti_fname) for label_name in self.label_filter
                     )
                     if copy:
-                        src_path, dest_path = nifti_fname, os.path.join(
-                            os.path.dirname(metainfo_output_path),
-                            os.path.basename(nifti_fname),
+                        src_path, dest_path = (
+                            nifti_fname,
+                            os.path.join(
+                                os.path.dirname(metainfo_output_path),
+                                os.path.basename(nifti_fname),
+                            ),
                         )
                         shutil.copy(src_path, dest_path)
                         num_kept_labels += 1
@@ -170,23 +160,15 @@ class LocalFilterMasksOperator(KaapanaPythonBaseOperator):
                 for label_name in self.label_filter:
                     # modify meta_info JSON according to self.label_filter
                     for segment_attribute in incoming_metainfo["segmentAttributes"]:
-                        if label_name in self.remove_special_characters(
-                            json.dumps(segment_attribute)
-                        ):
-                            temp_incoming_metainfo_segment_attributes.append(
-                                segment_attribute
-                            )
-                incoming_metainfo["segmentAttributes"] = (
-                    temp_incoming_metainfo_segment_attributes
-                )
+                        if label_name in self.remove_special_characters(json.dumps(segment_attribute)):
+                            temp_incoming_metainfo_segment_attributes.append(segment_attribute)
+                incoming_metainfo["segmentAttributes"] = temp_incoming_metainfo_segment_attributes
                 # write incoming_metainfo to output_dir
                 with open(metainfo_output_path, "w", encoding="utf-8") as jsonData:
                     json.dump(incoming_metainfo, jsonData, indent=4, sort_keys=True)
 
                 print("#")
-                print(
-                    f"# DONE: I kept {num_kept_labels} out of {len(nifti_files)} labels."
-                )
+                print(f"# DONE: I kept {num_kept_labels} out of {len(nifti_files)} labels.")
                 print("#")
 
             elif self.mode == "ignore":
@@ -200,9 +182,12 @@ class LocalFilterMasksOperator(KaapanaPythonBaseOperator):
                         for label_name in self.label_filter
                     )
                     if copy:
-                        src_path, dest_path = nifti_fname, os.path.join(
-                            os.path.dirname(metainfo_output_path),
-                            os.path.basename(nifti_fname),
+                        src_path, dest_path = (
+                            nifti_fname,
+                            os.path.join(
+                                os.path.dirname(metainfo_output_path),
+                                os.path.basename(nifti_fname),
+                            ),
                         )
                         shutil.copy(src_path, dest_path)
                         num_ignored_labels += 1
@@ -212,23 +197,15 @@ class LocalFilterMasksOperator(KaapanaPythonBaseOperator):
                     # modify meta_info JSON according to self.label_filter
                     temp_incoming_metainfo_segment_attributes = []
                     for segment_attribute in incoming_metainfo["segmentAttributes"]:
-                        if label_name not in self.remove_special_characters(
-                            json.dumps(segment_attribute)
-                        ):
-                            temp_incoming_metainfo_segment_attributes.append(
-                                segment_attribute
-                            )
-                    incoming_metainfo["segmentAttributes"] = (
-                        temp_incoming_metainfo_segment_attributes
-                    )
+                        if label_name not in self.remove_special_characters(json.dumps(segment_attribute)):
+                            temp_incoming_metainfo_segment_attributes.append(segment_attribute)
+                    incoming_metainfo["segmentAttributes"] = temp_incoming_metainfo_segment_attributes
                     # write incoming_metainfo to output_dir
                     with open(metainfo_output_path, "w", encoding="utf-8") as jsonData:
                         json.dump(incoming_metainfo, jsonData, indent=4, sort_keys=True)
 
                 print("#")
-                print(
-                    f"# DONE: I ignored {num_ignored_labels} out of {len(nifti_files)} labels."
-                )
+                print(f"# DONE: I ignored {num_ignored_labels} out of {len(nifti_files)} labels.")
                 print("#")
 
             else:

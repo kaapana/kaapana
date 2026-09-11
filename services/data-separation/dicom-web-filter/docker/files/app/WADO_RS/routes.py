@@ -57,9 +57,7 @@ async def stream_multiple_multipart(
     async def combined_stream() -> AsyncGenerator[bytes, None]:
         try:
             # First response: use as-is and extract boundary
-            async with client.stream(
-                method, urls[0], headers=headers
-            ) as first_response:
+            async with client.stream(method, urls[0], headers=headers) as first_response:
                 first_ct = first_response.headers.get("Content-Type", "")
                 match = re.search(r'boundary="?([^";]+)"?', first_ct)
                 if not match:
@@ -82,9 +80,7 @@ async def stream_multiple_multipart(
                     pattern_size = len(original_boundary) + 4
                     async for chunk in resp.aiter_bytes():
                         buffer += chunk
-                        buffer = replace_boundary(
-                            buffer, original_boundary, unified_boundary
-                        )
+                        buffer = replace_boundary(buffer, original_boundary, unified_boundary)
                         if len(buffer) > pattern_size:
                             yield buffer[:-pattern_size]
                             buffer = buffer[-pattern_size:]
@@ -205,9 +201,7 @@ async def proxy_series_requests(
                 "GET",
                 forward_url,
                 request=request,
-                search="/".join(
-                    DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]
-                ).encode(),
+                search="/".join(DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]).encode(),
                 replace=b"dicom-web-filter",
             ),
             media_type="application/dicom+json",
@@ -250,20 +244,16 @@ async def retrieve_study_metadata(
         return stream_study_metadata(study, request)
 
     # Retrieve series mapped to the project for the given study
-    mapped_series_uids = (
-        await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
-            session=session,
-            project_ids=project_ids_of_user,
-            study_instance_uid=study,
-        )
+    mapped_series_uids = await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
+        session=session,
+        project_ids=project_ids_of_user,
+        study_instance_uid=study,
     )
 
     logging.info(f"mapped_series_uids: {mapped_series_uids}")
 
     # get all series of the study
-    all_series = await crud.get_all_series_of_study(
-        session=session, study_instance_uid=study
-    )
+    all_series = await crud.get_all_series_of_study(session=session, study_instance_uid=study)
 
     logging.info(f"all_series: {all_series}")
 
@@ -291,9 +281,7 @@ async def retrieve_study_metadata(
                 async for chunk in metadata_response.aiter_bytes():
                     buffer += chunk
                     buffer = buffer.replace(search, replace)
-                    to_yield = (
-                        buffer[:-pattern_size] if len(buffer) > pattern_size else b""
-                    )
+                    to_yield = buffer[:-pattern_size] if len(buffer) > pattern_size else b""
                     yield to_yield
                     buffer = buffer[-pattern_size:]
 
@@ -336,9 +324,7 @@ async def retrieve_study_or_rendered(
 
     # If user is admin, stream the entire study or rendered
     if is_unscoped_admin(request):
-        forward_url = append_query(
-            f"{DICOMWEB_BASE_URL}/studies/{study}{rendered_path}"
-        )
+        forward_url = append_query(f"{DICOMWEB_BASE_URL}/studies/{study}{rendered_path}")
         content_type, body = await stream_passthrough(
             method="GET",
             url=forward_url,
@@ -353,12 +339,10 @@ async def retrieve_study_or_rendered(
         )
 
     # Otherwise, filter series based on project access
-    mapped_series_uids = (
-        await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
-            session=session,
-            project_ids=project_ids_of_user,
-            study_instance_uid=study,
-        )
+    mapped_series_uids = await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
+        session=session,
+        project_ids=project_ids_of_user,
+        study_instance_uid=study,
     )
 
     logging.debug(f"mapped_series_uids: {mapped_series_uids}")
@@ -371,9 +355,7 @@ async def retrieve_study_or_rendered(
     logging.debug(f"all_series: {all_series}")
     # If all series are mapped, stream the entire study or rendered
     if set(mapped_series_uids) == set(all_series):
-        forward_url = append_query(
-            f"{DICOMWEB_BASE_URL}/studies/{study}{rendered_path}"
-        )
+        forward_url = append_query(f"{DICOMWEB_BASE_URL}/studies/{study}{rendered_path}")
         content_type, body = await stream_passthrough(
             method="GET",
             url=forward_url,
@@ -389,9 +371,7 @@ async def retrieve_study_or_rendered(
 
     # Otherwise, build URL list only for allowed series
     forward_urls = [
-        append_query(
-            f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series_uid}{rendered_path}"
-        )
+        append_query(f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series_uid}{rendered_path}")
         for series_uid in mapped_series_uids
     ]
     content_type, body = await stream_multiple_multipart(

@@ -39,9 +39,7 @@ def package_workflow(
     """
 
     if not check_helm_installed():
-        raise RuntimeError(
-            "Helm not found. Install from: https://helm.sh/docs/intro/install/"
-        )
+        raise RuntimeError("Helm not found. Install from: https://helm.sh/docs/intro/install/")
 
     chart_path = workflow_path / "workflow-chart"
 
@@ -76,9 +74,7 @@ def package_workflow(
         )
 
         if result.returncode != 0:
-            raise RuntimeError(
-                f"helm package failed:\n{result.stdout}\n{result.stderr}"
-            )
+            raise RuntimeError(f"helm package failed:\n{result.stdout}\n{result.stderr}")
 
         # Find generated .tgz
         tgz_files = list(output_dir.glob("*.tgz"))
@@ -154,10 +150,7 @@ def _build_dependencies(chart_path: Path) -> None:
     if not dependencies:
         return
 
-    has_local_deps = any(
-        dep.get("repository", "").startswith("file://")
-        for dep in dependencies
-    )
+    has_local_deps = any(dep.get("repository", "").startswith("file://") for dep in dependencies)
 
     if not has_local_deps:
         return

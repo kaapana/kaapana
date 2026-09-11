@@ -66,23 +66,11 @@ def get_identifier_for_model(workflow_config: dict, os_helper: HelperOpensearch)
     if "tasks" in workflow_config["workflow_form"]:
         bool_should = []
         for protocol in workflow_config["workflow_form"]["tasks"]:
-            bool_should.append(
-                {
-                    "match_phrase": {
-                        "00181030 ProtocolName_keyword.keyword": {"query": protocol}
-                    }
-                }
-            )
-        query["bool"]["must"].append(
-            {"bool": {"should": bool_should, "minimum_should_match": 1}}
-        )
+            bool_should.append({"match_phrase": {"00181030 ProtocolName_keyword.keyword": {"query": protocol}}})
+        query["bool"]["must"].append({"bool": {"should": bool_should, "minimum_should_match": 1}})
 
-    query["bool"]["must"].append(
-        {"match_phrase": {"00080060 Modality_keyword.keyword": {"query": "OT"}}}
-    )
-    return os_helper.get_query_dataset(
-        index=opensearch_index, query=query, only_uids=True
-    )
+    query["bool"]["must"].append({"match_phrase": {"00080060 Modality_keyword.keyword": {"query": "OT"}}})
+    return os_helper.get_query_dataset(index=opensearch_index, query=query, only_uids=True)
 
 
 if __name__ == "__main__":
@@ -93,10 +81,6 @@ if __name__ == "__main__":
     assert opensearch_index
     os_helper = HelperOpensearch()
     logger.info("Start data download.")
-    identifiers = get_identifier_for_model(
-        workflow_config=workflow_config, os_helper=os_helper
-    )
-    dcm_uid_objects = os_helper.get_dcm_uid_objects(
-        series_instance_uids=identifiers, index=opensearch_index
-    )
+    identifiers = get_identifier_for_model(workflow_config=workflow_config, os_helper=os_helper)
+    dcm_uid_objects = os_helper.get_dcm_uid_objects(series_instance_uids=identifiers, index=opensearch_index)
     get_data(dcm_uid_object=dcm_uid_objects[0])

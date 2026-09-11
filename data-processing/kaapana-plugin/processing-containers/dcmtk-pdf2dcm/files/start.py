@@ -17,20 +17,12 @@ def process_file(input_file, output_dir, input_dir=None, timeout=20):
     pdf_title = None if pdf_title == "None" else pdf_title
 
     dicom_input_dir = os.getenv("DICOM_IN_DIR", "None")
-    dicom_input_dir = (
-        None
-        if dicom_input_dir == "None"
-        else os.path.join(os.path.dirname(input_dir), dicom_input_dir)
-    )
+    dicom_input_dir = None if dicom_input_dir == "None" else os.path.join(os.path.dirname(input_dir), dicom_input_dir)
 
-    output_file = os.path.join(
-        output_dir, os.path.basename(input_file).replace("pdf", "dcm")
-    )
+    output_file = os.path.join(output_dir, os.path.basename(input_file).replace("pdf", "dcm"))
 
     if dicom_input_dir is not None:
-        input_dcm_files = sorted(
-            glob.glob(os.path.join(dicom_input_dir, "*.dcm*"), recursive=True)
-        )
+        input_dcm_files = sorted(glob.glob(os.path.join(dicom_input_dir, "*.dcm*"), recursive=True))
         if len(input_dcm_files) == 0:
             print("No DICOM found at: {}".format(dicom_input_dir))
             print("abort.")
@@ -47,11 +39,7 @@ def process_file(input_file, output_dir, input_dir=None, timeout=20):
             study_uid = dcm_study_uid if study_uid is None else study_uid
 
             dcm_study_description = dicom_file[0x0008, 0x1030].value
-            study_description = (
-                dcm_study_description
-                if study_description is None
-                else study_description
-            )
+            study_description = dcm_study_description if study_description is None else study_description
 
             dcm_patient_id = dicom_file[0x0010, 0x0020].value
             patient_id = dcm_patient_id if patient_id is None else patient_id
@@ -93,9 +81,7 @@ def process_file(input_file, output_dir, input_dir=None, timeout=20):
     command.append(f"{input_file}")
     command.append(f"{output_file}")
 
-    output = run(
-        command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=timeout
-    )
+    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=timeout)
     if output.returncode != 0:
         print("##################################################")
         print("#")
@@ -139,31 +125,18 @@ print("#")
 print("##################################################")
 print("#")
 batch_folders = sorted(
-    [
-        f
-        for f in glob.glob(
-            os.path.join("/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"], "*")
-        )
-    ]
+    [f for f in glob.glob(os.path.join("/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"], "*"))]
 )
 for batch_element_dir in batch_folders:
-    element_input_dir = os.path.join(
-        batch_element_dir, os.getenv("OPERATOR_IN_DIR", "")
-    )
-    element_output_dir = os.path.join(
-        batch_element_dir, os.getenv("OPERATOR_OUT_DIR", "")
-    )
+    element_input_dir = os.path.join(batch_element_dir, os.getenv("OPERATOR_IN_DIR", ""))
+    element_output_dir = os.path.join(batch_element_dir, os.getenv("OPERATOR_OUT_DIR", ""))
 
     files_grabbed = []
     for extension in file_extensions:
-        files_grabbed.extend(
-            glob.glob(os.path.join(element_input_dir, extension), recursive=True)
-        )
+        files_grabbed.extend(glob.glob(os.path.join(element_input_dir, extension), recursive=True))
 
     if len(files_grabbed) == 0:
-        print(
-            f"############### No {file_extensions} files found at {element_input_dir} -> continue "
-        )
+        print(f"############### No {file_extensions} files found at {element_input_dir} -> continue ")
         continue
 
     for file_found in files_grabbed:
@@ -186,23 +159,15 @@ print("#")
 print("##################################################")
 print("#")
 
-batch_input_dir = os.path.join(
-    "/", os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"]
-)
-batch_output_dir = os.path.join(
-    "/", os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_OUT_DIR"]
-)
+batch_input_dir = os.path.join("/", os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"])
+batch_output_dir = os.path.join("/", os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_OUT_DIR"])
 
 files_grabbed = []
 for extension in file_extensions:
-    files_grabbed.extend(
-        glob.glob(os.path.join(batch_input_dir, extension), recursive=True)
-    )
+    files_grabbed.extend(glob.glob(os.path.join(batch_input_dir, extension), recursive=True))
 
 if len(files_grabbed) == 0:
-    print(
-        f"############### No {file_extensions} files found at {batch_input_dir} -> continue "
-    )
+    print(f"############### No {file_extensions} files found at {batch_input_dir} -> continue ")
 
 else:
     for file_found in files_grabbed:

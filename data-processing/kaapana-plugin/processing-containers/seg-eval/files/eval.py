@@ -40,7 +40,7 @@ label_mapping = get_and_assert_not_none("LABEL_MAPPING")
 
 # array env var for evaluation metrics
 eval_metrics_str = getenv(eval_metrics_key.upper(), "None")
-eval_metrics_ast = None 
+eval_metrics_ast = None
 if eval_metrics_str.lower() != "none":
     eval_metrics_str = html.unescape(eval_metrics_str)  # decode html to unescape quotes
     eval_metrics_ast = ast.literal_eval(eval_metrics_str)
@@ -67,9 +67,7 @@ def calculate_surface_dice(gt_mask, pred_mask, class_thresholds=[0.5]):
 
     # for binary seg.
     class_thresholds = [0.5]
-    res = compute_surface_dice(
-        pred_mask, gt_mask, class_thresholds=class_thresholds, include_background=False
-    )
+    res = compute_surface_dice(pred_mask, gt_mask, class_thresholds=class_thresholds, include_background=False)
     res = np.array([v.numpy() for v in res]).tolist()
     return res
 
@@ -174,9 +172,9 @@ def parse_label_mapping_env() -> list[tuple[str, str]]:
     res = []
     for lm in label_mapping.split(","):
         split_lm = lm.split(":")
-        assert (
-            len(split_lm) == 2
-        ), f"ERROR: expected two labels per mapping, i.e. 'gt_label_x:test_label_y,gt_label_z:test_label_t'. Got {split_lm}"
+        assert len(split_lm) == 2, (
+            f"ERROR: expected two labels per mapping, i.e. 'gt_label_x:test_label_y,gt_label_z:test_label_t'. Got {split_lm}"
+        )
         # lower strings in label mappings
         split_lm = [lm.lower() for lm in split_lm]
         gt, test = split_lm
@@ -223,12 +221,12 @@ def evaluate_segmentation(dataset_map):
                 print(f"# {f_gt=}, {f_test=}")
 
                 # should not be empty
-                assert (
-                    len(f_gt) > 0
-                ), f"Failed to find gt label masks {label_mapping} for {data['gt_id']} under path {gt_path}"
-                assert (
-                    len(f_test) > 0
-                ), f"Failed to find test label masks {label_mapping} for {data['test_id']} under path {test_path}"
+                assert len(f_gt) > 0, (
+                    f"Failed to find gt label masks {label_mapping} for {data['gt_id']} under path {gt_path}"
+                )
+                assert len(f_test) > 0, (
+                    f"Failed to find test label masks {label_mapping} for {data['test_id']} under path {test_path}"
+                )
 
                 # Read ground truth and test masks
                 gt_mask = convert_to_tensor(read_nifti_file(f_gt[0]))
@@ -237,24 +235,14 @@ def evaluate_segmentation(dataset_map):
                 key = f"{gt_label}:{test_label}"
                 # Calculate metrics for each mask pair
                 if "dice_score" in eval_metrics:
-                    print(
-                        f"# Calculating dice score for test mask {data['test_id']} ..."
-                    )
+                    print(f"# Calculating dice score for test mask {data['test_id']} ...")
                     metric["dice_score"][key] = calculate_dice_score(gt_mask, pred_mask)
                 if "surface_dice" in eval_metrics:
-                    print(
-                        f"# Calculating surface dice for test mask {data['test_id']} ..."
-                    )
-                    metric["surface_dice"][key] = calculate_surface_dice(
-                        gt_mask, pred_mask
-                    )
+                    print(f"# Calculating surface dice for test mask {data['test_id']} ...")
+                    metric["surface_dice"][key] = calculate_surface_dice(gt_mask, pred_mask)
                 if "hausdorff_distance" in eval_metrics:
-                    print(
-                        f"# Calculating hausdorff distance for test mask {data['test_id']} ..."
-                    )
-                    metric["hausdorff_distance"][key] = calculate_hausdorff(
-                        gt_mask, pred_mask
-                    )
+                    print(f"# Calculating hausdorff distance for test mask {data['test_id']} ...")
+                    metric["hausdorff_distance"][key] = calculate_hausdorff(gt_mask, pred_mask)
                 if "average_surface_distance" in eval_metrics:
                     print(f"# Calculating ASD for test mask {data['test_id']} ...")
                     metric["asd"][key] = calculate_asd(gt_mask, pred_mask)

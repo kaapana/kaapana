@@ -103,9 +103,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                 )
             return
         try:
-            clinical_trial_protocol_id = meta_information.get(
-                "00120020 ClinicalTrialProtocolID_keyword"
-            )
+            clinical_trial_protocol_id = meta_information.get("00120020 ClinicalTrialProtocolID_keyword")
             project = get_project_by_id_or_name(clinical_trial_protocol_id)
             self.push_to_opensearch_index(
                 new_document=meta_information,
@@ -183,17 +181,13 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         logger.info("Starting module json2meta")
 
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
-        batch_folder = [
-            f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))
-        ]
+        batch_folder = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))]
 
         self.run_id = kwargs["dag_run"].run_id
 
         for batch_element_dir in batch_folder:
             if self.jsonl_operator:
-                json_dir = os.path.join(
-                    batch_element_dir, self.jsonl_operator.operator_out_dir
-                )
+                json_dir = os.path.join(batch_element_dir, self.jsonl_operator.operator_out_dir)
                 json_list = glob.glob(json_dir + "/**/*.jsonl", recursive=True)
                 for json_file in json_list:
                     logger.info(f"Pushing file: {json_file} to META!")
@@ -202,9 +196,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                             obj = json.loads(line)
                             self.push_to_project_and_admin_index(obj)
             else:
-                json_dir = os.path.join(
-                    batch_element_dir, self.json_operator.operator_out_dir
-                )
+                json_dir = os.path.join(batch_element_dir, self.json_operator.operator_out_dir)
                 json_list = glob.glob(json_dir + "/**/*.json", recursive=True)
                 logger.info(f"Found json files: {json_list}")
                 assert len(json_list) > 0
@@ -223,8 +215,6 @@ def get_project_by_id_or_name(project_identifier: str):
     Raises:
         HttpException: If the response from the access-information code has status code >= 400.
     """
-    response = requests.get(
-        f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_identifier}"
-    )
+    response = requests.get(f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_identifier}")
     response.raise_for_status()
     return response.json()

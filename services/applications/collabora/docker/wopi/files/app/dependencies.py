@@ -38,18 +38,10 @@ def get_minio_client(x_auth_token: str = Depends(get_access_token)) -> Minio:
         r.raise_for_status()
         xml_response = r.text
         root = ET.fromstring(xml_response)
-        credentials = root.find(
-            ".//{https://sts.amazonaws.com/doc/2011-06-15/}Credentials"
-        )
-        access_key_id = credentials.find(
-            ".//{https://sts.amazonaws.com/doc/2011-06-15/}AccessKeyId"
-        ).text
-        secret_access_key = credentials.find(
-            ".//{https://sts.amazonaws.com/doc/2011-06-15/}SecretAccessKey"
-        ).text
-        session_token = credentials.find(
-            ".//{https://sts.amazonaws.com/doc/2011-06-15/}SessionToken"
-        ).text
+        credentials = root.find(".//{https://sts.amazonaws.com/doc/2011-06-15/}Credentials")
+        access_key_id = credentials.find(".//{https://sts.amazonaws.com/doc/2011-06-15/}AccessKeyId").text
+        secret_access_key = credentials.find(".//{https://sts.amazonaws.com/doc/2011-06-15/}SecretAccessKey").text
+        session_token = credentials.find(".//{https://sts.amazonaws.com/doc/2011-06-15/}SessionToken").text
         return access_key_id, secret_access_key, session_token
 
     access_key, secret_key, session_token = minio_credentials()
@@ -79,9 +71,7 @@ def get_username(request: Request):
     elif "authorization" in request.headers:
         bearer = request.headers.get("authorization")
         access_token = bearer.split()[-1]
-        decoded_token = jwt.decode(
-            access_token, algorithms=["RS256"], options={"verify_signature": False}
-        )
+        decoded_token = jwt.decode(access_token, algorithms=["RS256"], options={"verify_signature": False})
         username = decoded_token.get("preferred_username")
     else:
         logger.warning("Username could not be determined")

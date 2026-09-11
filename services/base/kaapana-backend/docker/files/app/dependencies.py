@@ -44,19 +44,13 @@ def get_minio(request: Request) -> HelperMinio:
 #     yield WorkflowService(airflow_api=settings.airflow_url)
 
 
-async def get_token_header(
-    FederatedAuthorization: str = Header(...), db: Session = Depends(get_db)
-):
+async def get_token_header(FederatedAuthorization: str = Header(...), db: Session = Depends(get_db)):
     if FederatedAuthorization:
-        db_client_kaapana_instance = (
-            db.query(KaapanaInstance).filter_by(token=FederatedAuthorization).first()
-        )
+        db_client_kaapana_instance = db.query(KaapanaInstance).filter_by(token=FederatedAuthorization).first()
         if db_client_kaapana_instance:
             return db_client_kaapana_instance
         else:
-            raise HTTPException(
-                status_code=400, detail="FederatedAuthorization header invalid"
-            )
+            raise HTTPException(status_code=400, detail="FederatedAuthorization header invalid")
 
 
 async def get_query_token(token: str):
@@ -94,9 +88,7 @@ def _aii_project(project_id: str) -> dict:
     """
     Fetch a project from AII server-side so `is_archived` is checked instead of e.g. relying on the `Project` req header
     """
-    return httpx.get(
-        f"http://aii-service.services.svc:8080/projects/{project_id}"
-    ).json()
+    return httpx.get(f"http://aii-service.services.svc:8080/projects/{project_id}").json()
 
 
 def get_allowed_software(project=Depends(get_project)) -> list:
@@ -104,15 +96,11 @@ def get_allowed_software(project=Depends(get_project)) -> list:
     enabled_software_in_project = httpx.get(
         f"http://aii-service.services.svc:8080/projects/{project_id}/software-mappings"
     ).json()
-    software_uuids = [
-        software.get("software_uuid") for software in enabled_software_in_project
-    ]
+    software_uuids = [software.get("software_uuid") for software in enabled_software_in_project]
 
     # only the whitelisted dags are runnable on archived projects
     if _aii_project(project_id).get("is_archived"):
-        software_uuids = [
-            s for s in software_uuids if s in ARCHIVED_PROJECT_DAG_WHITELIST
-        ]
+        software_uuids = [s for s in software_uuids if s in ARCHIVED_PROJECT_DAG_WHITELIST]
 
     return software_uuids
 
@@ -122,9 +110,7 @@ def get_access_token(request: Request):
     if access_token is None:
         decoded_access_token = {}
     else:
-        decoded_access_token = jwt.decode(
-            access_token, options={"verify_signature": False}
-        )
+        decoded_access_token = jwt.decode(access_token, options={"verify_signature": False})
     return decoded_access_token
 
 

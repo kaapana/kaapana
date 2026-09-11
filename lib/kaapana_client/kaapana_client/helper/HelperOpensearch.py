@@ -23,6 +23,7 @@ class DicomTags:
     thumbnail_instance_uid_tag = "00000000 ThumbnailInstanceUID_keyword"
     missing_instance_numbers_tag = "00000000 MissingInstanceNumbers_integer"
 
+
 class HelperOpensearch:
     def __init__(self):
         self.os_client = get_opensearch_client()
@@ -127,20 +128,14 @@ class HelperOpensearch:
 
         # must have custom tag
         if include_custom_tag != "":
-            query["bool"]["must"].append(
-                {"term": {"00000000 Tags_keyword.keyword": include_custom_tag}}
-            )
+            query["bool"]["must"].append({"term": {"00000000 Tags_keyword.keyword": include_custom_tag}})
 
         # must_not have custom tag
         if exclude_custom_tag != "":
             if "must_not" in query["bool"]:
-                query["bool"]["must_not"].append(
-                    {"term": {"00000000 Tags_keyword.keyword": exclude_custom_tag}}
-                )
+                query["bool"]["must_not"].append({"term": {"00000000 Tags_keyword.keyword": exclude_custom_tag}})
             else:
-                query["bool"]["must_not"] = [
-                    {"term": {"00000000 Tags_keyword.keyword": exclude_custom_tag}}
-                ]
+                query["bool"]["must_not"] = [{"term": {"00000000 Tags_keyword.keyword": exclude_custom_tag}}]
 
         res = self.execute_opensearch_query(
             query=query,
@@ -164,9 +159,7 @@ class HelperOpensearch:
                     "series-uid": hit["_source"][DicomTags.series_uid_tag],
                     "modality": hit["_source"][DicomTags.modality_tag],
                     "curated_modality": hit["_source"][DicomTags.curated_modality_tag],
-                    "source_presentation_address": hit["_source"].get(
-                        DicomTags.dcmweb_endpoint_tag
-                    ),
+                    "source_presentation_address": hit["_source"].get(DicomTags.dcmweb_endpoint_tag),
                 }
             }
             for hit in res

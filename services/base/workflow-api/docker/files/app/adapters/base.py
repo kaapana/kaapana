@@ -19,9 +19,7 @@ class WorkflowEngineAdapter(ABC):
         return f"{dag_id}-{run_id}"
 
     @abstractmethod
-    async def submit_workflow_revision(
-        self, revision: schemas.WorkflowRevision
-    ) -> schemas.WorkflowRevision:
+    async def submit_workflow_revision(self, revision: schemas.WorkflowRevision) -> schemas.WorkflowRevision:
         """
         Create a workflow revision in the engine
         """
@@ -56,9 +54,7 @@ class WorkflowEngineAdapter(ABC):
         pass
 
     @abstractmethod
-    async def get_workflow_run_task_runs(
-        self, workflow_run_external_id: str
-    ) -> List[schemas.TaskRunUpdate]:
+    async def get_workflow_run_task_runs(self, workflow_run_external_id: str) -> List[schemas.TaskRunUpdate]:
         """
         Get tasks for a workflow run from the external engine.
 
@@ -71,9 +67,7 @@ class WorkflowEngineAdapter(ABC):
         pass
 
     @abstractmethod
-    async def get_workflow_run_status(
-        self, workflow_run_external_id: str
-    ) -> schemas.WorkflowRunStatus:
+    async def get_workflow_run_status(self, workflow_run_external_id: str) -> schemas.WorkflowRunStatus:
         """
         Get the current status of a workflow from the external engine
 
@@ -86,9 +80,7 @@ class WorkflowEngineAdapter(ABC):
         pass
 
     @abstractmethod
-    async def cancel_workflow_run(
-        self, workflow_run_external_id: str
-    ) -> schemas.WorkflowRunStatus:
+    async def cancel_workflow_run(self, workflow_run_external_id: str) -> schemas.WorkflowRunStatus:
         """
         Cancels a running workflow run in the engine.
 
@@ -101,9 +93,7 @@ class WorkflowEngineAdapter(ABC):
         pass
 
     @abstractmethod
-    async def retry_workflow_run(
-        self, workflow_run_external_id: str
-    ) -> schemas.WorkflowRunStatus:
+    async def retry_workflow_run(self, workflow_run_external_id: str) -> schemas.WorkflowRunStatus:
         """
         Retries a workflow run in the engine.
 
@@ -116,9 +106,7 @@ class WorkflowEngineAdapter(ABC):
         pass
 
     @abstractmethod
-    async def get_task_run_logs(
-        self, task_run_external_id: str
-    ) -> list[schemas.LogLine]:
+    async def get_task_run_logs(self, task_run_external_id: str) -> list[schemas.LogLine]:
         """
         Gets the parsed, structured logs of a task run from the engine.
 
@@ -133,9 +121,7 @@ class WorkflowEngineAdapter(ABC):
         pass
 
     @abstractmethod
-    async def clean_workflow_run_data(
-        self, workflow_run_external_id: str, project_id: str
-    ) -> None:
+    async def clean_workflow_run_data(self, workflow_run_external_id: str, project_id: str) -> None:
         """
         Delete all on-disk data associated with a workflow run.
 
@@ -155,9 +141,7 @@ class WorkflowEngineAdapter(ABC):
         pass
 
     @abstractmethod
-    async def is_workflow_run_data_clean(
-        self, workflow_run_external_id: str, project_id: str
-    ) -> bool:
+    async def is_workflow_run_data_clean(self, workflow_run_external_id: str, project_id: str) -> bool:
         """
         Verify that the workflow run's data has been removed (or is empty)
         in every store the run writes to.

@@ -30,21 +30,15 @@ def parse_task(file: Path, custom_vars: dict = {}) -> task_models.Task:
     return task_models.Task(**_parse_with_jinja(file, custom_vars=custom_vars))
 
 
-def parse_processing_container(
-    file: Path, custom_vars: dict = {}
-) -> pc_models.ProcessingContainer:
+def parse_processing_container(file: Path, custom_vars: dict = {}) -> pc_models.ProcessingContainer:
     """
     Parse a json file to a ProcessingContainer object and use jinja templating.
     """
 
-    return pc_models.ProcessingContainer(
-        **_parse_with_jinja(file, custom_vars=custom_vars)
-    )
+    return pc_models.ProcessingContainer(**_parse_with_jinja(file, custom_vars=custom_vars))
 
 
-def create_task_instance(
-    task_template: pc_models.TaskTemplate, task: task_models.Task
-) -> task_models.TaskInstance:
+def create_task_instance(task_template: pc_models.TaskTemplate, task: task_models.Task) -> task_models.TaskInstance:
     """
     Create a TaskInstance object by merging a TaskTemplate and a Task object
     """
@@ -53,12 +47,8 @@ def create_task_instance(
         outputs=merge_io_channels(task_template.outputs, task.outputs),
         env=merge_env(task_template.env, task.env),
         **{
-            **task_template.model_dump(
-                mode="python", exclude=["inputs", "outputs", "env"], exclude_none=True
-            ),
-            **task.model_dump(
-                mode="python", exclude=["inputs", "outputs", "env"], exclude_none=True
-            ),
+            **task_template.model_dump(mode="python", exclude=["inputs", "outputs", "env"], exclude_none=True),
+            **task.model_dump(mode="python", exclude=["inputs", "outputs", "env"], exclude_none=True),
         },
     )
 
@@ -155,7 +145,6 @@ def get_processing_container(
     registry_secret: str = "registry-secret",
 ) -> pc_models.ProcessingContainer:
     if mode == "k8s":
-
         with KubernetsUtils.extract_file_from_image(
             image,
             "/processing-container.json",
@@ -164,10 +153,7 @@ def get_processing_container(
         ) as f:
             return pc_models.ProcessingContainer(**json.load(f))
     elif mode == "docker":
-
-        with DockerUtils.extract_file_from_image(
-            image, "/processing-container.json"
-        ) as f:
+        with DockerUtils.extract_file_from_image(image, "/processing-container.json") as f:
             return pc_models.ProcessingContainer(**json.load(f))
     else:
         raise ValueError(f"{mode=} must be one of ['docker','k8s']")

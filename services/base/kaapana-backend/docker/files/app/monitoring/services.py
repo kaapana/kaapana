@@ -28,14 +28,10 @@ class MonitoringService:
             timestamp=datetime.fromtimestamp(result[0]["value"][0]),
         )
 
-    def query_range(
-        self, name: str, q: str, minutes: int, step: int
-    ) -> List[Measurement]:
+    def query_range(self, name: str, q: str, minutes: int, step: int) -> List[Measurement]:
         end = datetime.now()
         start = end - timedelta(minutes=minutes)
-        result = self.con.custom_query_range(
-            query=q, start_time=start, end_time=end, step=step
-        )
+        result = self.con.custom_query_range(query=q, start_time=start, end_time=end, step=step)
         if not result:
             return []
         return [
@@ -92,26 +88,10 @@ class MonitoringService:
 
     def get_modaility_series_count(modality):
         modality_query = {
-            "aggs": {
-                "1": {
-                    "cardinality": {
-                        "field": "0020000D SeriesInstanceUID_keyword.keyword"
-                    }
-                }
-            },
+            "aggs": {"1": {"cardinality": {"field": "0020000D SeriesInstanceUID_keyword.keyword"}}},
             "size": 0,
             "stored_fields": ["*"],
-            "query": {
-                "bool": {
-                    "filter": [
-                        {
-                            "match_phrase": {
-                                "00080060 Modality_keyword.keyword": modality
-                            }
-                        }
-                    ]
-                }
-            },
+            "query": {"bool": {"filter": [{"match_phrase": {"00080060 Modality_keyword.keyword": modality}}]}},
         }
         success, es_result = MonitoringService.es_query(query=modality_query)
         if success:
@@ -123,29 +103,15 @@ class MonitoringService:
     def get_study_series_patient_count():
         study_series_patient_count_query = {
             "aggs": {
-                "1": {
-                    "cardinality": {
-                        "field": "0020000D StudyInstanceUID_keyword.keyword"
-                    }
-                },
-                "2": {
-                    "cardinality": {
-                        "field": "0020000E SeriesInstanceUID_keyword.keyword"
-                    }
-                },
-                "3": {
-                    "cardinality": {
-                        "field": "00100010 PatientName_keyword_alphabetic.keyword"
-                    }
-                },
+                "1": {"cardinality": {"field": "0020000D StudyInstanceUID_keyword.keyword"}},
+                "2": {"cardinality": {"field": "0020000E SeriesInstanceUID_keyword.keyword"}},
+                "3": {"cardinality": {"field": "00100010 PatientName_keyword_alphabetic.keyword"}},
             },
             "size": 0,
             "stored_fields": ["*"],
             "query": {"bool": {"filter": [], "should": [], "must_not": []}},
         }
-        success, es_result = MonitoringService.es_query(
-            query=study_series_patient_count_query
-        )
+        success, es_result = MonitoringService.es_query(query=study_series_patient_count_query)
         if success:
             study_count = es_result["aggregations"]["1"]["value"]
             series_count = es_result["aggregations"]["2"]["value"]
@@ -164,13 +130,8 @@ class MonitoringService:
                 "build_timestamp": str(settings.kaapana_build_timestamp),
                 "build_branch": str(settings.kaapana_platform_build_branch),
                 "deployment_timestamp": str(settings.kaapana_deployment_timestamp),
-                "scrape_timestamp": datetime.now()
-                .astimezone()
-                .replace(microsecond=0)
-                .isoformat(),
-                "last_commit_timestamp": str(
-                    settings.kaapana_platform_last_commit_timestamp
-                ),
+                "scrape_timestamp": datetime.now().astimezone().replace(microsecond=0).isoformat(),
+                "last_commit_timestamp": str(settings.kaapana_platform_last_commit_timestamp),
             }
         )
 
@@ -221,9 +182,7 @@ class MonitoringService:
         dicom_series_total.labels("MR").set(number_patiens_mr)
         number_patiens_ot = MonitoringService.get_modaility_series_count(modality="OT")
         dicom_series_total.labels("OT").set(number_patiens_ot)
-        number_patiens_seg = MonitoringService.get_modaility_series_count(
-            modality="SEG"
-        )
+        number_patiens_seg = MonitoringService.get_modaility_series_count(modality="SEG")
         dicom_series_total.labels("SEG").set(number_patiens_seg)
 
         system_load_24h_percent = MonitoringService.query_prom(
@@ -252,19 +211,13 @@ class MonitoringService:
 
         for idx, mount_point in enumerate(settings.mount_points):
             total_query = f"node_filesystem_size_bytes{{app_kubernetes_io_managed_by='',fstype!='tmpfs',mountpoint='{mount_point}'}}"
-            storage_size_total = MonitoringService.query_prom(
-                query=total_query, return_type="int"
-            )
+            storage_size_total = MonitoringService.query_prom(query=total_query, return_type="int")
             free_query = f"node_filesystem_avail_bytes{{app_kubernetes_io_managed_by='',fstype!='tmpfs',mountpoint='{mount_point}'}}"
-            storage_size_free = MonitoringService.query_prom(
-                query=free_query, return_type="int"
-            )
+            storage_size_free = MonitoringService.query_prom(query=free_query, return_type="int")
             storage_size_total_bytes.labels(mount_point).set(storage_size_total)
             storage_size_free_bytes.labels(mount_point).set(storage_size_free)
 
-        jobs_success_total = MonitoringService.query_prom(
-            query="af_agg_ti_successes", return_type="int"
-        )
+        jobs_success_total = MonitoringService.query_prom(query="af_agg_ti_successes", return_type="int")
         g = Gauge(
             name="jobs_success_total",
             documentation="The number of jobs the component has processed successfully.",
@@ -272,9 +225,7 @@ class MonitoringService:
         )
         g.set(jobs_success_total)
 
-        jobs_failed_total = MonitoringService.query_prom(
-            query="af_agg_ti_failures", return_type="int"
-        )
+        jobs_failed_total = MonitoringService.query_prom(query="af_agg_ti_failures", return_type="int")
         g = Gauge(
             name="jobs_failed_total",
             documentation="The number of jobs the component has failed to process.",
@@ -282,9 +233,7 @@ class MonitoringService:
         )
         g.set(jobs_failed_total)
 
-        jobs_queued_total = MonitoringService.query_prom(
-            query="airflow_scheduler_tasks_executable", return_type="int"
-        )
+        jobs_queued_total = MonitoringService.query_prom(query="airflow_scheduler_tasks_executable", return_type="int")
         g = Gauge(
             name="jobs_queued_total",
             documentation="The number of jobs in about to be executed (aka worklist).",

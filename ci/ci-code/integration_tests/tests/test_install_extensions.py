@@ -39,9 +39,7 @@ async def test_install_extension(
     while time.time() - start < timeout:
         if extension_endpoints.extension_is_installed(extension):
             total_elapsed = time.time() - start
-            logger.info(
-                f"Extension {chart_name} installed successfully in ~{total_elapsed:.2f} seconds."
-            )
+            logger.info(f"Extension {chart_name} installed successfully in ~{total_elapsed:.2f} seconds.")
             break
         logger.info(f"Waiting for extension {chart_name} to install...")
         await asyncio.sleep(poll_interval)

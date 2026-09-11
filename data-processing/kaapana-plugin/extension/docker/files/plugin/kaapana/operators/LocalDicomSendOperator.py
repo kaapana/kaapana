@@ -32,9 +32,7 @@ class LocalDicomSendOperator(KaapanaPythonBaseOperator):
     def start(self, **kwargs):
         self.dcmweb_helper = HelperDcmWeb()
 
-        run_dir = (
-            Path(self.airflow_workflow_dir) / kwargs["dag_run"].run_id / self.batch_name
-        )
+        run_dir = Path(self.airflow_workflow_dir) / kwargs["dag_run"].run_id / self.batch_name
         # Creates a generator object of all the folders in the run directory
         batch_folders = run_dir.glob("*")
 

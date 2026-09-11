@@ -30,9 +30,7 @@ class UserService:
             verify=self.verify,
         )
 
-    def get_users(
-        self, username: str = None, group_id: str = None
-    ) -> List[KaapanaUser]:
+    def get_users(self, username: str = None, group_id: str = None) -> List[KaapanaUser]:
         self._login()
         if username:
             lower_user_name = username.lower()
@@ -78,9 +76,4 @@ class UserService:
             result = self.keycloak_admin.get_realm_roles_of_user(user_id)
         else:
             result = self.keycloak_admin.get_realm_roles()
-        return [
-            KaapanaRole(
-                idx=r["id"], name=r["name"], description=r.get("description", "")
-            )
-            for r in result
-        ]
+        return [KaapanaRole(idx=r["id"], name=r["name"], description=r.get("description", "")) for r in result]

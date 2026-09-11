@@ -42,7 +42,7 @@ class KaapanaPythonBaseOperator(PythonOperator, SkipMixin):
         priority_class_name=None,
         display_name="-",
         annotations=None,
-        **kwargs
+        **kwargs,
     ):
 
         # Service dags have to run in services namespace to have access to sevices-namespace volumes

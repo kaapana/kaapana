@@ -52,17 +52,11 @@ dag = DAG(
     schedule_interval=None,
 )
 
-get_input = GetInputOperator(
-    dag=dag, name="get-models", check_modality=True, parallel_downloads=5
-)
+get_input = GetInputOperator(dag=dag, name="get-models", check_modality=True, parallel_downloads=5)
 
-dcm2bin = Bin2DcmOperator(
-    dag=dag, input_operator=get_input, name="extract-binary", file_extensions="*.dcm"
-)
+dcm2bin = Bin2DcmOperator(dag=dag, input_operator=get_input, name="extract-binary", file_extensions="*.dcm")
 
-model_management = NnUnetModelOperator(
-    dag=dag, name="install-model", input_operator=dcm2bin, action="install"
-)
+model_management = NnUnetModelOperator(dag=dag, name="install-model", input_operator=dcm2bin, action="install")
 
 clean = LocalWorkflowCleanerOperator(
     dag=dag,

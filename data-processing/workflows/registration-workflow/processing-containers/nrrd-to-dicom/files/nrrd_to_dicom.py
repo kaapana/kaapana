@@ -20,9 +20,7 @@ def load_reference_metadata(ref_path: str):
         series_ids = sitk.ImageSeriesReader.GetGDCMSeriesIDs(ref_path)
         if not series_ids:
             raise ValueError(f"No DICOM series found in directory: {ref_path}")
-        series_files = sitk.ImageSeriesReader.GetGDCMSeriesFileNames(
-            ref_path, series_ids[0]
-        )
+        series_files = sitk.ImageSeriesReader.GetGDCMSeriesFileNames(ref_path, series_ids[0])
         ref_file = series_files[0]
     else:
         ref_file = ref_path
@@ -71,13 +69,9 @@ def nrrd_to_dicom(input_nrrd: str, ref_path: str, output_dir: str):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Convert NRRD to DICOM using a reference DICOM for metadata."
-    )
+    parser = argparse.ArgumentParser(description="Convert NRRD to DICOM using a reference DICOM for metadata.")
     parser.add_argument("-i", "--input", required=True, help="Input NRRD file path.")
-    parser.add_argument(
-        "-r", "--reference", required=True, help="Reference DICOM file or directory."
-    )
+    parser.add_argument("-r", "--reference", required=True, help="Reference DICOM file or directory.")
     parser.add_argument("-o", "--output", required=True, help="Output DICOM directory.")
     args = parser.parse_args()
 

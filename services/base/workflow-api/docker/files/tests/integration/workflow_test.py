@@ -62,15 +62,11 @@ async def test_get_workflows_by_title():
     title = f"wf-title-{datetime.now().timestamp()}"
 
     resp1 = await common.create_workflow(
-        schemas.WorkflowCreate(
-            title=title, definition="def-v1", workflow_engine="dummy"
-        )
+        schemas.WorkflowCreate(title=title, definition="def-v1", workflow_engine="dummy")
     )
     assert resp1.status_code == 201
     resp2 = await common.create_workflow(
-        schemas.WorkflowCreate(
-            title=title, definition="def-v2", workflow_engine="dummy"
-        )
+        schemas.WorkflowCreate(title=title, definition="def-v2", workflow_engine="dummy")
     )
     assert resp2.status_code == 201
 
@@ -81,9 +77,7 @@ async def test_get_workflows_by_title():
     assert len(workflows) == 2
 
     # latest only: order by increment desc, limit 1
-    response = await common.get_workflows_by_title(
-        title, params={"order_by": "increment", "order": "desc", "limit": 1}
-    )
+    response = await common.get_workflows_by_title(title, params={"order_by": "increment", "order": "desc", "limit": 1})
     assert response.status_code == 200
     workflows = [schemas.Workflow(**wf) for wf in response.json()]
     assert len(workflows) == 1
@@ -97,9 +91,7 @@ async def test_get_workflow_by_id():
     """
     title = f"wf-byid-test-{datetime.now().timestamp()}"
     resp1 = await common.create_workflow(
-        schemas.WorkflowCreate(
-            title=title, definition="test-by-id", workflow_engine="Airflow"
-        )
+        schemas.WorkflowCreate(title=title, definition="test-by-id", workflow_engine="Airflow")
     )
     assert resp1.status_code == 201
     wf1 = schemas.Workflow(**resp1.json())
@@ -118,9 +110,7 @@ async def test_delete_workflow():
     """
     title = f"wf-del-{datetime.now().timestamp()}"
     resp = await common.create_workflow(
-        schemas.WorkflowCreate(
-            title=title, definition="test-to-be-deleted", workflow_engine="Airflow"
-        )
+        schemas.WorkflowCreate(title=title, definition="test-to-be-deleted", workflow_engine="Airflow")
     )
     assert resp.status_code == 201
     wf = schemas.Workflow(**resp.json())
@@ -136,9 +126,7 @@ async def test_delete_workflow():
 async def test_get_workflow_tasks():
     title = f"wf-gettasks-test-{datetime.now().timestamp()}"
     resp1 = await common.create_workflow(
-        schemas.WorkflowCreate(
-            title=title, definition="test-get-tests", workflow_engine="dummy"
-        )
+        schemas.WorkflowCreate(title=title, definition="test-get-tests", workflow_engine="dummy")
     )
     assert resp1.status_code == 201
     wf1 = schemas.Workflow(**resp1.json())
@@ -164,18 +152,13 @@ async def test_get_workflow_tasks():
         assert task2_id is not None
 
         # get specific task by title
-        resp3 = await client.get(
-            f"/workflows/{wf1.id}/tasks/dummy-task-1"
-        )
+        resp3 = await client.get(f"/workflows/{wf1.id}/tasks/dummy-task-1")
         assert resp3.status_code == 200
         task = schemas.Task(**resp3.json())
         assert task.title == "dummy-task-1"
         assert task.display_name == "Dummy Task 1"
         # check for downstream task
-        assert (
-            len(task.downstream_task_ids) == 1
-            and task.downstream_task_ids[0] == task2_id
-        )
+        assert len(task.downstream_task_ids) == 1 and task.downstream_task_ids[0] == task2_id
 
 
 @pytest.mark.asyncio
@@ -189,9 +172,7 @@ async def test_get_workflows_perf_under_200ms():
     resp = await common.get_all_workflows(params={"skip": 0, "limit": 100})
     elapsed_ms = (time.perf_counter() - start) * 1000
     assert resp.status_code == 200
-    assert (
-        elapsed_ms < 200
-    ), f"GET /workflows took {elapsed_ms:.1f}ms, expected <200ms"
+    assert elapsed_ms < 200, f"GET /workflows took {elapsed_ms:.1f}ms, expected <200ms"
 
 
 @pytest.mark.asyncio

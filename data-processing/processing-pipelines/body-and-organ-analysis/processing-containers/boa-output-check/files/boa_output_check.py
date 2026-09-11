@@ -88,17 +88,11 @@ def extract_labels(
 
     if group:
         logger.info(f"Extracted {len(group)} declared label(s) for '{rootname}'")
-        return [
-            {"label_int": idx + 1, "label_name": label}
-            for idx, label in enumerate(group.keys())
-        ]
+        return [{"label_int": idx + 1, "label_name": label} for idx, label in enumerate(group.keys())]
 
     enum_cls = getattr(segmentation_defaults, hyphen_to_camel_case(rootname), None)
     if enum_cls:
-        return [
-            {"label_int": member.value, "label_name": member.name.lower()}
-            for member in enum_cls
-        ]
+        return [{"label_int": member.value, "label_name": member.name.lower()} for member in enum_cls]
 
     logger.warning(f"No declared labels or enums found for '{rootname}'")
     return []
@@ -112,25 +106,16 @@ def get_needed_outputs() -> List[str]:
     Returns:
         list[str]: List of required segmentation output basenames.
     """
-    strict_mode = (
-        True if environ.get("STRICT_MODE", "false").lower() == "true" else False
-    )
+    strict_mode = True if environ.get("STRICT_MODE", "false").lower() == "true" else False
 
     # Guard clause: Only continue if strict mode is on and model_outputs is set
     if not (strict_mode and model_outputs):
         return []
     logger.debug(environ["MODELS"])
-    selected_models = [
-        model.strip("'\"\\,") for model in environ.get("MODELS", []).strip("[]").split()
-    ]
+    selected_models = [model.strip("'\"\\,") for model in environ.get("MODELS", []).strip("[]").split()]
     if "total" in selected_models:
         logger.debug(environ["TOTAL_MODELS"])
-        selected_models.extend(
-            [
-                model.strip("'\"\\,")
-                for model in environ.get("TOTAL_MODELS", []).strip("[]").split()
-            ]
-        )
+        selected_models.extend([model.strip("'\"\\,") for model in environ.get("TOTAL_MODELS", []).strip("[]").split()])
 
     needed_output_names = []
     logger.debug(selected_models)
@@ -168,33 +153,24 @@ def generate_series_description() -> str:
         str: A formatted string containing the DAG ID and the models in use.
     """
     # Retrieve and sanitize the selected models from the "MODELS" environment variable
-    selected_models = [
-        model.strip("'\"\\,") for model in environ.get("MODELS", []).strip("[]").split()
-    ]
+    selected_models = [model.strip("'\"\\,") for model in environ.get("MODELS", []).strip("[]").split()]
 
     # If "total" is included in the selected models, add models from the "TOTAL_MODELS" environment variable
     if "total" in selected_models:
-        selected_models.extend(
-            [
-                model.strip("'\"\\,")
-                for model in environ.get("TOTAL_MODELS", []).strip("[]").split()
-            ]
-        )
+        selected_models.extend([model.strip("'\"\\,") for model in environ.get("TOTAL_MODELS", []).strip("[]").split()])
 
     # Join the selected models into a comma-separated string for the description
     models_str = ", ".join(selected_models)
 
     # Return the formatted description string
-    return f'{environ["DAG_ID"]} - Models: {models_str}'
+    return f"{environ['DAG_ID']} - Models: {models_str}"
 
 
 if __name__ == "__main__":
     file_occurrences = defaultdict(int)  # Tracks how many batches each file appears in
     all_batches = 0
     existing_files = []
-    problem_files = defaultdict(
-        list
-    )  # Stores filenames with list of reasons they are problematic
+    problem_files = defaultdict(list)  # Stores filenames with list of reasons they are problematic
 
     # Environment-based paths
     workflow_dir = environ["WORKFLOW_DIR"]
@@ -222,9 +198,7 @@ if __name__ == "__main__":
         # Validate required segmentations if STRICT_MODE is enabled
         needed_segmentations = get_needed_outputs()
         if needed_segmentations:
-            available_basenames = {
-                strip_all_extensions(basename(f)) for f in segmentation_files
-            }
+            available_basenames = {strip_all_extensions(basename(f)) for f in segmentation_files}
 
             # Find missing segmentations
             missing = [n for n in needed_segmentations if n not in available_basenames]
@@ -236,24 +210,16 @@ if __name__ == "__main__":
                 logger.error("The following required segmentation outputs are missing:")
                 for m in missing:
                     models = output_to_model.get(m, ["<unknown model>"])
-                    logger.error(
-                        f"  - {m} (required for model(s): {', '.join(models)})"
-                    )
+                    logger.error(f"  - {m} (required for model(s): {', '.join(models)})")
                 exit(1)
             # Find additional segmentations
-            additional = [
-                n for n in available_basenames if n not in needed_segmentations
-            ]
+            additional = [n for n in available_basenames if n not in needed_segmentations]
             if additional:
-                logger.info(
-                    "The following additional segmentation outputs are present but not required:"
-                )
+                logger.info("The following additional segmentation outputs are present but not required:")
                 for a in additional:
                     logger.info(f"  - {a}")
 
-        logger.info(
-            f"Found {len(segmentation_files)} segmentation file(s) in {series_uid}"
-        )
+        logger.info(f"Found {len(segmentation_files)} segmentation file(s) in {series_uid}")
 
         # Step 2: Load measurement info ONCE per series
         measurement_info_file = join(input_dir, "total-measurements.json")
@@ -264,9 +230,7 @@ if __name__ == "__main__":
                     measurement_info = json.load(f)
                     logger.info(f"Loaded measurement info for {series_uid}")
                 except json.JSONDecodeError as e:
-                    logger.warning(
-                        f"Could not parse measurement info for {series_uid}: {e}"
-                    )
+                    logger.warning(f"Could not parse measurement info for {series_uid}: {e}")
         else:
             logger.warning(f"No measurement info found for {series_uid}")
 
@@ -285,9 +249,7 @@ if __name__ == "__main__":
                     makedirs(image_output_dir)
                     logger.info(f"Created output directory: {image_output_dir}")
                 except Exception as e:
-                    logger.error(
-                        f"Could not create output directory '{image_output_dir}': {e}"
-                    )
+                    logger.error(f"Could not create output directory '{image_output_dir}': {e}")
                     continue
 
             # Extract declared label info from measurement metadata or fallback enum
@@ -308,9 +270,7 @@ if __name__ == "__main__":
                 seen_in_this_batch.add(image_basename)
             else:
                 # File contains only background; mark as problematic for this batch
-                logger.warning(
-                    f"Skipping file '{image_basename}' in {series_uid} — contains only background (label 0)"
-                )
+                logger.warning(f"Skipping file '{image_basename}' in {series_uid} — contains only background (label 0)")
                 problem_files[image_basename].append("only background")
                 continue
 
@@ -349,9 +309,7 @@ if __name__ == "__main__":
         else:
             missing_in = all_batches - count
             # Mark file as missing in some batches, adding reason with counts
-            problem_files[filename].append(
-                f"missing in {missing_in} of {all_batches} batches"
-            )
+            problem_files[filename].append(f"missing in {missing_in} of {all_batches} batches")
 
     logger.info("Files summary:")
     logger.info("Existing Files: %s", existing_files)

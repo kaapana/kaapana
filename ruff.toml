@@ -1,5 +1,15 @@
 line-length = 120
 target-version = "py312"
+# Third-party code kept verbatim so it stays diffable against upstream.
+extend-exclude = [
+    "services/flow/airflow/docker/files/scheduler_job_runner_2.10.3.py",
+    "services/flow/airflow/docker/files/scheduler_job_runner_2.10.3_adapted.py",
+    "services/flow/airflow/docker/files/task_command_2.10.3.py",
+    "services/flow/airflow/docker/files/task_command_2.10.3_adapted.py",
+    "utils/internet-benchmark/docker/files/speedtest.py",
+]
+# pre-commit passes file names explicitly; apply the excludes to those too.
+force-exclude = true
 
 [lint]
 select = ["E4", "E7", "E9", "F", "I"]

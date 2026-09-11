@@ -49,7 +49,7 @@ class DcmQueryOperator(KaapanaBaseOperator):
             envs["END_DATE"] = end_date.strftime("%Y-%m-%d")
 
         if max_query_size:
-            envs["MAX_QUERY_SIZE"] = int(max_query_size)
+            envs["MAX_QUERY_SIZE"] = str(int(max_query_size))
 
         env_vars.update(envs)
 

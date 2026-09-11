@@ -328,7 +328,9 @@ triple manually in the UI.
    `.remote_execution_template`, `.integration_test_local`) — they carry the
    runner tag, image, and rules conventions. `.test_template` caps a single job at 5 minutes.
    A new pytest job extends `.pytest_template`, which adds the coverage regex and the
-   cobertura artifact on top of it; see section 11.
+   cobertura artifact on top of it; the job's own `pytest` call still has to pass
+   `--cov=<dir> --cov-report=term --cov-report=xml:coverage.xml`, or the job stays
+   green and silently reports nothing. See section 11.
 2. Add required CI/CD variable that is not already checked to
    `preflight_variables` ([`ci/pipeline/preflight.yml`](pipeline/preflight.yml))
 3. Gate it with `rules:` on the matching `CI_EXEC_*` toggle.
@@ -383,7 +385,7 @@ GitLab reads them, no pipeline job does.
 | Report | Produced by | Where it shows |
 |---|---|---|
 | JUnit | every pytest job + `playwright_ui_tests` | pipeline **Tests** tab, failed-test summary in the MR |
-| Coverage (cobertura) | every job extending `.pytest_template` | coverage badge, line markers in the MR diff |
+| Coverage (cobertura) | the pytest jobs that opt in via `.pytest_template` | coverage badge, line markers in the MR diff |
 | Code Quality | `code_quality` | MR **Code Quality** widget |
 | Container scanning | `security` | MR security widget, vulnerability report |
 
@@ -510,6 +512,9 @@ Target branch: _develop_
 - A workflow testcase whose DAG the platform does not know counts as passed, so a
   failed extension install can leave `run_workflows` green.
 - `install_extensions` and `send_data` carry `retry: 2` — known flakiness.
+- Coverage is opt-in per job, not a property of the tests stage: several pytest
+  suites report none at all, `dicom_web_filter_tests` among them. How a job opts
+  in: [`tests/README.md`](../tests/README.md).
 - `ci/docs/local-ci.md` predates the current variable set (it references
   variables that no longer exist) — for local runs use
   [section 10](#10-running-the-pipeline-locally) instead.

@@ -39,15 +39,19 @@ the :file:`task.json` format, including a minimal file to start from.
 Local operators
 ===============
 
-A local operator runs its code in the Airflow process itself, so a pytest test
-imports it and calls it directly, with no scheduler and no platform. Operators
-that launch a pod keep their logic in the container image instead, which is
-what the section above tests. The suite lives in :file:`tests/operators`.
+An operator deriving from ``KaapanaPythonBaseOperator`` or
+``KaapanaBranchPythonBaseOperator`` runs its code in the Airflow process itself,
+so a pytest test imports it and calls it directly, with no scheduler and no
+platform. One deriving from ``KaapanaBaseOperator`` launches a pod and keeps its
+logic in the container image, which is what the section above tests. The suite
+lives in :file:`tests/operators`.
 
 Ordinary imports do not work at the top of the file. The plugin directory has
 to be on the path first, and an operator that pulls in modules from the
-Airflow image needs those mocked as well. Both come from
-:file:`tests/operators/utils.py`. In outline:
+Airflow image needs those mocked as well. Take both from
+:file:`tests/operators/utils.py` rather than spelling them out per file, so a
+moved directory or a new module to mock is a one-line change for the whole
+suite. In outline:
 
 .. code-block:: python
 
@@ -96,7 +100,7 @@ app, and again whenever its lockfile changes:
 
     cd services/base/<app>-ui/docker/files
     npm ci
-    npx playwright install chromium   # once per machine
+    npx playwright install chromium   # once per pinned playwright version
 
 From then on the suite runs on its own, because Playwright starts the app's
 dev server:

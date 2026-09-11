@@ -307,8 +307,6 @@ ui_e2e_tests:
     # both casings: chromium must reach the app on localhost, not the proxy
     NO_PROXY: "localhost,127.0.0.1"
     no_proxy: "localhost,127.0.0.1"
-    # the audit POST goes through the DKFZ proxy and costs ~14s per npm ci
-    npm_config_audit: "false"
   parallel:
     matrix:
       - APP:
@@ -328,10 +326,12 @@ ui_e2e_tests:
     # dist/ — build the library once before the app's own install/build.
     - |
       if grep -q '"@kaapana/base-ui"' "$KAAPANA_DIR/$APP_DIR/package.json"; then
-        (cd "$KAAPANA_DIR/services/base/base-ui/docker/files" && npm ci && npm run build)
+        (cd "$KAAPANA_DIR/services/base/base-ui/docker/files" && npm ci --no-audit && npm run build)
       fi
     - cd "$KAAPANA_DIR/$APP_DIR"
-    - npm ci
+    # --no-audit: the audit POST goes through the DKFZ proxy, costs ~14s, and
+    # never affects the exit code.
+    - npm ci --no-audit
     - npx playwright install chromium
     - npm run build
     - npx playwright test
@@ -357,10 +357,9 @@ ui_unit_tests:
     # both casings: keep npm off the DKFZ proxy for the local registry
     NO_PROXY: "localhost,127.0.0.1"
     no_proxy: "localhost,127.0.0.1"
-    npm_config_audit: "false"
   script:
     - cd "$KAAPANA_DIR/services/base/portal-ui/docker/files"
-    - npm ci
+    - npm ci --no-audit
     - npm run test:unit -- --reporter=default --reporter=junit --outputFile.junit=test-results/junit.xml
   # Relative, like every sibling job's report path — see ui_e2e_tests above.
   artifacts:

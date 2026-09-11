@@ -197,11 +197,7 @@ shapes stay valid. Its rules, in order: never when the target came from
 `DEPLOYMENT_INSTANCE_FQDN`; delayed by 4 hours when `exec_destroy_delayed`;
 otherwise always.
 
-`if_ci_failing` runs on `develop` failures only (never for FQDN targets). It
-needs *every* job in the pipeline, because `when: on_failure` watches only the
-jobs it needs. `artifacts: true` marks the jobs whose logs are attached to the
-ticket it opens — never set that on a job whose artifacts contain secrets. It
-then posts to Slack.
+`if_ci_failing` runs on `develop` failures only (never for FQDN targets). Creates Work Item in Gitlab and posts Slack message .
 
 ## What passes between jobs
 
@@ -412,10 +408,11 @@ GitLab merges the reports for the diff view.
 3. Needs a CI/CD variable that is not checked yet? Add it to `preflight_variables`.
 4. Need docker? Prefer a plain daemonless service; a privileged dind service must
    use the fully-qualified image name (see `task_api_tests`).
-5. **Add the job to `if_ci_failing`'s `needs:` list** (`optional: true`;
-   `artifacts: true` only if its logs should feed the failure ticket — never for
-   jobs whose artifacts contain secrets). If the job uses the test VM, **also add
-   it to `destroy_deployment`'s `needs:` list**, the teardown barrier.
+5. Should its logs feed the failure ticket? **Add it to `if_ci_failing`'s
+   `dependencies:` list** — never for jobs whose artifacts contain secrets.
+   Watching it needs no entry: `if_ci_failing` has no `needs:`. If the job uses
+   the test VM, **add it to `destroy_deployment`'s `needs:` list**, the teardown
+   barrier.
 6. Talks to anything internal or job-local? Extend `NO_PROXY`/`no_proxy`, both
    casings. A nested `docker build` needs the proxy as a build arg.
 7. New dependency between stages? Declare it in the header of the stage file that

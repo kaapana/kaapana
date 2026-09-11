@@ -201,7 +201,9 @@ playwright_ui_tests:
       optional: true
   script:
     - cd "$CI_PROJECT_DIR/tests/ui"
-    - npm ci
+    # --no-audit: the audit POST goes through the DKFZ proxy, costs ~14s, and
+    # never affects the exit code.
+    - npm ci --no-audit
     # chromium system libs are in the image; only the browser binary matching
     # the npm-pinned playwright version is fetched here
     - npx playwright install chromium

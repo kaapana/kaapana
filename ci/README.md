@@ -6,6 +6,7 @@ How to start a pipeline and choose what it runs.
 |---|---|
 | [glab.md](docs/glab.md) | you want to start and inspect runs from the terminal, or a ready-made recipe |
 | [local-ci.md](docs/local-ci.md) | you want the jobs, or the deployment, on your own machine |
+| [setup.md](docs/setup.md) | how the runner VMs are provisioned on Harvester, and how to change the fleet |
 | [internals.md](docs/internals.md) | how the pipeline works: stages, templates, runners scaling, registry switch, the ci-base image |
 | [troubleshooting.md](docs/troubleshooting.md) | a job failed - common causes|
 

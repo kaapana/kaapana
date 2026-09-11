@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 import requests
+
 from kaapana_client.logger import get_logger
 from kaapana_client.settings import ServicesSettings
 
@@ -94,7 +95,7 @@ def process_batches(
         )
 
         logger.info(f"Processing batch: {batch} done")
-    logger.info(f"Processing batches done")
+    logger.info("Processing batches done")
 
 
 def process_single(

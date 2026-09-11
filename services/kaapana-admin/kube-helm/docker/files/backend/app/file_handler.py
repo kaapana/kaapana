@@ -89,7 +89,7 @@ def remove_outdated_tmp_files(search_dir):
             try:
                 os.remove(file_found)
                 pass
-            except Exception as e:
+            except Exception:
                 logger.warning(
                     f"Something went wrong with the removal of {file_found} .. "
                 )
@@ -148,7 +148,7 @@ async def filepond_upload_stream(
                 is_file_safe = check_file_namespace(filename)
                 if not is_file_safe:
                     raise AttributeError(
-                        f"Chart files can not contain resources under admin_namespace"
+                        "Chart files can not contain resources under admin_namespace"
                     )
             return filename, True
 
@@ -430,7 +430,7 @@ def add_file_chunks(chunk: bytes):
     sess = sessions[md5]
     # sanity check
     if sess.fpath == "":
-        raise AssertionError(f"file path not available when trying to write chunks")
+        raise AssertionError("file path not available when trying to write chunks")
 
     if sess.curr_index > sess.endindex:
         raise AssertionError(

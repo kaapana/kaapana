@@ -1,6 +1,7 @@
-from contextlib import contextmanager
-import tarfile
 import io
+import tarfile
+from contextlib import contextmanager
+
 import docker
 
 

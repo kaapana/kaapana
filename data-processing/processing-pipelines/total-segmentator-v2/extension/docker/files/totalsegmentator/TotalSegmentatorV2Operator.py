@@ -1,10 +1,10 @@
 from datetime import timedelta
 
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 from kaapana.blueprints.kaapana_global_variables import (
     DEFAULT_REGISTRY,
     KAAPANA_BUILD_VERSION,
 )
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 
 
 class TotalSegmentatorV2Operator(KaapanaBaseOperator):

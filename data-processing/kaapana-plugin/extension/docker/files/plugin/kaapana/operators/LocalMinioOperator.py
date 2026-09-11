@@ -8,6 +8,9 @@ from datetime import timedelta
 from zipfile import ZipFile
 
 import requests
+from kaapanapy.helper import get_minio_client
+from kaapanapy.logger import get_logger
+
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperMinio import (
@@ -16,8 +19,6 @@ from kaapana.operators.HelperMinio import (
     apply_action_to_object_names,
 )
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapanapy.logger import get_logger
-from kaapanapy.helper import get_minio_client
 
 logger = get_logger(__name__)
 
@@ -41,7 +42,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         return response.json()
 
     def get_project_bucket_from_meta_json(self, json_dict):
-        logger.info(f"Applying action to project bucket")
+        logger.info("Applying action to project bucket")
         clinical_trial_protocol_id = json_dict.get(
             "00120020 ClinicalTrialProtocolID_keyword"
         )
@@ -231,7 +232,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
             )
         else:
             if not object_dirs:
-                print(f"Applying action to whole bucket")
+                print("Applying action to whole bucket")
             else:
                 print(f'Applying action "{self.action}" to ' f"files in: {object_dirs}")
 

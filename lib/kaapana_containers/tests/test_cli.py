@@ -1,10 +1,9 @@
 import json
-import pytest
 from unittest.mock import AsyncMock, patch
-from typer.testing import CliRunner
 
 from kaapana_containers.registries.cli import app
 from kaapana_containers.registries.registry import OCIError
+from typer.testing import CliRunner
 
 runner = CliRunner()
 

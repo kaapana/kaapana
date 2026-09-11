@@ -5,6 +5,17 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
+from app.db.models import DataEntityORM, MetadataEntryORM, StorageCoordinateORM
+from app.models.domain import DataEntity
+from app.models.query import (
+    FilterNode,
+    GroupNode,
+    QueryIndexRequest,
+    QueryNode,
+    QueryOp,
+    QueryRequest,
+)
+from app.services import entity_repository
 from sqlalchemy import (
     and_,
     cast,
@@ -22,18 +33,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.types import Boolean, Numeric, Text
-
-from app.db.models import DataEntityORM, MetadataEntryORM, StorageCoordinateORM
-from app.models.domain import DataEntity
-from app.models.query import (
-    FilterNode,
-    GroupNode,
-    QueryIndexRequest,
-    QueryNode,
-    QueryOp,
-    QueryRequest,
-)
-from app.services import entity_repository
 
 
 @dataclass(frozen=True)

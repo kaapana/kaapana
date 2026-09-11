@@ -10,11 +10,8 @@ from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
 from kaapana.blueprints.json_schema_templates import get_all_project_names
 from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR, BATCH_NAME
-from kaapana.operators.DeleteFromMetaOperator import DeleteFromMetaOperator
-from kaapana.operators.DeleteFromPacsOperator import DeleteFromPacsOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.KaapanaBranchPythonBaseOperator import (
-    KaapanaBranchPythonBaseOperator,
     KaapanaPythonBaseOperator,
 )
 from kaapana.operators.LocalAddToDatasetOperator import LocalAddToDatasetOperator

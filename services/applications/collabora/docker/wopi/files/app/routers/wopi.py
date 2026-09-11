@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Body, Header, Depends
 from app.dependencies import get_document_store, get_minio_client
 from app.model.documents import DocumentStore
+from fastapi import APIRouter, Body, Depends, Header
 
 # WOPI REST API Reference
 # https://learn.microsoft.com/en-us/microsoft-365/cloud-storage-partner-program/rest/

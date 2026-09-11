@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel, Field
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.db.session import get_async_db
 from app.services.artifact_pruner import prune_orphan_artifacts
 from app.services.artifact_store import get_artifact_store
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/artifacts", tags=["maintenance"])
 

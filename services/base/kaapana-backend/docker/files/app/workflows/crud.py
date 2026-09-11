@@ -5,10 +5,9 @@ import logging
 import os
 import string
 import uuid
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-import httpx
 import requests
 from app.config import settings
 from app.database import SessionLocal
@@ -16,13 +15,13 @@ from app.dependencies import fetch_default_project_id
 from cryptography.fernet import Fernet
 from fastapi import HTTPException, Response
 from psycopg2.errors import UniqueViolation
-from sqlalchemy import String, cast, desc, func, or_, and_
+from sqlalchemy import String, and_, cast, desc, func, or_
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import Session, aliased
 from urllib3.util import Timeout
 
 from . import models, schemas
-from .schemas import DatasetCreate, AccessLevel
+from .schemas import DatasetCreate
 from .utils import (
     HelperMinio,
     abort_job_airflow,
@@ -672,7 +671,7 @@ def delete_external_job(db: Session, db_job):
                 params=params,
                 headers={
                     "FederatedAuthorization": f"{db_remote_kaapana_instance.token}",
-                    "User-Agent": f"kaapana",
+                    "User-Agent": "kaapana",
                 },
                 timeout=TIMEOUT,
             )
@@ -1718,7 +1717,7 @@ def update_remote_workflow(
                 json=payload,
                 headers={
                     "FederatedAuthorization": f"{db_remote_kaapana_instance.token}",
-                    "User-Agent": f"kaapana",
+                    "User-Agent": "kaapana",
                 },
                 timeout=TIMEOUT,
             )

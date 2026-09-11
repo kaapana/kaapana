@@ -1,13 +1,12 @@
-from fastapi import APIRouter, Depends
-from app.dependencies import (
-    get_document_store,
-    get_connection_manager,
-    get_wopi,
-    get_minio_client,
-)
-from app.model.wopi import WOPI
-from app.model.documents import DocumentStore
 from app.config import get_settings
+from app.dependencies import (
+    get_connection_manager,
+    get_document_store,
+    get_minio_client,
+    get_wopi,
+)
+from app.model.documents import DocumentStore
+from fastapi import APIRouter, Depends
 
 router = APIRouter(tags=["docs"])
 

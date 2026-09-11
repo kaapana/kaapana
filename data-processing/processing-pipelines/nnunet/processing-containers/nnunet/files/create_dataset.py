@@ -1,15 +1,14 @@
-from genericpath import isdir
-import os
 import glob
 import json
-import shutil
-from pathlib import Path
+import os
 import random
+import shutil
 import time
+from os.path import basename, dirname, exists, join
+from pathlib import Path
+
 import nibabel as nib
 import numpy as np
-from multiprocessing.pool import ThreadPool
-from os.path import join, exists, dirname, basename, isdir
 
 """
 Documentation create_dataset.py:
@@ -134,7 +133,7 @@ def process_seg_nifti(seg_nifti):
     if len(nifti_labels) != 1:
         print("#")
         print(f"# More than one label found in NIFTI: {seg_nifti}")
-        print(f"# Single label segmentation NIFTIs expected -> error")
+        print("# Single label segmentation NIFTIs expected -> error")
         print("# ")
         return None, None
 
@@ -247,7 +246,7 @@ def prepare_dataset(datset_list, dataset_id):
 
         print(f"# Found {len(seg_nifti_list)} seg NIFTIs")
         if len(seg_nifti_list) == 0:
-            print(f"# No NIFTI found -> skipping batch-element")
+            print("# No NIFTI found -> skipping batch-element")
             continue
 
         print("# -> start merging")
@@ -379,9 +378,9 @@ for series in series_list_tmp:
         print(f"# seg_check_files: {seg_check_files}")
         print("# ")
     else:
-        print(f"# OK!")
+        print("# OK!")
         series_list.append(series)
-    print(f"# ")
+    print("# ")
 
 modality = {}
 input_modalities = input_modalities.split(",")

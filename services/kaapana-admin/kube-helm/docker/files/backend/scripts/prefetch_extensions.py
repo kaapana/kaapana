@@ -10,7 +10,7 @@ logger = get_logger(__name__, "DEBUG")
 if settings.offline_mode is False and settings.prefetch_extensions is True:
     try:
         installed_release_names = helm_prefetch_extension_docker()
-        logger.info(f"Trying to prefetch all docker container of extensions")
+        logger.info("Trying to prefetch all docker container of extensions")
     except Exception as e:
         logger.error(f"Prefetch failed {e}")
         raise NameError(

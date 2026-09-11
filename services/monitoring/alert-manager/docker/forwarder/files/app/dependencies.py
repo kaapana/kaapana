@@ -1,7 +1,6 @@
-from fastapi import Request
 import httpx
-
 from app.alerts.service import AdminProjectResolver, NotificationForwarder
+from fastapi import Request
 
 
 def get_http_client(request: Request) -> httpx.AsyncClient:

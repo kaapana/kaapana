@@ -1,12 +1,13 @@
-from typing import List
-from .schemas import Measurement
 from datetime import datetime, timedelta
+from typing import List
+
 from app.config import settings
-from prometheus_api_client import PrometheusConnect
-from prometheus_client import CollectorRegistry, Info, Gauge, generate_latest
-import logging
 from kaapanapy.helper import get_opensearch_client
 from kaapanapy.settings import OpensearchSettings
+from prometheus_api_client import PrometheusConnect
+from prometheus_client import CollectorRegistry, Gauge, Info, generate_latest
+
+from .schemas import Measurement
 
 
 class MonitoringService:

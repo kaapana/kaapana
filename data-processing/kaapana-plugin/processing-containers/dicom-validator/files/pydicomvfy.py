@@ -1,10 +1,10 @@
-import re
 import logging
+import re
 from pathlib import Path
-from dicom_validator.spec_reader.edition_reader import EditionReader
-from dicom_validator.validator.dicom_file_validator import DicomFileValidator
 
 from base import DicomValidatorInterface, ValidationItem
+from dicom_validator.spec_reader.edition_reader import EditionReader
+from dicom_validator.validator.dicom_file_validator import DicomFileValidator
 
 
 class PyDicomValidator(DicomValidatorInterface):

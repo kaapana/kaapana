@@ -1,16 +1,18 @@
 # !!! DEPRECATION WARNING: Local Operators are deprecated and will be replaced with operators that run in Kubernetes pods in the next release v0.7.0.
 # If you have a custom Local Operator, it should be migrated to a processing container based operator.
-from datetime import timedelta
-import time
+import logging
+import re
 import smtplib
+import time
+from datetime import timedelta
 from email.message import EmailMessage
+from typing import List, Optional
+
 from airflow.utils.state import State
 from tabulate import tabulate
-from typing import Optional, List
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+
 from kaapana.operators import HelperSendEmailService
-import re
-import logging
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 logger = logging.getLogger(__name__)
 
@@ -296,7 +298,7 @@ class LocalEmailSendOperator(KaapanaPythonBaseOperator):
 
         workflow_name = workflow_form.get("workflow_name", None)
         if workflow_name is None:
-            raise Exception(f"ERROR: workflow_name is not defined")
+            raise Exception("ERROR: workflow_name is not defined")
         # This function is called, if operator is added to other dags, to trigger send-email dag
         self.handle_normal_dag_execution(
             workflow_form, workflow_name, run_id, task_instance

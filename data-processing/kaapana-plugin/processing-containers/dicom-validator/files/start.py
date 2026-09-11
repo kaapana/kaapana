@@ -3,26 +3,24 @@ import glob
 import os
 import re
 from datetime import datetime
+from pathlib import Path
 
 import pydicom
 from base import (
-    ValidationItem,
-    ensure_dir,
-    merge_similar_validation_items,
     DicomValidatorInterface,
+    merge_similar_validation_items,
 )
 from check_completeness import check_completeness
 from dciodvfy import DCIodValidator
 from htmlgen import generate_html
 from kaapanapy.logger import get_logger
-from kaapanapy.settings import OpensearchSettings, OperatorSettings
+from kaapanapy.settings import OperatorSettings
 from kaapanapy.utils import (
     ConfigError,
     is_batch_mode,
     process_batches,
     process_single,
 )
-from pathlib import Path
 from pydicomvfy import PyDicomValidator
 from validation_results_to_os import ValdationResultItem, ValidationResult2Meta
 

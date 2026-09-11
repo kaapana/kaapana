@@ -7,11 +7,11 @@ import os
 import re
 import subprocess
 import time
-from distutils.version import LooseVersion
 from os.path import basename
 from typing import Dict, List, Set, Tuple, Union
 
 import yaml
+from distutils.version import LooseVersion
 from kaapanapy.logger import get_logger
 
 from . import schemas
@@ -99,7 +99,7 @@ async def exec_shell_cmd_async(
             logger.error(f"COMMAND: {command}")
             return False, err
 
-    except asyncio.TimeoutError as e:
+    except asyncio.TimeoutError:
         logger.error(f"Command timed out after {timeout} seconds")
         return False, f"Command timed out after {timeout} seconds"
 
@@ -487,7 +487,7 @@ def get_extensions_list(platforms=False) -> Union[List[schemas.KaapanaExtension]
             states_w_indexes = get_recently_updated_extensions()
             if len(states_w_indexes) == 0:
                 # nothing updated recently, return cached
-                logger.info(f"no recent updates -> returning cached list")
+                logger.info("no recent updates -> returning cached list")
                 if platforms:
                     return global_platforms_list
                 else:
@@ -639,7 +639,7 @@ def collect_all_tgz_charts(
     platforms = False
     assert (
         settings.helm_extensions_cache is not None
-    ), f"HELM_EXTENSIONS_CACHE is not defined"
+    ), "HELM_EXTENSIONS_CACHE is not defined"
     chart_tgz_files = [
         f
         for f in glob.glob(os.path.join(settings.helm_extensions_cache, "*.tgz"))
@@ -648,7 +648,7 @@ def collect_all_tgz_charts(
     if "kaapanaplatform" in keywords_filter:
         assert (
             settings.helm_platforms_cache is not None
-        ), f"HELM_PLATFORMS_CACHE is not defined"
+        ), "HELM_PLATFORMS_CACHE is not defined"
         platforms = True
         current_hash = global_charts_hashes_platforms
         current_tgz_charts = global_collected_tgz_charts_platforms
@@ -675,10 +675,10 @@ def collect_all_tgz_charts(
             if success:
                 current_hash[chart_tgz_file] = chart_hash
 
-                logger.debug(f"Loading chart yaml in dict ...")
+                logger.debug("Loading chart yaml in dict ...")
                 chart = list(yaml.load_all(stdout, yaml.FullLoader))[0]
                 if "keywords" in chart and (set(chart["keywords"]) & keywords_filter):
-                    logger.debug(f"Valid keyword-filter!")
+                    logger.debug("Valid keyword-filter!")
                     vals = helm_show_values(
                         chart["name"], chart["version"], platforms=platforms
                     )
@@ -694,9 +694,9 @@ def collect_all_tgz_charts(
                 else:
                     logger.debug(f"skipping due to keyword-filter - {keywords_filter=}")
             else:
-                logger.error(f"execution not successful!")
+                logger.error("execution not successful!")
         else:
-            logger.debug(f"scraping not necessary!")
+            logger.debug("scraping not necessary!")
 
     # file is deleted, remove from hashes and global_collected_tgz_charts
     # TODO: this is messy, handle this in an endpoint like (/file-delete)
@@ -770,7 +770,7 @@ def collect_helm_deployments(
     cmd = f"{settings.helm_path} ls {namespace_option} --deployed --pending --failed --uninstalling --superseded -o json"
     success, stdout = execute_shell_command(cmd)
     if success:
-        logger.debug(f"Success - got deployments.")
+        logger.debug("Success - got deployments.")
         namespace_deployments = json.loads(stdout)
         for chart in namespace_deployments:
             if chart_name is not None and chart_name != chart["name"]:
@@ -781,7 +781,7 @@ def collect_helm_deployments(
             else:
                 deployed_charts_dict[chart["chart"]].append(chart)
     else:
-        logger.error(f"Error - issue with get deployments.")
+        logger.error("Error - issue with get deployments.")
 
     return deployed_charts_dict
 
@@ -956,7 +956,7 @@ def helm_show_values(name, version, platforms=False) -> Dict:
     if platforms:
         assert (
             settings.helm_platforms_cache is not None
-        ), f"HELM_PLATFORMS_CACHE is not defined"
+        ), "HELM_PLATFORMS_CACHE is not defined"
         helm_cache_dir = settings.helm_platforms_cache
 
         curr_fpath = f"{helm_cache_dir}/{name}-{version}.tgz"
@@ -984,7 +984,7 @@ def helm_show_chart(name=None, version=None, package=None, platforms=False) -> D
         if platforms:
             assert (
                 settings.helm_platforms_cache is not None
-            ), f"HELM_PLATFORMS_CACHE is not defined"
+            ), "HELM_PLATFORMS_CACHE is not defined"
             helm_cache_dir = settings.helm_platforms_cache
 
             curr_fpath = f"{helm_cache_dir}/{name}-{version}.tgz"

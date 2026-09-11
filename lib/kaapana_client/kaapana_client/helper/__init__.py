@@ -1,20 +1,20 @@
 import json
 import os
+import time
 import xml.etree.ElementTree as ET
 
-import time
 import requests
+from minio import Minio
+from opensearchpy import OpenSearch
 from requests.adapters import HTTPAdapter, Retry
 
 from kaapana_client.settings import (
     KaapanaSettings,
+    KeycloakSettings,
     OpensearchSettings,
     OperatorSettings,
-    KeycloakSettings,
     ProjectSettings,
 )
-from minio import Minio
-from opensearchpy import OpenSearch
 
 
 def get_opensearch_client(access_token=None) -> OpenSearch:

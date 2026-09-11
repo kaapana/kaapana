@@ -1,9 +1,10 @@
-from os import getenv, remove
-from os.path import join, exists, dirname, basename, split
-from glob import glob
-import pydicom
-from pathlib import Path
 import logging
+from glob import glob
+from os import getenv, remove
+from os.path import basename, dirname, exists, join, split
+from pathlib import Path
+
+import pydicom
 import SimpleITK as sitk
 
 # Logging
@@ -103,7 +104,7 @@ def process_input_file(paras):
                 print("#")
                 return False, input_filepath
             elif output.returncode == 0 and input_file_extension == "dcm":
-                target_files = glob(join(dirname(output_filepath), f"*.nrrd"))
+                target_files = glob(join(dirname(output_filepath), "*.nrrd"))
                 if len(target_files) != 1:
                     print("#")
                     print("##################################################")
@@ -125,7 +126,7 @@ def process_input_file(paras):
             else:
                 out_fpaths.append(output_filepath)
         else:
-            print(f"# Target already exists -> skipping ")
+            print("# Target already exists -> skipping ")
 
         if input_file_extension == "dcm":
             print("# Dicom -> only one slice needed -> break")

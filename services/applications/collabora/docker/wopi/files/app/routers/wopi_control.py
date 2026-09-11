@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends
-from app.model.wopi import WOPI
 from app.dependencies import get_wopi
+from app.model.wopi import WOPI
+from fastapi import APIRouter, Depends
 
 router = APIRouter(tags=["wopi-discover"])
 

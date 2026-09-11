@@ -1,13 +1,13 @@
 import io
 import json
 import tarfile
-import pytest
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
-from typer.testing import CliRunner
 
+import pytest
 from kaapana_containers.registries.registry import OCIError
 from kaapana_extensions.cli import app
+from typer.testing import CliRunner
 
 runner = CliRunner()
 

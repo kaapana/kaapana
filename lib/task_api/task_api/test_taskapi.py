@@ -1,13 +1,11 @@
-import pytest
-from task_api.processing_container import task_models
-from task_api.processing_container import pc_models
-from pathlib import Path
 import os
-from task_api.runners.DockerRunner import DockerRunner
-from task_api.processing_container import common
 import re
+from pathlib import Path
 
-from conftest import LOCAL_REGISTRY, TASK_DIR, MODULE_PATH, k8s_cluster_available
+import pytest
+from conftest import LOCAL_REGISTRY, TASK_DIR, k8s_cluster_available
+from task_api.processing_container import common, pc_models, task_models
+from task_api.runners.DockerRunner import DockerRunner
 
 
 def is_valid_pod_name(name: str) -> bool:
@@ -80,9 +78,9 @@ def test_merge_env():
 
 def test_resources():
     from task_api.processing_container.resources import (
-        human_readable_size,
         calculate_bytes,
         compute_memory_requirement,
+        human_readable_size,
     )
 
     sizes = [2342, 2346437, 87648, 1231, 0, 69234006234, 23423.4564]

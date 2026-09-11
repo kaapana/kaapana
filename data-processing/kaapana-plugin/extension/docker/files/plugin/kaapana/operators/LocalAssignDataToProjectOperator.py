@@ -6,10 +6,11 @@ import os
 from uuid import UUID
 
 import requests
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
 from kaapanapy.logger import get_logger
 from kaapanapy.settings import KaapanaSettings, ServicesSettings
+
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 logger = get_logger(__name__)
 

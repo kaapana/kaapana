@@ -1,4 +1,5 @@
 import copy
+import functools
 import json
 import logging
 import math
@@ -8,7 +9,6 @@ import shutil
 import string
 import uuid
 from datetime import datetime
-import functools
 from pathlib import Path
 from threading import Thread
 from typing import List, Tuple, Union
@@ -60,7 +60,7 @@ def remove_outdated_tmp_files(search_dir):
             try:
                 os.remove(file_found)
                 pass
-            except Exception as e:
+            except Exception:
                 logging.warning(
                     f"Something went wrong with the removal of {file_found} .. "
                 )
@@ -603,7 +603,7 @@ def ui_form_schemas(
 @router.get("/check-for-remote-updates")
 def check_for_remote_updates(db: Session = Depends(get_db)):
     crud.get_remote_updates(db, periodically=False)
-    return {f"Federated backend is up and running!"}
+    return {"Federated backend is up and running!"}
 
 
 @router.post("/dataset", response_model=schemas.Dataset)
@@ -847,7 +847,7 @@ def create_workflow(
         involved_instance_names.extend(
             json_schema_data.conf_data["external_schema_instance_names"]
         )
-    if not "workflow_form" in json_schema_data.conf_data:
+    if "workflow_form" not in json_schema_data.conf_data:
         json_schema_data.conf_data["workflow_form"] = {}
     json_schema_data.conf_data["workflow_form"].update(
         {

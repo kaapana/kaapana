@@ -1,15 +1,17 @@
-import os
-import glob
 import functools
+import glob
+import os
 import shutil
-from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
-from kaapana.operators.HelperMinio import apply_action_to_object_dirs
-from kaapana.blueprints.kaapana_utils import (
-    get_operator_properties,
-    clean_previous_dag_run,
-)
+
 from kaapanapy.helper import get_minio_client
 from urllib3.util import Timeout
+
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+from kaapana.blueprints.kaapana_utils import (
+    clean_previous_dag_run,
+    get_operator_properties,
+)
+from kaapana.operators.HelperMinio import apply_action_to_object_dirs
 
 JOB_API_URL = f"http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000/client/job"
 TIMEOUT_SEC = 5
@@ -147,7 +149,7 @@ def cache_operator_output(func):
                 and last_round is True
             ):
                 print(
-                    f"Ignoring from_previous_dag_run_action for operators since we are in the last round and we are part of the skip_operators..."
+                    "Ignoring from_previous_dag_run_action for operators since we are in the last round and we are part of the skip_operators..."
                 )
             # federated operator
             elif (

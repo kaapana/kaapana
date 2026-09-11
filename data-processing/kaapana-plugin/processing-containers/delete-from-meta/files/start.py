@@ -4,7 +4,7 @@ import os
 from os import getenv
 
 import pydicom
-from kaapanapy.helper import load_workflow_config, get_opensearch_client
+from kaapanapy.helper import get_opensearch_client, load_workflow_config
 from kaapanapy.logger import get_logger
 from kaapanapy.settings import KaapanaSettings, OperatorSettings
 

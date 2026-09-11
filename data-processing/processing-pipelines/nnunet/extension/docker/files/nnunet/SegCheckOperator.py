@@ -1,9 +1,10 @@
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+from datetime import timedelta
+
 from kaapana.blueprints.kaapana_global_variables import (
     DEFAULT_REGISTRY,
     KAAPANA_BUILD_VERSION,
 )
-from datetime import timedelta
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 
 
 class SegCheckOperator(KaapanaBaseOperator):

@@ -1,10 +1,8 @@
-import os
-import glob
 from datetime import timedelta
 
 from airflow.models.skipmixin import SkipMixin
 from airflow.operators.python import BranchPythonOperator
-from airflow.utils.decorators import apply_defaults
+
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 

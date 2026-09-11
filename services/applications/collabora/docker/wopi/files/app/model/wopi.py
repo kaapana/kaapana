@@ -1,11 +1,10 @@
-import requests
-import logging
 import json
-
-from xml.etree import ElementTree
+import logging
+from dataclasses import asdict, dataclass
 from typing import List
+from xml.etree import ElementTree
 
-from dataclasses import dataclass, asdict
+import requests
 from requests.adapters import HTTPAdapter, Retry
 
 log = logging.getLogger("uvicorn.error")

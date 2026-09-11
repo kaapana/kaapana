@@ -7,8 +7,9 @@ Usage:
     python nrrd_to_dicom.py -i input.nrrd -r ref_dicom_dir -o output_dir
 """
 
-import os
 import argparse
+import os
+
 import SimpleITK as sitk
 from pydicom.uid import generate_uid
 

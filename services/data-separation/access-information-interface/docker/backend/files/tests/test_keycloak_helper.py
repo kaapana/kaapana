@@ -6,7 +6,6 @@ Guards that the helper authenticates via the kaapana-service client
 No live Keycloak: requests.post is mocked.
 """
 
-import importlib
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch

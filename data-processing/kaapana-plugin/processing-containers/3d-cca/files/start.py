@@ -1,20 +1,14 @@
-from os import getenv
-from os.path import join, exists, dirname, basename
-from glob import glob
-from pathlib import Path
-from logger_helper import get_logger
+import json
 import logging
-import json
-import shutil
 from glob import glob
+from os import getenv
+from os.path import basename, exists, join
 from pathlib import Path
-import shutil
-import nibabel as nib
-import numpy as np
-import json
-import re
 
 import cc3d
+import nibabel as nib
+import numpy as np
+from logger_helper import get_logger
 
 processed_count = 0
 logger = None

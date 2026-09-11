@@ -1,9 +1,8 @@
-import requests
 import logging
-import json
 from typing import Any, Tuple
+
+import requests
 from fastapi import HTTPException
-from app.workflows import utils
 
 
 class WorkflowService:
@@ -72,7 +71,7 @@ class WorkflowService:
             )
         if dry_run is True:
             return (
-                f"The configuration for the allowed dags and datasets is okay!",
+                "The configuration for the allowed dags and datasets is okay!",
                 None,
             )
         r = requests.post(self.airflow_api + "/trigger/meta-trigger", json=conf_data)

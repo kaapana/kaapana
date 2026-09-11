@@ -1,6 +1,6 @@
 import re
-from string import Template
 from html import escape
+from string import Template
 
 from base import ValidationItem
 

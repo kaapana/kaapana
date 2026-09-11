@@ -2,10 +2,6 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.db.session import AsyncSessionLocal, get_async_db
 from app.models.query import QueryIndexRequest, QueryRequest, QueryResponse
 from app.services.entity_query import (
@@ -13,6 +9,9 @@ from app.services.entity_query import (
     execute_entity_query,
     prepare_query_index_statement,
 )
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/entities", tags=["entity-queries"])
 

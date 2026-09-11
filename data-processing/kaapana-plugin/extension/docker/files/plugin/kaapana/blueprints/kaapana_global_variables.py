@@ -1,4 +1,5 @@
 import os
+
 from airflow.api.common.experimental.pool import get_pool
 
 BATCH_NAME = "batch"
@@ -25,10 +26,10 @@ BUILD_VERSION = KAAPANA_BUILD_VERSION
 
 try:
     GPU_COUNT = int(get_pool(name="NODE_GPU_COUNT").slots)
-except Exception as e:
+except Exception:
     GPU_COUNT = 0
 
 try:
     CPU_CORE_COUNT = int(get_pool(name="NODE_CPU_CORES").slots)
-except Exception as e:
+except Exception:
     CPU_CORE_COUNT = 1

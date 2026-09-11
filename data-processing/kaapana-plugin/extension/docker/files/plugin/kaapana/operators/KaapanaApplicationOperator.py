@@ -3,6 +3,7 @@ import time
 from datetime import timedelta
 
 import requests
+
 from kaapana.blueprints.kaapana_global_variables import (
     ADMIN_NAMESPACE,
     DEFAULT_PROJECT_NAMESPACE,

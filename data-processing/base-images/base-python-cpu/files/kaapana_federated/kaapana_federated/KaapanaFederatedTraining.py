@@ -1,21 +1,20 @@
-from cryptography.fernet import Fernet
-import requests
-import time
-import numpy as np
+import collections
+import functools
 import json
 import os
-import uuid
-import shutil
-import collections
-import torch
 import random
+import shutil
 import tarfile
-import functools
-from minio import Minio
+import time
+import uuid
 from abc import ABC, abstractmethod
-from requests.adapters import HTTPAdapter
-from abc import ABC, abstractmethod
+
+import numpy as np
+import requests
+import torch
+from cryptography.fernet import Fernet
 from kaapanapy.helper.HelperMinioSessionManager import HelperMinioSessionManager
+from minio import Minio
 from minio.deleteobjects import DeleteObject
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry

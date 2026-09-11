@@ -1,13 +1,14 @@
 # !!! DEPRECATION WARNING: Local Operators are deprecated and will be replaced with operators that run in Kubernetes pods in the next release v0.7.0.
 # If you have a custom Local Operator, it should be migrated to a processing container based operator.
 import glob
-import os
-import pydicom
 import json
+import os
 
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+import pydicom
 from kaapanapy.helper import get_opensearch_client
 from kaapanapy.settings import OpensearchSettings
+
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
 class LocalDeleteFromMetaOperator(KaapanaPythonBaseOperator):

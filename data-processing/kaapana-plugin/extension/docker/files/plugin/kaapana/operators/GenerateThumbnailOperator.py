@@ -1,9 +1,10 @@
+from datetime import timedelta
+
 from kaapana.operators.KaapanaBaseOperator import (
     DEFAULT_REGISTRY,
     KAAPANA_BUILD_VERSION,
     KaapanaBaseOperator,
 )
-from datetime import timedelta
 
 
 class GenerateThumbnailOperator(KaapanaBaseOperator):

@@ -32,10 +32,11 @@ Notes
 """
 
 import json
-import math
 import logging
+import math
 from pathlib import Path
 from typing import Sequence
+
 from kaapanapy.logger import get_logger
 
 # Logger

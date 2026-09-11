@@ -1,9 +1,8 @@
 import html
-import os
 from typing import List
 
 from app.dependencies import get_monitoring_service
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import PlainTextResponse
 
 from .schemas import Measurement

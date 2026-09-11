@@ -4,7 +4,7 @@ from pathlib import Path
 
 from v1.services.encryption import decrypt
 
-from .exceptions import ExtensionNotFoundException, ExtensionPullError
+from .exceptions import ExtensionNotFoundException
 from .models import ExtensionManifest
 
 

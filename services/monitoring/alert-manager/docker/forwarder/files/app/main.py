@@ -1,16 +1,13 @@
 import logging
-import os
-import time
 from contextlib import asynccontextmanager
 from typing import Any
+
 import httpx
-
-from fastapi import FastAPI
-from pydantic import Field
-
 from app.alerts.routes import router as alerts_router
 from app.alerts.service import AdminProjectResolver, NotificationForwarder
 from app.config import settings
+from fastapi import FastAPI
+from pydantic import Field
 
 logger = logging.getLogger(__name__)
 

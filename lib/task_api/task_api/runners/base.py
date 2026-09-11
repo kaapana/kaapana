@@ -1,9 +1,10 @@
-from abc import ABC, abstractmethod
-from task_api.processing_container import task_models
 import logging
-from pathlib import Path
 import os
 import pickle
+from abc import ABC, abstractmethod
+from pathlib import Path
+
+from task_api.processing_container import task_models
 
 
 class BaseRunner(ABC):

@@ -1,21 +1,21 @@
-from datetime import datetime
-from pydicom.uid import (
-    UID,
-    generate_uid,
-    CTImageStorage,
-    RTStructureSetStorage,
-    ExplicitVRLittleEndian,
-    PYDICOM_IMPLEMENTATION_UID,
-    SegmentationStorage,
-)
-from pydicom import Dataset
-from pydicom.dataset import validate_file_meta, FileMetaDataset
-from pydicom.valuerep import PersonName
-from pydicom.sequence import Sequence
-
-import struct
-import pytz
 import copy
+import struct
+from datetime import datetime
+
+import pytz
+from pydicom import Dataset
+from pydicom.dataset import FileMetaDataset, validate_file_meta
+from pydicom.sequence import Sequence
+from pydicom.uid import (
+    PYDICOM_IMPLEMENTATION_UID,
+    UID,
+    CTImageStorage,
+    ExplicitVRLittleEndian,
+    RTStructureSetStorage,
+    SegmentationStorage,
+    generate_uid,
+)
+from pydicom.valuerep import PersonName
 
 
 def fill_rtstruct(dcm):

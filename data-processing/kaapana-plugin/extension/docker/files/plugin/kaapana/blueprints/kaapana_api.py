@@ -3,20 +3,15 @@ from http import HTTPStatus
 
 from airflow import settings
 from airflow.api.common.trigger_dag import trigger_dag as trigger
-from airflow.api.common.experimental.mark_tasks import (
-    set_dag_run_state_to_failed as set_dag_run_failed,
-)
 from airflow.exceptions import AirflowException
-from airflow.models import DagRun, DagModel, DagBag
+from airflow.models import DagBag, DagModel, DagRun
 from airflow.models.taskinstance import TaskInstance
-from airflow.utils.state import State, TaskInstanceState, DagRunState
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.www.app import csrf
 from airflow.utils import timezone
-
-from flask import Blueprint, request, jsonify, Response
+from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.www.app import csrf
+from flask import Blueprint, Response, jsonify, request
 from flask import current_app as app
-
 from sqlalchemy import and_
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -345,7 +340,7 @@ def get_dags_endpoint():
         dags[dag_id] = parse_ui_dict(dag_dict)
         try:
             dags[dag_id]["tags"] = dag_objects[dag_id].tags
-        except KeyError as e:
+        except KeyError:
             dags[dag_id]["tags"] = []
 
     return jsonify(dags)

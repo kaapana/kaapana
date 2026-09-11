@@ -17,13 +17,12 @@ import uuid
 
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-
 from app import crud, models, schemas
 from app.adapters.adapters.dummy_adapter import DummyAdapter
 from app.api.v1.services import workflow_run_service as service
+from httpx import AsyncClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 
 @pytest.fixture(autouse=True)

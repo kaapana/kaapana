@@ -5,8 +5,6 @@ from typing import Dict, List
 
 from app.logger import get_logger
 
-from kaapanapy.settings import OpensearchSettings
-
 # Opensearch values (defaults)
 MAX_RETURN_LIMIT = 10000
 MAX_SLICES_PER_PIT = 1024

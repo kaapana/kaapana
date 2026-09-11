@@ -5,10 +5,8 @@ import json
 import logging
 from typing import Any, Dict
 
-from fastapi import WebSocket
-
 from app.models.events import EventMessage
-
+from fastapi import WebSocket
 
 logger = logging.getLogger(__name__)
 

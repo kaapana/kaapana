@@ -1,18 +1,14 @@
 # !!! DEPRECATION WARNING: Local Operators are deprecated and will be replaced with operators that run in Kubernetes pods in the next release v0.7.0.
 # If you have a custom Local Operator, it should be migrated to a processing container based operator.
-import os
 import glob
-import json
-import datetime
-from pathlib import Path
-import nibabel as nib
-import numpy as np
-from os.path import basename
+import os
 import shutil
+from os.path import basename
+from pathlib import Path
 
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperFederated import federated_sharing_decorator
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
 class LocalMergeBranchesOperator(KaapanaPythonBaseOperator):

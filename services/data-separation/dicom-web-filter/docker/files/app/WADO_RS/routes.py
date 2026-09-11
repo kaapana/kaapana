@@ -1,6 +1,6 @@
 import logging
 import re
-from uuid import UUID
+from typing import AsyncGenerator, Tuple
 
 import httpx
 from app import crud
@@ -11,7 +11,6 @@ from app.utils import get_scoped_project_ids, is_unscoped_admin
 from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import AsyncGenerator, Tuple, List
 
 # Create a router
 router = APIRouter()

@@ -1,19 +1,17 @@
-import logging
 import asyncio
+import logging
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
-from fastapi.staticfiles import StaticFiles
-
-from app.model.websockets import ConnectionManager
+from app.config import get_settings
 from app.dependencies import (
     get_connection_manager,
     get_wopi,
 )
-from app.config import get_settings
+from app.model.websockets import ConnectionManager
+from app.routers.documents import router as document
 from app.routers.wopi import router as wopi
 from app.routers.wopi_control import router as wopi_control
-from app.routers.documents import router as document
-
+from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.staticfiles import StaticFiles
 
 log = logging.getLogger("uvicorn.error")
 if get_settings().dev_mode:

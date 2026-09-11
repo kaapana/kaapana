@@ -1,8 +1,9 @@
-import pytest
+import os
 import tempfile
 from pathlib import Path
-import os
+
 import docker
+import pytest
 
 LOCAL_REGISTRY = "local-only"
 MODULE_PATH = Path(__file__).parent
@@ -35,8 +36,8 @@ def push_to_registry():
 
 
 def k8s_cluster_available():
-    from kubernetes import config, client
     import urllib3
+    from kubernetes import client, config
 
     try:
         config.load_config()

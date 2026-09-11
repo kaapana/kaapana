@@ -1,15 +1,15 @@
-import os
 import json
-from os import getenv
-from os.path import join, exists, dirname, basename
 from glob import glob
-from pathlib import Path
 from multiprocessing.pool import ThreadPool
+from os import getenv
+from os.path import basename, dirname, exists, join
 from pathlib import Path
-import numpy as np
+
 import nibabel as nib
-import torch
+import numpy as np
 import pandas as pd
+import torch
+from matplotlib import rcParams
 from monai.metrics import (
     # compute_meandice,
     DiceMetric,
@@ -17,10 +17,6 @@ from monai.metrics import (
     compute_hausdorff_distance,
     compute_surface_dice,
 )
-from pprint import pprint
-import seaborn as sns
-import matplotlib.pyplot as plt
-from matplotlib import rcParams
 
 rcParams.update({"figure.autolayout": True})
 
@@ -525,15 +521,15 @@ for batch_element_dir in batch_folders:
     gt_files = glob(join(gt_input_dir, input_file_extension))
     ensemble_pred_files = glob(join(ensemble_input_dir, input_file_extension))
 
-    print(f"#")
-    print(f"# found:")
-    print(f"#")
+    print("#")
+    print("# found:")
+    print("#")
     print(
         f"# {len(single_model_pred_files)} single_model_pred_files at {single_model_input_dir}"
     )
     print(f"# {len(gt_files)} gt_files at {gt_input_dir}")
     print(f"# {len(ensemble_pred_files)} ensemble_pred_files at {ensemble_input_dir}")
-    print(f"#")
+    print("#")
 
     assert len(gt_files) == 1
     gt_file = gt_files[0]
@@ -548,16 +544,16 @@ for batch_element_dir in batch_folders:
     # adding task with found masks of current batch element to task queue
     input_data = (batch_id, single_model_pred_files, gt_file, ensemble_pred_file)
     queue_list.append(input_data)
-    print(f"# Adding data to the job-list ..")
-    print(f"#")
+    print("# Adding data to the job-list ..")
+    print("#")
 
-print(f"#")
-print(f"#")
+print("#")
+print("#")
 print(
     f"# Starting {parallel_processes} parallel jobs -> job_count: {len(queue_list)} ..."
 )
-print(f"#")
-print(f"#")
+print("#")
+print("#")
 with ThreadPool(parallel_processes) as threadpool:
     results = threadpool.imap_unordered(get_metric_score, queue_list)
     for success, batch_id, result in results:

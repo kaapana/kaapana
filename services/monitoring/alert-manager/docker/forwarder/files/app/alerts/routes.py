@@ -1,6 +1,4 @@
 import logging
-from fastapi import APIRouter, Depends, status
-from fastapi.responses import JSONResponse
 
 from app.alerts.schemas import AlertmanagerWebhook
 from app.alerts.service import (
@@ -9,6 +7,8 @@ from app.alerts.service import (
     build_notification,
 )
 from app.dependencies import get_admin_project_resolver, get_notification_forwarder
+from fastapi import APIRouter, Depends, status
+from fastapi.responses import JSONResponse
 
 router = APIRouter(tags=["Alerts"])
 

@@ -4,10 +4,9 @@ from datetime import datetime
 from typing import Any
 
 import httpx
-from fastapi import HTTPException
-
 from app.alerts.schemas import Alert, AlertmanagerWebhook, NotificationPayload
 from app.config import settings
+from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
 

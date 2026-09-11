@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from typing import List, Optional
 
@@ -6,13 +5,7 @@ import pydicom
 from kaapanapy.helper import get_opensearch_client, load_workflow_config
 from kaapanapy.helper.HelperOpensearch import DicomTags
 from kaapanapy.logger import get_logger
-from kaapanapy.settings import OpensearchSettings, OperatorSettings
-from kaapanapy.utils import (
-    ConfigError,
-    is_batch_mode,
-    process_batches,
-    process_single,
-)
+from kaapanapy.settings import OpensearchSettings
 from opensearchpy import OpenSearch
 from pydantic import BaseModel, ValidationError
 

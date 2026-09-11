@@ -1,15 +1,11 @@
 # !!! DEPRECATION WARNING: Local Operators are deprecated and will be replaced with operators that run in Kubernetes pods in the next release v0.7.0.
 # If you have a custom Local Operator, it should be migrated to a processing container based operator.
-import os
-from os.path import join, exists, basename, dirname
 from glob import glob
-import json
-import shutil
-import pydicom
-from pydicom.uid import generate_uid
+from os.path import basename, dirname, exists, join
 from pathlib import Path
-from shutil import copy2, move, rmtree
+from shutil import move, rmtree
 
+import pydicom
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
@@ -79,14 +75,14 @@ class LocalSortGtOperator(KaapanaPythonBaseOperator):
                 )
 
                 print(
-                    f"# Only one corresponding image -> change batch_element name to base_id .."
+                    "# Only one corresponding image -> change batch_element name to base_id .."
                 )
                 print(f"# {org_input_dir} -> {new_batch_element_name}")
                 move(org_input_dir, new_batch_element_name)
-                print(f"#")
-                print(f"#")
+                print("#")
+                print("#")
             else:
-                print(f"# Merging started...")
+                print("# Merging started...")
                 target_series_batch = join(
                     run_dir,
                     self.batch_name,
@@ -99,18 +95,18 @@ class LocalSortGtOperator(KaapanaPythonBaseOperator):
                     print(f"# copy {corr_image} -> {target_seg_path}")
                     assert not exists(target_seg_path)
                     move(src=corr_image, dst=target_seg_path)
-            print(f"#")
+            print("#")
 
-        print(f"# Merging done.")
-        print(f"#")
+        print("# Merging done.")
+        print("#")
 
         for base_image, corr_batch_elements in base_images_list.items():
             for corr_image in corr_batch_elements:
                 org_batch_element_dir = dirname(dirname(corr_image))
                 print(f"# Removing outdated batch-dir: {org_batch_element_dir}")
                 rmtree(path=org_batch_element_dir, ignore_errors=True)
-                print(f"# ")
-        print(f"# Done.")
+                print("# ")
+        print("# Done.")
 
     def __init__(self, dag, name="sort-gt", **kwargs):
         super().__init__(dag=dag, name=name, python_callable=self.start, **kwargs)

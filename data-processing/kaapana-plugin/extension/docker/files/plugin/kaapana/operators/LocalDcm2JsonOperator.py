@@ -11,10 +11,11 @@ from typing import Any, Dict, List, Union
 import pydicom
 import pytz
 from dateutil import parser
-from kaapana.operators.HelperCaching import cache_operator_output
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapanapy.settings import KaapanaSettings
 from pydicom.tag import Tag
+
+from kaapana.operators.HelperCaching import cache_operator_output
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 TIMEZONE = KaapanaSettings().timezone
 

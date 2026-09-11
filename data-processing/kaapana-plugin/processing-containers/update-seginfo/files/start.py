@@ -1,13 +1,14 @@
-from os import getenv
-from os.path import join, exists
-from glob import glob
-from logger_helper import get_logger
-import logging
 import json
-from pathlib import Path
+import logging
 import shutil
+from glob import glob
+from os import getenv
+from os.path import exists, join
+from pathlib import Path
+
 import nibabel as nib
 import numpy as np
+from logger_helper import get_logger
 
 processed_count = 0
 skip_operator = False
@@ -83,11 +84,11 @@ def process_seginfo(nifti_dir, target_dir, mode=None):
             target_dir)
     else:
         # given mode is not supported --> through error
-        logger.error(f"#")
+        logger.error("#")
         logger.error(
-            f"# MODE not supported! Choose either mode 'combine' or 'fuse' segmentation label masks!"
+            "# MODE not supported! Choose either mode 'combine' or 'fuse' segmentation label masks!"
         )
-        logger.error(f"#")
+        logger.error("#")
         exit(1)
 
     return res, nifti_dir, target_seg_info_dict

@@ -1,5 +1,4 @@
-import copy
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from airflow.models import DAG
 from airflow.utils.dates import days_ago

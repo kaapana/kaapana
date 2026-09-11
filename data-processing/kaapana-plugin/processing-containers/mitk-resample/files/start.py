@@ -1,16 +1,14 @@
-import os
-from os import getenv, remove
-from os.path import join, exists, dirname, basename
 from glob import glob
-from shutil import copy2, move, rmtree
+from os import getenv, remove
+from os.path import basename, exists, join
 from pathlib import Path
-import nibabel as nib
+from shutil import copy2
 
 # For multiprocessing
-from multiprocessing.pool import ThreadPool
-
 # For shell-execution
 from subprocess import PIPE, run
+
+import nibabel as nib
 
 execution_timeout = 10
 
@@ -23,7 +21,7 @@ def process_input_file(input_path, original_path, original_shape, target_dir):
     print("#")
     print("##################################################")
     print("#")
-    print(f"# Resampling:")
+    print("# Resampling:")
     print("#")
     print(f"# input-file: {input_path}")
     print(f"# org-file:   {original_path}")

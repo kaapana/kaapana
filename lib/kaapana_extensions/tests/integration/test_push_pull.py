@@ -5,6 +5,7 @@ Requires a running Docker daemon. Run with:
 """
 
 import json
+
 import pytest
 
 pytestmark = pytest.mark.integration

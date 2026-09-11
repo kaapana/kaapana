@@ -1,12 +1,11 @@
 # !!! DEPRECATION WARNING: Local Operators are deprecated and will be replaced with operators that run in Kubernetes pods in the next release v0.7.0.
 # If you have a custom Local Operator, it should be migrated to a processing container based operator.
-from minio import Minio
-import os
-import time
 import glob
-from datetime import timedelta
-from datetime import datetime
+import os
 import shutil
+import time
+from datetime import datetime, timedelta
+
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
@@ -56,5 +55,5 @@ class LocalCleanUpExpiredWorkflowDataOperator(KaapanaPythonBaseOperator):
         self.expired_period = expired_period
 
         super().__init__(
-            dag=dag, name=f"clean-up", python_callable=self.start, **kwargs
+            dag=dag, name="clean-up", python_callable=self.start, **kwargs
         )

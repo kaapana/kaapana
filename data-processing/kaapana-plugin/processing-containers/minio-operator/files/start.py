@@ -1,15 +1,16 @@
-import datetime, pytz
+import datetime
 import os
-from pydantic_settings import BaseSettings
-from pydantic import Field, AliasChoices, field_validator
-from zipfile import ZipFile
 from pathlib import Path
 from typing import Any
+from zipfile import ZipFile
 
+import pytz
 from kaapanapy.helper import get_minio_client, load_workflow_config
-from kaapanapy.settings import OperatorSettings, KaapanaSettings
 from kaapanapy.logger import get_logger
+from kaapanapy.settings import KaapanaSettings, OperatorSettings
 from minio import Minio
+from pydantic import AliasChoices, Field, field_validator
+from pydantic_settings import BaseSettings
 
 logger = get_logger(__name__)
 
@@ -87,7 +88,7 @@ class MinioOperatorArguments(BaseSettings):
         elif v == "False":
             return False
         else:
-            raise ValueError(f"zip_files must be one of ['True','False'] not v")
+            raise ValueError("zip_files must be one of ['True','False'] not v")
 
 
 def file_is_whitelisted(path: Path, whitelisted_file_extensions: list[str]):
@@ -127,7 +128,7 @@ def download_objects(
     **Raises:**
     * AssertionError: If source_files is empty
     """
-    assert len(source_files) > 0, f"source_files must be non-empty list, if action=get"
+    assert len(source_files) > 0, "source_files must be non-empty list, if action=get"
 
     target_dir = os.path.join(
         OPERATOR_SETTINGS.workflow_dir,

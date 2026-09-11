@@ -1,22 +1,20 @@
 # !!! DEPRECATION WARNING: Local Operators are deprecated and will be replaced with operators that run in Kubernetes pods in the next release v0.7.0.
 # If you have a custom Local Operator, it should be migrated to a processing container based operator.
 import math
-import subprocess
-import threading
 import traceback
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import timedelta
 from queue import Queue
 from typing import List, Set, Tuple
 
 import requests
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapanapy.helper import get_minio_client
 from kaapanapy.logger import get_logger
-from minio import Minio
 from minio.commonconfig import ComposeSource, CopySource
 from minio.error import S3Error
+
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 logger = get_logger(__name__)
 

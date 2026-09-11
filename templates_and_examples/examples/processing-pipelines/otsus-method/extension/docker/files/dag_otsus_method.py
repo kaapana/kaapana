@@ -1,17 +1,16 @@
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.dates import days_ago
 from datetime import timedelta
-from airflow.models import DAG
 
-from kaapana.operators.GetInputOperator import GetInputOperator
+from airflow.models import DAG
+from airflow.utils.dates import days_ago
+from airflow.utils.log.logging_mixin import LoggingMixin
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
-from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
-from kaapana.operators.MinioOperator import MinioOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
+from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.MinioOperator import MinioOperator
 from otsus_method.OtsusMethodOperator import OtsusMethodOperator
 from otsus_method.OtsusNotebookOperator import OtsusNotebookOperator
-
 
 ui_forms = {
     "workflow_form": {

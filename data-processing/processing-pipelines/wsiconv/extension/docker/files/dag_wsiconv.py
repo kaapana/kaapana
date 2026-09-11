@@ -4,7 +4,6 @@ from airflow.models import DAG
 from airflow.operators.python import BranchPythonOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.trigger_rule import TriggerRule
 from kaapana.blueprints.json_schema_templates import schema_upload_form
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.DcmSendOperator import DcmSendOperator

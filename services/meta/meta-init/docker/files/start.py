@@ -1,9 +1,10 @@
-import requests
 import os
-from opensearchpy.exceptions import TransportError
+import time
+
+import requests
 from kaapanapy.helper import get_opensearch_client, get_project_user_access_token
 from kaapanapy.logger import get_logger
-import time
+from opensearchpy.exceptions import TransportError
 
 logger = get_logger(__name__)
 

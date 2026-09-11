@@ -1,9 +1,9 @@
-import sys
-import os
 import glob
-import pydicom
-from subprocess import PIPE, run
+import os
 from pathlib import Path
+from subprocess import PIPE, run
+
+import pydicom
 
 converter_count = 0
 

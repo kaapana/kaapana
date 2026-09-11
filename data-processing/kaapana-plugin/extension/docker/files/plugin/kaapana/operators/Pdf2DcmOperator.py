@@ -1,13 +1,10 @@
-import os
-import glob
 from datetime import timedelta
-import pydicom
 
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 from kaapana.blueprints.kaapana_global_variables import (
     DEFAULT_REGISTRY,
     KAAPANA_BUILD_VERSION,
 )
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 
 
 class Pdf2DcmOperator(KaapanaBaseOperator):

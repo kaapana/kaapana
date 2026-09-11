@@ -1,20 +1,21 @@
-import kubernetes as k8s
-from datetime import datetime
-from pint import UnitRegistry
-from collections import defaultdict
-import os
 import json
 import logging
+import os
 import time
+from collections import defaultdict
+from datetime import datetime
+from pathlib import Path
+from subprocess import Popen
+
+import kubernetes as k8s
 from kaapana.kubetools.prometheus_query import (
     get_node_gpu_infos,
     get_node_requested_memory,
 )
-from subprocess import Popen
-from pathlib import Path
 
 # from subprocess import STDOUT, check_output
 from kubernetes.client.models.v1_container_image import V1ContainerImage
+from pint import UnitRegistry
 
 # Not imported from kaapana.blueprints.kaapana_global_variables because inside the kaapana_global_variables the get_pool method is called which results in the error "sqlalchemy.exc.ResourceClosedError: This Connection is closed " because UtilService is imported in scheduler_job.py of Airflow...
 
@@ -380,7 +381,7 @@ class UtilService:
             "enable_job_scheduler" in task_instance.executor_config
             and not task_instance.executor_config["enable_job_scheduler"]
         ):
-            logger.warning(f"UtilService: enable_job_scheduler disabled!")
+            logger.warning("UtilService: enable_job_scheduler disabled!")
             return True, None
 
         if UtilService.last_update == None:
@@ -398,7 +399,7 @@ class UtilService:
             logger.warning("##############################################")
             logger.warning("")
             logger.warning(
-                f"UtilService: schedule lockfile found -> skipping scheduling !!!!"
+                "UtilService: schedule lockfile found -> skipping scheduling !!!!"
             )
             logger.warning("")
             logger.warning("##############################################")
@@ -517,7 +518,7 @@ class UtilService:
                             "gpu_mem": gpu_mem_mb,
                         }
 
-                logger.error(f"No GPU for the TI found! -> Not scheduling !")
+                logger.error("No GPU for the TI found! -> Not scheduling !")
                 return False, None
 
         return True, None

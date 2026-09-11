@@ -273,7 +273,7 @@ class GetRefSeriesOperator:
         # Check if search query is set
         if self.search_query != {}:
             # Check if "must" is set in search query
-            if not "must" in self.search_query["bool"]:
+            if "must" not in self.search_query["bool"]:
                 self.search_query["bool"]["must"] = []
 
             # Add study_instance_uid to search query

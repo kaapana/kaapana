@@ -1,15 +1,13 @@
 # !!! DEPRECATION WARNING: Local Operators are deprecated and will be replaced with operators that run in Kubernetes pods in the next release v0.7.0.
 # If you have a custom Local Operator, it should be migrated to a processing container based operator.
+import json
 import os
 import shutil
-import json
-import numpy as np
-import nibabel as nib
 from datetime import timedelta
-from multiprocessing.pool import ThreadPool
 from glob import glob
+from os.path import basename, dirname, join
 from pathlib import Path
-from os.path import join, basename, dirname, exists
+
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
@@ -38,7 +36,7 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
             if len(json_file_filtered) > 0:
                 return json_file_filtered[0]
             else:
-                print(f"# No fitting json could be identified!")
+                print("# No fitting json could be identified!")
                 print(f"# Filename: {filename}")
                 print(json.dumps(json_list, indent=4, sort_keys=True, default=str))
                 return None
@@ -128,10 +126,10 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
                     print(f"# copy JSON: {json_file} -> {target_json_path}")
                     shutil.copy2(json_file, target_json_path)
                 else:
-                    print(f"# No json found!")
+                    print("# No json found!")
                     raise ValueError("ERROR")
-                print(f"#")
-            print(f"#")
+                print("#")
+            print("#")
 
         print("# ")
         print("#")

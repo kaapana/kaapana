@@ -21,11 +21,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+import uuid as _uuid
+
 from app import models, schemas  # noqa: E402
 from test_data import LABEL_ENVIRONMENT_PROD, LABEL_TEAM, PARAM_LIST_ORGAN  # noqa: E402
-
-
-import uuid as _uuid
 
 
 async def _first_revision_id(client: AsyncClient, wf: dict) -> _uuid.UUID:

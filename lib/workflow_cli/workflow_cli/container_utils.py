@@ -3,7 +3,6 @@ Utilities for discovering and listing processing containers.
 """
 
 import json
-import re
 import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional

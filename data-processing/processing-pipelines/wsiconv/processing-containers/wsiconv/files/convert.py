@@ -1,12 +1,7 @@
-import os
-import glob
-import numpy as np
 import glob
 import os
+
 import pydicom
-import wsidicomizer
-from wsidicomizer import WsiDicomizer
-from pathlib import Path
 from wsidicom.conceptcode import (
     AnatomicPathologySpecimenTypesCode,
     ContainerTypeCode,
@@ -31,8 +26,10 @@ from wsidicom.metadata import (
     Staining,
     Study,
 )
-from wsidicomizer.sources import TiffSlideSource
+from wsidicomizer import WsiDicomizer
 from wsidicomizer.metadata import WsiDicomizerMetadata
+from wsidicomizer.sources import TiffSlideSource
+
 study = Study(identifier="Study identifier")
 series = Series(number=1)
 patient = Patient(name="FamilyName^GivenName")

@@ -2,9 +2,11 @@
 This module implements functions that make requests to the Gitlab REST API.
 The functions in this module are used to deactivate a schedule by the pipeline id of the last pipeline triggered by this schedule.
 """
-import requests
 import argparse
 import sys
+
+import requests
+
 
 def parser():
     p = argparse.ArgumentParser(usage="Deactivate a schedule given the pipeline id of the last pipeline triggered by this schedule.")

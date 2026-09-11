@@ -3,9 +3,9 @@ import time
 from subprocess import PIPE, run
 
 import requests
-from kaapanapy.helper import get_project_user_access_token, get_opensearch_client
-from kaapanapy.settings import OpensearchSettings
+from kaapanapy.helper import get_opensearch_client, get_project_user_access_token
 from kaapanapy.logger import get_logger
+from kaapanapy.settings import OpensearchSettings
 
 logger = get_logger(__name__)
 
@@ -137,7 +137,7 @@ def wait_for_file_in_pacs(study_uid, access_token, max_counter=60):
         r.raise_for_status()
         if r.status_code != 200:
             counter += 1
-            logger.warning(f"Example file not found in PACS! Retry ...")
+            logger.warning("Example file not found in PACS! Retry ...")
             time.sleep(5)
         else:
             logger.info("Example file found in PACs")

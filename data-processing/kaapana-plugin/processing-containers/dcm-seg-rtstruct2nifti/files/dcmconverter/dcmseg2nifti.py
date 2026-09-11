@@ -1,10 +1,10 @@
-import os
 import glob
 import json
-import os
 import logging
+import os
+from os.path import basename, join
 from subprocess import PIPE, run
-from os.path import join, exists, basename
+
 from dcmconverter.logger import get_logger
 
 logger = get_logger(__name__, logging.DEBUG)

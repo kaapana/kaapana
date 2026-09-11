@@ -1,14 +1,4 @@
-from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
-from kaapana.operators.MinioOperator import MinioOperator
-from kaapana.operators.LocalDcmAnonymizerOperator import LocalDcmAnonymizerOperator
-from kaapana.operators.LocalConcatJsonOperator import LocalConcatJsonOperator
-from kaapana.operators.GetInputOperator import GetInputOperator
-from kaapana.operators.DcmConverterOperator import DcmConverterOperator
-from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
-from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from kaapana.operators.ConnectedComponentAnalysisOperator import (
-    ConnectedComponentAnalysisOperator,
-)
+from datetime import timedelta
 
 from advanced_collect_metadata.LocalExtractImgIntensitiesOperator import (
     LocalExtractImgIntensitiesOperator,
@@ -19,12 +9,20 @@ from advanced_collect_metadata.LocalExtractSegMetadataOperator import (
 from advanced_collect_metadata.LocalMergeBranchesOperator import (
     LocalMergeBranchesOperator,
 )
-
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.dates import days_ago
-from datetime import timedelta
 from airflow.models import DAG
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.utils.dates import days_ago
+from airflow.utils.log.logging_mixin import LoggingMixin
+from kaapana.operators.ConnectedComponentAnalysisOperator import (
+    ConnectedComponentAnalysisOperator,
+)
+from kaapana.operators.DcmConverterOperator import DcmConverterOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
+from kaapana.operators.LocalConcatJsonOperator import LocalConcatJsonOperator
+from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
+from kaapana.operators.LocalDcmAnonymizerOperator import LocalDcmAnonymizerOperator
+from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
+from kaapana.operators.MinioOperator import MinioOperator
 
 log = LoggingMixin().log
 

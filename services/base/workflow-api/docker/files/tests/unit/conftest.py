@@ -3,13 +3,13 @@ Test configuration following SQLModel testing patterns.
 Uses pytest fixtures with in-memory SQLite database.
 """
 
+import json
 import os
 import sys
 from pathlib import Path
 
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-import json
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool

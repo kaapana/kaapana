@@ -5,10 +5,10 @@ The script useres dcmtk dcmsend: https://support.dcmtk.org/docs-snapshot/dcmsend
 therefore the commandline tool dcmsend has to be installed to run the script.
 
 """
-import os
-from argparse import ArgumentParser
-import subprocess
 import glob
+import os
+import subprocess
+from argparse import ArgumentParser
 
 
 def dcmsend(ip, port, file_list, aet, aec):

@@ -1,6 +1,5 @@
 import os
 import sys
-from typing import Literal, Optional
 
 from dicom_validator.spec_reader.edition_reader import EditionReader
 

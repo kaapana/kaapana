@@ -11,11 +11,12 @@ from os.path import join
 from pathlib import Path
 
 import pydicom
+from kaapanapy.helper import get_opensearch_client
+from kaapanapy.settings import OpensearchSettings
+
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapanapy.helper import get_opensearch_client
-from kaapanapy.settings import OpensearchSettings
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)

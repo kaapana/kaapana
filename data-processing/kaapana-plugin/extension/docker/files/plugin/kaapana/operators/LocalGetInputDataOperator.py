@@ -8,17 +8,18 @@ import os
 import shutil
 import time
 from datetime import timedelta
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from multiprocessing.pool import ThreadPool
 from os.path import dirname, exists, join
 from pathlib import Path
 
 import pydicom
+from kaapanapy.helper.HelperOpensearch import HelperOpensearch
+from kaapanapy.logger import get_logger
+from kaapanapy.settings import OpensearchSettings
+
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
-from kaapanapy.logger import get_logger
-from kaapanapy.helper.HelperOpensearch import HelperOpensearch
-from kaapanapy.settings import OpensearchSettings
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 logger = get_logger(__file__)
 

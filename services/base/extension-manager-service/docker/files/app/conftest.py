@@ -2,7 +2,7 @@ import os
 
 import pytest_asyncio
 from cryptography.fernet import Fernet
-from fastapi import Depends, HTTPException, status
+from fastapi import HTTPException, status
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import JSON, event
 from sqlalchemy.dialects import postgresql
@@ -21,7 +21,6 @@ from v1.services.database import crud
 from v1.services.database.database import get_async_db
 from v1.services.database.models import Base
 from v1.services.dispatch.content import Content, ContentInstaller, InstallationResult
-from v1.services.dispatch.dispatcher import Dispatcher
 
 
 class MockedInstaller(ContentInstaller):

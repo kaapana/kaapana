@@ -1,19 +1,18 @@
 # TODO: change prints to logging
 # TODO: docs for funcs
 
+import ast
 import json
 import os
 from os import getenv
 from pathlib import Path
-import ast
 
 import nibabel as nib
 import numpy as np
 import torch
 from monai.metrics.hausdorff_distance import compute_hausdorff_distance
-from monai.metrics.surface_distance import compute_average_surface_distance
 from monai.metrics.surface_dice import compute_surface_dice
-
+from monai.metrics.surface_distance import compute_average_surface_distance
 from opensearch_helper import get_ref_series_instance_uid
 
 workflow_dir = getenv("WORKFLOW_DIR", "None")
@@ -140,7 +139,7 @@ def get_dataset_map_of_nnunet_predict():
     test_ids = get_all_niftis(test_path)
 
     print(
-        f"# INFO: Note that test ids are not segmentation but CT uids since they are fetched from nnunet predict results"
+        "# INFO: Note that test ids are not segmentation but CT uids since they are fetched from nnunet predict results"
     )
     print(f"# {gt_ids=} , {test_ids=}")
 
@@ -274,7 +273,7 @@ def run_eval_nnunet_predict():
     dataset_map = get_dataset_map_of_nnunet_predict()
 
     if len(dataset_map) == 0:
-        print(f"# ERROR: dataset_map empty for nnunet_predict eval, aborting...")
+        print("# ERROR: dataset_map empty for nnunet_predict eval, aborting...")
         exit(1)
 
     write_to_out_dir("dataset_map.json", dataset_map)

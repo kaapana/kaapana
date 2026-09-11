@@ -1,7 +1,7 @@
 import re
 import subprocess
 
-from base import ValidationItem, DicomValidatorInterface
+from base import DicomValidatorInterface, ValidationItem
 
 
 class DCIodValidator(DicomValidatorInterface):

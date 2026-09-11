@@ -139,7 +139,7 @@ def send_dicom_data(send_dir, project_short_id, aetitle=AETITLE, timeout=60):
             print("------------------------------------")
             print("Max retries reached!")
             print("------------------------------------")
-            raise ValueError(f"Something went wrong with dcmsend!")
+            raise ValueError("Something went wrong with dcmsend!")
 
         dicom_sent_count += 1
 

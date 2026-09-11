@@ -1,27 +1,26 @@
-from airflow.utils.dates import days_ago
 from datetime import timedelta
+
 from airflow.models import DAG
-from kaapana.operators.DcmConverterOperator import DcmConverterOperator
-from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from airflow.utils.dates import days_ago
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
-from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
-from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
+from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
+from kaapana.operators.LocalFilterMasksOperator import LocalFilterMasksOperator
+from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
+from kaapana.operators.LocalModifySegLabelNamesOperator import (
+    LocalModifySegLabelNamesOperator,
+)
+from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
+from kaapana.operators.MergeMasksOperator import MergeMasksOperator
 from kaapana.operators.MinioOperator import MinioOperator
 from kaapana.operators.SegmentationEvaluationOperator import (
     SegmentationEvaluationOperator,
 )
-from kaapana.operators.MergeMasksOperator import MergeMasksOperator
-from kaapana.operators.LocalFilterMasksOperator import LocalFilterMasksOperator
-from kaapana.operators.LocalModifySegLabelNamesOperator import (
-    LocalModifySegLabelNamesOperator,
-)
-
-from nnunet.NnUnetOperator import NnUnetOperator
-from nnunet.NnUnetModelOperator import NnUnetModelOperator
 from nnunet.GetModelFromPacsOperator import GetModelFromPacsOperator
 from nnunet.getTasks import get_available_protocol_names
-
+from nnunet.NnUnetModelOperator import NnUnetModelOperator
+from nnunet.NnUnetOperator import NnUnetOperator
 
 # NOTE: this is an experimental DAG designed for evaluation with running nnunet-predict with only providing the ground truth segmentations
 # NOTE: this DAG will only run if nnunet is installed

@@ -12,6 +12,7 @@ import pydicom
 import requests
 from airflow.api.common.trigger_dag import trigger_dag as trigger
 from airflow.models import DagBag
+
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.blueprints.kaapana_utils import generate_run_id
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
@@ -75,7 +76,7 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
         print(f"# conf: {conf}")
         print("#")
         trigger(dag_id=dag_id, run_id=dag_run_id, conf=conf, replace_microseconds=False)
-        print(f"# Triggered! ")
+        print("# Triggered! ")
 
     def set_data_input(self, dag_id, dcm_path, dag_run_id, series_uid, conf={}):
         print("Set input data")
@@ -105,7 +106,7 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
                             break
                     break
         else:
-            print(f"# Using PACS fetch-method !")
+            print("# Using PACS fetch-method !")
 
             if "data_form" not in conf or "identifiers" not in conf["data_form"]:
                 conf["data_form"] = {"identifiers": []}
@@ -288,7 +289,7 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
                         fullfills_all_search_tags = False
                     else:
                         print(f"# Match for tag {dicom_tag}! -> triggering")
-                    print(f"#")
+                    print("#")
 
                 if fullfills_all_search_tags is True:
                     for (

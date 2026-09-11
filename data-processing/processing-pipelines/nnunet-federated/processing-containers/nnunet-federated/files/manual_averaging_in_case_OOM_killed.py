@@ -1,11 +1,12 @@
-import os
-import sys
-from pathlib import Path
-import torch
-import shutil
 import collections
+import os
+import shutil
+import sys
 from argparse import Namespace
-import os, psutil
+from pathlib import Path
+
+import psutil
+import torch
 
 sys.path.insert(0, "../")
 sys.path.insert(0, "/kaapana/app")

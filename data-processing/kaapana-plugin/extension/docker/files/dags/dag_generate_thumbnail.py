@@ -12,8 +12,8 @@ from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR, BA
 from kaapana.operators.GenerateThumbnailOperator import GenerateThumbnailOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.GetRefSeriesOperator import GetRefSeriesOperator
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.HelperThumbnails import NO_THUMBNAIL_MODALITIES, has_ref_series
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.LocalDcmBranchingOperator import LocalDcmBranchingOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapanapy.helper import get_minio_client

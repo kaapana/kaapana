@@ -1,6 +1,7 @@
-import os
 import ast
 import json
+import os
+
 import numpy as np
 import SimpleITK as sitk
 from radiomics import featureextractor

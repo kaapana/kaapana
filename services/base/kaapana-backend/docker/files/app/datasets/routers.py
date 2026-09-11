@@ -1,29 +1,27 @@
-import base64
 import logging
 import os
+import random
 import shutil
-from io import BytesIO
 import zipfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from io import BytesIO
+from pathlib import Path
+from time import gmtime, strftime
 
 from app.datasets import utils
 from app.dependencies import (
+    get_dcmweb_helper,
     get_minio,
     get_opensearch,
-    get_project_index,
-    get_dcmweb_helper,
     get_project,
+    get_project_index,
 )
-from app.middlewares import sanitize_inputs
 from app.logger import get_logger
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from fastapi import APIRouter, Body, Depends, HTTPException, Request, Query
+from app.middlewares import sanitize_inputs
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from minio.error import S3Error
-import os
-from pathlib import Path
-import random
 from starlette.responses import StreamingResponse
-from time import gmtime, strftime
 
 MAX_DOWNLOAD_FILE_SIZE_MB = 256
 

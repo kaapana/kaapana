@@ -1,18 +1,18 @@
-import json
 import base64
+import json
 import re
 import time
 from enum import Enum
+from typing import List, Tuple
+
 from kubernetes import client, config, watch
-from task_api.processing_container import task_models, pc_models
-from task_api.processing_container.resources import compute_memory_resources
+from task_api.processing_container import pc_models, task_models
 from task_api.processing_container.common import (
     create_task_instance,
     get_task_template,
 )
+from task_api.processing_container.resources import compute_memory_resources
 from task_api.runners.base import BaseRunner
-
-from typing import Tuple, List
 
 
 def generate_pod_name(base_name: str) -> str:

@@ -103,7 +103,7 @@ async def patch_filepond_upload(request: Request, patch: str):
     elif not success:
         return Response(f"Filepond upload failed: {res}", 500)
     else:
-        return Response(f"Filepond upload failed: Internal Error", 500)
+        return Response("Filepond upload failed: Internal Error", 500)
 
 
 @router.head("/filepond-upload")
@@ -184,7 +184,7 @@ async def upload_file_chunks(file: UploadFile):
         return Response(str(next_index), 200)
     except Exception as e:
         logger.error(f"/file_chunks failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"File upload failed")
+        raise HTTPException(status_code=500, detail="File upload failed")
 
 
 # @router.websocket("/file_chunks/{client_id}")
@@ -236,7 +236,7 @@ async def import_container(filename: str, platforms: Optional[bool] = False):
 
 @router.get("/health-check")
 async def health_check():
-    return Response(f"Kube-Helm api is up and running!", 200)
+    return Response("Kube-Helm api is up and running!", 200)
 
 
 @router.get("/update-extensions")
@@ -603,9 +603,9 @@ async def extensions():
 
         return cached_extensions
 
-    except Exception as e:
-        logger.error(f"/extensions FAILED", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to get extensions")
+    except Exception:
+        logger.error("/extensions FAILED", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to get extensions")
 
 
 @router.get("/platforms")
@@ -617,7 +617,7 @@ async def get_platforms():
 
     except Exception as e:
         logger.error(f"/platforms FAILED {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to get platforms")
+        raise HTTPException(status_code=500, detail="Failed to get platforms")
 
 
 @router.get("/available-platforms")

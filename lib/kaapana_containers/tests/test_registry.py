@@ -1,7 +1,6 @@
-import json
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from kaapana_containers.registries.registry import OCIError, OCIRegistryDiscovery
 
 

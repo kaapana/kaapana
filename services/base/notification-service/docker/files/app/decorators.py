@@ -1,5 +1,5 @@
-import logging
 import functools
+import logging
 
 logger = logging.getLogger("uvicorn")
 
@@ -38,7 +38,7 @@ def deprecated(
                 parts.append(message)
             else:
                 parts.append(
-                    f"- Endpoint is deprecated and may be removed in future versions."
+                    "- Endpoint is deprecated and may be removed in future versions."
                 )
 
             logger.warning(" ".join(parts))

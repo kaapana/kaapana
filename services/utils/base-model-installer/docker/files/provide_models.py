@@ -1,14 +1,15 @@
-from pathlib import Path
-import os
+import argparse
 import json
 import logging
-import requests
-from requests.adapters import HTTPAdapter, Retry
-import zipfile
+import os
 import sys
+import zipfile
 from multiprocessing.pool import ThreadPool
+from pathlib import Path
+
+import requests
 import tqdm
-import argparse
+from requests.adapters import HTTPAdapter, Retry
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -178,11 +179,11 @@ if __name__ == "__main__":
     logger.info("Start main process.")
     args = parse_arguments()
     try:
-        from kaapanapy.services.NotificationService import (
-            NotificationService,
-            Notification,
-        )
         from kaapanapy.helper import load_workflow_config
+        from kaapanapy.services.NotificationService import (
+            Notification,
+            NotificationService,
+        )
 
         kaapana_notifier = NotificationService()
         wf_config = load_workflow_config()
@@ -202,7 +203,7 @@ if __name__ == "__main__":
         task_ids = args.task_ids.split(",")
 
     if len(task_ids) == 0:
-        logger.warning(f"No task_ids specified!")
+        logger.warning("No task_ids specified!")
         sys.exit(0)
 
     Path(args.download_dir).mkdir(exist_ok=True, parents=True)

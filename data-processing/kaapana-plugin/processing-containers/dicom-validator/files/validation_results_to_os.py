@@ -1,18 +1,9 @@
-import glob
-import json
-import os
 from dataclasses import dataclass
-from datetime import datetime
-from enum import Enum
-from html.parser import HTMLParser
-from os import getenv
 from typing import List
 
 from kaapanapy.helper import get_opensearch_client, load_workflow_config
-from kaapanapy.helper.HelperOpensearch import DicomTags
 from kaapanapy.logger import get_logger
-from kaapanapy.settings import OpensearchSettings, OperatorSettings
-from pytz import timezone
+from kaapanapy.settings import OpensearchSettings
 
 logger = get_logger(__name__, level="INFO")
 

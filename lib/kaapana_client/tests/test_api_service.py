@@ -10,7 +10,6 @@ services, and no cookie is sent by any verb.
 import time
 
 import pytest
-
 from kaapana_client.services import ApiService
 from kaapana_client.services.ApiService import KaapanaApiService
 

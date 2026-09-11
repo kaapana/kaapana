@@ -1,11 +1,12 @@
-from airflow.api.common.trigger_dag import trigger_dag as trigger
-from kaapana.blueprints.kaapana_utils import generate_run_id
-from typing import Optional, List
-import requests
-from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 import logging
 import re
+from typing import List, Optional
 
+import requests
+from airflow.api.common.trigger_dag import trigger_dag as trigger
+
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+from kaapana.blueprints.kaapana_utils import generate_run_id
 
 logger = logging.getLogger(__name__)
 

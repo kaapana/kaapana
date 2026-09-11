@@ -1,5 +1,6 @@
 import logging
 from functools import wraps
+
 from kaapana_client.settings import KaapanaSettings
 
 

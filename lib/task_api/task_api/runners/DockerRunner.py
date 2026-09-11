@@ -1,20 +1,19 @@
+import os
 import subprocess
-from pathlib import Path
-import docker
-import sys, os
+import sys
 import time
 
-from task_api.processing_container import task_models, pc_models
+import docker
+from task_api.processing_container import pc_models, task_models
+from task_api.processing_container.common import (
+    create_task_instance,
+    get_task_template,
+)
 from task_api.processing_container.resources import (
     calculate_bytes,
     compute_memory_requirement,
     human_readable_size,
 )
-from task_api.processing_container.common import (
-    get_task_template,
-    create_task_instance,
-)
-
 from task_api.runners.base import BaseRunner
 
 
@@ -145,7 +144,7 @@ class DockerRunner(BaseRunner):
         """
         Monitor the memory usage of a container and return the maxmimum memory utilization.
         """
-        cls._logger.info(f"Start monitoring memory usage")
+        cls._logger.info("Start monitoring memory usage")
         container_id = task_run.id
         container = cls.client.containers.get(container_id=container_id)
         attrs = container.attrs

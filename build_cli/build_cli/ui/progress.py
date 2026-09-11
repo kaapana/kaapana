@@ -1,14 +1,8 @@
-import logging
 from queue import SimpleQueue
 from threading import Lock
 from typing import Set
 
 from alive_progress import alive_bar
-from rich.console import Console, Group
-from rich.live import Live
-from rich.progress import BarColumn, Progress, TextColumn
-from rich.style import Style
-from rich.table import Table
 
 from build_cli.container import Container, Status
 from build_cli.utils import get_logger

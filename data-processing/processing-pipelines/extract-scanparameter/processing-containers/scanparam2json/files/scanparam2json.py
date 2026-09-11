@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 
-import pydicom
+import glob
 import json
 import os
-import glob
 from datetime import datetime
+
+import pydicom
 
 keywords_basic = [
     "StudyInstanceUID",

@@ -1,4 +1,3 @@
-import asyncio
 import io
 import json
 import logging
@@ -6,7 +5,6 @@ from datetime import datetime
 from typing import AsyncGenerator, BinaryIO, List
 
 import aiohttp
-import httpx
 import requests
 from app.config import settings
 from app.dependencies import get_db

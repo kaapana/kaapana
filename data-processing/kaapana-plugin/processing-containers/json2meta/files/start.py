@@ -5,9 +5,9 @@ from os import getenv
 from os.path import exists, join
 
 import pydicom
-from opensearchpy.exceptions import NotFoundError
 from kaapanapy.helper import get_opensearch_client, load_workflow_config
 from kaapanapy.logger import get_logger
+from opensearchpy.exceptions import NotFoundError
 
 logger = get_logger(__name__, level="INFO")
 
@@ -90,7 +90,7 @@ class Json2MetaOperator:
         Args:
             json_dict (dict): JSON data to push
         """
-        logger.info(f"Pushing JSON to project index")
+        logger.info("Pushing JSON to project index")
         json_dict = self.produce_inserts(json_dict, self.opensearch_index)
         try:
             _ = self.os_client.index(

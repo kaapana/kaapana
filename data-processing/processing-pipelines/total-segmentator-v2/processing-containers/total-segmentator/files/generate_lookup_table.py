@@ -1068,9 +1068,9 @@ for class_name in class_map:
         class_list.append({"label_int": label, "label_name": value})
     result_label_dict[class_name] = class_list
 
-from os.path import join
-import pathlib
 import json
+import pathlib
+from os.path import join
 
 if __name__ == "__main__":
     json_path = join(pathlib.Path(__file__).parent.resolve(), "seg_info_lookup.json")

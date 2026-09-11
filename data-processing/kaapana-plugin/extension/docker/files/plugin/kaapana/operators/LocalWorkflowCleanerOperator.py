@@ -2,21 +2,20 @@
 # If you have a custom Local Operator, it should be migrated to a processing container based operator.
 import shutil
 from pathlib import Path
-from kaapana.blueprints.kaapana_utils import (
-    cure_invalid_name,
-    get_operator_properties,
-    clean_previous_dag_run,
-)
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
-from kaapana.blueprints.kaapana_global_variables import (
-    SERVICES_NAMESPACE,
-    DEFAULT_REGISTRY,
-    KAAPANA_BUILD_VERSION,
-    AIRFLOW_WORKFLOW_DIR,
-)
 
 from kubernetes import client
 from kubernetes.client.exceptions import ApiException
+
+from kaapana.blueprints.kaapana_global_variables import (
+    AIRFLOW_WORKFLOW_DIR,
+    DEFAULT_REGISTRY,
+    KAAPANA_BUILD_VERSION,
+)
+from kaapana.blueprints.kaapana_utils import (
+    clean_previous_dag_run,
+    cure_invalid_name,
+)
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 
 
 class LocalWorkflowCleanerOperator(KaapanaBaseOperator):

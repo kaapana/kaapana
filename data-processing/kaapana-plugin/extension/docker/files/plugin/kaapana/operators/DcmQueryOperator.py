@@ -1,14 +1,11 @@
-import os
-import glob
-from datetime import timedelta, date
-import pydicom
+from datetime import date, timedelta
 
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 from kaapana.blueprints.kaapana_global_variables import (
     DEFAULT_REGISTRY,
     KAAPANA_BUILD_VERSION,
+    SERVICES_NAMESPACE,
 )
-from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 
 
 class DcmQueryOperator(KaapanaBaseOperator):

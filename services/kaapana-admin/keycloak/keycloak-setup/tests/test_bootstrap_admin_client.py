@@ -22,7 +22,6 @@ sys.modules.setdefault("logger", MagicMock())
 
 import bootstrap_admin_client as boot  # noqa: E402
 
-
 # --- _admin_client_functional -------------------------------------------------
 
 

@@ -1,17 +1,15 @@
-import os
-import sys
-from pathlib import Path
-from multiprocessing import Pool
-import torch
 import json
-import pickle
-import shutil
-import collections
-from collections import OrderedDict
-from torch.utils.tensorboard import SummaryWriter
-import psutil
-import numpy as np
 import math
+import os
+import shutil
+import sys
+from collections import OrderedDict
+from multiprocessing import Pool
+from pathlib import Path
+
+import numpy as np
+import psutil
+from torch.utils.tensorboard import SummaryWriter
 
 sys.path.insert(0, "/")
 sys.path.insert(0, "/kaapana/app")
@@ -165,7 +163,7 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
             )
 
         # set to 'to_dataset_properties' to start training with generation of dataset_properties at clients
-        print(f"Overwriting prep_increment_step to to_dataset_properties!")
+        print("Overwriting prep_increment_step to to_dataset_properties!")
         self.remote_conf_data["workflow_form"][
             "prep_increment_step"
         ] = "to_dataset_properties"

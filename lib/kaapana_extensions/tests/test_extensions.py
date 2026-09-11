@@ -1,13 +1,12 @@
 import io
 import json
 import tarfile
-import pytest
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 from kaapana_containers.registries.registry import OCIError
-
 from kaapana_extensions.extensions import ExtensionUtilityLibrary
-
 
 _STABLE_ID = "aaaaaaaa-0000-0000-0000-000000000001"
 _STABLE_TAG = f"{_STABLE_ID}-v1.0.0"

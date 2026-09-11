@@ -1,9 +1,11 @@
-from os.path import join, exists, dirname, basename
-from glob import glob
-import shutil
 import json
-from dcmrtstruct2nii import dcmrtstruct2nii, list_rt_structs
 import logging
+import shutil
+from glob import glob
+from os.path import basename, dirname, join
+
+from dcmrtstruct2nii import dcmrtstruct2nii
+
 from dcmconverter.logger import get_logger
 
 logger = get_logger(__name__, logging.DEBUG)
@@ -34,7 +36,7 @@ def convert_rtstruct(
         )
         generate_meta_info(dcmrtstruct2nii_tmp_ouput_dir, seg_filter)
         success = True
-    except Exception as e:
+    except Exception:
         success = False
 
     return success

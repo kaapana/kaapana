@@ -349,7 +349,7 @@ def raise_kaapana_connection_error(r: requests.Response):
         )
     try:
         r.raise_for_status()
-    except requests.exceptions.HTTPError as e:
+    except requests.exceptions.HTTPError:
         status_code = r.status_code
         detail = f"Request failed with status code {status_code}: {r.text}"
         raise HTTPException(status_code=status_code, detail=detail)

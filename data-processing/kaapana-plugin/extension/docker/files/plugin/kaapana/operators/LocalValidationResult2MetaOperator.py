@@ -10,16 +10,15 @@ from html.parser import HTMLParser
 from typing import List
 
 import requests
-from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapanapy.helper import get_opensearch_client
 from kaapanapy.helper.HelperOpensearch import DicomTags
 from kaapanapy.logger import get_logger
 from kaapanapy.settings import OpensearchSettings
-from opensearchpy import OpenSearch
+from pydantic import BaseModel
 from pytz import timezone
 
-from pydantic import BaseModel
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 logger = get_logger(__name__)
 
@@ -158,7 +157,7 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
         return clinical_trial_protocol_id
 
     def get_project_config_from_meta_json(self, json_dict):
-        print(f"Applying action to project bucket")
+        print("Applying action to project bucket")
         # id = json_dict["0020000E SeriesInstanceUID_keyword"]
         clinical_trial_protocol_id = self.extract_project_name_from_ctp_id(json_dict)
 

@@ -1,9 +1,12 @@
-from KeycloakHelper import KeycloakHelper
-import os, json, time
-from logger import get_logger
-from pathlib import Path
+import json
 import logging
+import os
+import time
+from pathlib import Path
+
 import requests
+from KeycloakHelper import KeycloakHelper
+from logger import get_logger
 
 REALM_OBJECTS_ROOT_DIR = Path(os.getenv("REALM_OBJECTS_ROOT_DIR", "/realm_objects"))
 DEV_MODE = os.getenv("DEV_MODE")
@@ -94,7 +97,7 @@ def _run_setup(keycloak, oidc_client_secret, kaapana_init_password):
         payload = json.load(f)
         payload["secret"] = oidc_client_secret
         redirect_uris = []
-        redirect_uris.append(f"/oauth2/callback")
+        redirect_uris.append("/oauth2/callback")
         hostname = os.getenv("HOSTNAME")
         https_port = os.getenv("HTTPS_PORT")
         redirect_uris.append(f"https://{hostname}:{https_port}/oauth2/callback")

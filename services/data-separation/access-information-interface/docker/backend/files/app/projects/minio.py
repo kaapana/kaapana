@@ -2,15 +2,14 @@ import json
 import re
 
 import requests
+from app.projects.crud import get_rights
+from app.projects.schemas import Project
 from kaapanapy.helper import (
     get_minio_client,
-    minio_credentials,
     get_project_user_access_token,
+    minio_credentials,
 )
 from kaapanapy.logger import get_logger
-
-from app.projects.schemas import Project
-from app.projects.crud import get_rights
 
 logger = get_logger(__name__)
 

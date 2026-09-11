@@ -3,14 +3,14 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
+    Enum,
     ForeignKey,
     Integer,
     String,
     Table,
-    Enum,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import relationship
 from sqlalchemy.schema import Index, UniqueConstraint
 from sqlalchemy_json import mutable_json_type
 

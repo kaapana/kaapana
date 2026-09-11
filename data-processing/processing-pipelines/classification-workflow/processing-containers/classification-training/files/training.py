@@ -8,14 +8,14 @@ from pathlib import Path
 import numpy as np
 import requests
 import torch
-from kaapanapy.helper import load_workflow_config
-from kaapanapy.settings import ServicesSettings
 from batchgenerators.dataloading.multi_threaded_augmenter import MultiThreadedAugmenter
 from batchgenerators.transforms.abstract_transforms import Compose
 from batchgenerators.transforms.sample_normalization_transforms import (
     ZeroMeanUnitVarianceTransform,
 )
 from batchgenerators_dataloader import ClassificationDataset
+from kaapanapy.helper import load_workflow_config
+from kaapanapy.settings import ServicesSettings
 from monai.networks.nets import resnet18
 from opensearch_helper import OpenSearchHelper
 from torch.utils.tensorboard import SummaryWriter
@@ -56,7 +56,7 @@ TAG_TO_CLASS_MAPPING = {}
 # get TAG_TO_CLASS_MAPPING_JSON
 tag_class_mappings = os.getenv("TAG_TO_CLASS_MAPPING_JSON", "NONE").split(",")
 if len(tag_class_mappings) < 2:
-    raise AttributeError(f"Please provide at least two class mappings")
+    raise AttributeError("Please provide at least two class mappings")
 
 # create {tag: idx} map from classes
 for class_idx, tag in enumerate(sorted(tag_class_mappings)):
@@ -427,7 +427,7 @@ if __name__ == "__main__":
                 optimizer,
                 os.path.join(
                     RESULTS_DIR,
-                    f"model-best.pth.tar",
+                    "model-best.pth.tar",
                 ),
             )
 

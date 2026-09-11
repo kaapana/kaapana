@@ -5,9 +5,8 @@ that commands produce the right output and exit codes against a real registry.
 """
 
 import pytest
-from typer.testing import CliRunner
-
 from kaapana_extensions.cli import app
+from typer.testing import CliRunner
 
 pytestmark = pytest.mark.integration
 

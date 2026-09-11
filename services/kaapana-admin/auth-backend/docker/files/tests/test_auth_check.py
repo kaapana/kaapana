@@ -10,10 +10,9 @@ import asyncio
 import json
 
 import jwt
+import main
 import pytest
 from fastapi.testclient import TestClient
-
-import main
 
 PROJECT = {"id": "11111111-2222-3333-4444-555555555555", "short_id": "11111111"}
 # Member token: carries PROJECT in its `projects` claim (the AII-sourced shape).

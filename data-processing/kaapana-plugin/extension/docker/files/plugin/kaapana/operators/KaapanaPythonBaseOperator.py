@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from airflow.models.skipmixin import SkipMixin
 from airflow.operators.python import PythonOperator
+
 from kaapana.operators import HelperSendEmailService
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 

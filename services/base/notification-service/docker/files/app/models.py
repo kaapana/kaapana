@@ -1,10 +1,11 @@
-import uuid
 import datetime
-from sqlalchemy import Column, UUID, CheckConstraint
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy.types import String, ARRAY, DateTime
+import uuid
+
+from sqlalchemy import UUID, CheckConstraint, Column
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.sql import func
+from sqlalchemy.types import ARRAY, DateTime, String
 
 
 class Base(DeclarativeBase): ...

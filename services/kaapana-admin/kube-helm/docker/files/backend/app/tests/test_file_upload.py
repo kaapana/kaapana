@@ -1,5 +1,6 @@
-import requests
 import time
+
+import requests
 from tests.util import get_extensions
 
 

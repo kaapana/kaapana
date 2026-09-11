@@ -1,8 +1,9 @@
 import os
 import pathlib
+
+from kaapanapy.logger import get_logger
 from minio import Minio
 from minio.error import S3Error
-from kaapanapy.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -146,5 +147,5 @@ def apply_action_to_object_dirs(
                         file_path=file_path,
                         file_white_tuples=file_white_tuples,
                     )
-        except S3Error as err:
+        except S3Error:
             logger.warning(f"Skipping since bucket {bucket_name} does not exist")

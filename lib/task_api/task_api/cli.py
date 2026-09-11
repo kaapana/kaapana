@@ -1,29 +1,27 @@
 import json
-import pickle
 import logging
+import pickle
+import sys
+from enum import Enum
+from pathlib import Path
+from typing import Optional
+
+import typer
 from dotenv import load_dotenv
 from task_api.processing_container import task_models
-from task_api.processing_container import pc_models
 from task_api.processing_container.common import (
     get_processing_container,
-    parse_task,
     parse_processing_container,
+    parse_task,
 )
 from task_api.processing_container.resources import (
-    sum_of_file_sizes,
-    max_file_size,
-    human_readable_size,
-    compute_target_size,
-    compute_memory_requirement,
     calculate_bytes,
+    compute_memory_requirement,
+    compute_target_size,
+    human_readable_size,
+    max_file_size,
+    sum_of_file_sizes,
 )
-
-
-from typing import Optional
-from pathlib import Path
-import typer
-from enum import Enum
-import sys
 
 app = typer.Typer(help="Kaapana Task Runner CLI")
 load_dotenv()

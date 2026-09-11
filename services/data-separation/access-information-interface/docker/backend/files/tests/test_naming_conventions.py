@@ -1,4 +1,3 @@
-import os
 import sys
 from unittest.mock import MagicMock
 from uuid import UUID
@@ -16,10 +15,10 @@ def mock_modules():
 mock_modules()
 
 
-from app.projects.schemas import Project, is_valid_dicom_ae_title
+from app.projects.kubehelm import is_valid_kubernetes_namespace
 from app.projects.minio import is_valid_minio_bucket_name
 from app.projects.opensearch import is_valid_opensearch_index_name
-from app.projects.kubehelm import is_valid_kubernetes_namespace
+from app.projects.schemas import Project, is_valid_dicom_ae_title
 
 
 def test_is_valid_dicom_ae_title() -> bool:

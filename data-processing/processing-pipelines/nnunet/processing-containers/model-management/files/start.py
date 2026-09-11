@@ -1,16 +1,16 @@
 import json
-from glob import glob
-from pathlib import Path
-import zipfile
 import os
-from os.path import basename, exists, join, normpath
-import shutil
 import re
-from kaapanapy.logger import get_logger
-from kaapanapy.helper import load_workflow_config
-from kaapanapy.settings import ServicesSettings
-import requests
+import shutil
+import zipfile
+from glob import glob
+from os.path import basename, exists, join, normpath
+from pathlib import Path
 
+import requests
+from kaapanapy.helper import load_workflow_config
+from kaapanapy.logger import get_logger
+from kaapanapy.settings import ServicesSettings
 
 logger = get_logger(__name__)
 
@@ -178,7 +178,7 @@ def sync_models_in_database(installed_tasks: dict):
         if res.status_code != 200:
             raise Exception(f"ERROR: [{res.status_code}] {res.text}")
     except Exception as e:
-        print(f"Processing of threw an error.", e)
+        print("Processing of threw an error.", e)
         raise e
 
 

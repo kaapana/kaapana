@@ -24,7 +24,7 @@ async def install_extension_background_task(
             db_extension = await crud.update_extension(
                 db, extension_id=extension_id, status=models.ExtensionStatus.PULLING
             )
-        except NotSupportedExtensionStateTransition as e:
+        except NotSupportedExtensionStateTransition:
             logger.warning(
                 f"Cannot change status of extension with id {extension_id} to pulling. Cancel installation!"
             )

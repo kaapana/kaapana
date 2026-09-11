@@ -1,6 +1,6 @@
-from pathlib import Path
-import time
 import os
+import time
+from pathlib import Path
 
 TIME_SLEEP = os.getenv("TIME_SLEEP", 10)
 

@@ -4,8 +4,9 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
+
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
 class LocalDicomSendOperator(KaapanaPythonBaseOperator):

@@ -69,7 +69,7 @@ async def projects(
             await crud.create_software_mapping(
                 session, created_project_id, mapping.get("software_uuid")
             )
-        except IntegrityError as e:
+        except IntegrityError:
             logger.warning(
                 f"Software mapping {mapping.get('software_uuid')} already exists!"
             )

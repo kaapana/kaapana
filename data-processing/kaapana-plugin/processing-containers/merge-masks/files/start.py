@@ -1,18 +1,15 @@
-from os import getenv
-from os.path import join, exists, dirname, basename
-from glob import glob
-from pathlib import Path
-from logger_helper import get_logger
-import logging
 import json
+import logging
+import re
 import shutil
 from glob import glob
+from os import getenv
+from os.path import basename, dirname, exists, join
 from pathlib import Path
-import shutil
+
 import nibabel as nib
 import numpy as np
-import json
-import re
+from logger_helper import get_logger
 
 processed_count = 0
 skip_operator = False
@@ -451,11 +448,11 @@ def merge_mask_niftis(nifti_dir, target_dir, mode=None):
         )
     else:
         # given mode is not supported --> through error
-        logger.error(f"#")
+        logger.error("#")
         logger.error(
-            f"# MODE not supported! Choose either mode 'combine' or 'fuse' segmentation label masks!"
+            "# MODE not supported! Choose either mode 'combine' or 'fuse' segmentation label masks!"
         )
-        logger.error(f"#")
+        logger.error("#")
         exit(1)
 
     return res, nifti_dir, target_seg_info_dict

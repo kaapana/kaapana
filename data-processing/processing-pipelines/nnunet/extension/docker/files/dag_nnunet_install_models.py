@@ -1,11 +1,11 @@
-from airflow.utils.dates import days_ago
 from datetime import timedelta
-from airflow.models import DAG
-from nnunet.NnUnetModelOperator import NnUnetModelOperator
 
-from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from airflow.models import DAG
+from airflow.utils.dates import days_ago
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
+from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from nnunet.NnUnetModelOperator import NnUnetModelOperator
 
 ui_forms = {
     "documentation_form": {

@@ -6,11 +6,12 @@ import os
 import re
 
 import requests
-from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapanapy.helper import get_opensearch_client, get_minio_client
+from kaapanapy.helper import get_minio_client, get_opensearch_client
 from kaapanapy.helper.HelperOpensearch import DicomTags
 from kaapanapy.settings import OpensearchSettings
+
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
 class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):

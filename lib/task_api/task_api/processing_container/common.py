@@ -1,13 +1,13 @@
 import functools
 import json
-from task_api.processing_container import task_models
-from task_api.processing_container import pc_models
-from kaapana_containers.kubernetes.utils import KubernetsUtils
-from kaapana_containers.docker.utils import DockerUtils
-from typing import List
-from pathlib import Path
-from jinja2 import Environment, BaseLoader
 import os
+from pathlib import Path
+from typing import List
+
+from jinja2 import BaseLoader, Environment
+from kaapana_containers.docker.utils import DockerUtils
+from kaapana_containers.kubernetes.utils import KubernetsUtils
+from task_api.processing_container import pc_models, task_models
 
 
 def _parse_with_jinja(file: Path, custom_vars: dict = {}) -> dict:

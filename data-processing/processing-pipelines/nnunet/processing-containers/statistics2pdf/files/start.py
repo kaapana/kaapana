@@ -1,11 +1,12 @@
-import sys, os
-import glob
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import *
-from reportlab.platypus import *
-from reportlab.lib.styles import getSampleStyleSheet
 import csv
 import datetime
+import glob
+import os
+
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import *
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import *
 
 print("")
 print("#####################################################")

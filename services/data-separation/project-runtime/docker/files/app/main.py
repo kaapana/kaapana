@@ -1,13 +1,11 @@
 import os
 import shutil
 from pathlib import Path
-from typing import Optional
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field, field_validator
 from task_api.processing_container.pc_models import ScaleRule, ScaleRuleMode
-from task_api.processing_container.resources import sum_of_file_sizes, max_file_size
-
+from task_api.processing_container.resources import max_file_size, sum_of_file_sizes
 
 WORKFLOW_DATA_DIR = Path(os.getenv("WORKFLOW_DATA_DIR", "/kaapana/mounted/data"))
 SUPPORTED_CLAIM_NAME = "workflow-data-pv-claim"

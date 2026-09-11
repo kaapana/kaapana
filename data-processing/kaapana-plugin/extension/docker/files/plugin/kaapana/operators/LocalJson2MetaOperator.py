@@ -3,16 +3,15 @@
 import glob
 import json
 import os
-import requests
-from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
+import requests
+from kaapanapy.helper import get_opensearch_client
 from kaapanapy.logger import get_logger
 from kaapanapy.settings import KaapanaSettings, OpensearchSettings
-from kaapanapy.helper import get_opensearch_client
-
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from opensearchpy.exceptions import NotFoundError
+
+from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 logger = get_logger(__name__)
 
@@ -90,7 +89,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         - project index: Derived from the field "00120020 ClinicalTrialProtocolID_keyword"
         - admin-project index: Derived from OpensearchSettings().default_index
         """
-        logger.info(f"Pushing document to project index")
+        logger.info("Pushing document to project index")
         if self.from_other_project:
             workflow_form = self.conf.get("workflow_form")
             projects = workflow_form.get("projects")
@@ -171,7 +170,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             logger.debug("Series already exists. Update the corresponding document.")
             old_document.update(new_document)
             return old_document
-        except NotFoundError as e:
+        except NotFoundError:
             logger.debug("Series not found in opensearch. Push new document.")
             return new_document
 

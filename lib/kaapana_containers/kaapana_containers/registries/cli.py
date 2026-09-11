@@ -2,7 +2,8 @@ import asyncio
 import json
 import os
 from functools import wraps
-from typing import Optional, List
+from typing import List, Optional
+
 import typer
 from kaapana_containers.registries.registry import OCIError, OCIRegistryDiscovery
 

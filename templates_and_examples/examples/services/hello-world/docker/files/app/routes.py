@@ -1,5 +1,7 @@
 import os
-from flask import render_template, Response
+
+from flask import Response, render_template
+
 from app import app
 
 

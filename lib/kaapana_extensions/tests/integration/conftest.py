@@ -1,9 +1,9 @@
 import json
 import os
-import pytest
-import requests
 from pathlib import Path
 
+import pytest
+import requests
 from kaapana_containers.registries.registry import OCIError
 from kaapana_extensions.extensions import ExtensionUtilityLibrary
 

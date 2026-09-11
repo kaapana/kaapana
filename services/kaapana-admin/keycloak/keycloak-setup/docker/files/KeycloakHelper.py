@@ -1,10 +1,12 @@
 import os
+
 import requests
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-from logger import get_logger
 import logging
+
+from logger import get_logger
 
 logger = get_logger(__name__, logging.DEBUG)
 
@@ -123,14 +125,14 @@ class KeycloakHelper:
         if r.status_code in [409]:
             logger.warning("Ressource already exists.")
             if update_url:
-                logger.info(f"Ressource will be updated!")
+                logger.info("Ressource will be updated!")
                 r = self.make_authorized_request(
                     update_url, requests.put, payload, timeout=timeout, **kwargs
                 )
-                logger.info(f"Ressource was updated!")
+                logger.info("Ressource was updated!")
                 r.raise_for_status()
             else:
-                logger.warning(f"Ressource won't be updated")
+                logger.warning("Ressource won't be updated")
         else:
             r.raise_for_status()
         return r
@@ -199,7 +201,7 @@ class KeycloakHelper:
         url = self.auth_url + "kaapana/users"
         response = self.make_authorized_request(url, requests.post, payload, **kwargs)
         if response.status_code == 409 and reset_password:
-            logger.warning(f"Reset password!")
+            logger.warning("Reset password!")
             user = self.get_user_by_name(payload.get("username"))
             user_id = user.get("id")
             url = self.auth_url + f"kaapana/users/{user_id}/reset-password"
@@ -213,7 +215,7 @@ class KeycloakHelper:
 
     def get_client_id(self, client_name: str):
         all_clients = self.make_authorized_request(
-            self.auth_url + f"kaapana/clients", requests.get
+            self.auth_url + "kaapana/clients", requests.get
         ).json()
         for client in all_clients:
             if client["clientId"] == client_name:

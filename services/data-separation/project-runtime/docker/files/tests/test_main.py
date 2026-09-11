@@ -9,9 +9,8 @@ mount root at a tmp_path and exercise the contract workflow-api relies on.
 from pathlib import Path
 
 import pytest
-from fastapi.testclient import TestClient
-
 from app import main
+from fastapi.testclient import TestClient
 
 
 @pytest.fixture

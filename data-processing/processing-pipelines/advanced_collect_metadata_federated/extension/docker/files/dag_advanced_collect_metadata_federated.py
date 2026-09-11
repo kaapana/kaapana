@@ -1,15 +1,13 @@
 from datetime import timedelta
 
-from airflow.models import DAG
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.dates import days_ago
-
-
-from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from kaapana.operators.MinioOperator import MinioOperator
 from advanced_collect_metadata_federated.AdvancedCollectMetadataFederatedOperator import (
     AdvancedCollectMetadataFederatedOperator,
 )
+from airflow.models import DAG
+from airflow.utils.dates import days_ago
+from airflow.utils.log.logging_mixin import LoggingMixin
+from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.MinioOperator import MinioOperator
 
 log = LoggingMixin().log
 

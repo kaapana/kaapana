@@ -1,13 +1,13 @@
 from datetime import timedelta
 
-from airflow.utils.dates import days_ago
 from airflow.models import DAG
+from airflow.utils.dates import days_ago
+from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 
 # Operators available under Kaapana library
 from kaapana.operators.GetInputOperator import GetInputOperator
-from kaapana.operators.DcmConverterOperator import DcmConverterOperator
-from kaapana.operators.MinioOperator import MinioOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.MinioOperator import MinioOperator
 
 # Operators specific to this DAG
 from pyradiomics_extractor.PyradiomicsExtractorOperator import (

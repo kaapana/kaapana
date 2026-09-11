@@ -1,13 +1,13 @@
+import itertools
+import json
 import os
 import shutil
-import json
-import itertools
-from pathlib import Path
-from os import getenv
-from os.path import basename, join, exists
 from glob import glob
-from nnunetv2.ensembling.ensemble import ensemble_folders
+from os import getenv
+from os.path import basename, exists, join
+from pathlib import Path
 
+from nnunetv2.ensembling.ensemble import ensemble_folders
 
 batch_name = getenv("BATCH_NAME", "None")
 batch_name = batch_name if batch_name.lower() != "none" else None
@@ -203,13 +203,13 @@ def main():
         if exists(element_input_dir):
             if "skip" not in element_input_dir:
                 check_seg_info(element_input_dir)
-                print(f"#")
+                print("#")
             else:
                 print(f"# Skipping {element_input_dir} to the ensemble...")
-                print(f"#")
+                print("#")
         else:
             print(f"# Input-Dir {element_input_dir} not found! -> unexpected -> ABORT")
-            print(f"#")
+            print("#")
             exit(1)
 
     assert len(global_seg_info) > 0
@@ -271,11 +271,11 @@ def main():
             "/", workflow_dir, operator_out_dir, f"combination_{combination_index}"
         )
         Path(combination_output_dir).mkdir(parents=True, exist_ok=True)
-        print(f"#")
+        print("#")
         print(f"# Evaluating combination: {combination_index}: {model_combination}")
-        print(f"#")
+        print("#")
         print(f"# combination_output_dir:    {combination_output_dir}")
-        print(f"#")
+        print("#")
 
         ensemble_folders(
             list_of_input_folders=ensemble_dirs,
@@ -323,7 +323,7 @@ def main():
 
         print(f"# -> deleting combination dir: {basename(combination_output_dir)}")
         shutil.rmtree(path=combination_output_dir)
-        print(f"# done")
+        print("# done")
 
     print("# Writing model_combinations.json")
     print("# ")

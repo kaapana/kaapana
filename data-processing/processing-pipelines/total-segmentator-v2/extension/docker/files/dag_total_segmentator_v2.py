@@ -1,10 +1,11 @@
 from datetime import timedelta
+
+from airflow.exceptions import AirflowSkipException
 from airflow.models import DAG
 from airflow.utils.dates import days_ago
-from airflow.exceptions import AirflowSkipException
-from totalsegmentatorv2.GetZenodoModelOperator import GetZenodoModelOperator
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.LocalDagTriggerOperator import LocalDagTriggerOperator
+from totalsegmentatorv2.GetZenodoModelOperator import GetZenodoModelOperator
 
 max_active_runs = 10
 concurrency = max_active_runs * 3

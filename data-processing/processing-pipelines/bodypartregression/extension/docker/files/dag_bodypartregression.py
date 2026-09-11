@@ -1,12 +1,12 @@
-from airflow.utils.dates import days_ago
 from datetime import timedelta
+
 from airflow.models import DAG
+from airflow.utils.dates import days_ago
+from bodypartregression.BprOperator import BprOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
-from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.Json2MetaOperator import Json2MetaOperator
-
-from bodypartregression.BprOperator import BprOperator
+from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 max_active_runs = 5
 

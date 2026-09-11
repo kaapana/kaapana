@@ -4,7 +4,6 @@ from typing import Optional
 
 import numpy as np
 import pydicom as pd
-from generic import convert_dicom_to_thumbnail
 from kaapanapy.logger import get_logger
 from PIL import Image
 

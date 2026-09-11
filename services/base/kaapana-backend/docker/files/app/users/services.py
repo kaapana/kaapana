@@ -1,7 +1,9 @@
-from keycloak import KeycloakAdmin
 from typing import List
+
+from keycloak import KeycloakAdmin
 from keycloak.exceptions import KeycloakGetError
-from .schemas import KaapanaUser, KaapanaGroup, KaapanaRole
+
+from .schemas import KaapanaGroup, KaapanaRole, KaapanaUser
 
 
 class UserService:
@@ -45,7 +47,7 @@ class UserService:
         self._login()
         try:
             r = self.keycloak_admin.get_user(idx)
-        except KeycloakGetError as e:
+        except KeycloakGetError:
             return None
         return KaapanaUser(name=r["username"], idx=r["id"])
 

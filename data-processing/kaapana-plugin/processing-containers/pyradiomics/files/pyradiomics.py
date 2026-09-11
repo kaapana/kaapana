@@ -1,7 +1,7 @@
 import json
 import os
-from os import getenv
 from functools import partial
+from os import getenv
 from pathlib import Path
 from typing import List
 
@@ -209,7 +209,7 @@ for batch_element_dir in batch_folders:
         print("No segmentations found!")
         exit(0)
     else:
-        print(f"# running pyradiomics")
+        print("# running pyradiomics")
         try:
             input_file = [*element_input_dir.glob("*.nii.gz")][0]
             get_radiomics_features_for_entire_dir(

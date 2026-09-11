@@ -1,11 +1,9 @@
-from fastapi import APIRouter, Depends, WebSocket
-from starlette.websockets import WebSocketDisconnect
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.db.session import get_async_db
 from app.api.v1.endpoints import artifacts, entities, maintenance, metadata, queries
+from app.db.session import get_async_db
 from app.services.event_bus import get_event_bus
-
+from fastapi import APIRouter, Depends, WebSocket
+from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.websockets import WebSocketDisconnect
 
 router = APIRouter()
 

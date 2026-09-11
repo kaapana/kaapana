@@ -403,7 +403,7 @@ class KaapanaTaskOperator(BaseOperator):
                     f"Processing container failed for task {self.task_run.name}!"
                 )
         elif final_status == "Succeeded":
-            self.log.info(f"Processing Container finished successfully!")
+            self.log.info("Processing Container finished successfully!")
         else:
             raise AirflowException(
                 f"Processing container in unexpected state: {final_status}"

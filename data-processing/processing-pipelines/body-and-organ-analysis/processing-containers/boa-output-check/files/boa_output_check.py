@@ -12,20 +12,20 @@ Steps performed:
 5. Save a corresponding JSON file with label information per image.
 """
 
-import logging
 import json
+import logging
 import shutil
-from os import environ, makedirs
-from os.path import join, basename, exists, splitext
-from glob import glob
-from typing import Dict, List, Any, Optional
 from collections import defaultdict
-import SimpleITK as sitk
-import numpy as np
-from matplotlib import colormaps
+from glob import glob
+from os import environ, makedirs
+from os.path import basename, exists, join, splitext
+from typing import Any, Dict, List, Optional
 
+import numpy as np
 import segmentation_defaults
+import SimpleITK as sitk
 from kaapanapy.logger import get_logger
+from matplotlib import colormaps
 
 # Logger
 logger = get_logger(__name__, logging.INFO)

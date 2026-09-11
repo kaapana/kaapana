@@ -1,11 +1,12 @@
 import functools
 from typing import AsyncGenerator
 
+from fastapi import HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.config import settings
 from app.database import async_session
 from app.utils import ConnectionManager
-from fastapi import HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def get_async_db() -> AsyncGenerator[AsyncSession, None]:

@@ -9,17 +9,16 @@
 
 import argparse
 import logging
-import jsonlines
-import pydicom
 import math
-
-from typing import List
-from pydicom.dataset import Dataset, DataElement
-from pynetdicom import AE, debug_logger
-from pynetdicom.status import code_to_status, code_to_category
 from datetime import datetime, timedelta
 from enum import Enum
+from typing import List
 
+import jsonlines
+import pydicom
+from pydicom.dataset import DataElement, Dataset
+from pynetdicom import AE, debug_logger
+from pynetdicom.status import code_to_category
 
 log = logging.getLogger(__name__)
 
@@ -275,7 +274,7 @@ class DicomQueryClient:
             window_size = math.ceil(1 / dpd * limit)
             new_start_date = new_end_date - timedelta(days=window_size)
             self.log.debug(
-                f"Preparing Query end date: %s, new start date: %s, dpd: %d, window_size %d",
+                "Preparing Query end date: %s, new start date: %s, dpd: %d, window_size %d",
                 new_end_date,
                 new_start_date,
                 dpd,
@@ -294,7 +293,7 @@ class DicomQueryClient:
 
             # Step 2 - Query New Data
             new_results = list(query_func(new_start_date, new_end_date))
-            self.log.debug(f"Query returned %d results", len(new_results))
+            self.log.debug("Query returned %d results", len(new_results))
             new_dpd = len(new_results) / math.ceil((new_end_date - new_start_date).days)
 
             for r in new_results:

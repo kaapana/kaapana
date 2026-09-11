@@ -1,12 +1,14 @@
 # !!! DEPRECATION WARNING: Local Operators are deprecated and will be replaced with operators that run in Kubernetes pods in the next release v0.7.0.
 # If you have a custom Local Operator, it should be migrated to a processing container based operator.
-import os
+import datetime
 import glob
 import json
-import datetime, pytz
+import os
+
+import pytz
+from kaapanapy.settings import KaapanaSettings
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapanapy.settings import KaapanaSettings
 
 timezone = KaapanaSettings().timezone
 

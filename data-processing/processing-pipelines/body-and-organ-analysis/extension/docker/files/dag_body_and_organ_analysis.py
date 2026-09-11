@@ -1,18 +1,18 @@
-from airflow.utils.dates import days_ago
 from datetime import timedelta
-from airflow.models import DAG
-from kaapana.operators.DcmConverterOperator import DcmConverterOperator
-from kaapana.operators.GetInputOperator import GetInputOperator
-from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from kaapana.operators.MinioOperator import MinioOperator
-from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
-from kaapana.operators.DcmSendOperator import DcmSendOperator
 
+from airflow.models import DAG
+from airflow.utils.dates import days_ago
+from body_and_organ_analysis.BoaOutputCheckOperator import BoaOutputCheckOperator
 from body_and_organ_analysis.BodyAndOrganAnalysisOperator import (
     BodyAndOrganAnalysisOperator,
 )
-from body_and_organ_analysis.BoaOutputCheckOperator import BoaOutputCheckOperator
 from body_and_organ_analysis.GetZenodoModelOperator import GetZenodoModelOperator
+from kaapana.operators.DcmConverterOperator import DcmConverterOperator
+from kaapana.operators.DcmSendOperator import DcmSendOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
+from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
+from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.MinioOperator import MinioOperator
 
 max_active_runs = 5
 

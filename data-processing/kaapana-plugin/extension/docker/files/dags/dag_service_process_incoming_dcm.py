@@ -16,6 +16,7 @@ from kaapana.blueprints.kaapana_global_variables import (
 )
 from kaapana.operators.DcmValidatorOperator import DcmValidatorOperator
 from kaapana.operators.GenerateThumbnailOperator import GenerateThumbnailOperator
+from kaapana.operators.HelperThumbnails import NO_THUMBNAIL_MODALITIES, has_ref_series
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.LocalAddToDatasetOperator import LocalAddToDatasetOperator
 from kaapana.operators.LocalAssignDataToProjectOperator import (
@@ -34,7 +35,6 @@ from kaapana.operators.LocalValidationResult2MetaOperator import (
     LocalValidationResult2MetaOperator,
 )
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from kaapana.operators.HelperThumbnails import NO_THUMBNAIL_MODALITIES, has_ref_series
 from kaapanapy.helper import get_minio_client
 from kaapanapy.helper.HelperOpensearch import DicomTags
 from kaapanapy.settings import KaapanaSettings

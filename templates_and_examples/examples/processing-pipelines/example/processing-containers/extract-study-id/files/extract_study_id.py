@@ -1,8 +1,8 @@
-import sys, os
 import glob
 import json
+import os
+
 import pydicom
-from datetime import datetime
 
 # For local testng
 

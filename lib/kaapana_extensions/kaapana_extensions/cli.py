@@ -5,8 +5,10 @@ import json
 from functools import wraps
 from pathlib import Path
 from typing import Optional
+
 import typer
 from kaapana_containers.registries.registry import OCIError
+
 from kaapana_extensions.credentials import (
     get_credentials,
     oci_login,

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import os
 import random
-import numpy as np
 
+import numpy as np
 from batchgenerators.dataloading.data_loader import DataLoader
 from batchgenerators.transforms.abstract_transforms import Compose
 from batchgenerators.transforms.color_transforms import (
@@ -21,6 +21,7 @@ from batchgenerators.transforms.spatial_transforms import (
     MirrorTransform,
     SpatialTransform,
 )
+
 
 def configure_rotation_and_mirroring(patch_size):
     dim = len(patch_size)

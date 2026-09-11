@@ -2,21 +2,19 @@ import logging
 import os
 import traceback
 
-import psutil
 import urllib3
 from fastapi import Depends, FastAPI
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from . import middlewares
 from .admin import routers as admin
-from .database import SessionLocal, engine
+from .database import SessionLocal
 from .datasets import routers
 from .decorators import only_one_process, repeat_every
 from .dependencies import get_token_header
 from .monitoring import routers as monitoring
 from .settings import routers as settings
 from .storage import routers as storage
-from .workflows import models
 from .workflows.crud import get_remote_updates, sync_states_from_airflow
 from .workflows.routers import client, remote
 

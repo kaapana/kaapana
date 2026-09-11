@@ -1,19 +1,17 @@
-import os
-from os import getenv, remove
-from os.path import join, exists, dirname, basename
-from glob import glob
-from shutil import copy2, move, rmtree
-from pathlib import Path
+import json
+import logging
 import shutil
+from glob import glob
+from os import getenv
+from os.path import basename, dirname, exists, join
+from pathlib import Path
+from typing import Tuple
+
 import nibabel as nib
 import numpy as np
-import json
-from pydicom.uid import generate_uid
-from typing import Tuple
 import sparse
 from kaapanapy.logger import get_logger
-import logging
-
+from pydicom.uid import generate_uid
 
 logger = get_logger(__name__, logging.DEBUG)
 
@@ -128,11 +126,11 @@ def get_seg_info(input_nifti):
                     existing_configuration[label_name] = str(label_int)
         else:
             print(
-                f"# Found seg-ifo json files -> but could not identify an info-system!"
+                "# Found seg-ifo json files -> but could not identify an info-system!"
             )
             print(f"# NIFTI-file {input_nifti}")
     else:
-        print(f"# Could not find seg-ifo json file!")
+        print("# Could not find seg-ifo json file!")
         print(f"# NIFTI-file {input_nifti}")
     return existing_configuration
 
@@ -142,7 +140,7 @@ def collect_labels(queue_list):
 
     label_encoding_counter = 0
     global_labels_info = {"Clear Label": 0}
-    print(f"# Creating new gloabl labels info")
+    print("# Creating new gloabl labels info")
 
     found_label_keys = []
     for base_image_dict in queue_list:
@@ -181,7 +179,7 @@ def write_global_seg_info(file_path):
 def read_global_seg_info():
     global global_labels_info_path, global_labels_info, label_encoding_counter
 
-    print(f"# reading global_seg_info ...")
+    print("# reading global_seg_info ...")
     if not exists(global_labels_info_path):
         print(f"# Global seg_info not present at {global_labels_info_path}! ")
         print("# -> Creating new file ...")
@@ -227,8 +225,8 @@ def check_transformations(current_config):
                     write_global_seg_info(file_path=global_labels_info_path)
                     # existing_labels_with_encoding = list(global_labels_info.keys())[list(global_labels_info.values()).index(int_encoding)]
                     if label_encoding_counter == int_encoding:
-                        print(f"# No transformation needed.")
-                        print(f"#")
+                        print("# No transformation needed.")
+                        print("#")
                     else:
                         print(
                             f"# New encoding needed: {int_encoding} -> switching to {label_encoding_counter}"
@@ -252,7 +250,7 @@ def check_transformations(current_config):
                 write_global_seg_info(file_path=global_labels_info_path)
                 # existing_labels_with_encoding = list(global_labels_info.keys())[list(global_labels_info.values()).index(int_encoding)]
                 if label_encoding_counter == int_encoding:
-                    print(f"# No transformation needed.")
+                    print("# No transformation needed.")
                 else:
                     print(
                         f"# New encoding needed: {int_encoding} -> switching to {label_encoding_counter}"
@@ -440,14 +438,14 @@ def merge_niftis(queue_dict):
     # new_gt_map_int_encodings = list(np.unique(new_gt_map))
 
     local_labels_info = {"Clear Label": 0}
-    print(f"#### Processing images for base-image:")
+    print("#### Processing images for base-image:")
     print(f"#### {base_image_path}")
     # iterate over corresponding seg_niftis of current base_image
     for seg_nifti in seg_nifti_list:
         seg_nifti_id = basename(seg_nifti).replace(".nii.gz", "")
 
         if not merge_found_niftis:
-            print(f"# Resetting local_labels_info...")
+            print("# Resetting local_labels_info...")
             # new_gt_map = np.zeros_like(base_image_loaded.get_fdata().astype(int))
             sparse_new_groundtruth_mapping = sparse.COO(
                 coords=[], shape=base_image_dimensions
@@ -484,10 +482,10 @@ def merge_niftis(queue_dict):
         #
         transformations = check_transformations(current_config=existing_configuration)
         if len(transformations) == 0:
-            print(f"# No transformations needed!")
-            print(f"# -> check if single file ...")
+            print("# No transformations needed!")
+            print("# -> check if single file ...")
             if len(seg_nifti_list) == 1:
-                print(f"# -> file ok")
+                print("# -> file ok")
                 target_path = join(target_dir, basename(seg_nifti))
                 if target_path != seg_nifti:
                     print(f"# -> copy file to target:{seg_nifti} -> {target_path}")
@@ -561,9 +559,9 @@ def merge_niftis(queue_dict):
                 )
                 local_labels_info[label_found] = int_encoding
             else:
-                print(f"# Label already found in local_labels_info")
+                print("# Label already found in local_labels_info")
                 print(f"# label_found: {label_found} - int_encoding: {int_encoding}")
-                print(f"# vs")
+                print("# vs")
                 print(
                     f"# local_labels_info[{label_found}]: {local_labels_info[label_found]}"
                 )
@@ -580,7 +578,7 @@ def merge_niftis(queue_dict):
                 existing_overlap_labels = np.unique(
                     sparse_new_groundtruth_mapping[overlap_indices]
                 )
-                print(f"# Found overlap segmentation:")
+                print("# Found overlap segmentation:")
                 for existing_overlap_label_int in existing_overlap_labels:
                     existing_overlap_label = [
                         k
@@ -605,7 +603,7 @@ def merge_niftis(queue_dict):
                     del global_labels_info[label_found]
 
                 if not fail_if_overlap and skipping_level == "segmentation":
-                    print(f"# Skipping this segmentation seg!")
+                    print("# Skipping this segmentation seg!")
                     continue
                 else:
                     return queue_dict, "overlap"
@@ -640,7 +638,7 @@ def merge_niftis(queue_dict):
         print("# Writing new merged file...")
         # if int(np.amax(new_gt_map)) == 0:
         if int(sparse_new_groundtruth_mapping.amax()) == 0:
-            print(f"#### No label found in new-label-map !")
+            print("#### No label found in new-label-map !")
             # return queue_dict, "no labels found"
 
         if multi:
@@ -744,7 +742,7 @@ def resample_image(input_path, original_path, replace=True, target_dir=None):
         return False
 
     assert exists(target_path)
-    print(f"# -> OK")
+    print("# -> OK")
     return True
 
 
@@ -886,7 +884,7 @@ for batch_element_dir in batch_folders:
 
     seg_files = sorted(glob(join(seg_input_dir, "*.nii*"), recursive=False))
     if len(seg_files) == 0:
-        print(f"# No segmentation NIFTI found -> skipping")
+        print("# No segmentation NIFTI found -> skipping")
         continue
 
     base_file = base_files[0]
@@ -1053,7 +1051,7 @@ with ThreadPool(parallel_processes) as threadpool:
                 skipped_dict["base_images"].append(base_image)
                 remove_elements = True
             else:
-                print(f"# Should not happen...")
+                print("# Should not happen...")
                 exit(1)
 
         elif nifti_result == "extracted_label_tag is None":

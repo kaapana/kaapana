@@ -1,12 +1,13 @@
-from kubernetes import client, config
-from kubernetes.stream import stream
+import io
+import logging
+import tarfile
+import time
+import uuid
 from contextlib import contextmanager
 from typing import Generator
-import io
-import uuid
-import time
-import tarfile
-import logging
+
+from kubernetes import client, config
+from kubernetes.stream import stream
 
 
 class KubernetsUtils:

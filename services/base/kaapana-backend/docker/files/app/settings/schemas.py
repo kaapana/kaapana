@@ -1,5 +1,5 @@
 import datetime
-from typing import Any, List, Optional, Union
+from typing import Any, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, field_validator
 from sqlalchemy_json import NestedMutableDict

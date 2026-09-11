@@ -1,18 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException, Header
+import datetime
+from typing import Annotated
+from uuid import UUID
+
+from app.decorators import deprecated
+from app.dependencies import get_access_service, get_async_db, get_connection_manager
+from app.models import Notification as NotificationModel
 from app.notifications.v1.schemas import (
     Notification,
-    NotificationUser,
     NotificationCreate,
     NotificationCreateNoReceivers,
+    NotificationUser,
 )
-from app.models import Notification as NotificationModel
-from app.decorators import deprecated
-from app.dependencies import get_async_db, get_connection_manager, get_access_service
-from uuid import UUID
-from sqlalchemy import select, delete, update, func, cast
-from sqlalchemy.dialects.postgresql import JSONB, ARRAY, TEXT
-from typing import Annotated
-import datetime
+from fastapi import APIRouter, Depends, Header, HTTPException
+from sqlalchemy import cast, delete, func, select, update
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TEXT
 
 router = APIRouter()
 
@@ -32,7 +33,7 @@ async def add_notification(
 async def get_users(project_id: str, access_service):
     try:
         users = await access_service.fetch_user_ids(project_id)
-    except Exception as e:
+    except Exception:
         raise HTTPException(502, "Upsream AII request failed")
     if not users:
         raise HTTPException(404, f"Project {project_id} not found")

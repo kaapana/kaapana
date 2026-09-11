@@ -1,5 +1,5 @@
-import sys, os
 import glob
+import os
 
 batch_folders = sorted(
     [

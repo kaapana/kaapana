@@ -1,22 +1,22 @@
 # !!! DEPRECATION WARNING: Local Operators are deprecated and will be replaced with operators that run in Kubernetes pods in the next release v0.7.0.
 # If you have a custom Local Operator, it should be migrated to a processing container based operator.
-from kaapana.operators.HelperMinio import apply_action_to_object_dirs
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-
-from kaapana.blueprints.kaapana_utils import generate_run_id
-from kaapanapy.helper.HelperOpensearch import DicomTags, HelperOpensearch
-from kaapanapy.helper import get_minio_client
-
-from airflow.api.common.trigger_dag import trigger_dag as trigger
-from os.path import join
-import os
-import time
 import errno
 import json
-from glob import glob
+import os
 import shutil
-import pydicom
+import time
 from datetime import timedelta
+from glob import glob
+from os.path import join
+
+import pydicom
+from airflow.api.common.trigger_dag import trigger_dag as trigger
+from kaapanapy.helper import get_minio_client
+from kaapanapy.helper.HelperOpensearch import DicomTags, HelperOpensearch
+
+from kaapana.blueprints.kaapana_utils import generate_run_id
+from kaapana.operators.HelperMinio import apply_action_to_object_dirs
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
 class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
@@ -119,7 +119,7 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
                 raise ValueError("ERROR")
         else:
             print("Using DAG-conf for series ...")
-            if self.conf == None or not "inputs" in self.conf:
+            if self.conf == None or "inputs" not in self.conf:
                 print("No config or inputs in config found!")
                 print("Abort.")
                 raise ValueError("ERROR")

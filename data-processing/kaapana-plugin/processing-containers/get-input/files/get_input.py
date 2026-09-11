@@ -1,15 +1,15 @@
-from pydantic_settings import BaseSettings
-from pydantic import Field
-import os
 import json
-from multiprocessing.pool import ThreadPool
+import os
 import time
+from multiprocessing.pool import ThreadPool
 
+from kaapanapy.helper import load_workflow_config
 from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
 from kaapanapy.helper.HelperOpensearch import HelperOpensearch
-from kaapanapy.helper import load_workflow_config
 from kaapanapy.logger import get_logger
 from kaapanapy.settings import OperatorSettings
+from pydantic import Field
+from pydantic_settings import BaseSettings
 
 logger = get_logger(__name__)
 

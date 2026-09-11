@@ -210,9 +210,10 @@ References
   https://dicom.innolitics.com/
 """
 
-import os
-import json
 import glob
+import json
+import logging
+import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -220,15 +221,12 @@ from typing import Any, Literal, Mapping, Optional, Sequence, cast
 
 import numpy as np
 import pydicom
-from matplotlib import cm
-
-import logging
 from kaapanapy.logger import get_logger
-
+from matplotlib import cm
 from metadata_helper import (
     create_segment_attribute,
-    process_seg_info,
     normalize_seg_info,
+    process_seg_info,
 )
 
 # Logger

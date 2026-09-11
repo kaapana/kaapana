@@ -18,7 +18,6 @@ import shutil
 from pathlib import Path
 
 import pytest
-
 from app.adapters.adapters.airflow_adapter import AirflowPluginAdapter
 
 PROJECT_ID = "proj-123"

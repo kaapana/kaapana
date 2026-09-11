@@ -507,7 +507,7 @@ class Container:
             issue = IssueTracker.generate_issue(
                 component="Microk8s image push",
                 name=self.tag,
-                msg=f"Microk8s image push timed out!",
+                msg="Microk8s image push timed out!",
                 level="ERROR",
                 output=[err or save_err],
                 path=str(self.dockerfile.parent),

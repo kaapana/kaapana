@@ -1,23 +1,20 @@
 import functools
 import json
 import os
-import shutil
 import tarfile
 from datetime import datetime
 from pathlib import Path
-from socket import timeout
 
 import httpx
 import requests
-import urllib3
 from cryptography.fernet import Fernet
+
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, SERVICES_NAMESPACE
 from kaapana.blueprints.kaapana_utils import (
     get_operator_properties,
     requests_retry_session,
     trying_request_action,
 )
-from minio import Minio
 
 MINIO_CLIENT_URL = (
     f"http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000/client"
@@ -182,7 +179,7 @@ def apply_minio_presigned_url_action(
                 headers={
                     "FederatedAuthorization": remote_network["token"],
                     "presigned-url": data["path"],
-                    "User-Agent": f"kaapana",
+                    "User-Agent": "kaapana",
                 },
             ) as r:
                 raise_kaapana_connection_error(r)

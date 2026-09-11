@@ -1,13 +1,12 @@
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.dates import days_ago
 from datetime import timedelta
+
 from airflow.models import DAG
+from airflow.utils.dates import days_ago
+from airflow.utils.log.logging_mixin import LoggingMixin
 from kaapana.operators.DcmQueryOperator import DcmQueryOperator
 from kaapana.operators.Json2MetaOperator import Json2MetaOperator
-from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from airflow.operators.python import PythonOperator
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-
+from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 log = LoggingMixin().log
 
@@ -105,9 +104,10 @@ args = {
 
 class Dcm2MetaJsonLinesOperator(KaapanaPythonBaseOperator):
     def dcm2meta_json_func(self, ds, **kwargs):
+        import glob
         import json
         import os
-        import glob
+
         from kaapana.operators.Dcm2MetaJsonConverter import Dcm2MetaJsonConverter
 
         for prerequisit in [

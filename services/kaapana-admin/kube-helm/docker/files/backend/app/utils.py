@@ -201,7 +201,7 @@ def build_helm_install_preflight(
     if platforms:
         assert (
             settings.helm_platforms_cache is not None
-        ), f"HELM_PLATFORMS_CACHE is not defined"
+        ), "HELM_PLATFORMS_CACHE is not defined"
         helm_cache_path = settings.helm_platforms_cache
 
     name = payload["name"]
@@ -1019,13 +1019,13 @@ def execute_update_extensions():
         install_error (bool): Whether there was an error during the installation
         message (str): Describes the state of execution
     """
-    logger.debug(f"in function: execute_update_extensions")
+    logger.debug("in function: execute_update_extensions")
     chart = {"name": "update-collections-chart", "version": "0.0.0"}
     logger.info(f"chart info for update extensions {chart['name']}, {chart['version']}")
     payload = {k: chart[k] for k in ("name", "version")}
 
     install_error = False
-    message = f"No kaapana_collections defined..."
+    message = "No kaapana_collections defined..."
     logger.info(
         f"split kaapana collections {settings.kaapana_collections.split(';')[:-1]}"
     )
@@ -1054,10 +1054,10 @@ def execute_update_extensions():
                 update_state=False,
             )
             if success:
-                message = f"Successfully updated the extensions"
+                message = "Successfully updated the extensions"
                 logger.info(message)
             else:
-                message = f"We had troubles updating the extensions"
+                message = "We had troubles updating the extensions"
                 install_error = True
                 helm_delete(release_name, update_state=False)
                 logger.warning(message)
@@ -1073,12 +1073,12 @@ def execute_update_extensions():
                 update_state=False,
             )
             if success:
-                message = f"Successfully updated the extensions"
+                message = "Successfully updated the extensions"
                 logger.info(message)
             else:
                 install_error = True
                 helm_delete(release_name, update_state=False)
-                message = f"We had troubles updating the extensions"
+                message = "We had troubles updating the extensions"
                 logger.error(message)
 
     return install_error, message

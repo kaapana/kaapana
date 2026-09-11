@@ -1,6 +1,7 @@
-import SimpleITK as sitk
-import os
 import glob
+import os
+
+import SimpleITK as sitk
 
 ### For local testing you can uncomment the following lines
 # os.environ["WORKFLOW_DIR"] = "<your data directory>"

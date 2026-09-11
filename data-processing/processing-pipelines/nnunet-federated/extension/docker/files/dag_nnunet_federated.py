@@ -1,10 +1,8 @@
-import os
 from datetime import datetime, timedelta
 
 from airflow.models import DAG
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.trigger_rule import TriggerRule
 from kaapana.blueprints.json_schema_templates import properties_external_federated_form
 from kaapana.blueprints.kaapana_global_variables import (
     INSTANCE_NAME,
@@ -15,7 +13,6 @@ from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.MinioOperator import MinioOperator
 from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
-
 from nnunet_federated.nnUNetFederatedOperator import nnUNetFederatedOperator
 
 log = LoggingMixin().log
@@ -120,7 +117,7 @@ nnunet_federated = nnUNetFederatedOperator(
 
 zip_model = ZipUnzipOperator(
     dag=dag,
-    target_filename=f"nnunet_model.zip",
+    target_filename="nnunet_model.zip",
     whitelist_files="model_latest.model.pkl,model_latest.model,model_final_checkpoint.model,model_final_checkpoint.model.pkl,plans.pkl,*pth,*.json,*.png,*.pdf",
     subdir="results",
     mode="zip",

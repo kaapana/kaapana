@@ -1,20 +1,19 @@
 # TODO: change prints to logging
 
+import ast
+import html
 import json
 import os
 from os import getenv
 from pathlib import Path
-import ast
-import html
 
 import nibabel as nib
 import numpy as np
 import torch
-from monai.metrics.meandice import DiceMetric
 from monai.metrics.hausdorff_distance import compute_hausdorff_distance
-from monai.metrics.surface_distance import compute_average_surface_distance
+from monai.metrics.meandice import DiceMetric
 from monai.metrics.surface_dice import compute_surface_dice
-
+from monai.metrics.surface_distance import compute_average_surface_distance
 from opensearch_helper import get_ref_series_instance_uid
 
 

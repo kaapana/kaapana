@@ -1,9 +1,8 @@
-import os
 import glob
+import os
 import pathlib
 import zipfile
-from shutil import copy2
-from os.path import join, relpath, basename, dirname, exists
+from os.path import join, relpath
 
 processed_count = 0
 

@@ -4,10 +4,10 @@ import uuid
 from datetime import datetime, timezone
 from typing import List
 
-from app.schemas import CleanupPolicy, CleanupStatus, TaskRunStatus, WorkflowRunStatus
-from sqlalchemy import Boolean, Column, DateTime
-from sqlalchemy import Enum as SqlEnum
 from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
     ForeignKey,
     Index,
     Integer,
@@ -17,9 +17,12 @@ from sqlalchemy import (
     Uuid,
     text,
 )
+from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+from app.schemas import CleanupPolicy, CleanupStatus, TaskRunStatus, WorkflowRunStatus
 
 
 class Base(AsyncAttrs, DeclarativeBase):

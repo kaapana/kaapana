@@ -1,13 +1,12 @@
-import os
-import sys
-import json
+import datetime
 import glob
+import json
 import pathlib
 import sched
+import sys
 import time
-import datetime
-from shutil import copy2
-from os.path import join, basename, dirname
+from os.path import basename, dirname, join
+
 from tensorboardX import SummaryWriter
 
 #######################

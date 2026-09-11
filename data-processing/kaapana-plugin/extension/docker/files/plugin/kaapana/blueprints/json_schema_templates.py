@@ -132,7 +132,7 @@ def schema_minio_form(
             object_directory = str(Path(object_name).parents[0])
             if not object_directory.endswith(blacklist_directory_endings):
                 filtered_minio_directories.append(str(Path(object_name).parents[0]))
-    except Exception as e:
+    except Exception:
         filtered_minio_directories = ["Something does not work :/"]
         filtered_minio_objects = ["Something does not work :/"]
     if select_options == "both":

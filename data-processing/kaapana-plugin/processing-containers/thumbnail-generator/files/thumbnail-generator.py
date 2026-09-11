@@ -2,23 +2,23 @@ import os
 from pathlib import Path
 
 import pydicom
+import requests
 from generic import generate_generic_thumbnail
+from HelperThumbnails import NO_THUMBNAIL_MODALITIES
 from histopathology import generate_histopathology_thumbnail
 from kaapanapy.helper import load_workflow_config
 from kaapanapy.logger import get_logger
-from kaapanapy.settings import OperatorSettings
 from kaapanapy.services.NotificationService import Notification, NotificationService
+from kaapanapy.settings import OperatorSettings
 from kaapanapy.utils import ConfigError, is_batch_mode, process_batches, process_single
 from overlay_modalities import (
+    create_empty_ref_series,
     generate_rtstruct_thumbnail,
     generate_segmentation_thumbnail,
-    create_empty_ref_series,
 )
 from PIL import Image
 from pydicom.uid import EncapsulatedPDFStorage, RawDataStorage
-import requests
 from slice_based_modalities import generate_thumbnail_for_middle_slice
-from HelperThumbnails import NO_THUMBNAIL_MODALITIES
 
 logger = get_logger(__name__)
 
@@ -113,7 +113,7 @@ def generate_thumbnail(
                 Rerun workflow generate-thumbnail after the reference image arrived to create a thumbnail."""
             send_notification(description=description)
             raise Exception(
-                f"Cannot create thumbnail for RTSTRUCT if reference image is not available."
+                "Cannot create thumbnail for RTSTRUCT if reference image is not available."
             )
         else:
             thumbnail = generate_rtstruct_thumbnail(

@@ -11,8 +11,8 @@ from app.database import get_session
 from app.utils import (
     assert_project_not_archived,
     get_default_project_id,
-    get_selected_project_id,
     get_project_short_id_by_id,
+    get_selected_project_id,
     get_user_project_ids,
 )
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -225,7 +225,7 @@ async def __map_dicom_series_to_project(
                 ],
                 description="Dicom data",
             )
-        except IntegrityError as e:
+        except IntegrityError:
             await session.rollback()
             logger.warning(f"{series_instance_uid=} already exists in the database")
 
@@ -236,7 +236,7 @@ async def __map_dicom_series_to_project(
                 series_instance_uid=series_instance_uid,
                 project_id=project_id,
             )
-        except IntegrityError as e:
+        except IntegrityError:
             await session.rollback()
             logger.warning(
                 f"{series_instance_uid=} already exists in the project mapping"

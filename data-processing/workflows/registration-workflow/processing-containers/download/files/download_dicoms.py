@@ -1,15 +1,14 @@
-import os
+import argparse
 import json
-from multiprocessing.pool import ThreadPool
+import os
 import time
+from multiprocessing.pool import ThreadPool
 from pathlib import Path
-import requests
 
+import requests
 from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
 from kaapanapy.helper.HelperOpensearch import HelperOpensearch
 from kaapanapy.logger import get_logger
-
-import argparse
 
 logger = get_logger(__name__)
 

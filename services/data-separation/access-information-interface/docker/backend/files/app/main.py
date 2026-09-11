@@ -1,8 +1,9 @@
 import logging
 from contextlib import asynccontextmanager
 
-from app.users.routes import router as users_router
 from fastapi import FastAPI
+
+from app.users.routes import router as users_router
 
 from . import init_scripts
 from .aii.routes import router as aii_router

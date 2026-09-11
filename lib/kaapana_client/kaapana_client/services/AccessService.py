@@ -1,4 +1,5 @@
 import requests
+
 from kaapana_client.settings import ServicesSettings
 
 access_settings = ServicesSettings()

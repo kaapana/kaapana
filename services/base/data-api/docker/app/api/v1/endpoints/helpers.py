@@ -5,16 +5,15 @@ import logging
 from typing import Any
 from uuid import UUID
 
-from fastapi import HTTPException
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.db.models import DataEntityORM, MetadataSchemaORM
 from app.models.domain import DataEntity
 from app.models.events import EventAction, EventMessage, EventResource
 from app.services.artifact_store import get_artifact_store
 from app.services.entity_repository import entity_from_orm, fetch_entity_orm
 from app.services.event_bus import get_event_bus
+from fastapi import HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 

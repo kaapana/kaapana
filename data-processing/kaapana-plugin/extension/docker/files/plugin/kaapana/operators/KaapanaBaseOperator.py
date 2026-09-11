@@ -3,22 +3,30 @@ import glob
 import json
 import logging
 import os
+import pickle
 import re
 import shutil
+import signal
 import time
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import requests
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import BaseOperator, Variable
 from airflow.models.skipmixin import SkipMixin
-from airflow.utils.dates import days_ago
-from airflow.utils.state import State
-from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.context import Context
+from airflow.utils.dates import days_ago
+from airflow.utils.trigger_rule import TriggerRule
+from kaapanapy.services.NotificationService import Notification, NotificationService
+from kaapanapy.settings import ServicesSettings
+from kubernetes import client
+from kubernetes import config as k8s_config_loader
+from task_api.processing_container import pc_models, task_models
+from task_api.runners.KubernetesRunner import KubernetesRunner, PodPhase
+
 from kaapana.blueprints.kaapana_global_variables import (
     ADMIN_NAMESPACE,
-    SERVICES_NAMESPACE,
     AIRFLOW_WORKFLOW_DIR,
     BATCH_NAME,
     DEFAULT_PROJECT_NAMESPACE,
@@ -28,22 +36,12 @@ from kaapana.blueprints.kaapana_global_variables import (
     PLATFORM_VERSION,
     PROCESSING_WORKFLOW_DIR,
     PULL_POLICY_IMAGES,
+    SERVICES_NAMESPACE,
 )
 from kaapana.blueprints.kaapana_utils import cure_invalid_name, get_release_name
 from kaapana.operators import HelperSendEmailService
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperFederated import federated_sharing_decorator
-from kaapanapy.services.NotificationService import Notification, NotificationService
-from kaapanapy.settings import ServicesSettings
-
-import signal
-import pickle
-from pathlib import Path
-from task_api.processing_container import task_models, pc_models
-from task_api.runners.KubernetesRunner import KubernetesRunner, PodPhase
-from kubernetes import client
-from kubernetes import config as k8s_config_loader
-
 
 KAAPANA_SKIP_TASK_RUN_RETURN_CODE = 126
 # Backward compatibility
@@ -511,7 +509,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             }
 
             logging.info(f"Custom registry secret urls: {custom_registry_urls}")
-        except Exception as e:
+        except Exception:
             logging.warning("Unable to log custom registry urls.")
         return set(secret.metadata.name for secret in custom_registry_secrets.items)
 
@@ -671,7 +669,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             try:
                 ### Json objects should be send as json-object, not stringified json. Especially needed, when environment variables represent lists, e.g. RUNNER_INSTANCES=["<ip-address>"]
                 json_decoded_value = json.loads(v)
-            except json.decoder.JSONDecodeError as e:
+            except json.decoder.JSONDecodeError:
                 json_decoded_value = v
             if type(json_decoded_value) == dict:
                 ### kube-helm will use --set-string instead of --set to install the chart when the value is a string
@@ -858,7 +856,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                     f"Processing container failed for task {self.task_run.name}!"
                 )
         elif final_status == "Succeeded":
-            self.log.info(f"Processing Container finished successfully!")
+            self.log.info("Processing Container finished successfully!")
         else:
             raise AirflowException(
                 f"Processing container in unexpected state: {final_status}"
@@ -963,7 +961,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         task_template = pc_models.TaskTemplate(
             identifier="main",
-            description=f"This template is used for images that do not contain a processing-container.json file.",
+            description="This template is used for images that do not contain a processing-container.json file.",
             inputs=[],
             outputs=[],
             env=[],
@@ -1284,7 +1282,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             date_time_str = re.search(r"(.*)-(\d+)", s).group(2)
             date_time_obj = datetime.strptime(date_time_str, "%y%m%d%H%M%S%f")
             run_id_identifier = date_time_obj.strftime("%y%m%d%H%M%S%f")
-        except (ValueError, AttributeError) as err:
+        except (ValueError, AttributeError):
             pass
 
         try:
@@ -1296,7 +1294,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 run_id_identifier = date_time_obj.strftime("%y%m%d%H%M%S%f")
             else:
                 pass
-        except (ValueError, AttributeError) as err:
+        except (ValueError, AttributeError):
             pass
 
         if run_id_identifier is None:

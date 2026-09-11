@@ -1,10 +1,9 @@
+import json
+import logging
 import os
 import stat
-import json
 from pathlib import Path
 from typing import Dict, Optional
-
-import logging
 
 from kaapana_extensions.extensions import ExtensionUtilityLibrary
 

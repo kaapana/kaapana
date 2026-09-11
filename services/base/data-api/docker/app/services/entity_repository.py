@@ -4,10 +4,6 @@ from datetime import datetime
 from typing import Any, Iterable, List, Tuple
 from uuid import UUID
 
-from sqlalchemy import Select, func, select, tuple_
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import load_only, selectinload
-
 from app.db.models import (
     ArtifactORM,
     DataEntityORM,
@@ -26,7 +22,9 @@ from app.models.domain import (
     StoreType,
     UrlStorageCoordinate,
 )
-
+from sqlalchemy import Select, select, tuple_
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 _STORAGE_TYPE_MAP: dict[StoreType, type[BaseStorageCoordinate]] = {
     StoreType.PACS: PacsStorageCoordinate,

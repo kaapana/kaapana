@@ -3,13 +3,14 @@
 import json
 from pathlib import Path
 from typing import List
+
 import requests
+from kaapanapy.logger import get_logger
 
 from kaapana.blueprints.kaapana_global_variables import (
     SERVICES_NAMESPACE,
 )
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapanapy.logger import get_logger
 
 logger = get_logger(__name__)
 

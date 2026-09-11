@@ -1,7 +1,8 @@
-from pydantic import BaseModel, Field, ConfigDict
-from uuid import UUID
 from datetime import datetime
 from typing import List, Optional
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class NotificationBase(BaseModel):

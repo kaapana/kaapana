@@ -1,7 +1,8 @@
 import os
+
+from kaapanapy.helper import load_workflow_config
 from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
 from kaapanapy.helper.HelperOpensearch import HelperOpensearch
-from kaapanapy.helper import load_workflow_config
 from kaapanapy.logger import get_logger
 from kaapanapy.settings import OperatorSettings
 

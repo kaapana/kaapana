@@ -113,7 +113,7 @@ async def root(request: Request):
 
 @router.get("/health-check")
 def health_check():
-    return {f"Kaapana backend is up and running!"}
+    return {"Kaapana backend is up and running!"}
 
 
 @router.get("/get-static-website-results-html")

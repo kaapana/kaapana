@@ -1,14 +1,13 @@
-import os
-from os import getenv
-from os.path import join, exists, dirname, basename, realpath
-from glob import glob
-from pathlib import Path
 import json
-import pydicom
-from pydicom.uid import generate_uid
+from glob import glob
+from os import getenv
+from os.path import basename, dirname, exists, join, realpath
+from pathlib import Path
 
 # For shell-execution
 from subprocess import PIPE, run
+
+import pydicom
 
 execution_timeout = 10
 
@@ -392,7 +391,7 @@ def process_input_file(
         print(f"# inputImageLibraryDirectory: {inputImageLibraryDirectory}")
         print(f"# inputCompositeContextDirectory: {inputCompositeContextDirectory}")
         print("#")
-        print(f"# STDOUT:")
+        print("# STDOUT:")
         print("#")
         for line in output.stdout.split("\\n"):
             print(f"# {line}")
@@ -400,7 +399,7 @@ def process_input_file(
         print("#")
         print("#")
         print("#")
-        print(f"# STDERR:")
+        print("# STDERR:")
         print("#")
         for line in output.stderr.split("\\n"):
             print(f"# {line}")

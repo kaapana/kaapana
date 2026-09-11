@@ -1,8 +1,9 @@
-import os
-import requests
-import json
 import argparse
+import json
+import os
 import shutil
+
+import requests
 
 default_static_dir = os.path.join(os.path.dirname(__file__), "img")
 image_url_path = os.path.join(os.path.dirname(__file__), "image_urls.json")

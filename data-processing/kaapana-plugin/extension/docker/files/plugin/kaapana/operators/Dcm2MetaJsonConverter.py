@@ -1,9 +1,10 @@
-import os
 import json
 import logging
+import os
+from datetime import datetime
+
 import pytz
 from dateutil import parser
-from datetime import datetime
 
 
 class Dcm2MetaJsonConversionException(Exception):

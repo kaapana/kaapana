@@ -1,14 +1,15 @@
-from os.path import dirname, join, exists, basename
-import os
-import json
-import glob
-import pydicom
 import binascii
+import glob
+import json
+import os
 import pathlib
-from datetime import datetime
-from xml.dom import minidom
 import xml.etree.ElementTree as et
+from datetime import datetime
+from os.path import basename, dirname, exists, join
 from subprocess import PIPE, run
+from xml.dom import minidom
+
+import pydicom
 
 converter_count = 0
 
@@ -227,7 +228,7 @@ def generate_xml(
     )  # TODO has do be changed with Jonas new version!!!
     print(dataset_info)
     if exists(dataset_info):
-        print(f"# dataset_info found!")
+        print("# dataset_info found!")
         with open(dataset_info) as f:
             dataset_info = json.load(f)
     else:

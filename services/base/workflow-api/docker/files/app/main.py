@@ -3,6 +3,10 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
+from fastapi import Depends, FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
 from app.api.v1.routers import (
     dummy_adapter_status,
     health_check,
@@ -13,9 +17,6 @@ from app.api.v1.services import errors
 from app.dependencies import get_connection_manager
 from app.logging_config import setup_logging
 from app.sync import run_sync
-from fastapi import Depends, FastAPI, Request, WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 
 setup_logging()
 logger = logging.getLogger(__name__)

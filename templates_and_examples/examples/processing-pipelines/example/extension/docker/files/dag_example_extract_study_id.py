@@ -1,13 +1,12 @@
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.dates import days_ago
 from datetime import timedelta
+
 from airflow.models import DAG
-
-from kaapana.operators.GetInputOperator import GetInputOperator
-from kaapana.operators.MinioOperator import MinioOperator
-from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from airflow.utils.dates import days_ago
+from airflow.utils.log.logging_mixin import LoggingMixin
 from example.ExtractStudyIdOperator import ExtractStudyIdOperator
-
+from kaapana.operators.GetInputOperator import GetInputOperator
+from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.MinioOperator import MinioOperator
 
 ui_forms = {
     "workflow_form": {

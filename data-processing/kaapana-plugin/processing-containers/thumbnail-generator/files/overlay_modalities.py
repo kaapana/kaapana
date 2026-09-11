@@ -1,4 +1,5 @@
 import os
+import warnings
 from pathlib import Path
 from random import randint
 
@@ -12,7 +13,6 @@ from colormath.color_objects import LabColor, sRGBColor
 from kaapanapy.logger import get_logger
 from PIL import Image, ImageFilter
 from pydantic import BaseModel
-import warnings
 
 logger = get_logger(__name__)
 

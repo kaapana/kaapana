@@ -1,6 +1,6 @@
-import sys, os
 import glob
 import json
+import os
 from datetime import datetime
 
 batch_folders = sorted(

@@ -5,17 +5,14 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
-    JSON,
-    Boolean,
-    Column,
     DateTime,
     ForeignKey,
     Integer,
     String,
-    Text,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PGUUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 

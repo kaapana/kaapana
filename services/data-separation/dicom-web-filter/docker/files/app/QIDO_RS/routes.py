@@ -1,7 +1,5 @@
 import json
-import logging
 from urllib.parse import urlencode
-from uuid import UUID
 
 import httpx
 from app import crud, utils

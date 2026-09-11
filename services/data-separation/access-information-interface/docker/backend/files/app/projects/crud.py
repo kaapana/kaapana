@@ -11,9 +11,9 @@ from app.models import (
     UsersProjectsRoles,
 )
 from app.projects import schemas
-from sqlalchemy import delete, select, update, func, cast
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import cast, delete, func, select, update
 from sqlalchemy.dialects.postgresql import TEXT
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def create_project(

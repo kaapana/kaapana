@@ -1,14 +1,15 @@
+import logging
 import os
-import pydicom
-from os import getenv
-from os.path import join, exists, dirname, basename
 from glob import glob
+from multiprocessing.pool import ThreadPool
+from os import getenv
+from os.path import exists, join
 from pathlib import Path
-from dcmconverter.rtstruct2nifti import convert_rtstruct
+
+import pydicom
 from dcmconverter.dcmseg2nifti import convert_dcmseg
 from dcmconverter.logger import get_logger
-import logging
-from multiprocessing.pool import ThreadPool
+from dcmconverter.rtstruct2nifti import convert_rtstruct
 
 logger = get_logger(__name__, logging.DEBUG)
 

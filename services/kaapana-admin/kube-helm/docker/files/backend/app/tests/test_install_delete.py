@@ -1,7 +1,6 @@
 import time
-import requests
-import pytest
-from tests.util import get_extensions, install_nnunet, delete_nnunet
+
+from tests.util import delete_nnunet, get_extensions, install_nnunet
 
 
 def test_nnunet_pending():

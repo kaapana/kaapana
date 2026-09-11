@@ -1,6 +1,5 @@
+
 import requests
-import time
-from tests.util import get_extensions
 
 
 def test_file_upload():

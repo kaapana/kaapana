@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 
-from os.path import join, dirname, basename
-from subprocess import PIPE, run
+import csv
+import json
+import os
+import time
+from argparse import ArgumentParser
 from glob import glob
 from multiprocessing.pool import ThreadPool
-from argparse import ArgumentParser
-import os
-import csv
-import time
-import json
+from os.path import dirname, join
+from subprocess import PIPE, run
 
 # import pydicom
 
@@ -19,8 +19,8 @@ def search_metadata_csv(target_dir):
     collection_extracted = None
     max_updir_count = 5
     updir_count = 0
-    print(f"#")
-    print(f"#")
+    print("#")
+    print("#")
     while updir_count < max_updir_count:
         print(f"# search_metadata: {target_dir}")
         metadata_file = glob(join(target_dir, "metadata.csv"), recursive=True)
@@ -48,9 +48,9 @@ def search_metadata_csv(target_dir):
             target_dir = dirname(target_dir)
         else:
             break
-    print(f"#")
+    print("#")
     print(f"# collection_extracted: {collection_extracted}")
-    print(f"#")
+    print("#")
     return collection_extracted
 
 
@@ -62,10 +62,10 @@ def send_dcm_dir(input_dir):
         local_dataset = extracted_dataset if extracted_dataset != None else "push_dicom"
     else:
         local_dataset = dataset
-    print(f"#")
+    print("#")
     print(f"# Sending dir: {dirname(input_dir)}")
     print(f"# dataset:     {local_dataset}")
-    print(f"#")
+    print("#")
 
     command = [
         "dcmsend",
@@ -73,7 +73,7 @@ def send_dcm_dir(input_dir):
         f"{server}",
         f"{port}",
         "-aet",
-        f"push_tool",
+        "push_tool",
         "-aec",
         f"{local_dataset}",
         "--scan-directories",
@@ -192,19 +192,19 @@ if __name__ == "__main__":
     processed_count = 0
     execution_timeout = 300
 
-    print(f"# ")
-    print(f"# ")
+    print("# ")
+    print("# ")
     print(f"# server:     {server}")
     print(f"# port:       {port}")
     print(f"# input_dir:  {input_dir}")
     print(f"# dataset:    {dataset}")
     print(f"# max_series: {max_series}")
-    print(f"# ")
+    print("# ")
     print(f"# threads:          {threads}")
     print(f"# scan_pattern:      {scan_pattern}")
     print(f"# execution_timeout: {execution_timeout}")
-    print(f"# ")
-    print(f"# ")
+    print("# ")
+    print("# ")
 
     # dicom = pydicom.dcmread(dcm_file_path)
     dicom_dirs = []
@@ -215,11 +215,11 @@ if __name__ == "__main__":
             dicom_dirs.append(dcm_dir)
 
     dicom_dirs = sorted(dicom_dirs)
-    print(f"# ")
-    print(f"# ")
+    print("# ")
+    print("# ")
     print(f"# Found {len(dicom_dirs)} DICOM-dirs.")
-    print(f"# ")
-    print(f"# ")
+    print("# ")
+    print("# ")
     time.sleep(5)
     if max_series != 0 and len(dicom_dirs) > max_series:
         print(f"# Set series limit to max_series: {max_series} ...")

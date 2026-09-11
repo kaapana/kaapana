@@ -1,18 +1,18 @@
 """Client library for Kaapana OCI Extension Registry."""
 
 import asyncio
-import git
 import io
+import json
 import re
 import tarfile
-import json
 import tempfile
 import uuid
-import jsonschema
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+import git
+import jsonschema
 from kaapana_containers.registries.registry import OCIError, OCIRegistryDiscovery
 
 # Pip-style VCS URL: git+URL[@ref][#subdir]

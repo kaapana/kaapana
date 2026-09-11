@@ -1,5 +1,4 @@
 import logging
-from uuid import UUID
 
 import httpx
 from app import crud, utils

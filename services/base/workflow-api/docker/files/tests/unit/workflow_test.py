@@ -873,9 +873,9 @@ async def test_delete_workflow(session: AsyncSession, client: AsyncClient):
     assert response.status_code == 404
 
     # But persisted in DB with removed=True
-    from sqlalchemy import select
-
     import uuid as _uuid
+
+    from sqlalchemy import select
 
     stmt = select(models.Workflow).where(models.Workflow.id == _uuid.UUID(wf["id"]))
     result = await session.execute(stmt)

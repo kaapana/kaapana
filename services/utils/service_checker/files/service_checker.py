@@ -1,6 +1,7 @@
+import os
 import socket
 import time
-import os
+
 import requests
 from kaapanapy.logger import get_logger
 

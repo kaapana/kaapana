@@ -83,7 +83,7 @@ def interactive_select(options: List[str], obj_type: str) -> List[str]:
         message=f"Search & select {obj_type}s (TAB=toggle, ENTER=confirm):",
         choices=choices,
         multiselect=True,
-        instruction=f"Use arrows to scroll. TAB to toggle selection. ENTER to confirm.",
+        instruction="Use arrows to scroll. TAB to toggle selection. ENTER to confirm.",
         validate=lambda result: len(result) > 0,
         invalid_message=f"Select at least 1 {obj_type}",
         info=True,

@@ -1,16 +1,14 @@
 # nnUNet imports
-from nnunetv2.inference.predict_from_raw_data import nnUNetPredictor
-
-from pathlib import Path
-import os
 import json
-import nibabel as nib
-import numpy as np
-from os import getenv, replace
-from os.path import join, dirname, basename, exists
-from glob import glob
-import torch
+import os
 import shutil
+from glob import glob
+from os import getenv
+from os.path import basename, exists, join
+from pathlib import Path
+
+import torch
+from nnunetv2.inference.predict_from_raw_data import nnUNetPredictor
 
 
 def create_dataset(search_dir):
@@ -79,7 +77,7 @@ def create_dataset(search_dir):
                     )
                     if exists(target_filename):
                         print(f"# target_filename: {target_filename}")
-                        print(f"# Target input-data already exists -> skipping")
+                        print("# Target input-data already exists -> skipping")
                         continue
 
                     if copy_target_data:
@@ -103,7 +101,7 @@ def create_dataset(search_dir):
                     basename(nifti).replace(".nii.gz", f"_{input_count:04d}.nii.gz"),
                 )
                 if exists(target_filename):
-                    print(f"# Target input-data already exists -> skipping")
+                    print("# Target input-data already exists -> skipping")
                     continue
 
                 Path(input_data_dir).mkdir(parents=True, exist_ok=True)
@@ -288,7 +286,7 @@ def get_model_paths(batch_element_dir):
             print("#")
             print(f"# Error - model_path: {model_path}")
             print("#")
-            print(f"# Could not find any checkpoint!")
+            print("# Could not find any checkpoint!")
             print("#")
             print("# ABORT")
             print("#")
@@ -592,7 +590,7 @@ if __name__ == "__main__":
             print("#")
             print("##################################################")
             print("#                                                #")
-            print(f"# Start prediction....                           #")
+            print("# Start prediction....                           #")
             print("#                                                #")
             print("##################################################")
             print("#")
@@ -654,7 +652,7 @@ if __name__ == "__main__":
                 print("#")
                 print("##################################################")
                 print("#                                                #")
-                print(f"# Start prediction....                           #")
+                print("# Start prediction....                           #")
                 print("#                                                #")
                 print("##################################################")
                 print("#")
@@ -675,8 +673,8 @@ if __name__ == "__main__":
                 write_seg_info(model, task_targets, output_dir)
 
                 processed_count += 1
-                print(f"# Prediction ok.")
-                print(f"#")
+                print("# Prediction ok.")
+                print("#")
 
         input_data_dir = join("/", workflow_dir, "nnunet-input-data")
         shutil.rmtree(input_data_dir, ignore_errors=True)

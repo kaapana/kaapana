@@ -1,6 +1,5 @@
-import os
-import glob
 import json
+import os
 
 
 def get_task_info(task):

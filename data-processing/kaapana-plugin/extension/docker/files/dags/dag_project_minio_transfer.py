@@ -1,14 +1,14 @@
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.dates import days_ago
 from datetime import timedelta
+
 from airflow.models import DAG
+from airflow.utils.dates import days_ago
+from airflow.utils.log.logging_mixin import LoggingMixin
 from kaapana.blueprints.json_schema_templates import get_all_project_names
 from kaapana.operators.LocalMinioDataTransferOperator import (
     LocalMinioDataTransferOperator,
 )
 
 log = LoggingMixin().log
-import requests
 
 ui_forms = {
     "workflow_form": {

@@ -21,15 +21,13 @@ It reuses that pod's MinIO/OpenSearch clients, credentials and database connecti
 import asyncio
 import logging
 
-from minio.commonconfig import ComposeSource, CopySource
-
 from app.database import async_session
 from app.projects.crud import get_projects
 from app.projects.minio import get_minio_helper
 from app.projects.opensearch import OpenSearchHelper
 from app.projects.schemas import Project
-
 from kaapanapy.helper import get_project_user_access_token
+from minio.commonconfig import ComposeSource, CopySource
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("project-rekey")

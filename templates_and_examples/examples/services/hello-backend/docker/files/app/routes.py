@@ -1,7 +1,8 @@
 import os
-from flask import render_template, redirect, jsonify
-from app import app
-from app import db
+
+from flask import redirect, render_template
+
+from app import app, db
 from app.forms import AddUserForm
 from app.models import User
 

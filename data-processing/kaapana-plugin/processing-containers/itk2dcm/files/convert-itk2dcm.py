@@ -1,15 +1,14 @@
+import glob
+import json
 import os
 import re
-import time
-import json
 import shutil
-import glob
+import time
 import warnings
+from pathlib import Path
 
 import SimpleITK as sitk
-
-from pathlib import Path
-from pydicom.uid import generate_uid, PYDICOM_ROOT_UID
+from pydicom.uid import PYDICOM_ROOT_UID, generate_uid
 
 # http://dicomlookup.com/modalities.asp
 VALID_MODALITIES = [

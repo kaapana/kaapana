@@ -1,15 +1,15 @@
-import os
-from os import getenv
-from os.path import join, exists, dirname, basename
-from glob import glob
 import ast
-from pathlib import Path
-from totalsegmentator.python_api import totalsegmentator
-from logger_helper import get_logger
-import logging
-import torch
 import json
-import shutil
+import logging
+import os
+from glob import glob
+from os import getenv
+from os.path import basename, dirname, exists, join
+from pathlib import Path
+
+import torch
+from logger_helper import get_logger
+from totalsegmentator.python_api import totalsegmentator
 
 
 # Process each file

@@ -1,16 +1,14 @@
 # !!! DEPRECATION WARNING: Local Operators are deprecated and will be replaced with operators that run in Kubernetes pods in the next release v0.7.0.
 # If you have a custom Local Operator, it should be migrated to a processing container based operator.
-import datetime
 from pathlib import Path
 from subprocess import PIPE, run
 from typing import List
 
-import pydicom
-import pytz
-from kaapana.operators.HelperCaching import cache_operator_output
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapanapy.logger import get_logger
 from kaapanapy.settings import KaapanaSettings
+
+from kaapana.operators.HelperCaching import cache_operator_output
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 logger = get_logger(__name__)
 TIMEZONE = KaapanaSettings().timezone
@@ -41,7 +39,7 @@ class LocalRemoveDicomTagsOperator(KaapanaPythonBaseOperator):
         logger.info(f"Number of series: {len(batch_folders)}")
         for batch_element_dir in batch_folders:
             files: List[Path] = sorted(
-                list((batch_element_dir / self.operator_in_dir).rglob(f"*.dcm"))
+                list((batch_element_dir / self.operator_in_dir).rglob("*.dcm"))
             )
             if len(files) == 0:
                 raise FileNotFoundError(

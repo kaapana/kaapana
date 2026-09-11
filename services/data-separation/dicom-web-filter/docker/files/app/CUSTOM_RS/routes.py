@@ -214,7 +214,7 @@ async def get_series(
     project_ids_of_user=Depends(get_scoped_project_ids),
 ):
 
-    if not "StudyInstanceUID" in request.query_params:
+    if "StudyInstanceUID" not in request.query_params:
         return JSONResponse(
             content={"error": "StudyInstanceUID is required"}, status_code=400
         )

@@ -1,13 +1,13 @@
-from task_api.processing_container import task_models
-from task_api.processing_container import pc_models
-from kubernetes import client as k8sclient
-from pathlib import Path
-from typing import Optional
 import json
 import os
 import re
 import urllib.error
 import urllib.request
+from pathlib import Path
+from typing import Optional
+
+from kubernetes import client as k8sclient
+from task_api.processing_container import pc_models, task_models
 
 PROJECT_RUNTIME_TIMEOUT = int(os.getenv("PROJECT_RUNTIME_TIMEOUT", "30"))
 

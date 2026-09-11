@@ -1,16 +1,12 @@
 # !!! DEPRECATION WARNING: Local Operators are deprecated and will be replaced with operators that run in Kubernetes pods in the next release v0.7.0.
 # If you have a custom Local Operator, it should be migrated to a processing container based operator.
-from minio import Minio
-import os
-import glob
-import uuid
 import json
-from zipfile import ZipFile
-import datetime
+import os
 from datetime import timedelta
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperFederated import federated_sharing_decorator
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
 class LocalFedartedSetupFederatedTestOperator(KaapanaPythonBaseOperator):
@@ -51,7 +47,7 @@ class LocalFedartedSetupFederatedTestOperator(KaapanaPythonBaseOperator):
     def __init__(self, dag, **kwargs):
         super(LocalFedartedSetupFederatedTestOperator, self).__init__(
             dag=dag,
-            name=f"federated-setup-federated-test",
+            name="federated-setup-federated-test",
             python_callable=self.start,
             allow_federated_learning=True,
             execution_timeout=timedelta(minutes=30),

@@ -34,8 +34,8 @@ Stay in the repository root, as CI does. `pytest.ini` limits discovery to
 `tests/`, so a bare `pytest` finds the operator tests and nothing else, and
 those tests write their scratch DICOM relative to the working directory.
 
-The whole `tests` stage also runs on any machine with docker, see section 10 of
-[../ci/README.md](../ci/README.md).
+The whole `tests` stage also runs on any machine with docker, see "Running the
+pipeline locally" in [../ci/README.md](../ci/README.md).
 
 ## Adding a suite
 
@@ -63,9 +63,11 @@ package. A suite that imports nothing heavy needs only that line, as in
 needs all three is
 [notification-service](../services/base/notification-service/docker/files/tests/conftest.py).
 
-Pin the suite's test dependencies with `==` in its own `requirements.txt`. The
-job starts from the bare Python image named in `.test_template` and inherits
-nothing. Runtime dependencies of the service belong in the service's
+Pin the suite's external test dependencies with `==` in its own
+`requirements.txt`. The job starts from the bare Python image named in
+`.test_template` and inherits nothing, the `constraints/` floors the service
+images build under included, so a suite can pin a version the platform would
+never install. Runtime dependencies of the service belong in the service's
 `requirements.txt`, not in the suite's.
 
 ## Choosing a test level
@@ -120,9 +122,9 @@ Example:
 
 ## Getting it into CI
 
-The jobs live in [../ci/pipeline/unit-tests.yml](../ci/pipeline/unit-tests.yml),
-run in the `tests` stage and are gated by `CI_EXEC_UNIT_TESTS`. Whether a new
-test runs depends on how its job was written:
+The jobs live in [../ci/pipeline/unit-tests.yml](../ci/pipeline/unit-tests.yml)
+and are gated with the `tests` stage as a whole. Whether a new test runs depends
+on how its job was written:
 
 1. A file under `tests/` runs without touching CI, because `unit_tests` passes
    the directory to pytest. New dependencies go into `tests/requirements.txt`.
@@ -145,15 +147,18 @@ test runs depends on how its job was written:
         - <name>_report.xml
 ```
 
-Then work through the checklist in section 9 of
+Then work through the "Adding a job" checklist in
 [../ci/README.md](../ci/README.md), which covers the wiring a job needs beyond
 its own script, and try it locally with
 `gitlab-ci-local <name>_tests --variable CI_PIPELINE_SOURCE=web`.
 
 ## What CI reports back
 
-Extending `.pytest_template` rather than `.test_template` adds a suite to the
-coverage badge and to the line markers in the merge request diff. The JUnit
-report feeds the pipeline's Tests tab either way. What is excluded from
-coverage is set once in [../.coveragerc](../.coveragerc). Section 11 of
-[../ci/README.md](../ci/README.md) lists the reports GitLab renders.
+The JUnit report feeds the pipeline's Tests tab whichever template a job
+extends. Coverage is opt-in on top of that: a suite reaches the coverage badge
+and the line markers in the merge request diff only if its job extends
+`.pytest_template` *and* its `pytest` call passes the `--cov` flags shown above.
+Several suites do neither and are simply not measured, so a green pipeline says
+nothing about their coverage. What is excluded from the measurement is set once
+in [../.coveragerc](../.coveragerc). "Reports in the GitLab UI" in
+[../ci/README.md](../ci/README.md) lists what GitLab renders.

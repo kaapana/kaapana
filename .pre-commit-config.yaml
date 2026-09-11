@@ -8,3 +8,5 @@ repos:
       - id: ruff-check
         args: [--fix]
       - id: ruff-format
+        # ruff also formats Python fences in Markdown and the CI job checks them
+        types_or: [python, pyi, jupyter, markdown]

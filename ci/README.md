@@ -513,8 +513,8 @@ Target branch: _develop_
   failed extension install can leave `run_workflows` green.
 - `install_extensions` and `send_data` carry `retry: 2` — known flakiness.
 - Coverage is opt-in per job, not a property of the tests stage: several pytest
-  suites report none at all, `dicom_web_filter_tests` among them. How a job opts
-  in: [`tests/README.md`](../tests/README.md).
+  suites report none at all, `dicom_web_filter_tests` among them.
+  [`tests/README.md`](../tests/README.md) says how a job opts in.
 - `ci/docs/local-ci.md` predates the current variable set (it references
   variables that no longer exist) — for local runs use
   [section 10](#10-running-the-pipeline-locally) instead.

@@ -1,19 +1,17 @@
 # Tests
 
 This directory holds the Airflow operator unit tests and the Playwright suite
-that drives a deployed platform. Every other suite lives next to the code it
-covers.
+that runs against a deployed platform. Every other suite lives next to the code
+it covers, under `services/**/docker/**/tests/` or `lib/<package>/tests/`. The
+system tests that build, deploy and exercise a platform are not here either,
+they live under `ci/ci-code/integration_tests/`.
 
 | Path | Covers | CI job |
 |---|---|---|
 | `operators/` | Airflow operators from `data-processing/kaapana-plugin`, called directly, without a scheduler or a platform | `unit_tests` |
 | `ui/` | Playwright against a running instance, needs its URL and the default credentials, see [ui/README.md](ui/README.md) | `playwright_ui_tests` (stage `test`) |
 
-Those usually sit under `services/**/docker/**/tests/` and
-`lib/<package>/tests/`; the system tests that need a deployment live under
-`ci/ci-code/integration_tests/`.
-
-## Running them
+## Running a suite
 
 From the repository root:
 
@@ -31,8 +29,9 @@ pytest <suite>
 ```
 
 Stay in the repository root, as CI does. `pytest.ini` limits discovery to
-`tests/`, so a bare `pytest` finds the operator tests and nothing else, and
-those tests write their scratch DICOM relative to the working directory.
+`tests/`, so a bare `pytest` finds the operator tests and nothing else. The
+operator tests also write their scratch DICOM relative to the working
+directory.
 
 The whole `tests` stage also runs on any machine with docker, see "Running the
 pipeline locally" in [../ci/README.md](../ci/README.md).
@@ -57,18 +56,18 @@ sys.modules.setdefault("kaapanapy", types.ModuleType("kaapanapy"))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 ```
 
-Every suite needs the last line, because the app code is not an installable
-package. A suite that imports nothing heavy needs only that line, as in
-[portal-api](../services/base/portal-api/docker/tests/conftest.py). One that
-needs all three is
+Every suite needs the `sys.path` line, because the app code is not an
+installable package. A suite that imports nothing heavy needs only that line,
+as in [portal-api](../services/base/portal-api/docker/tests/conftest.py). One
+that needs all three is
 [notification-service](../services/base/notification-service/docker/files/tests/conftest.py).
 
 Pin the suite's external test dependencies with `==` in its own
 `requirements.txt`. The job starts from the bare Python image named in
-`.test_template` and inherits nothing, the `constraints/` floors the service
-images build under included, so a suite can pin a version the platform would
-never install. Runtime dependencies of the service belong in the service's
-`requirements.txt`, not in the suite's.
+`.test_template` and inherits nothing. The `constraints/` floors that the
+service images build under do not apply either, so a suite can pin a version
+the platform would never install. Runtime dependencies of the service belong
+in the service's `requirements.txt`, not in the suite's.
 
 ## Choosing a test level
 
@@ -120,7 +119,7 @@ async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
 Example:
 [workflow-api/tests/unit/conftest.py](../services/base/workflow-api/docker/files/tests/unit/conftest.py)
 
-## Getting it into CI
+## Getting a suite into CI
 
 The jobs live in [../ci/pipeline/unit-tests.yml](../ci/pipeline/unit-tests.yml)
 and are gated with the `tests` stage as a whole. Whether a new test runs depends
@@ -158,7 +157,7 @@ The JUnit report feeds the pipeline's Tests tab whichever template a job
 extends. Coverage is opt-in on top of that: a suite reaches the coverage badge
 and the line markers in the merge request diff only if its job extends
 `.pytest_template` *and* its `pytest` call passes the `--cov` flags shown above.
-Several suites do neither and are simply not measured, so a green pipeline says
-nothing about their coverage. What is excluded from the measurement is set once
-in [../.coveragerc](../.coveragerc). "Reports in the GitLab UI" in
-[../ci/README.md](../ci/README.md) lists what GitLab renders.
+Several suites meet neither condition and are simply not measured, so a green
+pipeline says nothing about their coverage. What is excluded from the
+measurement is set once in [../.coveragerc](../.coveragerc). "Reports in the
+GitLab UI" in [../ci/README.md](../ci/README.md) lists what GitLab renders.

@@ -324,9 +324,11 @@ triple manually in the UI.
 
 ## 9. Adding a job
 
-1. Extend the right template (`.test_template`, `.build_cli_env`,
+1. Extend the right template (`.test_template`, `.pytest_template`, `.build_cli_env`,
    `.remote_execution_template`, `.integration_test_local`) — they carry the
-   runner tag, image, and rules conventions.`.test_template` caps a single job at 5 minutes.
+   runner tag, image, and rules conventions. `.test_template` caps a single job at 5 minutes.
+   A new pytest job extends `.pytest_template`, which adds the coverage regex and the
+   cobertura artifact on top of it; see section 11.
 2. Add required CI/CD variable that is not already checked to
    `preflight_variables` ([`ci/pipeline/preflight.yml`](pipeline/preflight.yml))
 3. Gate it with `rules:` on the matching `CI_EXEC_*` toggle.
@@ -350,7 +352,7 @@ via [gitlab-ci-local](https://github.com/firecow/gitlab-ci-local)
 (`npm install -g gitlab-ci-local`). From the repo root:
 
 ```bash
-# everything the tests stage runs in CI (11 jobs)
+# everything the tests stage runs in CI
 gitlab-ci-local --stage tests --variable CI_PIPELINE_SOURCE=web --privileged
 
 # a single job
@@ -381,7 +383,7 @@ GitLab reads them, no pipeline job does.
 | Report | Produced by | Where it shows |
 |---|---|---|
 | JUnit | every pytest job + `playwright_ui_tests` | pipeline **Tests** tab, failed-test summary in the MR |
-| Coverage (cobertura) | every unit-test job | coverage badge, line markers in the MR diff |
+| Coverage (cobertura) | every job extending `.pytest_template` | coverage badge, line markers in the MR diff |
 | Code Quality | `code_quality` | MR **Code Quality** widget |
 | Container scanning | `security` | MR security widget, vulnerability report |
 

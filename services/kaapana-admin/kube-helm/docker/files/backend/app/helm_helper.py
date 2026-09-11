@@ -72,7 +72,7 @@ async def exec_shell_cmd_async(
     logger.debug(f"executing ASYNC shell command: {command}")
     logger.debug(f"{shell=} , {timeout=}")
     try:
-        if shell == False and (type(command) is str):
+        if not shell and (type(command) is str):
             command = [x for x in command.replace("  ", " ").split(" ") if x != ""]
 
         command_result = await asyncio.create_subprocess_shell(
@@ -137,7 +137,7 @@ def execute_shell_command(
     if "--timeout" in command:
         logger.debug("--timeout found in command, not passing a separate timeout")
         timeout = None
-    if shell == False:
+    if not shell:
         command = [x for x in command.replace("  ", " ").split(" ") if x != ""]
     command_result = subprocess.run(
         command,
@@ -334,12 +334,10 @@ def add_info_from_deployments(
     extension_info: schemas.KaapanaExtension,
     result_list: List[schemas.KaapanaExtension],
 ):
-    dep_exists = False
     init_len = len(result_list)
     logger.debug(f"{extension_info.chart_name=}")
     for version, version_content in extension_info.available_versions.items():
         if len(version_content.deployments) > 0:
-            dep_exists = True
             # if multiinstallable and a launched app, create new extension
             if extension_info.multiinstallable == "yes":
                 for deployment in version_content.deployments:
@@ -415,17 +413,17 @@ def get_extensions_list(platforms=False) -> Union[List[schemas.KaapanaExtension]
         if platforms:
             check = (
                 update_running
-                or global_platforms_list == None
+                or global_platforms_list is None
                 or (
-                    last_refresh_timestamp_platforms != None
+                    last_refresh_timestamp_platforms is not None
                     and (time.time() - last_refresh_timestamp_platforms) < refresh_delay
                 )
             )
         else:
             check = (
                 update_running
-                or global_extensions_list == None
-                or (last_refresh_timestamp != None and (time.time() - last_refresh_timestamp) < refresh_delay)
+                or global_extensions_list is None
+                or (last_refresh_timestamp is not None and (time.time() - last_refresh_timestamp) < refresh_delay)
             )
         global_extensions_dict: Dict[str, schemas.KaapanaExtension] = {}
         if (not platforms) and settings.recent_update_cache and check:
@@ -820,7 +818,7 @@ def get_kube_objects(
                         single_status_for_jobs,
                     )
 
-                if obj_kube_status != None:
+                if obj_kube_status is not None:
                     for key, value in obj_kube_status.dict().items():
                         if key == "annotations":
                             concatenated_states[key].update(value)
@@ -977,7 +975,7 @@ def get_recently_updated_extensions() -> List[schemas.KaapanaExtension]:
                     len(global_extensions_list),
                     schemas.KaapanaExtension.construct(
                         releaseName=ext_state.releaseName,
-                        multiinstallable=("yes" if ext_state.multiinstallable == True else "no"),
+                        multiinstallable=("yes" if ext_state.multiinstallable else "no"),
                         chart_name=name,
                         version=version,
                     ),

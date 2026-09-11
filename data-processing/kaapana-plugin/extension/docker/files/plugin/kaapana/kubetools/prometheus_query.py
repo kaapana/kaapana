@@ -31,12 +31,12 @@ def get_node_info(query, logger=logging):
     max_tries = 4
     result_value = None
     success = True
-    while result_value == None and tries < max_tries:
+    while result_value is None and tries < max_tries:
         try:
             request_url = f"{prometheus_url}{query}"
             response = requests.get(request_url, timeout=1)
             result = response.json()["data"]["result"]
-        except:
+        except Exception:
             return 0, False
         if isinstance(result, list) and len(result) > 0:
             result_value = int(float(response.json()["data"]["result"][0]["value"][1]))
@@ -63,7 +63,7 @@ def get_node_gpu_infos(logger=logging):
             timeout=1,
         )
         result = response.json()
-    except:
+    except Exception:
         logger.error("+++++++++ Could not fetch node-info for GPUs - requests failed")
         return []
 
@@ -122,7 +122,7 @@ def get_node_gpu_infos(logger=logging):
 def get_node_memory(logger=None):
     node_memory, success = get_node_info(query=memory_query)
     if not success:
-        if logger != None:
+        if logger is not None:
             logger.error("+++++++++ Could not fetch node-info: get_node_memory")
         return None
 
@@ -141,7 +141,7 @@ def get_node_requested_memory(logger=None):
     )
 
     if not success1 or not success2:
-        if logger != None:
+        if logger is not None:
             logger.error("+++++++++ Could not fetch node-info: get_node_requested_memory")
         return None
 
@@ -151,7 +151,7 @@ def get_node_requested_memory(logger=None):
 def get_node_mem_percent(logger=None):
     mem_percent, success = get_node_info(query=mem_util_per_query)
     if not success:
-        if logger != None:
+        if logger is not None:
             logger.error("+++++++++ Could not fetch node-info: get_node_mem_percent")
         return None
 
@@ -161,7 +161,7 @@ def get_node_mem_percent(logger=None):
 def get_node_cpu(logger=None):
     node_cpu, success = get_node_info(query=cpu_core_query)
     if not success:
-        if logger != None:
+        if logger is not None:
             logger.error("+++++++++ Could not fetch node-info: get_node_cpu")
         return None
 
@@ -171,7 +171,7 @@ def get_node_cpu(logger=None):
 def get_node_cpu_util_percent(logger=None):
     cpu_util_per, success = get_node_info(query=cpu_util_per_query)
     if not success:
-        if logger != None:
+        if logger is not None:
             logger.error("+++++++++ Could not fetch node-info: get_node_cpu_util_percent")
         return None
 

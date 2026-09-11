@@ -14,7 +14,7 @@ def test_file_upload():
         if ext["name"] == ext_name:
             found = True
             break
-    assert found == False
+    assert not found
 
     url = "http://localhost:5000/file"
     # TODO: change file path if necessary
@@ -32,4 +32,4 @@ def test_file_upload():
         if ext["name"] == ext_name:
             found = True
             break
-    assert found == True
+    assert found

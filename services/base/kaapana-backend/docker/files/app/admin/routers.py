@@ -469,7 +469,6 @@ def oidc_logout(request: Request):
 
     ### Remove the session that corresponds to the access token from keycloak if the session exists
     for user_session in user_sessions:
-        user_session_id = user_session.get("id")
         if user_session.get("id") == token_session_id:
             r = requests.delete(
                 f"{settings.keycloak_url}/auth/admin/realms/kaapana/sessions/{token_session_id}",

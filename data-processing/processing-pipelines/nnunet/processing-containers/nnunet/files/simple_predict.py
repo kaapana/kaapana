@@ -211,7 +211,7 @@ def get_model_paths(batch_element_dir):
 
     result_model_paths = []
     for model_path in model_paths:
-        if task == None:
+        if task is None:
             print("# Task not set!")
             tasks = [f.name for f in os.scandir(model_path) if f.is_dir()]
             if len(tasks) == 1:
@@ -420,7 +420,7 @@ def predict(
 
 folds = getenv("TRAIN_FOLD", "None")
 folds = folds if folds.lower() != "none" else None
-folds = folds.split(",") if folds != None else None
+folds = folds.split(",") if folds is not None else None
 
 batch_name = getenv("BATCH_NAME", "None")
 batch_name = batch_name if batch_name.lower() != "none" else None
@@ -431,7 +431,7 @@ task = task if task.lower() != "none" else None
 task_targets = os.getenv("TARGETS", "None")
 task_targets = task_targets.split(",") if task_targets.lower() != "none" else None
 
-if task_targets != None and task_targets[0] != "background":
+if task_targets is not None and task_targets[0] != "background":
     task_targets.insert(0, "background")
 
 task_body_part = getenv("BODY_PART", "N/A")
@@ -556,7 +556,7 @@ if __name__ == "__main__":
         # e.g.: /models/nnUNet/Dataset579_10.135.76.130_010824-0934/nnUNetTrainer__nnUNetResEncUNetMPlans__3d_lowres/fold_all
         model_paths = get_model_paths(batch_element_dir=batch_element_dir)
         for model, checkpoint_name in model_paths:
-            if folds == None and "fold_all" in model or folds == "all":
+            if folds is None and "fold_all" in model or folds == "all":
                 folds = "all"
                 model = Path(model).parent
             print("#")
@@ -613,11 +613,11 @@ if __name__ == "__main__":
 
             # models/nnUNet/3d_lowres/Task003_Liver/nnUNetTrainerV2__nnUNetPlansv2.1/fold_1
             model_paths = get_model_paths(batch_element_dir=workflow_dir)
-            if folds == None and exists(join(model_paths, "all")):
+            if folds is None and exists(join(model_paths, "all")):
                 folds = "all"
 
             for model, checkpoint_name in model_paths:
-                if folds == None and "fold_all" in model:
+                if folds is None and "fold_all" in model:
                     folds = "all"
                     model = Path(model).parent
 

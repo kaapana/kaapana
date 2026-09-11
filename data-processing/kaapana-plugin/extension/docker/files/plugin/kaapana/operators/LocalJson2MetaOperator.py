@@ -109,7 +109,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                 new_document=meta_information,
                 opensearch_index=project.get("opensearch_index"),
             )
-        except:
+        except Exception:
             logger.warning(f"No project found for {clinical_trial_protocol_id}.")
 
         logger.info("Pushing document to admin-project index")
@@ -136,7 +136,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             new_document=new_document,
             opensearch_index=opensearch_index,
         )
-        response = self.os_client.index(
+        self.os_client.index(
             index=opensearch_index,
             body=new_document,
             id=document_id,

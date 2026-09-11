@@ -16,7 +16,7 @@ processed_count = 0
 
 
 # Process smth
-def process_input_file(filepath):
+def process_input_file_python(filepath):
     global processed_count
 
     processed_count += 1

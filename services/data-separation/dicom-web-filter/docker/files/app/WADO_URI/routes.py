@@ -5,9 +5,10 @@ from app import crud, utils
 from app.config import DICOMWEB_BASE_URL_WADO_URI
 from app.database import get_session
 from app.utils import get_scoped_project_ids, is_unscoped_admin
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.status import HTTP_204_NO_CONTENT
 
 router = APIRouter()
 

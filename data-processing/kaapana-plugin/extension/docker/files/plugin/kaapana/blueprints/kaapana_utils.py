@@ -76,7 +76,7 @@ def get_operator_properties(airflow_workflow_dir, *args, **kwargs):
         dag_run = kwargs["context"]["dag_run"]
         downstream_tasks = kwargs["context"]["task"].get_flat_relatives(upstream=False)
 
-    elif type(args) == tuple and len(args) == 1 and "run_id" in args[0]:
+    elif type(args) is tuple and len(args) == 1 and "run_id" in args[0]:
         raise ValueError("Just to check if this case needs to be supported!", args, kwargs)
         run_id = args[0]["run_id"]
     else:

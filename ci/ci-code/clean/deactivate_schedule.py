@@ -79,7 +79,7 @@ def deactivate_schedule(schedule_id, project_id, gitlab_host, api_token):
     )
     r.raise_for_status()
     resp = r.json()
-    assert resp["active"] == False
+    assert not resp["active"]
     return True
 
 

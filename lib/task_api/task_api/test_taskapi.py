@@ -111,7 +111,7 @@ def test_task_template():
     task = common.parse_task(
         file=f"{TASK_DIR}/dummy/tasks/upstream-task.json",
     )
-    task_instance = common.create_task_instance(task_template, task)
+    common.create_task_instance(task_template, task)
 
 
 def test_docker_runner(tmp_output_dir):

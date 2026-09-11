@@ -25,7 +25,8 @@ config.set_main_option("sqlalchemy.url", DATABASE_URL)
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-from app.models import Base
+# Kept below fileConfig() as in the alembic template: it disables loggers that already exist.
+from app.models import Base  # noqa: E402
 
 target_metadata = Base.metadata
 

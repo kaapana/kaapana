@@ -101,7 +101,6 @@ def check_completeness(operator_in_dir: Path, operator_out_dir: Path, update_os:
 
     dicom_files = [pydicom.dcmread(dicom_filename) for dicom_filename in dicom_filenames]
     series_uid = dicom_files[0].SeriesInstanceUID
-    modality = dicom_files[0].Modality
 
     if len(dicom_files) == 1:
         dicom_files[0].InstanceNumber = "1"

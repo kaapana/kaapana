@@ -195,7 +195,7 @@ for batch_element_dir in batch_folders:
                     json_dict[key] = seq_list
                 else:
                     json_dict[key] = str(dcm[key].value)
-            except:
+            except Exception:
                 json_dict[key] = ""
 
         print(json_dict)

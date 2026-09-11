@@ -101,7 +101,7 @@ class LocalAssignDataToProjectOperator(KaapanaPythonBaseOperator):
         ### Create the project-data mapping for the admin project
         self.add_data_to_project(series_instance_uid, project_id=project_id)
 
-        if type(clinical_trial_protocol_id) == list:
+        if type(clinical_trial_protocol_id) is list:
             assert len(clinical_trial_protocol_id) == 1
             clinical_trial_protocol_id = clinical_trial_protocol_id[0]
 

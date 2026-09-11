@@ -433,7 +433,7 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
     if db_job.kaapana_instance.remote and remote:
         db_job.status = job.status
 
-    if job.status == "scheduled" and db_job.kaapana_instance.remote == False:
+    if job.status == "scheduled" and not db_job.kaapana_instance.remote:
         # or (job.status == 'failed'); status='scheduled' for restarting, status='failed' for aborting
         conf_data = db_job.conf_data
         conf_data["client_job_id"] = db_job.id
@@ -455,7 +455,7 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
             db_job.run_id = dag_run_id
 
     # check state and run_id for created or queued, scheduled, running jobs on local instance
-    if db_job.run_id is not None and db_job.kaapana_instance.remote == False:
+    if db_job.run_id is not None and not db_job.kaapana_instance.remote:
         # ask here first time Airflow for job status (explicit w/ job_id) via kaapana_api's def dag_run_status()
         airflow_details_resp = get_dagrun_details_airflow(db_job.dag_id, db_job.run_id)
         if not airflow_details_resp.ok:
@@ -498,7 +498,6 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
 
 
 def abort_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
-    utc_timestamp = get_utc_timestamp()
     db_job = get_job(db, job.job_id)
 
     airflow_details_resp = get_dagrun_details_airflow(db_job.dag_id, db_job.run_id)

@@ -139,12 +139,12 @@ if __name__ == "__main__":
     # Nr of threads for resampling default=1
     nr_thr_resamp = getenv("NR_THR_RESAMP", "None")
     nr_thr_resamp = nr_thr_resamp if nr_thr_resamp.lower() != "none" else None
-    assert nr_thr_resamp != None
+    assert nr_thr_resamp is not None
     nr_thr_resamp = int(nr_thr_resamp)
     # Nr of threads for saving segmentations default=6
     nr_thr_saving = getenv("NR_THR_SAVING", "None")
     nr_thr_saving = nr_thr_saving if nr_thr_saving.lower() != "none" else None
-    assert nr_thr_saving != None
+    assert nr_thr_saving is not None
     nr_thr_saving = int(nr_thr_saving)
 
     # tag in nora as mask. Pass nora project id as argument. default="None

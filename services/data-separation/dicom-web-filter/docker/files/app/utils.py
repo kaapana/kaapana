@@ -159,7 +159,6 @@ async def get_filtered_studies_mapped_to_projects(
             if pacs_response.status_code == HTTP_204_NO_CONTENT:
                 return []
 
-            response_data = pacs_response.content
             studies_json = pacs_response.json()
 
             requested_studies = set()

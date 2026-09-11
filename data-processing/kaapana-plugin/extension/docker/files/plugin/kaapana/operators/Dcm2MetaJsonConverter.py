@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import traceback
 from datetime import datetime
 
 import pytz
@@ -185,8 +186,7 @@ class Dcm2MetaJsonConverter:
 
                         # Example: "018M" would represent an age of 18 months.
                         try:
-                            age_count = int(value_str[:3])
-                            identifier = value_str[3:]
+                            int(value_str[:3])  # raises for a malformed age string
 
                             new_key = new_key + "_keyword"
                             new_meta_data[new_key] = value_str
@@ -703,12 +703,12 @@ class Dcm2MetaJsonConverter:
                 time_tag_used += " + StudyTime"
                 extracted_time = new_meta_data["00080030 StudyTime_time"]
 
-            if extracted_date == None:
+            if extracted_date is None:
                 self.log.warn("###########################        NO AcquisitionDate! -> set to today")
                 time_tag_used += "not found -> arriving date"
                 extracted_date = datetime.now().strftime(self.format_date)
 
-            if extracted_time == None:
+            if extracted_time is None:
                 self.log.warn("###########################        NO AcquisitionTime! -> set to now")
                 time_tag_used += " + not found -> arriving time"
                 extracted_time = datetime.now().strftime(self.format_time)

@@ -22,7 +22,6 @@ class LocalServiceSyncDagsDbOperator(KaapanaPythonBaseOperator):
     """
 
     def start(self, ds, **kwargs):
-        conf = kwargs["dag_run"].conf
 
         tries = 0
         max_tries = 4
@@ -35,7 +34,7 @@ class LocalServiceSyncDagsDbOperator(KaapanaPythonBaseOperator):
             try:
                 r = requests.get(url, timeout=3)
                 success = True
-            except:
+            except Exception:
                 print(f"Connections issue: {url}")
                 success = False
                 time.sleep(5)

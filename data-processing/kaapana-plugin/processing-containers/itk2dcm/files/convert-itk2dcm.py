@@ -420,7 +420,7 @@ class nnUNetDatasetParser:
         def _get_cases(images_path, labels_path):
             images = list(images_path.glob("*"))
             labels = list(labels_path.glob("*"))
-            label_names = [l.name for l in labels]
+            label_names = [label.name for label in labels]
 
             images_with_segs = []
             images_without_segs = []

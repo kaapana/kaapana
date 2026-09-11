@@ -230,7 +230,7 @@ def generate_xml(
     study_description = os.getenv("STUDY_DESCRIPTION", "None")
     study_description = study_description if study_description.lower() != "none" else None
 
-    if study_description == None and dataset_info != None and "labels" in dataset_info:
+    if study_description is None and dataset_info is not None and "labels" in dataset_info:
         labels = dataset_info["labels"]
         labels.pop("background", None)
         study_description = ",".join([label for label in labels.keys()])
@@ -256,7 +256,7 @@ def generate_xml(
 
     protocol_name = os.getenv("PROTOCOL_NAME", "None")
     protocol_name = protocol_name if protocol_name.lower() != "none" else None
-    if protocol_name == None and dataset_info != None and "name" in dataset_info:
+    if protocol_name is None and dataset_info is not None and "name" in dataset_info:
         protocol_name = dataset_info["name"]
 
     size_limit = int(os.getenv("SIZE_LIMIT_MB", "100"))
@@ -270,7 +270,6 @@ def generate_xml(
         binary_path_list = split_file(file_path=binary_path, size_limit=size_limit)
 
     split_part_count = len(binary_path_list)
-    full_filename = basename(binary_path)
 
     if dicom_input_dir:
         ####################
@@ -379,7 +378,7 @@ def generate_xml(
                 el_name != "file"
                 and "len" in element.attributes
                 and len(element.childNodes) > 0
-                and element.firstChild.data != None
+                and element.firstChild.data is not None
             ):
                 element.attributes["len"].value = str(len(element.firstChild.data))
                 element.attributes["vm"].value = "1"

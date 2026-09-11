@@ -22,11 +22,11 @@ class DCIodValidator(DicomValidatorInterface):
         lines = output.split("\n")
         outputs = []
 
-        for l in lines:
-            if l.strip() == "":
+        for line in lines:
+            if line.strip() == "":
                 continue
 
-            splitted = tuple(l.split(" - "))
+            splitted = tuple(line.split(" - "))
 
             outputs.append(splitted)
 

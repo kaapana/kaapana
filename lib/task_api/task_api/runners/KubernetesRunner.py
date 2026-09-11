@@ -222,7 +222,6 @@ class KubernetesRunner(BaseRunner):
             log_timeout (int): Max time in seconds to stream logs before raising TimeoutError.
         """
         cls._logger.debug("Waiting for pod to start running...")
-        w = watch.Watch()
 
         # Wait until pod is in Running state
         cls.wait_for_task_status(

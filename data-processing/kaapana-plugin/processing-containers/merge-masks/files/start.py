@@ -85,7 +85,7 @@ def combine(seg_info_list, target_seg_info_dict, input_files, target_nifti_path,
             continue
 
         # first of to-be-combined niftis serves as base image
-        if base_img == None:
+        if base_img is None:
             base_img = nifti_loaded
             base_img_numpy = nifti_numpy
             base_img_labels = nifti_labels_found

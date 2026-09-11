@@ -104,9 +104,9 @@ async def test_create_workflow_run_with_labels(session: AsyncSession, client: As
     assert response.status_code == 201
     # The run is auto-pinned to its project via an immutable label, on top of
     # the two user labels.
-    user_labels = [l for l in data["labels"] if l["key"] != "kaapana.immutable.project_id"]
+    user_labels = [label for label in data["labels"] if label["key"] != "kaapana.immutable.project_id"]
     assert len(user_labels) == 2
-    assert any(l["key"] == "kaapana.immutable.project_id" for l in data["labels"])
+    assert any(label["key"] == "kaapana.immutable.project_id" for label in data["labels"])
 
 
 @pytest.mark.asyncio
@@ -881,9 +881,9 @@ async def test_workflow_run_with_multiple_labels(session: AsyncSession, client: 
     response = await client.post("/v1/workflow-runs", json=payload)
     data = response.json()
     assert response.status_code == 201
-    user_labels = [l for l in data["labels"] if l["key"] != "kaapana.immutable.project_id"]
+    user_labels = [label for label in data["labels"] if label["key"] != "kaapana.immutable.project_id"]
     assert len(user_labels) == 2
-    assert any(l["key"] == "kaapana.immutable.project_id" for l in data["labels"])
+    assert any(label["key"] == "kaapana.immutable.project_id" for label in data["labels"])
 
 
 @pytest.mark.asyncio
@@ -974,7 +974,7 @@ async def test_get_workflow_run_with_labels(session: AsyncSession, client: Async
     data = response.json()
     assert response.status_code == 200
     assert len(data["labels"]) == 2
-    label_dict = {l["key"]: l["value"] for l in data["labels"]}
+    label_dict = {label["key"]: label["value"] for label in data["labels"]}
     assert label_dict["env"] == "prod"
     assert label_dict["team"] == "ml"
 

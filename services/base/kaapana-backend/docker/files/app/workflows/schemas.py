@@ -317,7 +317,7 @@ class WorkflowWithKaapanaInstanceWithJobs(WorkflowWithKaapanaInstance):
             if "external_schema_federated_form" in job.conf_data:
                 # if workflow is a federated workflow, retrieve dataset_name from next job of workflow_jobs
                 continue
-            if "data_form" in job.conf_data and job.service_job == False:
+            if "data_form" in job.conf_data and not job.service_job:
                 dataset_name = (
                     job.conf_data["data_form"]["dataset_name"] if "dataset_name" in job.conf_data["data_form"] else None
                 )

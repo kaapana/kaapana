@@ -8,4 +8,5 @@ app.config.from_object(Config)
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
-from app import forms, models, routes
+# Flask's circular-import idiom: the modules below import `app` from this package
+from app import forms, models, routes  # noqa: E402, F401

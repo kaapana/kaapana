@@ -5,6 +5,7 @@ import shutil
 from datetime import timedelta
 from pathlib import Path
 
+import requests
 from airflow.models import DAG
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -22,7 +23,6 @@ from kaapana.operators.LocalJson2MetaOperator import LocalJson2MetaOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 log = LoggingMixin().log
-import requests
 
 ui_forms = {
     "workflow_form": {

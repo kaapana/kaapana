@@ -1,3 +1,5 @@
+# sys.path, the environment and the JSONB shim below must be in place before the app modules import.
+# ruff: noqa: E402
 """
 Test configuration following SQLModel testing patterns.
 Uses pytest fixtures with in-memory SQLite database.

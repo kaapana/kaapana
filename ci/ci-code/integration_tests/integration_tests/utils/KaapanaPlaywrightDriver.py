@@ -71,7 +71,7 @@ class KaapanaPlaywrightDriver:
             await self.page.wait_for_selector("#input-error", timeout=2000)
             logger.info("Login failed")
             return False
-        except:
+        except Exception:
             logger.info("Login succeeded")
             return True
 
@@ -84,7 +84,7 @@ class KaapanaPlaywrightDriver:
 
         try:
             await self.page.press("#password-confirm", "Enter")
-        except:
+        except Exception:
             btn = await self.page.query_selector("button[type=submit]")
             if btn:
                 await btn.click()

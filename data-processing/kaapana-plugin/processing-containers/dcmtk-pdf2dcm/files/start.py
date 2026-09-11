@@ -59,15 +59,15 @@ def process_file(input_file, output_dir, input_dir=None, timeout=20):
             # exit(1)
 
     additional_keys = []
-    if aetitle != None:
+    if aetitle is not None:
         additional_keys.append(f"0012,0020={aetitle}")
-    if study_uid != None:
+    if study_uid is not None:
         additional_keys.append(f"0020,000D={study_uid}")
-    if study_description != None:
+    if study_description is not None:
         additional_keys.append(f"0008,1030={study_description}")
-    if patient_id != None:
+    if patient_id is not None:
         additional_keys.append(f"0010,0020={patient_id}")
-    if patient_name != None:
+    if patient_name is not None:
         additional_keys.append(f"0010,0010={patient_name}")
 
     command = ["pdf2dcm", "--title", f"{pdf_title}"]
@@ -76,7 +76,7 @@ def process_file(input_file, output_dir, input_dir=None, timeout=20):
         command.append("--key")
         command.append(add_key)
 
-    if study_uid == None:
+    if study_uid is None:
         additional_keys.append("--generate")
     command.append(f"{input_file}")
     command.append(f"{output_file}")

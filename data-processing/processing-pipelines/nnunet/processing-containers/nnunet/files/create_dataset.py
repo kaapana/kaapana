@@ -30,7 +30,6 @@ def timing(f):
 
 def check_if_encoding_in_use(label_encoding):
     global label_names_found
-    found = False
     next_free_label = None
 
     existing_label_encodings = list(label_names_found.values())

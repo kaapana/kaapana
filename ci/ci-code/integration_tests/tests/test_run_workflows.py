@@ -17,7 +17,7 @@ def wait_for_workflow(kaapana: WorkflowEndpoints, workflow_name, timeout=3600) -
     while abs(start_time - time.time()) < timeout:
         try:
             jobs_info = kaapana.get_jobs_info(workflow_name=workflow_name)
-        except:
+        except Exception:
             pass
         jobs_status = [job.get("status") for job in jobs_info]
         logger.debug(f"jobs_info: {jobs_status}")

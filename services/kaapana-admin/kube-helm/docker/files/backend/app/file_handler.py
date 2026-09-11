@@ -214,7 +214,7 @@ def check_file_namespace(filename: str) -> bool:
 
     helm_sets = ""
     for key, value in default_sets.items():
-        if type(value) == str:
+        if type(value) is str:
             value = (
                 str(value)
                 .replace(",", r"\,")

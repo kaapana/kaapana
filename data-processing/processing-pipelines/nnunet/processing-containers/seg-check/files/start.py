@@ -2,9 +2,15 @@ import json
 import logging
 import shutil
 from glob import glob
+
+# For multiprocessing
+from multiprocessing.pool import ThreadPool
 from os import getenv
 from os.path import basename, dirname, exists, join
 from pathlib import Path
+
+# For shell-execution
+from subprocess import PIPE, run
 from typing import Tuple
 
 import nibabel as nib
@@ -14,12 +20,6 @@ from kaapanapy.logger import get_logger
 from pydicom.uid import generate_uid
 
 logger = get_logger(__name__, logging.DEBUG)
-
-# For multiprocessing
-from multiprocessing.pool import ThreadPool
-
-# For shell-execution
-from subprocess import PIPE, run
 
 execution_timeout = 120
 

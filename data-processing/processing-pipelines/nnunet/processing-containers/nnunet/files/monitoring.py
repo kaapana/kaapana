@@ -82,7 +82,7 @@ def get_logs(sc):
     if len(log_files) > 0:
         if log_files[-1] != last_training_log_file:
             last_training_log_file = log_files[-1]
-            if dataset_json != None:
+            if dataset_json is not None:
                 with open(join(dirname(last_training_log_file), "dataset.json"), "w") as outfile:
                     json.dump(dataset_json, outfile, indent=4, sort_keys=False)
 
@@ -140,7 +140,7 @@ def get_logs(sc):
             scalars_dict = {}
             for i in range(0, len(epoch["foreground-dice"])):
                 label_tag = str(i + 1)
-                if dataset_json != None and label_tag in dataset_json["labels"]:
+                if dataset_json is not None and label_tag in dataset_json["labels"]:
                     label_tag = dataset_json["labels"][label_tag]
                 scalars_dict[label_tag] = epoch["foreground-dice"][i]
                 writer.add_scalar(

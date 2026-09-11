@@ -1,3 +1,7 @@
+import json
+import pathlib
+from os.path import join
+
 class_map = {
     # classes of old TotalSegmentator v1
     "total_v1": {
@@ -993,10 +997,6 @@ for class_name in class_map:
     for label, value in class_map[class_name].items():
         class_list.append({"label_int": label, "label_name": value})
     result_label_dict[class_name] = class_list
-
-import json
-import pathlib
-from os.path import join
 
 if __name__ == "__main__":
     json_path = join(pathlib.Path(__file__).parent.resolve(), "seg_info_lookup.json")

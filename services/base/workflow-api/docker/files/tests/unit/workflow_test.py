@@ -707,7 +707,8 @@ async def test_patch_workflow_add_immutable_label_allowed(session: AsyncSession,
     )
     assert response.status_code == 200, response.json()
     assert any(
-        l["key"] == "kaapana.immutable.extension.id" and l["value"] == "ext-1" for l in response.json()["labels"]
+        label["key"] == "kaapana.immutable.extension.id" and label["value"] == "ext-1"
+        for label in response.json()["labels"]
     )
 
 

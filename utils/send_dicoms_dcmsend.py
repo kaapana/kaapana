@@ -57,9 +57,9 @@ def search_metadata_csv(target_dir):
 def send_dcm_dir(input_dir):
     global processed_count, execution_timeout, server, port, dataset, scan_pattern, init_send_delay, send_delay
 
-    if dataset == None:
+    if dataset is None:
         extracted_dataset = search_metadata_csv(input_dir)
-        local_dataset = extracted_dataset if extracted_dataset != None else "push_dicom"
+        local_dataset = extracted_dataset if extracted_dataset is not None else "push_dicom"
     else:
         local_dataset = dataset
     print("#")

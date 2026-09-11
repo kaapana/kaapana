@@ -5,7 +5,6 @@ import pkgutil
 from typing import List, Type
 
 from app.adapters import adapters
-from app.adapters.adapters import *
 from app.adapters.adapters.dummy_adapter import DummyAdapter
 from app.adapters.base import WorkflowEngineAdapter
 

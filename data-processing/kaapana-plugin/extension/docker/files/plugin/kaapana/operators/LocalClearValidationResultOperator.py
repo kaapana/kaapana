@@ -157,7 +157,6 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
             None
         """
         dag_run = kwargs["dag_run"]
-        conf = kwargs["dag_run"].conf
         print("Start Deleting Validation results")
 
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)

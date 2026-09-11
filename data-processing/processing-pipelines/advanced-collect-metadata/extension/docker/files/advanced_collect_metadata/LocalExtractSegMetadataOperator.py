@@ -71,7 +71,6 @@ class LocalExtractSegMetadataOperator(KaapanaPythonBaseOperator):
             vox_vol = spacing[0] * spacing[1] * spacing[2]
 
             label_volume_info = {}
-            cca_info = {}
             non_zero_layers_indices = {}
             for seg_nifti_fname in seg_nifti_fnames:
                 print(f"{seg_nifti_fname=}")

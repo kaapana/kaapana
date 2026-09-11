@@ -37,7 +37,7 @@ def find_code_meaning(tag):
             result = entry
             break
 
-    if result == None:
+    if result is None:
         print(f"Nothing found -> Searching if {tag} is in one of the entires...")
         for entry in code_lookup_table:
             if tag in entry["Code Meaning"].lower():
@@ -49,7 +49,7 @@ def find_code_meaning(tag):
                 result = entry
                 break
 
-    if result == None:
+    if result is None:
         print(f"Nothing found -> Searching if {tag} parts equals one of the entires...")
         for entry in code_lookup_table:
             for tag_part in tag.split(" "):
@@ -63,10 +63,10 @@ def find_code_meaning(tag):
                     )
                     result = entry
                     break
-            if result != None:
+            if result is not None:
                 break
 
-    if result == None:
+    if result is None:
         print(f"Nothing found -> Searching if {tag} parts can be found in one of the entires...")
         for entry in code_lookup_table:
             for tag_part in tag.split(" "):
@@ -80,10 +80,10 @@ def find_code_meaning(tag):
                     )
                     result = entry
                     break
-            if result != None:
+            if result is not None:
                 break
 
-    if result == None:
+    if result is None:
         raise AssertionError(f"Could not find the tag: '{tag}' in the lookup table!")
 
     print("#")

@@ -69,7 +69,7 @@ def raise_kaapana_connection_error(r):
         raise ConnectionError("You were redirect to the auth page. Your token is not valid!")
     try:
         r.raise_for_status()
-    except:
+    except Exception:
         raise ValueError(f"Something was not okay with your request code {r}: {r.text}!")
 
 
@@ -212,7 +212,6 @@ def federated_action(
 def federated_sharing_decorator(func):
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
-        max_retries = 10
         run_id, dag_run_dir, dag_run, downstream_tasks = get_operator_properties(
             self.airflow_workflow_dir, *args, **kwargs
         )

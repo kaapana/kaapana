@@ -30,7 +30,7 @@ def create_json_report(log_files, target_path):
         print(f"# fold: {fold}..")
         fold_data = {"fold": fold}
 
-        if dataset_json != None:
+        if dataset_json is not None:
             fold_data["name"] = dataset_json["name"] if "name" in dataset_json else "N/A"
             fold_data["description"] = dataset_json["description"] if "description" in dataset_json else "N/A"
             fold_data["labels"] = dataset_json["labels"] if "labels" in dataset_json else "N/A"
@@ -74,7 +74,7 @@ def create_json_report(log_files, target_path):
                 epoch_data["validation-loss"] = float(line.split(":")[-1].strip())
             elif "Average global foreground Dice" in line:
                 dices = [float(x) for x in line.split(":")[-1].strip().replace("[", "").replace("]", "").split(",")]
-                if dataset_json != None and len(dataset_json["labels"]) - 1 == len(dices):
+                if dataset_json is not None and len(dataset_json["labels"]) - 1 == len(dices):
                     labels_dict = {}
                     for i in range(0, len(dices)):
                         labels_dict[dataset_json["labels"][str(i + 1)]] = dices[i]

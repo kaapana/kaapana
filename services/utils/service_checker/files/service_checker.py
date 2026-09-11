@@ -51,7 +51,7 @@ def main():
     logger.debug(f"{FILES_AND_FOLDERS_EXISTS=}")
     logger.debug(f"{TIMEOUT=}")
 
-    if WAIT == None and FILES_AND_FOLDERS_EXISTS == None:
+    if WAIT is None and FILES_AND_FOLDERS_EXISTS is None:
         logger.error("Environment variables WAIT, FILES_AND_FOLDERS_EXISTS cannot be both undeclared.")
         logger.warning("Usage:")
         logger.warning("WAIT='postgres,localhost,5432;...'")
@@ -75,7 +75,6 @@ def main():
 
         commands = WAIT.split(";")
         for cmd in commands:
-            name = cmd.split(",")[0]
             host = cmd.split(",")[1]
             port = cmd.split(",")[2]
             if len(cmd.split(",")) == 4:

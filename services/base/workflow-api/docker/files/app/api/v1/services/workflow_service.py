@@ -58,8 +58,8 @@ def _enforce_immutable_labels(
     Accepts any iterables of label-like objects with `.key` and `.value` (ORM `Label` rows or Pydantic `Label` schemas).
     Raises `HTTPException(422)` on violation.
     """
-    current_pairs = [(l.key, l.value) for l in current_labels]
-    new_pairs = [(l.key, l.value) for l in new_labels]
+    current_pairs = [(label.key, label.value) for label in current_labels]
+    new_pairs = [(label.key, label.value) for label in new_labels]
     try:
         crud.check_immutable_labels(current_pairs, new_pairs)
     except crud.ImmutableLabelViolation as e:

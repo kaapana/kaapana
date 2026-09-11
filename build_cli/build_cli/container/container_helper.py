@@ -1,6 +1,9 @@
 import os
 import tempfile
+from dataclasses import dataclass
+from enum import Enum, auto
 from pathlib import Path
+from queue import Queue
 from shutil import which
 from subprocess import PIPE, run
 from typing import Any, Dict, Optional, Set, TypeVar
@@ -581,12 +584,6 @@ class ContainerHelper:
 ###################################################################################
 # Internal helper classes for build coordination
 ###################################################################################
-
-
-from dataclasses import dataclass
-from enum import Enum, auto
-from queue import Queue
-from typing import Optional
 
 
 class BuildEventType(Enum):

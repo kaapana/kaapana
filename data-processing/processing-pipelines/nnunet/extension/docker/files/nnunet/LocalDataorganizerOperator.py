@@ -93,7 +93,7 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
                         filename=nifti_file,
                         batch_path=join(run_dir, self.target_batchname),
                     )
-                    assert target_batch_element != None
+                    assert target_batch_element is not None
                     target_dir = join(target_batch_element, self.operator_out_dir)
                 Path(target_dir).mkdir(parents=True, exist_ok=True)
 

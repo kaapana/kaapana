@@ -1,3 +1,5 @@
+# mock_modules() must replace the kaapanapy modules before the app modules import.
+# ruff: noqa: E402
 import sys
 from unittest.mock import MagicMock
 from uuid import UUID

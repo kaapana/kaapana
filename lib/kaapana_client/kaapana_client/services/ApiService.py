@@ -6,10 +6,10 @@ from urllib.parse import quote
 import requests
 import urllib3
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
 from kaapana_client import settings
 from kaapana_client.logger import get_logger
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 logger = get_logger(__name__)
 

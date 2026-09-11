@@ -37,7 +37,7 @@ def _workflow_run_to_schema(db_run: models.WorkflowRun) -> schemas.WorkflowRun:
     return schemas.WorkflowRun(
         id=db_run.id,
         workflow=workflow_ref,
-        labels=[schemas.Label(key=l.key, value=l.value) for l in (db_run.labels or [])],
+        labels=[schemas.Label(key=label.key, value=label.value) for label in (db_run.labels or [])],
         workflow_parameters=db_run.workflow_parameters or [],
         external_id=db_run.external_id,
         created_at=db_run.created_at,
@@ -240,7 +240,7 @@ async def create_workflow_run(
     # Pin the run to its project via an immutable label. Authoritative: drop any
     # client-supplied value and set it from the request's project_id. Cleanup
     # later reads this label to locate the project's data volume.
-    workflow_run.labels = [l for l in (workflow_run.labels or []) if l.key != crud.PROJECT_ID_LABEL_KEY]
+    workflow_run.labels = [label for label in (workflow_run.labels or []) if label.key != crud.PROJECT_ID_LABEL_KEY]
     workflow_run.labels.append(schemas.Label(key=crud.PROJECT_ID_LABEL_KEY, value=project_id))
 
     db_revision = await crud.get_workflow_revision(

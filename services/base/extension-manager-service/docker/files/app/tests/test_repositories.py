@@ -167,7 +167,6 @@ async def test_post_conflict_repository(client: AsyncClient):
     )
     assert response.status_code == 201
     assert response.headers.get("Location").startswith("/repositories/")
-    location = response.headers["Location"]
 
     response = await client.post(
         "/repositories",

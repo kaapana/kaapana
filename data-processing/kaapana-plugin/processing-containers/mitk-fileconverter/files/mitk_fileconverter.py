@@ -1,20 +1,20 @@
 import logging
 from glob import glob
+
+# For multiprocessing -> usually you should scale via multiple containers!
+from multiprocessing.pool import ThreadPool
 from os import getenv, remove
 from os.path import basename, dirname, exists, join, split
 from pathlib import Path
+
+# For shell-execution
+from subprocess import PIPE, run
 
 import pydicom
 import SimpleITK as sitk
 
 # Logging
 logging.basicConfig(level=logging.INFO)
-
-# For multiprocessing -> usually you should scale via multiple containers!
-from multiprocessing.pool import ThreadPool
-
-# For shell-execution
-from subprocess import PIPE, run
 
 execution_timeout = 1200
 
@@ -51,7 +51,7 @@ def process_input_file(paras):
         try:
             # Try to get the SeriesInstanceUID from the dicom file
             incoming_dcm_series_id = str(pydicom.dcmread(input_filepath, force=True).SeriesInstanceUID)
-        except:
+        except Exception:
             # If the SeriesInstanceUID could not be read, use the filename
             file_name = basename(input_filepath).split(".")[0]
             logging.warning(

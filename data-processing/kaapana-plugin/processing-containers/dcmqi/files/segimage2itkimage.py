@@ -112,7 +112,7 @@ for batch_element_dir in batch_folders:
             # print("Overwriting JSON: {}".format(meta_data_file))
         # print(json.dumps(meta_data, indent=4, sort_keys=True))
 
-        if seg_filter != None and seg_filter != "":
+        if seg_filter is not None and seg_filter != "":
             len_output_files = len(
                 sorted(
                     glob.glob(

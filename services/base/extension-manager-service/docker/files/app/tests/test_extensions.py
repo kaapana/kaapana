@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
+from v1.services.database import crud
 
 
 @pytest.mark.asyncio
@@ -56,9 +57,6 @@ async def test_post_repo_read_extensions_install_extension(client: AsyncClient, 
     assert response.json()["tag"] == tag
     assert response.json()["repository_id"] == repository_id
     assert response.json()["status"] == "installed"
-
-
-from v1.services.database import crud
 
 
 @pytest.mark.asyncio
@@ -122,4 +120,4 @@ async def test_post_repo_read_extensions_install_extension_uninstall_extension(
     assert db_extension is None
 
     for id in content_ids:
-        assert await crud.get_content(session=session, content_id=id) == None
+        assert await crud.get_content(session=session, content_id=id) is None

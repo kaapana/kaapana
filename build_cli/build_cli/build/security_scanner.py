@@ -231,7 +231,6 @@ class SecurityScanner:
         deadlock on Trivy's file lock — and without a shared pre-fetch, every
         worker would instead pull the Java DB OCI artifact from the mirror at
         once, racing its redirect-based blob download into 404s."""
-        t0 = time.monotonic()
         cmd = [
             cls._build_config.trivy_executable,
             "image",

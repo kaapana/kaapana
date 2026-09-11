@@ -169,6 +169,5 @@ class ProgressBar:
             push_time = (
                 f"{last_processed_container.push_time:0.2f}s" if last_processed_container.push_time != "-" else "-"
             )
-            status = f"{str(last_processed_container.status):<{self.status_width}}"
 
             logger.info(f"{tag} - build: {build_time} - push: {push_time}")

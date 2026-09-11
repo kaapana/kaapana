@@ -185,7 +185,7 @@ if __name__ == "__main__":
         wf_config = load_workflow_config()
         project_form = wf_config["project_form"]
         kaapana_project_id = project_form["id"]
-    except:
+    except Exception:
         kaapana_notifier = None
         kaapana_project_id = None
         logger.info("Notifications are disabled.")

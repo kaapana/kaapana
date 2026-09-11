@@ -67,7 +67,7 @@ def helm_search_repo(keywords_filter):
     global charts_cached
     keywords_filter = set(keywords_filter)
 
-    if check_modified() or charts_cached == None:
+    if check_modified() or charts_cached is None:
         logger.info("Charts modified -> generating new list.")
         helm_packages = [f for f in glob.glob(os.path.join(settings.helm_extensions_cache, "*.tgz"))]
         charts_cached = {}
@@ -991,7 +991,7 @@ def get_active_apps_from_ingresses(
     # load kube config and get client
     try:
         config.load_incluster_config()
-    except:
+    except Exception:
         config.load_kube_config()
 
     networking_v1 = client.NetworkingV1Api()

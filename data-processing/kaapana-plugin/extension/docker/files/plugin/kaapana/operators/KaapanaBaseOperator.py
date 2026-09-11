@@ -268,7 +268,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                             if self.cpu_millicores_lmt is not None
                             else self.cpu_millicores + 100
                         )
-                        if self.cpu_millicores != None
+                        if self.cpu_millicores is not None
                         else None
                     ),
                     "memory": "{}Mi".format(
@@ -276,7 +276,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                     ),
                 },
                 requests={
-                    "cpu": ("{}m".format(self.cpu_millicores) if self.cpu_millicores != None else None),
+                    "cpu": ("{}m".format(self.cpu_millicores) if self.cpu_millicores is not None else None),
                     "memory": "{}Mi".format(self.ram_mem_mb),
                 },
             )
@@ -653,7 +653,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 json_decoded_value = json.loads(v)
             except json.decoder.JSONDecodeError:
                 json_decoded_value = v
-            if type(json_decoded_value) == dict:
+            if type(json_decoded_value) is dict:
                 ### kube-helm will use --set-string instead of --set to install the chart when the value is a string
                 ### As helm interpretes {} as array/list, we want to use --set-string for enviroment variables that are dictionaries.
                 json_decoded_value = str(json_decoded_value)
@@ -1146,8 +1146,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         obj.delete_output_on_start = delete_output_on_start
         obj.priority_class_name = priority_class_name
 
-        obj.batch_name = batch_name if batch_name != None else BATCH_NAME
-        obj.airflow_workflow_dir = airflow_workflow_dir if airflow_workflow_dir != None else AIRFLOW_WORKFLOW_DIR
+        obj.batch_name = batch_name if batch_name is not None else BATCH_NAME
+        obj.airflow_workflow_dir = airflow_workflow_dir if airflow_workflow_dir is not None else AIRFLOW_WORKFLOW_DIR
 
         if obj.task_id is None:
             obj.task_id = obj.name
@@ -1179,8 +1179,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         enable_job_scheduler = (
             True if Variable.get("enable_job_scheduler", default_var="True").lower() == "true" else False
         )
-        if obj.pool == None:
-            if not enable_job_scheduler and obj.gpu_mem_mb != None and obj.gpu_mem_mb != 0:
+        if obj.pool is None:
+            if not enable_job_scheduler and obj.gpu_mem_mb is not None and obj.gpu_mem_mb != 0:
                 obj.pool = "NODE_GPU_COUNT"
                 obj.pool_slots = 1
             else:

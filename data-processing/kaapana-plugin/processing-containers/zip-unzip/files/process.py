@@ -51,7 +51,7 @@ def zip_dir(zip_dir_path, target_file):
             #             print(f"# Target: {target_info_file_path}")
             #             copy2(info_file, target_info_file_path)
 
-            if blacklist_files != None:
+            if blacklist_files is not None:
                 skip_file = False
                 for blacklist_file in blacklist_files:
                     blacklist_file = blacklist_file.replace("*", "")
@@ -61,10 +61,10 @@ def zip_dir(zip_dir_path, target_file):
                         skip_file = True
                         break
 
-            if skip_file != None and skip_file:
+            if skip_file is not None and skip_file:
                 continue
 
-            if whitelist_files != None:
+            if whitelist_files is not None:
                 skip_file = True
                 for whitelist_file in whitelist_files:
                     whitelist_file = whitelist_file.replace("*", "")
@@ -74,7 +74,7 @@ def zip_dir(zip_dir_path, target_file):
                         skip_file = False
                         break
 
-            if skip_file == None or not skip_file:
+            if skip_file is None or not skip_file:
                 print(f"# Adding: {file}")
                 zipf.write(
                     join(root, file),

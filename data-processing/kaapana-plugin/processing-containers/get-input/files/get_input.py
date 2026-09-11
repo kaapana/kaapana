@@ -43,7 +43,7 @@ class GetInputOperator:
         :modality: Modality to compare against the workflow_form in workflow_config.
         """
         workflow_modality = self.workflow_config.get("workflow_form").get("input")
-        if not type(workflow_modality) == str:
+        if type(workflow_modality) is not str:
             raise TypeError(f"{workflow_modality=} has not the expected type of str. {self.workflow_config=}")
         valid_modalities = workflow_modality.lower().split(",")
 
@@ -76,7 +76,6 @@ class GetInputOperator:
         Output:
         (download_successful, series_uid)
         """
-        download_successful = False
         data_type = self.operator_arguments.data_type
 
         if self.operator_arguments.check_modality:

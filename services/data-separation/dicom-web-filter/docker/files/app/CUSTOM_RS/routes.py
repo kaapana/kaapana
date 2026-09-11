@@ -137,7 +137,7 @@ async def del_study(
             # This part should only run if a project deletes the last mapping of a series
             logging.info(f"Finally deleting series: {series}")
             # Delete in PACS
-            response = await delete_series_dcm4chee(study, series, request)
+            await delete_series_dcm4chee(study, series, request)
 
     return Response(status_code=200)
 

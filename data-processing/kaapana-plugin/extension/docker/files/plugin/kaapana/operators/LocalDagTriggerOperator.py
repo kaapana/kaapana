@@ -22,7 +22,6 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
     def check_cache(self, dicom_series, cache_operator):
         loaded_from_cache = True
-        study_uid = dicom_series["dcm-uid"]["study-uid"]
         series_uid = dicom_series["dcm-uid"]["series-uid"]
 
         output_dir = join(self.run_dir, self.batch_name, series_uid, self.operator_out_dir)
@@ -103,7 +102,7 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
                 raise ValueError("ERROR")
         else:
             print("Using DAG-conf for series ...")
-            if self.conf == None or "inputs" not in self.conf:
+            if self.conf is None or "inputs" not in self.conf:
                 print("No config or inputs in config found!")
                 print("Abort.")
                 raise ValueError("ERROR")

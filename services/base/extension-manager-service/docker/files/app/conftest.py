@@ -1,3 +1,5 @@
+# The environment and the JSONB shim below must be in place before the app modules import.
+# ruff: noqa: E402
 import os
 
 import pytest_asyncio

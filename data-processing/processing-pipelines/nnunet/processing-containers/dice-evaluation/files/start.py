@@ -79,7 +79,6 @@ def get_seg_info(input_nifti):
 
     print(f"# Get seg configuration for: {basename(input_nifti)}")
     model_id = f"-{basename(input_nifti).replace('.nii.gz', '').split('-')[-1]}" if "-" in basename(input_nifti) else ""
-    seg_nifti_id = basename(input_nifti).replace(".nii.gz", "")
     json_files_found = glob(join(dirname(input_nifti), "*.json"), recursive=False)
     json_files_found = [
         meta_json_path for meta_json_path in json_files_found if "model_combinations" not in meta_json_path

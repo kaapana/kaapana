@@ -22,7 +22,6 @@ from fastapi import (
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from starlette.responses import StreamingResponse
 from urllib3.util import Timeout
 
 logging.getLogger().setLevel(logging.INFO)

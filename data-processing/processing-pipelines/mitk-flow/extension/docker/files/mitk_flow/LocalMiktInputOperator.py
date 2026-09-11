@@ -85,7 +85,6 @@ class LocalMiktInputOperator(KaapanaPythonBaseOperator):
             if len(dcm_files) > 0:
                 task = dict()
                 incoming_dcm = pydicom.dcmread(dcm_files[0])
-                seriesUID = incoming_dcm.SeriesInstanceUID
                 patientID = incoming_dcm.PatientID + " task " + str(number)
                 number = number + 1
                 if len(seg_files) > 0:

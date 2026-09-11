@@ -4,9 +4,10 @@ import glob
 import os
 
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import *
+from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import *
+from reportlab.lib.units import inch
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 print("")
 print("#####################################################")

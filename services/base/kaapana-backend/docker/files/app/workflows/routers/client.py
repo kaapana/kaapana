@@ -59,9 +59,7 @@ def remove_outdated_tmp_files(search_dir):
 
 @router.head("/file")
 def head_file_upload(request: Request, patch: str):
-    uoffset = request.headers.get("upload-offset", None)
     ulength = request.headers.get("upload-length", None)
-    uname = request.headers.get("upload-name", None)
     fpath = Path(UPLOAD_DIR) / f"{patch}.tmpfile"
     if fpath.is_file():
         offset = int(ulength) - fpath.stat().st_size
@@ -113,9 +111,7 @@ async def patch_file(
     request: Request,
     patch: str,
 ):
-    uoffset = request.headers.get("upload-offset", None)
     ulength = request.headers.get("upload-length", None)
-    uname = request.headers.get("upload-name", None)
     fpath = Path(UPLOAD_DIR) / f"{patch}.tmpfile"
     with open(fpath, "ab") as f:
         async for chunk in request.stream():
@@ -777,7 +773,7 @@ def create_workflow(
             "workflow_id": workflow_id,
             "workflow_name": workflow_name,
             "involved_instances": (
-                json_schema_data.instance_names if json_schema_data.federated == False else involved_instance_names
+                json_schema_data.instance_names if not json_schema_data.federated else involved_instance_names
             ),  # instances on which workflow is created!
             "runner_instances": json_schema_data.instance_names,  # instances on which jobs of workflow are created!
         }

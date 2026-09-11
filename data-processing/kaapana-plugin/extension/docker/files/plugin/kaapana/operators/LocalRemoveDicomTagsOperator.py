@@ -61,8 +61,6 @@ def remove_tags(
     Raises:
         InvalidDicomError: If the input file is not a valid DICOM file.
     """
-    protocol_id_tag = (0x0012, 0x0020)
-    sponsor_name_tag = (0x0012, 0x0010)
     cli_sponsor_name_tag = "0012,0010"
     cli_protocol_id_tag = "0012,0020"
 

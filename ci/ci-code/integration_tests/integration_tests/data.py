@@ -50,7 +50,7 @@ class DataEndpoints(KaapanaAuth):
         logger.info(f"Check if dataset {kaapana_dataset} is complete.")
         try:
             backend_dataset = self.get_dataset_from_backend(kaapana_dataset)
-        except:
+        except Exception:
             logger.warning(f"Request to backend failed! Suppose not all series found for dataset {kaapana_dataset=}.")
             return False
 

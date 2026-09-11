@@ -106,10 +106,10 @@ class DicomQueryClient:
         self.assoc.release()
 
     def date_range(self, ts1: datetime, ts2: datetime):
-        return f"{'' if ts1 == None else ts1.strftime('%Y%m%d')}-{'' if ts2 == None else ts2.strftime('%Y%m%d')}"
+        return f"{'' if ts1 is None else ts1.strftime('%Y%m%d')}-{'' if ts2 is None else ts2.strftime('%Y%m%d')}"
 
     def time_range(self, ts1: datetime, ts2: datetime):
-        return f"{'' if ts1 == None else ts1.strftime('%H%M%S')}-{'' if ts2 == None else ts2.strftime('%H%M%S')}"
+        return f"{'' if ts1 is None else ts1.strftime('%H%M%S')}-{'' if ts2 is None else ts2.strftime('%H%M%S')}"
 
     def create_query_dataset(self, tags: List = None) -> pydicom.dataset.Dataset:
         """Returnes a empty dicom dataset for using with C-Find. StudyDate is set when start_dt and end_dt are set.
@@ -121,7 +121,7 @@ class DicomQueryClient:
 
         # This would use all dicom tags from the dicom data directory unfortunatly this results in an error during c-find (pynetdcom problem?)
         # tags = pydicom.datadict.DicomDictionary.keys()
-        if tags == None:
+        if tags is None:
             self.log.debug("Used defautl tags")
             tags = self.DEFAULT_TAGS
 
@@ -251,7 +251,7 @@ class DicomQueryClient:
         assert MAX_ATTEMPTS > 0, "MAX_ATTEMPTS must be a positiv number"
         assert WINDOW_INCREMENT_FACTOR >= 1, "WINDOW_INCREMENT_FACTOR must be >= 1"
         assert limit > 0, "Query limit must be bigger than 0"
-        assert start_date == None or start_date < end_date, "Start must be before end"
+        assert start_date is None or start_date < end_date, "Start must be before end"
 
         # Initalization
         new_end_date = end_date
@@ -273,7 +273,7 @@ class DicomQueryClient:
                 window_size,
             )
 
-            if start_date != None and new_start_date <= start_date:
+            if start_date is not None and new_start_date <= start_date:
                 new_start_date = start_date
 
             if math.ceil((new_end_date - new_start_date).days) == 0:

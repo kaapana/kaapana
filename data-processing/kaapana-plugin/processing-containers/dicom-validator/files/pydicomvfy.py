@@ -37,7 +37,6 @@ class PyDicomValidator(DicomValidatorInterface):
         Returns:
             DicomFileValidator: An instance of the DICOM file validator.
         """
-        edition_reader = EditionReader(self.dicom_definition_root)
         # destination = edition_reader.get_revision(self.revision, recreate_json=False, create_json=False)
         destination = Path(self.dicom_definition_root, self.revision)
 

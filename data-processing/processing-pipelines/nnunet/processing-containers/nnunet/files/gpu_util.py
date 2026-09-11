@@ -1,11 +1,18 @@
 import os
 
-from pynvml import *
+from pynvml import (
+    nvmlDeviceGetCount,
+    nvmlDeviceGetHandleByIndex,
+    nvmlDeviceGetMemoryInfo,
+    nvmlDeviceGetName,
+    nvmlInit,
+    nvmlShutdown,
+    nvmlSystemGetDriverVersion,
+)
 
 
 def bytesto(bytes, to, bsize=1024):
     a = {"k": 1, "m": 2, "g": 3, "t": 4, "p": 5, "e": 6}
-    r = float(bytes)
     return bytes / (bsize ** a[to])
 
 
@@ -16,7 +23,7 @@ print("# ")
 print(f"# GPU_MEM_NEEDED: {gpu_mem_needed}")
 
 visible_device = None
-if gpu_mem_needed != None:
+if gpu_mem_needed is not None:
     try:
         nvmlInit()
         gpu_mem_needed = int(gpu_mem_needed)

@@ -21,7 +21,6 @@ class LocalCleanUpExpiredWorkflowDataOperator(KaapanaPythonBaseOperator):
     """
 
     def start(self, ds, **kwargs):
-        conf = kwargs["dag_run"].conf
 
         print(f"Expired time {self.expired_period}")
         print(f"Working in {self.airflow_workflow_dir}")

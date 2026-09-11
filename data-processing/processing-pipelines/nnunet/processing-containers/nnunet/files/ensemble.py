@@ -204,7 +204,6 @@ def main():
     print("##################################################")
     print("#")
 
-    processed_count = 0
     batch_folders = sorted([f for f in glob(join("/", workflow_dir, batch_name, "*"))])
     for batch_element_dir in batch_folders:
         element_input_dir = os.path.join(batch_element_dir, operator_in_dir)

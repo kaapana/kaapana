@@ -1,3 +1,5 @@
+# `slicer` is provided by the Slicer interpreter that runs this script (--python-script)
+# ruff: noqa: F821
 # https://github.com/Slicer/SlicerDocker/blob/10a8f38f6086f8d97a2a9cf81446974da2053001/slicer-notebook/install.sh#L41-L76
 em = slicer.app.extensionsManagerModel()
 for extensionName in [

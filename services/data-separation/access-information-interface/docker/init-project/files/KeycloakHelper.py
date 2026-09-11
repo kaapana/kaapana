@@ -1,12 +1,11 @@
+import logging
 import os
 
 import requests
+from kaapanapy.logger import get_logger
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-import logging
-
-from kaapanapy.logger import get_logger
 
 logger = get_logger(__name__, logging.DEBUG)
 

@@ -197,7 +197,6 @@ class LocalMinioDataTransferOperator(KaapanaPythonBaseOperator):
         :param ds: Airflow's ds parameter (date)
         :param kwargs: Additional keyword arguments from Airflow context
         """
-        dag_run = kwargs["dag_run"]
         conf = kwargs["dag_run"].conf
         logger.info(f"{conf=}")
         source_bucket = conf["project_form"]["s3_bucket"]

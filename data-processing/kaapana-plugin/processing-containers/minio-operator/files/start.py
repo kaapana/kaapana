@@ -69,9 +69,9 @@ class MinioOperatorArguments(BaseSettings):
     )
     @classmethod
     def list_from_commaseparated_string(cls, v: Any):
-        if type(v) == str and v == "":
+        if type(v) is str and v == "":
             return []
-        elif type(v) == str:
+        elif type(v) is str:
             return v.split(",")
         else:
             raise TypeError(f"{v=} must be of type str but is {type(v)}")

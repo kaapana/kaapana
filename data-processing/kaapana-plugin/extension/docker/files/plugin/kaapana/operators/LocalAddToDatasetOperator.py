@@ -47,10 +47,9 @@ class LocalAddToDatasetOperator(KaapanaPythonBaseOperator):
         Select the project based on the clinical trial tag and add the series to the dataset.
         Of both the admin project and the project of the clinical trial tag.
         """
-        clinical_trail_tag = metadata.get("00120020 ClinicalTrialProtocolID_keyword")
         try:
             project = get_project_by_id_or_name(metadata.get("00120020 ClinicalTrialProtocolID_keyword"))
-        except:
+        except Exception:
             project = get_project_by_id_or_name("admin")
 
         admin_project = get_project_by_id_or_name("admin")

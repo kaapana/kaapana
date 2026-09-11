@@ -83,7 +83,7 @@ def convert_dcmseg(element_mask_dicom, element_base_dicom_in_dir, output_path, s
     with open(meta_data_file, "w") as write_file:
         json.dump(meta_data, write_file, indent=4, sort_keys=True)
 
-    if seg_filter != None and seg_filter != "":
+    if seg_filter is not None and seg_filter != "":
         len_output_files = len(sorted(glob.glob(join(output_path, f"*{output_type}*"), recursive=False)))
         if len_output_files != len(seg_filter):
             logger.info(f"Found {len_output_files} files -> expected {len(seg_filter)}!")

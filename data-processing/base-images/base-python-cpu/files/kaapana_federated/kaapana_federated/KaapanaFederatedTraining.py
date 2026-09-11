@@ -20,7 +20,7 @@ from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
 SERVICES_NAMESPACE = os.getenv("SERVICES_NAMESPACE", None)
-assert SERVICES_NAMESPACE != None
+assert SERVICES_NAMESPACE is not None
 
 
 # Todo move in Jonas library as normal function
@@ -156,7 +156,7 @@ class KaapanaFederatedTrainingBase(ABC):
             raise ConnectionError("You were redirect to the auth page. Your token is not valid!")
         try:
             r.raise_for_status()
-        except:
+        except Exception:
             raise ValueError(f"Something was not okay with your request code {r}: {r.text}!")
 
     def get_conf(self, workflow_dir=None):
@@ -472,7 +472,6 @@ class KaapanaFederatedTrainingBase(ABC):
         )
 
         # initialize network_weights with those of first client_instance
-        list_of_network_parameters = list(site_model_weights_dict.values())
         network_weights = site_model_weights_dict[client_instance_names[0]]
         # get addresses of keys
         keys = list(network_weights.keys())

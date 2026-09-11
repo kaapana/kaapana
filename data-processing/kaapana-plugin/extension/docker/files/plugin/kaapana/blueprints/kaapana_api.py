@@ -79,7 +79,6 @@ def get_dagrun_tasks(dag_id, run_id):
     dag_objects = DagBag().dags  # returns all DAGs available on platform
     desired_dag = dag_objects[dag_id]  # filter desired_dag from all available dags via dag_id
     session = settings.Session()
-    message = []
 
     task_ids = [task.task_id for task in desired_dag.tasks]  # get task_ids of desired_dag
     tis = session.query(
@@ -131,7 +130,6 @@ def abort_dag_run(dag_id, run_id):
     run_id = run_id
     commit = True
     session = session
-    state = TaskInstanceState.FAILED
 
     if not dag:
         return []
@@ -191,7 +189,7 @@ def abort_dag_run(dag_id, run_id):
     tis_n = session.query(TaskInstance).filter(
         TaskInstance.dag_id == dag.dag_id,
         TaskInstance.run_id == run_id,
-        TaskInstance.state == None,
+        TaskInstance.state.is_(None),
     )
     tis_n = [ti for ti in tis_n]
     if commit:
@@ -239,10 +237,8 @@ def getAllDagRuns():
     state = data["state"] if "state" in data else None
     limit = data["limit"] if "limit" in data else None
     count = data["count"] if "count" in data else None
-    categorize = data["categorize"] if "categorize" in data else None
 
     session = settings.Session()
-    time_format = "%Y-%m-%dT%H:%M:%S"
 
     try:
         all_dagruns = session.query(DagRun)
@@ -293,7 +289,6 @@ def getAllDagRuns():
 def get_dags_endpoint():
     with app.app_context():
         app.json.sort_keys = False
-    ids_only = request.args.get("ids_only")
     active_only = request.args.get("active_only")
     session = settings.Session()
 

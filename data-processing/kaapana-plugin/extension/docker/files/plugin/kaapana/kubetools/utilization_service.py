@@ -127,7 +127,7 @@ class UtilService:
             str(pool_description),
         ]
         logger.info(f"Creating pool {pool_name}: {pool_slots} - {pool_description}")
-        output = Popen(command)
+        Popen(command)
 
     @staticmethod
     def init_util_service():
@@ -225,7 +225,7 @@ class UtilService:
             UtilService.memory_available_limit = abs(UtilService.mem_alloc - UtilService.mem_lmt)
             pool_id = "NODE_GPU_COUNT"
             if (
-                UtilService.pool_gpu_count == None
+                UtilService.pool_gpu_count is None
                 or UtilService.pool_gpu_count != UtilService.gpu_dev_count
                 or UtilService.pool_gpu_count == 0
                 and GPU_SUPPORT
@@ -247,7 +247,6 @@ class UtilService:
                     else:
                         for gpu_info in UtilService.node_gpu_list:
                             node = gpu_info["node"]
-                            gpu_id = gpu_info["gpu_id"]
                             pool_id = gpu_info["pool_id"]
                             gpu_name = gpu_info["gpu_name"]
                             capacity = gpu_info["capacity"]
@@ -256,7 +255,6 @@ class UtilService:
                             if pool_id not in UtilService.node_gpu_queued_dict:
                                 UtilService.node_gpu_queued_dict[pool_id] = 0
 
-                            create_pool = False
                             UtilService.create_pool(
                                 pool_name=pool_id,
                                 pool_slots=capacity,
@@ -283,7 +281,7 @@ class UtilService:
                 UtilService.node_requested_memory = tmp_node_requested_memory
 
             pool_id = "NODE_CPU_CORES"
-            if UtilService.pool_cpu == None or UtilService.pool_cpu != UtilService.cpu_alloc:
+            if UtilService.pool_cpu is None or UtilService.pool_cpu != UtilService.cpu_alloc:
                 UtilService.create_pool(
                     pool_name=pool_id,
                     pool_slots=UtilService.cpu_alloc,
@@ -336,7 +334,7 @@ class UtilService:
             logger.warning("UtilService: enable_job_scheduler disabled!")
             return True, None
 
-        if UtilService.last_update == None:
+        if UtilService.last_update is None:
             UtilService.init_util_service()
             UtilService.get_utilization(logger=logger)
         elif (datetime.now() - UtilService.last_update).total_seconds() > job_scheduler_delay:
@@ -370,12 +368,12 @@ class UtilService:
 
         if (
             "cpu_millicores" in task_instance.executor_config
-            and task_instance.executor_config["cpu_millicores"] != None
+            and task_instance.executor_config["cpu_millicores"] is not None
         ):
             # TODO
             pass
 
-        if "ram_mem_mb" in task_instance.executor_config and task_instance.executor_config["ram_mem_mb"] != None:
+        if "ram_mem_mb" in task_instance.executor_config and task_instance.executor_config["ram_mem_mb"] is not None:
             mem_offset = round(UtilService.mem_alloc * default_memory_offset_percent)
             if task_instance.executor_config["ram_mem_mb"] >= (UtilService.memory_available_req - mem_offset):
                 logger.error("TI ram_mem_mb > UtilService.memory_available_req -> not scheduling!")
@@ -383,7 +381,7 @@ class UtilService:
 
         if (
             "gpu_mem_mb" in task_instance.executor_config
-            and task_instance.executor_config["gpu_mem_mb"] != None
+            and task_instance.executor_config["gpu_mem_mb"] is not None
             and task_instance.executor_config["gpu_mem_mb"] > 0
         ):
             logger.error(f"START: {task_instance.executor_config}")
@@ -430,7 +428,6 @@ class UtilService:
                     pool_id = gpu_info["pool_id"]
                     capacity = gpu_info["capacity"]
                     free = gpu_info["free"]
-                    queued_count = gpu_info["queued_count"]
                     queued_mb = gpu_info["queued_mb"]
                     queued_left = capacity - queued_mb
 

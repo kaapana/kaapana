@@ -74,7 +74,7 @@ async def websocket_endpoint(
     await con_mgr.connect(websocket)
     try:
         while True:
-            msg = await websocket.receive_text()
+            await websocket.receive_text()
     except WebSocketDisconnect:
         con_mgr.disconnect(websocket)
 

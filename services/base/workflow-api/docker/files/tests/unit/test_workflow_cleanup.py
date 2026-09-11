@@ -55,7 +55,6 @@ async def _patch_get_async_db_for_cleanup(monkeypatch, session: AsyncSession):
     service-module reference so cleanup work opens a fresh session on
     the same in-memory engine (StaticPool → shared connection → same data).
     """
-    async_engine = session.sync_session.bind  # AsyncEngine's sync facade
     # Reach back to the AsyncEngine through the sync engine's _proxied attr.
     # Simpler: pytest's session fixture leaks the engine via session.bind.
     bind = session.bind

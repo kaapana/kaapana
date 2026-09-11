@@ -10,11 +10,11 @@ if __name__ == "__main__":
     input_dirs = os.getenv("INPUT_MODALITY_DIRS", "").split(",")
     operator_output_dir = os.getenv("OPERATOR_OUT_DIR", None)
 
-    if operator_output_dir == None:
+    if operator_output_dir is None:
         print("# ENV 'OPERATOR_OUT_DIR' not set!")
         exit(1)
 
-    if task == None:
+    if task is None:
         print("# Env 'TASK_NUM' has to be specified!")
         print("# Abort!")
         exit(1)

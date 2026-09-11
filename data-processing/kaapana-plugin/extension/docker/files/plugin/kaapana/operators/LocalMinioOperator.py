@@ -64,7 +64,6 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
 
     @cache_operator_output
     def start(self, ds, **kwargs):
-        dag_run = kwargs["dag_run"]
         conf = kwargs["dag_run"].conf
         print("conf", conf)
         if (
@@ -172,7 +171,6 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
                 for object_dir in object_dirs:
                     for path, _, files in os.walk(os.path.join(local_root_dir, object_dir)):
                         for name in files:
-                            file_path = os.path.join(path, name)
                             rel_dir = os.path.relpath(path, local_root_dir)
                             rel_dir = "" if rel_dir == "." else rel_dir
                             if rel_dir == self.operator_out_dir:

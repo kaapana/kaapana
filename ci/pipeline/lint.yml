@@ -1,6 +1,6 @@
 # Stage: tests — lint report + Code Quality report
 # In:  the job's own checkout
-# Out: `lint` warns on formatting drift or an enforced ruff rule
+# Out: `lint` fails on formatting drift or an enforced ruff rule
 ##############################################
 # RUFF
 ##############################################
@@ -21,11 +21,10 @@
     - pip install --no-cache-dir "ruff==$RUFF_VERSION"
 
 ##############################################
-# Lint: formatting + the enforced rules from ruff.toml — advisory, never blocks
+# Lint: formatting + the enforced rules from ruff.toml — blocks the pipeline
 ##############################################
 lint:
   extends: .ruff_template
-  allow_failure: true
   script:
     # check only — run `ruff format .` locally to fix
     - ruff format --check --diff .

@@ -1,2 +1,6 @@
 # Migrate code style to Black
 3363ca3ea615ccdeff5463fc38e14776b58737ad
+
+# Migrate code style to Ruff: safe lint fixes and reformat
+18c8fcebbcaef80df2f8e36a6896c44ffe1e6ae7
+7e3909ff07485d4873de68082917c000b1c628a4

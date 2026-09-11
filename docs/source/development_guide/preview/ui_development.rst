@@ -157,6 +157,8 @@ independently buildable and testable and avoids premature abstraction.
 Extract into ``base-ui`` only once a piece is needed by several views *and*
 is small and stable enough that its API will not churn.
 
+.. _ui_dev_loop:
+
 Dev loop
 --------
 

@@ -15,6 +15,10 @@ which covers workflow and application extension development for those releases.
 Since version 0.7.0 you should consider to use the :doc:`New way of extending Kaapana <development_guide/feature_preview_root>`,
 which covers workflow, task and extension development with new and cleaner APIs.
 
+:doc:`Writing Tests <development_guide/writing_tests>` describes how to exercise
+processing-containers, local operators and user interfaces without a deployed
+platform.
+
 .. toctree::
     :maxdepth: 2
     :hidden:
@@ -23,4 +27,5 @@ which covers workflow, task and extension development with new and cleaner APIs.
     development_guide/legacy_dev_guide_root
     development_guide/feature_preview_root
     development_guide/legacy_workflow_migration
+    development_guide/writing_tests
 

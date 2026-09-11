@@ -28,10 +28,10 @@ and runs the task on Docker, with nothing else installed:
     python3 -m task_api.cli validate task.json --schema task
     python3 -m task_api.cli run task.json --mode docker
 
-A run writes a :file:`task_run-<id>.pkl` to the working directory, which
-:code:`task_api.cli logs` reads. It confirms that the container finds its
-inputs at the paths its task template declares, and writes its results in the
-layout of :ref:`data_structure_convention`.
+A run writes a :file:`task_run-<id>.pkl` to the working directory;
+:code:`task_api.cli logs` reads that file. The run confirms that the container
+finds its inputs at the paths its task template declares and writes its results
+in the layout of :ref:`data_structure_convention`.
 
 :ref:`processing_container_dev_guide` covers installing the CLI and describes
 the :file:`task.json` format, including a minimal file to start from.
@@ -43,8 +43,8 @@ An operator deriving from ``KaapanaPythonBaseOperator`` or
 ``KaapanaBranchPythonBaseOperator`` runs its code in the Airflow process itself,
 so a pytest test imports it and calls it directly, with no scheduler and no
 platform. One deriving from ``KaapanaBaseOperator`` launches a pod and keeps its
-logic in the container image, which is what the section above tests. The suite
-lives in :file:`tests/operators`.
+logic in the container image. That logic is tested as a processing-container,
+above. The suite lives in :file:`tests/operators`.
 
 Ordinary imports do not work at the top of the file. The plugin directory has
 to be on the path first, and an operator that pulls in modules from the
@@ -92,9 +92,9 @@ browser and serves fixture data. A suite therefore needs no cluster and no
 backend.
 
 Every view imports :code:`@kaapana/base-ui` and needs its :file:`dist/` built
-first, see :ref:`ui_dev_loop`. The app itself installs into its own
-:file:`docker/files`. There is no repository-wide setup, so run this once per
-app, and again whenever its lockfile changes:
+first, see :ref:`ui_dev_loop`. There is no repository-wide setup: each app
+installs into its own :file:`docker/files`, so run the steps below once per app,
+and again whenever the app's lockfile changes:
 
 .. code-block:: bash
 

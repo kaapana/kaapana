@@ -23,9 +23,7 @@ class PostRepositoryRequest(BaseModel):
 
 
 class PutRepositoryRequest(BaseModel):
-    name: Optional[str] = Field(
-        None, description="The human-readable name of the registry entry."
-    )
+    name: Optional[str] = Field(None, description="The human-readable name of the registry entry.")
     description: Optional[str] = Field(
         default=None,
         description="An optional description for the registry entry.",
@@ -35,12 +33,8 @@ class PutRepositoryRequest(BaseModel):
         None,
         description="The full URL of the repository to be added. <registry>/<repository>",
     )
-    username: Optional[str] = Field(
-        default=None, description="Name of the access token to the registry"
-    )
-    password: Optional[SecretStr] = Field(
-        default=None, description="The access token to the registry"
-    )
+    username: Optional[str] = Field(default=None, description="Name of the access token to the registry")
+    password: Optional[SecretStr] = Field(default=None, description="The access token to the registry")
 
 
 ### Response schemas
@@ -58,9 +52,7 @@ class Repository(BaseModel):
         description="The full URL of the repository to be added. <registry>/<repository>",
     )
 
-    id: uuid.UUID = Field(
-        ..., description="The unique identifier of the registry entry."
-    )
+    id: uuid.UUID = Field(..., description="The unique identifier of the registry entry.")
 
 
 ############ Extensions ###############

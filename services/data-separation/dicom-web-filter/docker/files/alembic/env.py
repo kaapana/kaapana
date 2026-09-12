@@ -1,13 +1,11 @@
 import asyncio
 import os
-import sys
 from logging.config import fileConfig
 
+from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
-
-from alembic import context
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -27,7 +25,8 @@ config.set_main_option("sqlalchemy.url", DATABASE_URL)
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-from app.models import Base
+# Kept below fileConfig() as in the alembic template: it disables loggers that already exist.
+from app.models import Base  # noqa: E402
 
 target_metadata = Base.metadata
 

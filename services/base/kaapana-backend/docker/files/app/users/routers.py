@@ -1,7 +1,9 @@
-from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Optional
-from .schemas import KaapanaRole, KaapanaGroup, KaapanaUser
+
 from app.dependencies import get_user_service
+from fastapi import APIRouter, Depends, HTTPException
+
+from .schemas import KaapanaGroup, KaapanaRole, KaapanaUser
 
 router = APIRouter(tags=["users"])
 

@@ -1,16 +1,14 @@
 # !!! DEPRECATION WARNING: Local Operators are deprecated and will be replaced with operators that run in Kubernetes pods in the next release v0.7.0.
 # If you have a custom Local Operator, it should be migrated to a processing container based operator.
-import datetime
 from pathlib import Path
 from subprocess import PIPE, run
 from typing import List
 
-import pydicom
-import pytz
-from kaapana.operators.HelperCaching import cache_operator_output
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapanapy.logger import get_logger
 from kaapanapy.settings import KaapanaSettings
+
+from kaapana.operators.HelperCaching import cache_operator_output
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 logger = get_logger(__name__)
 TIMEZONE = KaapanaSettings().timezone
@@ -40,13 +38,9 @@ class LocalRemoveDicomTagsOperator(KaapanaPythonBaseOperator):
         batch_folders: List[Path] = list((run_dir / self.batch_name).glob("*"))
         logger.info(f"Number of series: {len(batch_folders)}")
         for batch_element_dir in batch_folders:
-            files: List[Path] = sorted(
-                list((batch_element_dir / self.operator_in_dir).rglob(f"*.dcm"))
-            )
+            files: List[Path] = sorted(list((batch_element_dir / self.operator_in_dir).rglob("*.dcm")))
             if len(files) == 0:
-                raise FileNotFoundError(
-                    f"No dicom file found in {batch_element_dir / self.operator_in_dir}"
-                )
+                raise FileNotFoundError(f"No dicom file found in {batch_element_dir / self.operator_in_dir}")
             logger.info(f"length {len(files)}")
             for dcm_file_path in files:
                 logger.info(f"Remove tags for dicom file at {dcm_file_path}")
@@ -67,8 +61,6 @@ def remove_tags(
     Raises:
         InvalidDicomError: If the input file is not a valid DICOM file.
     """
-    protocol_id_tag = (0x0012, 0x0020)
-    sponsor_name_tag = (0x0012, 0x0010)
     cli_sponsor_name_tag = "0012,0010"
     cli_protocol_id_tag = "0012,0020"
 

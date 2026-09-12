@@ -1,22 +1,20 @@
 # !!! DEPRECATION WARNING: Local Operators are deprecated and will be replaced with operators that run in Kubernetes pods in the next release v0.7.0.
 # If you have a custom Local Operator, it should be migrated to a processing container based operator.
 import math
-import subprocess
-import threading
 import traceback
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import timedelta
 from queue import Queue
 from typing import List, Set, Tuple
 
 import requests
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapanapy.helper import get_minio_client
 from kaapanapy.logger import get_logger
-from minio import Minio
 from minio.commonconfig import ComposeSource, CopySource
 from minio.error import S3Error
+
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 logger = get_logger(__name__)
 
@@ -45,9 +43,7 @@ class LocalMinioDataTransferOperator(KaapanaPythonBaseOperator):
         response.raise_for_status()
         return response.json()
 
-    def list_objects(
-        self, client, bucket_name, paths: List[str]
-    ) -> Set[Tuple[str, int]]:
+    def list_objects(self, client, bucket_name, paths: List[str]) -> Set[Tuple[str, int]]:
         """
         List all objects in a bucket with given prefix paths.
 
@@ -92,25 +88,17 @@ class LocalMinioDataTransferOperator(KaapanaPythonBaseOperator):
                 )
 
                 # Copy the part to destination bucket
-                client.copy_object(
-                    bucket_name=dest_bucket, object_name=part_name, source=copy_source
-                )
+                client.copy_object(bucket_name=dest_bucket, object_name=part_name, source=copy_source)
 
                 # Prepare compose source for final composition
-                sources.append(
-                    ComposeSource(bucket_name=dest_bucket, object_name=part_name)
-                )
+                sources.append(ComposeSource(bucket_name=dest_bucket, object_name=part_name))
 
             # Compose the final object from parts
-            client.compose_object(
-                bucket_name=dest_bucket, object_name=obj_name, sources=sources
-            )
+            client.compose_object(bucket_name=dest_bucket, object_name=obj_name, sources=sources)
 
             # Clean up intermediate parts
             for source in sources:
-                client.remove_object(
-                    bucket_name=dest_bucket, object_name=source.object_name
-                )
+                client.remove_object(bucket_name=dest_bucket, object_name=source.object_name)
 
             logger.info(f"Large file copied: {obj_name}")
 
@@ -118,9 +106,7 @@ class LocalMinioDataTransferOperator(KaapanaPythonBaseOperator):
             logger.error(f"Error copying large file {obj_name}: {e}")
             raise
 
-    def copy_object(
-        self, client, source_bucket, dest_bucket, obj_name, size, error_queue=None
-    ):
+    def copy_object(self, client, source_bucket, dest_bucket, obj_name, size, error_queue=None):
         """
         Copy an object, using multipart upload if necessary.
 
@@ -134,9 +120,7 @@ class LocalMinioDataTransferOperator(KaapanaPythonBaseOperator):
         """
         try:
             if size > 5 * 1024 * 1024 * 1024:  # If > 5GB, use multipart copy
-                self.copy_large_object(
-                    client, source_bucket, dest_bucket, obj_name, size
-                )
+                self.copy_large_object(client, source_bucket, dest_bucket, obj_name, size)
             else:
                 # Simple copy for objects smaller than 5GB
                 source = CopySource(bucket_name=source_bucket, object_name=obj_name)
@@ -213,37 +197,28 @@ class LocalMinioDataTransferOperator(KaapanaPythonBaseOperator):
         :param ds: Airflow's ds parameter (date)
         :param kwargs: Additional keyword arguments from Airflow context
         """
-        dag_run = kwargs["dag_run"]
         conf = kwargs["dag_run"].conf
         logger.info(f"{conf=}")
         source_bucket = conf["project_form"]["s3_bucket"]
         destination_projects = conf["workflow_form"]["projects"]
         destination_buckets = []
         for destination_project in destination_projects:
-            destination_buckets.append(
-                self.get_project_by_name(destination_project)["s3_bucket"]
-            )
+            destination_buckets.append(self.get_project_by_name(destination_project)["s3_bucket"])
         logger.info(f"{source_bucket=}")
         logger.info(f"{destination_buckets=}")
         # Check if source_bucket is in destination_buckets
         if source_bucket in destination_buckets:
-            logger.info(
-                f"Source bucket {source_bucket} found in destination buckets. Removing it."
-            )
+            logger.info(f"Source bucket {source_bucket} found in destination buckets. Removing it.")
             destination_buckets.remove(source_bucket)
             logger.info(f"{destination_buckets=}")
         # Check if destination_buckets is now empty
         if not destination_buckets:
-            logger.info(
-                "No destination buckets remain after removing source bucket. Nothing to do here."
-            )
+            logger.info("No destination buckets remain after removing source bucket. Nothing to do here.")
             return
         files_and_folders = conf["backend_form"]["selectedFilesAndFolders"]
         minio_client = get_minio_client()
 
-        self.process_files(
-            minio_client, source_bucket, destination_buckets, files_and_folders
-        )
+        self.process_files(minio_client, source_bucket, destination_buckets, files_and_folders)
 
     def __init__(
         self,

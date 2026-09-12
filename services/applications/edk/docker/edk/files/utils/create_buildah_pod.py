@@ -18,22 +18,16 @@ NAMESPACE = os.getenv("NAMESPACE", None)
 assert NAMESPACE is not None, "ERROR: env variable NAMESPACE can not be empty"
 
 SHARED_VOLUME_PATH = os.getenv("VOLUME_PATH", None)
-assert (
-    SHARED_VOLUME_PATH is not None
-), "ERROR: env variable SHARED_VOLUME_PATH can not be empty"
+assert SHARED_VOLUME_PATH is not None, "ERROR: env variable SHARED_VOLUME_PATH can not be empty"
 
 LOCAL_REGISTRY_URL = os.getenv("LOCAL_REGISTRY_URL", None)
-assert (
-    LOCAL_REGISTRY_URL is not None
-), "ERROR: env variable LOCAL_REGISTRY_URL can not be empty"
+assert LOCAL_REGISTRY_URL is not None, "ERROR: env variable LOCAL_REGISTRY_URL can not be empty"
 
 REGISTRY_URL = os.getenv("REGISTRY_URL", None)
 assert REGISTRY_URL is not None, "ERROR: env variable REGISTRY_URL can not be empty"
 
 KAAPANA_BUILD_VERSION = os.getenv("KAAPANA_BUILD_VERSION", None)
-assert (
-    KAAPANA_BUILD_VERSION is not None
-), "ERROR: env variable KAAPANA_BUILD_VERSION can not be empty"
+assert KAAPANA_BUILD_VERSION is not None, "ERROR: env variable KAAPANA_BUILD_VERSION can not be empty"
 
 
 def get_image_info(dockerfile_path: str) -> tuple[str, str]:
@@ -47,13 +41,9 @@ def get_image_info(dockerfile_path: str) -> tuple[str, str]:
             elif line.startswith("LABEL VERSION="):
                 version = line.split("=")[-1].strip().strip('"')
     if name == "":
-        raise ValueError(
-            f"'LABEL IMAGE=' line not found in Dockerfile {dockerfile_path}"
-        )
+        raise ValueError(f"'LABEL IMAGE=' line not found in Dockerfile {dockerfile_path}")
     if version == "":
-        raise ValueError(
-            f"'LABEL VERSION=' line not found in Dockerfile {dockerfile_path}"
-        )
+        raise ValueError(f"'LABEL VERSION=' line not found in Dockerfile {dockerfile_path}")
 
     return name, version
 
@@ -92,9 +82,7 @@ def make_pod_yaml(
         image_version = f_image_version if image_version == "" else image_version
 
     # update pod name with image info and timestamp
-    pod_yaml["metadata"][
-        "name"
-    ] += f"-{image_name}-{image_version}-" + datetime.now().strftime("%Y%m%d%H%M%S")
+    pod_yaml["metadata"]["name"] += f"-{image_name}-{image_version}-" + datetime.now().strftime("%Y%m%d%H%M%S")
 
     # copy Dockerfile & context dir to shared volume
     dest_dir = copy_files(dockerfile, context, image_name)
@@ -188,18 +176,10 @@ def monitor_pod(pod_name: str, dest_dir: str) -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Create a Buildah builder pod under the same namespace"
-    )
-    parser.add_argument(
-        "yaml_file", type=str, help="The YAML file to use as a template"
-    )
-    parser.add_argument(
-        "--dockerfile", type=str, required=True, help="The path to the Dockerfile"
-    )
-    parser.add_argument(
-        "--context", type=str, required=True, help="The build context directory"
-    )
+    parser = argparse.ArgumentParser(description="Create a Buildah builder pod under the same namespace")
+    parser.add_argument("yaml_file", type=str, help="The YAML file to use as a template")
+    parser.add_argument("--dockerfile", type=str, required=True, help="The path to the Dockerfile")
+    parser.add_argument("--context", type=str, required=True, help="The build context directory")
     parser.add_argument(
         "--image_name",
         type=str,

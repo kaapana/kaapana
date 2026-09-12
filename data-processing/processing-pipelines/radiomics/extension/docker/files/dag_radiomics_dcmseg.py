@@ -1,14 +1,14 @@
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.dates import days_ago
 from datetime import timedelta
-from airflow.models import DAG
-from kaapana.operators.DcmConverterOperator import DcmConverterOperator
-from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
-from kaapana.operators.GetRefSeriesOperator import GetRefSeriesOperator
-from kaapana.operators.MinioOperator import MinioOperator
 
+from airflow.models import DAG
+from airflow.utils.dates import days_ago
+from airflow.utils.log.logging_mixin import LoggingMixin
+from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
+from kaapana.operators.GetRefSeriesOperator import GetRefSeriesOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
+from kaapana.operators.MinioOperator import MinioOperator
 from radiomics.RadiomicsOperator import RadiomicsOperator
 
 log = LoggingMixin().log

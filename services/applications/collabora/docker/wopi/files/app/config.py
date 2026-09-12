@@ -1,4 +1,5 @@
 import functools
+
 from pydantic_settings import BaseSettings
 
 

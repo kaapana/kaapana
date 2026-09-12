@@ -2,23 +2,23 @@ import os
 from pathlib import Path
 
 import pydicom
+import requests
 from generic import generate_generic_thumbnail
+from HelperThumbnails import NO_THUMBNAIL_MODALITIES
 from histopathology import generate_histopathology_thumbnail
 from kaapanapy.helper import load_workflow_config
 from kaapanapy.logger import get_logger
-from kaapanapy.settings import OperatorSettings
 from kaapanapy.services.NotificationService import Notification, NotificationService
+from kaapanapy.settings import OperatorSettings
 from kaapanapy.utils import ConfigError, is_batch_mode, process_batches, process_single
 from overlay_modalities import (
+    create_empty_ref_series,
     generate_rtstruct_thumbnail,
     generate_segmentation_thumbnail,
-    create_empty_ref_series,
 )
 from PIL import Image
 from pydicom.uid import EncapsulatedPDFStorage, RawDataStorage
-import requests
 from slice_based_modalities import generate_thumbnail_for_middle_slice
-from HelperThumbnails import NO_THUMBNAIL_MODALITIES
 
 logger = get_logger(__name__)
 
@@ -90,9 +90,7 @@ def generate_thumbnail(
 
     # Non-image modalities have no pixel data; skip without raising.
     if modality in NO_THUMBNAIL_MODALITIES:
-        logger.info(
-            f"Modality {modality} has no pixel data; skipping thumbnail generation"
-        )
+        logger.info(f"Modality {modality} has no pixel data; skipping thumbnail generation")
         return True, ""
 
     # thumbnail: Optional[Image.Image]
@@ -112,13 +110,9 @@ def generate_thumbnail(
                 Thumbnail for RTSTRUCT {series_uid} was not generated, because it arrived before the reference image. 
                 Rerun workflow generate-thumbnail after the reference image arrived to create a thumbnail."""
             send_notification(description=description)
-            raise Exception(
-                f"Cannot create thumbnail for RTSTRUCT if reference image is not available."
-            )
+            raise Exception("Cannot create thumbnail for RTSTRUCT if reference image is not available.")
         else:
-            thumbnail = generate_rtstruct_thumbnail(
-                operator_in_dir, operator_get_ref_series_dir, thumbnail_size
-            )
+            thumbnail = generate_rtstruct_thumbnail(operator_in_dir, operator_get_ref_series_dir, thumbnail_size)
     elif modality == "SEG":
         reference_images = [im for im in os.listdir(operator_get_ref_series_dir)]
         if not reference_images:
@@ -177,12 +171,8 @@ def main():
 
         operator_get_ref_series_dir = os.getenv("GET_REF_SERIES_OPERATOR_DIR")
         if operator_get_ref_series_dir is None:
-            logger.error(
-                "Missing required environment variable: GET_REF_SERIES_OPERATOR_DIR"
-            )
-            raise ConfigError(
-                "Missing required environment variable: GET_REF_SERIES_OPERATOR_DIR"
-            )
+            logger.error("Missing required environment variable: GET_REF_SERIES_OPERATOR_DIR")
+            raise ConfigError("Missing required environment variable: GET_REF_SERIES_OPERATOR_DIR")
 
         workflow_dir = Path(operator_settings.workflow_dir)
         batch_name = operator_settings.batch_name
@@ -198,9 +188,7 @@ def main():
             logger.error(f"{batch_dir} directory does not exist")
             raise ConfigError(f"{batch_dir} directory does not exist")
 
-        logger.info(
-            "All required directories and environment variables are validated successfully."
-        )
+        logger.info("All required directories and environment variables are validated successfully.")
 
     except ConfigError as e:
         logger.critical(f"Configuration error: {e}")

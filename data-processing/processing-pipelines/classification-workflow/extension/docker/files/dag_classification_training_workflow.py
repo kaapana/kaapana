@@ -81,9 +81,7 @@ args = {
     "retry_delay": timedelta(seconds=30),
 }
 
-dag = DAG(
-    dag_id="classification-training", default_args=args, schedule_interval=None
-)
+dag = DAG(dag_id="classification-training", default_args=args, schedule_interval=None)
 
 get_input = GetInputOperator(dag=dag)
 convert = DcmConverterOperator(dag=dag, input_operator=get_input)

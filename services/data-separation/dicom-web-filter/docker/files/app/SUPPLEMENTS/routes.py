@@ -1,5 +1,4 @@
 import logging
-from uuid import UUID
 
 import httpx
 from app import crud
@@ -18,9 +17,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 
 
 # Supplement 203: Thumbnail Resources for DICOMweb
-@router.get(
-    "/studies/{study}/series/{series}/instances/{instance}/thumbnail", tags=["WADO-RS"]
-)
+@router.get("/studies/{study}/series/{series}/instances/{instance}/thumbnail", tags=["WADO-RS"])
 async def retrieve_instance_thumbnail(
     study: str,
     series: str,
@@ -29,9 +26,7 @@ async def retrieve_instance_thumbnail(
     session: AsyncSession = Depends(get_session),
     project_ids_of_user=Depends(get_scoped_project_ids),
 ):
-    if is_unscoped_admin(
-        request
-    ) or await crud.check_if_series_in_given_study_is_mapped_to_projects(
+    if is_unscoped_admin(request) or await crud.check_if_series_in_given_study_is_mapped_to_projects(
         session=session,
         project_ids=project_ids_of_user,
         study_instance_uid=study,
@@ -68,9 +63,7 @@ async def retrieve_series_thumbnail(
     session: AsyncSession = Depends(get_session),
     project_ids_of_user=Depends(get_scoped_project_ids),
 ):
-    if is_unscoped_admin(
-        request
-    ) or await crud.check_if_series_in_given_study_is_mapped_to_projects(
+    if is_unscoped_admin(request) or await crud.check_if_series_in_given_study_is_mapped_to_projects(
         session=session,
         project_ids=project_ids_of_user,
         study_instance_uid=study,

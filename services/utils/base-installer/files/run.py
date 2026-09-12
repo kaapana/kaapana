@@ -1,7 +1,6 @@
 import os
 import re
 import shutil
-import warnings
 from pathlib import Path
 from typing import Any, Dict, Generator, Optional
 
@@ -40,19 +39,13 @@ class Settings(BaseSettings):
     """
 
     tmp_prefix: str = "/kaapana/tmp/"
-    target_prefix: str = Field(
-        default_factory=lambda: os.getenv("TARGET_PREFIX", "/kaapana/mounted/workflows")
-    )
+    target_prefix: str = Field(default_factory=lambda: os.getenv("TARGET_PREFIX", "/kaapana/mounted/workflows"))
     action: str = Field(default_factory=lambda: os.getenv("ACTION", "copy"))
 
     admin_namespace: Optional[str] = Field(default=None, alias="ADMIN_NAMESPACE")
     services_namespace: Optional[str] = Field(default=None, alias="SERVICES_NAMESPACE")
-    kaapana_build_version: Optional[str] = Field(
-        default=None, alias="KAAPANA_BUILD_VERSION"
-    )
-    kaapana_default_registry: Optional[str] = Field(
-        default=None, alias="KAAPANA_DEFAULT_REGISTRY"
-    )
+    kaapana_build_version: Optional[str] = Field(default=None, alias="KAAPANA_BUILD_VERSION")
+    kaapana_default_registry: Optional[str] = Field(default=None, alias="KAAPANA_DEFAULT_REGISTRY")
     docker_version: Optional[str] = Field(default=None, alias="DOCKER_VERSION")
 
     @property
@@ -168,17 +161,11 @@ def get_images(target_dir: str, settings: Settings) -> Dict[str, Any]:
         for match in re.findall(REGEX, content):
             match = list(match)
             registry = match[1].replace("{default_registry}", "{DEFAULT_REGISTRY}")
-            registry_url = registry.replace(
-                "{DEFAULT_REGISTRY}", settings.kaapana_default_registry or ""
-            )
+            registry_url = registry.replace("{DEFAULT_REGISTRY}", settings.kaapana_default_registry or "")
 
             image = match[3]
-            version = match[4].replace(
-                "{default_version_identifier}", "{DOCKER_VERSION}"
-            )
-            version = version.replace(
-                "{DOCKER_VERSION}", settings.docker_version_effective or ""
-            )
+            version = match[4].replace("{default_version_identifier}", "{DOCKER_VERSION}")
+            version = version.replace("{DOCKER_VERSION}", settings.docker_version_effective or "")
 
             full_image = f"{registry_url}/{image}:{version}"
             logger.debug("Found image: %s", full_image)
@@ -281,9 +268,7 @@ def trigger_services(settings: Settings) -> None:
             url = f"{settings.helm_api}/pull-docker-image"
             for _, payload in get_images(settings.tmp_prefix, settings).items():
                 response = requests.post(url, json=payload)
-                logger.info(
-                    "Status: %d | Response: %s", response.status_code, response.text
-                )
+                logger.info("Status: %d | Response: %s", response.status_code, response.text)
 
     if settings.action == "remove":
         if not settings.airflow_api:
@@ -292,9 +277,7 @@ def trigger_services(settings: Settings) -> None:
             logger.info("Triggering DAG update in Airflow...")
             try:
                 response = requests.post(settings.airflow_api, json={}, timeout=2)
-                logger.info(
-                    "Status: %d | Response: %s", response.status_code, response.text
-                )
+                logger.info("Status: %d | Response: %s", response.status_code, response.text)
             except requests.exceptions.RequestException as e:
                 # Airflow may already be shutting down;
                 logger.warning("Airflow trigger failed (non-fatal during removal): %s", e)

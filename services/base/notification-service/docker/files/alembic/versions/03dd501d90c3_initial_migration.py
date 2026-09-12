@@ -8,8 +8,8 @@ Create Date: 2025-04-30 11:38:00.960228
 
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
@@ -36,12 +36,8 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("receivers", sa.ARRAY(sa.String()), nullable=True),
-        sa.Column(
-            "receviers_read", postgresql.JSONB(astext_type=sa.Text()), nullable=True
-        ),
-        sa.CheckConstraint(
-            "array_ndims(receivers) = 1", name="receivers_one_dimensional"
-        ),
+        sa.Column("receviers_read", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.CheckConstraint("array_ndims(receivers) = 1", name="receivers_one_dimensional"),
         sa.PrimaryKeyConstraint("id"),
     )
 

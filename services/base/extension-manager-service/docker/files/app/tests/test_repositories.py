@@ -167,7 +167,6 @@ async def test_post_conflict_repository(client: AsyncClient):
     )
     assert response.status_code == 201
     assert response.headers.get("Location").startswith("/repositories/")
-    location = response.headers["Location"]
 
     response = await client.post(
         "/repositories",
@@ -200,9 +199,7 @@ async def test_post_repository_get_extensions_get_manifests(client: AsyncClient)
 
     response = await client.get(location + "/extensionManifests")
     assert response.status_code == 200
-    with open(
-        f"{Path(__file__).parent.parent}/v1/mock_data/extension-v1/extension_manifest.json"
-    ) as f:
+    with open(f"{Path(__file__).parent.parent}/v1/mock_data/extension-v1/extension_manifest.json") as f:
         manifest = json.load(f)
     assert response.json() == [
         {

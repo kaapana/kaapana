@@ -1,18 +1,18 @@
-import json
 import base64
+import json
 import re
 import time
 from enum import Enum
+from typing import List, Tuple
+
 from kubernetes import client, config, watch
-from task_api.processing_container import task_models, pc_models
-from task_api.processing_container.resources import compute_memory_resources
+from task_api.processing_container import pc_models, task_models
 from task_api.processing_container.common import (
     create_task_instance,
     get_task_template,
 )
+from task_api.processing_container.resources import compute_memory_resources
 from task_api.runners.base import BaseRunner
-
-from typing import Tuple, List
 
 
 def generate_pod_name(base_name: str) -> str:
@@ -81,9 +81,7 @@ def get_volume_and_mounts(
 def get_container(
     task_instance: task_models.TaskInstance, volume_mounts: List[client.V1VolumeMount]
 ) -> client.V1Container:
-    env_vars = [
-        client.V1EnvVar(name=env.name, value=env.value) for env in task_instance.env
-    ]
+    env_vars = [client.V1EnvVar(name=env.name, value=env.value) for env in task_instance.env]
     return client.V1Container(
         name="main",
         image=task_instance.image,
@@ -166,9 +164,7 @@ class KubernetesRunner(BaseRunner):
             volume_names.add(volume.name)
         volume_mounts.extend(task_instance.config.volume_mounts)
         task_instance.resources = compute_memory_resources(task_instance)
-        task_container = get_container(
-            task_instance=task_instance, volume_mounts=volume_mounts
-        )
+        task_container = get_container(task_instance=task_instance, volume_mounts=volume_mounts)
         task_container.env = task_container.env + task_instance.config.env_vars
 
         pod_spec = client.V1PodSpec(
@@ -197,12 +193,8 @@ class KubernetesRunner(BaseRunner):
             )
 
         # push pod to Kubernetes
-        cls._logger.info(
-            f"Creating pod '{pod_name}' in namespace '{task_instance.config.namespace}'..."
-        )
-        pod = cls.api.create_namespaced_pod(
-            namespace=task_instance.config.namespace, body=pod
-        )
+        cls._logger.info(f"Creating pod '{pod_name}' in namespace '{task_instance.config.namespace}'...")
+        pod = cls.api.create_namespaced_pod(namespace=task_instance.config.namespace, body=pod)
         id = pod.metadata.name
         return task_models.TaskRun(
             id=id,
@@ -230,7 +222,6 @@ class KubernetesRunner(BaseRunner):
             log_timeout (int): Max time in seconds to stream logs before raising TimeoutError.
         """
         cls._logger.debug("Waiting for pod to start running...")
-        w = watch.Watch()
 
         # Wait until pod is in Running state
         cls.wait_for_task_status(
@@ -255,12 +246,8 @@ class KubernetesRunner(BaseRunner):
 
             for line in logs:
                 if abs(time.time() - start_time) > log_timeout:
-                    cls._logger.error(
-                        f"Log streaming exceeded timeout of {log_timeout}s for pod {task_run.id}"
-                    )
-                    raise TimeoutError(
-                        f"Log streaming exceeded timeout of {log_timeout}s"
-                    )
+                    cls._logger.error(f"Log streaming exceeded timeout of {log_timeout}s for pod {task_run.id}")
+                    raise TimeoutError(f"Log streaming exceeded timeout of {log_timeout}s")
 
                 cls._logger.info(line.decode("utf-8").rstrip())
 
@@ -272,9 +259,7 @@ class KubernetesRunner(BaseRunner):
 
     @classmethod
     def stop(cls, task_run: task_models.TaskRun):
-        cls.api.delete_namespaced_pod(
-            name=task_run.id, namespace=task_run.config.namespace
-        )
+        cls.api.delete_namespaced_pod(name=task_run.id, namespace=task_run.config.namespace)
 
     @classmethod
     def wait_for_task_status(
@@ -321,9 +306,7 @@ class KubernetesRunner(BaseRunner):
         )
 
     @classmethod
-    def create_image_pull_secret(
-        cls, task: task_models.Task, secret_name: str
-    ) -> client.V1Secret:
+    def create_image_pull_secret(cls, task: task_models.Task, secret_name: str) -> client.V1Secret:
         """
         Create a secret derived from registryUrl, registryUsername, registryPassword
         that can be used as ImagePullSecret
@@ -345,41 +328,24 @@ class KubernetesRunner(BaseRunner):
         secret = client.V1Secret(
             metadata=client.V1ObjectMeta(name=secret_name),
             type="kubernetes.io/dockerconfigjson",
-            data={
-                ".dockerconfigjson": base64.b64encode(
-                    json.dumps(reg_config_json).encode()
-                ).decode()
-            },
+            data={".dockerconfigjson": base64.b64encode(json.dumps(reg_config_json).encode()).decode()},
         )
         try:
-            cls.api.create_namespaced_secret(
-                namespace=task.config.namespace, body=secret
-            )
+            cls.api.create_namespaced_secret(namespace=task.config.namespace, body=secret)
         except client.ApiException as e:
             if e.status == 409 or e.reason == "Conflict":
-                cls._logger.warning(
-                    f"Secret {secret_name} already exists in namespace {task.config.namespace}."
-                )
+                cls._logger.warning(f"Secret {secret_name} already exists in namespace {task.config.namespace}.")
         return secret
 
     @classmethod
-    def get_image_pull_secrets(
-        cls, task: task_models.Task
-    ) -> List[client.V1LocalObjectReference]:
+    def get_image_pull_secrets(cls, task: task_models.Task) -> List[client.V1LocalObjectReference]:
         image_pull_secrets = []
-        if (
-            task.config.registryUrl
-            and task.config.registryUsername
-            and task.config.registryPassword
-        ):
+        if task.config.registryUrl and task.config.registryUsername and task.config.registryPassword:
             secret_name = f"{generate_pod_name(task.name)}-secret"
             cls.create_image_pull_secret(task, secret_name)
             image_pull_secrets.append(client.V1LocalObjectReference(name=secret_name))
         if task.config.imagePullSecrets:
             image_pull_secrets.extend(
-                [
-                    client.V1LocalObjectReference(name=name)
-                    for name in task.config.imagePullSecrets
-                ]
+                [client.V1LocalObjectReference(name=name) for name in task.config.imagePullSecrets]
             )
         return image_pull_secrets

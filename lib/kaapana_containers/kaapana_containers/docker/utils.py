@@ -1,6 +1,7 @@
-from contextlib import contextmanager
-import tarfile
 import io
+import tarfile
+from contextlib import contextmanager
+
 import docker
 
 
@@ -28,9 +29,7 @@ class DockerUtils:
                 tar_filename = file.lstrip("/")
                 extracted = tar.extractfile(tar_filename)
                 if extracted is None:
-                    raise FileNotFoundError(
-                        f"{file} not found in container image: {image}"
-                    )
+                    raise FileNotFoundError(f"{file} not found in container image: {image}")
                 yield extracted
         finally:
             scratch.remove()

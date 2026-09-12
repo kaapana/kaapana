@@ -2,11 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.db.models import ArtifactORM, DataEntityORM, MetadataEntryORM
 from app.services.artifact_store import ArtifactStore
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @dataclass
@@ -19,9 +18,7 @@ class ArtifactPruneStats:
         return max(self.scanned_files - self.deleted_files, 0)
 
 
-async def prune_orphan_artifacts(
-    db: AsyncSession, store: ArtifactStore
-) -> ArtifactPruneStats:
+async def prune_orphan_artifacts(db: AsyncSession, store: ArtifactStore) -> ArtifactPruneStats:
     stmt = (
         select(DataEntityORM.id, MetadataEntryORM.key, ArtifactORM.artifact_id)
         .join(MetadataEntryORM, MetadataEntryORM.entity_id == DataEntityORM.id)
@@ -29,8 +26,7 @@ async def prune_orphan_artifacts(
     )
     result = await db.execute(stmt)
     valid = {
-        store.normalize_components(str(entity_id), key, artifact_id)
-        for entity_id, key, artifact_id in result.all()
+        store.normalize_components(str(entity_id), key, artifact_id) for entity_id, key, artifact_id in result.all()
     }
 
     scanned = deleted = 0

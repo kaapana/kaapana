@@ -42,10 +42,6 @@ async def run_in_background_with_retries(
             # Log full traceback — this is important for debugging transient failures.
             logger.exception(f"Attempt {attempt}/{max_retries} failed for {func.__name__}")
             if attempt == max_retries:
-                logger.exception(
-                    f"All {max_retries} retries failed for background task {func.__name__}"
-                )
+                logger.exception(f"All {max_retries} retries failed for background task {func.__name__}")
                 return
-            await asyncio.sleep(
-                delay_seconds * (2 ** (attempt - 1))
-            )  # exponential backoff
+            await asyncio.sleep(delay_seconds * (2 ** (attempt - 1)))  # exponential backoff

@@ -17,7 +17,7 @@ def wait_for_workflow(kaapana: WorkflowEndpoints, workflow_name, timeout=3600) -
     while abs(start_time - time.time()) < timeout:
         try:
             jobs_info = kaapana.get_jobs_info(workflow_name=workflow_name)
-        except:
+        except Exception:
             pass
         jobs_status = [job.get("status") for job in jobs_info]
         logger.debug(f"jobs_info: {jobs_status}")
@@ -42,9 +42,7 @@ def set_task_form_environment(env_name: str, env_value: str, testcase: dict):
             for i, env in enumerate(task_config.get("env", [])):
                 print(i, env)
                 if env["name"] == env_name:
-                    copied_env = testcase["conf_data"]["task_form"][task_id][
-                        "env"
-                    ].copy()
+                    copied_env = testcase["conf_data"]["task_form"][task_id]["env"].copy()
                     copied_env.pop(i)
                     copied_env.append(
                         {
@@ -85,12 +83,8 @@ async def test_workflow(workflow_endpoints: WorkflowEndpoints, testconfig):
         testcase["instance_names"] = instance_names
 
     ### Adjust KAAPANA_PROJECT_IDENTIFIER in conf_data.task_form.<task_id>
-    for name, value in [
-        ("KAAPANA_PROJECT_IDENTIFIER", kaapana.admin_project.get("id"))
-    ]:
-        testcase = set_task_form_environment(
-            env_name=name, env_value=value, testcase=testcase
-        )
+    for name, value in [("KAAPANA_PROJECT_IDENTIFIER", kaapana.admin_project.get("id"))]:
+        testcase = set_task_form_environment(env_name=name, env_value=value, testcase=testcase)
 
     ### Trigger the workflow
     try:

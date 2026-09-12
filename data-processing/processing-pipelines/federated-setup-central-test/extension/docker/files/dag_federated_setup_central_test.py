@@ -1,18 +1,13 @@
-import os
 from datetime import timedelta
-from datetime import datetime
-
 
 from airflow.models import DAG
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
-from airflow.utils.trigger_rule import TriggerRule
-
-from kaapana.blueprints.json_schema_templates import properties_external_federated_form
-from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from airflow.utils.log.logging_mixin import LoggingMixin
 from federated_setup_central_test.FedartedSetupCentralTestOperator import (
     FedartedSetupCentralTestOperator,
 )
+from kaapana.blueprints.json_schema_templates import properties_external_federated_form
+from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 log = LoggingMixin().log
 

@@ -1,10 +1,8 @@
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from airflow.models import DAG
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
-
 from extract_scanparameter.ExtractScanparameterOperator import (
     ExtractScanparameterOperator,
 )

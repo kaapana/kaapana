@@ -1,13 +1,12 @@
+import logging
 import os
 import re
 
 import requests
+from kaapanapy.logger import get_logger
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-import logging
-
-from kaapanapy.logger import get_logger
 
 logger = get_logger(__name__, logging.DEBUG)
 
@@ -45,13 +44,9 @@ class KeycloakHelper:
         keycloak_host=None,
         keycloak_https_port=None,
     ):
-        self.client_secret = (
-            client_secret or os.environ["KEYCLOAK_SERVICE_CLIENT_SECRET"]
-        )
+        self.client_secret = client_secret or os.environ["KEYCLOAK_SERVICE_CLIENT_SECRET"]
         self.keycloak_host = keycloak_host or os.environ["KEYCLOAK_HOST"]
-        self.keycloak_https_port = keycloak_https_port or os.getenv(
-            "KEYCLOAK_HTTPS_PORT", 443
-        )
+        self.keycloak_https_port = keycloak_https_port or os.getenv("KEYCLOAK_HTTPS_PORT", 443)
         self.auth_url = f"https://{self.keycloak_host}:{self.keycloak_https_port}/auth/admin/realms/"
         self.service_access_token = self.get_access_token(
             self.client_secret,
@@ -107,14 +102,12 @@ class KeycloakHelper:
         if r.status_code in [409]:
             logger.warning("Ressource already exists.")
             if update_url:
-                logger.info(f"Ressource will be updated!")
-                r = self.make_authorized_request(
-                    update_url, requests.put, payload, timeout=timeout, **kwargs
-                )
-                logger.info(f"Ressource was updated!")
+                logger.info("Ressource will be updated!")
+                r = self.make_authorized_request(update_url, requests.put, payload, timeout=timeout, **kwargs)
+                logger.info("Ressource was updated!")
                 r.raise_for_status()
             else:
-                logger.warning(f"Ressource won't be updated")
+                logger.warning("Ressource won't be updated")
         else:
             r.raise_for_status()
         return r
@@ -123,15 +116,13 @@ class KeycloakHelper:
         url = self.auth_url + "kaapana/users"
         response = self.make_authorized_request(url, requests.post, payload, **kwargs)
         if response.status_code == 409 and reset_password:
-            logger.warning(f"Reset password!")
+            logger.warning("Reset password!")
             user = self.get_user_by_name(payload.get("username"))
             user_id = user.get("id")
             url = self.auth_url + f"kaapana/users/{user_id}/reset-password"
             reset_payload = payload.get("credentials")[0]
             reset_payload["temporary"] = False
-            reset_response = self.make_authorized_request(
-                url, requests.put, reset_payload, **kwargs
-            )
+            reset_response = self.make_authorized_request(url, requests.put, reset_payload, **kwargs)
             reset_response.raise_for_status()
             logger.info(f"Reset password for user {user_id} ")
 
@@ -139,7 +130,7 @@ class KeycloakHelper:
         """
         Get all the keycloak users with full details including email
         """
-        url = self.auth_url + f"kaapana/users"
+        url = self.auth_url + "kaapana/users"
         r = self.make_authorized_request(url, requests.get)
         users_list = r.json()
 
@@ -165,23 +156,19 @@ class KeycloakHelper:
             groups_response = self.make_authorized_request(groups_url, requests.get)
             user_groups = [group["name"] for group in groups_response.json()]
             return user_groups
-        except Exception as e:
+        except Exception:
             return []
 
     def get_user_realm_roles(self, userid: str):
         """
         Get keycloak user realm-roles by userid
         """
-        role_mappings_url = (
-            self.auth_url + f"kaapana/users/{userid}/role-mappings/realm/composite"
-        )
+        role_mappings_url = self.auth_url + f"kaapana/users/{userid}/role-mappings/realm/composite"
         try:
-            role_mappings_response = self.make_authorized_request(
-                role_mappings_url, requests.get
-            )
+            role_mappings_response = self.make_authorized_request(role_mappings_url, requests.get)
             role_mappings = role_mappings_response.json()
             return [role.get("name") for role in role_mappings]
-        except Exception as e:
+        except Exception:
             return []
 
     def get_user_by_name(self, username: str):

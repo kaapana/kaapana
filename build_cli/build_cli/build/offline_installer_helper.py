@@ -86,19 +86,11 @@ class OfflineInstallerHelper:
         snap_version = snap_filename.split("_")[-1].split(".")[0]
         snap_file_path = target_path / snap_filename
         assert snap_file_path.exists()
-        snap_file_path.rename(
-            snap_file_path.with_name(
-                snap_file_path.name.replace(f"_{snap_version}", "")
-            )
-        )
+        snap_file_path.rename(snap_file_path.with_name(snap_file_path.name.replace(f"_{snap_version}", "")))
 
         assert_file_path = target_path / f"{name}_{snap_version}.assert"
         assert assert_file_path.exists()
-        assert_file_path.rename(
-            assert_file_path.with_name(
-                assert_file_path.name.replace(f"_{snap_version}", "")
-            )
-        )
+        assert_file_path.rename(assert_file_path.with_name(assert_file_path.name.replace(f"_{snap_version}", "")))
 
     @classmethod
     def download_gpu_operator_chart(cls, target_path: Path) -> bool:
@@ -139,9 +131,7 @@ class OfflineInstallerHelper:
                 )
                 if output.returncode != 0 and "already exists" not in output.stderr:
                     last_error = output.stderr.strip() or output.stdout.strip()
-                    logger.warning(
-                        f"Helm command failed on attempt {attempt}/{retry_count}: {last_error}"
-                    )
+                    logger.warning(f"Helm command failed on attempt {attempt}/{retry_count}: {last_error}")
 
             cmd = [
                 helm_executable,
@@ -162,9 +152,7 @@ class OfflineInstallerHelper:
                 return True
 
             last_error = output.stderr.strip() or output.stdout.strip()
-            logger.warning(
-                f"Helm download failed on attempt {attempt}/{retry_count}: {last_error}"
-            )
+            logger.warning(f"Helm download failed on attempt {attempt}/{retry_count}: {last_error}")
             if attempt < retry_count:
                 sleep(attempt * 2)
 
@@ -268,14 +256,11 @@ class OfflineInstallerHelper:
     @classmethod
     def export_platform_images_tarball(cls, platform_chart) -> None:
         if cls._build_config.skip_platform_images_tarball:
-            logger.info(
-                "Skipping platform images tarball (--skip-platform-images-tarball)."
-            )
+            logger.info("Skipping platform images tarball (--skip-platform-images-tarball).")
             return
 
         images_tarball_path = (
-            platform_chart.build_chart_dir.parent
-            / f"{platform_chart.name}-{platform_chart.version}-images.tar"
+            platform_chart.build_chart_dir.parent / f"{platform_chart.name}-{platform_chart.version}-images.tar"
         )
         cls.export_image_list_into_tarball(
             image_list=[c.tag for c in cls._build_state.selected_containers],
@@ -315,9 +300,7 @@ class OfflineInstallerHelper:
             microk8s_base_images = json.load(f)["microk8s_base_images"]
         images_tarball_path = offline_dir / "microk8s_base_images.tar"
         logger.info("Pulling Microk8s base images...")
-        with alive_bar(
-            len(microk8s_base_images), dual_line=True, title="Pull Microk8s base-images"
-        ) as bar:
+        with alive_bar(len(microk8s_base_images), dual_line=True, title="Pull Microk8s base-images") as bar:
             for image in microk8s_base_images:
                 bar.text(f"Pull: {image}")
                 ContainerHelper.pull_container_image(image, platform=image_platform)
@@ -381,9 +364,7 @@ class OfflineInstallerHelper:
         try:
             from kaapana_containers.registries.registry import OCIRegistryDiscovery
         except ImportError:
-            lib_root = (
-                Path(cls._build_config.kaapana_dir) / "lib" / "kaapana_containers"
-            )
+            lib_root = Path(cls._build_config.kaapana_dir) / "lib" / "kaapana_containers"
             sys.path.insert(0, str(lib_root))
             from kaapana_containers.registries.registry import OCIRegistryDiscovery
         return OCIRegistryDiscovery
@@ -413,9 +394,7 @@ class OfflineInstallerHelper:
                 raise RuntimeError(msg)
             return None
 
-        tarball = (
-            Path(cls._build_config.build_dir) / f"offline-installer-{version}.tar.gz"
-        )
+        tarball = Path(cls._build_config.build_dir) / f"offline-installer-{version}.tar.gz"
         logger.info(f"Packaging offline installer {offline_dir} -> {tarball}")
         with tarfile.open(tarball, "w:gz") as tar:
             tar.add(offline_dir, arcname=".")  # unpacks straight into the target dir

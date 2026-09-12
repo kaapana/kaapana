@@ -1,12 +1,12 @@
 import logging
+from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect
+from app.database import async_engine
+from app.dependencies import get_connection_manager
+from app.models import Base
 from app.notifications.v1.routes import router as router_v1
 from app.notifications.v2.routes import router as router_v2
-from app.dependencies import get_connection_manager
-from app.database import async_engine
-from app.models import Base
-from contextlib import asynccontextmanager
+from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ async def websocket_endpoint(
     try:
         while True:
             # No server operations
-            msg = await websocket.receive_text()
+            await websocket.receive_text()
     except WebSocketDisconnect:
         con_mgr.disconnect(websocket)
 

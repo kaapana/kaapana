@@ -3,22 +3,30 @@ import glob
 import json
 import logging
 import os
+import pickle
 import re
 import shutil
+import signal
 import time
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import requests
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import BaseOperator, Variable
 from airflow.models.skipmixin import SkipMixin
-from airflow.utils.dates import days_ago
-from airflow.utils.state import State
-from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.context import Context
+from airflow.utils.dates import days_ago
+from airflow.utils.trigger_rule import TriggerRule
+from kaapanapy.services.NotificationService import Notification, NotificationService
+from kaapanapy.settings import ServicesSettings
+from kubernetes import client
+from kubernetes import config as k8s_config_loader
+from task_api.processing_container import pc_models, task_models
+from task_api.runners.KubernetesRunner import KubernetesRunner, PodPhase
+
 from kaapana.blueprints.kaapana_global_variables import (
     ADMIN_NAMESPACE,
-    SERVICES_NAMESPACE,
     AIRFLOW_WORKFLOW_DIR,
     BATCH_NAME,
     DEFAULT_PROJECT_NAMESPACE,
@@ -28,22 +36,12 @@ from kaapana.blueprints.kaapana_global_variables import (
     PLATFORM_VERSION,
     PROCESSING_WORKFLOW_DIR,
     PULL_POLICY_IMAGES,
+    SERVICES_NAMESPACE,
 )
 from kaapana.blueprints.kaapana_utils import cure_invalid_name, get_release_name
 from kaapana.operators import HelperSendEmailService
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperFederated import federated_sharing_decorator
-from kaapanapy.services.NotificationService import Notification, NotificationService
-from kaapanapy.settings import ServicesSettings
-
-import signal
-import pickle
-from pathlib import Path
-from task_api.processing_container import task_models, pc_models
-from task_api.runners.KubernetesRunner import KubernetesRunner, PodPhase
-from kubernetes import client
-from kubernetes import config as k8s_config_loader
-
 
 KAAPANA_SKIP_TASK_RUN_RETURN_CODE = 126
 # Backward compatibility
@@ -226,9 +224,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.env_vars = env_vars or {}
         self.namespace = namespace
         self.cmds = [cmds] if isinstance(cmds, str) else (cmds or [])
-        self.arguments = (
-            [arguments] if isinstance(arguments, str) else (arguments or [])
-        )
+        self.arguments = [arguments] if isinstance(arguments, str) else (arguments or [])
         self.labels = labels or {}
         self.labels.update(
             {
@@ -272,21 +268,15 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                             if self.cpu_millicores_lmt is not None
                             else self.cpu_millicores + 100
                         )
-                        if self.cpu_millicores != None
+                        if self.cpu_millicores is not None
                         else None
                     ),
                     "memory": "{}Mi".format(
-                        self.ram_mem_mb_lmt
-                        if self.ram_mem_mb_lmt is not None
-                        else self.ram_mem_mb + 100
+                        self.ram_mem_mb_lmt if self.ram_mem_mb_lmt is not None else self.ram_mem_mb + 100
                     ),
                 },
                 requests={
-                    "cpu": (
-                        "{}m".format(self.cpu_millicores)
-                        if self.cpu_millicores != None
-                        else None
-                    ),
+                    "cpu": ("{}m".format(self.cpu_millicores) if self.cpu_millicores is not None else None),
                     "memory": "{}Mi".format(self.ram_mem_mb),
                 },
             )
@@ -400,9 +390,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                         read_only=False,
                     ),
                 ),
-                client.V1VolumeMount(
-                    name="models", mount_path="/models", sub_path=None, read_only=False
-                ),
+                client.V1VolumeMount(name="models", mount_path="/models", sub_path=None, read_only=False),
             ),
             (
                 client.V1Volume(
@@ -424,9 +412,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                     name="dshm",
                     empty_dir=client.V1EmptyDirVolumeSource(medium="Memory"),
                 ),
-                client.V1VolumeMount(
-                    name="dshm", mount_path="/dev/shm", sub_path=None, read_only=False
-                ),
+                client.V1VolumeMount(name="dshm", mount_path="/dev/shm", sub_path=None, read_only=False),
             ),
         ]
 
@@ -503,15 +489,13 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         try:
             custom_registry_urls = {
                 secret.metadata.labels["kaapana.ai/new-registry-display-name"]: list(
-                    json.loads(base64.b64decode(secret.data.get(".dockerconfigjson")))
-                    .get("auths")
-                    .keys()
+                    json.loads(base64.b64decode(secret.data.get(".dockerconfigjson"))).get("auths").keys()
                 )[0]
                 for secret in custom_registry_secrets.items
             }
 
             logging.info(f"Custom registry secret urls: {custom_registry_urls}")
-        except Exception as e:
+        except Exception:
             logging.warning("Unable to log custom registry urls.")
         return set(secret.metadata.name for secret in custom_registry_secrets.items)
 
@@ -529,9 +513,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         dag_conf = context["dag_run"].conf or {}
         config_json = json.dumps(dag_conf, indent=4, sort_keys=True)
 
-        run_id = cure_invalid_name(
-            context["run_id"], r"(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?"
-        )
+        run_id = cure_invalid_name(context["run_id"], r"(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?")
         configmap_name = f"{run_id}-config"
 
         metadata = client.V1ObjectMeta(
@@ -613,12 +595,12 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 "global.project_id": project_form.get("id"),
                 "global.display_name": self.display_name,
                 **dynamic_volumes,
-                "mount_path": f'{self.data_dir}/{context["run_id"]}',
-                "workflow_dir": f'{str(PROCESSING_WORKFLOW_DIR)}/{context["run_id"]}',
+                "mount_path": f"{self.data_dir}/{context['run_id']}",
+                "workflow_dir": f"{str(PROCESSING_WORKFLOW_DIR)}/{context['run_id']}",
                 "batch_name": str(self.batch_name),
                 "operator_out_dir": str(self.operator_out_dir),
                 "operator_in_dir": str(self.operator_in_dir),
-                "batches_input_dir": f'{str(PROCESSING_WORKFLOW_DIR)}/{context["run_id"]}/{self.batch_name}',
+                "batches_input_dir": f"{str(PROCESSING_WORKFLOW_DIR)}/{context['run_id']}/{self.batch_name}",
             },
         }
 
@@ -661,9 +643,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             workflow_form = context["dag_run"].conf["workflow_form"]
             print(f"{workflow_form=}")
         env_vars_sets = {}
-        for idx, (k, v) in enumerate(
-            {"WORKSPACE": "/kaapana", **self.env_vars}.items()
-        ):
+        for idx, (k, v) in enumerate({"WORKSPACE": "/kaapana", **self.env_vars}.items()):
             if k.lower() in workflow_form:
                 ### Values in workflow_form are converted with str() before storing them in self.env_vars
                 ### In order to load them with json.loads later, we use the original value and convert it to a stringified json.
@@ -671,9 +651,9 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             try:
                 ### Json objects should be send as json-object, not stringified json. Especially needed, when environment variables represent lists, e.g. RUNNER_INSTANCES=["<ip-address>"]
                 json_decoded_value = json.loads(v)
-            except json.decoder.JSONDecodeError as e:
+            except json.decoder.JSONDecodeError:
                 json_decoded_value = v
-            if type(json_decoded_value) == dict:
+            if type(json_decoded_value) is dict:
                 ### kube-helm will use --set-string instead of --set to install the chart when the value is a string
                 ### As helm interpretes {} as array/list, we want to use --set-string for enviroment variables that are dictionaries.
                 json_decoded_value = str(json_decoded_value)
@@ -711,22 +691,16 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             if not volume.persistent_volume_claim:
                 if volume.name == "workflowconf" and volume.config_map:
                     configmap_name = volume.config_map.name
-                    configmap_volume_config["global.workflow_configmap_name"] = (
-                        configmap_name
-                    )
+                    configmap_volume_config["global.workflow_configmap_name"] = configmap_name
                 continue
             dynamic_volume_lookup[volume.name] = {
-                "name": volume.persistent_volume_claim.claim_name.replace(
-                    "-pv-claim", ""
-                )
+                "name": volume.persistent_volume_claim.claim_name.replace("-pv-claim", "")
             }
 
         for vol_mount in self.volume_mounts:
             if vol_mount.name not in dynamic_volume_lookup:
                 if vol_mount.name == "workflowconf":
-                    configmap_volume_config["global.workflow_config_mount_path"] = (
-                        vol_mount.mount_path
-                    )
+                    configmap_volume_config["global.workflow_config_mount_path"] = vol_mount.mount_path
                 continue
             dynamic_volume_lookup[vol_mount.name]["mount_path"] = vol_mount.mount_path
 
@@ -737,8 +711,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 continue
             dynamic_volumes.update(
                 {
-                    f"global.dynamicVolumes[{idx}].name": f"{vol_config["name"]}",
-                    f"global.dynamicVolumes[{idx}].mount_path": f"{vol_config["mount_path"]}",
+                    f"global.dynamicVolumes[{idx}].name": f"{vol_config['name']}",
+                    f"global.dynamicVolumes[{idx}].mount_path": f"{vol_config['mount_path']}",
                 }
             )
 
@@ -747,9 +721,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         response.raise_for_status()
         admin_id = response.json().get("id")
         project_id = self.project.get("id") if self.project else admin_id
-        ingress_path = (
-            f"applications/project/{project_id}/release/" + "{{ .Release.Name }}"
-        )
+        ingress_path = f"applications/project/{project_id}/release/" + "{{ .Release.Name }}"
 
         helm_sets = {
             "global.complete_image": self.image,
@@ -783,9 +755,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             url = f"{KaapanaBaseOperator.HELM_API}/view-chart-status"
             r = requests.get(url, params={"release_name": release_name})
             if r.status_code == 500 or r.status_code == 404:
-                logging.info(
-                    f"Release {release_name} was uninstalled. My job is done here!"
-                )
+                logging.info(f"Release {release_name} was uninstalled. My job is done here!")
                 break
             r.raise_for_status()
         return
@@ -813,9 +783,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                     f"Processing container didn't start within {self.startup_timeout_seconds} seconds. The corresponding will be deleted!"
                 )
             else:
-                raise AirflowException(
-                    f"Processing container in unexpected state: {final_status}"
-                )
+                raise AirflowException(f"Processing container in unexpected state: {final_status}")
 
         final_status = KubernetesRunner.wait_for_task_status(
             self.task_run,
@@ -850,19 +818,13 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                     f"Container {container_name} for task {self.task_run.name} was terminated due to OutOfMemory (OOMKilled)"
                 )
             if exit_code == KAAPANA_SKIP_TASK_RUN_RETURN_CODE:
-                raise AirflowSkipException(
-                    f"Task {self.task_run.name} was skipped, {reason=}, {message=}"
-                )
+                raise AirflowSkipException(f"Task {self.task_run.name} was skipped, {reason=}, {message=}")
             elif exit_code != 0:
-                raise AirflowException(
-                    f"Processing container failed for task {self.task_run.name}!"
-                )
+                raise AirflowException(f"Processing container failed for task {self.task_run.name}!")
         elif final_status == "Succeeded":
-            self.log.info(f"Processing Container finished successfully!")
+            self.log.info("Processing Container finished successfully!")
         else:
-            raise AirflowException(
-                f"Processing container in unexpected state: {final_status}"
-            )
+            raise AirflowException(f"Processing container in unexpected state: {final_status}")
 
     @staticmethod
     def unique_task_identifer(context: Context):
@@ -871,7 +833,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         :param context: Dictionary set by Airflow. It contains references to related objects to the task instance.
         """
-        return f"{context["ti"].run_id}-{context["ti"].task_id}"
+        return f"{context['ti'].run_id}-{context['ti'].task_id}"
 
     @staticmethod
     def task_run_file_path(context: Context):
@@ -963,7 +925,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         task_template = pc_models.TaskTemplate(
             identifier="main",
-            description=f"This template is used for images that do not contain a processing-container.json file.",
+            description="This template is used for images that do not contain a processing-container.json file.",
             inputs=[],
             outputs=[],
             env=[],
@@ -986,10 +948,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                     namespace=self.namespace,
                     imagePullSecrets=self.image_pull_secrets,
                     env_vars=self.secrets
-                    + [
-                        client.V1EnvVar(name=key, value=val)
-                        for key, val in self.env_vars.items()
-                    ],
+                    + [client.V1EnvVar(name=key, value=val) for key, val in self.env_vars.items()],
                     volumes=self.volumes,
                     volume_mounts=self.volume_mounts,
                     labels=self.labels,
@@ -999,9 +958,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             )
         )
         signal.signal(signal.SIGTERM, self.handle_sigterm)
-        KubernetesRunner.dump(
-            self.task_run, output=KaapanaBaseOperator.task_run_file_path(context)
-        )
+        KubernetesRunner.dump(self.task_run, output=KaapanaBaseOperator.task_run_file_path(context))
         self._monitor_task_run()
 
     def handle_sigterm(self, signum, frame):
@@ -1018,9 +975,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
     def delete_operator_out_dir(self, run_id, operator_dir):
         logging.info(f"#### deleting {operator_dir} folders...!")
         run_dir = os.path.join(self.airflow_workflow_dir, run_id)
-        batch_folders = sorted(
-            [f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))]
-        )
+        batch_folders = sorted([f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))])
         for batch_element_dir in batch_folders:
             element_input_dir = os.path.join(batch_element_dir, operator_dir)
             logging.info(f"# Deleting: {element_input_dir} ...")
@@ -1048,18 +1003,14 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         """
         Use this method with caution, because it unclear at which state the context object is updated!
         """
-        logging.info(
-            "##################################################### ON FAILURE!"
-        )
+        logging.info("##################################################### ON FAILURE!")
         KaapanaBaseOperator.stop_task_pod(context)
 
         release_name = get_release_name(context)
         url = f"{KaapanaBaseOperator.HELM_API}/view-chart-status"
         r = requests.get(url, params={"release_name": release_name})
         if r.status_code == 500 or r.status_code == 404:
-            logging.info(
-                f"Release {release_name} was uninstalled or never installed. My job is done here!"
-            )
+            logging.info(f"Release {release_name} was uninstalled or never installed. My job is done here!")
         else:
             from kaapana.operators.KaapanaApplicationOperator import (
                 KaapanaApplicationOperator,
@@ -1088,17 +1039,13 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             user_ids = []
         else:
             # Get user ID
-            user_resp = requests.get(
-                f"{ServicesSettings().aii_url}/users/username/{username}"
-            )
+            user_resp = requests.get(f"{ServicesSettings().aii_url}/users/username/{username}")
             user_resp.raise_for_status()
             user_id = user_resp.json()["id"]
             user_ids = [user_id]
 
         def fetch_default_project_id() -> str:
-            response = requests.get(
-                "http://aii-service.services.svc:8080/projects/admin"
-            )
+            response = requests.get("http://aii-service.services.svc:8080/projects/admin")
             response.raise_for_status()
             return response.json().get("id")
 
@@ -1117,18 +1064,14 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             link=f"/flow/dags/{dag_id}/grid?dag_run_id={run_id}&task_id={task_id}&tab=logs",
         )
 
-        return NotificationService.send(
-            project_id=project_id, user_ids=user_ids, notification=notification
-        )
+        return NotificationService.send(project_id=project_id, user_ids=user_ids, notification=notification)
 
     @staticmethod
     def on_success(context):
         """
         Use this method with caution, because it unclear at which state the context object is updated!
         """
-        logging.info(
-            "##################################################### on_success!"
-        )
+        logging.info("##################################################### on_success!")
 
     @staticmethod
     def on_retry(context):
@@ -1146,16 +1089,12 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         pass
 
     def post_execute(self, context, result=None):
-        logging.info(
-            "##################################################### post_execute!"
-        )
+        logging.info("##################################################### post_execute!")
         logging.info(context)
         logging.info(result)
 
     def set_context_variables(self, context: Context):
-        self.labels["run_id"] = cure_invalid_name(
-            context["run_id"], r"(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?"
-        )
+        self.labels["run_id"] = cure_invalid_name(context["run_id"], r"(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?")
 
     @staticmethod
     def set_defaults(
@@ -1207,12 +1146,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         obj.delete_output_on_start = delete_output_on_start
         obj.priority_class_name = priority_class_name
 
-        obj.batch_name = batch_name if batch_name != None else BATCH_NAME
-        obj.airflow_workflow_dir = (
-            airflow_workflow_dir
-            if airflow_workflow_dir != None
-            else AIRFLOW_WORKFLOW_DIR
-        )
+        obj.batch_name = batch_name if batch_name is not None else BATCH_NAME
+        obj.airflow_workflow_dir = airflow_workflow_dir if airflow_workflow_dir is not None else AIRFLOW_WORKFLOW_DIR
 
         if obj.task_id is None:
             obj.task_id = obj.name
@@ -1232,9 +1167,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             obj.operator_out_dir = obj.task_id
 
         if input_operator is not None and operator_in_dir is not None:
-            raise NameError(
-                "You need to define either input_operator or operator_in_dir!"
-            )
+            raise NameError("You need to define either input_operator or operator_in_dir!")
         if input_operator is not None:
             obj.operator_in_dir = input_operator.operator_out_dir
         elif operator_in_dir is not None:
@@ -1244,17 +1177,10 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             obj.delete_output_on_start = False
 
         enable_job_scheduler = (
-            True
-            if Variable.get("enable_job_scheduler", default_var="True").lower()
-            == "true"
-            else False
+            True if Variable.get("enable_job_scheduler", default_var="True").lower() == "true" else False
         )
-        if obj.pool == None:
-            if (
-                not enable_job_scheduler
-                and obj.gpu_mem_mb != None
-                and obj.gpu_mem_mb != 0
-            ):
+        if obj.pool is None:
+            if not enable_job_scheduler and obj.gpu_mem_mb is not None and obj.gpu_mem_mb != 0:
                 obj.pool = "NODE_GPU_COUNT"
                 obj.pool_slots = 1
             else:
@@ -1284,19 +1210,17 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             date_time_str = re.search(r"(.*)-(\d+)", s).group(2)
             date_time_obj = datetime.strptime(date_time_str, "%y%m%d%H%M%S%f")
             run_id_identifier = date_time_obj.strftime("%y%m%d%H%M%S%f")
-        except (ValueError, AttributeError) as err:
+        except (ValueError, AttributeError):
             pass
 
         try:
             if s.startswith("manual__"):
                 date_time_str = s[8:]
-                date_time_obj = datetime.strptime(
-                    date_time_str, "%Y-%m-%dT%H:%M:%S.%f+00:00"
-                )
+                date_time_obj = datetime.strptime(date_time_str, "%Y-%m-%dT%H:%M:%S.%f+00:00")
                 run_id_identifier = date_time_obj.strftime("%y%m%d%H%M%S%f")
             else:
                 pass
-        except (ValueError, AttributeError) as err:
+        except (ValueError, AttributeError):
             pass
 
         if run_id_identifier is None:

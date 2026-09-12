@@ -20,9 +20,11 @@ fileConfig(config.config_file_name)
 # add your model's MetaData object here
 # for 'autogenerate' support
 # from myapp import mymodel
-from app.database import Base
-from app.settings.models import *
-from app.workflows.models import *
+# Kept below fileConfig() as in the alembic template: it disables loggers that already exist.
+# The model modules must be imported so their tables register on Base.metadata.
+from app.database import Base  # noqa: E402
+from app.settings import models as settings_models  # noqa: E402, F401
+from app.workflows import models as workflow_models  # noqa: E402, F401
 
 target_metadata = Base.metadata
 # target_metadata = None

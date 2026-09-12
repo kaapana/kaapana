@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 
-import pydicom
+import glob
 import json
 import os
-import glob
 from datetime import datetime
+
+import pydicom
 
 keywords_basic = [
     "StudyInstanceUID",
@@ -61,9 +62,7 @@ keywords_ct = [
     "DateOfLastCalibration",  # "TimeOfLastCalibration",
     "ConvolutionKernel",
     "WaterEquivalentDiameter",
-    "WaterEquivalentDiameterCalculationMethodCodeSequence"
-    "RevolutionTime"
-    "SingleCollimationWidth",
+    "WaterEquivalentDiameterCalculationMethodCodeSequenceRevolutionTimeSingleCollimationWidth",
     "TotalCollimationWidth",
     "TableSpeed",
     "TableFeedPerRotation",
@@ -76,7 +75,7 @@ keywords_ct = [
     "CTDIPhantomTypeCodeSequence",
     "EnergyWeightingFactor",
     "CTAdditionalXRaySourceSequence",
-    "MultienergyCTAcquisition"
+    "MultienergyCTAcquisition",
     # "StudyID", "SeriesNumber", "AcquisitionNumber", "InstanceNumber",
     # "ImagePositionPatient", "ImageOrientationPatient", "FrameOfReferenceUID", "PositionReferenceIndicator",
     # "SliceLocation", "SamplesPerPixel", "PhotometricInterpretation",
@@ -134,7 +133,7 @@ keywords_mr = [
     "VariableFlipAngleFlag",
     "SAR",
     "dBdt",
-    "B1rms"
+    "B1rms",
     # "StudyID", "SeriesNumber", "AcquisitionNumber", "InstanceNumber",
     # "ImagePositionPatient", "ImageOrientationPatient", "FrameOfReferenceUID", "PositionReferenceIndicator",
     # "SliceLocation", "SamplesPerPixel", "PhotometricInterpretation",
@@ -146,12 +145,7 @@ keywords_mr = [
 
 
 # From the template
-batch_folders = [
-    f
-    for f in glob.glob(
-        os.path.join("/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"], "*")
-    )
-]
+batch_folders = [f for f in glob.glob(os.path.join("/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"], "*"))]
 
 json_list = []
 
@@ -162,12 +156,8 @@ for batch_element_dir in batch_folders:
         os.makedirs(element_output_dir)
 
     # The processing algorithm
-    print(
-        f"Checking {element_input_dir} for dcm files and writing results to {element_output_dir}"
-    )
-    dcm_files = sorted(
-        glob.glob(os.path.join(element_input_dir, "*.dcm*"), recursive=True)
-    )
+    print(f"Checking {element_input_dir} for dcm files and writing results to {element_output_dir}")
+    dcm_files = sorted(glob.glob(os.path.join(element_input_dir, "*.dcm*"), recursive=True))
 
     if len(dcm_files) == 0:
         print("No dicom file found!")
@@ -191,9 +181,7 @@ for batch_element_dir in batch_folders:
 
         for key in keywords:
             try:
-                if (
-                    dcm[key].repval == "<Sequence, length 1>"
-                ):  # need to deal with sequence
+                if dcm[key].repval == "<Sequence, length 1>":  # need to deal with sequence
                     print(f"{key} is a sequence")
                     # print(dcm[key].value)
                     ds = dcm[key].value[0]
@@ -207,16 +195,14 @@ for batch_element_dir in batch_folders:
                     json_dict[key] = seq_list
                 else:
                     json_dict[key] = str(dcm[key].value)
-            except:
+            except Exception:
                 json_dict[key] = ""
 
         print(json_dict)
         json_list.append(json_dict)
 
 
-batch_output_dir = os.path.join(
-    "/", os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_OUT_DIR"]
-)
+batch_output_dir = os.path.join("/", os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_OUT_DIR"])
 if not os.path.exists(batch_output_dir):
     os.makedirs(batch_output_dir)
 

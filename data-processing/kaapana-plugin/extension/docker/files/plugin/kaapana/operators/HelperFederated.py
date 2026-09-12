@@ -1,27 +1,22 @@
 import functools
 import json
 import os
-import shutil
 import tarfile
 from datetime import datetime
 from pathlib import Path
-from socket import timeout
 
 import httpx
 import requests
-import urllib3
 from cryptography.fernet import Fernet
+
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, SERVICES_NAMESPACE
 from kaapana.blueprints.kaapana_utils import (
     get_operator_properties,
     requests_retry_session,
     trying_request_action,
 )
-from minio import Minio
 
-MINIO_CLIENT_URL = (
-    f"http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000/client"
-)
+MINIO_CLIENT_URL = f"http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000/client"
 
 
 ##### To be copied
@@ -50,17 +45,13 @@ def fernet_decryptfile(filepath, key):
 # Todo move in Jonas library as normal function
 def apply_untar_action(src_filename, dst_dir):
     print(f"Untar {src_filename} to {dst_dir}")
-    with tarfile.open(
-        src_filename, "r:gz" if src_filename.endswith("gz") is True else "r"
-    ) as tar:
+    with tarfile.open(src_filename, "r:gz" if src_filename.endswith("gz") is True else "r") as tar:
         tar.extractall(dst_dir)
 
 
 # Todo move in Jonas library as normal function
 def apply_tar_action(dst_filename, src_dir, whitelist_extensions_tuples=None):
-    with tarfile.open(
-        dst_filename, "w:gz" if dst_filename.endswith("gz") is True else "w"
-    ) as tar:
+    with tarfile.open(dst_filename, "w:gz" if dst_filename.endswith("gz") is True else "w") as tar:
         if whitelist_extensions_tuples is not None:
             for file_path in Path(src_dir).rglob("*"):
                 if file_path.name.endswith(tuple(whitelist_extensions_tuples)):
@@ -75,15 +66,11 @@ def apply_tar_action(dst_filename, src_dir, whitelist_extensions_tuples=None):
 
 def raise_kaapana_connection_error(r):
     if r.history:
-        raise ConnectionError(
-            "You were redirect to the auth page. Your token is not valid!"
-        )
+        raise ConnectionError("You were redirect to the auth page. Your token is not valid!")
     try:
         r.raise_for_status()
-    except:
-        raise ValueError(
-            f"Something was not okay with your request code {r}: {r.text}!"
-        )
+    except Exception:
+        raise ValueError(f"Something was not okay with your request code {r}: {r.text}!")
 
 
 def apply_minio_presigned_url_action(
@@ -117,7 +104,7 @@ def apply_minio_presigned_url_action(
     print("Remote network")
     print(json.dumps(remote_network, indent=2))
 
-    minio_presigned_url = f'{remote_network["protocol"]}://{remote_network["host"]}:{remote_network["port"]}/kaapana-backend/remote/minio-presigned-url'
+    minio_presigned_url = f"{remote_network['protocol']}://{remote_network['host']}:{remote_network['port']}/kaapana-backend/remote/minio-presigned-url"
     ssl_check = remote_network["ssl_check"]
     filename = os.path.join(root_dir, os.path.basename(data["path"].split("?")[0]))
     if action == "put":
@@ -182,7 +169,7 @@ def apply_minio_presigned_url_action(
                 headers={
                     "FederatedAuthorization": remote_network["token"],
                     "presigned-url": data["path"],
-                    "User-Agent": f"kaapana",
+                    "User-Agent": "kaapana",
                 },
             ) as r:
                 raise_kaapana_connection_error(r)
@@ -205,10 +192,7 @@ def federated_action(
     client_job_id,
     whitelist_federated_learning=None,
 ):
-    if (
-        federated["minio_urls"] is not None
-        and operator_out_dir in federated["minio_urls"]
-    ):
+    if federated["minio_urls"] is not None and operator_out_dir in federated["minio_urls"]:
         print(f"Applying federated action {action} data from Minio")
         trying_request_action(
             apply_minio_presigned_url_action,
@@ -228,17 +212,12 @@ def federated_action(
 def federated_sharing_decorator(func):
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
-        max_retries = 10
         run_id, dag_run_dir, dag_run, downstream_tasks = get_operator_properties(
             self.airflow_workflow_dir, *args, **kwargs
         )
         conf = dag_run.conf
 
-        if (
-            conf is not None
-            and "federated_form" in conf
-            and conf["federated_form"] is not None
-        ):
+        if conf is not None and "federated_form" in conf and conf["federated_form"] is not None:
             federated = conf["federated_form"]
             print("Federated config")
             print(federated)
@@ -258,10 +237,7 @@ def federated_sharing_decorator(func):
                     "The operator you want to use for federated learning does not allow federated learning, "
                     "you will need to set the flag allow_federated_learning=True in order to permit the operator to be used in federated learning scenarios"
                 )
-            if (
-                "from_previous_dag_run" in federated
-                and federated["from_previous_dag_run"] is not None
-            ):
+            if "from_previous_dag_run" in federated and federated["from_previous_dag_run"] is not None:
                 print("Downloading data from Minio")
                 federated_action(
                     self.operator_out_dir,

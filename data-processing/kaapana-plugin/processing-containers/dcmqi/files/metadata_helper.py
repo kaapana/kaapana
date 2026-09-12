@@ -32,10 +32,11 @@ Notes
 """
 
 import json
-import math
 import logging
+import math
 from pathlib import Path
 from typing import Sequence
+
 from kaapanapy.logger import get_logger
 
 # Logger
@@ -90,41 +91,31 @@ def find_code_meaning(tag):
 
         # 1. Exact match (with or without hyphens)
         if (tag_hyphen == code_meaning_hyphen) or (tag == body_part):
-            logger.info(
-                f"Found Code Meaning: {entry['Code Meaning']} for search term: {tag}"
-            )
+            logger.info(f"Found Code Meaning: {entry['Code Meaning']} for search term: {tag}")
             result = entry
             break
 
         # 2. Partial match (tag contained in either field)
         if (tag in code_meaning) or (tag in body_part):
-            logger.info(
-                f"Found Code Meaning: {entry['Code Meaning']} for search term: {tag}"
-            )
+            logger.info(f"Found Code Meaning: {entry['Code Meaning']} for search term: {tag}")
             result = entry
             break
 
         # 3. Word-level exact match
         if any((tp == code_meaning) or (tp == body_part) for tp in tag_parts):
-            logger.info(
-                f"Found Code Meaning: {entry['Code Meaning']} for word in search term: {tag}"
-            )
+            logger.info(f"Found Code Meaning: {entry['Code Meaning']} for word in search term: {tag}")
             result = entry
             break
 
         # 4. Word-level partial match
         if any((tp in code_meaning) or (tp in body_part) for tp in tag_parts):
-            logger.info(
-                f"Found Code Meaning: {entry['Code Meaning']} for word in search term: {tag}"
-            )
+            logger.info(f"Found Code Meaning: {entry['Code Meaning']} for word in search term: {tag}")
             result = entry
             break
 
     # 5a. If nothing found — create a custom entry
     if result is None:
-        logger.info(
-            f"Could not find the tag: '{tag}' in the lookup table, using custom entry"
-        )
+        logger.info(f"Could not find the tag: '{tag}' in the lookup table, using custom entry")
         result = {
             "Coding Scheme Designator": "Custom",
             "Code Value": "0.0.0.0.0.0.00000.0.000.0.00",
@@ -215,9 +206,7 @@ def create_segment_attribute(
         If lookup table access fails in an unexpected way.
     """
     try:
-        search_key = (
-            code_meaning.split("@")[-1].lower() if "@" in code_meaning else code_meaning
-        )
+        search_key = code_meaning.split("@")[-1].lower() if "@" in code_meaning else code_meaning
         logger.info("Searching coding-scheme for code-meaning: {}".format(code_meaning))
         logger.info("Search-key: {}".format(search_key))
         coding_scheme = find_code_meaning(tag=search_key)
@@ -456,9 +445,7 @@ def normalize_seg_info(seg_info, background_names=("background", "__background__
 
             if label_int == 0:
                 if name.lower() not in allowed_bg:
-                    raise ValueError(
-                        f"label_int=0 is reserved for background, but got label_name={name!r}"
-                    )
+                    raise ValueError(f"label_int=0 is reserved for background, but got label_name={name!r}")
             elif label_int < 0:
                 raise ValueError(f"label_int must be >= 0, got {label_int}")
 

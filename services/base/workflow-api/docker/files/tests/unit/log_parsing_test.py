@@ -44,10 +44,7 @@ def test_traceback_lines_are_preserved(adapter):
 
 
 def test_continuation_inherits_preceding_severity_and_timestamp(adapter):
-    log_text = (
-        "[2026-06-12T12:38:18.000+00:00] {taskinstance.py:3336} ERROR - boom\n"
-        '  File "x.py", line 1, in <module>'
-    )
+    log_text = '[2026-06-12T12:38:18.000+00:00] {taskinstance.py:3336} ERROR - boom\n  File "x.py", line 1, in <module>'
 
     lines = adapter._parse_task_run_logs(_wrap(log_text))
 

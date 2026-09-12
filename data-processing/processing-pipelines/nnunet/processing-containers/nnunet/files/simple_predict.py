@@ -1,16 +1,14 @@
 # nnUNet imports
-from nnunetv2.inference.predict_from_raw_data import nnUNetPredictor
-
-from pathlib import Path
-import os
 import json
-import nibabel as nib
-import numpy as np
-from os import getenv, replace
-from os.path import join, dirname, basename, exists
-from glob import glob
-import torch
+import os
 import shutil
+from glob import glob
+from os import getenv
+from os.path import basename, exists, join
+from pathlib import Path
+
+import torch
+from nnunetv2.inference.predict_from_raw_data import nnUNetPredictor
 
 
 def create_dataset(search_dir):
@@ -60,9 +58,7 @@ def create_dataset(search_dir):
     Path(input_data_dir).mkdir(parents=True, exist_ok=True)
 
     if batch_dataset:
-        batch_folders = sorted(
-            [f for f in glob(join("/", workflow_dir, "nnunet-dataset", "*"))]
-        )
+        batch_folders = sorted([f for f in glob(join("/", workflow_dir, "nnunet-dataset", "*"))])
         for batch_element_dir in batch_folders:
             input_count = 0
             for input_modality in input_modality_dirs:
@@ -73,13 +69,11 @@ def create_dataset(search_dir):
                 for nifti in niftis_found:
                     target_filename = join(
                         input_data_dir,
-                        basename(nifti).replace(
-                            ".nii.gz", f"_{input_count:04d}.nii.gz"
-                        ),
+                        basename(nifti).replace(".nii.gz", f"_{input_count:04d}.nii.gz"),
                     )
                     if exists(target_filename):
                         print(f"# target_filename: {target_filename}")
-                        print(f"# Target input-data already exists -> skipping")
+                        print("# Target input-data already exists -> skipping")
                         continue
 
                     if copy_target_data:
@@ -103,7 +97,7 @@ def create_dataset(search_dir):
                     basename(nifti).replace(".nii.gz", f"_{input_count:04d}.nii.gz"),
                 )
                 if exists(target_filename):
-                    print(f"# Target input-data already exists -> skipping")
+                    print("# Target input-data already exists -> skipping")
                     continue
 
                 Path(input_data_dir).mkdir(parents=True, exist_ok=True)
@@ -174,24 +168,14 @@ def get_model_paths(batch_element_dir):
         modelname = task_n_modelname[1]
     else:
         # retrieve infromation if called from nnunet-ensemble
-        checkpoint_file = glob(
-            f"{batch_element_dir}/**/checkpoint_final.pth", recursive=True
-        )[0]
+        checkpoint_file = glob(f"{batch_element_dir}/**/checkpoint_final.pth", recursive=True)[0]
         checkpoint_file_substring = checkpoint_file.split("/")
         task = next(
-            (
-                element
-                for element in checkpoint_file_substring
-                if element.startswith("Dataset")
-            ),
+            (element for element in checkpoint_file_substring if element.startswith("Dataset")),
             None,
         )
         modelname = next(
-            (
-                element
-                for element in checkpoint_file_substring
-                if element.startswith("nnUNetTrainer")
-            ),
+            (element for element in checkpoint_file_substring if element.startswith("nnUNetTrainer")),
             None,
         )
 
@@ -227,7 +211,7 @@ def get_model_paths(batch_element_dir):
 
     result_model_paths = []
     for model_path in model_paths:
-        if task == None:
+        if task is None:
             print("# Task not set!")
             tasks = [f.name for f in os.scandir(model_path) if f.is_dir()]
             if len(tasks) == 1:
@@ -277,10 +261,7 @@ def get_model_paths(batch_element_dir):
             > 0
         ):
             checkpoint_name = "checkpoint_final"
-        elif (
-            len(glob(join(model_path, "**", "checkpoint_latest.pth"), recursive=True))
-            > 0
-        ):
+        elif len(glob(join(model_path, "**", "checkpoint_latest.pth"), recursive=True)) > 0:
             checkpoint_name = "checkpoint_latest"
         else:
             print("#")
@@ -288,7 +269,7 @@ def get_model_paths(batch_element_dir):
             print("#")
             print(f"# Error - model_path: {model_path}")
             print("#")
-            print(f"# Could not find any checkpoint!")
+            print("# Could not find any checkpoint!")
             print("#")
             print("# ABORT")
             print("#")
@@ -340,16 +321,11 @@ def write_seg_info(task, target_dir, dataset_info_dir):
     with open(os.path.join(dataset_info_dir, "dataset.json"), "r") as file:
         dataset_dict = json.load(file)
 
-    seg_info_list = [
-        {"label_name": key, "label_int": str(value)}
-        for key, value in dataset_dict["labels"].items()
-    ]
+    seg_info_list = [{"label_name": key, "label_int": str(value)} for key, value in dataset_dict["labels"].items()]
     seg_info = {"seg_info": seg_info_list}
 
     task_substrings = str(task).split("/")
-    seg_info["task_id"] = next(
-        (element for element in task_substrings if element.startswith("Dataset")), None
-    )
+    seg_info["task_id"] = next((element for element in task_substrings if element.startswith("Dataset")), None)
     algo_id = next(
         (element for element in task_substrings if element.startswith("nnUNetTrainer")),
         None,
@@ -444,7 +420,7 @@ def predict(
 
 folds = getenv("TRAIN_FOLD", "None")
 folds = folds if folds.lower() != "none" else None
-folds = folds.split(",") if folds != None else None
+folds = folds.split(",") if folds is not None else None
 
 batch_name = getenv("BATCH_NAME", "None")
 batch_name = batch_name if batch_name.lower() != "none" else None
@@ -455,7 +431,7 @@ task = task if task.lower() != "none" else None
 task_targets = os.getenv("TARGETS", "None")
 task_targets = task_targets.split(",") if task_targets.lower() != "none" else None
 
-if task_targets != None and task_targets[0] != "background":
+if task_targets is not None and task_targets[0] != "background":
     task_targets.insert(0, "background")
 
 task_body_part = getenv("BODY_PART", "N/A")
@@ -466,17 +442,13 @@ mode = mode if mode.lower() != "none" else None
 models_dir = getenv("MODELS_DIR", "None")
 models_dir = models_dir if models_dir.lower() != "none" else "/models"
 threads_preprocessing = getenv("INF_THREADS_PREP", "None")
-threads_preprocessing = (
-    int(threads_preprocessing) if threads_preprocessing.lower() != "none" else 2
-)
+threads_preprocessing = int(threads_preprocessing) if threads_preprocessing.lower() != "none" else 2
 threads_nifiti = getenv("INF_THREADS_NIFTI", "None")
 threads_nifiti = int(threads_nifiti) if threads_nifiti.lower() != "none" else 2
 batch_dataset = getenv("INF_BATCH_DATASET", "False")
 batch_dataset = True if batch_dataset.lower() == "true" else False
 input_modality_dirs = getenv("INPUT_MODALITY_DIRS", "None")
-input_modality_dirs = (
-    input_modality_dirs.split(",") if input_modality_dirs.lower() != "none" else None
-)
+input_modality_dirs = input_modality_dirs.split(",") if input_modality_dirs.lower() != "none" else None
 
 workflow_dir = getenv("WORKFLOW_DIR", "None")
 workflow_dir = workflow_dir if workflow_dir.lower() != "none" else None
@@ -490,9 +462,7 @@ enable_softmax = True if enable_softmax.lower() == "true" else False
 model_arch = getenv("MODEL", "None")
 model_arch = model_arch if model_arch.lower() != "none" else None
 train_network_trainer = getenv("TRAIN_NETWORK_TRAINER", "None")
-train_network_trainer = (
-    train_network_trainer if train_network_trainer.lower() != "none" else None
-)
+train_network_trainer = train_network_trainer if train_network_trainer.lower() != "none" else None
 
 cuda_visible_devices = getenv("CUDA_VISIBLE_DEVICES", "None")
 tta = getenv("TEST_TIME_AUGMENTATION", "None")
@@ -586,13 +556,13 @@ if __name__ == "__main__":
         # e.g.: /models/nnUNet/Dataset579_10.135.76.130_010824-0934/nnUNetTrainer__nnUNetResEncUNetMPlans__3d_lowres/fold_all
         model_paths = get_model_paths(batch_element_dir=batch_element_dir)
         for model, checkpoint_name in model_paths:
-            if folds == None and "fold_all" in model or folds == "all":
+            if folds is None and "fold_all" in model or folds == "all":
                 folds = "all"
                 model = Path(model).parent
             print("#")
             print("##################################################")
             print("#                                                #")
-            print(f"# Start prediction....                           #")
+            print("# Start prediction....                           #")
             print("#                                                #")
             print("##################################################")
             print("#")
@@ -643,18 +613,18 @@ if __name__ == "__main__":
 
             # models/nnUNet/3d_lowres/Task003_Liver/nnUNetTrainerV2__nnUNetPlansv2.1/fold_1
             model_paths = get_model_paths(batch_element_dir=workflow_dir)
-            if folds == None and exists(join(model_paths, "all")):
+            if folds is None and exists(join(model_paths, "all")):
                 folds = "all"
 
             for model, checkpoint_name in model_paths:
-                if folds == None and "fold_all" in model:
+                if folds is None and "fold_all" in model:
                     folds = "all"
                     model = Path(model).parent
 
                 print("#")
                 print("##################################################")
                 print("#                                                #")
-                print(f"# Start prediction....                           #")
+                print("# Start prediction....                           #")
                 print("#                                                #")
                 print("##################################################")
                 print("#")
@@ -675,8 +645,8 @@ if __name__ == "__main__":
                 write_seg_info(model, task_targets, output_dir)
 
                 processed_count += 1
-                print(f"# Prediction ok.")
-                print(f"#")
+                print("# Prediction ok.")
+                print("#")
 
         input_data_dir = join("/", workflow_dir, "nnunet-input-data")
         shutil.rmtree(input_data_dir, ignore_errors=True)

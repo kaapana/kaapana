@@ -1,5 +1,4 @@
-import copy
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from airflow.models import DAG
 from airflow.utils.dates import days_ago
@@ -175,12 +174,8 @@ dag = DAG(
     schedule_interval=None,
 )
 
-get_input = LocalGetInputDataOperator(
-    dag=dag, parallel_downloads=5, check_modality=True
-)
-dcm2nifti = DcmConverterOperator(
-    dag=dag, input_operator=get_input, output_format="nii.gz"
-)
+get_input = LocalGetInputDataOperator(dag=dag, parallel_downloads=5, check_modality=True)
+dcm2nifti = DcmConverterOperator(dag=dag, input_operator=get_input, output_format="nii.gz")
 
 nnunet_predict = NnUnetOperator(
     dag=dag,
@@ -202,16 +197,7 @@ nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     alg_name=alg_name,
 )
 
-dcmseg_send_multi = DcmSendOperator(
-    dag=dag, ae_title=ae_title, input_operator=nrrd2dcmSeg_multi
-)
+dcmseg_send_multi = DcmSendOperator(dag=dag, ae_title=ae_title, input_operator=nrrd2dcmSeg_multi)
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-(
-    get_input
-    >> dcm2nifti
-    >> nnunet_predict
-    >> nrrd2dcmSeg_multi
-    >> dcmseg_send_multi
-    >> clean
-)
+(get_input >> dcm2nifti >> nnunet_predict >> nrrd2dcmSeg_multi >> dcmseg_send_multi >> clean)

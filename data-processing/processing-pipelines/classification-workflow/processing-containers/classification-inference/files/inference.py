@@ -84,9 +84,7 @@ def inference(model, mt_val):
             predictions = torch.round(torch.sigmoid(outputs)).detach().cpu().numpy()
 
             for i in range(len(predictions)):
-                final_predictions[samples[i]] = CLASS_TO_TAG_MAPPING[
-                    int(predictions[i][0])
-                ]
+                final_predictions[samples[i]] = CLASS_TO_TAG_MAPPING[int(predictions[i][0])]
 
     return final_predictions
 
@@ -102,9 +100,7 @@ if __name__ == "__main__":
         num_classes=NUM_CLASSES,
     )
 
-    path_to_checkpoint_file = os.path.join(
-        "/models/classification-training", os.environ["TASK_IDS"]
-    )
+    path_to_checkpoint_file = os.path.join("/models/classification-training", os.environ["TASK_IDS"])
 
     # load weights
     # using weights_only=False for backwards compatability to keep torch <2.6 behavior
@@ -157,8 +153,6 @@ if __name__ == "__main__":
 
     for id, tag in predictions.items():
         tag = (
-            f"{tag}-{WORKFLOW_ID}-{FOLD}-{'end' if 'end' in os.environ['TASK_IDS'] else 'best'}"
-            if TAG_POSTFIX
-            else tag
+            f"{tag}-{WORKFLOW_ID}-{FOLD}-{'end' if 'end' in os.environ['TASK_IDS'] else 'best'}" if TAG_POSTFIX else tag
         )
         OpenSearchHelper.add_tag_to_id(id, tag)

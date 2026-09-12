@@ -86,10 +86,7 @@ def test_jobs_have_no_helm_hook(job):
 
 
 def test_services_namespace_includes_service_password_chart():
-    text = _read(
-        ROOT
-        / "platforms/kaapana-platform-chart/deps/services-namespace/requirements.yaml"
-    )
+    text = _read(ROOT / "platforms/kaapana-platform-chart/deps/services-namespace/requirements.yaml")
     assert "kaapana-service-password-chart" in text, (
         "kaapana-service-password-chart must be a dependency of the "
         "services-namespace, otherwise the services-namespace secret is never created."
@@ -137,9 +134,7 @@ def test_admin_password_secret_lookup_uses_admin_namespace():
         "kaapana-admin-password lookup must use .Values.global.admin_namespace — "
         "the release namespace differs from the admin resource namespace."
     )
-    assert (
-        ".Release.Namespace" not in text
-    ), "kaapana-admin-password must not use .Release.Namespace in the lookup."
+    assert ".Release.Namespace" not in text, "kaapana-admin-password must not use .Release.Namespace in the lookup."
 
 
 @pytest.mark.parametrize("template", ROTATING_SECRET_TEMPLATES, ids=lambda p: p.name)
@@ -156,12 +151,10 @@ def test_rotating_secrets_are_not_persisted(template):
 
 def test_bootstrap_job_carries_admin_password():
     text = _read(BOOTSTRAP_JOB)
-    assert (
-        "credentials_keycloak_admin_password" in text
-    ), "bootstrap job needs the admin password for the initial bootstrap."
-    assert (
-        "KAAPANA_ADMIN_CLIENT_SECRET" in text
-    ), "bootstrap job must mount the kaapana-admin client secret."
+    assert "credentials_keycloak_admin_password" in text, (
+        "bootstrap job needs the admin password for the initial bootstrap."
+    )
+    assert "KAAPANA_ADMIN_CLIENT_SECRET" in text, "bootstrap job must mount the kaapana-admin client secret."
 
 
 def test_setup_job_has_no_admin_password():
@@ -170,12 +163,8 @@ def test_setup_job_has_no_admin_password():
         "setup job must NOT receive the admin password — it authenticates as the "
         "kaapana-admin client (client_credentials)."
     )
-    assert (
-        "KEYCLOAK_PASSWORD" not in text
-    ), "setup job must not carry KEYCLOAK_PASSWORD."
-    assert (
-        "KAAPANA_ADMIN_CLIENT_SECRET" in text
-    ), "setup job must authenticate via the kaapana-admin client secret."
+    assert "KEYCLOAK_PASSWORD" not in text, "setup job must not carry KEYCLOAK_PASSWORD."
+    assert "KAAPANA_ADMIN_CLIENT_SECRET" in text, "setup job must authenticate via the kaapana-admin client secret."
 
 
 # --- configure_realm.py authenticates as kaapana-admin (no admin password) -----
@@ -184,24 +173,19 @@ def test_setup_job_has_no_admin_password():
 def test_configure_realm_uses_kaapana_admin_client_credentials():
     text = _read(DOCKER_FILES / "configure_realm.py")
     assert "from_client_credentials" in text and '"kaapana-admin"' in text, (
-        "configure_realm.py must authenticate as the kaapana-admin client via "
-        "client_credentials."
+        "configure_realm.py must authenticate as the kaapana-admin client via client_credentials."
     )
-    assert (
-        "from_admin_password" not in text
-    ), "configure_realm.py must not use the admin password grant."
+    assert "from_admin_password" not in text, "configure_realm.py must not use the admin password grant."
     # The kaapana-service role set (without manage-clients) is asserted behaviorally
     # in test_configure_realm.py::test_service_account_roles_exclude_manage_clients.
 
 
 def test_bootstrap_script_is_admin_client_first():
     text = _read(DOCKER_FILES / "bootstrap_admin_client.py")
-    assert (
-        "_admin_client_functional" in text
-    ), "bootstrap must check the admin client first (skip when it already works)."
-    assert (
-        "from_admin_password" in text
-    ), "bootstrap must fall back to the admin password when the client is missing."
+    assert "_admin_client_functional" in text, (
+        "bootstrap must check the admin client first (skip when it already works)."
+    )
+    assert "from_admin_password" in text, "bootstrap must fall back to the admin password when the client is missing."
 
 
 # --- Setup job must fail loudly, not hang forever (M3) ------------------------
@@ -219,8 +203,7 @@ def test_setup_job_has_active_deadline():
 def test_wait_for_admin_client_is_bounded():
     text = _read(DOCKER_FILES / "wait_for_admin_client.py")
     assert "while True" not in text, (
-        "wait_for_admin_client must not loop unbounded — a failed bootstrap would "
-        "hang the setup Pod in Init forever."
+        "wait_for_admin_client must not loop unbounded — a failed bootstrap would hang the setup Pod in Init forever."
     )
     assert "sys.exit(1)" in text, (
         "wait_for_admin_client must exit non-zero once the admin client never "
@@ -233,11 +216,7 @@ def test_wait_for_admin_client_is_bounded():
 
 def test_configure_realm_does_not_log_passwords():
     text = _read(DOCKER_FILES / "configure_realm.py")
-    offending = [
-        line.strip()
-        for line in text.splitlines()
-        if "logger." in line and "password=}" in line
-    ]
+    offending = [line.strip() for line in text.splitlines() if "logger." in line and "password=}" in line]
     assert not offending, (
         'configure_realm.py must not log passwords — the f"{var=}" debug form '
         f"leaks the value into the setup-job logs: {offending}"
@@ -253,18 +232,14 @@ def test_configure_realm_does_not_log_passwords():
 @pytest.mark.parametrize("source", KEYCLOAK_HELPER_SOURCES, ids=lambda p: p.parent.name)
 def test_keycloak_helpers_do_not_use_admin_credentials(source):
     text = _read(source)
-    assert (
-        '"grant_type": "password"' not in text
-    ), f"{source.name} must not use the password grant."
-    assert (
-        "realms/master" not in text
-    ), f"{source.name} must not authenticate against the master realm."
-    assert (
-        "KEYCLOAK_USER" not in text and "KEYCLOAK_PASSWORD" not in text
-    ), f"{source.name} must not read admin credentials from env."
-    assert (
-        "master_access_token" not in text
-    ), f"{source.name} must not use master_access_token — use service_access_token."
+    assert '"grant_type": "password"' not in text, f"{source.name} must not use the password grant."
+    assert "realms/master" not in text, f"{source.name} must not authenticate against the master realm."
+    assert "KEYCLOAK_USER" not in text and "KEYCLOAK_PASSWORD" not in text, (
+        f"{source.name} must not read admin credentials from env."
+    )
+    assert "master_access_token" not in text, (
+        f"{source.name} must not use master_access_token — use service_access_token."
+    )
 
 
 # --- Runtime templates must not carry admin credentials -----------------------
@@ -277,12 +252,8 @@ def test_keycloak_helpers_do_not_use_admin_credentials(source):
 )
 def test_runtime_templates_drop_admin_password(template):
     text = _read(template)
-    assert (
-        "KEYCLOAK_ADMIN_PASSWORD" not in text
-    ), f"{template.name} must not inject KEYCLOAK_ADMIN_PASSWORD."
-    assert (
-        "credentials_keycloak_admin_password" not in text
-    ), f"{template.name} must not reference the admin password helm value."
-    assert (
-        "kaapana-service-password" in text
-    ), f"{template.name} must mount the kaapana-service-password secret."
+    assert "KEYCLOAK_ADMIN_PASSWORD" not in text, f"{template.name} must not inject KEYCLOAK_ADMIN_PASSWORD."
+    assert "credentials_keycloak_admin_password" not in text, (
+        f"{template.name} must not reference the admin password helm value."
+    )
+    assert "kaapana-service-password" in text, f"{template.name} must mount the kaapana-service-password secret."

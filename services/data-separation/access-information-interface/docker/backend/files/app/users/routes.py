@@ -45,9 +45,7 @@ async def get_current_user(
 
 
 @router.get("/username/{username}", response_model=KeycloakUserExtended, tags=["Users"])
-async def get_keycloak_user_by_name(
-    username: str, kc_client: KeycloakHelper = Depends(get_keycloak_helper)
-):
+async def get_keycloak_user_by_name(username: str, kc_client: KeycloakHelper = Depends(get_keycloak_helper)):
     """Get the specific user by username"""
 
     keycloak_user_json = kc_client.get_user_by_name(username)
@@ -60,9 +58,7 @@ async def get_keycloak_user_by_name(
 
 
 @router.get("/{keycloak_id}", response_model=KeycloakUserExtended, tags=["Users"])
-async def get_keycloak_user_by_id(
-    keycloak_id: str, kc_client: KeycloakHelper = Depends(get_keycloak_helper)
-):
+async def get_keycloak_user_by_id(keycloak_id: str, kc_client: KeycloakHelper = Depends(get_keycloak_helper)):
     """Get specific user by keycloak id"""
 
     keycloak_user_json = kc_client.get_user_by_id(keycloak_id)
@@ -73,9 +69,7 @@ async def get_keycloak_user_by_id(
     return user
 
 
-@router.get(
-    "/{keycloak_id}/projects", response_model=List[AiiProjectResponse], tags=["Users"]
-)
+@router.get("/{keycloak_id}/projects", response_model=List[AiiProjectResponse], tags=["Users"])
 async def get_all_projects_by_user_id(
     keycloak_id: str,
     session: AsyncSession = Depends(get_session),

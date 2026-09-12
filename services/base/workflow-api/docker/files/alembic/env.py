@@ -1,9 +1,9 @@
 import asyncio
 import os
 from logging.config import fileConfig
-from app.config import settings
 
 from alembic import context
+from app.config import settings
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
@@ -26,7 +26,8 @@ config.set_main_option("sqlalchemy.url", settings.ASYNC_DATABASE_URL)
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-from app.models import Base
+# Kept below fileConfig() as in the alembic template: it disables loggers that already exist.
+from app.models import Base  # noqa: E402
 
 target_metadata = Base.metadata
 

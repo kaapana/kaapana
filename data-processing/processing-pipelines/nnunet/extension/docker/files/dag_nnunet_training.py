@@ -8,26 +8,19 @@ from kaapana.blueprints.kaapana_global_variables import GPU_COUNT, INSTANCE_NAME
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
+from kaapana.operators.GetRefSeriesOperator import GetRefSeriesOperator
 from kaapana.operators.JupyterlabReportingOperator import JupyterlabReportingOperator
 from kaapana.operators.LocalFilterMasksOperator import LocalFilterMasksOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
-from kaapana.operators.GetRefSeriesOperator import GetRefSeriesOperator
-from kaapana.operators.LocalModifySegLabelNamesOperator import (
-    LocalModifySegLabelNamesOperator,
-)
-from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
-from kaapana.operators.GetRefSeriesOperator import GetRefSeriesOperator
 from kaapana.operators.LocalModifySegLabelNamesOperator import (
     LocalModifySegLabelNamesOperator,
 )
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
 from kaapana.operators.MergeMasksOperator import MergeMasksOperator
+from kaapana.operators.MinioOperator import MinioOperator
 from kaapana.operators.Pdf2DcmOperator import Pdf2DcmOperator
 from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
-from kaapana.operators.MinioOperator import MinioOperator
-from airflow.api.common.experimental import pool as pool_api
 from nnunet.NnUnetOperator import NnUnetOperator
 from nnunet.SegCheckOperator import SegCheckOperator
 
@@ -314,9 +307,7 @@ dag = DAG(
     schedule_interval=None,
 )
 
-get_input = LocalGetInputDataOperator(
-    dag=dag, check_modality=True, parallel_downloads=5
-)
+get_input = LocalGetInputDataOperator(dag=dag, check_modality=True, parallel_downloads=5)
 
 
 get_ref_ct_series_from_seg = GetRefSeriesOperator(
@@ -357,9 +348,7 @@ modify_seg_label_names = LocalModifySegLabelNamesOperator(
     trigger_rule="all_done",
 )
 
-dcm2nifti_ct = DcmConverterOperator(
-    dag=dag, input_operator=get_ref_ct_series_from_seg, output_format="nii.gz"
-)
+dcm2nifti_ct = DcmConverterOperator(dag=dag, input_operator=get_ref_ct_series_from_seg, output_format="nii.gz")
 
 check_seg = SegCheckOperator(
     dag=dag,
@@ -462,7 +451,7 @@ dcmseg_send_pdf = DcmSendOperator(
 
 zip_model = ZipUnzipOperator(
     dag=dag,
-    target_filename=f"nnunet_model.zip",
+    target_filename="nnunet_model.zip",
     whitelist_files="model_latest.model.pkl,model_latest.model,model_final_checkpoint.model,model_final_checkpoint.model.pkl,plans.pkl,*.pth,*.json,*.png,*.pdf",
     subdir="results",
     mode="zip",
@@ -507,14 +496,7 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
     >> modify_seg_label_names
     >> check_seg
 )
-(
-    get_input
-    >> get_ref_ct_series_from_seg
-    >> dcm2nifti_ct
-    >> check_seg
-    >> nnunet_preprocess
-    >> nnunet_train
-)
+(get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> check_seg >> nnunet_preprocess >> nnunet_train)
 
 (
     nnunet_train

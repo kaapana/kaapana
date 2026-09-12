@@ -1,4 +1,5 @@
-import os
+# mock_modules() must replace the kaapanapy modules before the app modules import.
+# ruff: noqa: E402
 import sys
 from unittest.mock import MagicMock
 from uuid import UUID
@@ -16,10 +17,10 @@ def mock_modules():
 mock_modules()
 
 
-from app.projects.schemas import Project, is_valid_dicom_ae_title
+from app.projects.kubehelm import is_valid_kubernetes_namespace
 from app.projects.minio import is_valid_minio_bucket_name
 from app.projects.opensearch import is_valid_opensearch_index_name
-from app.projects.kubehelm import is_valid_kubernetes_namespace
+from app.projects.schemas import Project, is_valid_dicom_ae_title
 
 
 def test_is_valid_dicom_ae_title() -> bool:
@@ -39,9 +40,7 @@ def test_is_valid_dicom_ae_title() -> bool:
 
     for title_tuple in test_ae_titles:
         valid_response = is_valid_dicom_ae_title(title_tuple[0])
-        assert (
-            title_tuple[1] == valid_response
-        ), f"{title_tuple[0]} assertion failed, response {valid_response}"
+        assert title_tuple[1] == valid_response, f"{title_tuple[0]} assertion failed, response {valid_response}"
         success = title_tuple[1] == valid_response
 
     assert success

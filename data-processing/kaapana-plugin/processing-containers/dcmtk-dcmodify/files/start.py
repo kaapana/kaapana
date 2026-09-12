@@ -1,7 +1,6 @@
-import os
-from os import getenv
-from os.path import join, exists, dirname, basename
 from glob import glob
+from os import getenv
+from os.path import exists, join
 from pathlib import Path
 
 # For shell-execution
@@ -44,7 +43,7 @@ def process_input_file(filepath):
         print(f"# Command:  {command}")
         print(f"# Filepath: {filepath}")
         print("#")
-        print(f"# STDOUT:")
+        print("# STDOUT:")
         print("#")
         for line in output.stdout.split("\\n"):
             print(f"# {line}")
@@ -52,7 +51,7 @@ def process_input_file(filepath):
         print("#")
         print("#")
         print("#")
-        print(f"# STDERR:")
+        print("# STDERR:")
         print("#")
         for line in output.stderr.split("\\n"):
             print(f"# {line}")
@@ -81,9 +80,7 @@ operator_out_dir = operator_out_dir if operator_out_dir.lower() != "none" else N
 assert operator_out_dir is not None
 
 dcm_tags_to_modify = getenv("DICOM_TAGS_TO_MODIFY", "None")
-dcm_tags_to_modify = (
-    dcm_tags_to_modify if dcm_tags_to_modify.lower() != "none" else None
-)
+dcm_tags_to_modify = dcm_tags_to_modify if dcm_tags_to_modify.lower() != "none" else None
 assert dcm_tags_to_modify is not None
 
 dcm_tags_to_modify = dcm_tags_to_modify.split(";")

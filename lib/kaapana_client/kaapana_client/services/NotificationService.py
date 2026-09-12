@@ -1,9 +1,10 @@
 from typing import List, Optional
 
 import requests
+from pydantic import BaseModel
+
 from kaapana_client.logger import get_logger
 from kaapana_client.settings import ServicesSettings
-from pydantic import BaseModel
 
 NOTIFICATION_SERVICE_URL = ServicesSettings().notification_url
 logger = get_logger(__name__)
@@ -19,9 +20,7 @@ class Notification(BaseModel):
 
 class NotificationService:
     @staticmethod
-    def send(
-        notification: Notification, project_id: str, user_ids: List[str] = []
-    ) -> None:
+    def send(notification: Notification, project_id: str, user_ids: List[str] = []) -> None:
         """
         Send a notification to the notification API.
         Send notifications either to all users in a project or to a list of users
@@ -52,9 +51,7 @@ class NotificationService:
                 except requests.exceptions.HTTPError as e:
                     if response.status_code == 404:
                         failed_for_users.append(user_id)
-                        logger.warning(
-                            f"Could not send notification to user with {user_id=} in this project context."
-                        )
+                        logger.warning(f"Could not send notification to user with {user_id=} in this project context.")
                     else:
                         raise e
             if failed_for_users:

@@ -8,14 +8,14 @@ from pathlib import Path
 import numpy as np
 import requests
 import torch
-from kaapanapy.helper import load_workflow_config
-from kaapanapy.settings import ServicesSettings
 from batchgenerators.dataloading.multi_threaded_augmenter import MultiThreadedAugmenter
 from batchgenerators.transforms.abstract_transforms import Compose
 from batchgenerators.transforms.sample_normalization_transforms import (
     ZeroMeanUnitVarianceTransform,
 )
 from batchgenerators_dataloader import ClassificationDataset
+from kaapanapy.helper import load_workflow_config
+from kaapanapy.settings import ServicesSettings
 from monai.networks.nets import resnet18
 from opensearch_helper import OpenSearchHelper
 from torch.utils.tensorboard import SummaryWriter
@@ -56,7 +56,7 @@ TAG_TO_CLASS_MAPPING = {}
 # get TAG_TO_CLASS_MAPPING_JSON
 tag_class_mappings = os.getenv("TAG_TO_CLASS_MAPPING_JSON", "NONE").split(",")
 if len(tag_class_mappings) < 2:
-    raise AttributeError(f"Please provide at least two class mappings")
+    raise AttributeError("Please provide at least two class mappings")
 
 # create {tag: idx} map from classes
 for class_idx, tag in enumerate(sorted(tag_class_mappings)):
@@ -102,14 +102,10 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 if os.environ["TASK"] == "multilabel":
     f1_metric = F1Score(task=os.environ["TASK"], num_labels=NUM_CLASSES).to(DEVICE)
-    accuracy_metric = Accuracy(task=os.environ["TASK"], num_labels=NUM_CLASSES).to(
-        DEVICE
-    )
+    accuracy_metric = Accuracy(task=os.environ["TASK"], num_labels=NUM_CLASSES).to(DEVICE)
 else:
     f1_metric = F1Score(task=os.environ["TASK"], num_classes=NUM_CLASSES + 1).to(DEVICE)
-    accuracy_metric = Accuracy(task=os.environ["TASK"], num_classes=NUM_CLASSES + 1).to(
-        DEVICE
-    )
+    accuracy_metric = Accuracy(task=os.environ["TASK"], num_classes=NUM_CLASSES + 1).to(DEVICE)
 
 
 def _get_installed_classification_models(models_dir):
@@ -312,9 +308,7 @@ if __name__ == "__main__":
     # Get train/val split and load batchgenerators
 
     logger.debug("Get train/val split and load batchgenerators")
-    train_samples, val_samples = ClassificationDataset.get_split(
-        int(os.environ["FOLD"])
-    )
+    train_samples, val_samples = ClassificationDataset.get_split(int(os.environ["FOLD"]))
 
     transform = ClassificationDataset.get_train_transform(patch_size)
 
@@ -368,9 +362,7 @@ if __name__ == "__main__":
     else:
         criterion = torch.nn.BCEWithLogitsLoss()
 
-    optimizer = torch.optim.SGD(
-        model.parameters(), lr=1e-3, momentum=0.9, weight_decay=5e-4
-    )
+    optimizer = torch.optim.SGD(model.parameters(), lr=1e-3, momentum=0.9, weight_decay=5e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer, T_max=int(os.environ["NUM_EPOCHS"]), eta_min=1e-10
     )
@@ -413,9 +405,7 @@ if __name__ == "__main__":
         writer.add_scalar("val_loss", val_loss, global_step=epoch)
         writer.add_scalar("val_acc", corrects, global_step=epoch)
         writer.add_scalar("ema_f1", ema_f1, global_step=epoch)
-        writer.add_scalar(
-            "learning_rate", optimizer.param_groups[0]["lr"], global_step=epoch
-        )
+        writer.add_scalar("learning_rate", optimizer.param_groups[0]["lr"], global_step=epoch)
 
         if ema_f1 > best_ema_f1:
             best_ema_f1 = ema_f1
@@ -427,7 +417,7 @@ if __name__ == "__main__":
                 optimizer,
                 os.path.join(
                     RESULTS_DIR,
-                    f"model-best.pth.tar",
+                    "model-best.pth.tar",
                 ),
             )
 

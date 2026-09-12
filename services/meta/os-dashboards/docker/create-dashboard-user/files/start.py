@@ -1,9 +1,10 @@
-from kaapanapy.helper import get_project_user_access_token
-from kaapanapy.settings import OpensearchSettings
-from kaapanapy.logger import get_logger
-import requests
 import os
 from time import sleep
+
+import requests
+from kaapanapy.helper import get_project_user_access_token
+from kaapanapy.logger import get_logger
+from kaapanapy.settings import OpensearchSettings
 
 logger = get_logger(__name__)
 opensearch_settings = OpensearchSettings()

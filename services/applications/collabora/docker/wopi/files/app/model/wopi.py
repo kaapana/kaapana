@@ -1,11 +1,10 @@
-import requests
-import logging
 import json
-
-from xml.etree import ElementTree
+import logging
+from dataclasses import asdict, dataclass
 from typing import List
+from xml.etree import ElementTree
 
-from dataclasses import dataclass, asdict
+import requests
 from requests.adapters import HTTPAdapter, Retry
 
 log = logging.getLogger("uvicorn.error")
@@ -54,15 +53,11 @@ class WOPI:
                     yield custom_app
 
     def fetch_apps(self) -> None:
-        log.info(
-            "WOPI discovery started, fetching new apps form %s", self.wopi_discovery_url
-        )
+        log.info("WOPI discovery started, fetching new apps form %s", self.wopi_discovery_url)
         s = requests.Session()
 
         # TODO: more robust reconnects
-        retries = Retry(
-            total=1000, backoff_factor=0.5, status_forcelist=[500, 502, 503, 504]
-        )
+        retries = Retry(total=1000, backoff_factor=0.5, status_forcelist=[500, 502, 503, 504])
 
         s.mount("http://", HTTPAdapter(max_retries=retries))
         response = s.get(self.wopi_discovery_url)

@@ -1,14 +1,15 @@
-from pathlib import Path
-import os
+import argparse
 import json
 import logging
-import requests
-from requests.adapters import HTTPAdapter, Retry
-import zipfile
+import os
 import sys
+import zipfile
 from multiprocessing.pool import ThreadPool
+from pathlib import Path
+
+import requests
 import tqdm
-import argparse
+from requests.adapters import HTTPAdapter, Retry
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -72,9 +73,7 @@ def download_file(
         resume_header = {"Range": f"bytes={existing_size}-"}
         file_mode = "ab"
 
-    with session.get(
-        url, stream=True, headers=resume_header, timeout=timeout
-    ) as response:
+    with session.get(url, stream=True, headers=resume_header, timeout=timeout) as response:
         # If resuming, handle HTTP 206 (partial content)
         if response.status_code == 416:
             logger.info("Download already complete.")
@@ -116,9 +115,7 @@ def download_and_extract(
         try:
             download_file(url=model_download_link, dest_path=model_zip_file)
         except requests.exceptions.RequestException:
-            logger.error(
-                f"Failed to download model for {task_id=} from {model_download_link}"
-            )
+            logger.error(f"Failed to download model for {task_id=} from {model_download_link}")
             return False, task_id
     else:
         logger.debug(f"Model archive for {task_id=} already exists -> Skip download!")
@@ -178,17 +175,17 @@ if __name__ == "__main__":
     logger.info("Start main process.")
     args = parse_arguments()
     try:
-        from kaapanapy.services.NotificationService import (
-            NotificationService,
-            Notification,
-        )
         from kaapanapy.helper import load_workflow_config
+        from kaapanapy.services.NotificationService import (
+            Notification,
+            NotificationService,
+        )
 
         kaapana_notifier = NotificationService()
         wf_config = load_workflow_config()
         project_form = wf_config["project_form"]
         kaapana_project_id = project_form["id"]
-    except:
+    except Exception:
         kaapana_notifier = None
         kaapana_project_id = None
         logger.info("Notifications are disabled.")
@@ -202,7 +199,7 @@ if __name__ == "__main__":
         task_ids = args.task_ids.split(",")
 
     if len(task_ids) == 0:
-        logger.warning(f"No task_ids specified!")
+        logger.warning("No task_ids specified!")
         sys.exit(0)
 
     Path(args.download_dir).mkdir(exist_ok=True, parents=True)
@@ -224,18 +221,14 @@ if __name__ == "__main__":
                     description=msg,
                 )
                 try:
-                    kaapana_notifier.send(
-                        project_id=kaapana_project_id, notification=notification
-                    )
+                    kaapana_notifier.send(project_id=kaapana_project_id, notification=notification)
                 except Exception as e:
                     logger.warning(f"Failed to send notification: {e}")
             continue
 
         for model in model_info["models"]:
             model_target_dir = Path(args.extraction_dir, model)
-            model_already_provided = Path(
-                model_target_dir, task_id, model_info.get("check_file")
-            ).exists()
+            model_already_provided = Path(model_target_dir, task_id, model_info.get("check_file")).exists()
             if model_already_provided:
                 logger.info(f"Model for {task_id} already already exists.")
             else:
@@ -287,8 +280,6 @@ if __name__ == "__main__":
                     description=description,
                 )
                 try:
-                    kaapana_notifier.send(
-                        project_id=kaapana_project_id, notification=notification
-                    )
+                    kaapana_notifier.send(project_id=kaapana_project_id, notification=notification)
                 except Exception as e:
                     logger.warning(f"Failed to send notification: {e}")

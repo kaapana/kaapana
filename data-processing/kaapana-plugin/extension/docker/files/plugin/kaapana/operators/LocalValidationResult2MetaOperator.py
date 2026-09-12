@@ -10,16 +10,15 @@ from html.parser import HTMLParser
 from typing import List
 
 import requests
-from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapanapy.helper import get_opensearch_client
 from kaapanapy.helper.HelperOpensearch import DicomTags
 from kaapanapy.logger import get_logger
 from kaapanapy.settings import OpensearchSettings
-from opensearchpy import OpenSearch
+from pydantic import BaseModel
 from pytz import timezone
 
-from pydantic import BaseModel
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 logger = get_logger(__name__)
 
@@ -158,7 +157,7 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
         return clinical_trial_protocol_id
 
     def get_project_config_from_meta_json(self, json_dict):
-        print(f"Applying action to project bucket")
+        print("Applying action to project bucket")
         # id = json_dict["0020000E SeriesInstanceUID_keyword"]
         clinical_trial_protocol_id = self.extract_project_name_from_ctp_id(json_dict)
 
@@ -281,21 +280,9 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
         with open(html_output_path, "r") as file:
             max_instance_num_parser.feed(file.read())
 
-        min_instance_num = (
-            min_instance_num_parser.data[0]
-            if len(min_instance_num_parser.data) > 0
-            else "0"
-        )
-        max_instance_num = (
-            max_instance_num_parser.data[0]
-            if len(max_instance_num_parser.data) > 0
-            else "0"
-        )
-        incomplete_slices_str = (
-            incomplete_slices_parser.data[0]
-            if len(incomplete_slices_parser.data) > 0
-            else ""
-        )
+        min_instance_num = min_instance_num_parser.data[0] if len(min_instance_num_parser.data) > 0 else "0"
+        max_instance_num = max_instance_num_parser.data[0] if len(max_instance_num_parser.data) > 0 else "0"
+        incomplete_slices_str = incomplete_slices_parser.data[0] if len(incomplete_slices_parser.data) > 0 else ""
         incomplete_slices = []
         if incomplete_slices_str != "":
             incomplete_slices = incomplete_slices_str.split(", ")
@@ -332,16 +319,12 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
             if project_config:
                 os_index = project_config["opensearch_index"]
 
-        series_uid = metadata[
-            DicomTags.series_uid_tag
-        ]  # "0020000E SeriesInstanceUID_keyword"
+        series_uid = metadata[DicomTags.series_uid_tag]  # "0020000E SeriesInstanceUID_keyword"
         existing_tags = metadata.get(self.tag_field, None)
 
         clear_old_results = False
         if existing_tags:
-            print(
-                f"Warning!! Data found on tag {self.tag_field}. Will be replaced by newer results"
-            )
+            print(f"Warning!! Data found on tag {self.tag_field}. Will be replaced by newer results")
             clear_old_results = True
 
         self.update_completeness_to_opensearch(
@@ -372,9 +355,7 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
         print("Start tagging")
 
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
-        batch_folder = [
-            f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))
-        ]
+        batch_folder = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))]
 
         self.os_client = get_opensearch_client()
 
@@ -383,9 +364,7 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
             if self.validator_output_dir != "":
                 html_outputs = sorted(
                     glob.glob(
-                        os.path.join(
-                            batch_element_dir, self.validator_output_dir, "*.html*"
-                        ),
+                        os.path.join(batch_element_dir, self.validator_output_dir, "*.html*"),
                         recursive=True,
                     )
                 )
@@ -396,8 +375,8 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
                 )
                 continue
 
-            n_errors, n_warnings, completeses_metadata, validation_time = (
-                self._extract_validation_results_from_html(html_outputs[0])
+            n_errors, n_warnings, completeses_metadata, validation_time = self._extract_validation_results_from_html(
+                html_outputs[0]
             )
 
             json_files = sorted(
@@ -408,9 +387,7 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
             )
 
             tags_tuple = [
-                ValdationResultItem(
-                    "Errors", "integer", n_errors
-                ),  # (key, opensearch datatype, value)
+                ValdationResultItem("Errors", "integer", n_errors),  # (key, opensearch datatype, value)
                 ValdationResultItem("Warnings", "integer", n_warnings),
                 ValdationResultItem("Date", "datetime", validation_time),
             ]
@@ -435,10 +412,7 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
 
                 # index again to opensearch admin project index if `index_to_default_project`
                 # set to `True` and project name is not `admin`
-                if (
-                    project_name != default_project_name
-                    and self.index_to_default_project
-                ):
+                if project_name != default_project_name and self.index_to_default_project:
                     self.add_validation_results_using_uid_from_metadata(
                         metadata=metadata,
                         validation_result_tags=tags_tuple,

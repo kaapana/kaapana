@@ -1,6 +1,7 @@
+import json
+
 from task_api.processing_container.pc_models import ProcessingContainer
 from task_api.processing_container.task_models import Task
-import json
 
 processing_container_schema = ProcessingContainer.model_json_schema()
 with open("ProcessingContainer.schema.json", "w") as f:

@@ -1,10 +1,10 @@
 # First install kubernetes with pip (code-server from the extensions running on the server)
 # python3 -m pip install kubernetes
 
-from kubernetes import config, client
+
+from kubernetes import client, config
 from kubernetes.client import Configuration
 from six import PY2
-import time
 
 
 def _load_kube_config(in_cluster, cluster_context, config_file):
@@ -20,9 +20,7 @@ def _load_kube_config(in_cluster, cluster_context, config_file):
     return client.CoreV1Api(), client.BatchV1Api(), client.NetworkingV1Api()
 
 
-_client, _batch_client, _extensions_client = _load_kube_config(
-    "in_cluster", cluster_context=None, config_file=None
-)
+_client, _batch_client, _extensions_client = _load_kube_config("in_cluster", cluster_context=None, config_file=None)
 namespace = "default"
 
 try:

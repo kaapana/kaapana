@@ -30,9 +30,7 @@ def get_dcmweb_helper(
                 exit(1)
 
         except ModuleNotFoundError:
-            logger.error(
-                "There is no external helper installed - see extensions external-pacs"
-            )
+            logger.error("There is no external helper installed - see extensions external-pacs")
             exit(1)
 
         except Exception:

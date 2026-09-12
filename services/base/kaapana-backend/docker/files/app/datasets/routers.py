@@ -1,29 +1,27 @@
-import base64
 import logging
 import os
+import random
 import shutil
-from io import BytesIO
 import zipfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from io import BytesIO
+from pathlib import Path
+from time import gmtime, strftime
 
 from app.datasets import utils
 from app.dependencies import (
+    get_dcmweb_helper,
     get_minio,
     get_opensearch,
-    get_project_index,
-    get_dcmweb_helper,
     get_project,
+    get_project_index,
 )
-from app.middlewares import sanitize_inputs
 from app.logger import get_logger
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from fastapi import APIRouter, Body, Depends, HTTPException, Request, Query
+from app.middlewares import sanitize_inputs
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from minio.error import S3Error
-import os
-from pathlib import Path
-import random
 from starlette.responses import StreamingResponse
-from time import gmtime, strftime
 
 MAX_DOWNLOAD_FILE_SIZE_MB = 256
 
@@ -56,12 +54,7 @@ async def tag_data(
         print(doc)
         index_tags = doc["_source"].get("00000000 Tags_keyword", [])
 
-        final_tags = list(
-            set(tags)
-            .union(set(index_tags))
-            .difference(set(tags2delete))
-            .union(set(tags2add))
-        )
+        final_tags = list(set(tags).union(set(index_tags)).difference(set(tags2delete)).union(set(tags2add)))
         print(f"Final tags: {final_tags}")
 
         # Write Tags back
@@ -152,9 +145,7 @@ async def get_series(
         )
         return JSONResponse(
             {
-                k: f.groupby("Study Instance UID")["Series Instance UID"]
-                .apply(list)
-                .to_dict()
+                k: f.groupby("Study Instance UID")["Series Instance UID"].apply(list).to_dict()
                 for k, f in df.groupby("Patient ID")
             }
         )
@@ -195,10 +186,7 @@ def _build_thumbnail_url(project: dict, series_instance_uid: str) -> str:
     # Project-prefixed so the URL also works as a plain <img src> request:
     # those bypass the views' request interceptor and would otherwise reach the
     # backend without any project context.
-    return (
-        f"/project/{project['short_id']}"
-        f"/kaapana-backend/dataset/series/{series_instance_uid}/thumbnail"
-    )
+    return f"/project/{project['short_id']}/kaapana-backend/dataset/series/{series_instance_uid}/thumbnail"
 
 
 @router.get("/series/{series_instance_uid}/thumbnail")
@@ -262,9 +250,7 @@ async def get_dashboard(
     names = config.get("names", [])
 
     name_field_map = utils.get_field_mapping(os_client, project_index)
-    filtered_name_field_map = {
-        name: name_field_map[name] for name in names if name in name_field_map
-    }
+    filtered_name_field_map = {name: name_field_map[name] for name in names if name in name_field_map}
 
     search_query = config.get("query", {})
 
@@ -296,10 +282,7 @@ async def get_dashboard(
                         "field": "00100020 PatientID_keyword.keyword",
                     }
                 },
-                **{
-                    name: {"terms": {"field": field, "size": 10000}}
-                    for name, field in filtered_name_field_map.items()
-                },
+                **{name: {"terms": {"field": field, "size": 10000}} for name, field in filtered_name_field_map.items()},
             },
         },
     )["aggregations"]
@@ -308,9 +291,7 @@ async def get_dashboard(
         k: {
             "items": (
                 {
-                    (i["key_as_string"] if "key_as_string" in i else i["key"]): i[
-                        "doc_count"
-                    ]
+                    (i["key_as_string"] if "key_as_string" in i else i["key"]): i["doc_count"]
                     # dict(
                     # text=f"{(i['key_as_string'] if 'key_as_string' in i else i['key'])}  ({i['doc_count']})",
                     # value=(
@@ -383,9 +364,7 @@ async def get_query_values_item(
     if not query or query == {}:
         query = {"match_all": {}}
 
-    return JSONResponse(
-        await get_all_values(os_client, project_index, field_name, query)
-    )
+    return JSONResponse(await get_all_values(os_client, project_index, field_name, query))
 
 
 @router.get("/field_names")
@@ -393,9 +372,7 @@ async def get_field_names(
     os_client=Depends(get_opensearch),
     project_index=Depends(get_project_index),
 ):
-    return JSONResponse(
-        list((utils.get_field_mapping(os_client, project_index)).keys())
-    )
+    return JSONResponse(list((utils.get_field_mapping(os_client, project_index)).keys()))
 
 
 @router.get("/fields")
@@ -433,9 +410,7 @@ async def get_search_fields(
         )
     except Exception as e:
         logger.error(f"Failed to get search fields: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to retrieve searchable fields: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve searchable fields: {str(e)}")
 
 
 def get_dir_size(start_dir: str):
@@ -456,9 +431,7 @@ def get_dir_size(start_dir: str):
 @router.get("/download")
 async def download_multiple_series(
     request: Request,
-    series_uids: str = Query(
-        ..., description="semicolon-separated (;) all the series UID to download"
-    ),
+    series_uids: str = Query(..., description="semicolon-separated (;) all the series UID to download"),
     dcmweb_helper=Depends(get_dcmweb_helper),
     os_client=Depends(get_opensearch),
     project_index=Depends(get_project_index),
@@ -473,22 +446,16 @@ async def download_multiple_series(
     # create study-series pairs.
     for series_uid in series_uid_list:
         try:
-            metadata_response = await utils.get_metadata(
-                os_client, project_index, series_uid
-            )
+            metadata_response = await utils.get_metadata(os_client, project_index, series_uid)
         except Exception as e:
-            print(
-                f"Study Id for the Series {series_uid} could not be fetched. {str(e)}"
-            )
+            print(f"Study Id for the Series {series_uid} could not be fetched. {str(e)}")
             continue
 
         study_uid = metadata_response["Study Instance UID"]
         study_series_pairs.append((study_uid, series_uid))
 
     if len(study_series_pairs) == 0:
-        raise HTTPException(
-            status_code=404, detail="No appropriate series found to download."
-        )
+        raise HTTPException(status_code=404, detail="No appropriate series found to download.")
 
     # create the filename with the combination of random number and current time
     download_filename = f"kaapana_dataset_downloads_{random.randint(11111, 99999)}_{strftime('%Y%m%d%H%M%S', gmtime())}"
@@ -503,13 +470,9 @@ async def download_multiple_series(
 
     def download_task(study, series, tmp_dir):
         target_dir = tmp_dir / study / series
-        return dcmweb_helper.download_series(
-            study_uid=study, series_uid=series, target_dir=target_dir
-        )
+        return dcmweb_helper.download_series(study_uid=study, series_uid=series, target_dir=target_dir)
 
-    with ThreadPoolExecutor(
-        max_workers=4
-    ) as executor:  # Adjust `max_workers` based on system's capability
+    with ThreadPoolExecutor(max_workers=4) as executor:  # Adjust `max_workers` based on system's capability
         futures = {
             executor.submit(download_task, study, series, tmp_dir): (study, series)
             for study, series in study_series_pairs
@@ -560,11 +523,7 @@ async def download_multiple_series(
     logging.info("=" * 75)
 
     return StreamingResponse(
-        iter(
-            [zip_buffer.getvalue()]
-        ),  # Generator-like behavior for efficient streaming
+        iter([zip_buffer.getvalue()]),  # Generator-like behavior for efficient streaming
         media_type="application/zip",
-        headers={
-            "Content-Disposition": f"attachment; filename={download_filename}.zip"
-        },
+        headers={"Content-Disposition": f"attachment; filename={download_filename}.zip"},
     )

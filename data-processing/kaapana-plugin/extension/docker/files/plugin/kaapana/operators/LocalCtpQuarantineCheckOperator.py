@@ -1,14 +1,15 @@
 # !!! DEPRECATION WARNING: Local Operators are deprecated and will be replaced with operators that run in Kubernetes pods in the next release v0.7.0.
 # If you have a custom Local Operator, it should be migrated to a processing container based operator.
-import glob
 import os
 import shutil
+from datetime import timedelta
 from pathlib import Path
+
+import pydicom
+from airflow.api.common.trigger_dag import trigger_dag as trigger
+
 from kaapana.blueprints.kaapana_utils import generate_run_id
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from airflow.api.common.trigger_dag import trigger_dag as trigger
-import pydicom
-from datetime import timedelta
 
 
 class LocalCtpQuarantineCheckOperator(KaapanaPythonBaseOperator):
@@ -28,9 +29,7 @@ class LocalCtpQuarantineCheckOperator(KaapanaPythonBaseOperator):
         if conf and "dataInputDirs" in conf:
             print("This is already a Dag triggered by this operator")
             return
-        quarantine_path = os.path.join(
-            "/kaapana/mounted/ctpinput", "incoming", ".quarantines"
-        )
+        quarantine_path = os.path.join("/kaapana/mounted/ctpinput", "incoming", ".quarantines")
         path_list = [p for p in Path(quarantine_path).rglob("*.dcm") if p.is_file()]
         if path_list:
             print("Files found in quarantine!")
@@ -45,9 +44,7 @@ class LocalCtpQuarantineCheckOperator(KaapanaPythonBaseOperator):
                 target_list = set()
                 try:
                     for dcm_file in path_list_part:
-                        series_uid = pydicom.dcmread(dcm_file, force=True)[
-                            0x0020, 0x000E
-                        ].value
+                        series_uid = pydicom.dcmread(dcm_file, force=True)[0x0020, 0x000E].value
                         target = os.path.join(
                             self.airflow_workflow_dir,
                             dag_run_id,
@@ -78,12 +75,7 @@ class LocalCtpQuarantineCheckOperator(KaapanaPythonBaseOperator):
                         )
                     exit(1)
 
-                print(
-                    (
-                        "TRIGGERING! DAG-ID: %s RUN_ID: %s"
-                        % (self.trigger_dag_id, dag_run_id)
-                    )
-                )
+                print(("TRIGGERING! DAG-ID: %s RUN_ID: %s" % (self.trigger_dag_id, dag_run_id)))
                 trigger(
                     dag_id=self.trigger_dag_id,
                     run_id=dag_run_id,
@@ -97,7 +89,7 @@ class LocalCtpQuarantineCheckOperator(KaapanaPythonBaseOperator):
         trigger_dag_id="service-process-incoming-dcm",
         max_number_of_batch_files=2000,
         target_dir="get-input-data",
-        **kwargs
+        **kwargs,
     ):
         """
         :param trigger_dag_id: Is by default "service-process-incoming-dcm", has to be set for a different incoming process.
@@ -111,9 +103,5 @@ class LocalCtpQuarantineCheckOperator(KaapanaPythonBaseOperator):
         self.target_dir = target_dir
 
         super().__init__(
-            dag=dag,
-            name=name,
-            python_callable=self.check,
-            execution_timeout=timedelta(minutes=180),
-            **kwargs
+            dag=dag, name=name, python_callable=self.check, execution_timeout=timedelta(minutes=180), **kwargs
         )

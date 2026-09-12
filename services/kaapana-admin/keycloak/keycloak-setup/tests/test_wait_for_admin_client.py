@@ -14,12 +14,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-SCRIPT = (
-    Path(__file__).resolve().parent.parent
-    / "docker"
-    / "files"
-    / "wait_for_admin_client.py"
-)
+SCRIPT = Path(__file__).resolve().parent.parent / "docker" / "files" / "wait_for_admin_client.py"
 
 
 def test_exits_non_zero_when_admin_client_never_ready():
@@ -36,7 +31,6 @@ def test_exits_non_zero_when_admin_client_never_ready():
         timeout=30,
     )
     assert result.returncode == 1, (
-        f"expected exit 1 on bootstrap failure, got {result.returncode}; "
-        f"stderr: {result.stderr}"
+        f"expected exit 1 on bootstrap failure, got {result.returncode}; stderr: {result.stderr}"
     )
     assert "never became ready" in result.stdout

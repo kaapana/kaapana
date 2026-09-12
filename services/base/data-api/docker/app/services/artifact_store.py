@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import shutil
 from pathlib import Path
 from typing import BinaryIO, Iterator
@@ -20,21 +19,15 @@ class ArtifactStore:
     def _safe_component(value: str) -> str:
         return value.replace("/", "_")
 
-    def normalize_components(
-        self, entity_id: str | UUID, metadata_key: str, artifact_id: str
-    ) -> tuple[str, str, str]:
+    def normalize_components(self, entity_id: str | UUID, metadata_key: str, artifact_id: str) -> tuple[str, str, str]:
         return (
             self._safe_component(str(entity_id)),
             self._safe_component(metadata_key),
             self._safe_component(artifact_id),
         )
 
-    def _path_for(
-        self, entity_id: str | UUID, metadata_key: str, artifact_id: str
-    ) -> Path:
-        safe_entity, safe_key, safe_artifact = self.normalize_components(
-            entity_id, metadata_key, artifact_id
-        )
+    def _path_for(self, entity_id: str | UUID, metadata_key: str, artifact_id: str) -> Path:
+        safe_entity, safe_key, safe_artifact = self.normalize_components(entity_id, metadata_key, artifact_id)
         return self.base_dir / safe_entity / safe_key / safe_artifact
 
     def save(
@@ -50,15 +43,11 @@ class ArtifactStore:
             f.write(fileobj.read())
         return path
 
-    def open(
-        self, entity_id: str | UUID, metadata_key: str, artifact_id: str
-    ) -> BinaryIO:
+    def open(self, entity_id: str | UUID, metadata_key: str, artifact_id: str) -> BinaryIO:
         path = self._path_for(entity_id, metadata_key, artifact_id)
         return path.open("rb")
 
-    def delete_artifact(
-        self, entity_id: str | UUID, metadata_key: str, artifact_id: str
-    ) -> None:
+    def delete_artifact(self, entity_id: str | UUID, metadata_key: str, artifact_id: str) -> None:
         path = self._path_for(entity_id, metadata_key, artifact_id)
         path.unlink(missing_ok=True)
         self._cleanup_empty(path.parent)

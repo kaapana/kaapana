@@ -21,11 +21,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+import uuid as _uuid
+
 from app import models, schemas  # noqa: E402
 from test_data import LABEL_ENVIRONMENT_PROD, LABEL_TEAM, PARAM_LIST_ORGAN  # noqa: E402
-
-
-import uuid as _uuid
 
 
 async def _first_revision_id(client: AsyncClient, wf: dict) -> _uuid.UUID:
@@ -76,9 +75,7 @@ async def test_create_workflow_run_basic(session: AsyncSession, client: AsyncCli
 
 
 @pytest.mark.asyncio
-async def test_create_workflow_run_with_labels(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_create_workflow_run_with_labels(session: AsyncSession, client: AsyncClient):
     """Creating a workflow run with labels persists them and surfaces them in the response."""
     _r = await client.post(
         "/v1/workflows",
@@ -107,17 +104,13 @@ async def test_create_workflow_run_with_labels(
     assert response.status_code == 201
     # The run is auto-pinned to its project via an immutable label, on top of
     # the two user labels.
-    user_labels = [
-        l for l in data["labels"] if l["key"] != "kaapana.immutable.project_id"
-    ]
+    user_labels = [label for label in data["labels"] if label["key"] != "kaapana.immutable.project_id"]
     assert len(user_labels) == 2
-    assert any(l["key"] == "kaapana.immutable.project_id" for l in data["labels"])
+    assert any(label["key"] == "kaapana.immutable.project_id" for label in data["labels"])
 
 
 @pytest.mark.asyncio
-async def test_create_workflow_run_with_parameters(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_create_workflow_run_with_parameters(session: AsyncSession, client: AsyncClient):
     """Workflow run created with workflow_parameters echoes them back unchanged."""
     _r = await client.post(
         "/v1/workflows",
@@ -242,9 +235,7 @@ async def test_get_workflow_runs(session: AsyncSession, client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_get_workflow_runs_filter_by_workflow_id(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_get_workflow_runs_filter_by_workflow_id(session: AsyncSession, client: AsyncClient):
     """GET /workflow-runs?workflow_id=... filters runs by source workflow id."""
     _r = await client.post(
         "/v1/workflows",
@@ -274,12 +265,8 @@ async def test_get_workflow_runs_filter_by_workflow_id(
     assert _r.status_code == 201, _r.text
 
     wf2 = _r.json()
-    session.add(
-        models.WorkflowRun(workflow_revision_id=await _first_revision_id(client, wf1))
-    )
-    session.add(
-        models.WorkflowRun(workflow_revision_id=await _first_revision_id(client, wf2))
-    )
+    session.add(models.WorkflowRun(workflow_revision_id=await _first_revision_id(client, wf1)))
+    session.add(models.WorkflowRun(workflow_revision_id=await _first_revision_id(client, wf2)))
     await session.commit()
 
     response = await client.get(f"/v1/workflow-runs?workflow_id={wf1['id']}")
@@ -290,9 +277,7 @@ async def test_get_workflow_runs_filter_by_workflow_id(
 
 
 @pytest.mark.asyncio
-async def test_get_workflow_runs_filter_by_workflow_id_and_increment(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_get_workflow_runs_filter_by_workflow_id_and_increment(session: AsyncSession, client: AsyncClient):
     """Combining workflow_id + workflow_increment filters scopes runs to a specific revision."""
     _r = await client.post(
         "/v1/workflows",
@@ -316,15 +301,11 @@ async def test_get_workflow_runs_filter_by_workflow_id_and_increment(
     # Look up the revision id for increment=2 separately.
     _r = await client.get(f"/v1/workflows/{wf['id']}/revisions/2")
     rev2_id = _uuid.UUID(_r.json()["id"])
-    session.add(
-        models.WorkflowRun(workflow_revision_id=await _first_revision_id(client, wf))
-    )
+    session.add(models.WorkflowRun(workflow_revision_id=await _first_revision_id(client, wf)))
     session.add(models.WorkflowRun(workflow_revision_id=rev2_id))
     await session.commit()
 
-    response = await client.get(
-        f"/v1/workflow-runs?workflow_id={wf['id']}&workflow_increment=2"
-    )
+    response = await client.get(f"/v1/workflow-runs?workflow_id={wf['id']}&workflow_increment=2")
     data = response.json()
     assert response.status_code == 200
     assert len(data) == 1
@@ -459,9 +440,7 @@ async def test_retry_workflow_run_not_found(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_create_workflow_run_increments_correctly(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_create_workflow_run_increments_correctly(session: AsyncSession, client: AsyncClient):
     """Multiple POSTs for the same workflow revision produce distinct run ids."""
     _r = await client.post(
         "/v1/workflows",
@@ -548,9 +527,7 @@ async def test_get_workflow_run_task_runs(session: AsyncSession, client: AsyncCl
 
 
 @pytest.mark.asyncio
-async def test_get_workflow_run_task_runs_filter_by_title(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_get_workflow_run_task_runs_filter_by_title(session: AsyncSession, client: AsyncClient):
     """GET /workflow-runs/{id}/task-runs?task_title=... scopes to one task."""
     _r = await client.post(
         "/v1/workflows",
@@ -588,9 +565,7 @@ async def test_get_workflow_run_task_runs_filter_by_title(
     session.add_all([tr1, tr2])
     await session.commit()
 
-    response = await client.get(
-        f"/v1/workflow-runs/{run.id}/task-runs?task_title=task1"
-    )
+    response = await client.get(f"/v1/workflow-runs/{run.id}/task-runs?task_title=task1")
     data = response.json()
     assert response.status_code == 200
     assert len(data) == 1
@@ -880,9 +855,7 @@ async def test_cancel_workflow_run_from_any_status(
 
 
 @pytest.mark.asyncio
-async def test_workflow_run_with_multiple_labels(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_workflow_run_with_multiple_labels(session: AsyncSession, client: AsyncClient):
     _r = await client.post(
         "/v1/workflows",
         json={
@@ -908,17 +881,13 @@ async def test_workflow_run_with_multiple_labels(
     response = await client.post("/v1/workflow-runs", json=payload)
     data = response.json()
     assert response.status_code == 201
-    user_labels = [
-        l for l in data["labels"] if l["key"] != "kaapana.immutable.project_id"
-    ]
+    user_labels = [label for label in data["labels"] if label["key"] != "kaapana.immutable.project_id"]
     assert len(user_labels) == 2
-    assert any(l["key"] == "kaapana.immutable.project_id" for l in data["labels"])
+    assert any(label["key"] == "kaapana.immutable.project_id" for label in data["labels"])
 
 
 @pytest.mark.asyncio
-async def test_task_run_belongs_to_correct_workflow_run(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_task_run_belongs_to_correct_workflow_run(session: AsyncSession, client: AsyncClient):
     _r = await client.post(
         "/v1/workflows",
         json={
@@ -1005,15 +974,13 @@ async def test_get_workflow_run_with_labels(session: AsyncSession, client: Async
     data = response.json()
     assert response.status_code == 200
     assert len(data["labels"]) == 2
-    label_dict = {l["key"]: l["value"] for l in data["labels"]}
+    label_dict = {label["key"]: label["value"] for label in data["labels"]}
     assert label_dict["env"] == "prod"
     assert label_dict["team"] == "ml"
 
 
 @pytest.mark.asyncio
-async def test_get_workflow_runs_with_status_filter(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_get_workflow_runs_with_status_filter(session: AsyncSession, client: AsyncClient):
     _r = await client.post(
         "/v1/workflows",
         json={

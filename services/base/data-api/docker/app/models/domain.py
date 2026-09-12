@@ -18,9 +18,7 @@ class StoreType(str, Enum):
 class BaseStorageCoordinate(BaseModel):
     """Base description of where a data entity is stored and how to retrieve it."""
 
-    type: StoreType = Field(
-        ..., description="Type of the store (e.g. pacs, s3, filesystem, url)"
-    )
+    type: StoreType = Field(..., description="Type of the store (e.g. pacs, s3, filesystem, url)")
 
 
 class PacsStorageCoordinate(BaseStorageCoordinate):
@@ -48,17 +46,10 @@ class FilesystemStorageCoordinate(BaseStorageCoordinate):
 class UrlStorageCoordinate(BaseStorageCoordinate):
     type: StoreType = StoreType.URL
     url: HttpUrl
-    hint: Optional[str] = Field(
-        None, description="Optional hint on how to use this URL"
-    )
+    hint: Optional[str] = Field(None, description="Optional hint on how to use this URL")
 
 
-StorageCoordinate = (
-    PacsStorageCoordinate
-    | S3StorageCoordinate
-    | FilesystemStorageCoordinate
-    | UrlStorageCoordinate
-)
+StorageCoordinate = PacsStorageCoordinate | S3StorageCoordinate | FilesystemStorageCoordinate | UrlStorageCoordinate
 
 
 class Artifact(BaseModel):
@@ -68,27 +59,17 @@ class Artifact(BaseModel):
     disk or object storage) and are addressed by the `id`.
     """
 
-    id: str = Field(
-        ..., description="Stable identifier of the artifact within a metadata entry"
-    )
+    id: str = Field(..., description="Stable identifier of the artifact within a metadata entry")
     filename: Optional[str] = Field(None, description="Original or suggested filename")
-    content_type: Optional[str] = Field(
-        None, description="MIME type of the artifact content"
-    )
-    size_bytes: Optional[int] = Field(
-        None, ge=0, description="Size of the artifact in bytes, if known"
-    )
+    content_type: Optional[str] = Field(None, description="MIME type of the artifact content")
+    size_bytes: Optional[int] = Field(None, ge=0, description="Size of the artifact in bytes, if known")
 
 
 class MetadataEntry(BaseModel):
     """Schema-validated metadata attached to a data entity under a specific key."""
 
-    key: str = Field(
-        ..., description="Metadata key (must have a registered JSON Schema)"
-    )
-    data: Dict[str, Any] = Field(
-        ..., description="Metadata payload validated against the key's JSON Schema"
-    )
+    key: str = Field(..., description="Metadata key (must have a registered JSON Schema)")
+    data: Dict[str, Any] = Field(..., description="Metadata payload validated against the key's JSON Schema")
     artifacts: List[Artifact] = Field(
         default_factory=list,
         description="Artifacts associated with this metadata entry",

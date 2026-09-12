@@ -1,8 +1,8 @@
-from pydantic_settings import BaseSettings
-from pydantic import Field
+import os
 from typing import List
 
-import os
+from pydantic import Field
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -22,9 +22,7 @@ class Settings(BaseSettings):
     kaapana_build_timestamp: str
     kaapana_build_version: str
     kaapana_platform_build_branch: str = Field(validation_alias="KAAPANA_BUILD_BRANCH")
-    kaapana_platform_last_commit_timestamp: str = Field(
-        validation_alias="KAAPANA_LAST_COMMIT_TIMESTAMP"
-    )
+    kaapana_platform_last_commit_timestamp: str = Field(validation_alias="KAAPANA_LAST_COMMIT_TIMESTAMP")
     kaapana_deployment_timestamp: str = Field(validation_alias="DEPLOYMENT_TIMESTAMP")
     mount_points: List[str] = str(os.getenv("MOUNT_POINTS_TO_MONITOR", "")).split(",")
 

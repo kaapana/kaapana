@@ -11,11 +11,12 @@ from os.path import join
 from pathlib import Path
 
 import pydicom
+from kaapanapy.helper import get_opensearch_client
+from kaapanapy.settings import OpensearchSettings
+
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapanapy.helper import get_opensearch_client
-from kaapanapy.settings import OpensearchSettings
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -101,9 +102,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
 
         # Check if target directory is empty
         if len(os.listdir(series.target_dir)) == 0:
-            raise ValueError(
-                f"Download of series {series.series_instance_uid} failed! Target directory is empty."
-            )
+            raise ValueError(f"Download of series {series.series_instance_uid} failed! Target directory is empty.")
 
     def download_series_from_pacs(self, series: DownloadSeries):
         """Download a series from the PACS system.
@@ -130,13 +129,9 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
 
         logger.info(f"Number of instances in PACS: {len(instances)}")
         logger.info(f"Number of downloaded files: {len(os.listdir(series.target_dir))}")
-        logger.info(
-            f"Downloaded series {series.reference_series_uid} to {series.target_dir}"
-        )
+        logger.info(f"Downloaded series {series.reference_series_uid} to {series.target_dir}")
 
-    def prepare_download(
-        self, path_to_dicom_slice: str, series_dir: str
-    ) -> DownloadSeries:
+    def prepare_download(self, path_to_dicom_slice: str, series_dir: str) -> DownloadSeries:
         """Prepare the download of a series. Means:
         - Load the dicom file and get the series instance uid.
         - Get the reference series uid.
@@ -240,9 +235,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         logging.info(f"Downloading {len(download_series_list)} series.")
         with ThreadPoolExecutor(max_workers=self.parallel_downloads) as executor:
             futures = [
-                executor.submit(
-                    self.download_function, series
-                )  # Download function is being set in the constructor
+                executor.submit(self.download_function, series)  # Download function is being set in the constructor
                 for series in download_series_list
             ]
             for future in as_completed(futures):

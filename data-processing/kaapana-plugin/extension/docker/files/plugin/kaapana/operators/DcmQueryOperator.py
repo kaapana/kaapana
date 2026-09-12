@@ -1,14 +1,11 @@
-import os
-import glob
-from datetime import timedelta, date
-import pydicom
+from datetime import date, timedelta
 
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 from kaapana.blueprints.kaapana_global_variables import (
     DEFAULT_REGISTRY,
     KAAPANA_BUILD_VERSION,
+    SERVICES_NAMESPACE,
 )
-from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 
 
 class DcmQueryOperator(KaapanaBaseOperator):
@@ -46,13 +43,13 @@ class DcmQueryOperator(KaapanaBaseOperator):
         }
 
         if start_date:
-            env["START_DATE"] = start_date.strftime("%Y-%m-%d")
+            envs["START_DATE"] = start_date.strftime("%Y-%m-%d")
 
         if end_date:
-            env["END_DATE"] = end_date.strftime("%Y-%m-%d")
+            envs["END_DATE"] = end_date.strftime("%Y-%m-%d")
 
         if max_query_size:
-            env["MAX_QUERY_SIZE"] = int(max_query_size)
+            envs["MAX_QUERY_SIZE"] = str(int(max_query_size))
 
         env_vars.update(envs)
 

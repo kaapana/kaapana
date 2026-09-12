@@ -26,9 +26,7 @@ chunks_index: int = -1
 
 
 class FileSession:
-    def __init__(
-        self, md5, fname, fpath, fsize, chunk_size, endindex, curr_index=0
-    ) -> None:
+    def __init__(self, md5, fname, fpath, fsize, chunk_size, endindex, curr_index=0) -> None:
         self.md5: str = md5
         self.fname: str = fname
         self.fpath: str = fpath
@@ -45,9 +43,7 @@ class FileSession:
     def update(self, index):
         self.curr_index = index
         if self.curr_index > self.endindex:
-            logger.error(
-                f"ERROR: for {self.fpath=} {self.curr_index=} > {self.endindex=}"
-            )
+            logger.error(f"ERROR: for {self.fpath=} {self.curr_index=} > {self.endindex=}")
         # self.timer.stop()
         # self.timer.start()
 
@@ -73,26 +69,19 @@ filepond_dict = dict()
 
 def remove_outdated_tmp_files(search_dir):
     max_hours_tmp_files = 24
-    files_grabbed = (
-        p.resolve() for p in Path(search_dir).glob("*") if p.suffix in {".json", ".tmp"}
-    )
+    files_grabbed = (p.resolve() for p in Path(search_dir).glob("*") if p.suffix in {".json", ".tmp"})
 
     for file_found in files_grabbed:
         hours_since_creation = int(
-            (
-                datetime.now() - datetime.fromtimestamp(os.path.getmtime(file_found))
-            ).total_seconds()
-            / 3600
+            (datetime.now() - datetime.fromtimestamp(os.path.getmtime(file_found))).total_seconds() / 3600
         )
         if hours_since_creation > max_hours_tmp_files:
             logger.warning(f"File {file_found} outdated -> delete")
             try:
                 os.remove(file_found)
                 pass
-            except Exception as e:
-                logger.warning(
-                    f"Something went wrong with the removal of {file_found} .. "
-                )
+            except Exception:
+                logger.warning(f"Something went wrong with the removal of {file_found} .. ")
 
 
 def filepond_init_upload(form: Form) -> str:
@@ -111,9 +100,7 @@ def filepond_init_upload(form: Form) -> str:
 
 
 # TODO: after successful upload, check if it's tgz and update the cache accordingly
-async def filepond_upload_stream(
-    request: Request, patch: str, ulength: str, uname: str
-) -> Tuple[str, bool]:
+async def filepond_upload_stream(request: Request, patch: str, ulength: str, uname: str) -> Tuple[str, bool]:
     global filepond_dict
     fpath = Path(settings.helm_extensions_cache) / f"{patch}.tmp"
     with open(fpath, "ab") as f:
@@ -123,9 +110,7 @@ async def filepond_upload_stream(
         logger.debug(f"filepond upload completed {fpath}")
         # upload completed
         try:
-            dict_fpath = (
-                Path(settings.helm_extensions_cache) / "extension_filepond_dict.json"
-            )
+            dict_fpath = Path(settings.helm_extensions_cache) / "extension_filepond_dict.json"
             if dict_fpath.exists():
                 with open(dict_fpath, "r") as fp:
                     filepond_dict = json.load(fp)
@@ -147,9 +132,7 @@ async def filepond_upload_stream(
                 # check if there is any kubernetes object specified under admin namespace
                 is_file_safe = check_file_namespace(filename)
                 if not is_file_safe:
-                    raise AttributeError(
-                        f"Chart files can not contain resources under admin_namespace"
-                    )
+                    raise AttributeError("Chart files can not contain resources under admin_namespace")
             return filename, True
 
         except Exception as e:
@@ -219,9 +202,7 @@ def check_file_namespace(filename: str) -> bool:
     chart = helm_helper.helm_show_chart(package=str(fpath))
 
     # get --set values from admin-chart
-    release_values = helm_helper.helm_get_values(
-        settings.release_name, helm_namespace="default"
-    )
+    release_values = helm_helper.helm_get_values(settings.release_name, helm_namespace="default")
     logger.debug(f"{release_values=}")
     default_sets = {}
     if "global" in release_values:
@@ -233,7 +214,7 @@ def check_file_namespace(filename: str) -> bool:
 
     helm_sets = ""
     for key, value in default_sets.items():
-        if type(value) == str:
+        if type(value) is str:
             value = (
                 str(value)
                 .replace(",", r"\,")
@@ -252,9 +233,7 @@ def check_file_namespace(filename: str) -> bool:
     logger.debug(f"{helm_sets=}")
 
     cmd = f"{settings.helm_path} install {chart['name']} {helm_sets} {str(fpath)} -o json --dry-run "
-    success, stdout = helm_helper.execute_shell_command(
-        cmd, shell=True, blocking=True, timeout=60
-    )
+    success, stdout = helm_helper.execute_shell_command(cmd, shell=True, blocking=True, timeout=60)
     if not success:
         err = "Failed to check chart namespace"
         logger.error(f"{err} {stdout=}")
@@ -265,19 +244,13 @@ def check_file_namespace(filename: str) -> bool:
     logger.debug(f"{manifest=}")
 
     if "global.admin_namespace" not in default_sets:
-        raise AssertionError(
-            "Failed to check chart namespace, admin_namespace is not present"
-        )
+        raise AssertionError("Failed to check chart namespace, admin_namespace is not present")
 
     admin_namespace = default_sets["global.admin_namespace"]
 
     # if any kubernetes resource (except hooks) is running under admin namespace, the check fails
     for resource in manifest:
-        if (
-            (resource is None)
-            or ("metadata" not in resource)
-            or ("namespace" not in resource["metadata"])
-        ):
+        if (resource is None) or ("metadata" not in resource) or ("namespace" not in resource["metadata"]):
             continue
 
         if resource["metadata"]["namespace"] == admin_namespace:
@@ -290,9 +263,7 @@ def check_file_namespace(filename: str) -> bool:
     return True
 
 
-def add_file(
-    file: UploadFile, content: bytes, overwrite: bool = True, platforms: bool = False
-) -> Tuple[bool, str]:
+def add_file(file: UploadFile, content: bytes, overwrite: bool = True, platforms: bool = False) -> Tuple[bool, str]:
     """writes tgz file into fast_data_dir/extensions or fast_data_dir/platforms"""
     allowed_types = [
         "application/x-compressed",
@@ -317,9 +288,7 @@ def add_file(
     try:
         with open(fpath, "wb") as f:
             f.write(content)
-        success, stdout = helm_helper.execute_shell_command(
-            f"{settings.helm_path} show chart {fpath}"
-        )
+        success, stdout = helm_helper.execute_shell_command(f"{settings.helm_path} show chart {fpath}")
         if not success:
             raise Exception(stdout)
         if "kaapanamultiinstallable" in stdout:
@@ -373,9 +342,7 @@ def init_file_chunks(
     # sanity checks
     max_iter = math.ceil(fsize / chunk_size)
     if endindex != max_iter:
-        raise AssertionError(
-            f"chunk size calculated differently: {endindex} != {max_iter}"
-        )
+        raise AssertionError(f"chunk size calculated differently: {endindex} != {max_iter}")
     if index > max_iter:
         raise AssertionError(f"max iterations already reached: {index} > {max_iter}")
 
@@ -430,12 +397,10 @@ def add_file_chunks(chunk: bytes):
     sess = sessions[md5]
     # sanity check
     if sess.fpath == "":
-        raise AssertionError(f"file path not available when trying to write chunks")
+        raise AssertionError("file path not available when trying to write chunks")
 
     if sess.curr_index > sess.endindex:
-        raise AssertionError(
-            f"max iterations already reached: {sess.curr_index} > {sess.endindex}"
-        )
+        raise AssertionError(f"max iterations already reached: {sess.curr_index} > {sess.endindex}")
 
     logger.debug(f"writing to file {sess.fpath} , {sess.curr_index} / {sess.endindex}")
     # write bytes
@@ -449,14 +414,10 @@ def add_file_chunks(chunk: bytes):
     return sess.curr_index
 
 
-async def ws_add_file_chunks(
-    ws: WebSocket, fname: str, fsize: int, chunk_size: int, overwrite: bool = True
-):
+async def ws_add_file_chunks(ws: WebSocket, fname: str, fsize: int, chunk_size: int, overwrite: bool = True):
     max_iter = math.ceil(fsize / chunk_size)
 
-    logger.debug(
-        f"in function: ws_add_file_chunks with {fname=}, {fsize=}, {chunk_size=}, {max_iter}"
-    )
+    logger.debug(f"in function: ws_add_file_chunks with {fname=}, {fsize=}, {chunk_size=}, {max_iter}")
 
     try:
         fpath, msg = check_file_exists(fname, overwrite)
@@ -474,9 +435,7 @@ async def ws_add_file_chunks(
 
                 logger.debug("awaiting bytes")
                 data = await ws.receive_bytes()
-                logger.debug(
-                    f"received data from websocket, index {i}, length {len(data)}"
-                )
+                logger.debug(f"received data from websocket, index {i}, length {len(data)}")
                 await f.write(data)
                 await ws.send_json({"index": i, "success": True})
                 i += 1
@@ -500,9 +459,7 @@ async def ws_add_file_chunks(
     return fpath, "File successfully uploaded"
 
 
-async def run_containerd_import(
-    fname: str, platforms: bool = False
-) -> Tuple[bool, str]:
+async def run_containerd_import(fname: str, platforms: bool = False) -> Tuple[bool, str]:
     logger.debug(f"in function: run_containerd_import, {fname=}")
     fpath = make_fpath(fname, platforms=platforms)
 

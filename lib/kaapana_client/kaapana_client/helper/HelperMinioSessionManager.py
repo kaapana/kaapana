@@ -3,8 +3,9 @@ from datetime import datetime, timedelta, timezone
 from threading import Lock
 
 import requests
-from kaapana_client.settings import KaapanaSettings
 from minio import Minio
+
+from kaapana_client.settings import KaapanaSettings
 
 from . import get_project_user_access_token
 
@@ -43,9 +44,7 @@ class HelperMinioSessionManager:
         access_key_id = credentials.find("ns:AccessKeyId", ns).text
         secret_access_key = credentials.find("ns:SecretAccessKey", ns).text
         session_token = credentials.find("ns:SessionToken", ns).text
-        expiration = credentials.find(
-            "ns:Expiration", ns
-        ).text  # e.g. "2025-06-02T12:55:00Z"
+        expiration = credentials.find("ns:Expiration", ns).text  # e.g. "2025-06-02T12:55:00Z"
         return access_key_id, secret_access_key, session_token, expiration
 
     def _is_expired(self):
@@ -54,9 +53,7 @@ class HelperMinioSessionManager:
         return datetime.now(timezone.utc) > self._expiration - timedelta(minutes=2)
 
     def _refresh_client(self):
-        access_key, secret_key, session_token, expiration_str = (
-            self._minio_credentials_with_expiration()
-        )
+        access_key, secret_key, session_token, expiration_str = self._minio_credentials_with_expiration()
         self._expiration = datetime.fromisoformat(expiration_str.replace("Z", "+00:00"))
 
         self._client = Minio(

@@ -1,16 +1,18 @@
 # !!! DEPRECATION WARNING: Local Operators are deprecated and will be replaced with operators that run in Kubernetes pods in the next release v0.7.0.
 # If you have a custom Local Operator, it should be migrated to a processing container based operator.
-from datetime import timedelta
-import time
+import logging
+import re
 import smtplib
+import time
+from datetime import timedelta
 from email.message import EmailMessage
+from typing import List, Optional
+
 from airflow.utils.state import State
 from tabulate import tabulate
-from typing import Optional, List
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+
 from kaapana.operators import HelperSendEmailService
-import re
-import logging
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 logger = logging.getLogger(__name__)
 
@@ -73,12 +75,7 @@ class LocalEmailSendOperator(KaapanaPythonBaseOperator):
         # Logic to filter the task list
         # Selected keys for the email:
         task_list_filtered = [
-            {
-                key: value
-                for key, value in entry.items()
-                if key in self.keys_to_select and value
-            }
-            for entry in task_list
+            {key: value for key, value in entry.items() if key in self.keys_to_select and value} for entry in task_list
         ]
         logger.info(task_list_filtered)
         # Check if there's any data to include in the table
@@ -93,10 +90,7 @@ class LocalEmailSendOperator(KaapanaPythonBaseOperator):
             for entry in task_list:
                 entry["workflow_details"] = ""
                 if "kaapana_instance" in entry:
-                    if (
-                        "protocol" in entry["kaapana_instance"]
-                        and "host" in entry["kaapana_instance"]
-                    ):
+                    if "protocol" in entry["kaapana_instance"] and "host" in entry["kaapana_instance"]:
                         protocol = entry["kaapana_instance"]["protocol"]
                         host = entry["kaapana_instance"]["host"]
                         url = f"{protocol}://{host}/flow/dags/"
@@ -118,9 +112,7 @@ class LocalEmailSendOperator(KaapanaPythonBaseOperator):
         workflow_form = HelperSendEmailService.extract_workflow_form(self.conf)
         receivers = self.get_input_value(workflow_form, "receivers")
 
-        if not receivers or (
-            isinstance(receivers, list) and len(receivers) == 1 and receivers[0] == ""
-        ):
+        if not receivers or (isinstance(receivers, list) and len(receivers) == 1 and receivers[0] == ""):
             username = workflow_form.get("username", None)
             if not username:
                 raise Exception("Cannot send email, no receivers defined!")
@@ -164,9 +156,7 @@ class LocalEmailSendOperator(KaapanaPythonBaseOperator):
         msg["Subject"] = "Workflow result"
         msg["From"] = sender
         msg["To"] = receivers
-        msg.set_content(
-            f"{message_before_table}\n\n{styled_table_html }", subtype="html"
-        )
+        msg.set_content(f"{message_before_table}\n\n{styled_table_html}", subtype="html")
         logger.info("Server info")
         logger.info(f"SMTP_HOST: {smtp_host}")
         logger.info(f"SMTP_PORT: {smtp_port}")
@@ -191,25 +181,19 @@ class LocalEmailSendOperator(KaapanaPythonBaseOperator):
             logger.info("Error: unable to send email")
             exit(1)
 
-    def monitor_workflow_and_send_email(
-        self, workflow_form: dict, workflow_name_monitor: str
-    ):
+    def monitor_workflow_and_send_email(self, workflow_form: dict, workflow_name_monitor: str):
         """Monitor the specified workflow and send an email when it's complete."""
         # Logic to monitor workflow and send email
         while True:
             task_list = HelperSendEmailService.fetch_task_list(workflow_name_monitor)
             keys_to_select = ["status"]
             task_list_filtered = [
-                {key: value for key, value in entry.items() if key in keys_to_select}
-                for entry in task_list
+                {key: value for key, value in entry.items() if key in keys_to_select} for entry in task_list
             ]
             logger.info(task_list_filtered)
 
             # Check if all statuses are either 'success' or 'failed'
-            if all(
-                entry["status"] in ["success", "failed", "skipped", "finished"]
-                for entry in task_list_filtered
-            ):
+            if all(entry["status"] in ["success", "failed", "skipped", "finished"] for entry in task_list_filtered):
                 trigger_run_id = workflow_form.get("trigger_run_id", None)
                 if trigger_run_id:
                     # trigger_run_id only set on failure, in rare cases a smaller run_id can fail after this send_required is triggered.
@@ -223,9 +207,7 @@ class LocalEmailSendOperator(KaapanaPythonBaseOperator):
             logger.info("Wating for all tasks to finish!")
             time.sleep(30)
 
-    def handle_normal_dag_execution(
-        self, workflow_form, workflow_name, run_id, task_instance
-    ):
+    def handle_normal_dag_execution(self, workflow_form, workflow_name, run_id, task_instance):
         """Handle non-monitoring DAG execution and send email if required."""
         # Logic to handle non-monitoring DAG execution
         task_list = HelperSendEmailService.fetch_task_list(workflow_name)
@@ -282,7 +264,9 @@ class LocalEmailSendOperator(KaapanaPythonBaseOperator):
         send_email = workflow_form.get("send_email", None)
         if not (self.send_email or send_email):
             task_instance.set_state(State.SKIPPED)
-            return f"Send email is not enabled. Task {task_instance.task_id} with run_id {run_id} is set to SKIPPED state."
+            return (
+                f"Send email is not enabled. Task {task_instance.task_id} with run_id {run_id} is set to SKIPPED state."
+            )
 
         # Operator triggerd to monitor, in this case an email will be send
         # this operation is only called if the operator is called in send-email dag
@@ -296,11 +280,9 @@ class LocalEmailSendOperator(KaapanaPythonBaseOperator):
 
         workflow_name = workflow_form.get("workflow_name", None)
         if workflow_name is None:
-            raise Exception(f"ERROR: workflow_name is not defined")
+            raise Exception("ERROR: workflow_name is not defined")
         # This function is called, if operator is added to other dags, to trigger send-email dag
-        self.handle_normal_dag_execution(
-            workflow_form, workflow_name, run_id, task_instance
-        )
+        self.handle_normal_dag_execution(workflow_form, workflow_name, run_id, task_instance)
 
     def __init__(
         self,

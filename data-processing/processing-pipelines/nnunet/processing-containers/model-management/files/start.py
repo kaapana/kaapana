@@ -1,16 +1,16 @@
 import json
-from glob import glob
-from pathlib import Path
-import zipfile
 import os
-from os.path import basename, exists, join, normpath
-import shutil
 import re
-from kaapanapy.logger import get_logger
-from kaapanapy.helper import load_workflow_config
-from kaapanapy.settings import ServicesSettings
-import requests
+import shutil
+import zipfile
+from glob import glob
+from os.path import basename, exists, join, normpath
+from pathlib import Path
 
+import requests
+from kaapanapy.helper import load_workflow_config
+from kaapanapy.logger import get_logger
+from kaapanapy.settings import ServicesSettings
 
 logger = get_logger(__name__)
 
@@ -98,9 +98,7 @@ def to_friendly_name(task_name: str) -> str:
 
 def _create_model_object_from_nnunet_model(installed_task, model_path, installed_model):
     # get details installed tasks from dataset.json of installed tasks
-    dataset_json = _get_dataset_json(
-        model_path=model_path, installed_task=installed_task
-    )
+    dataset_json = _get_dataset_json(model_path=model_path, installed_task=installed_task)
     plans_json = _get_plans_json(model_path=model_path, installed_task=installed_task)
     # and extract task's details to installed_tasks dict
     model_name = f"{installed_model}---{installed_task}"
@@ -142,20 +140,16 @@ def _get_installed_tasks(models_dir) -> dict:
     ]
     for installed_model in installed_models:
         model_path = join(installed_models_path, installed_model)
-        installed_tasks_dirs = [
-            basename(normpath(f.path)) for f in os.scandir(model_path) if f.is_dir()
-        ]
+        installed_tasks_dirs = [basename(normpath(f.path)) for f in os.scandir(model_path) if f.is_dir()]
         for installed_task in installed_tasks_dirs:
             if installed_task not in installed_tasks:
                 # and extract task's details to installed_tasks dict
                 model_name = f"{installed_model}---{installed_task}"
                 friendly_model_name = to_friendly_name(model_name)
-                installed_tasks[friendly_model_name] = (
-                    _create_model_object_from_nnunet_model(
-                        installed_task=installed_task,
-                        model_path=model_path,
-                        installed_model=installed_model,
-                    )
+                installed_tasks[friendly_model_name] = _create_model_object_from_nnunet_model(
+                    installed_task=installed_task,
+                    model_path=model_path,
+                    installed_model=installed_model,
                 )
 
     logger.info(f"INSTALLED TASKS: {installed_tasks}")
@@ -178,7 +172,7 @@ def sync_models_in_database(installed_tasks: dict):
         if res.status_code != 200:
             raise Exception(f"ERROR: [{res.status_code}] {res.text}")
     except Exception as e:
-        print(f"Processing of threw an error.", e)
+        print("Processing of threw an error.", e)
         raise e
 
 
@@ -207,11 +201,8 @@ def install_tasks(target_models_dir):
     logger.debug(f"operator_in_dir:  {operator_in_dir}")
 
     # Loop for every batch-element (usually series)
-    batch_folders = sorted(
-        [f for f in glob(os.path.join("/", workflow_dir, batch_name, "*"))]
-    )
+    batch_folders = sorted([f for f in glob(os.path.join("/", workflow_dir, batch_name, "*"))])
     for batch_element_dir in batch_folders:
-
         logger.info(f"Processing batch-element {batch_element_dir}")
         element_input_dir = os.path.join(batch_element_dir, operator_in_dir)
 
@@ -221,9 +212,7 @@ def install_tasks(target_models_dir):
             logger.warning("-> skipping")
             continue
 
-        input_files = glob(
-            os.path.join(element_input_dir, input_file_extension), recursive=True
-        )
+        input_files = glob(os.path.join(element_input_dir, input_file_extension), recursive=True)
         logger.info(f"Found {len(input_files)} input-files!")
 
         if len(input_files) == 0:
@@ -236,9 +225,7 @@ def install_tasks(target_models_dir):
         # Single process:
         # Loop for every input-file found with extension 'input_file_extension'
         for input_file in input_files:
-            success, input_file = extract_file_to_model_dir(
-                zip_path=input_file, models_dir=tmp_models_dir
-            )
+            success, input_file = extract_file_to_model_dir(zip_path=input_file, models_dir=tmp_models_dir)
             processed_count += 1
 
     if processed_count == 0:
@@ -248,9 +235,7 @@ def install_tasks(target_models_dir):
     try:
         new_installed_tasks = _get_installed_tasks(models_dir=tmp_models_dir)
     except Exception as e:
-        logger.error(
-            "Could not extract the necessary information for syncing the new tasks with the database. Abort!"
-        )
+        logger.error("Could not extract the necessary information for syncing the new tasks with the database. Abort!")
         raise e
     installed_tasks = _get_installed_tasks(models_dir=target_models_dir)
     installed_tasks.update(new_installed_tasks)
@@ -288,9 +273,7 @@ def uninstall_tasks(models_dir):
 
     dataset_directory_name, model_directory_name = tuple(uninstall_task.split("---"))
     dataset_path = Path(os.path.join(models_dir, dataset_directory_name))
-    task_path = Path(
-        os.path.join(models_dir, dataset_directory_name, model_directory_name)
-    )
+    task_path = Path(os.path.join(models_dir, dataset_directory_name, model_directory_name))
 
     assert task_path.is_dir()
     logger.info(f"Recursively remove {task_path=}")
@@ -319,6 +302,4 @@ if __name__ == "__main__":
         installed_tasks = _get_installed_tasks(models_dir=target_models_dir)
         sync_models_in_database(installed_tasks=installed_tasks)
     else:
-        raise ValueError(
-            f"{action=} not supported! Must be one of ['install','uninstall']"
-        )
+        raise ValueError(f"{action=} not supported! Must be one of ['install','uninstall']")

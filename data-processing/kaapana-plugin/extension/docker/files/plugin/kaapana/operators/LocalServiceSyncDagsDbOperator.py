@@ -2,10 +2,11 @@
 # If you have a custom Local Operator, it should be migrated to a processing container based operator.
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import requests
 from airflow.models.dagbag import DagBag
+
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
@@ -21,7 +22,6 @@ class LocalServiceSyncDagsDbOperator(KaapanaPythonBaseOperator):
     """
 
     def start(self, ds, **kwargs):
-        conf = kwargs["dag_run"].conf
 
         tries = 0
         max_tries = 4
@@ -34,7 +34,7 @@ class LocalServiceSyncDagsDbOperator(KaapanaPythonBaseOperator):
             try:
                 r = requests.get(url, timeout=3)
                 success = True
-            except:
+            except Exception:
                 print(f"Connections issue: {url}")
                 success = False
                 time.sleep(5)
@@ -75,7 +75,7 @@ class LocalServiceSyncDagsDbOperator(KaapanaPythonBaseOperator):
 
         super().__init__(
             dag=dag,
-            name=f"remove-deleted-dags-from-db",
+            name="remove-deleted-dags-from-db",
             python_callable=self.start,
             **kwargs,
         )

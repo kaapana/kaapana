@@ -6,9 +6,7 @@ router = APIRouter(tags=["storage"])
 
 
 @router.get("/project-bucket-tree")
-def project_bucket_tree(
-    prefix: str = "", minio=Depends(get_minio), project=Depends(get_project)
-):
+def project_bucket_tree(prefix: str = "", minio=Depends(get_minio), project=Depends(get_project)):
     """
     Retrieves and organizes objects from a specified S3 bucket into a tree-like structure.
     Not the complete objects are retrieved from minio, but only the objects at the current level of the prefix.
@@ -43,9 +41,7 @@ def project_bucket_tree(
 
     try:
         # Get all objects at the current level
-        objects_list = list(
-            minio.list_objects(bucket_name, prefix=prefix, recursive=False)
-        )
+        objects_list = list(minio.list_objects(bucket_name, prefix=prefix, recursive=False))
         print(objects_list)
         # Process the results into a tree structure
         result = []

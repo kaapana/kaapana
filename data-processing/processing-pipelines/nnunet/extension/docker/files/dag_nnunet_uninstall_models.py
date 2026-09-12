@@ -1,9 +1,9 @@
-from airflow.utils.dates import days_ago
 from datetime import timedelta
-from airflow.models import DAG
-from nnunet.NnUnetModelOperator import NnUnetModelOperator
 
+from airflow.models import DAG
+from airflow.utils.dates import days_ago
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from nnunet.NnUnetModelOperator import NnUnetModelOperator
 
 properties_template = {
     "friendly_name": {
@@ -47,9 +47,7 @@ dag = DAG(
 )
 
 
-model_management = NnUnetModelOperator(
-    dag=dag, name="uninstall-model", action="uninstall"
-)
+model_management = NnUnetModelOperator(dag=dag, name="uninstall-model", action="uninstall")
 
 clean = LocalWorkflowCleanerOperator(
     dag=dag,

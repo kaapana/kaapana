@@ -12,17 +12,13 @@ class KaapanaSettings(BaseSettings):
 
     services_namespace: str = Field(
         default="services",
-        validation_alias=AliasChoices(
-            "KAAPANA_SERVICES_NAMESPACE", "SERVICES_NAMESPACE"
-        ),
+        validation_alias=AliasChoices("KAAPANA_SERVICES_NAMESPACE", "SERVICES_NAMESPACE"),
     )
     admin_namespace: str = Field(
         default="admin",
         validation_alias=AliasChoices("KAAPANA_ADMIN_NAMESPACE", "ADMIN_NAMESPACE"),
     )
-    kaapana_log_level: str = Field(
-        default="DEBUG", validation_alias=AliasChoices("KAAPANA_LOG_LEVEL")
-    )
+    kaapana_log_level: str = Field(default="DEBUG", validation_alias=AliasChoices("KAAPANA_LOG_LEVEL"))
     timezone: str = Field(
         default="Europe/Berlin",
         validation_alias=AliasChoices("TZ", "KAAPANA_TIMEZONE", "TIMEZONE"),
@@ -60,9 +56,7 @@ class OpensearchSettings(KaapanaSettings):
     )
     default_index: str = Field(
         default="project_admin",
-        validation_alias=AliasChoices(
-            "KAAPANA_DEFAULT_OPENSEARCH_INDEX", "DEFAULT_INDEX"
-        ),
+        validation_alias=AliasChoices("KAAPANA_DEFAULT_OPENSEARCH_INDEX", "DEFAULT_INDEX"),
     )
 
 
@@ -71,18 +65,12 @@ class ProjectSettings(KaapanaSettings):
     Project specific settings
     """
 
-    project_user_name: str = Field(
-        default="system", validation_alias="KAAPANA_PROJECT_USER_NAME"
-    )
+    project_user_name: str = Field(default="system", validation_alias="KAAPANA_PROJECT_USER_NAME")
     project_user_password: Optional[str] = Field(
         default=None,
-        validation_alias=AliasChoices(
-            "KAAPANA_PROJECT_USER_PASSWORD", "SYSTEM_USER_PASSWORD"
-        ),
+        validation_alias=AliasChoices("KAAPANA_PROJECT_USER_PASSWORD", "SYSTEM_USER_PASSWORD"),
     )
-    project_id: Optional[str] = Field(
-        default=None, validation_alias=AliasChoices("KAAPANA_PROJECT_ID")
-    )
+    project_id: Optional[str] = Field(default=None, validation_alias=AliasChoices("KAAPANA_PROJECT_ID"))
 
 
 class OperatorSettings(BaseSettings):
@@ -118,9 +106,7 @@ class ServicesSettings(BaseSettings):
     )
     dicom_web_filter_url: str = Field(
         default="http://dicom-web-filter-service.services.svc:8080",
-        validation_alias=AliasChoices(
-            "KAAPANA_DICOM_WEB_FILTER_URL", "DICOM_WEB_FILTER_URL"
-        ),
+        validation_alias=AliasChoices("KAAPANA_DICOM_WEB_FILTER_URL", "DICOM_WEB_FILTER_URL"),
     )
     opensearch_url: str = Field(
         default="http://opensearch-service.services.svc:9200",

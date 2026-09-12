@@ -45,13 +45,9 @@ class ClearValidationResultOperator:
         # set the opensearch_index if not provided
         # Set the project index from workflow config or else default index from settings
         if not opensearch_index:
-            project_opensearch_index = workflow_config["project_form"][
-                "opensearch_index"
-            ]
+            project_opensearch_index = workflow_config["project_form"]["opensearch_index"]
             self.opensearch_index = (
-                project_opensearch_index
-                if project_opensearch_index is not None
-                else OpensearchSettings().default_index
+                project_opensearch_index if project_opensearch_index is not None else OpensearchSettings().default_index
             )
 
         self.minio_client: Minio = get_minio_client()
@@ -73,9 +69,7 @@ class ClearValidationResultOperator:
         files = []
         for item in allresults:
             if item.is_dir:
-                files.extend(
-                    self.get_all_files_from_result_bucket(prefix=item.object_name)
-                )
+                files.extend(self.get_all_files_from_result_bucket(prefix=item.object_name))
             else:
                 files.append(item.object_name)
         return files
@@ -110,9 +104,7 @@ class ClearValidationResultOperator:
         if response["result"] == "updated":
             logger.info(f"{tagfield} is deleted from the {seriesuid} in OpenSearch")
         else:
-            logger.info(
-                f"Warning!! {tagfield} could not be deleted from the {seriesuid} document in OpenSearch"
-            )
+            logger.info(f"Warning!! {tagfield} could not be deleted from the {seriesuid} document in OpenSearch")
 
         return
 
@@ -152,9 +144,7 @@ class ClearValidationResultOperator:
 
         logger.info("Start Deleting Validation results")
 
-        batch_folder = [
-            f for f in glob.glob(os.path.join(self.workflow_dir, self.batch_name, "*"))
-        ]
+        batch_folder = [f for f in glob.glob(os.path.join(self.workflow_dir, self.batch_name, "*"))]
 
         for batch_element_dir in batch_folder:
             jsonfiles = sorted(
@@ -170,18 +160,13 @@ class ClearValidationResultOperator:
                 with open(metafile) as fs:
                     metadata = json.load(fs)
 
-                seriesuid = metadata[
-                    DicomTags.series_uid_tag
-                ]  # "0020000E SeriesInstanceUID_keyword"
+                seriesuid = metadata[DicomTags.series_uid_tag]  # "0020000E SeriesInstanceUID_keyword"
 
                 self.remove_from_minio(seriesuid)
-                self.remove_field_in_opensearch(
-                    seriesuid, tagfield=self.validation_field
-                )
+                self.remove_field_in_opensearch(seriesuid, tagfield=self.validation_field)
 
 
 if __name__ == "__main__":
-
     static_results_dir = getenv("STATIC_RESULTS_DIR", None)
     validation_tag = getenv("VALIDATION_TAG", None)
     opensearch_index = getenv("OPENSEARCH_INDEX", None)

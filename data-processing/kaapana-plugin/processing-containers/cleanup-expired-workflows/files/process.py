@@ -1,9 +1,9 @@
-import os
-import time
-import shutil
 import logging
-from pathlib import Path
+import os
+import shutil
+import time
 from datetime import datetime, timedelta
+from pathlib import Path
 
 logging.basicConfig(
     level=logging.INFO,
@@ -23,9 +23,7 @@ def main() -> int:
     try:
         expired_seconds = int(expired_raw)
     except ValueError:
-        raise RuntimeError(
-            f"Invalid EXPIRED_PERIOD value '{expired_raw}'; must be an integer (seconds)"
-        )
+        raise RuntimeError(f"Invalid EXPIRED_PERIOD value '{expired_raw}'; must be an integer (seconds)")
     expired_period = timedelta(seconds=expired_seconds)
 
     workflow_dir = Path(os.getenv("WORKFLOW_DIR", "/kaapana/mounted/data/1"))

@@ -1,12 +1,14 @@
 # !!! DEPRECATION WARNING: Local Operators are deprecated and will be replaced with operators that run in Kubernetes pods in the next release v0.7.0.
 # If you have a custom Local Operator, it should be migrated to a processing container based operator.
-import os
+import datetime
 import glob
 import json
-import datetime, pytz
+import os
+
+import pytz
+from kaapanapy.settings import KaapanaSettings
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapanapy.settings import KaapanaSettings
 
 timezone = KaapanaSettings().timezone
 
@@ -31,12 +33,8 @@ class LocalConcatJsonOperator(KaapanaPythonBaseOperator):
 
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_dirs = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))]
-        timestamp = datetime.datetime.now(pytz.timezone(timezone)).strftime(
-            "%y-%m-%d-%H:%M:%S%f"
-        )
-        json_output_path = os.path.join(
-            run_dir, self.operator_out_dir, "{}-{}.json".format(timestamp, self.name)
-        )
+        timestamp = datetime.datetime.now(pytz.timezone(timezone)).strftime("%y-%m-%d-%H:%M:%S%f")
+        json_output_path = os.path.join(run_dir, self.operator_out_dir, "{}-{}.json".format(timestamp, self.name))
         if not os.path.exists(os.path.dirname(json_output_path)):
             os.makedirs(os.path.dirname(json_output_path))
 
@@ -44,9 +42,7 @@ class LocalConcatJsonOperator(KaapanaPythonBaseOperator):
         for batch_element_dir in batch_dirs:
             batch_el_json_files = sorted(
                 glob.glob(
-                    os.path.join(
-                        batch_element_dir, self.operator_in_dir, "**", "*.json*"
-                    ),
+                    os.path.join(batch_element_dir, self.operator_in_dir, "**", "*.json*"),
                     recursive=True,
                 )
             )

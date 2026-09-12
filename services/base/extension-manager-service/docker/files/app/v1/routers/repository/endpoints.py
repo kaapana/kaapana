@@ -1,5 +1,3 @@
-import base64
-import json
 from typing import Optional
 from uuid import UUID
 
@@ -23,9 +21,7 @@ async def create_extension_repository(
     response: Response,
     db: AsyncSession = Depends(database.get_async_db),
 ):
-    encrypted_auth = encryption.encrypt(
-        extension_repository.username, extension_repository.password.get_secret_value()
-    )
+    encrypted_auth = encryption.encrypt(extension_repository.username, extension_repository.password.get_secret_value())
     try:
         db_registered_repository = await crud.create_registered_repository(
             db,
@@ -50,20 +46,14 @@ async def get_registered_repository(
     repository_id: Optional[UUID] = None,
     db: AsyncSession = Depends(database.get_async_db),
 ):
-    return await crud.list_registered_repositories(
-        db, name=name, repository_id=repository_id
-    )
+    return await crud.list_registered_repositories(db, name=name, repository_id=repository_id)
 
 
 @router.get("/{repository_id}", response_model=schemas.Repository)
-async def get_registered_repository_by_id(
-    repository_id: UUID, db: AsyncSession = Depends(database.get_async_db)
-):
+async def get_registered_repository_by_id(repository_id: UUID, db: AsyncSession = Depends(database.get_async_db)):
     repository = await crud.get_registered_repository(db, repository_id)
     if not repository:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found")
     return repository
 
 
@@ -96,22 +86,16 @@ async def update_repository(
         )
 
     except NoResultFound:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found")
     response.headers["Location"] = f"/repository/{db_registered_repository.id}"
     return db_registered_repository
 
 
 @router.delete("/{repository_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_repository(
-    repository_id: UUID, db: AsyncSession = Depends(database.get_async_db)
-):
+async def delete_repository(repository_id: UUID, db: AsyncSession = Depends(database.get_async_db)):
     repository = await crud.get_registered_repository(db, repository_id)
     if not repository:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found")
     await crud.delete_registered_repository(db, repository_id)
 
 
@@ -135,13 +119,9 @@ async def get_extension_manifests(
     oci: ociService = Depends(get_oci_service_for_repository),
 ):
 
-    extensions_manifests = await oci.get_extension_manifests(
-        tags=set(tags.split(",")) if tags else None
-    )
+    extensions_manifests = await oci.get_extension_manifests(tags=set(tags.split(",")) if tags else None)
 
     return [
-        schemas.ExtensionsManifestsResponse(
-            tag=tag, manifest=manifest, repository_id=repository_id
-        )
+        schemas.ExtensionsManifestsResponse(tag=tag, manifest=manifest, repository_id=repository_id)
         for tag, manifest in extensions_manifests.items()
     ]

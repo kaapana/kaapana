@@ -1,14 +1,15 @@
 import functools
-import requests
 import xml.etree.ElementTree as ET
-from app.model.websockets import ConnectionManager
-from app.model.documents import DocumentStore
-from app.model.wopi import WOPI
-from app.config import get_settings
-from fastapi import Request, Depends
-from minio import Minio
+
 import jwt
+import requests
+from app.config import get_settings
+from app.model.documents import DocumentStore
+from app.model.websockets import ConnectionManager
+from app.model.wopi import WOPI
+from fastapi import Depends, Request
 from kaapanapy.logger import get_logger
+from minio import Minio
 
 logger = get_logger(name=__name__)
 
@@ -37,23 +38,15 @@ def get_minio_client(x_auth_token: str = Depends(get_access_token)) -> Minio:
         r.raise_for_status()
         xml_response = r.text
         root = ET.fromstring(xml_response)
-        credentials = root.find(
-            ".//{https://sts.amazonaws.com/doc/2011-06-15/}Credentials"
-        )
-        access_key_id = credentials.find(
-            ".//{https://sts.amazonaws.com/doc/2011-06-15/}AccessKeyId"
-        ).text
-        secret_access_key = credentials.find(
-            ".//{https://sts.amazonaws.com/doc/2011-06-15/}SecretAccessKey"
-        ).text
-        session_token = credentials.find(
-            ".//{https://sts.amazonaws.com/doc/2011-06-15/}SessionToken"
-        ).text
+        credentials = root.find(".//{https://sts.amazonaws.com/doc/2011-06-15/}Credentials")
+        access_key_id = credentials.find(".//{https://sts.amazonaws.com/doc/2011-06-15/}AccessKeyId").text
+        secret_access_key = credentials.find(".//{https://sts.amazonaws.com/doc/2011-06-15/}SecretAccessKey").text
+        session_token = credentials.find(".//{https://sts.amazonaws.com/doc/2011-06-15/}SessionToken").text
         return access_key_id, secret_access_key, session_token
 
     access_key, secret_key, session_token = minio_credentials()
 
-    minio_url = f"minio-service.services.svc:9000"
+    minio_url = "minio-service.services.svc:9000"
     return Minio(
         minio_url,
         access_key=access_key,
@@ -78,9 +71,7 @@ def get_username(request: Request):
     elif "authorization" in request.headers:
         bearer = request.headers.get("authorization")
         access_token = bearer.split()[-1]
-        decoded_token = jwt.decode(
-            access_token, algorithms=["RS256"], options={"verify_signature": False}
-        )
+        decoded_token = jwt.decode(access_token, algorithms=["RS256"], options={"verify_signature": False})
         username = decoded_token.get("preferred_username")
     else:
         logger.warning("Username could not be determined")

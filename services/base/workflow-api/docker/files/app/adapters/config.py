@@ -1,5 +1,6 @@
-from pydantic_settings import BaseSettings
 from functools import cached_property
+
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):

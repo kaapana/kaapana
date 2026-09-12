@@ -5,9 +5,9 @@ from os import getenv
 from os.path import exists, join
 
 import pydicom
-from opensearchpy.exceptions import NotFoundError
 from kaapanapy.helper import get_opensearch_client, load_workflow_config
 from kaapanapy.logger import get_logger
+from opensearchpy.exceptions import NotFoundError
 
 logger = get_logger(__name__, level="INFO")
 
@@ -90,7 +90,7 @@ class Json2MetaOperator:
         Args:
             json_dict (dict): JSON data to push
         """
-        logger.info(f"Pushing JSON to project index")
+        logger.info("Pushing JSON to project index")
         json_dict = self.produce_inserts(json_dict, self.opensearch_index)
         try:
             _ = self.os_client.index(
@@ -171,7 +171,6 @@ class Json2MetaOperator:
             self.rel_dicom_dir = self.operator_in_dir
 
         for batch_element_dir in batch_folder:
-
             # Set the dicom globals
             path_to_dicom = join(batch_element_dir, self.rel_dicom_dir)
             dicom_list = glob.glob(path_to_dicom + "/**/*.dcm", recursive=True)
@@ -200,7 +199,6 @@ class Json2MetaOperator:
 
 
 if __name__ == "__main__":
-
     dicom_operator_out_dir = getenv("DICOM_OPERATOR_OUT_DIR", None)
     json_operator_out_dir = getenv("JSON_OPERATOR_OUT_DIR", None)
     jsonl_operator_out_dir = getenv("JSONL_OPERATOR_OUT_DIR", None)
@@ -214,9 +212,9 @@ if __name__ == "__main__":
     no_update = no_update.lower() == "true"
 
     operator_in_dir = getenv("OPERATOR_IN_DIR", None)
-    assert (
-        operator_in_dir is not None or dicom_operator_out_dir is not None
-    ), "No input directory specified for dicom files!, please set OPERATOR_IN_DIR or DICOM_OPERATOR_OUT_DIR"
+    assert operator_in_dir is not None or dicom_operator_out_dir is not None, (
+        "No input directory specified for dicom files!, please set OPERATOR_IN_DIR or DICOM_OPERATOR_OUT_DIR"
+    )
 
     workflow_dir = getenv("WORKFLOW_DIR", None)
     if not exists(workflow_dir):

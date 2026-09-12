@@ -52,8 +52,7 @@ while waited < MAX_WAIT_SECONDS:
     waited += POLL_INTERVAL_SECONDS
 
 print(
-    f"kaapana-admin client never became ready within {MAX_WAIT_SECONDS}s — "
-    "bootstrap job likely failed.",
+    f"kaapana-admin client never became ready within {MAX_WAIT_SECONDS}s — bootstrap job likely failed.",
     flush=True,
 )
 sys.exit(1)

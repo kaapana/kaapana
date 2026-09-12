@@ -1,13 +1,14 @@
-import httpx
 import base64
-import json
-import re
 import hashlib
+import json
 import logging
-from typing import Optional, List, Dict, Any, Union, Tuple, NewType
+import re
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, Dict, List, NewType, Optional, Tuple, Union
 from urllib.parse import urljoin
+
+import httpx
 
 SHA256Digest = NewType("SHA256Digest", str)
 """Type alias for SHA256 digest strings in format 'sha256:<hexdigest>'."""
@@ -131,9 +132,7 @@ class OCIRegistryDiscovery:
         return {}
 
     async def _get_bearer_token(self, www_auth: str) -> str:
-        match = re.match(
-            r'Bearer realm="([^"]+)",service="([^"]+)"(?:,scope="([^"]+)")?', www_auth
-        )
+        match = re.match(r'Bearer realm="([^"]+)",service="([^"]+)"(?:,scope="([^"]+)")?', www_auth)
         if not match:
             raise OCIError(
                 f"cannot parse WWW-Authenticate header: {www_auth!r}",
@@ -384,9 +383,7 @@ class OCIRegistryDiscovery:
         Raises:
             OCIError: If blob not found or other HTTP error.
         """
-        resp = await self._request_with_auth_retry(
-            "GET", f"{self.registry_url}/v2/{self.repository}/blobs/{digest}"
-        )
+        resp = await self._request_with_auth_retry("GET", f"{self.registry_url}/v2/{self.repository}/blobs/{digest}")
         return resp.content
 
     async def get(self, tag: str) -> Dict[str, Any]:
@@ -435,14 +432,10 @@ class OCIRegistryDiscovery:
                       repository as an empty list should catch
                       ``OCIError`` with ``code == "NAME_UNKNOWN"``.
         """
-        resp = await self._request_with_auth_retry(
-            "GET", f"{self.registry_url}/v2/{self.repository}/tags/list"
-        )
+        resp = await self._request_with_auth_retry("GET", f"{self.registry_url}/v2/{self.repository}/tags/list")
         return resp.json().get("tags") or []
 
-    async def get_all_metadata(
-        self, specific_tag: Optional[str] = None
-    ) -> List[Tuple[str, Dict[str, Any]]]:
+    async def get_all_metadata(self, specific_tag: Optional[str] = None) -> List[Tuple[str, Dict[str, Any]]]:
         """Get metadata for all tags or a specific tag.
 
         Args:
@@ -477,9 +470,7 @@ class OCIRegistryDiscovery:
             headers={"Accept": "application/vnd.oci.image.manifest.v1+json"},
         )
         digest = f"sha256:{hashlib.sha256(manifest_resp.content).hexdigest()}"
-        await self._request_with_auth_retry(
-            "DELETE", f"{self.registry_url}/v2/{self.repository}/manifests/{digest}"
-        )
+        await self._request_with_auth_retry("DELETE", f"{self.registry_url}/v2/{self.repository}/manifests/{digest}")
         self.logger.info(f"Deleted tag {tag}")
         return True
 
@@ -516,9 +507,7 @@ class OCIRegistryDiscovery:
             filename = file_info["filename"]
             dest = (safe_root / filename).resolve()
             if not dest.is_relative_to(safe_root):
-                raise ValueError(
-                    f"filename {filename!r} in registry metadata would escape the output directory"
-                )
+                raise ValueError(f"filename {filename!r} in registry metadata would escape the output directory")
             data = await self._download_blob(file_info["digest"])
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_bytes(data)

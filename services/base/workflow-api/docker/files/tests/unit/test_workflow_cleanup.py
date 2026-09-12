@@ -17,13 +17,12 @@ import uuid
 
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-
 from app import crud, models, schemas
 from app.adapters.adapters.dummy_adapter import DummyAdapter
 from app.api.v1.services import workflow_run_service as service
+from httpx import AsyncClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 
 @pytest.fixture(autouse=True)
@@ -56,8 +55,6 @@ async def _patch_get_async_db_for_cleanup(monkeypatch, session: AsyncSession):
     service-module reference so cleanup work opens a fresh session on
     the same in-memory engine (StaticPool → shared connection → same data).
     """
-    async_engine = session.sync_session.bind  # AsyncEngine's sync facade
-    # Reach back to the AsyncEngine through the sync engine's _proxied attr.
     # Simpler: pytest's session fixture leaks the engine via session.bind.
     bind = session.bind
     factory = async_sessionmaker(bind=bind, expire_on_commit=False)
@@ -76,9 +73,7 @@ async def _patch_get_async_db_for_cleanup(monkeypatch, session: AsyncSession):
 
 
 def test_workflow_run_create_default_cleanup_policy_is_on_success():
-    payload = schemas.WorkflowRunCreate(
-        workflow=schemas.WorkflowRef(id=uuid.uuid4(), title="w", increment=1)
-    )
+    payload = schemas.WorkflowRunCreate(workflow=schemas.WorkflowRef(id=uuid.uuid4(), title="w", increment=1))
     assert payload.cleanup_policy == schemas.CleanupPolicy.ON_SUCCESS
 
 
@@ -139,9 +134,7 @@ async def _ensure_workflow(session: AsyncSession) -> models.WorkflowRevision:
     existing = (
         (
             await session.execute(
-                select(models.WorkflowRevision)
-                .join(models.Workflow)
-                .where(models.Workflow.title == "cleanup-wf")
+                select(models.WorkflowRevision).join(models.Workflow).where(models.Workflow.title == "cleanup-wf")
             )
         )
         .scalars()
@@ -165,9 +158,7 @@ async def _ensure_workflow(session: AsyncSession) -> models.WorkflowRevision:
     await session.refresh(revision)
 
     for title in ("dummy-task-1", "dummy-task-2"):
-        session.add(
-            models.Task(workflow_revision_id=revision.id, title=title, type="test")
-        )
+        session.add(models.Task(workflow_revision_id=revision.id, title=title, type="test"))
     await session.commit()
     return revision
 
@@ -204,9 +195,7 @@ async def _make_workflow_and_run(
     project_id: str | None = "proj-123",
 ) -> models.WorkflowRun:
     revision = await _ensure_workflow(session)
-    labels = (
-        [await _project_label(session, project_id)] if project_id is not None else []
-    )
+    labels = [await _project_label(session, project_id)] if project_id is not None else []
     run = models.WorkflowRun(
         workflow_revision_id=revision.id,
         external_id=external_id,
@@ -242,9 +231,7 @@ async def _wait_for_cleanup(
         if last == target:
             return run
         if asyncio.get_event_loop().time() > deadline:
-            raise AssertionError(
-                f"Timed out waiting for cleanup_status={target.value}; got {last.value}"
-            )
+            raise AssertionError(f"Timed out waiting for cleanup_status={target.value}; got {last.value}")
         await asyncio.sleep(0.05)
 
 
@@ -330,9 +317,7 @@ async def test_cleanup_failure_marks_failed(session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_clean_endpoint_returns_202_and_cleans(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_clean_endpoint_returns_202_and_cleans(session: AsyncSession, client: AsyncClient):
     run = await _make_workflow_and_run(
         session,
         policy=schemas.CleanupPolicy.NEVER,
@@ -352,17 +337,13 @@ async def test_clean_endpoint_returns_202_and_cleans(
 
 
 @pytest.mark.asyncio
-async def test_clean_endpoint_idempotent_when_already_cleaned(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_clean_endpoint_idempotent_when_already_cleaned(session: AsyncSession, client: AsyncClient):
     run = await _make_workflow_and_run(
         session,
         policy=schemas.CleanupPolicy.NEVER,
         lifecycle=schemas.WorkflowRunStatus.COMPLETED,
     )
-    await crud.update_workflow_run_cleanup_state(
-        session, run.id, schemas.CleanupStatus.CLEANED
-    )
+    await crud.update_workflow_run_cleanup_state(session, run.id, schemas.CleanupStatus.CLEANED)
 
     resp = await client.post(f"/v1/workflow-runs/{run.id}/clean")
     assert resp.status_code == 200
@@ -370,26 +351,20 @@ async def test_clean_endpoint_idempotent_when_already_cleaned(
 
 
 @pytest.mark.asyncio
-async def test_clean_endpoint_409_while_pending(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_clean_endpoint_409_while_pending(session: AsyncSession, client: AsyncClient):
     run = await _make_workflow_and_run(
         session,
         policy=schemas.CleanupPolicy.NEVER,
         lifecycle=schemas.WorkflowRunStatus.COMPLETED,
     )
-    await crud.update_workflow_run_cleanup_state(
-        session, run.id, schemas.CleanupStatus.PENDING
-    )
+    await crud.update_workflow_run_cleanup_state(session, run.id, schemas.CleanupStatus.PENDING)
 
     resp = await client.post(f"/v1/workflow-runs/{run.id}/clean")
     assert resp.status_code == 409
 
 
 @pytest.mark.asyncio
-async def test_clean_endpoint_400_when_not_terminal(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_clean_endpoint_400_when_not_terminal(session: AsyncSession, client: AsyncClient):
     run = await _make_workflow_and_run(
         session,
         policy=schemas.CleanupPolicy.NEVER,
@@ -407,17 +382,13 @@ async def test_clean_endpoint_404_when_missing(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_clean_endpoint_retries_from_failed(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_clean_endpoint_retries_from_failed(session: AsyncSession, client: AsyncClient):
     run = await _make_workflow_and_run(
         session,
         policy=schemas.CleanupPolicy.NEVER,
         lifecycle=schemas.WorkflowRunStatus.COMPLETED,
     )
-    await crud.update_workflow_run_cleanup_state(
-        session, run.id, schemas.CleanupStatus.FAILED
-    )
+    await crud.update_workflow_run_cleanup_state(session, run.id, schemas.CleanupStatus.FAILED)
 
     resp = await client.post(f"/v1/workflow-runs/{run.id}/clean")
     assert resp.status_code == 202
@@ -431,9 +402,7 @@ async def test_clean_endpoint_retries_from_failed(
 
 
 @pytest.mark.asyncio
-async def test_list_filter_by_cleanup_status(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_list_filter_by_cleanup_status(session: AsyncSession, client: AsyncClient):
     failed = await _make_workflow_and_run(
         session,
         lifecycle=schemas.WorkflowRunStatus.COMPLETED,
@@ -444,12 +413,8 @@ async def test_list_filter_by_cleanup_status(
         lifecycle=schemas.WorkflowRunStatus.COMPLETED,
         external_id="extid::cleaned",
     )
-    await crud.update_workflow_run_cleanup_state(
-        session, failed.id, schemas.CleanupStatus.FAILED
-    )
-    await crud.update_workflow_run_cleanup_state(
-        session, cleaned.id, schemas.CleanupStatus.CLEANED
-    )
+    await crud.update_workflow_run_cleanup_state(session, failed.id, schemas.CleanupStatus.FAILED)
+    await crud.update_workflow_run_cleanup_state(session, cleaned.id, schemas.CleanupStatus.CLEANED)
 
     resp = await client.get("/v1/workflow-runs?cleanup_status=failed")
     assert resp.status_code == 200
@@ -488,9 +453,7 @@ async def test_atomic_claim_only_succeeds_once(session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_list_endpoint_returns_fresh_lifecycle_after_cleanup_dispatch(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_list_endpoint_returns_fresh_lifecycle_after_cleanup_dispatch(session: AsyncSession, client: AsyncClient):
     """Regression: the atomic UPDATE that dispatches cleanup bypasses the
     ORM identity map. Make sure callers that hold the ORM object see the
     new lifecycle_status after _apply_engine_status returns — otherwise

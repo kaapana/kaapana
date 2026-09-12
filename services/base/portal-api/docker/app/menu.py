@@ -133,10 +133,7 @@ def _parse_dev_links(raw: str | None, source: str) -> list[DevLink]:
 
 def _warn_unknown_keys(ingress: IngressInfo, source: str) -> None:
     for key in ingress.annotations:
-        if (
-            key.startswith(ANNOTATION_PREFIX)
-            and key.removeprefix(ANNOTATION_PREFIX) not in _KNOWN_KEYS
-        ):
+        if key.startswith(ANNOTATION_PREFIX) and key.removeprefix(ANNOTATION_PREFIX) not in _KNOWN_KEYS:
             logger.warning("ingress %s: unknown ui annotation %s, ignored", source, key)
 
 
@@ -168,23 +165,17 @@ def _parse_entry(ingress: IngressInfo, source: str) -> MenuEntry | None:
 
     entry_id = ann.get(_ann("id"), "").strip() or _slugify(label)
     if not entry_id:
-        logger.warning(
-            "ingress %s: ui.name %r slugifies to nothing, entry skipped", source, label
-        )
+        logger.warning("ingress %s: ui.name %r slugifies to nothing, entry skipped", source, label)
         return None
 
     target = ann.get(_ann("target"), "iframe")
     if target not in ("iframe", "tab"):
-        logger.warning(
-            "ingress %s: unknown %s=%r, using 'iframe'", source, _ann("target"), target
-        )
+        logger.warning("ingress %s: unknown %s=%r, using 'iframe'", source, _ann("target"), target)
         target = "iframe"
 
     project = ann.get(_ann("project"), "none")
     if project not in ("path", "none"):
-        logger.warning(
-            "ingress %s: unknown %s=%r, using 'none'", source, _ann("project"), project
-        )
+        logger.warning("ingress %s: unknown %s=%r, using 'none'", source, _ann("project"), project)
         project = "none"
 
     badge_path = ann.get(_ann("badge-path"), "").strip()
@@ -221,9 +212,7 @@ def _first_nonempty(declarers: list[tuple[str, IngressInfo]], key: str) -> str:
 
 def _section_order(declarers: list[tuple[str, IngressInfo]]) -> int:
     orders = [
-        _parse_order(
-            ingress.annotations[_ann("section-order")], "section-order", source
-        )
+        _parse_order(ingress.annotations[_ann("section-order")], "section-order", source)
         for source, ingress in declarers
         if _ann("section-order") in ingress.annotations
     ]
@@ -287,8 +276,7 @@ def build_menu(ingresses: list[IngressInfo]) -> MenuResponse:
         top_level.append(
             MenuSection(
                 id=section_id,
-                label=_first_nonempty(declarers, "section-label")
-                or section_id[:1].upper() + section_id[1:],
+                label=_first_nonempty(declarers, "section-label") or section_id[:1].upper() + section_id[1:],
                 icon=_first_nonempty(declarers, "section-icon"),
                 order=_section_order(declarers),
                 entries=sorted(section_entries, key=sort_key),

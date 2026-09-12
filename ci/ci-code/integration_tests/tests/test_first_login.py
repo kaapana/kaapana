@@ -17,6 +17,4 @@ async def test_first_login(driver: KaapanaPlaywrightDriver, host: str):
     await driver.goto(f"http://{host}")
 
     # Admin password may already be set
-    assert await driver.login(
-        "kaapana", "admin"
-    ), "Login after setting new password failed"
+    assert await driver.login("kaapana", "admin"), "Login after setting new password failed"

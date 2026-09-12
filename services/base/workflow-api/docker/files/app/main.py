@@ -3,6 +3,10 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
+from fastapi import Depends, FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
 from app.api.v1.routers import (
     dummy_adapter_status,
     health_check,
@@ -13,9 +17,6 @@ from app.api.v1.services import errors
 from app.dependencies import get_connection_manager
 from app.logging_config import setup_logging
 from app.sync import run_sync
-from fastapi import Depends, FastAPI, Request, WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -61,9 +62,7 @@ app.add_middleware(
 
 
 @app.websocket("/ws")
-async def websocket_endpoint(
-    websocket: WebSocket, con_mgr=Depends(get_connection_manager)
-):
+async def websocket_endpoint(websocket: WebSocket, con_mgr=Depends(get_connection_manager)):
     await con_mgr.connect(websocket)
     try:
         while True:
@@ -96,9 +95,7 @@ async def service_exception_handler(request: Request, exc: errors.ServiceError):
 
 
 # Versioned routers
-app.include_router(
-    workflow_runs.router, prefix=f"/{API_VERSION}", tags=["workflow runs"]
-)
+app.include_router(workflow_runs.router, prefix=f"/{API_VERSION}", tags=["workflow runs"])
 app.include_router(workflows.router, prefix=f"/{API_VERSION}", tags=["workflow"])
 app.include_router(health_check.router, prefix=f"/{API_VERSION}", tags=["health"])
 

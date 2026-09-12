@@ -10,7 +10,6 @@ services, and no cookie is sent by any verb.
 import time
 
 import pytest
-
 from kaapana_client.services import ApiService
 from kaapana_client.services.ApiService import KaapanaApiService
 
@@ -57,9 +56,7 @@ def recorded_calls(monkeypatch):
     ],
 )
 def test_project_scoped_services_are_prefixed(api, endpoint):
-    assert api._url_for(endpoint) == (
-        f"{ROOT_URL}/project/{PROJECT_ID}/{endpoint.lstrip('/')}"
-    )
+    assert api._url_for(endpoint) == (f"{ROOT_URL}/project/{PROJECT_ID}/{endpoint.lstrip('/')}")
 
 
 @pytest.mark.parametrize(
@@ -80,9 +77,7 @@ def test_unscoped_services_are_not_prefixed(api, endpoint):
 def test_a_project_name_is_quoted_into_one_path_segment(api):
     """Names may contain "/", "?", "#" (AE-title rule); the gateway takes one segment."""
     api.project_id = "a/b c?d#e"
-    assert api._url_for(SCOPED_ENDPOINT) == (
-        f"{ROOT_URL}/project/a%2Fb%20c%3Fd%23e/{SCOPED_ENDPOINT}"
-    )
+    assert api._url_for(SCOPED_ENDPOINT) == (f"{ROOT_URL}/project/a%2Fb%20c%3Fd%23e/{SCOPED_ENDPOINT}")
 
 
 def test_an_endpoint_that_carries_its_own_prefix_is_left_alone(api):
@@ -94,9 +89,7 @@ def test_an_endpoint_that_carries_its_own_prefix_is_left_alone(api):
 @pytest.mark.parametrize("verb", VERBS)
 def test_every_verb_scopes_its_url(api, recorded_calls, verb):
     getattr(api, verb)(SCOPED_ENDPOINT)
-    assert recorded_calls[0]["url"] == (
-        f"{ROOT_URL}/project/{PROJECT_ID}/{SCOPED_ENDPOINT}"
-    )
+    assert recorded_calls[0]["url"] == (f"{ROOT_URL}/project/{PROJECT_ID}/{SCOPED_ENDPOINT}")
 
 
 @pytest.mark.parametrize("verb", VERBS)

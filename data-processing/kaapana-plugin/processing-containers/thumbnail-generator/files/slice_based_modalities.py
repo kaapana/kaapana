@@ -54,13 +54,9 @@ def generate_thumbnail_for_middle_slice(
     client = get_opensearch_client()
 
     project_form = workflow_config.get("project_form", {})
-    opensearch_index = project_form.get(
-        "opensearch_index", OpensearchSettings().default_index
-    )
+    opensearch_index = project_form.get("opensearch_index", OpensearchSettings().default_index)
 
-    series_metadata = _get_opensearch_series_metadata(
-        client, opensearch_index, series_uid
-    )
+    series_metadata = _get_opensearch_series_metadata(client, opensearch_index, series_uid)
 
     if not series_metadata:
         logger.info("No series metadata found -> Not generating a thumbnail")
@@ -70,9 +66,7 @@ def generate_thumbnail_for_middle_slice(
         logger.info("Not updating thumbnail using incomplete series.")
         return None
 
-    middle_instance_number = (
-        series_metadata.min_instance_number + series_metadata.max_instance_number
-    ) // 2
+    middle_instance_number = (series_metadata.min_instance_number + series_metadata.max_instance_number) // 2
 
     instance_uid = _get_instance_uid_from_local(
         operator_in_dir=operator_in_dir,
@@ -89,15 +83,11 @@ def generate_thumbnail_for_middle_slice(
         )
 
     if not instance_uid:
-        logger.error(
-            f"Couldn't find SOPInstanceUID for InstanceNumber: {middle_instance_number}"
-        )
+        logger.error(f"Couldn't find SOPInstanceUID for InstanceNumber: {middle_instance_number}")
         return None
 
     series_metadata.thumbnail_instance_uid = instance_uid
-    _update_opensearch_series_metadata(
-        client, opensearch_index, series_uid, series_metadata
-    )
+    _update_opensearch_series_metadata(client, opensearch_index, series_uid, series_metadata)
 
     middle_slice_dicom_filename = operator_out_dir / f"{instance_uid}.dcm"
 
@@ -131,9 +121,7 @@ def _get_instance_uid_from_local(
     return None
 
 
-def _get_instance_uid_from_pacs(
-    operator_out_dir: Path, middle_instance_number: int, study_uid: str, series_uid: str
-):
+def _get_instance_uid_from_pacs(operator_out_dir: Path, middle_instance_number: int, study_uid: str, series_uid: str):
     """
     Finds the SOPInstanceUID of the middle DICOM slice in a PACS.
     If found, also download the file into a operator_out_dir

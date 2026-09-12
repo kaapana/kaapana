@@ -1,13 +1,12 @@
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.dates import days_ago
 from datetime import timedelta
+
 from airflow.models import DAG
+from airflow.utils.dates import days_ago
+from airflow.utils.log.logging_mixin import LoggingMixin
 from kaapana.operators.DcmQueryOperator import DcmQueryOperator
 from kaapana.operators.Json2MetaOperator import Json2MetaOperator
-from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from airflow.operators.python import PythonOperator
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-
+from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 log = LoggingMixin().log
 
@@ -105,9 +104,10 @@ args = {
 
 class Dcm2MetaJsonLinesOperator(KaapanaPythonBaseOperator):
     def dcm2meta_json_func(self, ds, **kwargs):
+        import glob
         import json
         import os
-        import glob
+
         from kaapana.operators.Dcm2MetaJsonConverter import Dcm2MetaJsonConverter
 
         for prerequisit in [
@@ -120,18 +120,14 @@ class Dcm2MetaJsonLinesOperator(KaapanaPythonBaseOperator):
             "input_operator",
         ]:
             if prerequisit not in kwargs:
-                raise Exception(
-                    f"Prerequisite {prerequisit} is not in environment. (kwargs: {kwargs})"
-                )
+                raise Exception(f"Prerequisite {prerequisit} is not in environment. (kwargs: {kwargs})")
 
         converter = Dcm2MetaJsonConverter()
         # operator_in = "dcmqr"
         # use task id as output
         operator_out = kwargs["ti"].task_id
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
-        batch_folder = [
-            f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))
-        ]
+        batch_folder = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))]
         for batch_element_dir in batch_folder:
             jsonl_files = sorted(
                 glob.glob(
@@ -139,9 +135,7 @@ class Dcm2MetaJsonLinesOperator(KaapanaPythonBaseOperator):
                     recursive=True,
                 )
             )
-            print(
-                f"Processing batch {batch_element_dir} - found {len(jsonl_files)} inputs"
-            )
+            print(f"Processing batch {batch_element_dir} - found {len(jsonl_files)} inputs")
             for jsonl_file in jsonl_files:
                 out_path = jsonl_file.replace(self.operator_in_dir, operator_out)
                 os.makedirs(os.path.dirname(out_path), exist_ok=True)

@@ -1,18 +1,9 @@
-import glob
-import json
-import os
 from dataclasses import dataclass
-from datetime import datetime
-from enum import Enum
-from html.parser import HTMLParser
-from os import getenv
 from typing import List
 
 from kaapanapy.helper import get_opensearch_client, load_workflow_config
-from kaapanapy.helper.HelperOpensearch import DicomTags
 from kaapanapy.logger import get_logger
-from kaapanapy.settings import OpensearchSettings, OperatorSettings
-from pytz import timezone
+from kaapanapy.settings import OpensearchSettings
 
 logger = get_logger(__name__, level="INFO")
 
@@ -120,15 +111,12 @@ class ValidationResult2Meta:
         logger.info(series_instance_uid)
         logger.info(f"Tags 2 add: {validation_tags}")
 
-        doc = self.os_client.get(index=self.opensearch_index, id=series_instance_uid)
-        # logger.info(doc)
+        self.os_client.get(index=self.opensearch_index, id=series_instance_uid)
 
         if clear_results:
             # Write Tags back
             body = {"doc": {self.tag_field: None}}
-            self.os_client.update(
-                index=self.opensearch_index, id=series_instance_uid, body=body
-            )
+            self.os_client.update(index=self.opensearch_index, id=series_instance_uid, body=body)
 
         final_tags = {}
 
@@ -143,6 +131,4 @@ class ValidationResult2Meta:
 
         # Write validation results to doc
         body = {"doc": {self.tag_field: final_tags}}
-        self.os_client.update(
-            index=self.opensearch_index, id=series_instance_uid, body=body
-        )
+        self.os_client.update(index=self.opensearch_index, id=series_instance_uid, body=body)

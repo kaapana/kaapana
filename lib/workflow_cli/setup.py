@@ -21,14 +21,7 @@ class BuildWithSchemas(build_py):
 
         # Source: workflow-api service schemas
         source = (
-            Path(__file__).parents[2]
-            / "services"
-            / "base"
-            / "workflow-api"
-            / "docker"
-            / "files"
-            / "app"
-            / "schemas.py"
+            Path(__file__).parents[2] / "services" / "base" / "workflow-api" / "docker" / "files" / "app" / "schemas.py"
         )
 
         # Destination: workflow_cli package

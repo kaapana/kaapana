@@ -1,15 +1,13 @@
-from pprint import pprint
-import requests
-import time
 import logging
 import os
+import time
+
+import requests
 
 SERVICES_NAMESPACE = os.getenv("SERVICES_NAMESPACE", None)
 assert SERVICES_NAMESPACE
 
-prometheus_base_url = (
-    f"http://prometheus-service.{SERVICES_NAMESPACE}.svc:9090/prometheus/api/v1/query"
-)
+prometheus_base_url = f"http://prometheus-service.{SERVICES_NAMESPACE}.svc:9090/prometheus/api/v1/query"
 prometheus_url = f"{prometheus_base_url}?query="
 
 memory_query = "floor(node_memory_MemTotal_bytes{job='Node-Exporter'}/1048576)"
@@ -22,18 +20,10 @@ cpu_core_query = "machine_cpu_cores"
 cpu_util_per_query = 'sum (rate (container_cpu_usage_seconds_total{id="/"}[1m])) / sum (machine_cpu_cores) * 100'
 cpu_util_cores_used_query = 'sum(rate (container_cpu_usage_seconds_total{id="/"}[1m]))'
 
-gpu_count_query = (
-    "count(DCGM_FI_DEV_POWER_USAGE{kubernetes_name='nvidia-dcgm-exporter'})"
-)
-gpu_mem_used_device_query = (
-    "DCGM_FI_DEV_FB_USED{kubernetes_name='nvidia-dcgm-exporter',gpu=~'<replace>'}"
-)
-gpu_mem_available_device_query = (
-    "DCGM_FI_DEV_FB_FREE{kubernetes_name='nvidia-dcgm-exporter',gpu=~'<replace>'}"
-)
-gpu_infos_query_memory = (
-    '{__name__=~"DCGM_FI_DEV_FB_(FREE|USED|RESERVED)",app="nvidia-dcgm-exporter"}'
-)
+gpu_count_query = "count(DCGM_FI_DEV_POWER_USAGE{kubernetes_name='nvidia-dcgm-exporter'})"
+gpu_mem_used_device_query = "DCGM_FI_DEV_FB_USED{kubernetes_name='nvidia-dcgm-exporter',gpu=~'<replace>'}"
+gpu_mem_available_device_query = "DCGM_FI_DEV_FB_FREE{kubernetes_name='nvidia-dcgm-exporter',gpu=~'<replace>'}"
+gpu_infos_query_memory = '{__name__=~"DCGM_FI_DEV_FB_(FREE|USED|RESERVED)",app="nvidia-dcgm-exporter"}'
 
 
 def get_node_info(query, logger=logging):
@@ -41,12 +31,12 @@ def get_node_info(query, logger=logging):
     max_tries = 4
     result_value = None
     success = True
-    while result_value == None and tries < max_tries:
+    while result_value is None and tries < max_tries:
         try:
             request_url = f"{prometheus_url}{query}"
             response = requests.get(request_url, timeout=1)
             result = response.json()["data"]["result"]
-        except:
+        except Exception:
             return 0, False
         if isinstance(result, list) and len(result) > 0:
             result_value = int(float(response.json()["data"]["result"][0]["value"][1]))
@@ -73,12 +63,12 @@ def get_node_gpu_infos(logger=logging):
             timeout=1,
         )
         result = response.json()
-    except:
-        logger.error(f"+++++++++ Could not fetch node-info for GPUs - requests failed")
+    except Exception:
+        logger.error("+++++++++ Could not fetch node-info for GPUs - requests failed")
         return []
 
     if "status" not in result or result["status"] != "success":
-        logger.error(f"+++++++++ Could not fetch node-info for GPUs - success != true")
+        logger.error("+++++++++ Could not fetch node-info for GPUs - success != true")
         return []
 
     gpu_metrics = {}
@@ -132,8 +122,8 @@ def get_node_gpu_infos(logger=logging):
 def get_node_memory(logger=None):
     node_memory, success = get_node_info(query=memory_query)
     if not success:
-        if logger != None:
-            logger.error(f"+++++++++ Could not fetch node-info: get_node_memory")
+        if logger is not None:
+            logger.error("+++++++++ Could not fetch node-info: get_node_memory")
         return None
 
     return node_memory
@@ -151,23 +141,18 @@ def get_node_requested_memory(logger=None):
     )
 
     if not success1 or not success2:
-        if logger != None:
-            logger.error(
-                f"+++++++++ Could not fetch node-info: get_node_requested_memory"
-            )
+        if logger is not None:
+            logger.error("+++++++++ Could not fetch node-info: get_node_requested_memory")
         return None
 
-    return (
-        memory_requested_from_pods_in_services_namespace
-        + memory_requested_from_pods_in_admin_namespace
-    )
+    return memory_requested_from_pods_in_services_namespace + memory_requested_from_pods_in_admin_namespace
 
 
 def get_node_mem_percent(logger=None):
     mem_percent, success = get_node_info(query=mem_util_per_query)
     if not success:
-        if logger != None:
-            logger.error(f"+++++++++ Could not fetch node-info: get_node_mem_percent")
+        if logger is not None:
+            logger.error("+++++++++ Could not fetch node-info: get_node_mem_percent")
         return None
 
     return mem_percent
@@ -176,8 +161,8 @@ def get_node_mem_percent(logger=None):
 def get_node_cpu(logger=None):
     node_cpu, success = get_node_info(query=cpu_core_query)
     if not success:
-        if logger != None:
-            logger.error(f"+++++++++ Could not fetch node-info: get_node_cpu")
+        if logger is not None:
+            logger.error("+++++++++ Could not fetch node-info: get_node_cpu")
         return None
 
     return node_cpu
@@ -186,10 +171,8 @@ def get_node_cpu(logger=None):
 def get_node_cpu_util_percent(logger=None):
     cpu_util_per, success = get_node_info(query=cpu_util_per_query)
     if not success:
-        if logger != None:
-            logger.error(
-                f"+++++++++ Could not fetch node-info: get_node_cpu_util_percent"
-            )
+        if logger is not None:
+            logger.error("+++++++++ Could not fetch node-info: get_node_cpu_util_percent")
         return None
 
     return cpu_util_per

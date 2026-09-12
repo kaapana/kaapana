@@ -19,7 +19,8 @@ from .utils import DICOM_TAG_DICT, PLUGIN_DIR, mock_modules
 
 sys.path.insert(0, str(PLUGIN_DIR))
 mock_modules()
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+# the plugin package resolves only after the sys.path insert above
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator  # noqa: E402
 
 
 def __init__(self, *args, **kwargs):
@@ -111,10 +112,7 @@ def test_standard_ct(op):
     op.start()
     json_ct = read_ct()
 
-    assert (
-        json_ct["00100010 PatientName_keyword_alphabetic"]
-        == 'SAIC_Pfenning_Prop++luss"2"^1.Messung'
-    )
+    assert json_ct["00100010 PatientName_keyword_alphabetic"] == 'SAIC_Pfenning_Prop++luss"2"^1.Messung'
 
 
 # PatientAge

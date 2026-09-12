@@ -1,16 +1,12 @@
 # !!! DEPRECATION WARNING: Local Operators are deprecated and will be replaced with operators that run in Kubernetes pods in the next release v0.7.0.
 # If you have a custom Local Operator, it should be migrated to a processing container based operator.
-from minio import Minio
-import os
-import glob
-import uuid
 import json
-from zipfile import ZipFile
-import datetime
+import os
 from datetime import timedelta
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperFederated import federated_sharing_decorator
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
 class LocalFedartedSetupFederatedTestOperator(KaapanaPythonBaseOperator):
@@ -21,9 +17,7 @@ class LocalFedartedSetupFederatedTestOperator(KaapanaPythonBaseOperator):
         print("conf", conf)
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
 
-        from_previous_json_path = os.path.join(
-            run_dir, self.operator_in_dir, "from_previous.json"
-        )
+        from_previous_json_path = os.path.join(run_dir, self.operator_in_dir, "from_previous.json")
         with open(from_previous_json_path, "r", encoding="utf-8") as jsonData:
             print("Yippie from previous seems to be available")
             print(json.load(jsonData))
@@ -42,8 +36,7 @@ class LocalFedartedSetupFederatedTestOperator(KaapanaPythonBaseOperator):
 
         if (
             "simulate_fail_round" in conf["workflow_form"]
-            and conf["workflow_form"]["simulate_fail_round"]
-            == conf["federated_form"]["federated_round"]
+            and conf["workflow_form"]["simulate_fail_round"] == conf["federated_form"]["federated_round"]
         ):
             raise ValueError("Simulating an Error!")
         return
@@ -51,7 +44,7 @@ class LocalFedartedSetupFederatedTestOperator(KaapanaPythonBaseOperator):
     def __init__(self, dag, **kwargs):
         super(LocalFedartedSetupFederatedTestOperator, self).__init__(
             dag=dag,
-            name=f"federated-setup-federated-test",
+            name="federated-setup-federated-test",
             python_callable=self.start,
             allow_federated_learning=True,
             execution_timeout=timedelta(minutes=30),

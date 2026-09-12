@@ -8,6 +8,7 @@ from fastapi import Request
 
 class UserRole(str, Enum):
     """User roles in the Kaapana system."""
+
     ADMIN = "admin"
     PROJECT_MANAGER = "project-manager"
     PRINCIPAL_INVESTIGATOR = "principal-investigator"
@@ -43,4 +44,4 @@ def is_admin_request(request: Request) -> bool:
     if UserRole.ADMIN.value in roles:
         return True
     groups = token_payload.get("groups", [])
-    return any('kaapana_admin' in g for g in groups)
+    return any("kaapana_admin" in g for g in groups)

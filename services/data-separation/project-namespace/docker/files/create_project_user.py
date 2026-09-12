@@ -41,6 +41,6 @@ if __name__ == "__main__":
             pass
         else:
             logger.error(
-                f"Failed to create project mapping in {project_name=} for {project_user=} and {project_user_role=}"
+                f"Failed to create project mapping in {project_id=} for {project_user=} and {project_user_role=}"
             )
             raise e

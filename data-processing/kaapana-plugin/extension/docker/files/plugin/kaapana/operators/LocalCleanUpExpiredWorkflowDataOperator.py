@@ -1,12 +1,11 @@
 # !!! DEPRECATION WARNING: Local Operators are deprecated and will be replaced with operators that run in Kubernetes pods in the next release v0.7.0.
 # If you have a custom Local Operator, it should be migrated to a processing container based operator.
-from minio import Minio
-import os
-import time
 import glob
-from datetime import timedelta
-from datetime import datetime
+import os
 import shutil
+import time
+from datetime import datetime, timedelta
+
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
@@ -22,7 +21,6 @@ class LocalCleanUpExpiredWorkflowDataOperator(KaapanaPythonBaseOperator):
     """
 
     def start(self, ds, **kwargs):
-        conf = kwargs["dag_run"].conf
 
         print(f"Expired time {self.expired_period}")
         print(f"Working in {self.airflow_workflow_dir}")
@@ -37,12 +35,10 @@ class LocalCleanUpExpiredWorkflowDataOperator(KaapanaPythonBaseOperator):
             age_in_seconds = time.time() - youngest_time
             print(f"Checking in {dag_id}")
             print(f"Age of directory {timedelta(seconds=age_in_seconds)}")
-            print(
-                f'Last changed {datetime.fromtimestamp(modified_time).strftime("%A, %B %d, %Y %I:%M:%S")}'
-            )
+            print(f"Last changed {datetime.fromtimestamp(modified_time).strftime('%A, %B %d, %Y %I:%M:%S')}")
             if age_in_seconds > self.expired_period.total_seconds():
                 print(
-                    f'Removing folder since it was last modified on the {datetime.fromtimestamp(modified_time).strftime("%A, %B %d, %Y %I:%M:%S")}'
+                    f"Removing folder since it was last modified on the {datetime.fromtimestamp(modified_time).strftime('%A, %B %d, %Y %I:%M:%S')}"
                 )
                 shutil.rmtree(target_dir, ignore_errors=True)
         return
@@ -55,6 +51,4 @@ class LocalCleanUpExpiredWorkflowDataOperator(KaapanaPythonBaseOperator):
 
         self.expired_period = expired_period
 
-        super().__init__(
-            dag=dag, name=f"clean-up", python_callable=self.start, **kwargs
-        )
+        super().__init__(dag=dag, name="clean-up", python_callable=self.start, **kwargs)

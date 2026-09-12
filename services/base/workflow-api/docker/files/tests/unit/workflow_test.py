@@ -64,9 +64,7 @@ async def test_create_workflow(client: AsyncClient, payload: dict):
     ids=[case[2] for case in VALIDATION_ERROR_TEST_CASES],
 )
 @pytest.mark.asyncio
-async def test_create_workflow_validation_errors(
-    client: AsyncClient, payload: dict, expected_status: int
-):
+async def test_create_workflow_validation_errors(client: AsyncClient, payload: dict, expected_status: int):
     """Posting wrong workflow payloads yields the expected 422 validation errors."""
     response = await client.post("/v1/workflows", json=payload)
     assert response.status_code == expected_status
@@ -148,9 +146,7 @@ async def test_list_workflows_empty(client: AsyncClient):
 @pytest.mark.GET
 @pytest.mark.get_workflows
 @pytest.mark.asyncio
-async def test_list_workflows_returns_latest_revision_fields(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_list_workflows_returns_latest_revision_fields(session: AsyncSession, client: AsyncClient):
     """When a workflow has multiple revisions, the list response reflects the latest."""
     _r = await client.post(
         "/v1/workflows",
@@ -185,9 +181,7 @@ async def test_list_workflows_returns_latest_revision_fields(
 @pytest.mark.GET
 @pytest.mark.get_workflows
 @pytest.mark.asyncio
-async def test_list_workflows_filter_by_name(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_list_workflows_filter_by_name(session: AsyncSession, client: AsyncClient):
     """GET /workflows?title=... filters by title."""
     await client.post(
         "/v1/workflows",
@@ -283,9 +277,7 @@ async def test_list_workflows_filter_by_id(session: AsyncSession, client: AsyncC
 @pytest.mark.GET
 @pytest.mark.get_workflows
 @pytest.mark.asyncio
-async def test_list_workflows_order_by_title_asc(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_list_workflows_order_by_title_asc(session: AsyncSession, client: AsyncClient):
     """GET /workflows?order_by=title&order=asc sorts ascending by title."""
     for t in ["charlie", "alpha", "bravo"]:
         await client.post(
@@ -308,9 +300,7 @@ async def test_list_workflows_order_by_title_asc(
 @pytest.mark.GET
 @pytest.mark.get_workflows
 @pytest.mark.asyncio
-async def test_list_workflows_order_by_title_desc(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_list_workflows_order_by_title_desc(session: AsyncSession, client: AsyncClient):
     """GET /workflows?order_by=title&order=desc sorts descending by title."""
     for t in ["charlie", "alpha", "bravo"]:
         await client.post(
@@ -355,9 +345,7 @@ async def test_list_workflows_order_by_id(session: AsyncSession, client: AsyncCl
 @pytest.mark.GET
 @pytest.mark.get_workflows
 @pytest.mark.asyncio
-async def test_list_workflows_combined_query_params(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_list_workflows_combined_query_params(session: AsyncSession, client: AsyncClient):
     """GET /workflows accepts multiple query params together (order + limit)."""
     for t in ["charlie", "alpha", "bravo", "delta"]:
         await client.post(
@@ -380,9 +368,7 @@ async def test_list_workflows_combined_query_params(
 @pytest.mark.GET
 @pytest.mark.get_workflows
 @pytest.mark.asyncio
-async def test_list_workflows_filter_by_id_with_ordering(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_list_workflows_filter_by_id_with_ordering(session: AsyncSession, client: AsyncClient):
     """Filtering by id combined with ordering still returns the single match."""
     _r = await client.post(
         "/v1/workflows",
@@ -419,9 +405,7 @@ async def test_list_workflows_filter_by_id_with_ordering(
 @pytest.mark.GET
 @pytest.mark.get_workflows
 @pytest.mark.asyncio
-async def test_list_workflows_invalid_order_param(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_list_workflows_invalid_order_param(session: AsyncSession, client: AsyncClient):
     """An invalid `order` value falls back to default sort (no error)."""
     for t in ["a", "b"]:
         await client.post(
@@ -556,9 +540,7 @@ async def test_get_workflow_by_id_invalid_uuid(client: AsyncClient):
 
 @pytest.mark.patch_workflow
 @pytest.mark.asyncio
-async def test_patch_workflow_definition_bumps_increment(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_patch_workflow_definition_bumps_increment(session: AsyncSession, client: AsyncClient):
     """PATCH with a definition change appends a new revision and bumps increment."""
     _r = await client.post(
         "/v1/workflows",
@@ -574,9 +556,7 @@ async def test_patch_workflow_definition_bumps_increment(
     assert _r.status_code == 201, _r.text
 
     wf = _r.json()
-    response = await client.patch(
-        f"/v1/workflows/{wf['id']}", json={"definition": "v2"}
-    )
+    response = await client.patch(f"/v1/workflows/{wf['id']}", json={"definition": "v2"})
     data = response.json()
     assert response.status_code == 200, data
     assert data["increment"] == 2
@@ -587,9 +567,7 @@ async def test_patch_workflow_definition_bumps_increment(
 
 @pytest.mark.patch_workflow
 @pytest.mark.asyncio
-async def test_patch_workflow_title_only_updates_in_place_no_new_revision(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_patch_workflow_title_only_updates_in_place_no_new_revision(session: AsyncSession, client: AsyncClient):
     """Title is not a versioned field — renaming applies in place without
     creating a new revision or bumping the increment."""
     _r = await client.post(
@@ -606,9 +584,7 @@ async def test_patch_workflow_title_only_updates_in_place_no_new_revision(
     assert _r.status_code == 201, _r.text
 
     wf = _r.json()
-    response = await client.patch(
-        f"/v1/workflows/{wf['id']}", json={"title": "new-title"}
-    )
+    response = await client.patch(f"/v1/workflows/{wf['id']}", json={"title": "new-title"})
     data = response.json()
     assert response.status_code == 200
     assert data["title"] == "new-title"
@@ -617,9 +593,7 @@ async def test_patch_workflow_title_only_updates_in_place_no_new_revision(
 
 @pytest.mark.patch_workflow
 @pytest.mark.asyncio
-async def test_patch_workflow_unknown_field_rejected(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_patch_workflow_unknown_field_rejected(session: AsyncSession, client: AsyncClient):
     """PATCH with an unknown field is rejected (extra='forbid' on WorkflowUpdate)."""
     _r = await client.post(
         "/v1/workflows",
@@ -646,9 +620,7 @@ async def test_patch_workflow_unknown_field_rejected(
 
 @pytest.mark.patch_workflow
 @pytest.mark.asyncio
-async def test_patch_workflow_immutable_label_value_change_rejected(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_patch_workflow_immutable_label_value_change_rejected(session: AsyncSession, client: AsyncClient):
     """Changing the value of an existing kaapana.immutable.* label is rejected with 422."""
     _r = await client.post(
         "/v1/workflows",
@@ -680,9 +652,7 @@ async def test_patch_workflow_immutable_label_value_change_rejected(
 
 @pytest.mark.patch_workflow
 @pytest.mark.asyncio
-async def test_patch_workflow_immutable_label_removal_rejected(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_patch_workflow_immutable_label_removal_rejected(session: AsyncSession, client: AsyncClient):
     """Omitting a previously-present kaapana.immutable.* label is rejected as removal."""
     _r = await client.post(
         "/v1/workflows",
@@ -711,9 +681,7 @@ async def test_patch_workflow_immutable_label_removal_rejected(
 
 @pytest.mark.patch_workflow
 @pytest.mark.asyncio
-async def test_patch_workflow_add_immutable_label_allowed(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_patch_workflow_add_immutable_label_allowed(session: AsyncSession, client: AsyncClient):
     """Adding a new kaapana.immutable.* label (none present before) is allowed."""
     _r = await client.post(
         "/v1/workflows",
@@ -739,8 +707,8 @@ async def test_patch_workflow_add_immutable_label_allowed(
     )
     assert response.status_code == 200, response.json()
     assert any(
-        l["key"] == "kaapana.immutable.extension.id" and l["value"] == "ext-1"
-        for l in response.json()["labels"]
+        label["key"] == "kaapana.immutable.extension.id" and label["value"] == "ext-1"
+        for label in response.json()["labels"]
     )
 
 
@@ -778,9 +746,7 @@ async def test_patch_workflow_add_extra_immutable_label_preserving_existing_allo
 
 @pytest.mark.patch_workflow
 @pytest.mark.asyncio
-async def test_patch_workflow_mutable_label_changes_allowed(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_patch_workflow_mutable_label_changes_allowed(session: AsyncSession, client: AsyncClient):
     """Mutable labels (without the kaapana.immutable. prefix) can be freely changed."""
     _r = await client.post(
         "/v1/workflows",
@@ -805,9 +771,7 @@ async def test_patch_workflow_mutable_label_changes_allowed(
 
 @pytest.mark.restore_workflow_revision
 @pytest.mark.asyncio
-async def test_restore_revision_rejected_if_it_would_remove_immutable_label(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_restore_revision_rejected_if_it_would_remove_immutable_label(session: AsyncSession, client: AsyncClient):
     """Restoring to an earlier revision that lacks a now-immutable label is rejected with 422."""
     _r = await client.post(
         "/v1/workflows",
@@ -873,9 +837,9 @@ async def test_delete_workflow(session: AsyncSession, client: AsyncClient):
     assert response.status_code == 404
 
     # But persisted in DB with removed=True
-    from sqlalchemy import select
-
     import uuid as _uuid
+
+    from sqlalchemy import select
 
     stmt = select(models.Workflow).where(models.Workflow.id == _uuid.UUID(wf["id"]))
     result = await session.execute(stmt)
@@ -887,9 +851,7 @@ async def test_delete_workflow(session: AsyncSession, client: AsyncClient):
 @pytest.mark.DELETE
 @pytest.mark.delete_workflow
 @pytest.mark.asyncio
-async def test_delete_workflow_twice_returns_404(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_delete_workflow_twice_returns_404(session: AsyncSession, client: AsyncClient):
     """Deleting an already soft-deleted workflow returns 404."""
     _r = await client.post(
         "/v1/workflows",
@@ -1001,9 +963,7 @@ async def test_get_revision_not_found(session: AsyncSession, client: AsyncClient
 
 @pytest.mark.restore_workflow_revision
 @pytest.mark.asyncio
-async def test_restore_revision_creates_new_increment_with_old_content(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_restore_revision_creates_new_increment_with_old_content(session: AsyncSession, client: AsyncClient):
     """Restoring revision 1 from a workflow at increment 3 produces increment 4 with v1's content."""
     _r = await client.post(
         "/v1/workflows",
@@ -1040,9 +1000,7 @@ async def test_restore_revision_creates_new_increment_with_old_content(
 
 @pytest.mark.patch_workflow
 @pytest.mark.asyncio
-async def test_patch_workflow_forbidden_when_dev_mode_off(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_patch_workflow_forbidden_when_dev_mode_off(session: AsyncSession, client: AsyncClient):
     """PATCH /workflows/{id} returns 403 when DEV_MODE is off."""
     _r = await client.post(
         "/v1/workflows",
@@ -1060,9 +1018,7 @@ async def test_patch_workflow_forbidden_when_dev_mode_off(
     wf = _r.json()
     fastapi_app.dependency_overrides[require_dev_mode] = require_dev_mode
     try:
-        response = await client.patch(
-            f"/v1/workflows/{wf['id']}", json={"definition": "v2"}
-        )
+        response = await client.patch(f"/v1/workflows/{wf['id']}", json={"definition": "v2"})
     finally:
         fastapi_app.dependency_overrides[require_dev_mode] = lambda: None
     assert response.status_code == 403
@@ -1071,9 +1027,7 @@ async def test_patch_workflow_forbidden_when_dev_mode_off(
 
 @pytest.mark.restore_workflow_revision
 @pytest.mark.asyncio
-async def test_restore_revision_forbidden_when_dev_mode_off(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_restore_revision_forbidden_when_dev_mode_off(session: AsyncSession, client: AsyncClient):
     """POST /workflows/{id}/revisions/{n}/restore returns 403 when DEV_MODE is off."""
     _r = await client.post(
         "/v1/workflows",
@@ -1110,10 +1064,6 @@ def test_dag_id_collides_after_soft_delete_with_same_title():
     """Regression pin for a known sharp edge: soft-delete doesn't propagate to engine adapters and the Airflow dag_id omits the workflow UUID, so POST -> DELETE -> POST with the same title produces a colliding dag_id and overwrites the prior DAG file on disk."""
     from app.adapters.adapters.airflow_adapter import AirflowPluginAdapter
 
-    dag_id_old = AirflowPluginAdapter._get_dag_id_from_workflow(
-        AirflowPluginAdapter, "my-workflow", 1
-    )
-    dag_id_new = AirflowPluginAdapter._get_dag_id_from_workflow(
-        AirflowPluginAdapter, "my-workflow", 1
-    )
+    dag_id_old = AirflowPluginAdapter._get_dag_id_from_workflow(AirflowPluginAdapter, "my-workflow", 1)
+    dag_id_new = AirflowPluginAdapter._get_dag_id_from_workflow(AirflowPluginAdapter, "my-workflow", 1)
     assert dag_id_old == dag_id_new == "my-workflow_inc1"

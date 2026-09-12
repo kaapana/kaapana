@@ -45,8 +45,8 @@ version the CI job uses. On commit it formats the staged files and applies the
 safe lint fixes. When it changes something, review the result and commit
 again.
 
-The commit that migrated the codebase to Ruff is listed in
-:code:`.git-blame-ignore-revs`, so :code:`git blame` skips it. To make your
+The commits that migrated the codebase to Ruff are listed in
+:code:`.git-blame-ignore-revs`, so :code:`git blame` skips them. To make your
 local git use that list:
 
 .. code-block:: bash

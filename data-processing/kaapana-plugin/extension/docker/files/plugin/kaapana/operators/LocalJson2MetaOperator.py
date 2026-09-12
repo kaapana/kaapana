@@ -3,16 +3,15 @@
 import glob
 import json
 import os
-import requests
-from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
+import requests
+from kaapanapy.helper import get_opensearch_client
 from kaapanapy.logger import get_logger
 from kaapanapy.settings import KaapanaSettings, OpensearchSettings
-from kaapanapy.helper import get_opensearch_client
-
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from opensearchpy.exceptions import NotFoundError
+
+from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 logger = get_logger(__name__)
 
@@ -90,7 +89,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         - project index: Derived from the field "00120020 ClinicalTrialProtocolID_keyword"
         - admin-project index: Derived from OpensearchSettings().default_index
         """
-        logger.info(f"Pushing document to project index")
+        logger.info("Pushing document to project index")
         if self.from_other_project:
             workflow_form = self.conf.get("workflow_form")
             projects = workflow_form.get("projects")
@@ -104,15 +103,13 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                 )
             return
         try:
-            clinical_trial_protocol_id = meta_information.get(
-                "00120020 ClinicalTrialProtocolID_keyword"
-            )
+            clinical_trial_protocol_id = meta_information.get("00120020 ClinicalTrialProtocolID_keyword")
             project = get_project_by_id_or_name(clinical_trial_protocol_id)
             self.push_to_opensearch_index(
                 new_document=meta_information,
                 opensearch_index=project.get("opensearch_index"),
             )
-        except:
+        except Exception:
             logger.warning(f"No project found for {clinical_trial_protocol_id}.")
 
         logger.info("Pushing document to admin-project index")
@@ -139,7 +136,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             new_document=new_document,
             opensearch_index=opensearch_index,
         )
-        response = self.os_client.index(
+        self.os_client.index(
             index=opensearch_index,
             body=new_document,
             id=document_id,
@@ -171,7 +168,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             logger.debug("Series already exists. Update the corresponding document.")
             old_document.update(new_document)
             return old_document
-        except NotFoundError as e:
+        except NotFoundError:
             logger.debug("Series not found in opensearch. Push new document.")
             return new_document
 
@@ -184,17 +181,13 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         logger.info("Starting module json2meta")
 
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
-        batch_folder = [
-            f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))
-        ]
+        batch_folder = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))]
 
         self.run_id = kwargs["dag_run"].run_id
 
         for batch_element_dir in batch_folder:
             if self.jsonl_operator:
-                json_dir = os.path.join(
-                    batch_element_dir, self.jsonl_operator.operator_out_dir
-                )
+                json_dir = os.path.join(batch_element_dir, self.jsonl_operator.operator_out_dir)
                 json_list = glob.glob(json_dir + "/**/*.jsonl", recursive=True)
                 for json_file in json_list:
                     logger.info(f"Pushing file: {json_file} to META!")
@@ -203,9 +196,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                             obj = json.loads(line)
                             self.push_to_project_and_admin_index(obj)
             else:
-                json_dir = os.path.join(
-                    batch_element_dir, self.json_operator.operator_out_dir
-                )
+                json_dir = os.path.join(batch_element_dir, self.json_operator.operator_out_dir)
                 json_list = glob.glob(json_dir + "/**/*.json", recursive=True)
                 logger.info(f"Found json files: {json_list}")
                 assert len(json_list) > 0
@@ -224,8 +215,6 @@ def get_project_by_id_or_name(project_identifier: str):
     Raises:
         HttpException: If the response from the access-information code has status code >= 400.
     """
-    response = requests.get(
-        f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_identifier}"
-    )
+    response = requests.get(f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_identifier}")
     response.raise_for_status()
     return response.json()

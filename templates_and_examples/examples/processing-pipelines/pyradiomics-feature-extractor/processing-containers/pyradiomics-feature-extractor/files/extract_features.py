@@ -1,6 +1,7 @@
-import os
 import ast
 import json
+import os
+
 import numpy as np
 import SimpleITK as sitk
 from radiomics import featureextractor
@@ -39,17 +40,13 @@ def get_env_list(env_var):
         list: The value of the environment variable as a list.
     """
 
-    value_str = get_env_str(
-        env_var
-    )  # get the actual values as a str, e.g. "['firstorder', 'shape2D']"
+    value_str = get_env_str(env_var)  # get the actual values as a str, e.g. "['firstorder', 'shape2D']"
     value_literal = (
         ast.literal_eval(value_str) if value_str.lower() != "none" else None
     )  # convert string to python expression, e.g. ['firstorder', 'shape2D']
     assert value_literal is not None
 
-    value_list: list = list(
-        value_literal
-    )  # make it an actual list, e.g. ['firstorder', 'shape2D']
+    value_list: list = list(value_literal)  # make it an actual list, e.g. ['firstorder', 'shape2D']
     return value_list
 
 
@@ -108,12 +105,8 @@ def convert_ndarray_to_list(d):
 # Main script execution starts here
 
 ### PATHS & DIRS ###
-batch_path = (
-    get_batch_path()
-)  # i.e. /kaapana/mounted/data/pyradiomics-extract-features-<time>/batch/
-in_operator = get_env_str(
-    "OPERATOR_IN_DIR"
-)  # Name of the input operator, e.g. dcm-converter
+batch_path = get_batch_path()  # i.e. /kaapana/mounted/data/pyradiomics-extract-features-<time>/batch/
+in_operator = get_env_str("OPERATOR_IN_DIR")  # Name of the input operator, e.g. dcm-converter
 out_operator = get_env_str(
     "OPERATOR_OUT_DIR"
 )  # Name of this operator as the output operator, e.g. pyradiomics-feature-extractor
@@ -156,6 +149,4 @@ for series_ins_uid in os.listdir(batch_path):
             with open(output_file, "w") as json_file:
                 json.dump(features, json_file, indent=4)
 
-            print(
-                f"PyRadiomics feature extraction completed for {file_name}, results saved in {output_file}"
-            )
+            print(f"PyRadiomics feature extraction completed for {file_name}, results saved in {output_file}")

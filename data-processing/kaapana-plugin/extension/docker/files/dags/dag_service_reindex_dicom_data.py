@@ -74,9 +74,7 @@ def start_reindexing(ds, **kwargs):
         if not os.path.exists(target_dir):
             os.makedirs(target_dir)
 
-        copyfile(
-            dcm_file, os.path.join(target_dir, os.path.basename(dcm_file) + ".dcm")
-        )
+        copyfile(dcm_file, os.path.join(target_dir, os.path.basename(dcm_file) + ".dcm"))
 
 
 copy_from_pacs = KaapanaPythonBaseOperator(
@@ -89,20 +87,9 @@ copy_from_pacs = KaapanaPythonBaseOperator(
 
 extract_metadata = LocalDcm2JsonOperator(dag=dag, input_operator=copy_from_pacs)
 add_to_dataset = LocalAddToDatasetOperator(dag=dag, input_operator=extract_metadata)
-push_json = LocalJson2MetaOperator(
-    dag=dag, input_operator=copy_from_pacs, json_operator=extract_metadata
-)
-assign_to_project = LocalAssignDataToProjectOperator(
-    dag=dag, input_operator=extract_metadata
-)
+push_json = LocalJson2MetaOperator(dag=dag, input_operator=copy_from_pacs, json_operator=extract_metadata)
+assign_to_project = LocalAssignDataToProjectOperator(dag=dag, input_operator=extract_metadata)
 
-clean = LocalWorkflowCleanerOperator(
-    dag=dag, clean_workflow_dir=True, namespace=SERVICES_NAMESPACE
-)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True, namespace=SERVICES_NAMESPACE)
 
-(
-    copy_from_pacs
-    >> extract_metadata
-    >> (add_to_dataset, assign_to_project, push_json)
-    >> clean
-)
+(copy_from_pacs >> extract_metadata >> (add_to_dataset, assign_to_project, push_json) >> clean)

@@ -1,15 +1,11 @@
 import os
 import sys
-from typing import Literal, Optional
 
 from dicom_validator.spec_reader.edition_reader import EditionReader
 
 
 class ValidationItem:
-
-    def __init__(
-        self, tag, type, message, name="", module="", index=None, raw=""
-    ) -> None:
+    def __init__(self, tag, type, message, name="", module="", index=None, raw="") -> None:
         if not tag or tag == "":
             raise ValueError("Invalid Tag provided")
         self.tag = tag
@@ -25,7 +21,7 @@ class ValidationItem:
     def __str__(self):
         if self.raw != "":
             return self.raw
-        return f'{self.type}:\nTag: {self.tag}\nName: {self.name}\nIndex: {self.index}\nMessage: {self.message}\nDicoms: {",".join(self.list_of_dicoms)}\n'
+        return f"{self.type}:\nTag: {self.tag}\nName: {self.name}\nIndex: {self.index}\nMessage: {self.message}\nDicoms: {','.join(self.list_of_dicoms)}\n"
 
     def add_dicom(self, dicom_name: str):
         self.list_of_dicoms.append(dicom_name)
@@ -91,14 +87,10 @@ def merge_similar_validation_items(all_items: dict):
     for tag in tag_item_pair:
         n_slices_with_error = len(tag_item_pair[tag].list_of_dicoms)
         total_slices = len(list(all_items.keys()))
-        if (n_slices_with_error % total_slices) == 0 or (
-            n_slices_with_error / total_slices
-        ) > 1:
+        if (n_slices_with_error % total_slices) == 0 or (n_slices_with_error / total_slices) > 1:
             tag_item_pair[tag].list_of_dicoms = ["all"]
         else:
-            tag_item_pair[tag].list_of_dicoms = [
-                f"{n_slices_with_error}/{total_slices}"
-            ]
+            tag_item_pair[tag].list_of_dicoms = [f"{n_slices_with_error}/{total_slices}"]
 
     return tag_item_pair
 

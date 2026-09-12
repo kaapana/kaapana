@@ -46,6 +46,7 @@ dag = DAG(
     template_undefined=jinja2.Undefined,
 )
 
+
 @task
 def fetch_namespaces():
     r = requests.get("http://aii-service.services.svc:8080/projects", timeout=5)
@@ -56,9 +57,7 @@ def fetch_namespaces():
     return namespaces
 
 
-remove_delete_dags = LocalServiceSyncDagsDbOperator(
-    dag=dag, retries=1, retry_delay=timedelta(minutes=2)
-)
+remove_delete_dags = LocalServiceSyncDagsDbOperator(dag=dag, retries=1, retry_delay=timedelta(minutes=2))
 remove_delete_dags
 
 cleanup = CleanUpExpiredWorkflowDataOperator.partial(
@@ -66,7 +65,7 @@ cleanup = CleanUpExpiredWorkflowDataOperator.partial(
     task_id="cleanup_expired_workflows",
     expired_period=timedelta(days=14),
     retries=1,
-    execution_timeout=timedelta(minutes=90)
+    execution_timeout=timedelta(minutes=90),
 ).expand(namespace=fetch_namespaces())
 
 check_ctp_quarantine = LocalCtpQuarantineCheckOperator(dag=dag, retries=1)
@@ -102,7 +101,7 @@ airflow trigger_dag --conf '[curly-braces]"maxLogAgeInDays":30[curly-braces]' ai
 DAG_ID = os.path.basename(__file__).replace(".pyc", "").replace(".py", "")
 try:
     BASE_LOG_FOLDER = conf.get("core", "BASE_LOG_FOLDER").rstrip("/")
-except Exception as e:
+except Exception:
     BASE_LOG_FOLDER = conf.get("logging", "BASE_LOG_FOLDER").rstrip("/")
 # How often to Run. @daily - Once a day at Midnight
 SCHEDULE_INTERVAL = "@daily"
@@ -110,9 +109,7 @@ SCHEDULE_INTERVAL = "@daily"
 ALERT_EMAIL_ADDRESSES = []
 # Length to retain the log files if not already provided in the conf. If this
 # is set to 30, the job will remove those files that are 30 days old or older
-DEFAULT_MAX_LOG_AGE_IN_DAYS = Variable.get(
-    "airflow_log_cleanup__max_log_age_in_days", 30
-)
+DEFAULT_MAX_LOG_AGE_IN_DAYS = Variable.get("airflow_log_cleanup__max_log_age_in_days", 30)
 # Whether the job should delete the logs or not. Included if you want to
 # temporarily avoid deleting the logs
 ENABLE_DELETE = True
@@ -121,9 +118,7 @@ ENABLE_DELETE = True
 # logs cleared.
 NUMBER_OF_WORKERS = 1
 DIRECTORIES_TO_DELETE = []
-ENABLE_DELETE_CHILD_LOG = Variable.get(
-    "airflow_log_cleanup__enable_delete_child_log", "True"
-)
+ENABLE_DELETE_CHILD_LOG = Variable.get("airflow_log_cleanup__enable_delete_child_log", "True")
 LOG_CLEANUP_PROCESS_LOCK_FILE = "/tmp/airflow_log_cleanup_worker.lock"
 logging.info("ENABLE_DELETE_CHILD_LOG  " + ENABLE_DELETE_CHILD_LOG)
 
@@ -136,17 +131,11 @@ if not BASE_LOG_FOLDER or BASE_LOG_FOLDER.strip() == "":
 
 if ENABLE_DELETE_CHILD_LOG.lower() == "true":
     try:
-        CHILD_PROCESS_LOG_DIRECTORY = conf.get(
-            "scheduler", "CHILD_PROCESS_LOG_DIRECTORY"
-        )
+        CHILD_PROCESS_LOG_DIRECTORY = conf.get("scheduler", "CHILD_PROCESS_LOG_DIRECTORY")
         if CHILD_PROCESS_LOG_DIRECTORY != " ":
             DIRECTORIES_TO_DELETE.append(CHILD_PROCESS_LOG_DIRECTORY)
     except Exception as e:
-        logging.exception(
-            "Could not obtain CHILD_PROCESS_LOG_DIRECTORY from "
-            + "Airflow Configurations: "
-            + str(e)
-        )
+        logging.exception("Could not obtain CHILD_PROCESS_LOG_DIRECTORY from " + "Airflow Configurations: " + str(e))
 
 if hasattr(dag, "doc_md"):
     dag.doc_md = __doc__
@@ -298,10 +287,7 @@ fi
 for log_cleanup_id in range(1, NUMBER_OF_WORKERS + 1):
     for dir_id, directory in enumerate(DIRECTORIES_TO_DELETE):
         log_cleanup_op = BashOperator(
-            task_id="log_cleanup_worker_num_"
-            + str(log_cleanup_id)
-            + "_dir_"
-            + str(dir_id),
+            task_id="log_cleanup_worker_num_" + str(log_cleanup_id) + "_dir_" + str(dir_id),
             bash_command=log_cleanup,
             params={"directory": str(directory), "sleep_time": int(log_cleanup_id) * 3},
             pool="default_pool",

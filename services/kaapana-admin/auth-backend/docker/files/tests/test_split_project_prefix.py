@@ -55,9 +55,7 @@ def test_bare_project_id_rest_defaults_to_root():
 
 
 def test_query_string_is_kept_out_of_the_id_and_preserved():
-    assert split_project_prefix(
-        "/project/abc12345/data-gallery-ui?limit=10&offset=0"
-    ) == (
+    assert split_project_prefix("/project/abc12345/data-gallery-ui?limit=10&offset=0") == (
         "abc12345",
         "/data-gallery-ui?limit=10&offset=0",
     )

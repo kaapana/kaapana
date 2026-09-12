@@ -1,9 +1,10 @@
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+from datetime import timedelta
+
 from kaapana.blueprints.kaapana_global_variables import (
     DEFAULT_REGISTRY,
     KAAPANA_BUILD_VERSION,
 )
-from datetime import timedelta
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 
 
 class ConnectedComponentAnalysisOperator(KaapanaBaseOperator):
@@ -32,12 +33,8 @@ class ConnectedComponentAnalysisOperator(KaapanaBaseOperator):
             env_vars = {}
 
         envs = {
-            "JSON_INFO_DIR": str(json_operator.operator_out_dir)
-            if json_operator is not None
-            else str(None),
-            "CONNECTIVITY": str(connectivity)
-            if connectivity is not None
-            else str(None),
+            "JSON_INFO_DIR": str(json_operator.operator_out_dir) if json_operator is not None else str(None),
+            "CONNECTIVITY": str(connectivity) if connectivity is not None else str(None),
         }
 
         env_vars.update(envs)

@@ -39,14 +39,10 @@ class WorkflowEndpoints(KaapanaAuth):
         """
         Get a list of all DAGs installed on the platform
         """
-        r = self.request(
-            "kaapana-backend/client/dags?only_dag_names=true", request_type=requests.get
-        )
+        r = self.request("kaapana-backend/client/dags?only_dag_names=true", request_type=requests.get)
         return r.json()
 
-    def get_jobs_info(
-        self, instance_name=None, workflow_name=None, status=None, limit=None
-    ):
+    def get_jobs_info(self, instance_name=None, workflow_name=None, status=None, limit=None):
         """
         Get info about jobs from kaapana-backend API
         """
@@ -59,9 +55,7 @@ class WorkflowEndpoints(KaapanaAuth):
             params["status"] = status
         if limit:
             params["limit"] = limit
-        r = self.request(
-            "kaapana-backend/client/jobs", request_type=requests.get, params=params
-        )
+        r = self.request("kaapana-backend/client/jobs", request_type=requests.get, params=params)
         return r.json()
 
     def trigger_multiple_testcases(self, testcases):
@@ -153,8 +147,7 @@ def plan_testcases(testcase_files: list[Path]) -> list[PlannedTestcase]:
         for name in after:
             if name not in index_of_step:
                 raise ValueError(
-                    f"{origins[index]} declares ci_after {name!r}, which no collected "
-                    f"testcase declares as ci_step"
+                    f"{origins[index]} declares ci_after {name!r}, which no collected testcase declares as ci_step"
                 )
             dependents[index_of_step[name]].append(index)
 
@@ -224,8 +217,5 @@ def _prerequisites_first(
 
     if len(order) != len(indices):
         cyclic = sorted(set(indices) - set(order))
-        raise ValueError(
-            "ci_after forms a cycle between "
-            + ", ".join(origins[index] for index in cyclic)
-        )
+        raise ValueError("ci_after forms a cycle between " + ", ".join(origins[index] for index in cyclic))
     return order

@@ -49,9 +49,7 @@ async def create_workflow_run(
     if "id" not in project:
         raise HTTPException(status_code=400, detail="Invalid Project header")
     project_id = project["id"]
-    workflow_run_res = await service.create_workflow_run(
-        db, workflow_run, project_id=project_id
-    )
+    workflow_run_res = await service.create_workflow_run(db, workflow_run, project_id=project_id)
     response.headers["Location"] = f"/v1/workflow-runs/{workflow_run_res.id}"
     return workflow_run_res
 
@@ -64,9 +62,7 @@ async def get_workflow_run_by_id(
     return await service.get_workflow_run_by_id(db, workflow_run_id)
 
 
-@router.put(
-    "/workflow-runs/{workflow_run_id}/cancel", response_model=schemas.WorkflowRun
-)
+@router.put("/workflow-runs/{workflow_run_id}/cancel", response_model=schemas.WorkflowRun)
 async def cancel_workflow_run(
     workflow_run_id: int,
     db: AsyncSession = Depends(get_async_db),
@@ -75,9 +71,7 @@ async def cancel_workflow_run(
     return await service.cancel_workflow_run(db, workflow_run_id)
 
 
-@router.put(
-    "/workflow-runs/{workflow_run_id}/retry", response_model=schemas.WorkflowRun
-)
+@router.put("/workflow-runs/{workflow_run_id}/retry", response_model=schemas.WorkflowRun)
 async def retry_workflow_run(
     workflow_run_id: int,
     db: AsyncSession = Depends(get_async_db),
@@ -85,9 +79,7 @@ async def retry_workflow_run(
     return await service.retry_workflow_run(db, workflow_run_id)
 
 
-@router.get(
-    "/workflow-runs/{workflow_run_id}/task-runs", response_model=List[schemas.TaskRun]
-)
+@router.get("/workflow-runs/{workflow_run_id}/task-runs", response_model=List[schemas.TaskRun])
 async def get_workflow_run_task_runs(
     workflow_run_id: int,
     task_title: Optional[str] = None,

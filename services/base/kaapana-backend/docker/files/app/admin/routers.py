@@ -23,23 +23,13 @@ SERIES_ID_PATTERN = re.compile(r"^(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*$")
 
 # Per-series prefix appended to the bucket's results root. Must contain
 # $series_id. Override via env var if the writer-side layout changes.
-RESULTS_LAYOUT_TEMPLATE = Template(
-    os.environ.get("RESULTS_LAYOUT_TEMPLATE", "batch/$series_id/")
-)
-if (
-    "$series_id" not in RESULTS_LAYOUT_TEMPLATE.template
-    and "${series_id}" not in RESULTS_LAYOUT_TEMPLATE.template
-):
-    raise ValueError(
-        f"RESULTS_LAYOUT_TEMPLATE must contain $series_id, got "
-        f"{RESULTS_LAYOUT_TEMPLATE.template!r}"
-    )
+RESULTS_LAYOUT_TEMPLATE = Template(os.environ.get("RESULTS_LAYOUT_TEMPLATE", "batch/$series_id/"))
+if "$series_id" not in RESULTS_LAYOUT_TEMPLATE.template and "${series_id}" not in RESULTS_LAYOUT_TEMPLATE.template:
+    raise ValueError(f"RESULTS_LAYOUT_TEMPLATE must contain $series_id, got {RESULTS_LAYOUT_TEMPLATE.template!r}")
 
 # Fall back to a batched recursive scan when the prefix lookup misses.
 # Set to "false" to fail fast on layout drift instead.
-RESULTS_LAYOUT_FALLBACK_TO_SCAN = (
-    os.environ.get("RESULTS_LAYOUT_FALLBACK_TO_SCAN", "true").lower() == "true"
-)
+RESULTS_LAYOUT_FALLBACK_TO_SCAN = os.environ.get("RESULTS_LAYOUT_FALLBACK_TO_SCAN", "true").lower() == "true"
 
 logger = get_logger(__name__, logging.DEBUG)
 
@@ -113,7 +103,7 @@ async def root(request: Request):
 
 @router.get("/health-check")
 def health_check():
-    return {f"Kaapana backend is up and running!"}
+    return {"Kaapana backend is up and running!"}
 
 
 @router.get("/get-static-website-results-html")
@@ -137,9 +127,7 @@ def get_static_website_results_html(
     # Retrieve the object name from query parameters
     object_name = request.query_params.get("object_name")
     if not object_name:
-        raise HTTPException(
-            status_code=400, detail="object_name query parameter is required."
-        )
+        raise HTTPException(status_code=400, detail="object_name query parameter is required.")
 
     bucket_name = _resolve_static_website_bucket(request.headers.get("project"))
 
@@ -235,9 +223,7 @@ def _results_start_after(continuation_token: str) -> str:
     return continuation_token
 
 
-def _list_results_tree_page(
-    objects, results_prefix, relative_prefix, page_size, url_for
-):
+def _list_results_tree_page(objects, results_prefix, relative_prefix, page_size, url_for):
     """Build one directory-level page from a (already ``start_after``-narrowed)
     MinIO listing.
 
@@ -372,13 +358,8 @@ def get_static_website_result_reports(
     try:
         # Pass 1: per-series prefix lookup.
         for series_id in series_ids:
-            series_prefix = (
-                f"{bucket_results_prefix}"
-                f"{RESULTS_LAYOUT_TEMPLATE.substitute(series_id=series_id)}"
-            )
-            for obj in minioClient.list_objects(
-                bucket_name, prefix=series_prefix, recursive=True
-            ):
+            series_prefix = f"{bucket_results_prefix}{RESULTS_LAYOUT_TEMPLATE.substitute(series_id=series_id)}"
+            for obj in minioClient.list_objects(bucket_name, prefix=series_prefix, recursive=True):
                 if not obj.object_name.endswith(".html"):
                     continue
                 results[series_id] = {
@@ -398,9 +379,7 @@ def get_static_website_result_reports(
                 len(series_ids),
                 RESULTS_LAYOUT_TEMPLATE.template,
             )
-            for obj in minioClient.list_objects(
-                bucket_name, prefix=bucket_results_prefix, recursive=True
-            ):
+            for obj in minioClient.list_objects(bucket_name, prefix=bucket_results_prefix, recursive=True):
                 object_name = obj.object_name
                 if not object_name.endswith(".html"):
                     continue
@@ -446,9 +425,7 @@ def get_os_dashboards(os_client=Depends(get_opensearch)):
 
 @router.get("/open-policy-data")
 def get_open_policy_data():
-    r = requests.get(
-        f"http://open-policy-agent-service.{settings.admin_namespace}.svc:8181/v1/data/httpapi/authz"
-    )
+    r = requests.get(f"http://open-policy-agent-service.{settings.admin_namespace}.svc:8181/v1/data/httpapi/authz")
     return r.json().get("result")
 
 
@@ -479,9 +456,7 @@ def oidc_logout(request: Request):
     assert token_session_id, "Session id could not be determined from access token"
     user_id = decoded_access_token.get("sub")
 
-    keycloak_admin_access_token = _get_keycloak_service_token(
-        settings.keycloak_service_client_secret
-    )
+    keycloak_admin_access_token = _get_keycloak_service_token(settings.keycloak_service_client_secret)
     security_headers = {"Authorization": f"Bearer {keycloak_admin_access_token}"}
 
     response_sessions = requests.get(
@@ -494,7 +469,6 @@ def oidc_logout(request: Request):
 
     ### Remove the session that corresponds to the access token from keycloak if the session exists
     for user_session in user_sessions:
-        user_session_id = user_session.get("id")
         if user_session.get("id") == token_session_id:
             r = requests.delete(
                 f"{settings.keycloak_url}/auth/admin/realms/kaapana/sessions/{token_session_id}",
@@ -505,9 +479,7 @@ def oidc_logout(request: Request):
             break
     response = RedirectResponse("/oauth2/sign_out?rd=/")
     ### Delete the token cookie for the minio session.
-    response.set_cookie(
-        key="token", value="", expires=datetime(1900, 1, 1, tzinfo=timezone.utc)
-    )
+    response.set_cookie(key="token", value="", expires=datetime(1900, 1, 1, tzinfo=timezone.utc))
     ### Delete the session cookies for the opensearch session: https://opensearch.org/docs/latest/security/authentication-backends/openid-connect/#session-management-with-additional-cookies
     for cookie in [
         "security_authentication",

@@ -33,9 +33,7 @@ def upgrade() -> None:
     default_project_id = fetch_default_project_id()
 
     connection = op.get_bind()
-    op.add_column(
-        "dataset", sa.Column("id", sa.Integer(), autoincrement=True, nullable=True)
-    )
+    op.add_column("dataset", sa.Column("id", sa.Integer(), autoincrement=True, nullable=True))
     op.add_column("dataset", sa.Column("project_id", UUID(as_uuid=True), nullable=True))
     op.add_column("workflow", sa.Column("project_id", UUID(), nullable=True))
     op.create_unique_constraint(None, "dataset", ["project_id", "name"])
@@ -65,9 +63,7 @@ def upgrade() -> None:
     op.alter_column("dataset", "project_id", nullable=False)
     op.alter_column("workflow", "project_id", nullable=False)
 
-    op.add_column(
-        "identifier2dataset", sa.Column("new_dataset_id", sa.Integer(), nullable=True)
-    )
+    op.add_column("identifier2dataset", sa.Column("new_dataset_id", sa.Integer(), nullable=True))
     op.execute(
         """
         UPDATE identifier2dataset
@@ -76,9 +72,7 @@ def upgrade() -> None:
         WHERE identifier2dataset.dataset = dataset.name
     """
     )
-    op.drop_constraint(
-        "identifier2dataset_dataset_fkey", "identifier2dataset", type_="foreignkey"
-    )
+    op.drop_constraint("identifier2dataset_dataset_fkey", "identifier2dataset", type_="foreignkey")
     op.drop_column("identifier2dataset", "dataset")
     op.alter_column("identifier2dataset", "new_dataset_id", new_column_name="dataset")
 
@@ -103,9 +97,7 @@ def downgrade():
     op.drop_column("dataset", "project_id")
 
     op.drop_constraint("uq_dataset_name", "dataset", type_="unique")
-    op.drop_constraint(
-        None, "dataset", type_="primary"
-    )  # assumes anonymous primary key constraint
+    op.drop_constraint(None, "dataset", type_="primary")  # assumes anonymous primary key constraint
     op.drop_column("dataset", "id")
 
     op.execute("DROP SEQUENCE IF EXISTS dataset_id_seq;")

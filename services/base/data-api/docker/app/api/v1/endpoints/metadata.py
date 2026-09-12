@@ -4,17 +4,17 @@ import json
 from typing import Any, Dict, Iterable, Literal, Sequence
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from jsonschema import Draft7Validator, ValidationError, SchemaError
-from pydantic import BaseModel, Field
-from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.db.models import MetadataEntryORM, MetadataSchemaORM
 from app.db.session import get_async_db
 from app.models.domain import DataEntity, MetadataEntry
 from app.models.events import EventAction
 from app.services.entity_repository import metadata_entry_to_orm
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from jsonschema import Draft7Validator, SchemaError, ValidationError
+from pydantic import BaseModel, Field
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from .helpers import (
     broadcast_entity_event,
     broadcast_metadata_key_event,
@@ -32,14 +32,10 @@ class MetadataFieldInfo(BaseModel):
     key: str
     path: str
     field: str
-    value_type: str | None = Field(
-        None, description="Primitive JSON type inferred from schema or data"
-    )
+    value_type: str | None = Field(None, description="Primitive JSON type inferred from schema or data")
     source: Literal["schema", "data", "schema+data"]
     description: str | None = None
-    occurrences: int | None = Field(
-        None, description="Number of sampled metadata entries containing this field"
-    )
+    occurrences: int | None = Field(None, description="Number of sampled metadata entries containing this field")
     example: Any | None = None
 
 
@@ -64,17 +60,11 @@ def _validate_schema_document(schema: dict) -> None:
     try:
         Draft7Validator.check_schema(schema)
     except SchemaError as exc:
-        raise HTTPException(
-            status_code=400, detail=f"Invalid JSON Schema: {exc.message}"
-        ) from exc
+        raise HTTPException(status_code=400, detail=f"Invalid JSON Schema: {exc.message}") from exc
 
 
-@router.post(
-    "/metadata/keys/{key}", summary="Register or replace a metadata schema by key"
-)
-async def register_metadata_schema(
-    key: str, schema: dict, db: AsyncSession = Depends(get_async_db)
-) -> dict:
+@router.post("/metadata/keys/{key}", summary="Register or replace a metadata schema by key")
+async def register_metadata_schema(key: str, schema: dict, db: AsyncSession = Depends(get_async_db)) -> dict:
     _validate_schema_document(schema)
     stmt = select(MetadataSchemaORM).where(MetadataSchemaORM.key == key)
     result = await db.execute(stmt)
@@ -88,9 +78,7 @@ async def register_metadata_schema(
         is_new = False
 
     await db.commit()
-    await broadcast_metadata_key_event(
-        EventAction.CREATED if is_new else EventAction.UPDATED, key, schema
-    )
+    await broadcast_metadata_key_event(EventAction.CREATED if is_new else EventAction.UPDATED, key, schema)
     return {"key": key, "schema": schema}
 
 
@@ -103,19 +91,13 @@ async def list_metadata_keys(db: AsyncSession = Depends(get_async_db)) -> list[s
 
 
 @router.get("/metadata/keys/{key}", summary="Fetch a metadata schema by key")
-async def get_metadata_schema_endpoint(
-    key: str, db: AsyncSession = Depends(get_async_db)
-) -> dict:
+async def get_metadata_schema_endpoint(key: str, db: AsyncSession = Depends(get_async_db)) -> dict:
     schema = await get_metadata_schema(db, key)
     return {"key": schema.key, "schema": schema.schema}
 
 
-@router.delete(
-    "/metadata/keys/{key}", status_code=204, summary="Remove a metadata schema by key"
-)
-async def delete_metadata_schema(
-    key: str, db: AsyncSession = Depends(get_async_db)
-) -> Response:
+@router.delete("/metadata/keys/{key}", status_code=204, summary="Remove a metadata schema by key")
+async def delete_metadata_schema(key: str, db: AsyncSession = Depends(get_async_db)) -> Response:
     stmt = select(MetadataSchemaORM).where(MetadataSchemaORM.key == key)
     result = await db.execute(stmt)
     schema = result.scalar_one_or_none()
@@ -123,9 +105,7 @@ async def delete_metadata_schema(
         raise HTTPException(status_code=404, detail="Metadata schema not found")
 
     # Check if any entities are using this metadata key
-    usage_count = await db.scalar(
-        select(func.count()).where(MetadataEntryORM.key == key)
-    )
+    usage_count = await db.scalar(select(func.count()).where(MetadataEntryORM.key == key))
     if usage_count and usage_count > 0:
         raise HTTPException(
             status_code=409,
@@ -145,28 +125,18 @@ async def delete_metadata_schema(
 )
 async def describe_metadata_fields(
     key: str,
-    sample_size: int = Query(
-        1000, ge=10, le=5000, description="Maximum metadata entries to sample"
-    ),
+    sample_size: int = Query(1000, ge=10, le=5000, description="Maximum metadata entries to sample"),
     db: AsyncSession = Depends(get_async_db),
 ) -> MetadataFieldListResponse:
-    total_entries = (
-        await db.scalar(select(func.count()).where(MetadataEntryORM.key == key)) or 0
-    )
-    stmt = (
-        select(MetadataEntryORM.data)
-        .where(MetadataEntryORM.key == key)
-        .limit(sample_size)
-    )
+    total_entries = await db.scalar(select(func.count()).where(MetadataEntryORM.key == key)) or 0
+    stmt = select(MetadataEntryORM.data).where(MetadataEntryORM.key == key).limit(sample_size)
     result = await db.execute(stmt)
     payloads = result.scalars().all()
     sampled_entries = len(payloads)
 
     data_stats = _collect_data_field_stats(payloads)
     schema_record = await get_metadata_schema_optional(db, key)
-    schema_fields = (
-        _collect_schema_fields(schema_record.schema) if schema_record else {}
-    )
+    schema_fields = _collect_schema_fields(schema_record.schema) if schema_record else {}
     fields = _combine_field_descriptions(key, schema_fields, data_stats)
 
     return MetadataFieldListResponse(
@@ -186,17 +156,11 @@ async def sample_metadata_field_values(
     key: str,
     path: str = Query(..., description="Dot-delimited path inside the metadata entry"),
     limit: int = Query(25, ge=1, le=100),
-    sample_size: int = Query(
-        1000, ge=10, le=5000, description="Maximum metadata entries to analyze"
-    ),
+    sample_size: int = Query(1000, ge=10, le=5000, description="Maximum metadata entries to analyze"),
     db: AsyncSession = Depends(get_async_db),
 ) -> MetadataFieldValuesResponse:
     normalized_path = path.strip()
-    stmt = (
-        select(MetadataEntryORM.data)
-        .where(MetadataEntryORM.key == key)
-        .limit(sample_size)
-    )
+    stmt = select(MetadataEntryORM.data).where(MetadataEntryORM.key == key).limit(sample_size)
     result = await db.execute(stmt)
     payloads = result.scalars().all()
 
@@ -219,9 +183,7 @@ async def sample_metadata_field_values(
         values.append(value)
 
     schema_record = await get_metadata_schema_optional(db, key)
-    schema_fields = (
-        _collect_schema_fields(schema_record.schema) if schema_record else {}
-    )
+    schema_fields = _collect_schema_fields(schema_record.schema) if schema_record else {}
     schema_info = schema_fields.get(normalized_path)
     value_type = schema_info.get("value_type") if schema_info else None
     if value_type is None and values:
@@ -257,13 +219,9 @@ async def attach_metadata(
     try:
         validator.validate(entry.data)
     except ValidationError as exc:
-        raise HTTPException(
-            status_code=400, detail=f"Metadata entry violates schema: {exc.message}"
-        ) from exc
+        raise HTTPException(status_code=400, detail=f"Metadata entry violates schema: {exc.message}") from exc
     entity = await require_entity(db, entity_id)
-    existing_entry = next(
-        (m for m in entity.metadata_entries if m.key == entry.key), None
-    )
+    existing_entry = next((m for m in entity.metadata_entries if m.key == entry.key), None)
     replaced_existing = existing_entry is not None
     if replaced_existing:
         entity.metadata_entries.remove(existing_entry)
@@ -281,9 +239,7 @@ async def attach_metadata(
     response_model=DataEntity,
     summary="Delete a metadata entry for an entity",
 )
-async def delete_metadata_entry(
-    entity_id: UUID, key: str, db: AsyncSession = Depends(get_async_db)
-) -> DataEntity:
+async def delete_metadata_entry(entity_id: UUID, key: str, db: AsyncSession = Depends(get_async_db)) -> DataEntity:
     entity = await require_entity(db, entity_id)
     metadata_entry = next((m for m in entity.metadata_entries if m.key == key), None)
     if metadata_entry is None:
@@ -308,9 +264,7 @@ def _collect_schema_fields(schema: dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         raw_type = node.get("type")
         schema_type: str | None
         if isinstance(raw_type, list):
-            schema_type = next(
-                (t for t in raw_type if t != "null"), raw_type[0] if raw_type else None
-            )
+            schema_type = next((t for t in raw_type if t != "null"), raw_type[0] if raw_type else None)
         else:
             schema_type = raw_type
 
@@ -356,9 +310,7 @@ def _collect_data_field_stats(
     return stats
 
 
-def _flatten_metadata_values(
-    payload: Any, prefix: Sequence[str] | None = None
-) -> Iterable[tuple[str, Any]]:
+def _flatten_metadata_values(payload: Any, prefix: Sequence[str] | None = None) -> Iterable[tuple[str, Any]]:
     prefix = tuple(prefix or ())
     if isinstance(payload, dict):
         for key, value in payload.items():

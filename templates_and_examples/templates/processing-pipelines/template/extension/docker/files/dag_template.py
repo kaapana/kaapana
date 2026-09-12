@@ -1,13 +1,10 @@
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.dates import days_ago
 from datetime import timedelta
 
 from airflow.models import DAG
-
+from airflow.utils.dates import days_ago
+from airflow.utils.log.logging_mixin import LoggingMixin
 from templates.TemplateExecBashOperator import TemplateExecBashOperator
 from templates.TemplateExecPythonOperator import TemplateExecPythonOperator
-
-from datetime import datetime
 
 log = LoggingMixin().log
 

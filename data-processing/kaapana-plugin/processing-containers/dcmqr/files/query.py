@@ -9,17 +9,16 @@
 
 import argparse
 import logging
-import jsonlines
-import pydicom
 import math
-
-from typing import List
-from pydicom.dataset import Dataset, DataElement
-from pynetdicom import AE, debug_logger
-from pynetdicom.status import code_to_status, code_to_category
 from datetime import datetime, timedelta
 from enum import Enum
+from typing import List
 
+import jsonlines
+import pydicom
+from pydicom.dataset import DataElement, Dataset
+from pynetdicom import AE, debug_logger
+from pynetdicom.status import code_to_category
 
 log = logging.getLogger(__name__)
 
@@ -92,16 +91,12 @@ class DicomQueryClient:
 
         self.ae.add_requested_context(self.query_model)
         self.log.debug("Added %s context", self.query_model)
-        self.log.info(
-            "Initating association with %s:%s (Remote-AET: %s)", peer, port, aec
-        )
+        self.log.info("Initating association with %s:%s (Remote-AET: %s)", peer, port, aec)
         self.assoc = self.ae.associate(peer, port, ae_title=aec)
         if not self.assoc.is_established:
             raise Exception("Association is rejected aborted or never connected")
 
-        self.log.info(
-            "Successfull associated with %s:%s (Remote-AET: %s)", peer, port, aec
-        )
+        self.log.info("Successfull associated with %s:%s (Remote-AET: %s)", peer, port, aec)
 
     def __enter__(self):
         return self
@@ -111,10 +106,10 @@ class DicomQueryClient:
         self.assoc.release()
 
     def date_range(self, ts1: datetime, ts2: datetime):
-        return f"{'' if ts1 == None else ts1.strftime('%Y%m%d')}-{ '' if ts2 == None else ts2.strftime('%Y%m%d')}"
+        return f"{'' if ts1 is None else ts1.strftime('%Y%m%d')}-{'' if ts2 is None else ts2.strftime('%Y%m%d')}"
 
     def time_range(self, ts1: datetime, ts2: datetime):
-        return f"{'' if ts1 == None else ts1.strftime('%H%M%S')}-{ '' if ts2 == None else ts2.strftime('%H%M%S')}"
+        return f"{'' if ts1 is None else ts1.strftime('%H%M%S')}-{'' if ts2 is None else ts2.strftime('%H%M%S')}"
 
     def create_query_dataset(self, tags: List = None) -> pydicom.dataset.Dataset:
         """Returnes a empty dicom dataset for using with C-Find. StudyDate is set when start_dt and end_dt are set.
@@ -126,7 +121,7 @@ class DicomQueryClient:
 
         # This would use all dicom tags from the dicom data directory unfortunatly this results in an error during c-find (pynetdcom problem?)
         # tags = pydicom.datadict.DicomDictionary.keys()
-        if tags == None:
+        if tags is None:
             self.log.debug("Used defautl tags")
             tags = self.DEFAULT_TAGS
 
@@ -222,9 +217,7 @@ class DicomQueryClient:
                         identifier.StudyInstanceUID,
                     )
                 yield identifier
-        self.log.info(
-            "Query Completed: Received %d, errors: %d", received_cnt, error_cnt
-        )
+        self.log.info("Query Completed: Received %d, errors: %d", received_cnt, error_cnt)
 
     def execute_limited_query(
         self,
@@ -244,9 +237,7 @@ class DicomQueryClient:
         if not end_dt:
             end_dt = datetime.now()
 
-        return self._query_size_limiter(
-            query_func=query_func, limit=limit, start_date=start_dt, end_date=end_dt
-        )
+        return self._query_size_limiter(query_func=query_func, limit=limit, start_date=start_dt, end_date=end_dt)
 
     def _query_size_limiter(
         self,
@@ -260,7 +251,7 @@ class DicomQueryClient:
         assert MAX_ATTEMPTS > 0, "MAX_ATTEMPTS must be a positiv number"
         assert WINDOW_INCREMENT_FACTOR >= 1, "WINDOW_INCREMENT_FACTOR must be >= 1"
         assert limit > 0, "Query limit must be bigger than 0"
-        assert start_date == None or start_date < end_date, "Start must be before end"
+        assert start_date is None or start_date < end_date, "Start must be before end"
 
         # Initalization
         new_end_date = end_date
@@ -275,14 +266,14 @@ class DicomQueryClient:
             window_size = math.ceil(1 / dpd * limit)
             new_start_date = new_end_date - timedelta(days=window_size)
             self.log.debug(
-                f"Preparing Query end date: %s, new start date: %s, dpd: %d, window_size %d",
+                "Preparing Query end date: %s, new start date: %s, dpd: %d, window_size %d",
                 new_end_date,
                 new_start_date,
                 dpd,
                 window_size,
             )
 
-            if start_date != None and new_start_date <= start_date:
+            if start_date is not None and new_start_date <= start_date:
                 new_start_date = start_date
 
             if math.ceil((new_end_date - new_start_date).days) == 0:
@@ -294,7 +285,7 @@ class DicomQueryClient:
 
             # Step 2 - Query New Data
             new_results = list(query_func(new_start_date, new_end_date))
-            self.log.debug(f"Query returned %d results", len(new_results))
+            self.log.debug("Query returned %d results", len(new_results))
             new_dpd = len(new_results) / math.ceil((new_end_date - new_start_date).days)
 
             for r in new_results:
@@ -302,9 +293,7 @@ class DicomQueryClient:
 
             # Step 3 - Adjust query parameters for next round
             if new_dpd == 0:
-                self.log.info(
-                    "No data returned between %s and %s", new_start_date, new_end_date
-                )
+                self.log.info("No data returned between %s and %s", new_start_date, new_end_date)
                 attempts_without_data += 1
                 new_dpd = dpd / WINDOW_INCREMENT_FACTOR
                 self.log.info(
@@ -356,21 +345,15 @@ note: tries to mimic dcmtk tools options
         help="If set to a positiv value larger than 0, the query is chunked int smaller queries. The estimated size of a single query would be smaller or equal to this paremter",
         default=None,
     )
-    parser.add_argument(
-        "outfile", help="a jsonlines file containing the the resultset of this query"
-    )
+    parser.add_argument("outfile", help="a jsonlines file containing the the resultset of this query")
     parser.add_argument("-v", help="more verbose output", action="store_true")
     parser.add_argument(
         "--filter-uid",
         help="remove results without uid according to level",
         action="store_true",
     )
-    parser.add_argument(
-        "--start-date", help="An ISO 8601 datetime string (eg. 2021-03-11)"
-    )
-    parser.add_argument(
-        "--end-date", help="An ISO 8601 datetime string (eg. 2021-03-11)"
-    )
+    parser.add_argument("--start-date", help="An ISO 8601 datetime string (eg. 2021-03-11)")
+    parser.add_argument("--end-date", help="An ISO 8601 datetime string (eg. 2021-03-11)")
     parser.add_argument(
         "--level",
         help="What type of objects should be retreived",
@@ -387,17 +370,13 @@ note: tries to mimic dcmtk tools options
     start_dt = datetime.fromisoformat(args.start_date) if args.start_date else None
     end_dt = datetime.fromisoformat(args.end_date) if args.end_date else None
 
-    with DicomQueryClient(
-        args.aet, args.aec, args.peer, args.port, args.level
-    ) as client:
+    with DicomQueryClient(args.aet, args.aec, args.peer, args.port, args.level) as client:
         path = args.outfile
         log.info("Opening result file %s", path)
         with jsonlines.open(path, mode="w") as writer:
             if args.max_query_size:
                 logging.info("Max query size: %d", args.max_query_size)
-                resultset = client.execute_query(
-                    start_dt=start_dt, end_dt=end_dt, limit=args.max_query_size
-                )
+                resultset = client.execute_query(start_dt=start_dt, end_dt=end_dt, limit=args.max_query_size)
             else:
                 resultset = client.execute_query(start_dt=start_dt, end_dt=end_dt)
 
@@ -406,15 +385,9 @@ note: tries to mimic dcmtk tools options
                     filtered = False
                     if args.level == QueryLevel.patient and "PatientID" not in result:
                         filtered = True
-                    elif (
-                        args.level == QueryLevel.study
-                        and "StudyInstanceUID" not in result
-                    ):
+                    elif args.level == QueryLevel.study and "StudyInstanceUID" not in result:
                         filtered = True
-                    elif (
-                        args.level == QueryLevel.series
-                        and "SeriesInstanceUID" not in result
-                    ):
+                    elif args.level == QueryLevel.series and "SeriesInstanceUID" not in result:
                         filtered = True
 
                     if filtered:

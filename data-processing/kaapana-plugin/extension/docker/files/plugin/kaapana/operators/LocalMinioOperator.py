@@ -8,6 +8,9 @@ from datetime import timedelta
 from zipfile import ZipFile
 
 import requests
+from kaapanapy.helper import get_minio_client
+from kaapanapy.logger import get_logger
+
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperMinio import (
@@ -16,8 +19,6 @@ from kaapana.operators.HelperMinio import (
     apply_action_to_object_names,
 )
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapanapy.logger import get_logger
-from kaapanapy.helper import get_minio_client
 
 logger = get_logger(__name__)
 
@@ -34,17 +35,13 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         Raises:
             HttpException: If the response from the access-information code has status code >= 400.
         """
-        response = requests.get(
-            f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_identifier}"
-        )
+        response = requests.get(f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_identifier}")
         response.raise_for_status()
         return response.json()
 
     def get_project_bucket_from_meta_json(self, json_dict):
-        logger.info(f"Applying action to project bucket")
-        clinical_trial_protocol_id = json_dict.get(
-            "00120020 ClinicalTrialProtocolID_keyword"
-        )
+        logger.info("Applying action to project bucket")
+        clinical_trial_protocol_id = json_dict.get("00120020 ClinicalTrialProtocolID_keyword")
 
         project = self.get_project_by_id_or_name(clinical_trial_protocol_id)
 
@@ -55,9 +52,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
 
     def get_project_bucket_from_json_in_batch_dirs(self, batch_folders):
         for batch_element_dir in batch_folders:
-            json_dir = os.path.join(
-                batch_element_dir, self.json_operator.operator_out_dir
-            )
+            json_dir = os.path.join(batch_element_dir, self.json_operator.operator_out_dir)
             json_list = glob.glob(json_dir + "/**/*.json", recursive=True)
             logger.info(f"Found json files: {json_list}")
             assert len(json_list) > 0
@@ -69,7 +64,6 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
 
     @cache_operator_output
     def start(self, ds, **kwargs):
-        dag_run = kwargs["dag_run"]
         conf = kwargs["dag_run"].conf
         print("conf", conf)
         if (
@@ -89,7 +83,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
                 "action_files",
             ]:
                 if attr in conf["data_form"]:
-                    print(f'From data_form {attr}={conf["data_form"][attr]}')
+                    print(f"From data_form {attr}={conf['data_form'][attr]}")
                     setattr(self, attr, conf["data_form"][attr])
         ###################
         # TODO: Can't be used like this, since token expires, we should use presigned_urls, which should be generated when the airflow is triggered
@@ -117,15 +111,11 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         local_root_dir = self.local_root_dir.format(run_dir=run_dir)
 
         print(f"Working relative to the following director: {local_root_dir}")
-        batch_folder = [
-            f for f in glob.glob(os.path.join(local_root_dir, self.batch_name, "*"))
-        ]
+        batch_folder = [f for f in glob.glob(os.path.join(local_root_dir, self.batch_name, "*"))]
 
         print(batch_folder)
         if self.bucket_name is None and self.json_operator:
-            project_bucket = self.get_project_bucket_from_json_in_batch_dirs(
-                batch_folder
-            )
+            project_bucket = self.get_project_bucket_from_json_in_batch_dirs(batch_folder)
             self.bucket_name = project_bucket
 
         if self.bucket_name is None:
@@ -147,17 +137,11 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         # Get contents from batch_elements
         for batch_element_dir in batch_folder:
             for operator_dir in self.action_operator_dirs:
-                object_dirs.append(
-                    os.path.relpath(
-                        os.path.join(batch_element_dir, operator_dir), local_root_dir
-                    )
-                )
+                object_dirs.append(os.path.relpath(os.path.join(batch_element_dir, operator_dir), local_root_dir))
             for action_operator in self.action_operators:
                 object_dirs.append(
                     os.path.relpath(
-                        os.path.join(
-                            batch_element_dir, action_operator.operator_out_dir
-                        ),
+                        os.path.join(batch_element_dir, action_operator.operator_out_dir),
                         local_root_dir,
                     )
                 )
@@ -176,29 +160,21 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
             if not os.path.exists(target_dir):
                 os.makedirs(target_dir)
 
-            zip_object_name = (
-                f"{kwargs['dag'].dag_id}_{kwargs['dag_run'].run_id}_{timestamp}.zip"
-            )
+            zip_object_name = f"{kwargs['dag'].dag_id}_{kwargs['dag_run'].run_id}_{timestamp}.zip"
             zip_file_path = os.path.join(target_dir, zip_object_name)
             with ZipFile(zip_file_path, "w") as zipObj:
                 if not object_dirs:
                     print(f"Zipping everything from {local_root_dir}")
                     object_dirs = [""]
                 else:
-                    print(f'Zipping everything from {", ".join(object_dirs)}')
+                    print(f"Zipping everything from {', '.join(object_dirs)}")
                 for object_dir in object_dirs:
-                    for path, _, files in os.walk(
-                        os.path.join(local_root_dir, object_dir)
-                    ):
+                    for path, _, files in os.walk(os.path.join(local_root_dir, object_dir)):
                         for name in files:
-                            file_path = os.path.join(path, name)
                             rel_dir = os.path.relpath(path, local_root_dir)
                             rel_dir = "" if rel_dir == "." else rel_dir
                             if rel_dir == self.operator_out_dir:
-                                print(
-                                    "Skipping files in {rel_dir}, due to "
-                                    "recursive zipping!"
-                                )
+                                print("Skipping files in {rel_dir}, due to recursive zipping!")
                                 continue
                             object_name = os.path.join(rel_dir, name)
                             zipObj.write(os.path.join(path, name), object_name)
@@ -231,9 +207,9 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
             )
         else:
             if not object_dirs:
-                print(f"Applying action to whole bucket")
+                print("Applying action to whole bucket")
             else:
-                print(f'Applying action "{self.action}" to ' f"files in: {object_dirs}")
+                print(f'Applying action "{self.action}" to files in: {object_dirs}')
 
             apply_action_to_object_dirs(
                 minio_client=minioClient,

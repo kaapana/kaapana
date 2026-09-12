@@ -5,10 +5,8 @@ import json
 import logging
 from typing import Any, Dict
 
-from fastapi import WebSocket
-
 from app.models.events import EventMessage
-
+from fastapi import WebSocket
 
 logger = logging.getLogger(__name__)
 
@@ -20,9 +18,7 @@ _BATCH_FLUSH_INTERVAL = 0.01  # seconds
 class _ConnectionState:
     def __init__(self, websocket: WebSocket) -> None:
         self.websocket = websocket
-        self.queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(
-            maxsize=_QUEUE_MAXSIZE
-        )
+        self.queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=_QUEUE_MAXSIZE)
         self.sender_task: asyncio.Task[None] | None = None
 
 
@@ -52,9 +48,7 @@ class EventBus:
             task.cancel()
             try:
                 await task
-            except (
-                asyncio.CancelledError
-            ):  # pragma: no cover - task already shutting down
+            except asyncio.CancelledError:  # pragma: no cover - task already shutting down
                 pass
 
         try:
@@ -63,11 +57,7 @@ class EventBus:
             logger.debug("Websocket already closed", exc_info=True)
 
     async def broadcast(self, event: EventMessage | Dict[str, Any]) -> None:
-        payload = (
-            event.model_dump(mode="json")
-            if isinstance(event, EventMessage)
-            else dict(event)
-        )
+        payload = event.model_dump(mode="json") if isinstance(event, EventMessage) else dict(event)
         async with self._lock:
             states = list(self._connections.values())
 

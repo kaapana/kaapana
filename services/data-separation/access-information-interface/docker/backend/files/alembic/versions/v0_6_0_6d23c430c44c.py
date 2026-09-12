@@ -42,20 +42,10 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Downgrade schema."""
-    op.add_column(
-        "projects", sa.Column("kubernetes_namespace", sa.String(), nullable=True)
-    )
+    op.add_column("projects", sa.Column("kubernetes_namespace", sa.String(), nullable=True))
     op.add_column("projects", sa.Column("s3_bucket", sa.String(), nullable=True))
-    op.add_column(
-        "projects", sa.Column("opensearch_index", sa.String(), nullable=True)
-    )
-    op.create_unique_constraint(
-        "projects_kubernetes_namespace_key", "projects", ["kubernetes_namespace"]
-    )
-    op.create_unique_constraint(
-        "projects_s3_bucket_key", "projects", ["s3_bucket"]
-    )
-    op.create_unique_constraint(
-        "projects_opensearch_index_key", "projects", ["opensearch_index"]
-    )
+    op.add_column("projects", sa.Column("opensearch_index", sa.String(), nullable=True))
+    op.create_unique_constraint("projects_kubernetes_namespace_key", "projects", ["kubernetes_namespace"])
+    op.create_unique_constraint("projects_s3_bucket_key", "projects", ["s3_bucket"])
+    op.create_unique_constraint("projects_opensearch_index_key", "projects", ["opensearch_index"])
     op.drop_column("projects", "is_archived")

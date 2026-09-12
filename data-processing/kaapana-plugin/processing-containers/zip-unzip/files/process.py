@@ -1,9 +1,8 @@
-import os
 import glob
+import os
 import pathlib
 import zipfile
-from shutil import copy2
-from os.path import join, relpath, basename, dirname, exists
+from os.path import join, relpath
 
 processed_count = 0
 
@@ -52,34 +51,30 @@ def zip_dir(zip_dir_path, target_file):
             #             print(f"# Target: {target_info_file_path}")
             #             copy2(info_file, target_info_file_path)
 
-            if blacklist_files != None:
+            if blacklist_files is not None:
                 skip_file = False
                 for blacklist_file in blacklist_files:
                     blacklist_file = blacklist_file.replace("*", "")
                     index_found = file.find(blacklist_file)
-                    if index_found != -1 and index_found + len(blacklist_file) == len(
-                        file
-                    ):
+                    if index_found != -1 and index_found + len(blacklist_file) == len(file):
                         print(f"# blacklist skip: {blacklist_file}")
                         skip_file = True
                         break
 
-            if skip_file != None and skip_file:
+            if skip_file is not None and skip_file:
                 continue
 
-            if whitelist_files != None:
+            if whitelist_files is not None:
                 skip_file = True
                 for whitelist_file in whitelist_files:
                     whitelist_file = whitelist_file.replace("*", "")
                     index_found = file.find(whitelist_file)
-                    if index_found != -1 and index_found + len(whitelist_file) == len(
-                        file
-                    ):
+                    if index_found != -1 and index_found + len(whitelist_file) == len(file):
                         print(f"# whitelist add {whitelist_file}")
                         skip_file = False
                         break
 
-            if skip_file == None or not skip_file:
+            if skip_file is None or not skip_file:
                 print(f"# Adding: {file}")
                 zipf.write(
                     join(root, file),
@@ -113,14 +108,7 @@ if __name__ == "__main__":
     print(f"# batch_level: {batch_level}")
     print("#")
 
-    batch_folders = sorted(
-        [
-            f
-            for f in glob.glob(
-                join("/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"], "*")
-            )
-        ]
-    )
+    batch_folders = sorted([f for f in glob.glob(join("/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"], "*"))])
 
     if mode.lower() == "zip":
         print(f"# target_filename: {target_filename}")
@@ -130,32 +118,22 @@ if __name__ == "__main__":
                 target_dir = join(batch_element_dir, os.environ["OPERATOR_OUT_DIR"])
                 pathlib.Path(target_dir).mkdir(parents=True, exist_ok=True)
                 zip_target = join(target_dir, target_filename)
-                zip_dir_path = join(
-                    batch_element_dir, os.environ["OPERATOR_IN_DIR"], subdir
-                )
+                zip_dir_path = join(batch_element_dir, os.environ["OPERATOR_IN_DIR"], subdir)
                 zip_dir(zip_dir_path=zip_dir_path, target_file=zip_target)
 
         else:
-            target_dir = join(
-                "/", os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_OUT_DIR"]
-            )
+            target_dir = join("/", os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_OUT_DIR"])
             pathlib.Path(target_dir).mkdir(parents=True, exist_ok=True)
             zip_target = join(target_dir, target_filename)
 
-            zip_dir_path = join(
-                "/", os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"], subdir
-            )
+            zip_dir_path = join("/", os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"], subdir)
             zip_dir(zip_dir_path=zip_dir_path, target_file=zip_target)
 
     elif mode.lower() == "unzip":
         if not batch_level:
             for batch_element_dir in batch_folders:
-                element_input_dir = join(
-                    batch_element_dir, os.environ["OPERATOR_IN_DIR"]
-                )
-                element_output_dir = join(
-                    batch_element_dir, os.environ["OPERATOR_OUT_DIR"]
-                )
+                element_input_dir = join(batch_element_dir, os.environ["OPERATOR_IN_DIR"])
+                element_output_dir = join(batch_element_dir, os.environ["OPERATOR_OUT_DIR"])
                 pathlib.Path(element_output_dir).mkdir(parents=True, exist_ok=True)
 
                 print(f"Search dir: {element_input_dir}")
@@ -165,12 +143,8 @@ if __name__ == "__main__":
                     unzip_file(zip_path=zip_file, target_path=element_output_dir)
 
         else:
-            batch_input_dir = join(
-                "/", os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"]
-            )
-            batch_output_dir = join(
-                "/", os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_OUT_DIR"]
-            )
+            batch_input_dir = join("/", os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"])
+            batch_output_dir = join("/", os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_OUT_DIR"])
             pathlib.Path(batch_output_dir).mkdir(parents=True, exist_ok=True)
 
             zip_files = glob.glob(join(batch_input_dir, "*.zip"), recursive=True)

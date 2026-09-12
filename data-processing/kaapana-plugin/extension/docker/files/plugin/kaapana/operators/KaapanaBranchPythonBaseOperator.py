@@ -1,10 +1,8 @@
-import os
-import glob
 from datetime import timedelta
 
 from airflow.models.skipmixin import SkipMixin
 from airflow.operators.python import BranchPythonOperator
-from airflow.utils.decorators import apply_defaults
+
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
@@ -50,7 +48,7 @@ class KaapanaBranchPythonBaseOperator(BranchPythonOperator, SkipMixin):
         airflow_workflow_dir=None,
         priority_class_name=None,
         annotations=None,
-        **kwargs
+        **kwargs,
     ):
         # Service dags have to run in services namespace to have access to sevices-namespace volumes
         if "service" in dag.tags or "import" in dag.tags:
@@ -112,7 +110,7 @@ class KaapanaBranchPythonBaseOperator(BranchPythonOperator, SkipMixin):
             pool=self.pool,
             pool_slots=self.pool_slots,
             executor=executor,
-            **kwargs
+            **kwargs,
         )
 
     def post_execute(self, context, result=None):

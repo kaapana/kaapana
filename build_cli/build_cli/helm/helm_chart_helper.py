@@ -36,17 +36,11 @@ class HelmChartHelper:
             cls._build_config.default_registry,
         ]
 
-        logout_result = CommandUtils.run(
-            logout_cmd, logger=logger, timeout=10, context="helm-logout", quiet=True
-        )
+        logout_result = CommandUtils.run(logout_cmd, logger=logger, timeout=10, context="helm-logout", quiet=True)
 
         # Log only if logout failed for a reason other than "not logged in"
-        if (logout_result.returncode != 0) and (
-            "Error: not logged in" not in logout_result.stderr
-        ):
-            logger.info(
-                f"Helm couldn't logout from registry: {cls._build_config.default_registry} -> not logged in!"
-            )
+        if (logout_result.returncode != 0) and ("Error: not logged in" not in logout_result.stderr):
+            logger.info(f"Helm couldn't logout from registry: {cls._build_config.default_registry} -> not logged in!")
 
         logger.info(f"-> Helm registry-login: {cls._build_config.default_registry}")
         login_cmd = [
@@ -71,9 +65,7 @@ class HelmChartHelper:
 
         if login_result.returncode != 0:
             logger.error("Something went wrong!")
-            logger.error(
-                f"Helm couldn't login into registry: {cls._build_config.default_registry}"
-            )
+            logger.error(f"Helm couldn't login into registry: {cls._build_config.default_registry}")
             logger.error(f"Message: {login_result.stdout}")
             logger.error(f"Error:   {login_result.stderr}")
 
@@ -92,9 +84,7 @@ class HelmChartHelper:
             logger.error("Helm is not installed!")
             logger.error("-> install curl 'sudo apt install curl'")
             logger.error("-> install helm 'sudo snap install helm --classic'!")
-            logger.error(
-                "-> install the kubeval 'helm plugin install https://github.com/instrumenta/helm-kubeval'"
-            )
+            logger.error("-> install the kubeval 'helm plugin install https://github.com/instrumenta/helm-kubeval'")
             exit(1)
 
         helm_kubeval_cmd = [cls._build_config.helm_executable, "kubeval", "--help"]
@@ -125,9 +115,7 @@ class HelmChartHelper:
             Logs progress and duplicate chart warnings.
         """
         chart_files = set(
-            f
-            for f in cls._build_config.kaapana_dir.rglob("Chart.yaml")
-            if cls._build_config.build_dir not in f.parents
+            f for f in cls._build_config.kaapana_dir.rglob("Chart.yaml") if cls._build_config.build_dir not in f.parents
         )
 
         logger.info("")
@@ -138,23 +126,15 @@ class HelmChartHelper:
             external_charts = list(source_dir.rglob("Chart.yaml"))
 
             # Exclude charts that are already in the main kaapana_dir
-            new_charts = {
-                chart
-                for chart in external_charts
-                if cls._build_config.kaapana_dir not in chart.parents
-            }
+            new_charts = {chart for chart in external_charts if cls._build_config.kaapana_dir not in chart.parents}
             chart_files |= new_charts
 
         # Count occurrences
         chart_counts = Counter(chart_files)
-        duplicated_charts = [
-            chart for chart, count in chart_counts.items() if count > 1
-        ]
+        duplicated_charts = [chart for chart, count in chart_counts.items() if count > 1]
 
         if len(duplicated_charts) > 0:
-            logger.warning(
-                f"-> Duplicate Charts found: {len(chart_files)} vs {len(set(chart_files))}"
-            )
+            logger.warning(f"-> Duplicate Charts found: {len(chart_files)} vs {len(set(chart_files))}")
             for chart in duplicated_charts:
                 logger.warning(chart)
             logger.warning("")
@@ -168,15 +148,11 @@ class HelmChartHelper:
         with alive_bar(len(chart_files), dual_line=True, title="Collect-Charts") as bar:
             for chart_file in chart_files:
                 bar()
-                if should_ignore_path(
-                    chart_file, cls._build_config.build_ignore_patterns
-                ):
+                if should_ignore_path(chart_file, cls._build_config.build_ignore_patterns):
                     logger.debug(f"Ignoring chart {chart_file}")
                     continue
 
-                chart_obj = HelmChart.from_chartfile(
-                    chart_file, build_config=cls._build_config
-                )
+                chart_obj = HelmChart.from_chartfile(chart_file, build_config=cls._build_config)
                 bar.text(chart_obj.name)
                 cls._build_state.add_chart(chart_obj)
 
@@ -262,27 +238,19 @@ class HelmChartHelper:
         if not candidate:
             msg = f"Chart '{name}' not found in available charts."
             if cls._build_config.exit_on_error:
-                IssueTracker.generate_issue(
-                    component=cls.__name__, name=name, msg=msg, level="FATAL"
-                )
+                IssueTracker.generate_issue(component=cls.__name__, name=name, msg=msg, level="FATAL")
                 return None
             else:
-                IssueTracker.generate_issue(
-                    component=cls.__name__, name=name, msg=msg, level="ERROR"
-                )
+                IssueTracker.generate_issue(component=cls.__name__, name=name, msg=msg, level="ERROR")
                 return None
 
         if version and candidate.version != version:
             msg = f"Version mismatch for chart '{name}': expected {version}, found {candidate.version}"
             if cls._build_config.exit_on_error:
-                IssueTracker.generate_issue(
-                    component=cls.__name__, name=name, msg=msg, level="FATAL"
-                )
+                IssueTracker.generate_issue(component=cls.__name__, name=name, msg=msg, level="FATAL")
                 exit(1)
             else:
-                IssueTracker.generate_issue(
-                    component=cls.__name__, name=name, msg=msg, level="ERROR"
-                )
+                IssueTracker.generate_issue(component=cls.__name__, name=name, msg=msg, level="ERROR")
                 return None
 
         return candidate
@@ -306,9 +274,7 @@ class HelmChartHelper:
             Creates build artifacts on disk, updates container build directories where necessary,
             and interacts with the registry to push Helm packages.
         """
-        platform_target_dir = (
-            cls._build_config.build_dir / platform_chart.name / platform_chart.name
-        )
+        platform_target_dir = cls._build_config.build_dir / platform_chart.name / platform_chart.name
         fake_values = files("build_cli") / "configs" / "fake-values.yaml"
 
         with alive_bar(
@@ -329,11 +295,7 @@ class HelmChartHelper:
         # 2. Build collections
         # -------------------
         for collection_chart in platform_chart.kaapana_collections:
-            collection_target_dir = (
-                cls._build_config.build_dir
-                / platform_chart.name
-                / collection_chart.name
-            )
+            collection_target_dir = cls._build_config.build_dir / platform_chart.name / collection_chart.name
             with alive_bar(
                 bar="classic",
                 # spinner="crab",
@@ -368,9 +330,7 @@ class HelmChartHelper:
 
                     bar()
 
-        platform_chart.make_package(
-            cls._build_config.helm_executable, cls._build_config.plain_http
-        )
+        platform_chart.make_package(cls._build_config.helm_executable, cls._build_config.plain_http)
 
         if not cls._build_config.build_only:
             platform_chart.push(

@@ -58,8 +58,8 @@ def _enforce_immutable_labels(
     Accepts any iterables of label-like objects with `.key` and `.value` (ORM `Label` rows or Pydantic `Label` schemas).
     Raises `HTTPException(422)` on violation.
     """
-    current_pairs = [(l.key, l.value) for l in current_labels]
-    new_pairs = [(l.key, l.value) for l in new_labels]
+    current_pairs = [(label.key, label.value) for label in current_labels]
+    new_pairs = [(label.key, label.value) for label in new_labels]
     try:
         crud.check_immutable_labels(current_pairs, new_pairs)
     except crud.ImmutableLabelViolation as e:
@@ -87,18 +87,14 @@ async def get_workflows(
         filters["id"] = id
     if title is not None:
         filters["title"] = title
-    db_workflows = await crud.get_workflows(
-        db, skip=skip, limit=limit, order_by=order_by, order=order, filters=filters
-    )
+    db_workflows = await crud.get_workflows(db, skip=skip, limit=limit, order_by=order_by, order=order, filters=filters)
     if not db_workflows:
         logger.warning(f"No workflows found with filters: {filters}")
         return []
     return [_workflow_to_schema(w) for w in db_workflows]
 
 
-async def create_workflow(
-    db: AsyncSession, workflow: schemas.WorkflowCreate
-) -> schemas.Workflow:
+async def create_workflow(db: AsyncSession, workflow: schemas.WorkflowCreate) -> schemas.Workflow:
     """
     Create a workflow. 409 when the title already exists in another active workflow.
     """
@@ -207,9 +203,7 @@ async def update_workflow(
     # Submit the new revision to the engine whenever a versioned field changed (definition / parameters / labels)
     # Any of them appends a new revision, and the Airflow dag_id is based on (title, increment), so the matching DAG file must be (re-)registered for that new increment
     versioned_change = (
-        update.definition is not None
-        or update.workflow_parameters is not None
-        or update.labels is not None
+        update.definition is not None or update.workflow_parameters is not None or update.labels is not None
     )
     if versioned_change:
         engine = get_workflow_engine(db_workflow.workflow_engine)
@@ -251,16 +245,11 @@ async def restore_workflow_revision(
         _enforce_immutable_labels(
             current_rev.labels,
             target.labels,
-            detail_prefix=(
-                f"Cannot restore workflow {workflow_id} to increment "
-                f"{target_increment}: "
-            ),
+            detail_prefix=(f"Cannot restore workflow {workflow_id} to increment {target_increment}: "),
         )
 
     try:
-        db_workflow = await crud.restore_workflow_revision(
-            db, db_workflow, target_increment
-        )
+        db_workflow = await crud.restore_workflow_revision(db, db_workflow, target_increment)
     except ValueError as e:
         raise NotFoundError(str(e))
 
@@ -296,9 +285,7 @@ async def delete_workflow(db: AsyncSession, workflow_id: uuid.UUID):
 # Revisions
 
 
-async def get_workflow_revisions(
-    db: AsyncSession, workflow_id: uuid.UUID
-) -> List[schemas.WorkflowRevision]:
+async def get_workflow_revisions(db: AsyncSession, workflow_id: uuid.UUID) -> List[schemas.WorkflowRevision]:
     """List every revision of a workflow in increment order."""
     db_workflow = await crud.get_workflow(db, filters={"id": workflow_id})
     if not db_workflow:
@@ -306,9 +293,7 @@ async def get_workflow_revisions(
     return [_revision_to_schema(r) for r in db_workflow.revisions]
 
 
-async def get_workflow_revision(
-    db: AsyncSession, workflow_id: uuid.UUID, increment: int
-) -> schemas.WorkflowRevision:
+async def get_workflow_revision(db: AsyncSession, workflow_id: uuid.UUID, increment: int) -> schemas.WorkflowRevision:
     """Get a single revision of a workflow."""
     rev = await crud.get_workflow_revision(db, workflow_id, increment)
     if rev is None or rev.workflow.removed:
@@ -333,31 +318,21 @@ async def get_workflow_tasks(
     if increment is None:
         target_revision = crud.latest_revision(db_workflow)
     else:
-        target_revision = next(
-            (r for r in db_workflow.revisions if r.increment == increment), None
-        )
+        target_revision = next((r for r in db_workflow.revisions if r.increment == increment), None)
     if target_revision is None:
         raise NotFoundError("Workflow revision not found")
 
-    tasks = await crud.get_tasks(
-        db, filters={"workflow_revision_id": target_revision.id}
-    )
+    tasks = await crud.get_tasks(db, filters={"workflow_revision_id": target_revision.id})
     if not tasks:
         # Tasks may not have been parsed yet, parse just-in-time and re-query
         engine = get_workflow_engine(db_workflow.workflow_engine)
-        await _parse_revision_tasks(
-            db=db, revision_id=target_revision.id, engine=engine
-        )
-        tasks = await crud.get_tasks(
-            db, filters={"workflow_revision_id": target_revision.id}
-        )
+        await _parse_revision_tasks(db=db, revision_id=target_revision.id, engine=engine)
+        tasks = await crud.get_tasks(db, filters={"workflow_revision_id": target_revision.id})
 
     res = []
     for t in tasks:
         task_data = jsonable_encoder(t)
-        task_data["downstream_task_ids"] = [
-            dt.downstream_task_id for dt in t.downstream_tasks
-        ]
+        task_data["downstream_task_ids"] = [dt.downstream_task_id for dt in t.downstream_tasks]
         res.append(schemas.Task.model_validate(task_data))
     return res
 
@@ -376,9 +351,7 @@ async def get_task(
     if increment is None:
         target_revision = crud.latest_revision(db_workflow)
     else:
-        target_revision = next(
-            (r for r in db_workflow.revisions if r.increment == increment), None
-        )
+        target_revision = next((r for r in db_workflow.revisions if r.increment == increment), None)
     if target_revision is None:
         raise NotFoundError("Workflow revision not found")
 
@@ -390,15 +363,11 @@ async def get_task(
         },
     )
     if not task:
-        logger.error(
-            f"Task {task_title} for workflow {workflow_id} inc{target_revision.increment} not found"
-        )
+        logger.error(f"Task {task_title} for workflow {workflow_id} inc{target_revision.increment} not found")
         raise NotFoundError("Task not found")
 
     task_data = jsonable_encoder(task)
-    task_data["downstream_task_ids"] = [
-        dt.downstream_task_id for dt in task.downstream_tasks
-    ]
+    task_data["downstream_task_ids"] = [dt.downstream_task_id for dt in task.downstream_tasks]
     return schemas.Task(**task_data)
 
 
@@ -422,15 +391,11 @@ async def _parse_revision_tasks(
         return
     schema_revision = _revision_to_schema(db_revision)
 
-    tasks: List[schemas.TaskCreate] = await engine.get_workflow_tasks(
-        revision=schema_revision
-    )
+    tasks: List[schemas.TaskCreate] = await engine.get_workflow_tasks(revision=schema_revision)
 
     db_tasks: Dict[str, models.Task] = {}
     for task_create in tasks:
-        t = await crud.create_task(
-            db=db, task=task_create, workflow_revision_id=db_revision.id
-        )
+        t = await crud.create_task(db=db, task=task_create, workflow_revision_id=db_revision.id)
         db_tasks[t.title] = t
         logger.info(f"Created task {t.title} for revision {db_revision.id}")
 
@@ -441,15 +406,9 @@ async def _parse_revision_tasks(
         for ds_title in task_from_engine.downstream_task_titles:
             ds_task = db_tasks.get(ds_title)
             if not ds_task:
-                logger.error(
-                    f"Failed to find downstream task {ds_title} to link to {db_task.title}."
-                )
+                logger.error(f"Failed to find downstream task {ds_title} to link to {db_task.title}.")
                 continue
-            await crud.add_downstream_task(
-                db, task_id=db_task.id, downstream_task_id=ds_task.id
-            )
+            await crud.add_downstream_task(db, task_id=db_task.id, downstream_task_id=ds_task.id)
 
     await db.commit()
-    logger.info(
-        f"Successfully parsed tasks for workflow {db_revision.workflow_id} inc{db_revision.increment}."
-    )
+    logger.info(f"Successfully parsed tasks for workflow {db_revision.workflow_id} inc{db_revision.increment}.")

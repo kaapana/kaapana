@@ -22,7 +22,9 @@ class OpenSearchHelper:
         self.os_client = get_opensearch_client(access_token)
         self.access_token = access_token
         self.settings = OpensearchSettings()
-        self.security_api_url = f"https://{self.settings.opensearch_host}:{self.settings.opensearch_port}/_plugins/_security/api"
+        self.security_api_url = (
+            f"https://{self.settings.opensearch_host}:{self.settings.opensearch_port}/_plugins/_security/api"
+        )
 
         if wait_for_service:
             self.wait_for_service()
@@ -53,14 +55,10 @@ class OpenSearchHelper:
                 logger.warning(f"Opensearch not yet available: {str(e)}")
                 time.sleep(delay)
                 if tries >= max_retries:
-                    logger.error(
-                        f"Openseach not available after {max_retries} retries!"
-                    )
+                    logger.error(f"Openseach not available after {max_retries} retries!")
                     raise e
 
-    async def check_project_template_exists(
-        self, template_name: str = "project_", max_retries=60, delay=5
-    ):
+    async def check_project_template_exists(self, template_name: str = "project_", max_retries=60, delay=5):
         """
         Checks if the OpenSearch project template exists.
         """
@@ -78,19 +76,13 @@ class OpenSearchHelper:
                 logger.info(f"Template '{template_name}' exists.")
                 return
             elif r.status_code == 404:
-                logger.info(
-                    f"Template '{template_name}' does not exist yet, retrying..."
-                )
+                logger.info(f"Template '{template_name}' does not exist yet, retrying...")
             else:
-                logger.warning(
-                    f"Template '{template_name}' returned status {r.status_code}"
-                )
+                logger.warning(f"Template '{template_name}' returned status {r.status_code}")
 
             await asyncio.sleep(delay)
 
-        logger.error(
-            f"Opensearch template '{template_name}' not available after {max_retries} retries!"
-        )
+        logger.error(f"Opensearch template '{template_name}' not available after {max_retries} retries!")
         raise Exception(f"Template '{template_name}' not found after retries")
 
     async def create_role(self, role_name: str, payload: dict):
@@ -149,19 +141,14 @@ class OpenSearchHelper:
         """
         Create (or replace) the alias alias pointing to index.
         """
-        url = (
-            f"https://{self.settings.opensearch_host}:{self.settings.opensearch_port}"
-            f"/{index}/_alias/{alias}"
-        )
+        url = f"https://{self.settings.opensearch_host}:{self.settings.opensearch_port}/{index}/_alias/{alias}"
         async with httpx.AsyncClient(verify=False) as client:
             response = await client.put(
                 url,
                 headers={"Authorization": f"Bearer {self.access_token}"},
             )
         if response.status_code not in (200, 201, 204):
-            logger.warning(
-                f"Failed to create alias {alias} -> {index}: {response.text}"
-            )
+            logger.warning(f"Failed to create alias {alias} -> {index}: {response.text}")
         else:
             logger.info(f"Alias: {alias} -> Index: {index}")
 
@@ -169,10 +156,7 @@ class OpenSearchHelper:
         """
         Remove the alias alias from index if it exists.
         """
-        url = (
-            f"https://{self.settings.opensearch_host}:{self.settings.opensearch_port}"
-            f"/{index}/_alias/{alias}"
-        )
+        url = f"https://{self.settings.opensearch_host}:{self.settings.opensearch_port}/{index}/_alias/{alias}"
         async with httpx.AsyncClient(verify=False) as client:
             response = await client.delete(
                 url,
@@ -222,9 +206,7 @@ class OpenSearchHelper:
             # give access to both the real index and the alias
             payload = get_payload_for_claim_and_index(claim_value, index)
             await self.create_role(role_name=role_name, payload=payload)
-            await self.create_rolemappings(
-                role_name=role_name, backend_role=backend_role
-            )
+            await self.create_rolemappings(role_name=role_name, backend_role=backend_role)
 
         return index
 
@@ -246,10 +228,7 @@ class OpenSearchHelper:
 
         await self._remove_alias(index, old_alias)
         await self._set_alias(index, new_alias)
-        logger.info(
-            f"Renamed OpenSearch alias from {old_alias!r} to {new_alias!r} "
-            f"(index {index!r} unchanged)"
-        )
+        logger.info(f"Renamed OpenSearch alias from {old_alias!r} to {new_alias!r} (index {index!r} unchanged)")
 
     async def teardown_project(self, project: Project, session):
         """

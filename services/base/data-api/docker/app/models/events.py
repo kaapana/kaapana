@@ -20,12 +20,8 @@ class EventAction(str, Enum):
 class EventMessage(BaseModel):
     resource: EventResource = Field(..., description="Domain object that changed")
     action: EventAction = Field(..., description="Lifecycle event action")
-    data: Dict[str, Any] = Field(
-        default_factory=dict, description="Event payload for the resource"
-    )
+    data: Dict[str, Any] = Field(default_factory=dict, description="Event payload for the resource")
 
     @classmethod
-    def build(
-        cls, resource: EventResource, action: EventAction, **data: Any
-    ) -> "EventMessage":
+    def build(cls, resource: EventResource, action: EventAction, **data: Any) -> "EventMessage":
         return cls(resource=resource, action=action, data=data)

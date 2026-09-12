@@ -1,18 +1,18 @@
-from airflow.utils.dates import days_ago
 from datetime import timedelta
+
 from airflow.models import DAG
+from airflow.utils.dates import days_ago
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
+from kaapana.operators.GetRefSeriesOperator import GetRefSeriesOperator
+from kaapana.operators.LocalFilterMasksOperator import LocalFilterMasksOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
-from kaapana.operators.GetRefSeriesOperator import GetRefSeriesOperator
-from kaapana.operators.GetInputOperator import GetInputOperator
+from kaapana.operators.MergeMasksOperator import MergeMasksOperator
 from kaapana.operators.MinioOperator import MinioOperator
 from kaapana.operators.SegmentationEvaluationOperator import (
     SegmentationEvaluationOperator,
 )
-from kaapana.operators.MergeMasksOperator import MergeMasksOperator
-from kaapana.operators.LocalFilterMasksOperator import LocalFilterMasksOperator
-
 
 # TODO: add manual evaluation option, if selected put all data into minio and start jupyterlab
 
@@ -228,14 +228,7 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 get_gt_images >> dcm2nifti_gt >> filter_gt >> fuse_gt >> evaluation
 
-(
-    get_test_images
-    >> get_ref_ct_from_test
-    >> dcm2nifti_test
-    >> filter_test
-    >> fuse_test
-    >> evaluation
-)
+(get_test_images >> get_ref_ct_from_test >> dcm2nifti_test >> filter_test >> fuse_test >> evaluation)
 get_ref_ct_from_test >> dcmconverter_test >> evaluation
 
 evaluation >> put_to_minio >> clean

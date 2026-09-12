@@ -1,12 +1,10 @@
-import logging
 import functools
+import logging
 
 logger = logging.getLogger("uvicorn")
 
 
-def deprecated(
-    message: str = None, method: str = None, path: str = None, replacement: str = None
-):
+def deprecated(message: str = None, method: str = None, path: str = None, replacement: str = None):
     """
     Mark an endpoint as deprecated.
 
@@ -37,9 +35,7 @@ def deprecated(
             if message:
                 parts.append(message)
             else:
-                parts.append(
-                    f"- Endpoint is deprecated and may be removed in future versions."
-                )
+                parts.append("- Endpoint is deprecated and may be removed in future versions.")
 
             logger.warning(" ".join(parts))
 

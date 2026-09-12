@@ -1,9 +1,11 @@
-import os
 import json
 import logging
+import os
+import traceback
+from datetime import datetime
+
 import pytz
 from dateutil import parser
-from datetime import datetime
 
 
 class Dcm2MetaJsonConversionException(Exception):
@@ -40,11 +42,7 @@ class Dcm2MetaJsonConverter:
         if key in self.dictionary:
             new_key = self.dictionary[key]
         else:
-            self.log.warn(
-                "{}: Could not identify DICOM tag -> using plain tag instead...".format(
-                    key
-                )
-            )
+            self.log.warn("{}: Could not identify DICOM tag -> using plain tag instead...".format(key))
             new_key = key
 
         return new_key
@@ -72,9 +70,7 @@ class Dcm2MetaJsonConverter:
                 sec = int(time_str)
 
             else:
-                self.log.warn(
-                    "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ could not convert time!"
-                )
+                self.log.warn("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ could not convert time!")
                 self.log.warn("time_str: {}".format(time_str))
                 if self.exit_on_error:
                     raise Dcm2MetaJsonConversionException()
@@ -89,9 +85,7 @@ class Dcm2MetaJsonConverter:
             return time_formatted
 
         except Exception as e:
-            self.log.warn(
-                "##################################### COULD NOT EXTRACT TIME!!"
-            )
+            self.log.warn("##################################### COULD NOT EXTRACT TIME!!")
             self.log.warn("Value: {}".format(time_str))
             self.log.warn(e)
             if self.exit_on_error:
@@ -99,9 +93,7 @@ class Dcm2MetaJsonConverter:
 
     def check_type(self, obj, val_type):
         try:
-            if isinstance(obj, val_type) or (
-                val_type is float and isinstance(obj, int)
-            ):
+            if isinstance(obj, val_type) or (val_type is float and isinstance(obj, int)):
                 return obj
             elif val_type is float and not isinstance(obj, list):
                 obj = float(obj)
@@ -194,8 +186,7 @@ class Dcm2MetaJsonConverter:
 
                         # Example: "018M" would represent an age of 18 months.
                         try:
-                            age_count = int(value_str[:3])
-                            identifier = value_str[3:]
+                            int(value_str[:3])  # raises for a malformed age string
 
                             new_key = new_key + "_keyword"
                             new_meta_data[new_key] = value_str
@@ -203,9 +194,7 @@ class Dcm2MetaJsonConverter:
                             self.log.warn(
                                 "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ SKIPPED"
                             )
-                            self.log.warn(
-                                "Could not extract age from: {}".format(value_str)
-                            )
+                            self.log.warn("Could not extract age from: {}".format(value_str))
                             self.log.warn(e)
                             if self.exit_on_error:
                                 raise Dcm2MetaJsonConversionException()
@@ -241,15 +230,9 @@ class Dcm2MetaJsonConverter:
                                 for date_str in value_str:
                                     if date_str == "":
                                         continue
-                                    date_formatted.append(
-                                        parser.parse(date_str).strftime(
-                                            self.format_date
-                                        )
-                                    )
+                                    date_formatted.append(parser.parse(date_str).strftime(self.format_date))
                             else:
-                                date_formatted = parser.parse(value_str).strftime(
-                                    self.format_date
-                                )
+                                date_formatted = parser.parse(value_str).strftime(self.format_date)
 
                             new_key = new_key + "_date"
                             new_meta_data[new_key] = date_formatted
@@ -257,9 +240,7 @@ class Dcm2MetaJsonConverter:
                             self.log.warn(
                                 "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ SKIPPED"
                             )
-                            self.log.warn(
-                                "Could not extract date from: {}".format(value_str)
-                            )
+                            self.log.warn("Could not extract date from: {}".format(value_str))
                             self.log.warn(e)
                             if self.exit_on_error:
                                 raise Dcm2MetaJsonConversionException()
@@ -297,53 +278,37 @@ class Dcm2MetaJsonConverter:
                             date_time_string = None
 
                             if len(value_str) == 21 and "." in value_str:
-                                date_time_string = parser.parse(
-                                    value_str.split(".")[0]
-                                ).strftime("%Y-%m-%d %H:%M:%S.%f")
+                                date_time_string = parser.parse(value_str.split(".")[0]).strftime(
+                                    "%Y-%m-%d %H:%M:%S.%f"
+                                )
 
                             elif len(value_str) == 8:
                                 self.log.warn("DATE ONLY FOUND")
-                                datestr_date = parser.parse(value_str).strftime(
-                                    "%Y%m%d"
-                                )
-                                datestr_time = parser.parse("01:00:00").strftime(
-                                    "%H:%M:%S"
-                                )
+                                datestr_date = parser.parse(value_str).strftime("%Y%m%d")
+                                datestr_time = parser.parse("01:00:00").strftime("%H:%M:%S")
                                 date_time_string = datestr_date + " " + datestr_time
 
                             elif len(value_str) == 16:
                                 self.log.info("DATETIME FOUND")
                                 datestr_date = str(value_str)[:8]
                                 datestr_time = str(value_str)[8:]
-                                datestr_date = parser.parse(datestr_date).strftime(
-                                    self.format_date
-                                )
-                                datestr_time = parser.parse(datestr_time).strftime(
-                                    self.format_time
-                                )
+                                datestr_date = parser.parse(datestr_date).strftime(self.format_date)
+                                datestr_time = parser.parse(datestr_time).strftime(self.format_time)
                                 date_time_string = datestr_date + " " + datestr_time
 
                             else:
-                                self.log.warn(
-                                    "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-                                )
-                                self.log.warn(
-                                    "++++++++++++++++++++++++++++ No Datetime ++++++++++++++++++++++++++++"
-                                )
+                                self.log.warn("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+                                self.log.warn("++++++++++++++++++++++++++++ No Datetime ++++++++++++++++++++++++++++")
                                 self.log.warn("KEY  : {}".format(new_key))
                                 self.log.warn("Value: {}".format(value_str))
                                 self.log.warn("LEN: {}".format(len(value_str)))
                                 self.log.warn("Skipping...")
-                                self.log.warn(
-                                    "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-                                )
+                                self.log.warn("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
                                 if self.exit_on_error:
                                     raise Dcm2MetaJsonConversionException()
 
                             if date_time_string is not None:
-                                date_time_formatted = parser.parse(
-                                    date_time_string
-                                ).strftime(self.format_date_time)
+                                date_time_formatted = parser.parse(date_time_string).strftime(self.format_date_time)
                                 date_time_formatted = self.convert_time_to_utc(
                                     date_time_formatted, self.format_date_time
                                 )
@@ -351,18 +316,14 @@ class Dcm2MetaJsonConverter:
                                 new_key = new_key + "_datetime"
 
                                 self.log.warn("Value: {}".format(value_str))
-                                self.log.warn(
-                                    "DATETIME: {}".format(date_time_formatted)
-                                )
+                                self.log.warn("DATETIME: {}".format(date_time_formatted))
                                 new_meta_data[new_key] = date_time_formatted
 
                         except Exception as e:
                             self.log.warn(
                                 "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ SKIPPED"
                             )
-                            self.log.warn(
-                                "Could not extract Date Time from: {}".format(value_str)
-                            )
+                            self.log.warn("Could not extract Date Time from: {}".format(value_str))
                             self.log.warn(e)
                             if self.exit_on_error:
                                 raise Dcm2MetaJsonConversionException()
@@ -485,9 +446,7 @@ class Dcm2MetaJsonConverter:
                         subcategories = ["Alphabetic", "Ideographic", "Phonetic"]
                         for cat in subcategories:
                             if cat in value_str:
-                                new_meta_data[new_key + "_" + cat.lower()] = value_str[
-                                    cat
-                                ]
+                                new_meta_data[new_key + "_" + cat.lower()] = value_str[cat]
 
                     elif vr == "SH":
                         # Short String
@@ -688,17 +647,9 @@ class Dcm2MetaJsonConverter:
                         "##########################################################################        SKIPPING BINARY!"
                     )
                 elif "Value" not in value:
-                    self.log.warn(
-                        "No value found in entry: {}".format(
-                            str(value).strip("[]").encode("utf-8")
-                        )
-                    )
+                    self.log.warn("No value found in entry: {}".format(str(value).strip("[]").encode("utf-8")))
                 elif "vr" not in value:
-                    self.log.warn(
-                        "No vr found in entry: {}".format(
-                            str(value).strip("[]").encode("utf-8")
-                        )
-                    )
+                    self.log.warn("No vr found in entry: {}".format(str(value).strip("[]").encode("utf-8")))
                 else:
                     self.log.warn(
                         "##########################################################################        replace_tags ELSE!"
@@ -752,28 +703,20 @@ class Dcm2MetaJsonConverter:
                 time_tag_used += " + StudyTime"
                 extracted_time = new_meta_data["00080030 StudyTime_time"]
 
-            if extracted_date == None:
-                self.log.warn(
-                    "###########################        NO AcquisitionDate! -> set to today"
-                )
+            if extracted_date is None:
+                self.log.warn("###########################        NO AcquisitionDate! -> set to today")
                 time_tag_used += "not found -> arriving date"
                 extracted_date = datetime.now().strftime(self.format_date)
 
-            if extracted_time == None:
-                self.log.warn(
-                    "###########################        NO AcquisitionTime! -> set to now"
-                )
+            if extracted_time is None:
+                self.log.warn("###########################        NO AcquisitionTime! -> set to now")
                 time_tag_used += " + not found -> arriving time"
                 extracted_time = datetime.now().strftime(self.format_time)
 
             date_time_string = extracted_date + " " + extracted_time
-            date_time_formatted = parser.parse(date_time_string).strftime(
-                self.format_date_time
-            )
+            date_time_formatted = parser.parse(date_time_string).strftime(self.format_date_time)
 
-        date_time_formatted = self.convert_time_to_utc(
-            date_time_formatted, self.format_date_time
-        )
+        date_time_formatted = self.convert_time_to_utc(date_time_formatted, self.format_date_time)
         new_meta_data["timestamp"] = date_time_formatted
 
         new_meta_data["00000000 TimestampArrived_datetime"] = self.convert_time_to_utc(
@@ -789,16 +732,11 @@ class Dcm2MetaJsonConverter:
 
             birthday_datetime = datetime.strptime(birthdate, "%Y-%m-%d")
 
-            series_datetime = datetime.strptime(
-                date_time_formatted, self.format_date_time
-            )
+            series_datetime = datetime.strptime(date_time_formatted, self.format_date_time)
             patient_age_scan = (
                 series_datetime.year
                 - birthday_datetime.year
-                - (
-                    (series_datetime.month, series_datetime.day)
-                    < (birthday_datetime.month, birthday_datetime.day)
-                )
+                - ((series_datetime.month, series_datetime.day) < (birthday_datetime.month, birthday_datetime.day))
             )
 
             if "00101010 PatientAge_keyword" in new_meta_data:

@@ -32,18 +32,13 @@ class SingleValueTTLCache(Generic[T]):
 
     def get(self, fetch: Callable[[], T]) -> T:
         with self._lock:
-            if (
-                self._fetched_at is not None
-                and time.monotonic() - self._fetched_at < self._ttl_seconds
-            ):
+            if self._fetched_at is not None and time.monotonic() - self._fetched_at < self._ttl_seconds:
                 return self._value
             try:
                 value = fetch()
             except Exception:
                 if self._fetched_at is not None:
-                    logger.warning(
-                        "cache refresh failed, serving stale value", exc_info=True
-                    )
+                    logger.warning("cache refresh failed, serving stale value", exc_info=True)
                     return self._value
                 raise
             self._value = value
@@ -60,19 +55,14 @@ class SingleValueTTLCache(Generic[T]):
         refresh is in flight.
         """
         with self._lock:
-            if (
-                self._fetched_at is not None
-                and time.monotonic() - self._fetched_at < self._ttl_seconds
-            ):
+            if self._fetched_at is not None and time.monotonic() - self._fetched_at < self._ttl_seconds:
                 return self._value
         try:
             value = await asyncio.to_thread(fetch)
         except Exception:
             with self._lock:
                 if self._fetched_at is not None:
-                    logger.warning(
-                        "cache refresh failed, serving stale value", exc_info=True
-                    )
+                    logger.warning("cache refresh failed, serving stale value", exc_info=True)
                     return self._value
                 raise
         with self._lock:

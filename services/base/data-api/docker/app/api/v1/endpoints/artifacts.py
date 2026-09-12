@@ -2,16 +2,16 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Query
-from fastapi.responses import StreamingResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.db.models import MetadataEntryORM
 from app.db.session import get_async_db
 from app.models.domain import Artifact, DataEntity
 from app.models.events import EventAction
 from app.services.artifact_store import get_artifact_store
 from app.services.entity_repository import artifact_to_orm
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi.responses import StreamingResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from .helpers import (
     broadcast_entity_event,
     commit_and_return_entity,
@@ -42,9 +42,7 @@ async def upload_artifact(
         metadata_entry = MetadataEntryORM(key=key, data={})
         entity.metadata_entries.append(metadata_entry)
 
-    existing_artifact = next(
-        (a for a in metadata_entry.artifacts if a.artifact_id == artifact_id), None
-    )
+    existing_artifact = next((a for a in metadata_entry.artifacts if a.artifact_id == artifact_id), None)
     if existing_artifact is not None:
         metadata_entry.artifacts.remove(existing_artifact)
 
@@ -81,9 +79,7 @@ async def download_artifact(
     if metadata_entry is None:
         raise HTTPException(status_code=404, detail="Metadata entry not found")
 
-    artifact = next(
-        (a for a in metadata_entry.artifacts if a.artifact_id == artifact_id), None
-    )
+    artifact = next((a for a in metadata_entry.artifacts if a.artifact_id == artifact_id), None)
     if artifact is None:
         raise HTTPException(status_code=404, detail="Artifact not found")
 

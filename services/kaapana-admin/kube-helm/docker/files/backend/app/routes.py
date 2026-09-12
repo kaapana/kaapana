@@ -61,9 +61,7 @@ async def _fetch_project_whitelist(project_id: str) -> Optional[list[str]]:
             return None
         return [str(app) for app in payload]
     except Exception:
-        logger.warning(
-            "Failed to fetch project whitelist from AII for project %s", project_id
-        )
+        logger.warning("Failed to fetch project whitelist from AII for project %s", project_id)
         return None
 
 
@@ -81,9 +79,7 @@ async def post_filepond_upload(request: Request):
 
     except Exception as e:
         logger.error(f"/file upload failed {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail="Filepond Upload Initialization failed"
-        )
+        raise HTTPException(status_code=500, detail="Filepond Upload Initialization failed")
 
     return Response(content=patch, status_code=200)
 
@@ -93,9 +89,7 @@ async def patch_filepond_upload(request: Request, patch: str):
     logger.debug(f"PATCH filepond-upload called, {request=} {patch=}")
     ulength = request.headers.get("upload-length", None)
     uname = request.headers.get("upload-name", None)
-    res, success = await file_handler.filepond_upload_stream(
-        request, patch, ulength, uname
-    )
+    res, success = await file_handler.filepond_upload_stream(request, patch, ulength, uname)
     if success and res == "":
         return Response(patch, 200)
     elif success and res != "":
@@ -103,7 +97,7 @@ async def patch_filepond_upload(request: Request, patch: str):
     elif not success:
         return Response(f"Filepond upload failed: {res}", 500)
     else:
-        return Response(f"Filepond upload failed: Internal Error", 500)
+        return Response("Filepond upload failed: Internal Error", 500)
 
 
 @router.head("/filepond-upload")
@@ -184,7 +178,7 @@ async def upload_file_chunks(file: UploadFile):
         return Response(str(next_index), 200)
     except Exception as e:
         logger.error(f"/file_chunks failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"File upload failed")
+        raise HTTPException(status_code=500, detail="File upload failed")
 
 
 # @router.websocket("/file_chunks/{client_id}")
@@ -215,9 +209,7 @@ async def import_container(filename: str, platforms: Optional[bool] = False):
     try:
         logger.info(f"/import-container called with {filename=}, {platforms=}")
         assert filename != "", "Required key 'filename' can not be empty"
-        res, msg = await file_handler.run_containerd_import(
-            filename, platforms=platforms
-        )
+        res, msg = await file_handler.run_containerd_import(filename, platforms=platforms)
         logger.debug(f"returned {res=}, {msg=}")
         if not res:
             logger.error(f"/import-container failed {msg}")
@@ -229,14 +221,12 @@ async def import_container(filename: str, platforms: Optional[bool] = False):
         raise HTTPException(400, f"Container import failed, bad request {str(e)}")
     except Exception as e:
         logger.error(f"/import-container failed: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Container import failed, bad request {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Container import failed, bad request {str(e)}")
 
 
 @router.get("/health-check")
 async def health_check():
-    return Response(f"Kube-Helm api is up and running!", 200)
+    return Response("Kube-Helm api is up and running!", 200)
 
 
 @router.get("/update-extensions")
@@ -254,9 +244,7 @@ async def helm_delete_chart(request: Request):
     try:
         payload = await request.json()
         logger.info(f"/helm-delete-chart called with {payload=}")
-        assert (
-            "release_name" in payload
-        ), "Required key 'release_name' not found in payload"
+        assert "release_name" in payload, "Required key 'release_name' not found in payload"
         release_version = None
         helm_command_addons = ""
         helm_namespace = settings.helm_namespace
@@ -291,9 +279,7 @@ async def helm_delete_chart(request: Request):
                         detail="Could not verify application whitelist. Please try again later.",
                     )
                 release = payload["release_name"]
-                is_whitelisted = any(
-                    release == e or release.startswith(e + "-") for e in whitelist
-                )
+                is_whitelisted = any(release == e or release.startswith(e + "-") for e in whitelist)
                 if whitelist and not is_whitelisted:
                     raise HTTPException(
                         status_code=403,
@@ -339,9 +325,7 @@ async def helm_install_chart(request: Request):
             blocking = True
         keywords = payload.get("keywords")
         if not keywords:
-            chart = helm_helper.helm_show_chart(
-                name=payload["name"], version=payload["version"], platforms=platforms
-            )
+            chart = helm_helper.helm_show_chart(name=payload["name"], version=payload["version"], platforms=platforms)
             keywords = chart.get("keywords", [])
             payload["keywords"] = keywords
 
@@ -351,9 +335,7 @@ async def helm_install_chart(request: Request):
                 try:
                     project_form = json.loads(project_header)
                 except json.JSONDecodeError:
-                    raise HTTPException(
-                        status_code=400, detail="Invalid Project header"
-                    )
+                    raise HTTPException(status_code=400, detail="Invalid Project header")
                 project_id = project_form.get("id")
                 if project_id and not is_admin_request(request):
                     app_name = payload["name"]
@@ -385,12 +367,8 @@ async def helm_install_chart(request: Request):
                 payload["extension_params"] = payload.get("extension_params", {})
                 payload["extension_params"]["project_id"] = project.get("id")
                 payload["extension_params"]["project_name"] = project.get("name")
-                payload["extension_params"]["project_short_id"] = project.get(
-                    "short_id"
-                )
-                payload["extension_params"]["project_namespace"] = project.get(
-                    "kubernetes_namespace"
-                )
+                payload["extension_params"]["project_short_id"] = project.get("short_id")
+                payload["extension_params"]["project_namespace"] = project.get("kubernetes_namespace")
 
         should_install, message, keywords, release_name, cmd = utils.helm_install(
             payload,
@@ -402,9 +380,7 @@ async def helm_install_chart(request: Request):
         )
         if not should_install:
             return Response(message, 200)
-        success, stdout = await utils.helm_install_cmd_run_async(
-            release_name, payload["version"], cmd, keywords
-        )
+        success, stdout = await utils.helm_install_cmd_run_async(release_name, payload["version"], cmd, keywords)
         logger.debug(f"await ended {success=} {stdout=}")
         if success:
             return Response(f"Successfully installed: {release_name}", 200)
@@ -454,16 +430,10 @@ async def complete_active_application(request: Request):
 
         release_name = payload.get("release_name")
         if not release_name:
-            return Response(
-                "Payload does not have mandatory key: 'release_name'", status_code=400
-            )
+            return Response("Payload does not have mandatory key: 'release_name'", status_code=400)
         # check if the deployed release contains label: kaapanaint
-        if not utils.helm_ls(
-            release_filter=release_name, label_filter="kaapana.ai/kaapanaint=True"
-        ):
-            logger.error(
-                f"No deployed releases found with name: {release_name} and label: kaapana.ai/kaapanaint=True"
-            )
+        if not utils.helm_ls(release_filter=release_name, label_filter="kaapana.ai/kaapanaint=True"):
+            logger.error(f"No deployed releases found with name: {release_name} and label: kaapana.ai/kaapanaint=True")
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to complete active application: release {release_name} does not have correct annotations",
@@ -473,14 +443,10 @@ async def complete_active_application(request: Request):
         success, stdout = utils.helm_delete(release_name=release_name)
         if success:
             logger.info(f"Successfully completed active application {release_name}")
-            return Response(
-                f"Completed active application: {release_name}", status_code=200
-            )
+            return Response(f"Completed active application: {release_name}", status_code=200)
         else:
             logger.error(f"Helm chart deletion failed for {release_name}: {stdout}")
-            return Response(
-                f"Failed to complete active application: {stdout}", status_code=500
-            )
+            return Response(f"Failed to complete active application: {stdout}", status_code=500)
 
     except Exception as e:
         logger.error(f"/complete-active-application failed: {str(e)}", exc_info=True)
@@ -500,13 +466,9 @@ async def get_active_applications() -> List[schemas.ActiveApplication]:
         ]
         # get all ingress objects
         active_apps = utils.get_active_apps_from_ingresses(ingress_annotation_filters)
-        logger.info(
-            f"Found {active_apps=} ingresses with filter {ingress_annotation_filters}"
-        )
+        logger.info(f"Found {active_apps=} ingresses with filter {ingress_annotation_filters}")
         if not active_apps:
-            logger.warning(
-                f"No application ingresses found with filter {ingress_annotation_filters}"
-            )
+            logger.warning(f"No application ingresses found with filter {ingress_annotation_filters}")
             return []
 
         # add "ready" status to the found ingress objects
@@ -534,16 +496,12 @@ async def get_active_applications() -> List[schemas.ActiveApplication]:
                 if values:
                     active_app["values"] = values
             except Exception as values_error:
-                logger.warning(
-                    f"Could not fetch helm values for {release_name}: {values_error}"
-                )
+                logger.warning(f"Could not fetch helm values for {release_name}: {values_error}")
 
         return active_apps
     except Exception as e:
         logger.error(f"/active-applications failed: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Getting active applications failed: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Getting active applications failed: {str(e)}")
 
 
 # The expensive part (listing ingresses cluster-wide) is project-independent,
@@ -579,9 +537,7 @@ async def get_pending_applications_count(request: Request) -> dict[str, int]:
         if not project_id:
             return {"count": 0}
         triggered = await _triggered_apps_cache.get_async(
-            lambda: utils.get_active_apps_from_ingresses(
-                [{"kaapana.ai/type": "triggered"}]
-            )
+            lambda: utils.get_active_apps_from_ingresses([{"kaapana.ai/type": "triggered"}])
         )
         count = sum(1 for app in triggered if str(app["project"]) == str(project_id))
         return {"count": count}
@@ -603,9 +559,9 @@ async def extensions():
 
         return cached_extensions
 
-    except Exception as e:
-        logger.error(f"/extensions FAILED", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to get extensions")
+    except Exception:
+        logger.error("/extensions FAILED", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to get extensions")
 
 
 @router.get("/platforms")
@@ -617,7 +573,7 @@ async def get_platforms():
 
     except Exception as e:
         logger.error(f"/platforms FAILED {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to get platforms")
+        raise HTTPException(status_code=500, detail="Failed to get platforms")
 
 
 @router.get("/available-platforms")
@@ -664,18 +620,14 @@ async def available_platforms(
             token = token_json.get("token")
 
             if not token:
-                raise HTTPException(
-                    status_code=401, detail="Authentication failed, token not received"
-                )
+                raise HTTPException(status_code=401, detail="Authentication failed, token not received")
 
             # Get tags
             headers = {
                 "Accept": "application/vnd.docker.distribution.manifest.v2+json",
                 "Authorization": f"Bearer {token}",
             }
-            tags_url = (
-                f"https://{registry_host}/v2/{registry_path}/{platform_name}/tags/list"
-            )
+            tags_url = f"https://{registry_host}/v2/{registry_path}/{platform_name}/tags/list"
             logger.info(f"Fetching tags from: {tags_url}")
 
             tags_response = await client.get(tags_url, headers=headers)

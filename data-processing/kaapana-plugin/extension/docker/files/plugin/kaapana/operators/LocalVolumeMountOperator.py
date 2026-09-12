@@ -1,9 +1,9 @@
 # !!! DEPRECATION WARNING: Local Operators are deprecated and will be replaced with operators that run in Kubernetes pods in the next release v0.7.0.
 # If you have a custom Local Operator, it should be migrated to a processing container based operator.
-import os, shutil
-from kaapana.operators.KaapanaPythonBaseOperator import (
-    KaapanaPythonBaseOperator
-)
+import os
+import shutil
+
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
 class LocalVolumeMountOperator(KaapanaPythonBaseOperator):
@@ -73,17 +73,11 @@ class LocalVolumeMountOperator(KaapanaPythonBaseOperator):
         """
         if self.action in ["get", "remove"]:
             self.source_dir = self.mount_path
-            self.destination_dir = os.path.join(
-                self.airflow_workflow_dir, kwargs["dag_run"].run_id
-            )
+            self.destination_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         elif self.action in ["put"]:
-            self.source_dir = os.path.join(
-                self.airflow_workflow_dir, kwargs["dag_run"].run_id, "batch"
-            )
+            self.source_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id, "batch")
             if self.keep_directory_structure:
-                self.destination_dir = os.path.join(
-                    self.mount_path, kwargs["dag_run"].run_id, "batch"
-                )
+                self.destination_dir = os.path.join(self.mount_path, kwargs["dag_run"].run_id, "batch")
             else:
                 self.destination_dir = self.mount_path
 
@@ -122,11 +116,7 @@ class LocalVolumeMountOperator(KaapanaPythonBaseOperator):
         batch_elements = os.listdir(self.source_dir)
         for element in batch_elements:
             for action_operator in self.action_operators:
-                for file_path in os.listdir(
-                    os.path.join(
-                        self.source_dir, element, action_operator.operator_out_dir
-                    )
-                ):
+                for file_path in os.listdir(os.path.join(self.source_dir, element, action_operator.operator_out_dir)):
                     files_to_act_on.append(
                         os.path.join(
                             element,
@@ -158,9 +148,7 @@ class LocalVolumeMountOperator(KaapanaPythonBaseOperator):
         files_in_source_dir = os.listdir(self.source_dir)
         print(f"{files_in_source_dir=}")
         print(f"{self.action_files=}")
-        files_to_act_on = [
-            f for f in files_in_source_dir if os.path.basename(f) in self.action_files
-        ]
+        files_to_act_on = [f for f in files_in_source_dir if os.path.basename(f) in self.action_files]
         processed_files = []
         for file_path in files_to_act_on:
             if not self.iswhitelisted(file_path):
@@ -168,9 +156,7 @@ class LocalVolumeMountOperator(KaapanaPythonBaseOperator):
                 continue
             self.copy_file(
                 src=os.path.join(self.source_dir, file_path),
-                dst=os.path.join(
-                    self.destination_dir, self.operator_out_dir, file_path
-                ),
+                dst=os.path.join(self.destination_dir, self.operator_out_dir, file_path),
             )
             processed_files.append(file_path)
         return processed_files
@@ -182,9 +168,7 @@ class LocalVolumeMountOperator(KaapanaPythonBaseOperator):
         files_in_source_dir = os.listdir(self.source_dir)
         print(f"{files_in_source_dir=}")
         print(f"{self.action_files=}")
-        files_to_act_on = [
-            f for f in files_in_source_dir if os.path.basename(f) in self.action_files
-        ]
+        files_to_act_on = [f for f in files_in_source_dir if os.path.basename(f) in self.action_files]
         processed_files = []
         for file_path in files_to_act_on:
             if not self.iswhitelisted(file_path):

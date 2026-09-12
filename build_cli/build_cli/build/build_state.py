@@ -106,7 +106,4 @@ class BuildState:
         self.charts_available_by_name[chart.name] = chart
 
     def __repr__(self) -> str:
-        return (
-            f"<BuildState containers={len(self.containers_available)}, "
-            f"charts={len(self.charts_available)}>"
-        )
+        return f"<BuildState containers={len(self.containers_available)}, charts={len(self.charts_available)}>"

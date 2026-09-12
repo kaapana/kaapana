@@ -1,14 +1,14 @@
-from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
-from kaapana.operators.MinioOperator import MinioOperator
-from kaapana.operators.LocalDcmAnonymizerOperator import LocalDcmAnonymizerOperator
-from kaapana.operators.LocalConcatJsonOperator import LocalConcatJsonOperator
-from kaapana.operators.GetInputOperator import GetInputOperator
-from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.dates import days_ago
 from datetime import timedelta
+
 from airflow.models import DAG
+from airflow.utils.dates import days_ago
+from airflow.utils.log.logging_mixin import LoggingMixin
+from kaapana.operators.GetInputOperator import GetInputOperator
+from kaapana.operators.LocalConcatJsonOperator import LocalConcatJsonOperator
+from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
+from kaapana.operators.LocalDcmAnonymizerOperator import LocalDcmAnonymizerOperator
+from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.MinioOperator import MinioOperator
 
 log = LoggingMixin().log
 
@@ -48,13 +48,9 @@ dag = DAG(
 )
 
 get_input = GetInputOperator(dag=dag)
-anonymizer = LocalDcmAnonymizerOperator(
-    dag=dag, input_operator=get_input, single_slice=True
-)
+anonymizer = LocalDcmAnonymizerOperator(dag=dag, input_operator=get_input, single_slice=True)
 extract_metadata = LocalDcm2JsonOperator(dag=dag, input_operator=anonymizer)
-concat_metadata = LocalConcatJsonOperator(
-    dag=dag, name="concatenated-metadata", input_operator=extract_metadata
-)
+concat_metadata = LocalConcatJsonOperator(dag=dag, name="concatenated-metadata", input_operator=extract_metadata)
 put_to_minio = MinioOperator(
     dag=dag,
     action="put",

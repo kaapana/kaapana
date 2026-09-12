@@ -5,8 +5,10 @@ import json
 from functools import wraps
 from pathlib import Path
 from typing import Optional
+
 import typer
 from kaapana_containers.registries.registry import OCIError
+
 from kaapana_extensions.credentials import (
     get_credentials,
     oci_login,
@@ -54,17 +56,14 @@ def _async_command(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         return asyncio.run(func(*args, **kwargs))
+
     return wrapper
 
 
 @app.command(name="login")
 def login(
-    registry: str = typer.Option(
-        ..., "--registry", help="Registry host (e.g., registry.hzdr.de)"
-    ),
-    repo: str = typer.Option(
-        ..., "--repo", help="Repository name (e.g., kaapana/kaapana/extensions)"
-    ),
+    registry: str = typer.Option(..., "--registry", help="Registry host (e.g., registry.hzdr.de)"),
+    repo: str = typer.Option(..., "--repo", help="Repository name (e.g., kaapana/kaapana/extensions)"),
     username: str = typer.Option(..., "--user", help="Username"),
     password: str = typer.Option(..., "--password", help="Password or token"),
 ):
@@ -117,9 +116,7 @@ def whoami():
     else:
         typer.echo("")
         typer.echo("  Not logged in")
-        typer.echo(
-            "  Run: extensionctl login --registry ... --repo ... --user ... --password ..."
-        )
+        typer.echo("  Run: extensionctl login --registry ... --repo ... --user ... --password ...")
         typer.echo("")
 
 
@@ -127,9 +124,7 @@ def whoami():
 @_async_command
 async def pull(
     tag: str = typer.Argument(..., help="Extension tag"),
-    output: Path = typer.Argument(
-        Path("."), help="Output directory (default: current directory)"
-    ),
+    output: Path = typer.Argument(Path("."), help="Output directory (default: current directory)"),
     repo: Optional[str] = typer.Option(None, "--repo"),
     registry: Optional[str] = typer.Option(None, "--registry"),
     username: Optional[str] = typer.Option(None, "--user"),
@@ -153,9 +148,7 @@ async def pull(
 @_async_command
 async def push(
     source: str = typer.Argument(..., help="Extension tarball (.tar.gz)"),
-    bump: Optional[str] = typer.Option(
-        None, "--bump", help="Bump version: major, minor, or patch"
-    ),
+    bump: Optional[str] = typer.Option(None, "--bump", help="Bump version: major, minor, or patch"),
     overwrite: bool = typer.Option(False, "--overwrite", help="Overwrite existing tag"),
     repo: Optional[str] = typer.Option(None, "--repo"),
     registry: Optional[str] = typer.Option(None, "--registry"),
@@ -194,16 +187,10 @@ async def build(
         "--output",
         help="Output directory (archive name is derived from the manifest)",
     ),
-    recursive: bool = typer.Option(
-        False, "--recursive", "-r", help="Build all extensions in subfolders"
-    ),
+    recursive: bool = typer.Option(False, "--recursive", "-r", help="Build all extensions in subfolders"),
     push: bool = typer.Option(False, "--push", help="Push to registry after building"),
-    bump: Optional[str] = typer.Option(
-        None, "--bump", help="(with --push) Bump version: major, minor, or patch"
-    ),
-    overwrite: bool = typer.Option(
-        False, "--overwrite", help="(with --push) Overwrite existing tag"
-    ),
+    bump: Optional[str] = typer.Option(None, "--bump", help="(with --push) Bump version: major, minor, or patch"),
+    overwrite: bool = typer.Option(False, "--overwrite", help="(with --push) Overwrite existing tag"),
     repo: Optional[str] = typer.Option(None, "--repo"),
     registry: Optional[str] = typer.Option(None, "--registry"),
     username: Optional[str] = typer.Option(None, "--user"),
@@ -251,9 +238,7 @@ async def build(
 @app.command(name="list")
 @_async_command
 async def list_extensions(
-    full: bool = typer.Option(
-        False, "--full", help="Show full metadata for each extension"
-    ),
+    full: bool = typer.Option(False, "--full", help="Show full metadata for each extension"),
     repo: Optional[str] = typer.Option(None, "--repo"),
     registry: Optional[str] = typer.Option(None, "--registry"),
     username: Optional[str] = typer.Option(None, "--user"),
@@ -305,12 +290,8 @@ async def info(
 @app.command(name="delete")
 @_async_command
 async def delete(
-    tag: Optional[str] = typer.Argument(
-        None, help="Extension tag to delete"
-    ),
-    all_tags: bool = typer.Option(
-        False, "--all", help="Delete all extensions in the repository"
-    ),
+    tag: Optional[str] = typer.Argument(None, help="Extension tag to delete"),
+    all_tags: bool = typer.Option(False, "--all", help="Delete all extensions in the repository"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt"),
     repo: Optional[str] = typer.Option(None, "--repo"),
     registry: Optional[str] = typer.Option(None, "--registry"),

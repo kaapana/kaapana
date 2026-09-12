@@ -52,16 +52,14 @@ def test_thumbnail_url_is_project_scoped():
 def test_results_file_url_is_project_scoped():
     url = admin_routers._build_results_file_url(PROJECT, "batch/1.2.3/report.html")
     assert url == (
-        "/project/abc12345/kaapana-backend/get-static-website-results-html"
-        "?object_name=batch/1.2.3/report.html"
+        "/project/abc12345/kaapana-backend/get-static-website-results-html?object_name=batch/1.2.3/report.html"
     )
 
 
 def test_results_file_url_encodes_special_characters():
     url = admin_routers._build_results_file_url(PROJECT, "batch/a b&c/report.html")
     assert url == (
-        "/project/abc12345/kaapana-backend/get-static-website-results-html"
-        "?object_name=batch/a%20b%26c/report.html"
+        "/project/abc12345/kaapana-backend/get-static-website-results-html?object_name=batch/a%20b%26c/report.html"
     )
 
 

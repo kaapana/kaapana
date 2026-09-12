@@ -39,13 +39,7 @@ dicom_sent_count = 0
 def send_dicom_data(send_dir, project_short_id, aetitle=AETITLE, timeout=60):
     global dicom_sent_count
 
-    dicom_list: List[Path] = sorted(
-        [
-            f
-            for f in Path(send_dir).rglob("*")
-            if f.is_file() and pydicom.misc.is_dicom(f)
-        ]
-    )
+    dicom_list: List[Path] = sorted([f for f in Path(send_dir).rglob("*") if f.is_file() and pydicom.misc.is_dicom(f)])
 
     if len(dicom_list) == 0:
         print(send_dir)
@@ -54,11 +48,7 @@ def send_dicom_data(send_dir, project_short_id, aetitle=AETITLE, timeout=60):
         return
 
     for dicom_dir, _, _ in os.walk(send_dir):
-        dicom_list = [
-            f
-            for f in Path(dicom_dir).glob("*")
-            if f.is_file() and pydicom.misc.is_dicom(f)
-        ]
+        dicom_list = [f for f in Path(dicom_dir).glob("*") if f.is_file() and pydicom.misc.is_dicom(f)]
 
         if len(dicom_list) == 0:
             continue
@@ -66,9 +56,7 @@ def send_dicom_data(send_dir, project_short_id, aetitle=AETITLE, timeout=60):
         dcm_file = pydicom.dcmread(dicom_list[0])
         series_uid = str(dcm_file[0x0020, 0x000E].value)
 
-        print(
-            f"Found {len(dicom_list)} file(s) in {dicom_dir}. Will use series_uuid {series_uid}"
-        )
+        print(f"Found {len(dicom_list)} file(s) in {dicom_dir}. Will use series_uuid {series_uid}")
         if aetitle is None:
             if "WORKFLOW_NAME" in os.environ:
                 aetitle = os.environ["WORKFLOW_NAME"]
@@ -139,7 +127,7 @@ def send_dicom_data(send_dir, project_short_id, aetitle=AETITLE, timeout=60):
             print("------------------------------------")
             print("Max retries reached!")
             print("------------------------------------")
-            raise ValueError(f"Something went wrong with dcmsend!")
+            raise ValueError("Something went wrong with dcmsend!")
 
         dicom_sent_count += 1
 
@@ -148,25 +136,17 @@ if LEVEL == "element":
     batch_folders = sorted(
         [
             f
-            for f in glob.glob(
-                os.path.join(
-                    "/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"], "*"
-                )
-            )
+            for f in glob.glob(os.path.join("/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"], "*"))
             if os.path.isdir(f)
         ]
     )
 
     for batch_element_dir in batch_folders:
-        element_input_dir = os.path.join(
-            batch_element_dir, os.environ["OPERATOR_IN_DIR"]
-        )
+        element_input_dir = os.path.join(batch_element_dir, os.environ["OPERATOR_IN_DIR"])
         send_dicom_data(element_input_dir, project_short_id=PROJECT_SHORT_ID, timeout=600)
 
 elif LEVEL == "batch":
-    batch_input_dir = os.path.join(
-        "/", os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"]
-    )
+    batch_input_dir = os.path.join("/", os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"])
     print(f"Sending DICOM data from batch-level: {batch_input_dir}")
     send_dicom_data(batch_input_dir, project_short_id=PROJECT_SHORT_ID, timeout=3600)
 else:

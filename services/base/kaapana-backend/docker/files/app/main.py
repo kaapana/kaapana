@@ -2,21 +2,19 @@ import logging
 import os
 import traceback
 
-import psutil
 import urllib3
 from fastapi import Depends, FastAPI
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from . import middlewares
 from .admin import routers as admin
-from .database import SessionLocal, engine
+from .database import SessionLocal
 from .datasets import routers
 from .decorators import only_one_process, repeat_every
 from .dependencies import get_token_header
 from .monitoring import routers as monitoring
 from .settings import routers as settings
 from .storage import routers as storage
-from .workflows import models
 from .workflows.crud import get_remote_updates, sync_states_from_airflow
 from .workflows.routers import client, remote
 
@@ -49,9 +47,7 @@ def periodically_get_remote_updates():
         try:
             get_remote_updates(db, periodically=True)
         except Exception:
-            logging.warning(
-                "Something went wrong updating in crud.get_remote_updates()"
-            )
+            logging.warning("Something went wrong updating in crud.get_remote_updates()")
             logging.warning(traceback.format_exc())
 
 
@@ -65,9 +61,7 @@ def periodically_sync_states_from_airflow():
             sync_states_from_airflow(db, status="scheduled", periodically=True)
             sync_states_from_airflow(db, status="running", periodically=True)
         except Exception:
-            logging.warning(
-                "Something went wrong updating in crud.sync_states_from_airflow()"
-            )
+            logging.warning("Something went wrong updating in crud.sync_states_from_airflow()")
             logging.warning(traceback.format_exc())
 
 

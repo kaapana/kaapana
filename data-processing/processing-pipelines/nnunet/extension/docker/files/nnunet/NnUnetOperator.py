@@ -1,9 +1,10 @@
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+from datetime import timedelta
+
 from kaapana.blueprints.kaapana_global_variables import (
     DEFAULT_REGISTRY,
     KAAPANA_BUILD_VERSION,
 )
-from datetime import timedelta
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 
 
 class NnUnetOperator(KaapanaBaseOperator):
@@ -59,14 +60,10 @@ class NnUnetOperator(KaapanaBaseOperator):
         envs = {
             "MODE": str(mode),
             "MODELS_DIR": str(models_dir),
-            "INPUT_MODALITY_DIRS": ",".join(
-                str(operator.operator_out_dir) for operator in input_modality_operators
-            ),
+            "INPUT_MODALITY_DIRS": ",".join(str(operator.operator_out_dir) for operator in input_modality_operators),
             "PREP_TL": str(prep_processes_low),
             "PREP_TF": str(prep_processes_full),
-            "PREP_LABEL_DIRS": ",".join(
-                str(operator.operator_out_dir) for operator in prep_label_operators
-            ),
+            "PREP_LABEL_DIRS": ",".join(str(operator.operator_out_dir) for operator in prep_label_operators),
             "PREP_MODALITIES": ",".join(str(modality) for modality in prep_modalities),
             "PREP_PREPROCESS": str(prep_preprocess),
             "PREP_CHECK_INTEGRITY": str(prep_check_integrity),

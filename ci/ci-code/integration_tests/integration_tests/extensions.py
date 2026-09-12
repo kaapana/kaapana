@@ -18,9 +18,7 @@ class ExtensionEndpoints(KaapanaAuth):
         If extension already installed log INFO message
         """
         chart_name = extension.get("chart_name")
-        release_version = extension.get(
-            "release_version", extension.get("latest_version")
-        )
+        release_version = extension.get("release_version", extension.get("latest_version"))
         payload = {
             "name": chart_name,
             "version": release_version,
@@ -42,18 +40,14 @@ class ExtensionEndpoints(KaapanaAuth):
             logger.info("Extension %s installed successfully.", chart_name)
             return True
 
-        logger.error(
-            "Install extension %s failed (%s): %s", chart_name, r.status_code, r.text
-        )
+        logger.error("Install extension %s failed (%s): %s", chart_name, r.status_code, r.text)
         return False
 
     def delete_extension(self, extension) -> bool:
         # Prefer explicit release identifiers when present (multi-instance releases).
         chart_name = extension.get("chart_name")
         release_name = extension.get("releaseName", chart_name)
-        release_version = extension.get(
-            "release_version", extension.get("latest_version")
-        )
+        release_version = extension.get("release_version", extension.get("latest_version"))
         payload = {
             "helm_command_addons": "",
             "release_name": release_name,
@@ -97,18 +91,13 @@ class ExtensionEndpoints(KaapanaAuth):
         """
         Get the information about all extensions via the kube-helm api.
         """
-        r = self.request(
-            "kube-helm-api/extensions", request_type=requests.get, timeout=100
-        )
+        r = self.request("kube-helm-api/extensions", request_type=requests.get, timeout=100)
         return r.json()
 
     @staticmethod
     def resolve_extension(ext, all_extensions):
         for ext in all_extensions:
-            if (
-                ext["chart_name"] == ext["chart_name"]
-                and ext["latest_version"] == ext["latest_version"]
-            ):
+            if ext["chart_name"] == ext["chart_name"] and ext["latest_version"] == ext["latest_version"]:
                 return ext
         return None
 
@@ -125,9 +114,7 @@ class ExtensionEndpoints(KaapanaAuth):
             }
             resolved = ExtensionEndpoints.resolve_extension(ext, available_extensions)
             if not resolved:
-                raise ValueError(
-                    f"Extension {name}:{version} not found in available extensions"
-                )
+                raise ValueError(f"Extension {name}:{version} not found in available extensions")
             extensions.append(resolved)
 
         return extensions
@@ -194,9 +181,7 @@ class ExtensionEndpoints(KaapanaAuth):
             for dep in deployments:
                 dep_helm_status = (dep.get("helm_status") or "").lower()
                 dep_kube_status = dep.get("kube_status") or []
-                if dep_helm_status == "deployed" and set(dep_kube_status).issubset(
-                    {"running", "completed"}
-                ):
+                if dep_helm_status == "deployed" and set(dep_kube_status).issubset({"running", "completed"}):
                     return True
             return False
         else:
@@ -221,9 +206,7 @@ class ExtensionEndpoints(KaapanaAuth):
         for ext in extensions:
             extension_installed = self.extension_is_installed(ext)
             if not extension_installed:
-                result = self.install_extension(
-                    ext, extension_params.get(ext.get("chart_name"), {})
-                )
+                result = self.install_extension(ext, extension_params.get(ext.get("chart_name"), {}))
                 if not result:
                     failed.append(ext)
             processed.append(ext)

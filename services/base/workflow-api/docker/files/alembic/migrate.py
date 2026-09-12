@@ -65,9 +65,7 @@ def main():
 
     legacy_rev = _detect_legacy_schema(engine)
     if legacy_rev is not None:
-        print(
-            f"DB has tables but no alembic_version. Stamping as {legacy_rev} and upgrading to head."
-        )
+        print(f"DB has tables but no alembic_version. Stamping as {legacy_rev} and upgrading to head.")
         command.stamp(alembic_cfg, legacy_rev)
         command.upgrade(alembic_cfg, "head")
         return

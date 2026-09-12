@@ -31,17 +31,11 @@ def get_instance_settings(
 
     if username == "":
         # Queries all settings related to the `kaapana_instance`.
-        db_settings = (
-            db.query(models.Settings)
-            .filter_by(kaapana_instance_id=db_kaapana_instance.id)
-            .all()
-        )
+        db_settings = db.query(models.Settings).filter_by(kaapana_instance_id=db_kaapana_instance.id).all()
     else:
         # Queries all settings related to the `kaapana_instance` and keycloak user.
         db_settings = (
-            db.query(models.Settings)
-            .filter_by(kaapana_instance_id=db_kaapana_instance.id, username=username)
-            .all()
+            db.query(models.Settings).filter_by(kaapana_instance_id=db_kaapana_instance.id, username=username).all()
         )
 
     # Processes the value of each setting before returning it.

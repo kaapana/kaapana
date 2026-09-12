@@ -1,14 +1,15 @@
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.dates import days_ago
 from datetime import timedelta
+
 from airflow.models import DAG
+from airflow.utils.dates import days_ago
+from airflow.utils.log.logging_mixin import LoggingMixin
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
-from kaapana.operators.MinioOperator import MinioOperator
-from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.KaapanaBranchPythonBaseOperator import (
     KaapanaBranchPythonBaseOperator,
 )
+from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.MinioOperator import MinioOperator
 
 log = LoggingMixin().log
 
@@ -73,19 +74,12 @@ class BranchIfNiftiOperator(KaapanaBranchPythonBaseOperator):
             return "minio-actions-put-dicom"
 
     def __init__(self, dag, **kwargs):
-        super().__init__(
-            dag=dag,
-            name="branch-nifti-conversion",
-            python_callable=self.branch_if_nifti,
-            **kwargs
-        )
+        super().__init__(dag=dag, name="branch-nifti-conversion", python_callable=self.branch_if_nifti, **kwargs)
 
 
 get_input = GetInputOperator(dag=dag)
 branch_if_nifti = BranchIfNiftiOperator(dag=dag)
-dcm2nifti = DcmConverterOperator(
-    dag=dag, input_operator=get_input, output_format="nii.gz"
-)
+dcm2nifti = DcmConverterOperator(dag=dag, input_operator=get_input, output_format="nii.gz")
 
 put_to_minio_nifti = MinioOperator(
     dag=dag,
@@ -103,9 +97,7 @@ put_to_minio_dicom = MinioOperator(
     minio_prefix="downloads",
     whitelisted_file_extensions=(".zip", ".dcm"),
 )
-clean = LocalWorkflowCleanerOperator(
-    dag=dag, clean_workflow_dir=True, trigger_rule="none_failed_or_skipped"
-)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True, trigger_rule="none_failed_or_skipped")
 
 get_input >> branch_if_nifti >> [dcm2nifti, put_to_minio_dicom]
 dcm2nifti >> put_to_minio_nifti >> clean

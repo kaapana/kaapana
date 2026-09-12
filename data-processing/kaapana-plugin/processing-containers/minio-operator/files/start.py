@@ -1,15 +1,16 @@
-import datetime, pytz
+import datetime
 import os
-from pydantic_settings import BaseSettings
-from pydantic import Field, AliasChoices, field_validator
-from zipfile import ZipFile
 from pathlib import Path
 from typing import Any
+from zipfile import ZipFile
 
+import pytz
 from kaapanapy.helper import get_minio_client, load_workflow_config
-from kaapanapy.settings import OperatorSettings, KaapanaSettings
 from kaapanapy.logger import get_logger
+from kaapanapy.settings import KaapanaSettings, OperatorSettings
 from minio import Minio
+from pydantic import AliasChoices, Field, field_validator
+from pydantic_settings import BaseSettings
 
 logger = get_logger(__name__)
 
@@ -47,12 +48,8 @@ class MinioOperatorArguments(BaseSettings):
         validation_alias=AliasChoices("SOURCE_FILES"),
     )
 
-    batch_input_operators: str = Field(
-        "", validation_alias=AliasChoices("BATCH_INPUT_OPERATORS")
-    )
-    none_batch_input_operators: str = Field(
-        "", validation_alias=AliasChoices("NONE_BATCH_INPUT_OPERATORS")
-    )
+    batch_input_operators: str = Field("", validation_alias=AliasChoices("BATCH_INPUT_OPERATORS"))
+    none_batch_input_operators: str = Field("", validation_alias=AliasChoices("NONE_BATCH_INPUT_OPERATORS"))
 
     @field_validator("bucket_name", mode="before")
     @classmethod
@@ -72,9 +69,9 @@ class MinioOperatorArguments(BaseSettings):
     )
     @classmethod
     def list_from_commaseparated_string(cls, v: Any):
-        if type(v) == str and v == "":
+        if type(v) is str and v == "":
             return []
-        elif type(v) == str:
+        elif type(v) is str:
             return v.split(",")
         else:
             raise TypeError(f"{v=} must be of type str but is {type(v)}")
@@ -87,7 +84,7 @@ class MinioOperatorArguments(BaseSettings):
         elif v == "False":
             return False
         else:
-            raise ValueError(f"zip_files must be one of ['True','False'] not v")
+            raise ValueError("zip_files must be one of ['True','False'] not v")
 
 
 def file_is_whitelisted(path: Path, whitelisted_file_extensions: list[str]):
@@ -127,7 +124,7 @@ def download_objects(
     **Raises:**
     * AssertionError: If source_files is empty
     """
-    assert len(source_files) > 0, f"source_files must be non-empty list, if action=get"
+    assert len(source_files) > 0, "source_files must be non-empty list, if action=get"
 
     target_dir = os.path.join(
         OPERATOR_SETTINGS.workflow_dir,
@@ -139,9 +136,7 @@ def download_objects(
     for file_path in source_files:
         target_path = os.path.join(target_dir, file_path)
         object_path = os.path.join(minio_prefix, file_path)
-        minio_client.fget_object(
-            bucket_name, object_name=object_path, file_path=target_path
-        )
+        minio_client.fget_object(bucket_name, object_name=object_path, file_path=target_path)
 
 
 def get_absolute_batch_operator_source_directories(
@@ -153,9 +148,7 @@ def get_absolute_batch_operator_source_directories(
 
     :param batch_operator_source_directories: List of directories that are operator_out_dir of an upstream operator.
     """
-    workflow_batch_directory = Path(
-        os.path.join(OPERATOR_SETTINGS.workflow_dir, OPERATOR_SETTINGS.batch_name)
-    )
+    workflow_batch_directory = Path(os.path.join(OPERATOR_SETTINGS.workflow_dir, OPERATOR_SETTINGS.batch_name))
     if not workflow_batch_directory.is_dir():
         logger.warning(f"{workflow_batch_directory=} does not exist!")
         return []  # dir.iterdir() raises FileNotFoundError if dir doesn't exist
@@ -244,12 +237,8 @@ def upload_objects(
         logger.info(f"Collect {absoulute_file_path=} for upload!")
 
     if len(files_to_upload) == 0:
-        logger.error(
-            f"No files were collected for upload. Maybe you have to adapt {whitelisted_file_extensions=}."
-        )
-        raise ValueError(
-            f"No files were found for upload. Maybe you have to adapt {whitelisted_file_extensions=}."
-        )
+        logger.error(f"No files were collected for upload. Maybe you have to adapt {whitelisted_file_extensions=}.")
+        raise ValueError(f"No files were found for upload. Maybe you have to adapt {whitelisted_file_extensions=}.")
 
     for file_path in files_to_upload:
         relative_file_path = Path(file_path).relative_to(
@@ -270,9 +259,7 @@ def upload_objects(
 
     if zip_files and len(files_to_upload) > 0:
         logger.info("Compress files into zip archive before uploading")
-        timestamp = datetime.datetime.now(pytz.timezone(TIMEZONE)).strftime(
-            "%y-%m-%d-%H:%M:%S%f"
-        )
+        timestamp = datetime.datetime.now(pytz.timezone(TIMEZONE)).strftime("%y-%m-%d-%H:%M:%S%f")
         run_id = OPERATOR_SETTINGS.run_id
         archive_name = f"{run_id}_{timestamp}.zip"
         minio_path = os.path.join(minio_prefix, archive_name)
@@ -291,20 +278,13 @@ if __name__ == "__main__":
     action = operator_arguments.action
     zip_files = WORKFLOW_CONFIG.get("zip_files") or operator_arguments.zip_files
     bucket_name = WORKFLOW_CONFIG.get("bucket_name") or operator_arguments.bucket_name
-    minio_prefix = (
-        WORKFLOW_CONFIG.get("minio_prefix") or operator_arguments.minio_prefix
-    )
+    minio_prefix = WORKFLOW_CONFIG.get("minio_prefix") or operator_arguments.minio_prefix
     whitelisted_file_extensions = (
-        WORKFLOW_CONFIG.get("whitelisted_file_extensions")
-        or operator_arguments.whitelisted_file_extensions
+        WORKFLOW_CONFIG.get("whitelisted_file_extensions") or operator_arguments.whitelisted_file_extensions
     )
-    source_files = (
-        WORKFLOW_CONFIG.get("action_files") or operator_arguments.source_files
-    )
+    source_files = WORKFLOW_CONFIG.get("action_files") or operator_arguments.source_files
     batch_input_operator_directories = operator_arguments.batch_input_operators
-    none_batch_input_operator_directories = (
-        operator_arguments.none_batch_input_operators
-    )
+    none_batch_input_operator_directories = operator_arguments.none_batch_input_operators
 
     source_directories = get_absolute_batch_operator_source_directories(
         batch_operator_source_directories=batch_input_operator_directories

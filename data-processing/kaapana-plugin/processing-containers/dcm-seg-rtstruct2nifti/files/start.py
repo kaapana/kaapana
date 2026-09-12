@@ -1,14 +1,15 @@
+import logging
 import os
-import pydicom
-from os import getenv
-from os.path import join, exists, dirname, basename
 from glob import glob
+from multiprocessing.pool import ThreadPool
+from os import getenv
+from os.path import exists, join
 from pathlib import Path
-from dcmconverter.rtstruct2nifti import convert_rtstruct
+
+import pydicom
 from dcmconverter.dcmseg2nifti import convert_dcmseg
 from dcmconverter.logger import get_logger
-import logging
-from multiprocessing.pool import ThreadPool
+from dcmconverter.rtstruct2nifti import convert_rtstruct
 
 logger = get_logger(__name__, logging.DEBUG)
 
@@ -117,9 +118,7 @@ for batch_element_dir in batch_folders:
 
     if not exists(element_mask_dicom_dir):
         logger.error("#")
-        logger.error(
-            f"# element_mask_dicom_dir: {element_mask_dicom_dir} does not exists!"
-        )
+        logger.error(f"# element_mask_dicom_dir: {element_mask_dicom_dir} does not exists!")
         logger.error("#")
         exit(1)
 
@@ -127,9 +126,7 @@ for batch_element_dir in batch_folders:
         element_base_dicom_in_dir = join(batch_element_dir, base_dicom_in_dir)
         if not exists(element_base_dicom_in_dir):
             logger.error("#")
-            logger.error(
-                f"# element_base_dicom_in_dir: {element_base_dicom_in_dir} does not exists!"
-            )
+            logger.error(f"# element_base_dicom_in_dir: {element_base_dicom_in_dir} does not exists!")
             logger.error("#")
             exit(1)
     else:
@@ -139,9 +136,7 @@ for batch_element_dir in batch_folders:
     Path(element_output_dir).mkdir(parents=True, exist_ok=True)
 
     # creating output dir
-    element_mask_dicoms = glob(
-        join(element_mask_dicom_dir, input_file_extension), recursive=False
-    )
+    element_mask_dicoms = glob(join(element_mask_dicom_dir, input_file_extension), recursive=False)
     logger.info(f"# Found {len(element_mask_dicoms)} mask-dcm-files!")
 
     # Single process:
@@ -198,9 +193,7 @@ if processed_count == 0:
         Path(batch_output_dir).mkdir(parents=True, exist_ok=True)
 
         # creating output dir
-        batch_mask_dicoms = glob(
-            join(batch_input_dir, input_file_extension), recursive=False
-        )
+        batch_mask_dicoms = glob(join(batch_input_dir, input_file_extension), recursive=False)
         logger.info(f"# Found {len(batch_mask_dicoms)} batch_mask_dicoms-files!")
 
         for batch_mask_dicom in batch_mask_dicoms:

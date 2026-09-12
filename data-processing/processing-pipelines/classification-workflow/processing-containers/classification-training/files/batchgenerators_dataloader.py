@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import os
 import random
-import numpy as np
 
+import numpy as np
 from batchgenerators.dataloading.data_loader import DataLoader
 from batchgenerators.transforms.abstract_transforms import Compose
 from batchgenerators.transforms.color_transforms import (
@@ -21,6 +21,7 @@ from batchgenerators.transforms.spatial_transforms import (
     MirrorTransform,
     SpatialTransform,
 )
+
 
 def configure_rotation_and_mirroring(patch_size):
     dim = len(patch_size)
@@ -97,9 +98,7 @@ class ClassificationDataset(DataLoader):
         patients_for_batch = [self._data[i] for i in idx]
 
         # initialize empty array for data and seg
-        data = np.zeros(
-            (self.batch_size, self.num_modalities, *self.patch_size), dtype=np.float32
-        )
+        data = np.zeros((self.batch_size, self.num_modalities, *self.patch_size), dtype=np.float32)
         seg = np.zeros((self.batch_size, self.num_classes), dtype="int16")
 
         for i, j in enumerate(patients_for_batch):
@@ -115,9 +114,7 @@ class ClassificationDataset(DataLoader):
                 seg[i] = np.array(self.uid_to_tag_mapping[j])
             else:
                 # Convert to one-hot encoding
-                one_hot_np = np.eye(self.num_classes)[
-                    np.array(self.uid_to_tag_mapping[j])
-                ]
+                one_hot_np = np.eye(self.num_classes)[np.array(self.uid_to_tag_mapping[j])]
 
                 # Apply logical OR operation along the first dimension
                 combined_one_hot = one_hot_np.any(axis=0).astype(int)
@@ -172,11 +169,7 @@ class ClassificationDataset(DataLoader):
                 p_per_channel=0.5,
             )
         )
-        tr_transforms.append(
-            BrightnessMultiplicativeTransform(
-                multiplier_range=(0.75, 1.25), p_per_sample=0.15
-            )
-        )
+        tr_transforms.append(BrightnessMultiplicativeTransform(multiplier_range=(0.75, 1.25), p_per_sample=0.15))
         tr_transforms.append(ContrastAugmentationTransform(p_per_sample=0.15))
         tr_transforms.append(
             SimulateLowResolutionTransform(
@@ -189,12 +182,8 @@ class ClassificationDataset(DataLoader):
                 ignore_axes=ignore_axes,
             )
         )
-        tr_transforms.append(
-            GammaTransform((0.7, 1.5), True, True, retain_stats=True, p_per_sample=0.1)
-        )
-        tr_transforms.append(
-            GammaTransform((0.7, 1.5), False, True, retain_stats=True, p_per_sample=0.3)
-        )
+        tr_transforms.append(GammaTransform((0.7, 1.5), True, True, retain_stats=True, p_per_sample=0.1))
+        tr_transforms.append(GammaTransform((0.7, 1.5), False, True, retain_stats=True, p_per_sample=0.3))
 
         if mirror_axes is not None and len(mirror_axes) > 0:
             tr_transforms.append(MirrorTransform(mirror_axes))
@@ -218,8 +207,6 @@ class ClassificationDataset(DataLoader):
         num_val_samples = max(int(len(all_samples) / 100 * percentage_val_samples), 1)
         val_samples = random.sample(all_samples, num_val_samples)
 
-        train_samples = list(
-            filter(lambda sample: sample not in val_samples, all_samples)
-        )
+        train_samples = list(filter(lambda sample: sample not in val_samples, all_samples))
 
         return train_samples, val_samples

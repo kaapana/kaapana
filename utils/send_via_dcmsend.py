@@ -5,26 +5,16 @@ The script useres dcmtk dcmsend: https://support.dcmtk.org/docs-snapshot/dcmsend
 therefore the commandline tool dcmsend has to be installed to run the script.
 
 """
-import os
-from argparse import ArgumentParser
-import subprocess
+
 import glob
+import os
+import subprocess
+from argparse import ArgumentParser
 
 
 def dcmsend(ip, port, file_list, aet, aec):
     for dcmfile in file_list:
-        bash_command = (
-            "dcmsend -aec "
-            + aec
-            + " -aet "
-            + aet
-            + " -v "
-            + ip
-            + " "
-            + port
-            + " "
-            + dcmfile
-        )
+        bash_command = "dcmsend -aec " + aec + " -aet " + aet + " -v " + ip + " " + port + " " + dcmfile
         print("bashCommand: ", bash_command)
         process = subprocess.Popen(bash_command.split(), stderr=subprocess.PIPE)
         process.communicate()
@@ -32,9 +22,7 @@ def dcmsend(ip, port, file_list, aet, aec):
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument(
-        "-ip", "--ip", dest="ip", default=None, help="IP of the kaapana instance"
-    )
+    parser.add_argument("-ip", "--ip", dest="ip", default=None, help="IP of the kaapana instance")
     parser.add_argument(
         "-p",
         "--port",
@@ -56,9 +44,7 @@ if __name__ == "__main__":
         default="DCMSEND",
         help=" Application Entity Title: set my calling AE title.",
     )
-    parser.add_argument(
-        "-aec", "--call", dest="aec", default="SEND", help="set called AE title of peer"
-    )
+    parser.add_argument("-aec", "--call", dest="aec", default="SEND", help="set called AE title of peer")
 
     args = parser.parse_args()
     ip = args.ip

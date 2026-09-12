@@ -210,9 +210,10 @@ References
   https://dicom.innolitics.com/
 """
 
-import os
-import json
 import glob
+import json
+import logging
+import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -220,15 +221,12 @@ from typing import Any, Literal, Mapping, Optional, Sequence, cast
 
 import numpy as np
 import pydicom
-from matplotlib import cm
-
-import logging
 from kaapanapy.logger import get_logger
-
+from matplotlib import cm
 from metadata_helper import (
     create_segment_attribute,
-    process_seg_info,
     normalize_seg_info,
+    process_seg_info,
 )
 
 # Logger
@@ -397,9 +395,7 @@ def write_metadata_file(
     """
     if metadata_reuse_existing and os.path.exists(metadata_file_path):
         if not os.path.isfile(metadata_file_path):
-            raise OSError(
-                f"Metadata path exists but is not a file: {metadata_file_path}"
-            )
+            raise OSError(f"Metadata path exists but is not a file: {metadata_file_path}")
         logger.info("Metadata file exists, reusing: %s", metadata_file_path)
         return
 
@@ -432,10 +428,7 @@ def validate_and_rootname(path: str) -> str:
 
     matching = [s for s in _ALLOWED_SUFFIXES if name_lower.endswith(s)]
     if not matching:
-        raise ValueError(
-            f"Unsupported segmentation file '{name}'. "
-            f"Supported: {', '.join(_ALLOWED_SUFFIXES)}"
-        )
+        raise ValueError(f"Unsupported segmentation file '{name}'. Supported: {', '.join(_ALLOWED_SUFFIXES)}")
 
     matched_suffix = max(matching, key=len)
     root = name[: -len(matched_suffix)].strip().strip(".")
@@ -468,19 +461,11 @@ def find_segmentation_paths(segmentation_input_dir: str) -> list[str]:
     """
     base = Path(segmentation_input_dir)
     if not base.exists():
-        raise FileNotFoundError(
-            f"Segmentation input dir does not exist: {segmentation_input_dir}"
-        )
+        raise FileNotFoundError(f"Segmentation input dir does not exist: {segmentation_input_dir}")
     if not base.is_dir():
-        raise NotADirectoryError(
-            f"Segmentation input path is not a directory: {segmentation_input_dir}"
-        )
+        raise NotADirectoryError(f"Segmentation input path is not a directory: {segmentation_input_dir}")
 
-    paths = [
-        str(p)
-        for p in base.iterdir()
-        if p.is_file() and p.name.lower().endswith(_ALLOWED_SUFFIXES)
-    ]
+    paths = [str(p) for p in base.iterdir() if p.is_file() and p.name.lower().endswith(_ALLOWED_SUFFIXES)]
     return sorted(paths, key=str.lower)
 
 
@@ -574,27 +559,17 @@ def read_trial_and_bodypart(element_input_dir: str) -> tuple[str, Optional[str]]
     FileNotFoundError
         If no matching DICOM files are found in `element_input_dir`.
     """
-    dcm_files = sorted(
-        glob.glob(os.path.join(element_input_dir, "**", "*.dcm*"), recursive=True)
-    )
+    dcm_files = sorted(glob.glob(os.path.join(element_input_dir, "**", "*.dcm*"), recursive=True))
     if not dcm_files:
         raise FileNotFoundError("No dicom file found!")
 
     ds = pydicom.dcmread(dcm_files[0], stop_before_pixels=True)
 
     trial_element = ds.get((0x0012, 0x0020))
-    aetitle = (
-        str(trial_element.value)
-        if trial_element and trial_element.value
-        else "internal"
-    )
+    aetitle = str(trial_element.value) if trial_element and trial_element.value else "internal"
 
     bodypart_element = ds.get((0x0018, 0x0015))
-    bodypart = (
-        str(bodypart_element.value)
-        if bodypart_element and bodypart_element.value
-        else None
-    )
+    bodypart = str(bodypart_element.value) if bodypart_element and bodypart_element.value else None
 
     return aetitle, bodypart
 
@@ -707,18 +682,12 @@ def run_dcmqi(
 
     try:
         out = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
-        out_str = (
-            out.decode(errors="replace")
-            if isinstance(out, (bytes, bytearray))
-            else str(out)
-        )
+        out_str = out.decode(errors="replace") if isinstance(out, (bytes, bytearray)) else str(out)
         if out_str.strip():
             logger.info(out_str)
     except subprocess.CalledProcessError as spe:
         error_out = (
-            spe.output.decode(errors="replace")
-            if isinstance(spe.output, (bytes, bytearray))
-            else str(spe.output)
+            spe.output.decode(errors="replace") if isinstance(spe.output, (bytes, bytearray)) else str(spe.output)
         )
 
         logger.error("dcmqi failed (%s). Command: %s", context, " ".join(cmd))
@@ -732,9 +701,7 @@ def run_dcmqi(
         if error_out.strip():
             logger.error("[dcmqi] Output:\n%s", error_out)
 
-        raise RuntimeError(
-            f"dcmqi failed while creating {context} dcm object (exit {spe.returncode})"
-        )
+        raise RuntimeError(f"dcmqi failed while creating {context} dcm object (exit {spe.returncode})")
 
 
 # -----------------------------
@@ -839,9 +806,7 @@ def load_config() -> OperatorConfig:
 
     input_type_raw = os.environ.get("INPUT_TYPE")
     if input_type_raw not in {"multi_label_seg", "single_label_segs"}:
-        raise ValueError(
-            "INPUT_TYPE must be either 'multi_label_seg' or 'single_label_segs'"
-        )
+        raise ValueError("INPUT_TYPE must be either 'multi_label_seg' or 'single_label_segs'")
     input_type = cast(Literal["multi_label_seg", "single_label_segs"], input_type_raw)
 
     multi_label_seg_name = os.environ.get("MULTI_LABEL_SEG_NAME")
@@ -868,9 +833,7 @@ def load_config() -> OperatorConfig:
     fail_on_no_segmentation_found = env_bool("FAIL_ON_NO_SEGMENTATION_FOUND", True)
     reuse_existing_metadata = env_bool("REUSE_EXISTING_METADATA", False)
 
-    multi_label_seg_info_json = os.environ.get(
-        "MULTI_LABEL_SEG_INFO_JSON", "seg_info.json"
-    )
+    multi_label_seg_info_json = os.environ.get("MULTI_LABEL_SEG_INFO_JSON", "seg_info.json")
     if multi_label_seg_info_json in (None, "None", ""):
         multi_label_seg_info_json = "seg_info.json"
 
@@ -878,9 +841,7 @@ def load_config() -> OperatorConfig:
     single_label_seg_info = env_optional_str("SINGLE_LABEL_SEG_INFO")
     if input_type == "single_label_segs":
         if not single_label_seg_info:
-            raise OSError(
-                'SINGLE_LABEL_SEG_INFO must be either "from_file_name" or e.g. "right@kidney"'
-            )
+            raise OSError('SINGLE_LABEL_SEG_INFO must be either "from_file_name" or e.g. "right@kidney"')
         if single_label_seg_info.strip().lower() == "from_file_name":
             logger.info("Seg info will be taken from file name")
             get_seg_info_from_file = True
@@ -990,9 +951,7 @@ def process_single_label_files(
     """
     processed = 0
     if cfg.single_label_seg_info is None and not cfg.get_seg_info_from_file:
-        raise RuntimeError(
-            "SINGLE_LABEL_SEG_INFO is required for INPUT_TYPE=single_label_segs"
-        )
+        raise RuntimeError("SINGLE_LABEL_SEG_INFO is required for INPUT_TYPE=single_label_segs")
 
     segment_attributes: list[list[Mapping[str, Any]]] = []
     cmap = cm.get_cmap("gist_ncar", max(len(segmentation_paths), 1))
@@ -1008,15 +967,9 @@ def process_single_label_files(
                 raise
             continue
 
-        single_label_seg_info = (
-            rootname
-            if cfg.get_seg_info_from_file
-            else (cfg.single_label_seg_info or rootname)
-        )
+        single_label_seg_info = rootname if cfg.get_seg_info_from_file else (cfg.single_label_seg_info or rootname)
 
-        code_meaning, series_desc = process_seg_info(
-            single_label_seg_info, series_description
-        )
+        code_meaning, series_desc = process_seg_info(single_label_seg_info, series_description)
         color = np.round(np.array(cmap(idx)[:3]) * 255).astype(int).tolist()
 
         segment_attribute = create_segment_attribute(
@@ -1158,11 +1111,7 @@ def build_multi_label_segment_attributes(
     # Allow per-job series description customization (useful for model/version tagging).
     if "algorithm" in data:
         algo_suffix = f"{cfg.segment_algorithm_name}-{str(data['algorithm']).strip()}"
-        series_description = (
-            f"{series_description} | algorithm={algo_suffix}"
-            if series_description
-            else algo_suffix
-        )
+        series_description = f"{series_description} | algorithm={algo_suffix}" if series_description else algo_suffix
 
     segment_attributes: list[list[Mapping[str, Any]]] = [[] for _ in seg_info_ll]
 
@@ -1252,9 +1201,7 @@ def generate_combined_seg(
     OSError
         If writing metadata fails (e.g. metadata path exists but is not a file).
     """
-    _, combined_series_desc = process_seg_info(
-        cfg.multi_label_seg_name, series_description
-    )
+    _, combined_series_desc = process_seg_info(cfg.multi_label_seg_name, series_description)
 
     metadata = {
         **base_metadata,
@@ -1262,18 +1209,14 @@ def generate_combined_seg(
         "segmentAttributes": segment_attributes,
     }
 
-    meta_data_file = os.path.join(
-        input_image_list_input_dir, f"{cfg.multi_label_seg_name.lower()}.json"
-    )
+    meta_data_file = os.path.join(input_image_list_input_dir, f"{cfg.multi_label_seg_name.lower()}.json")
     write_metadata_file(
         metadata_file_path=meta_data_file,
         metadata_payload=metadata,
         metadata_reuse_existing=cfg.reuse_existing_metadata,
     )
 
-    output_dcm_file = os.path.join(
-        element_output_dir, f"{cfg.multi_label_seg_name.lower()}.dcm"
-    )
+    output_dcm_file = os.path.join(element_output_dir, f"{cfg.multi_label_seg_name.lower()}.dcm")
     logger.info(f"Output SEG.dcm file:: {output_dcm_file}")
     logger.info(f"Starting dcmqi-subprocess for: {output_dcm_file}")
     logger.info(f"skip_empty_slices: {cfg.skip_empty_slices}")
@@ -1337,9 +1280,7 @@ def process_batch(cfg: OperatorConfig, batch_element_dir: str) -> int:
         If dcmqi fails to create the DICOM SEG.
     """
     element_input_dir = os.path.join(batch_element_dir, cfg.operator_in_dir)
-    input_image_list_input_dir = os.path.join(
-        batch_element_dir, cfg.operator_image_list_input_dir
-    )
+    input_image_list_input_dir = os.path.join(batch_element_dir, cfg.operator_image_list_input_dir)
     element_output_dir = os.path.join(batch_element_dir, cfg.operator_out_dir)
     os.makedirs(element_output_dir, exist_ok=True)
 
@@ -1402,22 +1343,17 @@ def process_batch(cfg: OperatorConfig, batch_element_dir: str) -> int:
             return processed
 
     elif cfg.input_type == "multi_label_seg":
-        segment_attributes, series_description, body_part = (
-            build_multi_label_segment_attributes(
-                cfg=cfg,
-                input_image_list_input_dir=input_image_list_input_dir,
-                series_description=series_description,
-                segmentation_paths=segmentation_paths,
-            )
+        segment_attributes, series_description, body_part = build_multi_label_segment_attributes(
+            cfg=cfg,
+            input_image_list_input_dir=input_image_list_input_dir,
+            series_description=series_description,
+            segmentation_paths=segmentation_paths,
         )
 
     # Multi-label mode is all-or-nothing: any config/data issue should fail the batch element
     # rather than producing partial outputs.
     # Combined generation is isolated here
-    if (
-        cfg.input_type == "multi_label_seg"
-        or cfg.create_multi_label_dcm_from_single_label_segs
-    ):
+    if cfg.input_type == "multi_label_seg" or cfg.create_multi_label_dcm_from_single_label_segs:
         generate_combined_seg(
             cfg=cfg,
             element_input_dir=element_input_dir,

@@ -1,7 +1,6 @@
 from uuid import UUID
 
 import pytest
-
 from app.services.entity_query import (
     QueryTranslationError,
     _coerce_bool,

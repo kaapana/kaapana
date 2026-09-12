@@ -24,9 +24,7 @@ class KaapanaType(str, Enum):
     RUNTIME_ONLY = "runtime-only"  # pull-docker-images, update-collections
 
     KAAPANA_WORKFLOW = "kaapanaworkflow"  # old style workflows (v1)
-    KAAPANA_WORKFLOW_V2 = (
-        "kaapanaworkflow-v2"  # new style workflows with processingContainers
-    )
+    KAAPANA_WORKFLOW_V2 = "kaapanaworkflow-v2"  # new style workflows with processingContainers
     KAAPANA_APPLICATION = "kaapanaapplication"  # code-server-chart
     LIBRARY_HELPER = "library"  # has library type in Chart.yaml (e.g. workflow-helpers)
 
@@ -109,9 +107,7 @@ class HelmChart:
             version=version,
             build_config=build_config,
         )
-        unresolved_chart_dependencies = cls._collect_chart_dependencies(
-            chartfile=chartfile, repo_version=version
-        )
+        unresolved_chart_dependencies = cls._collect_chart_dependencies(chartfile=chartfile, repo_version=version)
         deployment_config: dict = {}
         if KaapanaType(kaapana_type) == KaapanaType.PLATFORM:
             deployment_config = cls._load_deployment_config(chartfile)
@@ -137,13 +133,9 @@ class HelmChart:
         if not path.exists():
             return None
         with path.open("r", encoding="utf-8") as f:
-            docs: list[dict] = list(
-                filter(None, yaml.load_all(f, Loader=yaml.FullLoader))
-            )
+            docs: list[dict] = list(filter(None, yaml.load_all(f, Loader=yaml.FullLoader)))
         if len(docs) > 1:
-            raise ValueError(
-                f"Expected a single YAML document in {path}, found {len(docs)}"
-            )
+            raise ValueError(f"Expected a single YAML document in {path}, found {len(docs)}")
         return docs[0] if docs else None
 
     @staticmethod
@@ -224,9 +216,7 @@ class HelmChart:
                     dependencies.add((dep_name, dep_version))
 
         if not dependencies:
-            logger.debug(
-                f"{chartfile}: No dependencies found in Chart.yaml or requirements.yaml"
-            )
+            logger.debug(f"{chartfile}: No dependencies found in Chart.yaml or requirements.yaml")
 
         return dependencies
 
@@ -260,9 +250,7 @@ class HelmChart:
             return deployment_config
 
         except Exception as exc:
-            logger.warning(
-                f"Failed to parse deployment_config.yaml for {chartfile}: {exc}"
-            )
+            logger.warning(f"Failed to parse deployment_config.yaml for {chartfile}: {exc}")
             return {}
 
     @classmethod
@@ -329,15 +317,9 @@ class HelmChart:
         return chart_containers
 
     @classmethod
-    def collect_operator_containers(
-        cls, chartfile: Path, version: str, default_registry: str
-    ) -> Set[Container]:
+    def collect_operator_containers(cls, chartfile: Path, version: str, default_registry: str) -> Set[Container]:
         operator_containers: Set[Container] = set()
-        python_files = (
-            f
-            for f in chartfile.parent.parent.glob("**/*.py")
-            if "operator" in f.name.lower()
-        )
+        python_files = (f for f in chartfile.parent.parent.glob("**/*.py") if "operator" in f.name.lower())
         default_version = "{KAAPANA_BUILD_VERSION}"
         for python_file in python_files:
             with python_file.open("r", encoding="utf-8") as f:
@@ -347,9 +329,7 @@ class HelmChart:
                         continue
 
                     image_name = match.group("image_name")
-                    image_version = match.group(
-                        "version"
-                    )  # could be {KAAPANA_BUILD_VERSION} or fixed version
+                    image_version = match.group("version")  # could be {KAAPANA_BUILD_VERSION} or fixed version
 
                     # Only process version if it's different from default
                     if image_version != default_version:
@@ -429,14 +409,10 @@ class HelmChart:
                     image_value = cls.process_line(raw_line)
 
                     # If templated reference, check values.yaml
-                    if image_value is None and any(
-                        key in raw_line for key in ["image:", "complete_image:"]
-                    ):
+                    if image_value is None and any(key in raw_line for key in ["image:", "complete_image:"]):
                         values_file = chartfile.parent / "values.yaml"
                         if values_file.exists():
-                            for val_line in values_file.read_text(
-                                encoding="utf-8"
-                            ).splitlines():
+                            for val_line in values_file.read_text(encoding="utf-8").splitlines():
                                 image_value = cls.process_line(val_line)
                                 if image_value:
                                     break
@@ -444,12 +420,8 @@ class HelmChart:
                     if not image_value:
                         continue
 
-                    container_tag = cls._normalize_image_value(
-                        image_value, default_registry, version
-                    )
-                    container_registry = (
-                        "/".join(container_tag.split("/")[:-1]) or default_registry
-                    )
+                    container_tag = cls._normalize_image_value(image_value, default_registry, version)
+                    container_registry = "/".join(container_tag.split("/")[:-1]) or default_registry
                     container_name = container_tag.split("/")[-1].split(":")[0]
 
                     container = ContainerHelper.get_container(
@@ -471,22 +443,11 @@ class HelmChart:
         return containers
 
     @staticmethod
-    def _normalize_image_value(
-        image_value: str, default_registry: str, version: str
-    ) -> str:
+    def _normalize_image_value(image_value: str, default_registry: str, version: str) -> str:
         """Clean up templated image strings into a resolved image tag."""
-        container_tag = (
-            image_value.replace("}", "")
-            .replace("{", "")
-            .replace(" ", "")
-            .replace("$", "")
-        )
-        container_tag = container_tag.replace(
-            ".Values.global.registry_url", default_registry
-        )
-        container_tag = container_tag.replace(
-            ".Values.global.kaapana_build_version", version
-        )
+        container_tag = image_value.replace("}", "").replace("{", "").replace(" ", "").replace("$", "")
+        container_tag = container_tag.replace(".Values.global.registry_url", default_registry)
+        container_tag = container_tag.replace(".Values.global.kaapana_build_version", version)
         return container_tag
 
     @classmethod
@@ -510,13 +471,9 @@ class HelmChart:
                 if not match:
                     continue
 
-                image_value = (
-                    match.group(1).strip().translate(str.maketrans("", "", "\"'`$ "))
-                )
+                image_value = match.group(1).strip().translate(str.maketrans("", "", "\"'`$ "))
 
-                container_tag = cls._normalize_image_value(
-                    image_value, default_registry, version
-                )
+                container_tag = cls._normalize_image_value(image_value, default_registry, version)
 
                 container_registry = "/".join(container_tag.split("/")[:-1])
                 container_name = container_tag.split("/")[-1].split(":")[0]
@@ -554,9 +511,7 @@ class HelmChart:
         global_vals = values.setdefault("global", {})
 
         # Kaapana collections and preinstall extensions
-        global_vals["kaapana_collections"] = [
-            {"name": c.name, "version": version} for c in self.kaapana_collections
-        ]
+        global_vals["kaapana_collections"] = [{"name": c.name, "version": version} for c in self.kaapana_collections]
         global_vals["preinstall_extensions"] = [
             {"name": e.name, "version": version} for e in self.preinstall_extensions
         ]
@@ -566,10 +521,7 @@ class HelmChart:
             {
                 "platform_build_branch": branch,
                 "platform_last_commit_timestamp": timestamp,
-                "build_timestamp": datetime.now()
-                .astimezone()
-                .replace(microsecond=0)
-                .isoformat(),
+                "build_timestamp": datetime.now().astimezone().replace(microsecond=0).isoformat(),
                 "kaapana_build_version": version,
             }
         )
@@ -643,9 +595,7 @@ class HelmChart:
             return
 
         if self.kaapana_type == KaapanaType.LIBRARY_HELPER:
-            logger.debug(
-                f"{self.name}: charts with type: library are ignored for lint_kubeval -> skip"
-            )
+            logger.debug(f"{self.name}: charts with type: library are ignored for lint_kubeval -> skip")
             return
 
         logger.info(f"{self.name}: lint_kubeval")
@@ -755,9 +705,7 @@ class HelmChart:
             logger.debug(f"{self.name}: push ok")
 
     @staticmethod
-    def _count_all_dependencies(
-        chart: "HelmChart", seen: Optional[set[str]] = None
-    ) -> int:
+    def _count_all_dependencies(chart: "HelmChart", seen: Optional[set[str]] = None) -> int:
         """Count all recursive dependencies for a chart (no duplicates)."""
         if seen is None:
             seen = set()

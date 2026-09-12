@@ -74,9 +74,7 @@ KAAPANA_ENVIRONMENT = [
         ),
     ),
     client.V1EnvVar(name="KAAPANA_CLIENT_ID", value="kaapana"),
-    client.V1EnvVar(
-        name="KAAPANA_OPENSEARCH_HOST", value="opensearch-service.services.svc"
-    ),
+    client.V1EnvVar(name="KAAPANA_OPENSEARCH_HOST", value="opensearch-service.services.svc"),
     client.V1EnvVar(name="KAAPANA_OPENSEARCH_PORT", value="9200"),
     client.V1EnvVar(name="KAAPANA_DEFAULT_OPENSEARCH_INDEX", value="project_admin"),
     client.V1EnvVar(
@@ -97,9 +95,7 @@ KAAPANA_ENVIRONMENT = [
             )
         ),
     ),
-    client.V1EnvVar(
-        name="KAAPANA_AII_URL", value="http://aii-service.services.svc:8080"
-    ),
+    client.V1EnvVar(name="KAAPANA_AII_URL", value="http://aii-service.services.svc:8080"),
     client.V1EnvVar(
         name="KAAPANA_DICOM_WEB_FILTER_URL",
         value="http://dicom-web-filter-service.services.svc:8080",
@@ -112,9 +108,7 @@ KAAPANA_ENVIRONMENT = [
         name="KAAPANA_BACKEND_URL",
         value="http://kaapana-backend-service.services.svc:5000",
     ),
-    client.V1EnvVar(
-        name="KAAPANA_MINIO_URL", value="http://minio-service.services.svc:9000"
-    ),
+    client.V1EnvVar(name="KAAPANA_MINIO_URL", value="http://minio-service.services.svc:9000"),
     client.V1EnvVar(
         name="KAAPANA_NOTIFICATION_URL",
         value="http://notification-service.services.svc:80",
@@ -236,9 +230,7 @@ class KaapanaTaskOperator(BaseOperator):
         )
         outputs = []
         for channel in task_template.outputs:
-            scheduler_path = Path(
-                self.airflow_workflow_dir / self.task_id / channel.name
-            )
+            scheduler_path = Path(self.airflow_workflow_dir / self.task_id / channel.name)
             if scheduler_path.exists() and scheduler_path.is_dir():
                 shutil.rmtree(scheduler_path)
             scheduler_path.mkdir(parents=True, exist_ok=True)
@@ -253,9 +245,7 @@ class KaapanaTaskOperator(BaseOperator):
         inputs = []
         for io_map in self.iochannel_maps:
             task_id = io_map.upstream_operator.task_id
-            with open(
-                self.airflow_workflow_dir / Path(f"task_run-{task_id}.pkl"), "rb"
-            ) as f:
+            with open(self.airflow_workflow_dir / Path(f"task_run-{task_id}.pkl"), "rb") as f:
                 task_run = pickle.load(f)
 
             for channel in task_run.outputs:
@@ -306,18 +296,14 @@ class KaapanaTaskOperator(BaseOperator):
             ),
         )
 
-    def _merge_user_input(
-        self, context: Context, task: task_models.Task
-    ) -> task_models.Task:
+    def _merge_user_input(self, context: Context, task: task_models.Task) -> task_models.Task:
         conf = context["dag_run"].conf
         user_input = conf.get(USER_INPUT_KEY, {}).get(self.task_id, {})
         env = merge_env(
             task.env,
             [pc_models.BaseEnv(**env) for env in user_input.pop("env", [])],
         )
-        return task_models.Task(
-            **{**task.model_dump(mode="python", exclude=["env"]), **user_input}, env=env
-        )
+        return task_models.Task(**{**task.model_dump(mode="python", exclude=["env"]), **user_input}, env=env)
 
     def _submit_task(self, task: task_models.Task) -> task_models.TaskRun:
         try:
@@ -330,9 +316,7 @@ class KaapanaTaskOperator(BaseOperator):
             KaapanaTaskOperator.stop_task_pod()
             return KubernetesRunner.run(task)
         except ApiException as e:
-            KubernetesRunner._logger.error(
-                f"Submitting task to k8s API is still failing: {e.reason}."
-            )
+            KubernetesRunner._logger.error(f"Submitting task to k8s API is still failing: {e.reason}.")
             raise e
 
     def _monitor_task_run(self):
@@ -358,9 +342,7 @@ class KaapanaTaskOperator(BaseOperator):
                     f"Processing container didn't start within {self.startup_timeout_seconds} seconds. The corresponding pod will be deleted!"
                 )
             else:
-                raise AirflowException(
-                    f"Processing container in unexpected state: {final_status}"
-                )
+                raise AirflowException(f"Processing container in unexpected state: {final_status}")
 
         final_status = KubernetesRunner.wait_for_task_status(
             self.task_run,
@@ -395,19 +377,13 @@ class KaapanaTaskOperator(BaseOperator):
                     f"Container {container_name} for task {self.task_run.name} was terminated due to OutOfMemory (OOMKilled)"
                 )
             if exit_code == KAAPANA_SKIP_TASK_RUN_RETURN_CODE:
-                raise AirflowSkipException(
-                    f"Task {self.task_run.name} was skipped, {reason=}, {message=}"
-                )
+                raise AirflowSkipException(f"Task {self.task_run.name} was skipped, {reason=}, {message=}")
             elif exit_code != 0:
-                raise AirflowException(
-                    f"Processing container failed for task {self.task_run.name}!"
-                )
+                raise AirflowException(f"Processing container failed for task {self.task_run.name}!")
         elif final_status == "Succeeded":
-            self.log.info(f"Processing Container finished successfully!")
+            self.log.info("Processing Container finished successfully!")
         else:
-            raise AirflowException(
-                f"Processing container in unexpected state: {final_status}"
-            )
+            raise AirflowException(f"Processing container in unexpected state: {final_status}")
 
     def on_kill(self):
         """
@@ -431,9 +407,7 @@ class KaapanaTaskOperator(BaseOperator):
             with open(KaapanaTaskOperator.task_run_file_path(context), "rb") as f:
                 task_run = pickle.load(f)
                 KubernetesRunner.stop(task_run=task_run)
-            KubernetesRunner._logger.info(
-                f"Stopped processing-container: {task_run.id}"
-            )
+            KubernetesRunner._logger.info(f"Stopped processing-container: {task_run.id}")
         except FileNotFoundError:
             KubernetesRunner._logger.info("Task File not found")
         except client.ApiException as e:
@@ -466,4 +440,4 @@ class KaapanaTaskOperator(BaseOperator):
 
         :param context: Dictionary set by Airflow. It contains references to related objects to the task instance.
         """
-        return f"{context["ti"].run_id}-{context["ti"].task_id}"
+        return f"{context['ti'].run_id}-{context['ti'].task_id}"

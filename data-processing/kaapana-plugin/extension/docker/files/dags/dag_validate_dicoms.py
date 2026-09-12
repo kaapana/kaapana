@@ -85,11 +85,4 @@ put_html_to_minio = MinioOperator(
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-(
-    get_input
-    >> get_input_json
-    >> clear_validation_results
-    >> validate
-    >> put_html_to_minio
-    >> clean
-)
+(get_input >> get_input_json >> clear_validation_results >> validate >> put_html_to_minio >> clean)

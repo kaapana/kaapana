@@ -1,4 +1,5 @@
 import os
+
 from airflow.api.common.experimental.pool import get_pool
 
 BATCH_NAME = "batch"
@@ -9,7 +10,7 @@ KAAPANA_BUILD_VERSION = os.getenv("KAAPANA_BUILD_VERSION", None)
 ADMIN_NAMESPACE = os.getenv("ADMIN_NAMESPACE", None)
 SERVICES_NAMESPACE = os.getenv("SERVICES_NAMESPACE", None)
 EXTENSIONS_NAMESPACE = os.getenv("EXTENSIONS_NAMESPACE", None)
-PLATFORM_PREFIX = os.environ["PLATFORM_PREFIX"] # environ will raise KeyError if not set
+PLATFORM_PREFIX = os.environ["PLATFORM_PREFIX"]  # environ will raise KeyError if not set
 DEFAULT_PROJECT_NAMESPACE = f"{PLATFORM_PREFIX}-project-admin"
 PULL_POLICY_IMAGES = os.getenv("PULL_POLICY_IMAGES", "IfNotPresent")
 DEFAULT_REGISTRY = os.getenv("DEFAULT_REGISTRY", None)
@@ -25,10 +26,10 @@ BUILD_VERSION = KAAPANA_BUILD_VERSION
 
 try:
     GPU_COUNT = int(get_pool(name="NODE_GPU_COUNT").slots)
-except Exception as e:
+except Exception:
     GPU_COUNT = 0
 
 try:
     CPU_CORE_COUNT = int(get_pool(name="NODE_CPU_CORES").slots)
-except Exception as e:
+except Exception:
     CPU_CORE_COUNT = 1

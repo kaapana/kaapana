@@ -1,10 +1,11 @@
 import html
 import json
-from fastapi import FastAPI, Request, Response
-from starlette.types import Message, Receive, Scope, Send
+from urllib.parse import urlencode
+
+from fastapi import Request
 from starlette.datastructures import QueryParams
 from starlette.middleware.base import BaseHTTPMiddleware
-from urllib.parse import urlencode
+from starlette.types import Receive, Scope, Send
 
 
 def safe_html_escape(value):
@@ -87,9 +88,7 @@ class SanitizeBodyInputs:
         """
 
         # Check if the incoming request is an HTTP request and if it's a PUT or POST request
-        if scope["type"] != "http" or not (
-            scope["method"] == "PUT" or scope["method"] == "POST"
-        ):
+        if scope["type"] != "http" or not (scope["method"] == "PUT" or scope["method"] == "POST"):
             # Pass the scope to the next middleware or application
             await self.app(scope, receive, send)
             return

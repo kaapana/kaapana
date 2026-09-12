@@ -49,9 +49,7 @@ class SecurityScanner:
         trivy_exec = getattr(build_config, "trivy_executable", "trivy")
         if shutil.which(trivy_exec) is None:
             logger.error(f"{trivy_exec} was not found!")
-            logger.error(
-                "-> install trivy: https://trivy.dev/latest/getting-started/installation/"
-            )
+            logger.error("-> install trivy: https://trivy.dev/latest/getting-started/installation/")
             exit(1)
         cls._build_config = build_config
         cls._build_state = build_state
@@ -73,9 +71,7 @@ class SecurityScanner:
             if cls._worker_cache_pool is None:
                 pool: "queue.Queue" = queue.Queue()
                 for _ in range(cls._build_config.parallel_processes):
-                    worker_cache = Path(
-                        tempfile.mkdtemp(prefix=".trivy_worker_", dir=cls._reports_path)
-                    )
+                    worker_cache = Path(tempfile.mkdtemp(prefix=".trivy_worker_", dir=cls._reports_path))
                     shutil.copytree(cls._cache_path, worker_cache, dirs_exist_ok=True)
                     pool.put(worker_cache)
                 cls._worker_cache_pool = pool
@@ -104,9 +100,7 @@ class SecurityScanner:
         """Containers to scan, sorted. In scan-only mode local-only images are
         skipped: they never reach the registry, and their layers are scanned as
         part of every derived image."""
-        targets = sorted(
-            cls._build_state.selected_containers, key=lambda c: c.image_name
-        )
+        targets = sorted(cls._build_state.selected_containers, key=lambda c: c.image_name)
         if cls._build_config.scan_only:
             skipped = [c for c in targets if c.tag.startswith("local-only")]
             if skipped:
@@ -124,9 +118,7 @@ class SecurityScanner:
         scanning an empty temp dir forces the bundle download as a side
         effect; it then lands in the shared cache and every worker skips its
         own update instead of racing to fetch it concurrently."""
-        empty_dir = Path(
-            tempfile.mkdtemp(prefix=".trivy_empty_", dir=cls._reports_path)
-        )
+        empty_dir = Path(tempfile.mkdtemp(prefix=".trivy_empty_", dir=cls._reports_path))
         try:
             cmd = [
                 cls._build_config.trivy_executable,
@@ -139,9 +131,7 @@ class SecurityScanner:
             ]
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
             if result.returncode != 0:
-                raise subprocess.CalledProcessError(
-                    result.returncode, cmd, output=result.stdout, stderr=result.stderr
-                )
+                raise subprocess.CalledProcessError(result.returncode, cmd, output=result.stdout, stderr=result.stderr)
         finally:
             shutil.rmtree(empty_dir, ignore_errors=True)
 
@@ -154,12 +144,9 @@ class SecurityScanner:
             dual_line=True,
             title="Trivy misconfiguration chart scan",
         ) as bar:
-            with ThreadPoolExecutor(
-                max_workers=cls._build_config.parallel_processes
-            ) as executor:
+            with ThreadPoolExecutor(max_workers=cls._build_config.parallel_processes) as executor:
                 futures = {
-                    executor.submit(cls._check_chart, chart): chart
-                    for chart in cls._build_state.selected_charts
+                    executor.submit(cls._check_chart, chart): chart for chart in cls._build_state.selected_charts
                 }
                 for future in as_completed(futures):
                     future.result()
@@ -170,14 +157,10 @@ class SecurityScanner:
             dual_line=True,
             title="Trivy misconfiguration container scan",
         ) as bar:
-            with ThreadPoolExecutor(
-                max_workers=cls._build_config.parallel_processes
-            ) as executor:
+            with ThreadPoolExecutor(max_workers=cls._build_config.parallel_processes) as executor:
                 futures = {
                     executor.submit(cls._check_container, container): container
-                    for container in sorted(
-                        cls._build_state.selected_containers, key=lambda c: c.image_name
-                    )
+                    for container in sorted(cls._build_state.selected_containers, key=lambda c: c.image_name)
                 }
                 for future in as_completed(futures):
                     future.result()
@@ -205,14 +188,10 @@ class SecurityScanner:
             "--output",
             str(report_path / filename),
         ]
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=cls._build_config.trivy_timeout
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=cls._build_config.trivy_timeout)
         if result.returncode != 0:
             logger.error(f"Trivy failed for {chart.name}:\n{result.stderr}")
-            raise subprocess.CalledProcessError(
-                result.returncode, cmd, output=result.stdout, stderr=result.stderr
-            )
+            raise subprocess.CalledProcessError(result.returncode, cmd, output=result.stdout, stderr=result.stderr)
         logger.info(f"Chart misconfiguration report saved at {report_path / filename}")
 
     @classmethod
@@ -238,17 +217,11 @@ class SecurityScanner:
             "--output",
             str(report_path / filename),
         ]
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=cls._build_config.trivy_timeout
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=cls._build_config.trivy_timeout)
         if result.returncode != 0:
             logger.error(f"Trivy failed for {container.tag}:\n{result.stderr}")
-            raise subprocess.CalledProcessError(
-                result.returncode, cmd, output=result.stdout, stderr=result.stderr
-            )
-        logger.info(
-            f"Container misconfiguration report saved at {report_path / filename}"
-        )
+            raise subprocess.CalledProcessError(result.returncode, cmd, output=result.stdout, stderr=result.stderr)
+        logger.info(f"Container misconfiguration report saved at {report_path / filename}")
 
     @classmethod
     def _ensure_db(cls) -> None:
@@ -258,7 +231,6 @@ class SecurityScanner:
         deadlock on Trivy's file lock — and without a shared pre-fetch, every
         worker would instead pull the Java DB OCI artifact from the mirror at
         once, racing its redirect-based blob download into 404s."""
-        t0 = time.monotonic()
         cmd = [
             cls._build_config.trivy_executable,
             "image",
@@ -268,9 +240,7 @@ class SecurityScanner:
         ]
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
         if result.returncode != 0:
-            raise subprocess.CalledProcessError(
-                result.returncode, cmd, output=result.stdout, stderr=result.stderr
-            )
+            raise subprocess.CalledProcessError(result.returncode, cmd, output=result.stdout, stderr=result.stderr)
 
         cmd = [
             cls._build_config.trivy_executable,
@@ -281,14 +251,10 @@ class SecurityScanner:
         ]
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
         if result.returncode != 0:
-            raise subprocess.CalledProcessError(
-                result.returncode, cmd, output=result.stdout, stderr=result.stderr
-            )
+            raise subprocess.CalledProcessError(result.returncode, cmd, output=result.stdout, stderr=result.stderr)
 
     @classmethod
-    def _fail_on_scan_errors(
-        cls, action: str, failures: list[tuple[Container, str]]
-    ) -> None:
+    def _fail_on_scan_errors(cls, action: str, failures: list[tuple[Container, str]]) -> None:
         """Raise once, after every container has had its chance to scan, summarizing
         every image that couldn't be pulled/scanned — most commonly a tag not present
         in the registry. Reports already written for the other containers are left in
@@ -297,8 +263,7 @@ class SecurityScanner:
             return
         summary = "\n".join(f"  - {container.tag}" for container, _ in failures)
         raise RuntimeError(
-            f"{action} failed for {len(failures)} image(s) — most likely not present "
-            f"in the registry:\n{summary}"
+            f"{action} failed for {len(failures)} image(s) — most likely not present in the registry:\n{summary}"
         )
 
     @classmethod
@@ -336,9 +301,7 @@ class SecurityScanner:
             )
             elapsed = time.monotonic() - t0
             if result.returncode != 0:
-                raise subprocess.CalledProcessError(
-                    result.returncode, cmd, output=result.stdout, stderr=result.stderr
-                )
+                raise subprocess.CalledProcessError(result.returncode, cmd, output=result.stdout, stderr=result.stderr)
             return report_path / filename, False, elapsed
         finally:
             cls._release_worker_cache(worker_cache)
@@ -359,12 +322,9 @@ class SecurityScanner:
             dual_line=True,
             title="Trivy SBOM generation",
         ) as bar:
-            with ThreadPoolExecutor(
-                max_workers=cls._build_config.parallel_processes
-            ) as executor:
+            with ThreadPoolExecutor(max_workers=cls._build_config.parallel_processes) as executor:
                 futures = {
-                    executor.submit(cls._create_sbom, container, report_path): container
-                    for container in targets
+                    executor.submit(cls._create_sbom, container, report_path): container for container in targets
                 }
                 for future in as_completed(futures):
                     container = futures[future]
@@ -382,9 +342,7 @@ class SecurityScanner:
         cls._fail_on_scan_errors("SBOM generation", failures)
 
     @classmethod
-    def _scan_container_vuln(
-        cls, container: Container, report_path: Path
-    ) -> tuple[Path, bool, float]:
+    def _scan_container_vuln(cls, container: Container, report_path: Path) -> tuple[Path, bool, float]:
         """Run vulnerability scan for a single container. Returns (report_path, skipped, elapsed_seconds)."""
         filename = f"vuln_report_{container.image_name}.json"
         if (report_path / filename).exists():
@@ -425,9 +383,7 @@ class SecurityScanner:
             )
             elapsed = time.monotonic() - t0
             if result.returncode != 0:
-                raise subprocess.CalledProcessError(
-                    result.returncode, cmd, output=result.stdout, stderr=result.stderr
-                )
+                raise subprocess.CalledProcessError(result.returncode, cmd, output=result.stdout, stderr=result.stderr)
             return report_path / filename, False, elapsed
         finally:
             cls._release_worker_cache(worker_cache)
@@ -447,13 +403,9 @@ class SecurityScanner:
             dual_line=True,
             title="Trivy vulnerability scan",
         ) as bar:
-            with ThreadPoolExecutor(
-                max_workers=cls._build_config.parallel_processes
-            ) as executor:
+            with ThreadPoolExecutor(max_workers=cls._build_config.parallel_processes) as executor:
                 futures = {
-                    executor.submit(
-                        cls._scan_container_vuln, container, report_path
-                    ): container
+                    executor.submit(cls._scan_container_vuln, container, report_path): container
                     for container in targets
                 }
                 for future in as_completed(futures):
@@ -461,17 +413,13 @@ class SecurityScanner:
                     try:
                         path, skipped, elapsed = future.result()
                     except subprocess.CalledProcessError as e:
-                        logger.error(
-                            f"Trivy vulnerability scan failed for {container.tag}:\n{e.stderr}"
-                        )
+                        logger.error(f"Trivy vulnerability scan failed for {container.tag}:\n{e.stderr}")
                         failures.append((container, e.stderr))
                     else:
                         if skipped:
                             logger.info(f"Skipping (exists): {path.name}")
                         else:
-                            logger.info(
-                                f"Vulnerability report saved at {path.name} in {elapsed:.1f}s"
-                            )
+                            logger.info(f"Vulnerability report saved at {path.name} in {elapsed:.1f}s")
                     bar()
         cls._fail_on_scan_errors("Vulnerability scan", failures)
 
@@ -491,9 +439,7 @@ class SecurityScanner:
             return report_path, True, {}
 
         timings: dict[str, float] = {}
-        with tempfile.TemporaryDirectory(
-            prefix=f".snap_scan_{name}_", dir=cls._reports_path
-        ) as tmp:
+        with tempfile.TemporaryDirectory(prefix=f".snap_scan_{name}_", dir=cls._reports_path) as tmp:
             tmp_path = Path(tmp)
             rootfs = tmp_path / "rootfs"
             rootfs.mkdir()
@@ -528,8 +474,14 @@ class SecurityScanner:
             t0 = time.monotonic()
             subprocess.run(
                 [
-                    "unsquashfs", "-q", "-n", "-f", "-no-xattrs",
-                    "-d", str(rootfs), str(tmp_path / "pkg.snap"),
+                    "unsquashfs",
+                    "-q",
+                    "-n",
+                    "-f",
+                    "-no-xattrs",
+                    "-d",
+                    str(rootfs),
+                    str(tmp_path / "pkg.snap"),
                 ],
                 capture_output=True,
                 text=True,
@@ -589,32 +541,22 @@ class SecurityScanner:
             dual_line=True,
             title="Snap package vulnerability scan",
         ) as bar:
-            with ThreadPoolExecutor(
-                max_workers=cls._build_config.parallel_processes
-            ) as executor:
+            with ThreadPoolExecutor(max_workers=cls._build_config.parallel_processes) as executor:
                 futures = {
-                    executor.submit(cls._scan_snap, name, channel): name
-                    for name, channel in OFFLINE_SNAP_PACKAGES
+                    executor.submit(cls._scan_snap, name, channel): name for name, channel in OFFLINE_SNAP_PACKAGES
                 }
                 for future in as_completed(futures):
                     name = futures[future]
                     try:
                         path, skipped, timings = future.result()
                     except (subprocess.CalledProcessError, RuntimeError) as e:
-                        logger.warning(
-                            f"Snap vulnerability scan failed for {name} (non-fatal): {e}"
-                        )
+                        logger.warning(f"Snap vulnerability scan failed for {name} (non-fatal): {e}")
                     else:
                         if skipped:
                             logger.info(f"Skipping (exists): {path.name}")
                         else:
-                            breakdown = ", ".join(
-                                f"{step}={secs:.1f}s" for step, secs in timings.items()
-                            )
-                            logger.info(
-                                f"Snap vulnerability report saved at "
-                                f"{path.name} ({breakdown})"
-                            )
+                            breakdown = ", ".join(f"{step}={secs:.1f}s" for step, secs in timings.items())
+                            logger.info(f"Snap vulnerability report saved at {path.name} ({breakdown})")
                     bar()
 
     # ------------------------------------------------------------------
@@ -652,9 +594,7 @@ class SecurityScanner:
         }
 
         for cve, vulnerability in consolidated.items():
-            artifacts = vulnerability.get("Artifacts") or [
-                {"name": "unknown", "type": "unknown"}
-            ]
+            artifacts = vulnerability.get("Artifacts") or [{"name": "unknown", "type": "unknown"}]
             gitlab_report["vulnerabilities"].append(
                 {
                     "id": str(uuid.uuid4()),
@@ -690,8 +630,7 @@ class SecurityScanner:
                 "sev": details.get("Severity", "UNKNOWN").lower(),
                 "installed": details.get("InstalledVersion", ""),
                 "fixed": details.get("FixedVersion", "") or "—",
-                "artifacts": details.get("Artifacts")
-                or [{"name": "unknown", "type": "unknown"}],
+                "artifacts": details.get("Artifacts") or [{"name": "unknown", "type": "unknown"}],
             }
             for cve, details in consolidated.items()
         ]
@@ -701,19 +640,11 @@ class SecurityScanner:
         counts: dict[str, int] = {}
         for r in rows:
             counts[r["sev"]] = counts.get(r["sev"], 0) + 1
-        parts = [
-            f"{counts[s]} {s.capitalize()}"
-            for s in ["critical", "high", "medium", "low"]
-            if s in counts
-        ]
+        parts = [f"{counts[s]} {s.capitalize()}" for s in ["critical", "high", "medium", "low"] if s in counts]
         summary = f"{len(rows)} unique CVEs — " + ", ".join(parts)
 
-        template = (
-            files("build_cli") / "configs" / "interactive_report_template.html"
-        ).read_text()
-        return template.replace("__DATA_JSON__", data_json).replace(
-            "__SUMMARY__", summary
-        )
+        template = (files("build_cli") / "configs" / "interactive_report_template.html").read_text()
+        return template.replace("__DATA_JSON__", data_json).replace("__SUMMARY__", summary)
 
     @classmethod
     def consolidate_vulnerability_reports(cls) -> Path:
@@ -743,15 +674,11 @@ class SecurityScanner:
                     if artifact not in consolidated[cve_id]["Artifacts"]:
                         consolidated[cve_id]["Artifacts"].append(artifact)
 
-        for report_file in sorted(
-            (cls._reports_path / "vuln_scan").glob("vuln_report_*.json")
-        ):
+        for report_file in sorted((cls._reports_path / "vuln_scan").glob("vuln_report_*.json")):
             trivy_data = _load_json_report(report_file)
             if trivy_data is None:
                 continue
-            artifact_name = trivy_data.get(
-                "ArtifactName"
-            ) or report_file.stem.removeprefix("vuln_report_")
+            artifact_name = trivy_data.get("ArtifactName") or report_file.stem.removeprefix("vuln_report_")
             _merge(trivy_data, "container", artifact_name)
 
         for report_file in sorted(cls._snap_reports_path.glob("*.json")):
@@ -763,9 +690,7 @@ class SecurityScanner:
         output_path = cls._publish_path / "consolidated_vulnerability_scan.json"
         with open(output_path, "w") as f:
             json.dump(consolidated, f, indent=2)
-        logger.info(
-            f"Consolidated vulnerability report saved at {output_path} ({len(consolidated)} unique CVEs)"
-        )
+        logger.info(f"Consolidated vulnerability report saved at {output_path} ({len(consolidated)} unique CVEs)")
 
         gitlab_report = cls._to_gitlab_report(consolidated)
         gitlab_report_path = cls._publish_path / "gl-container-scanning-report.json"
@@ -809,20 +734,14 @@ class SecurityScanner:
                     if artifact not in consolidated[rule_id]["Artifacts"]:
                         consolidated[rule_id]["Artifacts"].append(artifact)
 
-        for report_file in sorted(
-            (cls._reports_path / "charts").glob("misconfiguration_report_chart_*.json")
-        ):
+        for report_file in sorted((cls._reports_path / "charts").glob("misconfiguration_report_chart_*.json")):
             trivy_data = _load_json_report(report_file)
             if trivy_data is None:
                 continue
             name = report_file.stem.removeprefix("misconfiguration_report_chart_")
             _merge(trivy_data, "chart", name)
 
-        for report_file in sorted(
-            (cls._reports_path / "containers").glob(
-                "misconfiguration_report_container_*.json"
-            )
-        ):
+        for report_file in sorted((cls._reports_path / "containers").glob("misconfiguration_report_container_*.json")):
             trivy_data = _load_json_report(report_file)
             if trivy_data is None:
                 continue
@@ -833,8 +752,7 @@ class SecurityScanner:
         with open(output_path, "w") as f:
             json.dump(consolidated, f, indent=2)
         logger.info(
-            f"Consolidated misconfiguration report saved at {output_path} "
-            f"({len(consolidated)} unique rule violations)"
+            f"Consolidated misconfiguration report saved at {output_path} ({len(consolidated)} unique rule violations)"
         )
         return output_path
 
@@ -874,7 +792,5 @@ class SecurityScanner:
         output_path = cls._publish_path / "consolidated_sbom.json"
         with open(output_path, "w") as f:
             json.dump(consolidated, f, indent=2)
-        logger.info(
-            f"Consolidated SBOM report saved at {output_path} ({len(consolidated)} unique packages)"
-        )
+        logger.info(f"Consolidated SBOM report saved at {output_path} ({len(consolidated)} unique packages)")
         return output_path

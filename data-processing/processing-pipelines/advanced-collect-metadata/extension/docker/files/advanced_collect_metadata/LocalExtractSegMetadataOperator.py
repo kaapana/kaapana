@@ -1,17 +1,15 @@
 # !!! DEPRECATION WARNING: Local Operators are deprecated and will be replaced with operators that run in Kubernetes pods in the next release v0.7.0.
 # If you have a custom Local Operator, it should be migrated to a processing container based operator.
-import os
 import glob
 import json
-import datetime
+import os
+from os.path import basename
 from pathlib import Path
+
 import nibabel as nib
 import numpy as np
-from os.path import basename
-import SimpleITK as sitk
-
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.HelperCaching import cache_operator_output
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
 class LocalExtractSegMetadataOperator(KaapanaPythonBaseOperator):
@@ -42,19 +40,13 @@ class LocalExtractSegMetadataOperator(KaapanaPythonBaseOperator):
 
         for batch_element_dir in batch_dirs:
             # create batch-element out dir
-            batch_element_out_dir = os.path.join(
-                batch_element_dir, self.operator_out_dir
-            )
+            batch_element_out_dir = os.path.join(batch_element_dir, self.operator_out_dir)
             Path(batch_element_out_dir).mkdir(exist_ok=True)
 
             # check if json_operator is defined; if yes load existing json file from json_operator's dir
             if self.json_operator:
-                batch_element_json_in_dir = os.path.join(
-                    batch_element_dir, self.json_operator
-                )
-                json_fname = glob.glob(
-                    os.path.join(batch_element_json_in_dir, "*.json"), recursive=True
-                )[0]
+                batch_element_json_in_dir = os.path.join(batch_element_dir, self.json_operator)
+                json_fname = glob.glob(os.path.join(batch_element_json_in_dir, "*.json"), recursive=True)[0]
                 # load json file
                 f = open(json_fname)
                 json_data = json.load(f)
@@ -69,23 +61,16 @@ class LocalExtractSegMetadataOperator(KaapanaPythonBaseOperator):
 
             # load batch-element's SEG nifti image form input_operator's dir
             batch_element_in_dir = os.path.join(batch_element_dir, self.input_operator)
-            seg_nifti_fnames = glob.glob(
-                os.path.join(batch_element_in_dir, "*.nii.gz"), recursive=True
-            )
+            seg_nifti_fnames = glob.glob(os.path.join(batch_element_in_dir, "*.nii.gz"), recursive=True)
             # load batch-element's CT/MR nifti image form input_operator's dir
-            batch_element_img_in_dir = os.path.join(
-                batch_element_dir, self.img_operator
-            )
-            img_nifti_fnames = glob.glob(
-                os.path.join(batch_element_img_in_dir, "*.nii.gz"), recursive=True
-            )
+            batch_element_img_in_dir = os.path.join(batch_element_dir, self.img_operator)
+            img_nifti_fnames = glob.glob(os.path.join(batch_element_img_in_dir, "*.nii.gz"), recursive=True)
             img_nifti = nib.load(img_nifti_fnames[0])
             # compute volume of 1 voxel in mm³
             spacing = img_nifti.header.get_zooms()
             vox_vol = spacing[0] * spacing[1] * spacing[2]
 
             label_volume_info = {}
-            cca_info = {}
             non_zero_layers_indices = {}
             for seg_nifti_fname in seg_nifti_fnames:
                 print(f"{seg_nifti_fname=}")
@@ -105,9 +90,7 @@ class LocalExtractSegMetadataOperator(KaapanaPythonBaseOperator):
                 # get indices of layers that contain annotation labels
                 print(f"Shape of SEG: {seg_pixel_data.shape}")
                 # Find layers with non-zero values and their indices
-                non_zero_layers_i = np.where(np.any(seg_pixel_data != 0, axis=(0, 1)))[
-                    0
-                ].tolist()
+                non_zero_layers_i = np.where(np.any(seg_pixel_data != 0, axis=(0, 1)))[0].tolist()
                 non_zero_layers_indices[basename(seg_nifti_fname)] = non_zero_layers_i
 
             print(f"{label_volume_info=}")

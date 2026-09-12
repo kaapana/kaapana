@@ -55,16 +55,12 @@ def build_opensearch_query(modalities: list = [], custom_tags: list = []) -> dic
     if modalities:
         # If only one modality is given, we add a 'match' query
         if len(modalities) == 1:
-            query["bool"]["must"].append(
-                {"match": {"00080060 Modality_keyword": modalities[0]}}
-            )
+            query["bool"]["must"].append({"match": {"00080060 Modality_keyword": modalities[0]}})
         else:
             # If multiple modalities are given, we add a 'should' query
             query["bool"]["should"] = []
             for modality in modalities:
-                query["bool"]["should"].append(
-                    {"match": {"00080060 Modality_keyword": modality}}
-                )
+                query["bool"]["should"].append({"match": {"00080060 Modality_keyword": modality}})
 
     # If 'custom_tags' is filled, we add a 'terms_set' query to check "00000000 Tags_keyword" contains all tags
     if custom_tags:
@@ -122,25 +118,19 @@ class GetRefSeriesOperator:
         elif search_policy == "study_uid":
             self.prepare_download_function = self.prepare_download_of_study_series
 
-        assert (
-            search_policy != "search_query" or search_query != {}
-        ), "Search query must be set!"
+        assert search_policy != "search_query" or search_query != {}, "Search query must be set!"
 
         # To avoid ambiguity:
         # If search query is set, modality and custom tags cannot be set
-        assert search_query == {} or (
-            modalities == [] and custom_tags == []
-        ), "Modality and custom tags cannot be set if search query is set!"
+        assert search_query == {} or (modalities == [] and custom_tags == []), (
+            "Modality and custom tags cannot be set if search query is set!"
+        )
 
         # If modality is set, search query can't be set
-        assert (
-            modalities == [] or search_query == {}
-        ), "Modality cannot be set if search query is set!"
+        assert modalities == [] or search_query == {}, "Modality cannot be set if search query is set!"
 
         # If custom tags are set, search query can't be set
-        assert (
-            custom_tags == [] or search_query == {}
-        ), "Custom tags cannot be set if search query is set!"
+        assert custom_tags == [] or search_query == {}, "Custom tags cannot be set if search query is set!"
 
         if data_type == "json":
             self.download_function = self.download_metadata_from_opensearch
@@ -149,16 +139,14 @@ class GetRefSeriesOperator:
 
         if modalities != [] or custom_tags != []:
             # Create search query
-            self.search_query = build_opensearch_query(
-                modalities=modalities, custom_tags=custom_tags
-            )
+            self.search_query = build_opensearch_query(modalities=modalities, custom_tags=custom_tags)
         else:
             self.search_query = search_query
 
         if self.search_query != {}:
-            assert (
-                "bool" in self.search_query
-            ), "Search query must be a bool query! (https://opensearch.org/docs/latest/query-dsl/compound/bool)"
+            assert "bool" in self.search_query, (
+                "Search query must be a bool query! (https://opensearch.org/docs/latest/query-dsl/compound/bool)"
+            )
 
             logger.info(f"Initial search query: {self.search_query}")
 
@@ -180,9 +168,7 @@ class GetRefSeriesOperator:
         Path(series.target_dir).mkdir(parents=True, exist_ok=True)
 
         # Get metadata from OpenSearch
-        meta_data = self.os_helper.os_client.get(
-            index=self.opensearch_index, id=series.reference_series_uid
-        )["_source"]
+        meta_data = self.os_helper.os_client.get(index=self.opensearch_index, id=series.reference_series_uid)["_source"]
 
         # Save metadata to json file
         with open(join(series.target_dir, "metadata.json"), "w") as fp:
@@ -190,9 +176,7 @@ class GetRefSeriesOperator:
 
         # Check if target directory is empty
         if len(os.listdir(series.target_dir)) == 0:
-            raise ValueError(
-                f"Download of series {series.series_instance_uid} failed! Target directory is empty."
-            )
+            raise ValueError(f"Download of series {series.series_instance_uid} failed! Target directory is empty.")
 
     def download_series_from_pacs(self, series: DownloadSeries):
         """Download a series from the PACS system.
@@ -219,9 +203,7 @@ class GetRefSeriesOperator:
 
         logger.info(f"Number of instances in PACS: {len(instances)}")
         logger.info(f"Number of downloaded files: {len(os.listdir(series.target_dir))}")
-        logger.info(
-            f"Downloaded series {series.reference_series_uid} to {series.target_dir}"
-        )
+        logger.info(f"Downloaded series {series.reference_series_uid} to {series.target_dir}")
 
     def get_ids_of_series(self, path_to_dicom_slice: str) -> str:
         """
@@ -273,7 +255,7 @@ class GetRefSeriesOperator:
         # Check if search query is set
         if self.search_query != {}:
             # Check if "must" is set in search query
-            if not "must" in self.search_query["bool"]:
+            if "must" not in self.search_query["bool"]:
                 self.search_query["bool"]["must"] = []
 
             # Add study_instance_uid to search query
@@ -292,20 +274,14 @@ class GetRefSeriesOperator:
 
         logger.info(f"Search query: {query}")
 
-        series_of_study = self.os_helper.execute_opensearch_query(
-            index=self.opensearch_index, query=query
-        )
+        series_of_study = self.os_helper.execute_opensearch_query(index=self.opensearch_index, query=query)
 
         # Extract SeriesInstanceUID from each study
-        series_instance_uids = [
-            study["_source"]["0020000E SeriesInstanceUID_keyword"]
-            for study in series_of_study
-        ]
+        series_instance_uids = [study["_source"]["0020000E SeriesInstanceUID_keyword"] for study in series_of_study]
 
         list_of_series = []
 
         for series_instance_uid in series_instance_uids:
-
             # Dont download the reference series again
             if series_instance_uid == reference_series_instance_uid:
                 continue
@@ -431,9 +407,7 @@ class GetRefSeriesOperator:
         list_of_series = []
 
         for series in series_of_search_query:
-            series_instance_uid = series["_source"][
-                "0020000E SeriesInstanceUID_keyword"
-            ]
+            series_instance_uid = series["_source"]["0020000E SeriesInstanceUID_keyword"]
             study_instance_uid = series["_source"]["0020000D StudyInstanceUID_keyword"]
 
             target_dir = join(
@@ -472,9 +446,7 @@ class GetRefSeriesOperator:
 
         # Check if series_dirs is empty
         if self.search_policy != "search_query":
-            assert (
-                series_dirs != [] and self.search_policy != "search_query"
-            ), "No series in the workflow directory!"
+            assert series_dirs != [] and self.search_policy != "search_query", "No series in the workflow directory!"
 
         download_series_list = []
 
@@ -491,9 +463,7 @@ class GetRefSeriesOperator:
                         )
                     except FileNotFoundError as e:
                         if self.skip_empty_ref_dir:
-                            logger.info(
-                                f"Skipping empty directory: {join(series_dir, operator_in_dir)}"
-                            )
+                            logger.info(f"Skipping empty directory: {join(series_dir, operator_in_dir)}")
                             continue
                         else:
                             raise e
@@ -523,9 +493,7 @@ class GetRefSeriesOperator:
         logging.info(f"Downloading {len(download_series_list)} series.")
         with ThreadPoolExecutor(max_workers=self.parallel_downloads) as executor:
             futures = [
-                executor.submit(
-                    self.download_function, series
-                )  # Download function is being set in the constructor
+                executor.submit(self.download_function, series)  # Download function is being set in the constructor
                 for series in download_series_list
             ]
             for future in as_completed(futures):
@@ -541,9 +509,7 @@ class GetRefSeriesOperator:
 
 if __name__ == "__main__":
     workflow_dir = getenv("WORKFLOW_DIR", None)
-    assert os.path.exists(
-        workflow_dir
-    ), f"Workflow directory {workflow_dir} does not exist!"
+    assert os.path.exists(workflow_dir), f"Workflow directory {workflow_dir} does not exist!"
 
     batch_name = getenv("BATCH_NAME", None)
     assert batch_name is not None, "Batch name is not set!"

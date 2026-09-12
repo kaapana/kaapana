@@ -17,9 +17,7 @@ import sys
 
 sys.path.insert(
     0,
-    os.path.abspath(
-        "../../data-processing/kaapana-plugin/extension/docker/files/plugin"
-    ),
+    os.path.abspath("../../data-processing/kaapana-plugin/extension/docker/files/plugin"),
 )
 # sys.path.insert(1, os.path.abspath('../../workflows/airflow-components/'))
 
@@ -126,9 +124,7 @@ pygments_style = None
 #
 # html_theme = 'alabaster'
 html_theme = "sphinx_rtd_theme"
-html_logo = (
-    "https://kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/kaapana_logo_mono.png"
-)
+html_logo = "https://kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/kaapana_logo_mono.png"
 html_theme_options = {
     "logo_only": True,
     "display_version": True,

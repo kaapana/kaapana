@@ -1,6 +1,7 @@
+import os
 import socket
 import time
-import os
+
 import requests
 from kaapanapy.logger import get_logger
 
@@ -10,18 +11,14 @@ logger = get_logger(__name__)
 def check_url(url: str, timeout: int):
     logger.info("Checking URL: {}".format(url))
     try:
-        request = requests.get(
-            url, timeout=timeout, allow_redirects=False, verify=False
-        )
+        request = requests.get(url, timeout=timeout, allow_redirects=False, verify=False)
         request.raise_for_status()
         return 0
     except requests.exceptions.ConnectionError:
         logger.warning(f"Connection to {url} could not be established.")
         return 1
     except requests.exceptions.ReadTimeout:
-        logger.warning(
-            f"Request to {url} timed out. Maybe you have to increase timeout."
-        )
+        logger.warning(f"Request to {url} timed out. Maybe you have to increase timeout.")
         return 1
 
 
@@ -38,9 +35,7 @@ def check_port(host, port, DELAY, timeout):
         logger.warning(f"Connection to {host} could not be established.")
         return 1
     except requests.exceptions.ReadTimeout:
-        logger.warning(
-            f"Request to {host} timed out. Maybe you have to increase timeout."
-        )
+        logger.warning(f"Request to {host} timed out. Maybe you have to increase timeout.")
         return 1
 
 
@@ -56,10 +51,8 @@ def main():
     logger.debug(f"{FILES_AND_FOLDERS_EXISTS=}")
     logger.debug(f"{TIMEOUT=}")
 
-    if WAIT == None and FILES_AND_FOLDERS_EXISTS == None:
-        logger.error(
-            "Environment variables WAIT, FILES_AND_FOLDERS_EXISTS cannot be both undeclared."
-        )
+    if WAIT is None and FILES_AND_FOLDERS_EXISTS is None:
+        logger.error("Environment variables WAIT, FILES_AND_FOLDERS_EXISTS cannot be both undeclared.")
         logger.warning("Usage:")
         logger.warning("WAIT='postgres,localhost,5432;...'")
         logger.warning("DELAY=2")
@@ -82,7 +75,6 @@ def main():
 
         commands = WAIT.split(";")
         for cmd in commands:
-            name = cmd.split(",")[0]
             host = cmd.split(",")[1]
             port = cmd.split(",")[2]
             if len(cmd.split(",")) == 4:

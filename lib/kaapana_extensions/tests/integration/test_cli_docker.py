@@ -5,9 +5,8 @@ that commands produce the right output and exit codes against a real registry.
 """
 
 import pytest
-from typer.testing import CliRunner
-
 from kaapana_extensions.cli import app
+from typer.testing import CliRunner
 
 pytestmark = pytest.mark.integration
 
@@ -60,9 +59,7 @@ class TestCliPull:
         assert (out / "extension_manifest.json").exists()
 
     def test_pull_missing_tag_exits_1(self, registry_opts, tmp_path):
-        result = runner.invoke(
-            app, ["pull", "nonexistent-v9.9.9", str(tmp_path)] + registry_opts
-        )
+        result = runner.invoke(app, ["pull", "nonexistent-v9.9.9", str(tmp_path)] + registry_opts)
         assert result.exit_code == 1
 
 

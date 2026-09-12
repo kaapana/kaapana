@@ -52,18 +52,13 @@ class BuildCoordinator:
             title="Building Containers",
             containers=self.waiting,
         ) as self.progress_bar:
-
-            with ThreadPoolExecutor(
-                max_workers=ContainerHelper._build_config.parallel_processes
-            ) as executor:
+            with ThreadPoolExecutor(max_workers=ContainerHelper._build_config.parallel_processes) as executor:
                 futures: set[Future] = set()
 
                 # Initial scheduling
                 self._schedule_ready(executor, futures)
 
-                while (
-                    futures or self._has_pending() or not self.event_queue.empty()
-                ) and not self.abort_requested:
+                while (futures or self._has_pending() or not self.event_queue.empty()) and not self.abort_requested:
                     got_event = False
                     while True:
                         try:
@@ -123,9 +118,7 @@ class BuildCoordinator:
             for container in list(self.waiting):
                 if container.all_dependencies_ready():
                     priority = 0 if container.local_image else 1
-                    self.ready_queue.put(
-                        QueueItem(priority=priority, container=container)
-                    )
+                    self.ready_queue.put(QueueItem(priority=priority, container=container))
                     self.waiting.remove(container)
 
     def mark_completed(self, container: Container) -> None:
@@ -139,9 +132,7 @@ class BuildCoordinator:
             for container in list(self.waiting):
                 if container.all_dependencies_ready():
                     priority = 0 if container.local_image else 1
-                    self.ready_queue.put(
-                        QueueItem(priority=priority, container=container)
-                    )
+                    self.ready_queue.put(QueueItem(priority=priority, container=container))
                     self.waiting.remove(container)
 
     def _has_pending(self) -> bool:
@@ -168,33 +159,23 @@ class BuildCoordinator:
         match event.type:
             case BuildEventType.FINISHED:
                 self.mark_completed(event.container)
-                self.progress_bar.advance(
-                    last_processed_container=event.container, advance=1
-                )
+                self.progress_bar.advance(last_processed_container=event.container, advance=1)
                 self.progress_bar.finished_print(event.container)
 
             case BuildEventType.SKIPPED:
                 self.mark_completed(event.container)
-                self.progress_bar.advance(
-                    last_processed_container=event.container, advance=1
-                )
+                self.progress_bar.advance(last_processed_container=event.container, advance=1)
 
             case BuildEventType.BUILT:
                 if ContainerHelper._build_config.build_only:
                     self.mark_completed(event.container)
-                    self.progress_bar.advance(
-                        last_processed_container=event.container, advance=1
-                    )
+                    self.progress_bar.advance(last_processed_container=event.container, advance=1)
 
             case BuildEventType.FAILED:
                 self.mark_completed(event.container)
-                self.progress_bar.advance(
-                    last_processed_container=event.container, advance=1
-                )
+                self.progress_bar.advance(last_processed_container=event.container, advance=1)
 
                 if ContainerHelper._build_config.exit_on_error:
                     self.abort_requested = True
-                    e = event.error or RuntimeError(
-                        f"Build failed for {event.container.tag}"
-                    )
+                    e = event.error or RuntimeError(f"Build failed for {event.container.tag}")
                     self.abort_exception = e

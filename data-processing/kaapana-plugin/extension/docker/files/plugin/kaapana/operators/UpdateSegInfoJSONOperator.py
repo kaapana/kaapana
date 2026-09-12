@@ -1,10 +1,10 @@
 from datetime import timedelta
 
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 from kaapana.blueprints.kaapana_global_variables import (
     DEFAULT_REGISTRY,
     KAAPANA_BUILD_VERSION,
 )
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 
 
 class UpdateSegInfoJSONOperator(KaapanaBaseOperator):
@@ -13,7 +13,7 @@ class UpdateSegInfoJSONOperator(KaapanaBaseOperator):
     Operator to adapt the seginfo json file as per the labels available inside
     a multi-label mask.
     **Inputs:**
-    * mode: "update_json" 
+    * mode: "update_json"
 
     **Outputs:**
     * adapted seg_info json file.

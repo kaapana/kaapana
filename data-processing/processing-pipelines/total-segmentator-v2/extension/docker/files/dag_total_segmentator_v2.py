@@ -1,21 +1,22 @@
 from datetime import timedelta
+
+from airflow.exceptions import AirflowSkipException
 from airflow.models import DAG
 from airflow.utils.dates import days_ago
-from airflow.exceptions import AirflowSkipException
-from totalsegmentatorv2.GetZenodoModelOperator import GetZenodoModelOperator
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.LocalDagTriggerOperator import LocalDagTriggerOperator
+from totalsegmentatorv2.GetZenodoModelOperator import GetZenodoModelOperator
 
 max_active_runs = 10
 concurrency = max_active_runs * 3
 alg_name = "TotalSegmentator-v2"
 
-model_dir='/models/total_segmentator_v2'
+model_dir = "/models/total_segmentator_v2"
 task_dict = {
     "total": "Dataset291_TotalSegmentator_part1_organs_1559subj,Dataset292_TotalSegmentator_part2_vertebrae_1532subj,Dataset293_TotalSegmentator_part3_cardiac_1559subj,"
-             "Dataset294_TotalSegmentator_part4_muscles_1559subj,Dataset295_TotalSegmentator_part5_ribs_1559subj,Dataset298_TotalSegmentator_total_6mm_1559subj,"
-             "Dataset297_TotalSegmentator_total_3mm_1559subj",
-    "total_mr":"Dataset850_TotalSegMRI_part1_organs_1088subj,Dataset851_TotalSegMRI_part2_muscles_1088subj,Dataset852_TotalSegMRI_total_3mm_1088subj",
+    "Dataset294_TotalSegmentator_part4_muscles_1559subj,Dataset295_TotalSegmentator_part5_ribs_1559subj,Dataset298_TotalSegmentator_total_6mm_1559subj,"
+    "Dataset297_TotalSegmentator_total_3mm_1559subj",
+    "total_mr": "Dataset850_TotalSegMRI_part1_organs_1088subj,Dataset851_TotalSegMRI_part2_muscles_1088subj,Dataset852_TotalSegMRI_total_3mm_1088subj",
     "body": "Dataset299_body_1559subj,Dataset300_body_6mm_1559subj",
     "body_mr": "Dataset597_mri_body_139subj,Dataset598_mri_body_6mm_139subj",
     "lung_vessels": "Dataset258_lung_vessels_248subj",
@@ -36,7 +37,7 @@ task_dict = {
     "liver_segments_mr": "Dataset576_mri_liver_segments_120subj",
     "craniofacial_structures": "Dataset115_mandible",
     "abdominal_muscles": "Dataset952_abdominal_muscles_167subj",
-    "teeth": "Dataset113_ToothFairy3"
+    "teeth": "Dataset113_ToothFairy3",
 }
 
 ui_forms = {
@@ -81,12 +82,9 @@ ui_forms = {
                 "title": "Sub-Tasks",
                 "description": "Choose one or more sub-tasks for processing",
                 "type": "array",
-                "items": {
-                    "type": "string",
-                    "enum": list(task_dict)
-                },
+                "items": {"type": "string", "enum": list(task_dict)},
                 "default": ["total"],
-                "readOnly": False
+                "readOnly": False,
             },
             "input": {
                 "title": "Input",
@@ -173,7 +171,7 @@ ui_forms = {
                 "readOnly": True,
             },
         },
-        "required": ["nr_thr_resamp", "nr_thr_saving", "input"]
+        "required": ["nr_thr_resamp", "nr_thr_saving", "input"],
     },
 }
 
@@ -194,29 +192,23 @@ dag = DAG(
     schedule_interval=None,
 )
 
+
 def check_subtask_callback(ds, **kwargs):
     subtask = kwargs["params"].get("subtask")
     conf = kwargs["dag_run"].conf
-    tasks = conf["workflow_form"].get('tasks')
+    tasks = conf["workflow_form"].get("tasks")
     if subtask not in tasks:
         raise AirflowSkipException(f"Subtask {subtask} skipped!")
 
 
 for subtask in list(task_dict):
     check_subtask = KaapanaPythonBaseOperator(
-        name=f"check-subtask-{subtask}",
-        python_callable=check_subtask_callback,
-        dag=dag,
-        params={'subtask': subtask}
+        name=f"check-subtask-{subtask}", python_callable=check_subtask_callback, dag=dag, params={"subtask": subtask}
     )
     get_subtask_model = GetZenodoModelOperator(
-        dag=dag,
-        name=f"get_zenodo_model-{subtask}",
-        model_dir=model_dir,
-        task_ids=task_dict[subtask]
+        dag=dag, name=f"get_zenodo_model-{subtask}", model_dir=model_dir, task_ids=task_dict[subtask]
     )
-    args = {'workflow_form': {'TASK': subtask,
-                              'minio_prefix': f'radiomics-totalseg-v2-{subtask}'}}
+    args = {"workflow_form": {"TASK": subtask, "minio_prefix": f"radiomics-totalseg-v2-{subtask}"}}
     subtask_dag = LocalDagTriggerOperator(
         dag=dag,
         input_operator=None,
@@ -226,6 +218,6 @@ for subtask in list(task_dict):
         use_dcm_files=False,
         delay=10,
         task_id=f"trigger_totalseg_{subtask}",
-        extra_conf=args
+        extra_conf=args,
     )
     check_subtask >> get_subtask_model >> subtask_dag

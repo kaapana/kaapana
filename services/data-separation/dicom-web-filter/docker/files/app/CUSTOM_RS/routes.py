@@ -59,9 +59,7 @@ async def delete_series_dcm4chee(study: str, series: str, request: Request):
         return Response(content=response.content, status_code=response.status_code)
 
 
-async def delete_instance_dcm4chee(
-    study: str, series: str, instance: str, request: Request
-):
+async def delete_instance_dcm4chee(study: str, series: str, instance: str, request: Request):
     with httpx.Client() as client:
         response = client.post(
             f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/instances/{instance}/reject/113001%5EDCM",
@@ -110,18 +108,14 @@ async def del_study(
     await assert_project_not_archived(project_id)
 
     # Retrieve series mapped to the project for the given study
-    mapped_series_uids = (
-        await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
-            session=session, project_ids=[project_id], study_instance_uid=study
-        )
+    mapped_series_uids = await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
+        session=session, project_ids=[project_id], study_instance_uid=study
     )
 
     logging.info(f"mapped_series_uids: {mapped_series_uids}")
 
     # get all series of the study
-    all_series = await crud.get_all_series_of_study(
-        session=session, study_instance_uid=study
-    )
+    all_series = await crud.get_all_series_of_study(session=session, study_instance_uid=study)
 
     logging.info(f"all_series: {all_series}")
 
@@ -134,9 +128,7 @@ async def del_study(
 
     for series in mapped_series_uids:
         logging.info(f"Deleting series: {series}")
-        await crud.remove_data_project_mapping(
-            session=session, series_instance_uid=series, project_id=project_id
-        )
+        await crud.remove_data_project_mapping(session=session, series_instance_uid=series, project_id=project_id)
 
         # Check for other usages
         mapped_project_ids = await crud.get_project_ids_of_series(session, series)
@@ -145,14 +137,12 @@ async def del_study(
             # This part should only run if a project deletes the last mapping of a series
             logging.info(f"Finally deleting series: {series}")
             # Delete in PACS
-            response = await delete_series_dcm4chee(study, series, request)
+            await delete_series_dcm4chee(study, series, request)
 
     return Response(status_code=200)
 
 
-@router.delete(
-    "/projects/{project_id}/studies/{study}/series/{series}", tags=["Custom"]
-)
+@router.delete("/projects/{project_id}/studies/{study}/series/{series}", tags=["Custom"])
 async def del_series(
     project_id: UUID,
     study: str,
@@ -193,9 +183,7 @@ async def del_series(
         mapped_project_ids = await crud.get_project_ids_of_series(session, series)
 
         # Remove the mapping to the current project
-        await crud.remove_data_project_mapping(
-            session=session, series_instance_uid=series, project_id=project_id
-        )
+        await crud.remove_data_project_mapping(session=session, series_instance_uid=series, project_id=project_id)
 
         if len(mapped_project_ids) == 1:
             # This part should only run if a project deletes the last mapping of a series
@@ -214,18 +202,14 @@ async def get_series(
     project_ids_of_user=Depends(get_scoped_project_ids),
 ):
 
-    if not "StudyInstanceUID" in request.query_params:
-        return JSONResponse(
-            content={"error": "StudyInstanceUID is required"}, status_code=400
-        )
+    if "StudyInstanceUID" not in request.query_params:
+        return JSONResponse(content={"error": "StudyInstanceUID is required"}, status_code=400)
 
     study = request.query_params["StudyInstanceUID"]
 
     # Get all series mapped to the project
     series = set(
-        await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
-            session, project_ids_of_user, study
-        )
+        await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(session, project_ids_of_user, study)
     )
 
     # Remove SeriesInstanceUID from the query parameters
@@ -263,9 +247,7 @@ async def get_instances(
 ):
     # Get all series mapped to the project
     series = set(
-        await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
-            session, project_ids_of_user, study
-        )
+        await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(session, project_ids_of_user, study)
     )
 
     # Remove SeriesInstanceUID from the query parameters

@@ -3,11 +3,8 @@ LABEL IMAGE="minio-init"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 
-RUN curl -fL https://dl.min.io/client/mc/release/linux-amd64/mcli_20250813083541.0.0_amd64.deb \
-  -o mcli.deb && \
-  dpkg -i mcli.deb && \
-  rm mcli.deb && \
-  ln -s /usr/local/bin/mcli /usr/local/bin/mc
+# dl.min.io and the Docker Hub images are gone; take mc from the same pinned server image
+COPY --from=quay.io/minio/minio:RELEASE.2024-11-07T00-52-20Z@sha256:ac591851803a79aee64bc37f66d77c56b0a4b6e12d9e5356380f4105510f2332 /usr/bin/mc /usr/local/bin/mc
 
 RUN adduser --uid 1000 kaapana && chmod -R 777 /home/kaapana
 

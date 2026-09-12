@@ -1,11 +1,7 @@
-import random
-from datetime import datetime, timedelta
+from datetime import timedelta
 
-from airflow.utils.dates import days_ago
 from airflow.models import DAG
-from airflow.models import Variable
-
-from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from airflow.utils.dates import days_ago
 from federated_setup_node_test.LocalFedartedSetupFederatedTestOperator import (
     LocalFedartedSetupFederatedTestOperator,
 )
@@ -15,6 +11,7 @@ from federated_setup_node_test.LocalFederatedSetupFromPreviousTestOperator impor
 from federated_setup_node_test.LocalFederatedSetupSkipTestOperator import (
     LocalFederatedSetupSkipTestOperator,
 )
+from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 ui_forms = {
     "data_form": {},
@@ -53,18 +50,11 @@ dag = DAG(
     schedule_interval=None,
 )
 
-federated_setup_from_previous_test = LocalFederatedSetupFromPreviousTestOperator(
-    dag=dag
-)
+federated_setup_from_previous_test = LocalFederatedSetupFromPreviousTestOperator(dag=dag)
 federated_setup_federated_test = LocalFedartedSetupFederatedTestOperator(
     dag=dag, input_operator=federated_setup_from_previous_test
 )
 federated_setup_skip_test = LocalFederatedSetupSkipTestOperator(dag=dag)
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-(
-    federated_setup_from_previous_test
-    >> federated_setup_federated_test
-    >> federated_setup_skip_test
-    >> clean
-)
+(federated_setup_from_previous_test >> federated_setup_federated_test >> federated_setup_skip_test >> clean)

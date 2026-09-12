@@ -10,9 +10,7 @@ SUPPORTED_LOG_LEVELS = ["DEBUG", "INFO", "WARN", "ERROR"]
 def validate_registry_name(registry: str) -> bool:
     """Validates the Docker registry format."""
     registry_pattern = re.compile(r"^[a-z0-9.-]+(?::[0-9]+)?$")
-    full_registry_path = re.compile(
-        r"^([a-z0-9.-]+(?::[0-9]+)?)/([a-z0-9._-]+(?:/[a-z0-9._-]+)*)$"
-    )
+    full_registry_path = re.compile(r"^([a-z0-9.-]+(?::[0-9]+)?)/([a-z0-9._-]+(?:/[a-z0-9._-]+)*)$")
     return bool(registry_pattern.match(registry) or full_registry_path.match(registry))
 
 
@@ -35,9 +33,7 @@ class BuildConfig(BaseModel):
     exit_on_error: bool
     log_level: str
     enable_linting: bool
-    enable_build_kit: bool = (
-        True  # Docker BuildKit: https://docs.docker.com/develop/develop-images/build_enhancements/
-    )
+    enable_build_kit: bool = True  # Docker BuildKit: https://docs.docker.com/develop/develop-images/build_enhancements/
     cache_from: Optional[bool] = False
     cache_to: Optional[bool] = False
     cache_to_registry: Optional[str] = None
@@ -101,17 +97,11 @@ class BuildConfig(BaseModel):
             "offline_extra_files",
         ]:
             if field_name in data and isinstance(data[field_name], str):
-                data[field_name] = [
-                    x.strip() for x in data[field_name].split(",") if x.strip()
-                ]
+                data[field_name] = [x.strip() for x in data[field_name].split(",") if x.strip()]
 
-        if "external_source_dirs" in data and isinstance(
-            data["external_source_dirs"], str
-        ):
+        if "external_source_dirs" in data and isinstance(data["external_source_dirs"], str):
             data["external_source_dirs"] = [
-                Path(x.strip())
-                for x in data["external_source_dirs"].split(",")
-                if x.strip()
+                Path(x.strip()) for x in data["external_source_dirs"].split(",") if x.strip()
             ]
 
         return data
@@ -156,12 +146,8 @@ class BuildConfig(BaseModel):
 
         if self.cache_from:
             self.cache_from_registry = self.cache_from_registry or self.default_registry
-            self.cache_from_username = (
-                self.cache_from_username or self.registry_username
-            )
-            self.cache_from_password = (
-                self.cache_from_password or self.registry_password
-            )
+            self.cache_from_username = self.cache_from_username or self.registry_username
+            self.cache_from_password = self.cache_from_password or self.registry_password
             if self.cache_from_registry:
                 validate_registry_name(self.cache_from_registry)
 
@@ -186,8 +172,7 @@ class BuildConfig(BaseModel):
                     normalized.append(lvl_upper)
                 else:
                     raise ValueError(
-                        f"Invalid severity level '{lvl}' for {field_name}. "
-                        f"Must be one of: {SEVERITY_LEVELS}"
+                        f"Invalid severity level '{lvl}' for {field_name}. Must be one of: {SEVERITY_LEVELS}"
                     )
             setattr(self, field_name, normalized)
         return self

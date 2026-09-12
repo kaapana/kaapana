@@ -1,9 +1,10 @@
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+from datetime import timedelta
+
 from kaapana.blueprints.kaapana_global_variables import (
     DEFAULT_REGISTRY,
     KAAPANA_BUILD_VERSION,
 )
-from datetime import timedelta
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 
 
 class DcmConverterOperator(KaapanaBaseOperator):
@@ -43,9 +44,7 @@ class DcmConverterOperator(KaapanaBaseOperator):
         env_vars.update(envs)
 
         if output_format not in ["nrrd", "nii.gz", "nii"]:
-            raise ValueError(
-                f"Output format not supported: {output_format}. Supported formats: nrrd, nii.gz, nii"
-            )
+            raise ValueError(f"Output format not supported: {output_format}. Supported formats: nrrd, nii.gz, nii")
 
         super().__init__(
             dag=dag,

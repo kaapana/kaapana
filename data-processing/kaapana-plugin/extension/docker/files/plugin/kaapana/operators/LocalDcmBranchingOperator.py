@@ -1,12 +1,11 @@
 # !!! DEPRECATION WARNING: Local Operators are deprecated and will be replaced with operators that run in Kubernetes pods in the next release v0.7.0.
 # If you have a custom Local Operator, it should be migrated to a processing container based operator.
-import glob
-import os
 import shutil
 from pathlib import Path
 from typing import Callable, List
 
 import pydicom
+
 from kaapana.operators.KaapanaBranchPythonBaseOperator import (
     KaapanaBranchPythonBaseOperator,
 )
@@ -54,9 +53,7 @@ class LocalDcmBranchingOperator(KaapanaBranchPythonBaseOperator):
         Returns:
             str: The task_id of the operator to branch to based on the condition.
         """
-        batch_root = (
-            Path(self.airflow_workflow_dir) / kwargs["dag_run"].run_id / self.batch_name
-        )
+        batch_root = Path(self.airflow_workflow_dir) / kwargs["dag_run"].run_id / self.batch_name
         batch_folders = batch_root.glob("*")
 
         none_satisfies_condition = True

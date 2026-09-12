@@ -34,9 +34,7 @@ class RegisteredRepository(Base):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     description: Mapped[str] = mapped_column(Text, nullable=False)
-    repository_url: Mapped[str] = mapped_column(
-        String(2048), nullable=False, unique=False
-    )
+    repository_url: Mapped[str] = mapped_column(String(2048), nullable=False, unique=False)
 
     authentication: Mapped[str] = mapped_column(String(2048), nullable=False)
 

@@ -4,10 +4,6 @@ from datetime import datetime
 from typing import Any, Iterable, List, Tuple
 from uuid import UUID
 
-from sqlalchemy import Select, func, select, tuple_
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import load_only, selectinload
-
 from app.db.models import (
     ArtifactORM,
     DataEntityORM,
@@ -26,7 +22,9 @@ from app.models.domain import (
     StoreType,
     UrlStorageCoordinate,
 )
-
+from sqlalchemy import Select, select, tuple_
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 _STORAGE_TYPE_MAP: dict[StoreType, type[BaseStorageCoordinate]] = {
     StoreType.PACS: PacsStorageCoordinate,
@@ -39,17 +37,13 @@ _STORAGE_TYPE_MAP: dict[StoreType, type[BaseStorageCoordinate]] = {
 def _entity_select() -> Select[tuple[DataEntityORM]]:
     return select(DataEntityORM).options(
         selectinload(DataEntityORM.storage_coordinates),
-        selectinload(DataEntityORM.metadata_entries).selectinload(
-            MetadataEntryORM.artifacts
-        ),
+        selectinload(DataEntityORM.metadata_entries).selectinload(MetadataEntryORM.artifacts),
         selectinload(DataEntityORM.parent).load_only(DataEntityORM.id),
         selectinload(DataEntityORM.children).load_only(DataEntityORM.id),
     )
 
 
-async def fetch_entity_orm(
-    session: AsyncSession, entity_id: UUID
-) -> DataEntityORM | None:
+async def fetch_entity_orm(session: AsyncSession, entity_id: UUID) -> DataEntityORM | None:
     stmt = _entity_select().where(DataEntityORM.id == entity_id)
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
@@ -64,12 +58,8 @@ def _creation_order() -> tuple[Any, Any]:
     return (DataEntityORM.created_at, DataEntityORM.id)
 
 
-async def _cursor_tuple(
-    session: AsyncSession, entity_id: UUID
-) -> Tuple[datetime, UUID]:
-    stmt = select(DataEntityORM.created_at, DataEntityORM.id).where(
-        DataEntityORM.id == entity_id
-    )
+async def _cursor_tuple(session: AsyncSession, entity_id: UUID) -> Tuple[datetime, UUID]:
+    stmt = select(DataEntityORM.created_at, DataEntityORM.id).where(DataEntityORM.id == entity_id)
     result = await session.execute(stmt)
     row = result.one_or_none()
     if row is None:
@@ -78,9 +68,7 @@ async def _cursor_tuple(
     return created_at, entity_id
 
 
-async def resolve_entity_cursor(
-    session: AsyncSession, entity_id: UUID
-) -> Tuple[datetime, UUID]:
+async def resolve_entity_cursor(session: AsyncSession, entity_id: UUID) -> Tuple[datetime, UUID]:
     return await _cursor_tuple(session, entity_id)
 
 
@@ -93,10 +81,7 @@ async def fetch_entity_page(
     stmt = _entity_select().order_by(*_creation_order()).limit(limit + 1)
     if cursor:
         created_at, entity_id = await _cursor_tuple(session, cursor)
-        stmt = stmt.where(
-            tuple_(DataEntityORM.created_at, DataEntityORM.id)
-            > tuple_(created_at, entity_id)
-        )
+        stmt = stmt.where(tuple_(DataEntityORM.created_at, DataEntityORM.id) > tuple_(created_at, entity_id))
     result = await session.execute(stmt)
     return result.scalars().unique().all()
 
@@ -157,12 +142,8 @@ def entity_from_orm(orm: DataEntityORM) -> DataEntity:
         id=orm.id,
         created_at=orm.created_at,
         parent_id=orm.parent.id if orm.parent else None,
-        child_ids=sorted(
-            (child.id for child in orm.children), key=lambda value: value.hex
-        ),
-        storage_coordinates=[
-            storage_from_orm(coord) for coord in orm.storage_coordinates
-        ],
+        child_ids=sorted((child.id for child in orm.children), key=lambda value: value.hex),
+        storage_coordinates=[storage_from_orm(coord) for coord in orm.storage_coordinates],
         metadata=[metadata_entry_from_orm(m) for m in orm.metadata_entries],
     )
 
@@ -170,9 +151,7 @@ def entity_from_orm(orm: DataEntityORM) -> DataEntity:
 def entity_to_orm(entity: DataEntity) -> DataEntityORM:
     orm = DataEntityORM(
         id=entity.id,
-        storage_coordinates=[
-            storage_to_orm(coord) for coord in entity.storage_coordinates
-        ],
+        storage_coordinates=[storage_to_orm(coord) for coord in entity.storage_coordinates],
         metadata_entries=[metadata_entry_to_orm(entry) for entry in entity.metadata],
     )
     if entity.created_at is not None:

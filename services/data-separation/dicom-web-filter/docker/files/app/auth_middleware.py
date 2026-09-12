@@ -1,11 +1,11 @@
 import logging
+import ssl
 
 import httpx
 import jwt
 from fastapi import HTTPException, Request
 from jwt import InvalidTokenError, PyJWKClient
 from starlette.middleware.base import BaseHTTPMiddleware
-import ssl
 
 logger = logging.getLogger(__name__)
 
@@ -87,9 +87,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             token = request.headers.get("x-forwarded-access-token")
 
         if not token:
-            raise HTTPException(
-                status_code=403, detail="Authorization token missing or invalid"
-            )
+            raise HTTPException(status_code=403, detail="Authorization token missing or invalid")
 
         payload = await self.authenticate(token)
 

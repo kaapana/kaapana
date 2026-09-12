@@ -1,15 +1,15 @@
-import os
 import json
-from os import getenv
-from os.path import join, exists, dirname, basename
 from glob import glob
-from pathlib import Path
 from multiprocessing.pool import ThreadPool
+from os import getenv
+from os.path import basename, dirname, exists, join
 from pathlib import Path
-import numpy as np
+
 import nibabel as nib
-import torch
+import numpy as np
 import pandas as pd
+import torch
+from matplotlib import rcParams
 from monai.metrics import (
     # compute_meandice,
     DiceMetric,
@@ -17,10 +17,6 @@ from monai.metrics import (
     compute_hausdorff_distance,
     compute_surface_dice,
 )
-from pprint import pprint
-import seaborn as sns
-import matplotlib.pyplot as plt
-from matplotlib import rcParams
 
 rcParams.update({"figure.autolayout": True})
 
@@ -59,9 +55,7 @@ include_background = getenv("INCLUDE_BAKGROUND", "False")
 include_background = True if include_background.lower() == "true" else False
 
 parallel_processes = getenv("THREADS", "1")
-parallel_processes = (
-    int(parallel_processes) if parallel_processes.lower() != "none" else None
-)
+parallel_processes = int(parallel_processes) if parallel_processes.lower() != "none" else None
 assert parallel_processes is not None
 
 # File-extension to search for in the input-dir
@@ -84,17 +78,10 @@ def get_seg_info(input_nifti):
     """
 
     print(f"# Get seg configuration for: {basename(input_nifti)}")
-    model_id = (
-        f"-{basename(input_nifti).replace('.nii.gz','').split('-')[-1]}"
-        if "-" in basename(input_nifti)
-        else ""
-    )
-    seg_nifti_id = basename(input_nifti).replace(".nii.gz", "")
+    model_id = f"-{basename(input_nifti).replace('.nii.gz', '').split('-')[-1]}" if "-" in basename(input_nifti) else ""
     json_files_found = glob(join(dirname(input_nifti), "*.json"), recursive=False)
     json_files_found = [
-        meta_json_path
-        for meta_json_path in json_files_found
-        if "model_combinations" not in meta_json_path
+        meta_json_path for meta_json_path in json_files_found if "model_combinations" not in meta_json_path
     ]
 
     print(f"# input_nifti: {input_nifti}")
@@ -164,9 +151,7 @@ def check_prediction_info(seg_info):
             print("# ")
             print("# ")
             print("# global_seg_check_info:")
-            print(
-                json.dumps(global_seg_check_info, indent=4, sort_keys=True, default=str)
-            )
+            print(json.dumps(global_seg_check_info, indent=4, sort_keys=True, default=str))
             print("# ")
             print("# Issue with prediction config!")
             return False
@@ -220,9 +205,7 @@ def compute_metric(metric_key, y_pred, y, include_background, voxel_spacings=Non
         # dice_scores = compute_meandice(
         #     y_pred=y_pred, y=y, include_background=include_background
         # ).numpy()[0]
-        dice_scores = DiceMetric(include_background=include_background)(
-            y_pred, y
-        ).numpy()[0]
+        dice_scores = DiceMetric(include_background=include_background)(y_pred, y).numpy()[0]
         return dice_scores
     elif metric_key == "average_surface_distance":
         asd_scores = compute_average_surface_distance(
@@ -230,9 +213,7 @@ def compute_metric(metric_key, y_pred, y, include_background, voxel_spacings=Non
         ).numpy()[0]
         return asd_scores
     elif metric_key == "hausdorff_distance":
-        hd_scores = compute_hausdorff_distance(
-            y_pred=y_pred, y=y, include_background=include_background
-        ).numpy()[0]
+        hd_scores = compute_hausdorff_distance(y_pred=y_pred, y=y, include_background=include_background).numpy()[0]
         return hd_scores
     elif metric_key == "surface_dice":
         # computes (normalized) surface dice (source: https://docs.monai.io/en/stable/metrics.html#surface-dice)
@@ -259,9 +240,7 @@ def compute_metric(metric_key, y_pred, y, include_background, voxel_spacings=Non
         print("#")
         print("# ----> Given metric not implementated!")
         print(f"# Given metric: {metric_key}")
-        print(
-            "# Implemented metrics: mean_dice, average_surface_distance, hausdorff_distance, surface_dice, nave"
-        )
+        print("# Implemented metrics: mean_dice, average_surface_distance, hausdorff_distance, surface_dice, nave")
         print("#")
         print("##################################################")
         print("#")
@@ -277,11 +256,7 @@ def get_metric_score(input_data):
     # load gt from nifti file to one-hot encoded torch tensor
     ground_trouth = nib.load(gt_file)
     ground_trouth_array = ground_trouth.get_fdata().astype(int)
-    one_hot_encoding_gt = (
-        (np.arange(max_label_encoding + 1) == ground_trouth_array[..., None])
-        .astype(int)
-        .transpose()
-    )
+    one_hot_encoding_gt = (np.arange(max_label_encoding + 1) == ground_trouth_array[..., None]).astype(int).transpose()
     one_hot_encoding_gt = np.expand_dims(one_hot_encoding_gt, axis=0)
     gt_tensor = torch.from_numpy(one_hot_encoding_gt)
     # get voxel spacing of ground truth mask
@@ -308,9 +283,7 @@ def get_metric_score(input_data):
         # load current model_pred mask from nifti file to one-hot encoded torch tensor
         single_model_prediction = nib.load(model_pred_file).get_fdata().astype(int)
         one_hot_encoding_pred = (
-            (np.arange(max_label_encoding + 1) == single_model_prediction[..., None])
-            .astype(int)
-            .transpose()
+            (np.arange(max_label_encoding + 1) == single_model_prediction[..., None]).astype(int).transpose()
         )
         one_hot_encoding_pred = np.expand_dims(one_hot_encoding_pred, axis=0)
         single_model_prediction = None
@@ -391,9 +364,7 @@ def get_metric_score(input_data):
         ensemble_file_id = basename(ensemble_pred_file).replace(".nii.gz", "")
         ensemble_prediction = nib.load(ensemble_pred_file).get_fdata().astype(int)
         one_hot_encoding_ensemble = (
-            (np.arange(max_label_encoding + 1) == ensemble_prediction[..., None])
-            .astype(int)
-            .transpose()
+            (np.arange(max_label_encoding + 1) == ensemble_prediction[..., None]).astype(int).transpose()
         )
         one_hot_encoding_ensemble = np.expand_dims(one_hot_encoding_ensemble, axis=0)
         ensemble_prediction = None
@@ -493,9 +464,7 @@ global_seg_check_info = {}
 max_label_encoding = 0
 for label_key, int_encoding in tmp_info_dict.items():
     int_encoding = int(int_encoding)
-    max_label_encoding = (
-        int_encoding if int_encoding > max_label_encoding else max_label_encoding
-    )
+    max_label_encoding = int_encoding if int_encoding > max_label_encoding else max_label_encoding
     global_seg_check_info[label_key] = int_encoding
 
 if "Clear Label" not in global_seg_check_info:
@@ -525,15 +494,13 @@ for batch_element_dir in batch_folders:
     gt_files = glob(join(gt_input_dir, input_file_extension))
     ensemble_pred_files = glob(join(ensemble_input_dir, input_file_extension))
 
-    print(f"#")
-    print(f"# found:")
-    print(f"#")
-    print(
-        f"# {len(single_model_pred_files)} single_model_pred_files at {single_model_input_dir}"
-    )
+    print("#")
+    print("# found:")
+    print("#")
+    print(f"# {len(single_model_pred_files)} single_model_pred_files at {single_model_input_dir}")
     print(f"# {len(gt_files)} gt_files at {gt_input_dir}")
     print(f"# {len(ensemble_pred_files)} ensemble_pred_files at {ensemble_input_dir}")
-    print(f"#")
+    print("#")
 
     assert len(gt_files) == 1
     gt_file = gt_files[0]
@@ -548,16 +515,14 @@ for batch_element_dir in batch_folders:
     # adding task with found masks of current batch element to task queue
     input_data = (batch_id, single_model_pred_files, gt_file, ensemble_pred_file)
     queue_list.append(input_data)
-    print(f"# Adding data to the job-list ..")
-    print(f"#")
+    print("# Adding data to the job-list ..")
+    print("#")
 
-print(f"#")
-print(f"#")
-print(
-    f"# Starting {parallel_processes} parallel jobs -> job_count: {len(queue_list)} ..."
-)
-print(f"#")
-print(f"#")
+print("#")
+print("#")
+print(f"# Starting {parallel_processes} parallel jobs -> job_count: {len(queue_list)} ...")
+print("#")
+print("#")
 with ThreadPool(parallel_processes) as threadpool:
     results = threadpool.imap_unordered(get_metric_score, queue_list)
     for success, batch_id, result in results:

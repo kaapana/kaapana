@@ -4,7 +4,6 @@ from airflow.models import DAG
 from airflow.operators.python import BranchPythonOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.trigger_rule import TriggerRule
 from kaapana.blueprints.json_schema_templates import schema_upload_form
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.DcmSendOperator import DcmSendOperator
@@ -73,9 +72,7 @@ unzip_files = ZipUnzipOperator(
     namespace=SERVICES_NAMESPACE,
 )
 
-wsi_conv = WSIconvOperator(
-    dag=dag, input_operator=unzip_files, namespace=SERVICES_NAMESPACE
-)
+wsi_conv = WSIconvOperator(dag=dag, input_operator=unzip_files, namespace=SERVICES_NAMESPACE)
 
 dicom_send = DcmSendOperator(
     dag=dag,
@@ -93,9 +90,7 @@ remove_object_from_uploads = LocalVolumeMountOperator(
     whitelisted_file_endings=(".zip",),
 )
 
-clean = LocalWorkflowCleanerOperator(
-    dag=dag, trigger_rule="none_failed_min_one_success", clean_workflow_dir=True
-)
+clean = LocalWorkflowCleanerOperator(dag=dag, trigger_rule="none_failed_min_one_success", clean_workflow_dir=True)
 
 
 def branching_cleaning_uploads_callable(**kwargs):
@@ -114,12 +109,6 @@ branching_cleaning_uploads = BranchPythonOperator(
     dag=dag,
 )
 
-(
-    get_object_from_uploads
-    >> unzip_files
-    >> wsi_conv
-    >> dicom_send
-    >> branching_cleaning_uploads
-)
+(get_object_from_uploads >> unzip_files >> wsi_conv >> dicom_send >> branching_cleaning_uploads)
 branching_cleaning_uploads >> remove_object_from_uploads >> clean
 branching_cleaning_uploads >> clean

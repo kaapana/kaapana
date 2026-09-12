@@ -15,9 +15,7 @@ def rule(paths: list[str] | None) -> SimpleNamespace:
     """An ingress rule; paths=None models a rule without an http section."""
     if paths is None:
         return SimpleNamespace(http=None)
-    return SimpleNamespace(
-        http=SimpleNamespace(paths=[SimpleNamespace(path=path) for path in paths])
-    )
+    return SimpleNamespace(http=SimpleNamespace(paths=[SimpleNamespace(path=path) for path in paths]))
 
 
 def ing(
@@ -27,9 +25,7 @@ def ing(
     rules: list[SimpleNamespace] | None = None,
 ) -> SimpleNamespace:
     return SimpleNamespace(
-        metadata=SimpleNamespace(
-            name=ingress_name, namespace=namespace, annotations=annotations
-        ),
+        metadata=SimpleNamespace(name=ingress_name, namespace=namespace, annotations=annotations),
         spec=SimpleNamespace(rules=rules),
     )
 
@@ -63,9 +59,7 @@ def fake_k8s(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     monkeypatch.setitem(sys.modules, "kubernetes.config", config)
     # module-level latch: reset so each test observes its own config loading
     monkeypatch.setattr(ingress_source, "_config_loaded", False)
-    return SimpleNamespace(
-        listed=listed, loaded=loaded, config=config, exception=ConfigException
-    )
+    return SimpleNamespace(listed=listed, loaded=loaded, config=config, exception=ConfigException)
 
 
 def test_first_rule_path_and_annotations_are_extracted(
@@ -118,9 +112,7 @@ def test_kube_config_is_the_fallback_outside_the_cluster(
     def raise_config_exception() -> None:
         raise fake_k8s.exception("not in a cluster")
 
-    monkeypatch.setattr(
-        fake_k8s.config, "load_incluster_config", raise_config_exception
-    )
+    monkeypatch.setattr(fake_k8s.config, "load_incluster_config", raise_config_exception)
     ingress_source._list_ingresses_blocking()
     assert fake_k8s.loaded == ["kubeconfig"]
 

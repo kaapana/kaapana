@@ -1,8 +1,8 @@
-from math import log
-from fastapi import APIRouter
 import logging
-from app.adapters.adapters.dummy_adapter import DummyAdapter
+
 from app import schemas
+from app.adapters.adapters.dummy_adapter import DummyAdapter
+from fastapi import APIRouter
 
 """
 Router for DummyAdapter test endpoints, useful for integration tests.

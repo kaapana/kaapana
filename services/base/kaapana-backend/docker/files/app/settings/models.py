@@ -28,11 +28,7 @@ class Settings(Base):
     kaapana_instance_id = Column(Integer, ForeignKey("kaapana_instance.id"))
 
     # Unique constraint for (username, instance_name, key)
-    __table_args__ = (
-        UniqueConstraint(
-            "username", "instance_name", "key", name="uq_username_instance_key"
-        ),
-    )
+    __table_args__ = (UniqueConstraint("username", "instance_name", "key", name="uq_username_instance_key"),)
 
     def __repr__(self):
         return f"Settings(id={self.id}, instance_name={self.instance_name}, username={self.username}, \

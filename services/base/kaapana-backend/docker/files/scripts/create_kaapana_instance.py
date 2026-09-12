@@ -21,15 +21,11 @@ logger = get_logger(__name__)
 @retry(
     stop=stop_after_attempt(10),  # Retry up to 10 times
     wait=wait_fixed(30),  # Wait 2 seconds between retries
-    retry=(
-        retry_if_exception_type(httpx.HTTPError) | retry_if_result(lambda r: r is None)
-    ),
+    retry=(retry_if_exception_type(httpx.HTTPError) | retry_if_result(lambda r: r is None)),
 )
 def fetch_project_id():
     try:
-        response = httpx.get(
-            "http://aii-service.services.svc:8080/projects/admin", timeout=5
-        )
+        response = httpx.get("http://aii-service.services.svc:8080/projects/admin", timeout=5)
         response.raise_for_status()
         project = response.json()
         project_id = project.get("id")

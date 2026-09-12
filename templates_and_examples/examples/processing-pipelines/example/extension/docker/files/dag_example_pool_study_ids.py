@@ -1,14 +1,13 @@
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.dates import days_ago
 from datetime import timedelta
+
 from airflow.models import DAG
-
-
-from kaapana.operators.GetInputOperator import GetInputOperator
-from kaapana.operators.MinioOperator import MinioOperator
-from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from airflow.utils.dates import days_ago
+from airflow.utils.log.logging_mixin import LoggingMixin
 from example.ExtractStudyIdOperator import ExtractStudyIdOperator
 from example.PoolJsonsOperator import PoolJsonsOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
+from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.MinioOperator import MinioOperator
 
 log = LoggingMixin().log
 
@@ -37,9 +36,7 @@ args = {
 }
 
 
-dag = DAG(
-    dag_id="example-dcm-pool-study-ids", default_args=args, schedule_interval=None
-)
+dag = DAG(dag_id="example-dcm-pool-study-ids", default_args=args, schedule_interval=None)
 
 
 get_input = GetInputOperator(dag=dag)

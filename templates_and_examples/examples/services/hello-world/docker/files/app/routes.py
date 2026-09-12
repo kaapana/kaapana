@@ -1,5 +1,7 @@
 import os
-from flask import render_template, Response
+
+from flask import Response, render_template
+
 from app import app
 
 
@@ -7,9 +9,7 @@ from app import app
 @app.route("/index")
 def index():
     hello_world_user = os.environ["HELLO_WORLD_USER"]
-    return render_template(
-        "index.html", title="Home", hello_world_user=hello_world_user
-    )
+    return render_template("index.html", title="Home", hello_world_user=hello_world_user)
 
 
 @app.route("/metrics", methods=["GET"])

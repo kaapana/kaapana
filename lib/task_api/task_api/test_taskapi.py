@@ -1,19 +1,15 @@
-import pytest
-from task_api.processing_container import task_models
-from task_api.processing_container import pc_models
-from pathlib import Path
 import os
-from task_api.runners.DockerRunner import DockerRunner
-from task_api.processing_container import common
 import re
+from pathlib import Path
 
-from conftest import LOCAL_REGISTRY, TASK_DIR, MODULE_PATH, k8s_cluster_available
+import pytest
+from conftest import LOCAL_REGISTRY, TASK_DIR, k8s_cluster_available
+from task_api.processing_container import common, pc_models, task_models
+from task_api.runners.DockerRunner import DockerRunner
 
 
 def is_valid_pod_name(name: str) -> bool:
-    pod_name_regex = re.compile(
-        r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
-    )
+    pod_name_regex = re.compile(r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$")
     """Check if a string is a valid Kubernetes pod name."""
     if not isinstance(name, str):
         return False
@@ -80,9 +76,9 @@ def test_merge_env():
 
 def test_resources():
     from task_api.processing_container.resources import (
-        human_readable_size,
         calculate_bytes,
         compute_memory_requirement,
+        human_readable_size,
     )
 
     sizes = [2342, 2346437, 87648, 1231, 0, 69234006234, 23423.4564]
@@ -115,7 +111,7 @@ def test_task_template():
     task = common.parse_task(
         file=f"{TASK_DIR}/dummy/tasks/upstream-task.json",
     )
-    task_instance = common.create_task_instance(task_template, task)
+    common.create_task_instance(task_template, task)
 
 
 def test_docker_runner(tmp_output_dir):
@@ -198,6 +194,4 @@ def test_cli_run(tmp_output_dir):
 def test_cli_processing_container(tmp_output_dir):
     from task_api import cli
 
-    cli.processing_container(
-        image=f"{LOCAL_REGISTRY}/dummy:latest", mode=cli.Modes.docker
-    )
+    cli.processing_container(image=f"{LOCAL_REGISTRY}/dummy:latest", mode=cli.Modes.docker)

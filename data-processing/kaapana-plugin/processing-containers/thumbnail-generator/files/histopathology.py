@@ -4,16 +4,13 @@ from typing import Optional
 
 import numpy as np
 import pydicom as pd
-from generic import convert_dicom_to_thumbnail
 from kaapanapy.logger import get_logger
 from PIL import Image
 
 logger = get_logger(__name__)
 
 
-def generate_histopathology_thumbnail(
-    operator_in_dir: Path, thumbnail_size: int
-) -> Optional[Image.Image]:
+def generate_histopathology_thumbnail(operator_in_dir: Path, thumbnail_size: int) -> Optional[Image.Image]:
     """
     Generates a thumbnail from a microscopy image.
 
@@ -56,7 +53,9 @@ def generate_histopathology_thumbnail(
             dicom_files_tuples.append((vol, FramesOfFile, CubicShape))
         # Sort the list of files in descending order by the number of frames
         dicom_files_tuples.sort(key=lambda x: x[1], reverse=True)
-        threshold_value = 10000000  # Change this value to computational ressources, it fits a 3x3 image with 1024x1024 pixels
+        threshold_value = (
+            10000000  # Change this value to computational ressources, it fits a 3x3 image with 1024x1024 pixels
+        )
         # Find the first file in the last third of the list
         start_index = len(dicom_files_tuples) // 3 * 2
         selected_file = None
@@ -71,10 +70,7 @@ def generate_histopathology_thumbnail(
 
     def create_wsi_thumbnail(file: Path, size):
         dcm_file = pd.dcmread(file)
-        if (
-            dcm_file["ImageType"][2] == "OVERVIEW"
-            or dcm_file["ImageType"][2] == "LABEL"
-        ):
+        if dcm_file["ImageType"][2] == "OVERVIEW" or dcm_file["ImageType"][2] == "LABEL":
             pil_image = Image.fromarray(dcm_file.pixel_array)
         else:
             if int(dcm_file.NumberOfFrames) == 1:
@@ -83,12 +79,8 @@ def generate_histopathology_thumbnail(
                 image_array = dcm_file.pixel_array
                 TotalPixelMatrixRows = dcm_file.TotalPixelMatrixRows
                 TotalPixelMatrixColumns = dcm_file.TotalPixelMatrixColumns
-                tiles_per_row = math.ceil(
-                    TotalPixelMatrixColumns / image_array.shape[2]
-                )  # 3072 / 1024 = 3
-                tiles_per_col = math.ceil(
-                    TotalPixelMatrixRows / image_array.shape[1]
-                )  # 3072 / 1024 = 3
+                tiles_per_row = math.ceil(TotalPixelMatrixColumns / image_array.shape[2])  # 3072 / 1024 = 3
+                tiles_per_col = math.ceil(TotalPixelMatrixRows / image_array.shape[1])  # 3072 / 1024 = 3
 
                 # Reconstruct the original image
                 reconstructed_image = np.zeros(
@@ -106,13 +98,11 @@ def generate_histopathology_thumbnail(
                         row_end = row_start + image_array.shape[1]
                         col_start = col * image_array.shape[2]
                         col_end = col_start + image_array.shape[2]
-                        reconstructed_image[row_start:row_end, col_start:col_end, :] = (
-                            image_array[frame_idx]
-                        )  # es geht über boundary hinaus
+                        reconstructed_image[row_start:row_end, col_start:col_end, :] = image_array[
+                            frame_idx
+                        ]  # es geht über boundary hinaus
                         frame_idx += 1
-                image = reconstructed_image[
-                    :TotalPixelMatrixRows, :TotalPixelMatrixColumns, :
-                ]
+                image = reconstructed_image[:TotalPixelMatrixRows, :TotalPixelMatrixColumns, :]
                 coords = np.argwhere(image[:, :, 0])
                 x_min, y_min = coords.min(axis=0)
                 x_max, y_max = coords.max(axis=0)

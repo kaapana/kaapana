@@ -24,15 +24,11 @@ def get_existing_projects(auth_header: Dict[str, str]) -> List[Dict[str, str]]:
 
 def create_project_if_not_exists(project, auth_header):
     """Creates a project in the AII service if it doesn't already exist."""
-    response = requests.post(
-        f"{AII_SERVICE}/projects", data=json.dumps(project), headers=auth_header
-    )
+    response = requests.post(f"{AII_SERVICE}/projects", data=json.dumps(project), headers=auth_header)
     response.raise_for_status()
 
 
-def map_user_to_project_role(
-    project_id: UUID, role: str, user_id: str, auth_header: Dict[str, str]
-):
+def map_user_to_project_role(project_id: UUID, role: str, user_id: str, auth_header: Dict[str, str]):
     """Maps the user to the specified role in the specified project."""
     response = requests.post(
         f"{AII_SERVICE}/projects/{project_id}/role/{role}/user/{user_id}",
@@ -44,9 +40,7 @@ def map_user_to_project_role(
         if response.status_code == 409:
             pass  # If conflict (user already mapped), do nothing
         else:
-            logger.error(
-                f"Failed to create project mapping for {project_id=}, {role=}, {user_id=}"
-            )
+            logger.error(f"Failed to create project mapping for {project_id=}, {role=}, {user_id=}")
             raise e
 
 
@@ -94,9 +88,7 @@ def main():
     project_id = response.json()["id"]
     # Assign the user to the admin project with admin role
 
-    map_user_to_project_role(
-        project_id, "principal-investigator", keycloak_user_id, auth_header
-    )
+    map_user_to_project_role(project_id, "principal-investigator", keycloak_user_id, auth_header)
 
     logger.info("Initial projects created and user mapped successfully")
 

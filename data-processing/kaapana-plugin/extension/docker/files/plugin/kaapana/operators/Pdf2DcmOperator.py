@@ -1,13 +1,10 @@
-import os
-import glob
 from datetime import timedelta
-import pydicom
 
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 from kaapana.blueprints.kaapana_global_variables import (
     DEFAULT_REGISTRY,
     KAAPANA_BUILD_VERSION,
 )
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 
 
 class Pdf2DcmOperator(KaapanaBaseOperator):
@@ -68,9 +65,7 @@ class Pdf2DcmOperator(KaapanaBaseOperator):
             "MANUFACTURER": str(manufacturer),
             "SOP_CLASS_UID": str(sop_class_uid),
             "PDF_TITLE": str(pdf_title),
-            "DICOM_IN_DIR": str(dicom_operator.operator_out_dir)
-            if dicom_operator is not None
-            else str(None),
+            "DICOM_IN_DIR": str(dicom_operator.operator_out_dir) if dicom_operator is not None else str(None),
         }
 
         env_vars.update(envs)

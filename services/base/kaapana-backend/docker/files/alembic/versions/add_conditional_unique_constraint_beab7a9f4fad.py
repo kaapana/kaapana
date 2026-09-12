@@ -8,9 +8,8 @@ Create Date: 2026-03-02 13:41:24.681442
 
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "beab7a9f4fad"
@@ -65,8 +64,6 @@ def downgrade() -> None:
         table_name="dataset",
         postgresql_where=sa.text("access_level = 'private'"),
     )
-    op.create_unique_constraint(
-        "dataset_project_id_name_key", "dataset", ["project_id", "name"]
-    )
+    op.create_unique_constraint("dataset_project_id_name_key", "dataset", ["project_id", "name"])
     op.drop_column("dataset", "access_level")
     # ### end Alembic commands ###

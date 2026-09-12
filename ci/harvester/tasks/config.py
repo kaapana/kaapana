@@ -36,9 +36,7 @@ def find_runner(runners, token):
     return None
 
 
-def apply_settings(
-    runner, custom_build_dir, limit, request_concurrency, docker_volumes
-):
+def apply_settings(runner, custom_build_dir, limit, request_concurrency, docker_volumes):
     runner["limit"] = limit
     runner["request_concurrency"] = request_concurrency
     runner["custom_build_dir"] = {"enabled": custom_build_dir}
@@ -47,14 +45,10 @@ def apply_settings(
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Update single GitLab Runner in config.toml"
-    )
+    parser = argparse.ArgumentParser(description="Update single GitLab Runner in config.toml")
     parser.add_argument("--runner-home", required=True)
     parser.add_argument("--config-path", default=None)
-    parser.add_argument(
-        "--token", required=True, help="Runner token to identify the runner"
-    )
+    parser.add_argument("--token", required=True, help="Runner token to identify the runner")
     parser.add_argument("--custom-build-dir", type=parse_bool, default=True)
     parser.add_argument("--limit", type=int, default=1)
     parser.add_argument("--request-concurrency", type=int, default=1)

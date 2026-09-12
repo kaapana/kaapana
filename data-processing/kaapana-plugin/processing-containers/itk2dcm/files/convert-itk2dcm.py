@@ -1,15 +1,14 @@
+import glob
+import json
 import os
 import re
-import time
-import json
 import shutil
-import glob
+import time
 import warnings
+from pathlib import Path
 
 import SimpleITK as sitk
-
-from pathlib import Path
-from pydicom.uid import generate_uid, PYDICOM_ROOT_UID
+from pydicom.uid import PYDICOM_ROOT_UID, generate_uid
 
 # http://dicomlookup.com/modalities.asp
 VALID_MODALITIES = [
@@ -150,9 +149,7 @@ class Nifti2DcmConverter:
                 "0008|1070": case_path.parents[0].name,  # Operators' Name Attribute
                 "0020|0011": str(i),  # Series Number
                 "0008|103E": f"{str(case[0].name).rstrip(''.join(case[0].suffixes))}",  # Series Description Attribute
-                "0020|0010": str(case[0].name).rstrip(
-                    "".join(case[0].suffixes)
-                ),  # Study ID Attribute
+                "0020|0010": str(case[0].name).rstrip("".join(case[0].suffixes)),  # Study ID Attribute
             }
 
             pattern = re.compile(r"^([a-fA-F0-9]{4})\|([a-fA-F0-9]{4})$")
@@ -167,21 +164,15 @@ class Nifti2DcmConverter:
 
             # Derived and generated tags:
             if "0010|0020" not in series_tag_values:  # Patient ID Attribute
-                series_tag_values["0010|0020"] = series_tag_values[
-                    "0020|0010"
-                ]  # Fallback
+                series_tag_values["0010|0020"] = series_tag_values["0020|0010"]  # Fallback
             if "0010|0010" not in series_tag_values:  # Patient's Name Attribute
-                series_tag_values["0010|0010"] = series_tag_values[
-                    "0010|0020"
-                ]  # Fallback
+                series_tag_values["0010|0010"] = series_tag_values["0010|0020"]  # Fallback
             if "0020|000d" not in series_tag_values:  # Study Instance UID
                 series_tag_values["0020|000d"] = generate_uid()
             if "0020|000e" not in series_tag_values:  # Series Instance UID
                 series_tag_values["0020|000e"] = generate_uid()
 
-            self.convert_series(
-                case_path, series_tag_values=series_tag_values, segmentation=case[1]
-            )
+            self.convert_series(case_path, series_tag_values=series_tag_values, segmentation=case[1])
 
     def convert_series(self, case_path, series_tag_values, segmentation=None):
         """
@@ -238,11 +229,7 @@ class Nifti2DcmConverter:
         print("***", out_dir, "written.")
 
         if segmentation:
-            seg_out_dir = (
-                Path(os.environ["BATCHES_INPUT_DIR"])
-                / series_tag_values["0020|000e"]
-                / "segmentations"
-            )
+            seg_out_dir = Path(os.environ["BATCHES_INPUT_DIR"]) / series_tag_values["0020|000e"] / "segmentations"
             seg_out_dir.mkdir(exist_ok=True)
             print("### Checking for segmentation information.")
             shutil.copy2(segmentation, seg_out_dir)
@@ -274,12 +261,8 @@ class Nifti2DcmConverter:
             image_slice.SetMetaData(tag, value)
 
         # set slice specific metadata tags.
-        image_slice.SetMetaData(
-            "0008|0012", time.strftime("%Y%m%d")
-        )  # Instance Creation Date
-        image_slice.SetMetaData(
-            "0008|0013", time.strftime("%H%M%S")
-        )  # Instance Creation Time
+        image_slice.SetMetaData("0008|0012", time.strftime("%Y%m%d"))  # Instance Creation Date
+        image_slice.SetMetaData("0008|0013", time.strftime("%H%M%S"))  # Instance Creation Time
 
         # (0020, 0032) image position patient determines the 3D spacing between slices.
         image_slice.SetMetaData(
@@ -311,33 +294,23 @@ class Parser:
                 maxdepth = max(maxdepth, get_depth(fullpath, depth + 1))
             return maxdepth
 
-        if os.path.isdir(os.path.join(path, "cases")) and os.path.isdir(
-            os.path.join(path, "segs")
-        ):
+        if os.path.isdir(os.path.join(path, "cases")) and os.path.isdir(os.path.join(path, "segs")):
             return self.parse_by_structure(path, *args, **kwds)
         elif get_depth(path) == 1:
             return self.parse_combined_dir(path, *args, **kwds)
         else:
-            raise FileNotFoundError(
-                "Could not parse file structure, please verify input data."
-            )
+            raise FileNotFoundError("Could not parse file structure, please verify input data.")
 
     def parse_combined_dir(self, path, *args, **kwds):
         cases = [
             f
             for f in Path(path).rglob("*")
             if (
-                re.match(
-                    r"^(?!.*(?:seg|Seg|segmentation|Segmentation)).*$", str(f.name)
-                )
+                re.match(r"^(?!.*(?:seg|Seg|segmentation|Segmentation)).*$", str(f.name))
                 and re.search(r"[0-9]*.\.nii(.gz)?", str(f.name))
             )
         ]
-        segs = [
-            f
-            for f in Path(path).rglob("*")
-            if re.search(r"[sS]eg(mentation)?\.nii(\.gz)?", str(f.name))
-        ]
+        segs = [f for f in Path(path).rglob("*") if re.search(r"[sS]eg(mentation)?\.nii(\.gz)?", str(f.name))]
 
         return self.zip_cases_with_segs(cases, segs)
 
@@ -349,9 +322,7 @@ class Parser:
         )  # TODO: use a proper regex to specifically filter for .nii, .nii.gz and .nrrd
         segs = glob.glob(os.path.join(seg_dir, "*.nii*"))
 
-        return self.zip_cases_with_segs(
-            [Path(c) for c in cases], [Path(s) for s in segs], **kwds
-        )
+        return self.zip_cases_with_segs([Path(c) for c in cases], [Path(s) for s in segs], **kwds)
 
     def zip_cases_with_segs(self, cases, segs, *args, **kwds):
         cases.sort()
@@ -405,9 +376,7 @@ class nnUNetDatasetParser:
             seg_info_json["seg_info"].append({"label_int": v, "label_name": k})
 
         with open(path / "seg_info.json", "w", encoding="utf-8") as jsonData:
-            json.dump(
-                seg_info_json, jsonData, indent=2, sort_keys=True, ensure_ascii=True
-            )
+            json.dump(seg_info_json, jsonData, indent=2, sort_keys=True, ensure_ascii=True)
 
         # Creating meta_data.json from datset.json
         series_tags = {}
@@ -416,11 +385,7 @@ class nnUNetDatasetParser:
             matches = re.findall(r"_[0-9]{4}\.", str(case_path.name))
             if matches and len(matches) == 1:
                 channel_identifier = matches[0][1:-1]
-                study_id = (
-                    str(case_path.name)
-                    .replace(matches[0], ".")
-                    .rstrip("".join(case_path.suffixes))
-                )
+                study_id = str(case_path.name).replace(matches[0], ".").rstrip("".join(case_path.suffixes))
                 target_tags = {
                     "0020|0010": study_id,  # Study ID Attribute
                     "0020|000d": generate_uid(
@@ -446,9 +411,7 @@ class nnUNetDatasetParser:
 
         meta_data_json = {"series_tags": series_tags}
         with open(path / "meta_data.json", "w", encoding="utf-8") as jsonData:
-            json.dump(
-                meta_data_json, jsonData, indent=2, sort_keys=True, ensure_ascii=True
-            )
+            json.dump(meta_data_json, jsonData, indent=2, sort_keys=True, ensure_ascii=True)
 
     def __init__(self) -> None:
         pass
@@ -457,17 +420,14 @@ class nnUNetDatasetParser:
         def _get_cases(images_path, labels_path):
             images = list(images_path.glob("*"))
             labels = list(labels_path.glob("*"))
-            label_names = [l.name for l in labels]
+            label_names = [label.name for label in labels]
 
             images_with_segs = []
             images_without_segs = []
             for ct in images:
                 case_identifier = "_".join(ct.name.split("_")[:-1])
                 # check if label file exists and associate it to the first image channel of the respective case.
-                if (
-                    re.findall(r"_[0000]{4}\.", str(ct))
-                    and case_identifier + ".nii.gz" in label_names
-                ):
+                if re.findall(r"_[0000]{4}\.", str(ct)) and case_identifier + ".nii.gz" in label_names:
                     images_with_segs.append(ct)
                 else:
                     images_without_segs.append(ct)
@@ -486,17 +446,13 @@ class nnUNetDatasetParser:
             return [*cases_with_segs, *cases_without_segs]
 
         path = Path(path)
-        cases = _get_cases(path / "imagesTr", path / "labelsTr") + _get_cases(
-            path / "imagesTs", path / "labelsTs"
-        )
+        cases = _get_cases(path / "imagesTr", path / "labelsTr") + _get_cases(path / "imagesTs", path / "labelsTs")
         nnUNetDatasetParser.create_info_files(path, cases)
         return cases
 
 
 if __name__ == "__main__":
-    for root, dirs, files in os.walk(
-        Path(os.environ["WORKFLOW_DIR"]) / os.environ["OPERATOR_IN_DIR"]
-    ):
+    for root, dirs, files in os.walk(Path(os.environ["WORKFLOW_DIR"]) / os.environ["OPERATOR_IN_DIR"]):
         parser = None
         dataset_json = Path(root) / "dataset.json"
         if dataset_json.is_file():

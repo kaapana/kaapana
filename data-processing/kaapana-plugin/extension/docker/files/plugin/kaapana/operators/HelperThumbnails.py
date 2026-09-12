@@ -4,9 +4,7 @@
 # Keep both files in sync when changing NO_THUMBNAIL_MODALITIES.
 from __future__ import annotations
 
-NO_THUMBNAIL_MODALITIES: frozenset[str] = frozenset(
-    {"SR", "KO", "PR", "RTPLAN", "REG", "FID", "AU", "RWVM"}
-)
+NO_THUMBNAIL_MODALITIES: frozenset[str] = frozenset({"SR", "KO", "PR", "RTPLAN", "REG", "FID", "AU", "RWVM"})
 
 
 def has_ref_series(ds) -> bool:

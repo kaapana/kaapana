@@ -1,4 +1,5 @@
 import os
+import warnings
 from pathlib import Path
 from random import randint
 
@@ -12,7 +13,6 @@ from colormath.color_objects import LabColor, sRGBColor
 from kaapanapy.logger import get_logger
 from PIL import Image, ImageFilter
 from pydantic import BaseModel
-import warnings
 
 logger = get_logger(__name__)
 
@@ -45,33 +45,16 @@ def create_empty_ref_series(operator_ref_dir: Path, operator_in_dir: Path):
     try:
         ref_series = seg_ds.ReferencedSeriesSequence[0].ReferencedInstanceSequence
     except Exception as e:
-        raise ValueError(
-            f"SEG has no ReferencedSeriesSequence/ReferencedInstanceSequence: {file_name}"
-        ) from e
+        raise ValueError(f"SEG has no ReferencedSeriesSequence/ReferencedInstanceSequence: {file_name}") from e
     num_slices = len(ref_series)
 
     # Extract info from the SEG
     rows = seg_ds.Rows
     cols = seg_ds.Columns
-    spacing = [
-        float(x)
-        for x in seg_ds.SharedFunctionalGroupsSequence[0]
-        .PixelMeasuresSequence[0]
-        .PixelSpacing
-    ]
-    spacing_z = float(
-        seg_ds.SharedFunctionalGroupsSequence[0].PixelMeasuresSequence[0].SliceThickness
-    )
-    orientation = (
-        seg_ds.SharedFunctionalGroupsSequence[0]
-        .PlaneOrientationSequence[0]
-        .ImageOrientationPatient
-    )
-    position = (
-        seg_ds.PerFrameFunctionalGroupsSequence[0]
-        .PlanePositionSequence[0]
-        .ImagePositionPatient
-    )
+    spacing = [float(x) for x in seg_ds.SharedFunctionalGroupsSequence[0].PixelMeasuresSequence[0].PixelSpacing]
+    spacing_z = float(seg_ds.SharedFunctionalGroupsSequence[0].PixelMeasuresSequence[0].SliceThickness)
+    orientation = seg_ds.SharedFunctionalGroupsSequence[0].PlaneOrientationSequence[0].ImageOrientationPatient
+    position = seg_ds.PerFrameFunctionalGroupsSequence[0].PlanePositionSequence[0].ImagePositionPatient
 
     # Create one slice per referenced frame
     SeriesInstanceUID = pydicom.uid.generate_uid()
@@ -125,11 +108,7 @@ def create_empty_ref_series(operator_ref_dir: Path, operator_in_dir: Path):
         ds.PixelData = pixel_array.tobytes()
 
         # Save to disk
-        ds.save_as(
-            os.path.join(
-                operator_ref_dir, f"{file_meta.MediaStorageSOPInstanceUID}.dcm"
-            )
-        )
+        ds.save_as(os.path.join(operator_ref_dir, f"{file_meta.MediaStorageSOPInstanceUID}.dcm"))
 
 
 def dicomlab2LAB(dicomlab: list) -> list:
@@ -212,9 +191,7 @@ def _ref_paths_from_seg(image_dir: str, seg_ds: pydicom.Dataset) -> list[str]:
     return paths
 
 
-def _pick_best_slice_index(
-    classes_per_slice: np.ndarray, area_per_slice: np.ndarray
-) -> int:
+def _pick_best_slice_index(classes_per_slice: np.ndarray, area_per_slice: np.ndarray) -> int:
     # lexsort sorts ascending; we want the maximum (classes, then area)
     return int(np.lexsort((area_per_slice, classes_per_slice))[-1])
 
@@ -296,9 +273,7 @@ def _overlay_from_2d_masks(
 
         # Border
         border_overlay = Image.new("RGBA", image.size, tuple(color) + (255,))
-        image = Image.composite(
-            border_overlay, image, mask.filter(ImageFilter.FIND_EDGES)
-        )
+        image = Image.composite(border_overlay, image, mask.filter(ImageFilter.FIND_EDGES))
 
         # Fill with normalized opacity
         normalized_opacity = 128.0 / overlap_map
@@ -372,19 +347,13 @@ def _extract_ref_slice_zyx(ref_img: sitk.Image, slice_idx: int) -> np.ndarray:
 
 
 def _first_dicom_file(folder: str) -> str:
-    files = sorted(
-        os.path.join(folder, f)
-        for f in os.listdir(folder)
-        if f.lower().endswith(".dcm")
-    )
+    files = sorted(os.path.join(folder, f) for f in os.listdir(folder) if f.lower().endswith(".dcm"))
     if not files:
         raise FileNotFoundError(f"No .dcm files found in {folder}")
     return files[0]
 
 
-def resample_to_reference_image(
-    ref_image: sitk.Image, segmentation: sitk.Image
-) -> sitk.Image:
+def resample_to_reference_image(ref_image: sitk.Image, segmentation: sitk.Image) -> sitk.Image:
     """
     Resample a segmentation image to match a reference image geometry.
 
@@ -444,9 +413,7 @@ def generate_segmentation_thumbnail(
     Returns:
         Image: A PIL Image object representing the selected slice with segmentation overlay.
     """
-    dicom_image, result, segment_colors = load_ref_series_and_segmentation(
-        str(operator_ref_dir), str(operator_in_dir)
-    )
+    dicom_image, result, segment_colors = load_ref_series_and_segmentation(str(operator_ref_dir), str(operator_in_dir))
 
     # SimpleITK size is (x, y, z) -> we want numpy-style (z, y, x)
     sx, sy, sz = dicom_image.GetSize()
@@ -455,9 +422,7 @@ def generate_segmentation_thumbnail(
 
     # ---------- PASS 1: cheap metrics (exact classes, approximate area) ----------
     classes_per_slice = np.zeros(z, dtype=np.int16)
-    area_sum_per_slice = np.zeros(
-        z, dtype=np.int64
-    )  # sum of per-segment areas (overcounts overlaps)
+    area_sum_per_slice = np.zeros(z, dtype=np.int64)  # sum of per-segment areas (overcounts overlaps)
 
     segments = [int(s) for s in sorted(result.available_segments)]
 
@@ -487,9 +452,7 @@ def generate_segmentation_thumbnail(
 
     # Pick top-M candidate slices by (classes, approx area)
     candidate_count = max(1, min(candidate_slices_count, z))
-    candidate_slices = np.lexsort((area_sum_per_slice, classes_per_slice))[
-        -candidate_count:
-    ]
+    candidate_slices = np.lexsort((area_sum_per_slice, classes_per_slice))[-candidate_count:]
     candidate_slices = np.sort(candidate_slices)  # helps stable behavior
 
     # ---------- PASS 2: exact union area for candidates only ----------
@@ -521,9 +484,7 @@ def generate_segmentation_thumbnail(
 
     # Final best slice using same ordering as before:
     # (classes_per_slice, then exact union area)
-    best_idx = int(
-        np.lexsort((area_exact_candidates, classes_per_slice[candidate_slices]))[-1]
-    )
+    best_idx = int(np.lexsort((area_exact_candidates, classes_per_slice[candidate_slices]))[-1])
     best_slice = int(candidate_slices[best_idx])
     best_area = int(area_exact_candidates[best_idx])
 
@@ -598,9 +559,7 @@ def load_ref_series_and_segmentation(image_dir: str, seg_dir: str) -> tuple:
     # Preferred: use the SEG's referenced SOPInstanceUIDs to avoid mixed-size series issues
     ref_paths = _ref_paths_from_seg(image_dir, dicom_seg)
     if ref_paths:
-        logger.info(
-            f"Using {len(ref_paths)} referenced instances from SEG to load reference series"
-        )
+        logger.info(f"Using {len(ref_paths)} referenced instances from SEG to load reference series")
         image_reader.SetFileNames(ref_paths)
     else:
         # Fallback: use the series finder (may include mixed instances if directory is polluted)
@@ -612,8 +571,7 @@ def load_ref_series_and_segmentation(image_dir: str, seg_dir: str) -> tuple:
         dicom_image = image_reader.Execute()
     except Exception as e:
         raise RuntimeError(
-            f"Failed to load reference series from {image_dir}. "
-            f"ref_paths={len(ref_paths)} seg_file={file_name}"
+            f"Failed to load reference series from {image_dir}. ref_paths={len(ref_paths)} seg_file={file_name}"
         ) from e
 
     return dicom_image, result, segment_colors
@@ -642,21 +600,14 @@ def overlay_thumbnail(image_array, seg_arrays, segment_colors) -> Image.Image:
         stacklevel=2,
     )
     # Count the number of classes in each slice
-    classes_per_slice = np.sum(
-        np.any(seg_arrays > 0, axis=(2, 3)), axis=0
-    )  # Shape: (114,)
+    classes_per_slice = np.sum(np.any(seg_arrays > 0, axis=(2, 3)), axis=0)  # Shape: (114,)
 
     # Calculate the total segmentation area for each slice
-    area_per_slice = np.sum(
-        np.sum(seg_arrays, axis=0) > 0, axis=(1, 2)
-    )  # Shape: (114,)
+    area_per_slice = np.sum(np.sum(seg_arrays, axis=0) > 0, axis=(1, 2))  # Shape: (114,)
 
     # Combine the classes and area into a structured array for sorting
     slice_metrics = np.array(
-        [
-            (i, classes_per_slice[i], area_per_slice[i])
-            for i in range(seg_arrays.shape[1])
-        ],
+        [(i, classes_per_slice[i], area_per_slice[i]) for i in range(seg_arrays.shape[1])],
         dtype=[("index", int), ("num_classes", int), ("area", int)],
     )
 
@@ -719,9 +670,7 @@ def overlay_thumbnail(image_array, seg_arrays, segment_colors) -> Image.Image:
     image = Image.fromarray(normalized_data).convert("RGBA")
 
     # Combine all binary masks for the best slice to calculate overlap
-    overlap_map = np.sum(
-        seg_arrays[:, best_slice_index], axis=0
-    )  # Shape: (height, width)
+    overlap_map = np.sum(seg_arrays[:, best_slice_index], axis=0)  # Shape: (height, width)
 
     # Avoid division by zero
     overlap_map = np.clip(overlap_map, 1, None)
@@ -729,13 +678,9 @@ def overlay_thumbnail(image_array, seg_arrays, segment_colors) -> Image.Image:
     # Apply transparency blending for each segment
     for seg_class in range(seg_arrays.shape[0]):
         try:
-            color = segment_colors[seg_class + 1][
-                "color"
-            ]  # RGB tuple (e.g., (255, 0, 0))
+            color = segment_colors[seg_class + 1]["color"]  # RGB tuple (e.g., (255, 0, 0))
         except KeyError:
-            logger.warning(
-                f"Color not found for segment {seg_class + 1}. Using random color."
-            )
+            logger.warning(f"Color not found for segment {seg_class + 1}. Using random color.")
             color = [randint(0, 255), randint(0, 255), randint(0, 255)]
 
         mask_array = np.uint8(seg_arrays[seg_class, best_slice_index] > 0) * 255
@@ -744,33 +689,25 @@ def overlay_thumbnail(image_array, seg_arrays, segment_colors) -> Image.Image:
 
         # Draw the border with full opacity
         border_overlay = Image.new("RGBA", image.size, tuple(color) + (255,))
-        image = Image.composite(
-            border_overlay, image, mask.filter(ImageFilter.FIND_EDGES)
-        )
+        image = Image.composite(border_overlay, image, mask.filter(ImageFilter.FIND_EDGES))
 
         # Calculate normalized opacity for this segment
         normalized_opacity = 128 / overlap_map  # Scale total overlap to 50% max
-        normalized_opacity_map = (mask_array / 255 * normalized_opacity).astype(
-            np.uint8
-        )
+        normalized_opacity_map = (mask_array / 255 * normalized_opacity).astype(np.uint8)
 
         # Convert normalized opacity to a PIL image
         mask_image = Image.fromarray(normalized_opacity_map, mode="L")
 
         # Draw the inner part with calculated opacity
         fill_overlay = Image.new("RGBA", image.size, tuple(color) + (0,))
-        fill_overlay.putalpha(
-            mask_image
-        )  # Use mask_image directly as the alpha channel
+        fill_overlay.putalpha(mask_image)  # Use mask_image directly as the alpha channel
 
         image = Image.alpha_composite(image, fill_overlay)
 
     return image
 
 
-def generate_rtstruct_thumbnail(
-    operator_in_dir: Path, operator_ref_dir: Path, thumbnail_size: int
-) -> Image.Image:
+def generate_rtstruct_thumbnail(operator_in_dir: Path, operator_ref_dir: Path, thumbnail_size: int) -> Image.Image:
     """
     Generate a thumbnail image for an RTSTRUCT-based DICOM segmentation.
 
@@ -786,12 +723,8 @@ def generate_rtstruct_thumbnail(
     Returns:
         Image.Image: A PIL Image object representing the selected slice with RTSTRUCT overlay.
     """
-    image_array, labelmap, segment_colors = load_ref_image_and_rtstruct(
-        operator_ref_dir, operator_in_dir
-    )
-    thumbnail = _thumbnail_from_labelmap(
-        image_array, labelmap, segment_colors, thumbnail_size
-    )
+    image_array, labelmap, segment_colors = load_ref_image_and_rtstruct(operator_ref_dir, operator_in_dir)
+    thumbnail = _thumbnail_from_labelmap(image_array, labelmap, segment_colors, thumbnail_size)
     return thumbnail
 
 
@@ -817,9 +750,7 @@ def load_ref_image_and_rtstruct(image_dir: str, rt_struct_dir: str) -> tuple:
             - labelmap (numpy.ndarray): 3D labelmap (z, y, x), background=0, ROI labels >= 1.
             - segment_colors (dict): Mapping {label: {"color": [r,g,b]}} used for rendering.
     """
-    rtstruct = pydicom.dcmread(
-        os.path.join(rt_struct_dir, os.listdir(rt_struct_dir)[0])
-    )
+    rtstruct = pydicom.dcmread(os.path.join(rt_struct_dir, os.listdir(rt_struct_dir)[0]))
 
     # Load the image
     image_reader = sitk.ImageSeriesReader()
@@ -853,10 +784,7 @@ def load_ref_image_and_rtstruct(image_dir: str, rt_struct_dir: str) -> tuple:
             # Convert physical points -> continuous image index (i, j, k)
             # This accounts for origin + spacing + direction (oblique images!)
             idx = np.array(
-                [
-                    dicom_image.TransformPhysicalPointToContinuousIndex(tuple(p))
-                    for p in contour_data
-                ],
+                [dicom_image.TransformPhysicalPointToContinuousIndex(tuple(p)) for p in contour_data],
                 dtype=np.float64,
             )
 
@@ -891,8 +819,6 @@ def load_ref_image_and_rtstruct(image_dir: str, rt_struct_dir: str) -> tuple:
     for lbl in np.unique(labelmap):
         if lbl == 0:
             continue
-        segment_colors[int(lbl)] = {
-            "color": [randint(0, 255), randint(0, 255), randint(0, 255)]
-        }
+        segment_colors[int(lbl)] = {"color": [randint(0, 255), randint(0, 255), randint(0, 255)]}
 
     return image_array, labelmap, segment_colors

@@ -11,10 +11,11 @@ from typing import Any, Dict, List, Union
 import pydicom
 import pytz
 from dateutil import parser
-from kaapana.operators.HelperCaching import cache_operator_output
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapanapy.settings import KaapanaSettings
 from pydicom.tag import Tag
+
+from kaapana.operators.HelperCaching import cache_operator_output
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 TIMEZONE = KaapanaSettings().timezone
 
@@ -98,26 +99,16 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
     def start(self, **kwargs):
         logger.info("Starting module dcm2json...")
         config = kwargs["dag_run"].conf
-        self.default_project_short_id = config.get("project_form", {}).get(
-            "short_id", self.admin_project_short_id
-        )
+        self.default_project_short_id = config.get("project_form", {}).get("short_id", self.admin_project_short_id)
 
         run_dir: Path = Path(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folders: List[Path] = list((run_dir / self.batch_name).glob("*"))
         logger.info(f"Number of series: {len(batch_folders)}")
         for batch_element_dir in batch_folders:
-            files: List[Path] = sorted(
-                list(
-                    (batch_element_dir / self.operator_in_dir).rglob(
-                        f"*.{self.data_type}"
-                    )
-                )
-            )
+            files: List[Path] = sorted(list((batch_element_dir / self.operator_in_dir).rglob(f"*.{self.data_type}")))
 
             if len(files) == 0:
-                raise FileNotFoundError(
-                    f"No dicom file found in {batch_element_dir / self.operator_in_dir}"
-                )
+                raise FileNotFoundError(f"No dicom file found in {batch_element_dir / self.operator_in_dir}")
 
             logger.info(f"length {len(files)}")
             for dcm_file_path in files:
@@ -198,33 +189,21 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         # TODO Why is this necessary?
         metadata["predicted_bodypart_string"] = "N/A"
 
-        self._sanitize_project_and_dataset(
-            metadata, default_project_short_id=self.default_project_short_id
-        )
+        self._sanitize_project_and_dataset(metadata, default_project_short_id=self.default_project_short_id)
         return metadata
 
-    def _sanitize_project_and_dataset(
-        self, metadata, default_project_short_id: str = "", default_dataset: str = None
-    ):
+    def _sanitize_project_and_dataset(self, metadata, default_project_short_id: str = "", default_dataset: str = None):
         """ """
         default_project_short_id = (
-            default_project_short_id
-            if default_project_short_id != ""
-            else self.admin_project_short_id
+            default_project_short_id if default_project_short_id != "" else self.admin_project_short_id
         )
         sanitized_project_id = default_project_short_id
-        sanitized_dataset = default_dataset or datetime.now(
-            pytz.timezone(TIMEZONE)
-        ).strftime("%y-%m-%d-%H:%M:%S%f")
+        sanitized_dataset = default_dataset or datetime.now(pytz.timezone(TIMEZONE)).strftime("%y-%m-%d-%H:%M:%S%f")
 
-        if (
-            dataset := metadata.get("00120010 ClinicalTrialSponsorName_keyword")
-        ) and dataset.startswith("kp-"):
+        if (dataset := metadata.get("00120010 ClinicalTrialSponsorName_keyword")) and dataset.startswith("kp-"):
             sanitized_dataset = dataset[3:]  # Remove "kp-" prefix
 
-        if (
-            project_id := metadata.get("00120020 ClinicalTrialProtocolID_keyword")
-        ) and project_id[0].startswith("kp-"):
+        if (project_id := metadata.get("00120020 ClinicalTrialProtocolID_keyword")) and project_id[0].startswith("kp-"):
             sanitized_project_id = project_id[0][3:]  # Remove "kp-" prefix
 
         metadata["00120010 ClinicalTrialSponsorName_keyword"] = sanitized_dataset
@@ -250,12 +229,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                 # setting alg_name, alg_type and value default to None if they do not exist.
                 alg_name = label_entry.get("00620009", {}).get("Value", [None])[0]
                 alg_type = label_entry.get("00620008", {}).get("Value", [None])[0]
-                value = (
-                    label_entry.get("00620005", {})
-                    .get("Value", [""])[0]
-                    .replace(",", "-")
-                    .strip()
-                )
+                value = label_entry.get("00620005", {}).get("Value", [""])[0].replace(",", "-").strip()
 
                 if alg_name:
                     update_metadata["00620002 SegmentSequence_object_object"][
@@ -274,9 +248,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         update_metadata["00000000 AnnotationLabel_keyword"] = annotation_label_list
         return update_metadata
 
-    def _normalize_tag(
-        self, new_tag: str, vr: str, value_str: Any, metadata: Dict
-    ) -> Dict:
+    def _normalize_tag(self, new_tag: str, vr: str, value_str: Any, metadata: Dict) -> Dict:
         if vr in (
             "AE",
             "AS",
@@ -381,9 +353,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                         value_str = value_str[0]
 
                 try:
-                    new_meta_data = self._normalize_tag(
-                        new_tag, vr, value_str, new_meta_data
-                    )
+                    new_meta_data = self._normalize_tag(new_tag, vr, value_str, new_meta_data)
                 except Exception as e:
                     logger.error(highlight_message("KNOWN VR EXCEPTION"))
                     logger.error(f"Tag: {new_tag}")
@@ -412,11 +382,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         if self.IMAGE_TYPE_TAG in metadata:
             image_type = metadata[self.IMAGE_TYPE_TAG]
             if isinstance(image_type, list):
-                if (
-                    modality == "CT"
-                    and "LOCALIZER" in image_type
-                    and len(image_type) >= 3
-                ):
+                if modality == "CT" and "LOCALIZER" in image_type and len(image_type) >= 3:
                     metadata.update({"00000000 CuratedModality_keyword": "XR"})
 
         return metadata
@@ -469,23 +435,17 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                 extracted_time = datetime.now().strftime(self.KAAPANA_TIME_FORMAT)
 
             datetime_string = f"{extracted_date} {extracted_time}"
-            datetime_formatted = parser.parse(datetime_string).strftime(
-                self.KAAPANA_DATETIME_FORMAT
-            )
+            datetime_formatted = parser.parse(datetime_string).strftime(self.KAAPANA_DATETIME_FORMAT)
 
         # TODO NAIVE! Expects BerlinTime datetime and convert to UTC
-        datetime_formatted = self.convert_time_to_utc(
-            datetime_formatted, self.KAAPANA_DATETIME_FORMAT
-        )
+        datetime_formatted = self.convert_time_to_utc(datetime_formatted, self.KAAPANA_DATETIME_FORMAT)
 
         # Update the metadata with the formatted datetime
         metadata["00000000 Timestamp_datetime"] = datetime_formatted
 
         # Update the metadata with arrival time
         current_utc_datetime = datetime.utcnow()
-        formatted_utc_datetime = current_utc_datetime.strftime(
-            self.KAAPANA_DATETIME_FORMAT
-        )
+        formatted_utc_datetime = current_utc_datetime.strftime(self.KAAPANA_DATETIME_FORMAT)
         formatted_utc_date = current_utc_datetime.strftime(self.KAAPANA_DATE_FORMAT)
 
         # Formatted strings
@@ -512,18 +472,13 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         patient_age_scan = (
             series_datetime.year
             - birthday_datetime.year
-            - (
-                (series_datetime.month, series_datetime.day)
-                < (birthday_datetime.month, birthday_datetime.day)
-            )
+            - ((series_datetime.month, series_datetime.day) < (birthday_datetime.month, birthday_datetime.day))
         )
         return patient_age_scan
 
     def _process_patient_age(self, metadata: Dict) -> Dict:
         if "00101010 PatientAge_keyword" in metadata:
-            dcm_patient_age = process_age_string(
-                metadata["00101010 PatientAge_keyword"]
-            )
+            dcm_patient_age = process_age_string(metadata["00101010 PatientAge_keyword"])
         else:
             dcm_patient_age = None
 
@@ -533,16 +488,10 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
             if dcm_patient_age and calculated_patient_age != dcm_patient_age:
                 logger.error(highlight_message("Patient AGE inconsistency"))
-                logger.error(
-                    f"00000000 Timestamp: {metadata['00000000 Timestamp_datetime']}"
-                )
-                logger.error(
-                    f"00100030 PatientBirthDate: {metadata['00100030 PatientBirthDate_date']}"
-                )
+                logger.error(f"00000000 Timestamp: {metadata['00000000 Timestamp_datetime']}")
+                logger.error(f"00100030 PatientBirthDate: {metadata['00100030 PatientBirthDate_date']}")
                 logger.error(f"Timestamp - PatientBirthDate: {calculated_patient_age}")
-                logger.error(
-                    f"00101010 PatientAge_keyword: {metadata['00101010 PatientAge_keyword']}"
-                )
+                logger.error(f"00101010 PatientAge_keyword: {metadata['00101010 PatientAge_keyword']}")
                 logger.error(f"PatientAge: {dcm_patient_age}")
 
         elif "00101010 PatientAge_keyword" in metadata and dcm_patient_age:
@@ -551,9 +500,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
     def _process_clinical_trial_protocol_id(self, metadata: Dict) -> Dict:
         if "00120020 ClinicalTrialProtocolID_keyword" in metadata:
-            protocol_ids = metadata["00120020 ClinicalTrialProtocolID_keyword"].split(
-                ";"
-            )
+            protocol_ids = metadata["00120020 ClinicalTrialProtocolID_keyword"].split(";")
             logger.info(f"ClinicalTrialProtocolIDs: {protocol_ids}")
             metadata["00120020 ClinicalTrialProtocolID_keyword"] = protocol_ids
         return metadata
@@ -567,9 +514,9 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         try:
             datetime_formatted = None
             if validate_format(value_str, self.DCM_DATETIME_FORMAT):
-                datetime_formatted = datetime.strptime(
-                    value_str, self.DCM_DATETIME_FORMAT
-                ).strftime(self.KAAPANA_DATETIME_FORMAT)
+                datetime_formatted = datetime.strptime(value_str, self.DCM_DATETIME_FORMAT).strftime(
+                    self.KAAPANA_DATETIME_FORMAT
+                )
             else:
                 logger.info(f"Value: {value_str} not complete dcm date time.")
                 logger.info(f"Dicom Standard Format: {self.DCM_DATETIME_FORMAT}")
@@ -577,20 +524,14 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             if datetime_formatted is None:
                 if len(value_str) > 8:
                     logger.info("Trying to parse long datetime format.")
-                    datetime_formatted = parser.parse(value_str).strftime(
-                        self.KAAPANA_DATETIME_FORMAT
-                    )
+                    datetime_formatted = parser.parse(value_str).strftime(self.KAAPANA_DATETIME_FORMAT)
                 else:
                     logger.info("Trying to parse short date format with default time.")
                     date = parser.parse(value_str).date()
                     time = parser.parse("01:00:00").time()
-                    datetime_formatted = datetime.combine(date, time).strftime(
-                        self.KAAPANA_DATETIME_FORMAT
-                    )
+                    datetime_formatted = datetime.combine(date, time).strftime(self.KAAPANA_DATETIME_FORMAT)
 
-            datetime_formatted = self.convert_time_to_utc(
-                datetime_formatted, self.KAAPANA_DATETIME_FORMAT
-            )
+            datetime_formatted = self.convert_time_to_utc(datetime_formatted, self.KAAPANA_DATETIME_FORMAT)
             return datetime_formatted
         except Exception as e:
             logger.error(highlight_message("COULD NOT EXTRACT DATETIME"))
@@ -621,13 +562,9 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                     if date_str != ""
                 ]
             elif isinstance(value_str, str):
-                date_formatted = parser.parse(value_str).strftime(
-                    self.KAAPANA_DATE_FORMAT
-                )
+                date_formatted = parser.parse(value_str).strftime(self.KAAPANA_DATE_FORMAT)
             else:
-                raise TypeError(
-                    f"Not supported type {type(value_str)} of value {value_str}"
-                )
+                raise TypeError(f"Not supported type {type(value_str)} of value {value_str}")
             return date_formatted
 
         except Exception as e:
@@ -671,9 +608,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
     def _get_time(self, time_str):
         if validate_format(time_str, self.DCM_TIME_FORMAT):
-            return datetime.strptime(time_str, self.DCM_TIME_FORMAT).strftime(
-                self.KAAPANA_TIME_FORMAT
-            )
+            return datetime.strptime(time_str, self.DCM_TIME_FORMAT).strftime(self.KAAPANA_TIME_FORMAT)
 
         hour = 0
         minute = 0
@@ -763,13 +698,9 @@ def handle_incomplete_tag_metadata(tag_metadata: Dict):
     if "InlineBinary" in tag_metadata:
         logger.info(highlight_message("SKIPPING BINARY"))
     elif "Value" not in tag_metadata:
-        logger.info(
-            f"No value found in entry: {str(tag_metadata).strip('[]').encode('utf-8')}"
-        )
+        logger.info(f"No value found in entry: {str(tag_metadata).strip('[]').encode('utf-8')}")
     elif "vr" not in tag_metadata:
-        logger.info(
-            f"No vr found in entry: {str(tag_metadata).strip('[]').encode('utf-8')}"
-        )
+        logger.info(f"No vr found in entry: {str(tag_metadata).strip('[]').encode('utf-8')}")
     else:
         logger.error(highlight_message("IMPOSSIBLE REACH"))
         logger.error("Value or vr missing but present at the same time.")

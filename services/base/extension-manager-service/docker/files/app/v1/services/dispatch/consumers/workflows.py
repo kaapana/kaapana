@@ -26,15 +26,11 @@ class WorkflowInstaller(ContentInstaller):
             with open(content.path / "workflow.json", "r") as f:
                 workflow = json.load(f)
 
-            with open(
-                content.path / "workflow_definition.py", "r", encoding="utf-8"
-            ) as f:
+            with open(content.path / "workflow_definition.py", "r", encoding="utf-8") as f:
                 workflow_definition = f.read()
                 workflow["definition"] = workflow_definition
         except FileNotFoundError as e:
-            raise ContentError(
-                f"Required file not found for workflow content: {e.filename}"
-            ) from e
+            raise ContentError(f"Required file not found for workflow content: {e.filename}") from e
         except json.JSONDecodeError as e:
             raise ContentError(f"Invalid JSON format in workflow.json: {e.msg}") from e
 
@@ -42,9 +38,9 @@ class WorkflowInstaller(ContentInstaller):
 
         # add immutable extension identity labels to workflow
         labels = [
-            l
-            for l in workflow.get("labels", [])
-            if not l.get("key", "").startswith("kaapana.immutable.extension.")
+            label
+            for label in workflow.get("labels", [])
+            if not label.get("key", "").startswith("kaapana.immutable.extension.")
         ]
         if content.extension_id is not None:
             labels.extend(

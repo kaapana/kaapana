@@ -78,18 +78,14 @@ def _admin_client_functional(host: str, port: int, secret: str) -> bool:
 
 
 def _get_master_client_uuid(keycloak: KeycloakHelper) -> str:
-    clients = keycloak.make_authorized_request(
-        keycloak.auth_url + "master/clients", requests.get
-    ).json()
+    clients = keycloak.make_authorized_request(keycloak.auth_url + "master/clients", requests.get).json()
     for client in clients:
         if client["clientId"] == ADMIN_CLIENT_ID:
             return client["id"]
     return None
 
 
-def _set_admin_password(
-    keycloak: KeycloakHelper, username: str, password: str, temporary: bool
-) -> None:
+def _set_admin_password(keycloak: KeycloakHelper, username: str, password: str, temporary: bool) -> None:
     """Set the master-realm admin user's password.
 
     With ``temporary`` it must be changed on the next login; a temporary
@@ -99,9 +95,7 @@ def _set_admin_password(
     independently of the admin user's login state.
     """
     base = keycloak.auth_url
-    users = keycloak.make_authorized_request(
-        base + f"master/users?username={username}&exact=true", requests.get
-    ).json()
+    users = keycloak.make_authorized_request(base + f"master/users?username={username}&exact=true", requests.get).json()
     if not users:
         logger.warning("Master-realm admin user not found - skipping password set.")
         return
@@ -125,23 +119,17 @@ def _create_admin_client(keycloak: KeycloakHelper, client_secret: str) -> None:
     client_uuid = _get_master_client_uuid(keycloak)
     if client_uuid:
         logger.info("kaapana-admin client exists - updating secret.")
-        keycloak.make_authorized_request(
-            base + f"master/clients/{client_uuid}", requests.put, payload
-        )
+        keycloak.make_authorized_request(base + f"master/clients/{client_uuid}", requests.put, payload)
     else:
         logger.info("Creating kaapana-admin client in master realm.")
-        keycloak.make_authorized_request(
-            base + "master/clients", requests.post, payload
-        )
+        keycloak.make_authorized_request(base + "master/clients", requests.post, payload)
         client_uuid = _get_master_client_uuid(keycloak)
 
     # Grant the master realm 'admin' role to the service account (full admin rights).
     service_account_user_id = keycloak.make_authorized_request(
         base + f"master/clients/{client_uuid}/service-account-user", requests.get
     ).json()["id"]
-    admin_role = keycloak.make_authorized_request(
-        base + "master/roles/admin", requests.get
-    ).json()
+    admin_role = keycloak.make_authorized_request(base + "master/roles/admin", requests.get).json()
     keycloak.make_authorized_request(
         base + f"master/users/{service_account_user_id}/role-mappings/realm",
         requests.post,
@@ -160,10 +148,7 @@ if __name__ == "__main__":
     temporary = os.getenv("KAAPANA_ADMIN_PASSWORD_TEMPORARY", "false").lower() == "true"
 
     if _admin_client_functional(keycloak_host, keycloak_port, admin_client_secret):
-        logger.info(
-            "kaapana-admin client already functional - no admin password needed "
-            "to authenticate."
-        )
+        logger.info("kaapana-admin client already functional - no admin password needed to authenticate.")
         if not admin_password:
             logger.warning(
                 "No admin password supplied, but the kaapana-admin client works. "
@@ -191,9 +176,7 @@ if __name__ == "__main__":
         )
         sys.exit(1)
 
-    logger.info(
-        "kaapana-admin client not available - bootstrapping with the admin password."
-    )
+    logger.info("kaapana-admin client not available - bootstrapping with the admin password.")
     try:
         keycloak = KeycloakHelper.from_admin_password()
     except Exception as e:
@@ -216,10 +199,7 @@ if __name__ == "__main__":
     try:
         _set_admin_password(keycloak, admin_user, admin_password, temporary)
     except Exception as e:
-        logger.error(
-            f"kaapana-admin client created, but applying the admin password "
-            f"failed: {e}."
-        )
+        logger.error(f"kaapana-admin client created, but applying the admin password failed: {e}.")
         sys.exit(1)
 
     logger.info("kaapana-admin client bootstrapped and admin password set.")

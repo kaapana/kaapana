@@ -3,12 +3,6 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
-from sqlalchemy import func, select, tuple_
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.db.models import DataEntityORM
 from app.db.session import AsyncSessionLocal, get_async_db
 from app.models.domain import DataEntity, StorageCoordinate
@@ -21,6 +15,12 @@ from app.services.entity_repository import (
     resolve_entity_cursor,
     storage_to_orm,
 )
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
+from sqlalchemy import func, select, tuple_
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from .helpers import (
     broadcast_entity_event,
     cleanup_entity_artifacts,
@@ -49,9 +49,7 @@ class EntityRecordPage(BaseModel):
 
 
 @router.post("", response_model=DataEntity, summary="Create or replace a data entity")
-async def create_entity(
-    entity: DataEntity, db: AsyncSession = Depends(get_async_db)
-) -> DataEntity:
+async def create_entity(entity: DataEntity, db: AsyncSession = Depends(get_async_db)) -> DataEntity:
     existing = await fetch_entity_orm(db, entity.id)
     if existing is not None:
         await db.delete(existing)
@@ -64,14 +62,10 @@ async def create_entity(
     return result
 
 
-@router.get(
-    "", response_model=EntityListResponse, summary="List entity IDs with pagination"
-)
+@router.get("", response_model=EntityListResponse, summary="List entity IDs with pagination")
 async def list_entities(
     limit: int = Query(100, ge=1, le=10000),
-    cursor: UUID | None = Query(
-        None, description="Return entities created after the entity with this ID"
-    ),
+    cursor: UUID | None = Query(None, description="Return entities created after the entity with this ID"),
     db: AsyncSession = Depends(get_async_db),
 ) -> EntityListResponse:
     stmt = (
@@ -84,10 +78,7 @@ async def list_entities(
             created_at, entity_id = await resolve_entity_cursor(db, cursor)
         except ValueError as exc:  # pragma: no cover - defensive
             raise HTTPException(status_code=400, detail="Invalid cursor") from exc
-        stmt = stmt.where(
-            tuple_(DataEntityORM.created_at, DataEntityORM.id)
-            > tuple_(created_at, entity_id)
-        )
+        stmt = stmt.where(tuple_(DataEntityORM.created_at, DataEntityORM.id) > tuple_(created_at, entity_id))
     result = await db.execute(stmt)
     rows = result.all()
     has_more = len(rows) > limit
@@ -140,9 +131,7 @@ async def stream_entity_index(
 )
 async def list_entity_records(
     limit: int = Query(50, ge=1, le=10000),
-    cursor: UUID | None = Query(
-        None, description="Return entities created after the entity with this ID"
-    ),
+    cursor: UUID | None = Query(None, description="Return entities created after the entity with this ID"),
     db: AsyncSession = Depends(get_async_db),
 ) -> EntityRecordPage:
     try:
@@ -156,12 +145,8 @@ async def list_entity_records(
     return EntityRecordPage(items=items, next_cursor=next_cursor)
 
 
-@router.get(
-    "/{entity_id}", response_model=DataEntity, summary="Get a data entity by ID"
-)
-async def get_entity(
-    entity_id: UUID, db: AsyncSession = Depends(get_async_db)
-) -> DataEntity:
+@router.get("/{entity_id}", response_model=DataEntity, summary="Get a data entity by ID")
+async def get_entity(entity_id: UUID, db: AsyncSession = Depends(get_async_db)) -> DataEntity:
     return await require_entity_response(db, entity_id)
 
 
@@ -194,18 +179,14 @@ async def remove_storage_coordinate(
     try:
         entity.storage_coordinates.pop(index)
     except IndexError as exc:  # pragma: no cover - defensive
-        raise HTTPException(
-            status_code=400, detail="Invalid storage coordinate index"
-        ) from exc
+        raise HTTPException(status_code=400, detail="Invalid storage coordinate index") from exc
     updated = await commit_and_return_entity(db, entity_id)
     await broadcast_entity_event(EventAction.UPDATED, updated)
     return updated
 
 
 @router.delete("/{entity_id}", status_code=204, summary="Delete a data entity")
-async def delete_entity(
-    entity_id: UUID, db: AsyncSession = Depends(get_async_db)
-) -> Response:
+async def delete_entity(entity_id: UUID, db: AsyncSession = Depends(get_async_db)) -> Response:
     entity = await require_entity(db, entity_id)
     await db.delete(entity)
     await db.commit()

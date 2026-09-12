@@ -1,17 +1,21 @@
 from __future__ import annotations
-from typing import Optional, Union, List, Dict, Literal
+
+from typing import Dict, List, Literal, Optional, Union
+
+from kubernetes import client as k8sclient
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from task_api.processing_container import pc_models
-from kubernetes import client as k8sclient
 
 
 class HostPathVolume(BaseModel):
     host_path: str
 
+
 class IOVolume(pc_models.IOBase):
     """
     Represents a storage location for input/output data.
     """
+
     volume_source: Union[k8sclient.V1Volume, HostPathVolume]
     sub_path: Optional[str] = None
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -21,10 +25,9 @@ class IOChannel(pc_models.IOBase):
     """
     Binds an IOMount in the container to an IOVolume in external storage.
     """
+
     sub_path: Optional[str] = None
-    volume_source: Union[
-        k8sclient.V1Volume, HostPathVolume
-    ]
+    volume_source: Union[k8sclient.V1Volume, HostPathVolume]
     model_config = ConfigDict(arbitrary_types_allowed=True)
     mounted_path: str
     description: Optional[str] = None

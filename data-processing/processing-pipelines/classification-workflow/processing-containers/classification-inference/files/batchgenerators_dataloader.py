@@ -42,9 +42,7 @@ class ClassificationDataset(DataLoader):
         patients_for_batch = [self._data[i] for i in idx]
         samples = {}
         # initialize empty array for data and seg
-        data = np.zeros(
-            (self.batch_size, self.num_modalities, *self.patch_size), dtype=np.float32
-        )
+        data = np.zeros((self.batch_size, self.num_modalities, *self.patch_size), dtype=np.float32)
 
         for i, j in enumerate(patients_for_batch):
             input_image_path = os.path.join(

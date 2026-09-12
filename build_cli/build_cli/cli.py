@@ -459,9 +459,7 @@ def validate_registry_login_config(build_config: BuildConfig, logger) -> None:
     if not missing:
         return
 
-    logger.error(
-        "Registry login is enabled, but required registry settings are missing."
-    )
+    logger.error("Registry login is enabled, but required registry settings are missing.")
     logger.error(f"Missing: {', '.join(missing)}")
     logger.error("How to use this command:")
     logger.error("  - Local build only: kaapana-build --latest --build-only --no-login")
@@ -484,9 +482,7 @@ def run_build(build_config: BuildConfig):
     logger.info("-----------------------------------------------------------")
 
     if not (build_config.kaapana_dir / "platforms").is_dir():
-        logger.error(
-            f"The directory `platforms` was not found in {build_config.kaapana_dir}."
-        )
+        logger.error(f"The directory `platforms` was not found in {build_config.kaapana_dir}.")
         exit(1)
 
     set_console_level(build_config.log_level)
@@ -558,13 +554,8 @@ def run_build(build_config: BuildConfig):
             coordinator = BuildCoordinator(containers)
             coordinator.start()
 
-            if (
-                build_config.create_offline_installation
-                or build_config.publish_offline_installer
-            ):
-                OfflineInstallerHelper.init(
-                    build_config=build_config, build_state=build_state
-                )
+            if build_config.create_offline_installation or build_config.publish_offline_installer:
+                OfflineInstallerHelper.init(build_config=build_config, build_state=build_state)
                 OfflineInstallerHelper.handle_offline_installation(platform_chart)
 
     if len(IssueTracker.issues) > 0:

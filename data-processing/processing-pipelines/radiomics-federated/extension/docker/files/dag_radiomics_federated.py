@@ -1,14 +1,11 @@
 from datetime import timedelta
 
-
 from airflow.models import DAG
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
-
-from kaapana.operators.MinioOperator import MinioOperator
-from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from airflow.utils.log.logging_mixin import LoggingMixin
 from kaapana.operators.JupyterlabReportingOperator import JupyterlabReportingOperator
-
+from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.MinioOperator import MinioOperator
 from radiomics_federated.RadiomicsFederatedOperator import RadiomicsFederatedOperator
 
 log = LoggingMixin().log
@@ -81,9 +78,7 @@ dag = DAG(
 
 radiomics_federated_central = RadiomicsFederatedOperator(dag=dag)
 
-put_radiomics_to_minio = MinioOperator(
-    dag=dag, action="put", none_batch_input_operators=[radiomics_federated_central]
-)
+put_radiomics_to_minio = MinioOperator(dag=dag, action="put", none_batch_input_operators=[radiomics_federated_central])
 
 get_notebook_from_minio = MinioOperator(
     dag=dag,
@@ -112,10 +107,4 @@ put_report_to_minio = MinioOperator(
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 radiomics_federated_central >> put_radiomics_to_minio >> clean
-(
-    radiomics_federated_central
-    >> get_notebook_from_minio
-    >> radiomics_reporting
-    >> put_report_to_minio
-    >> clean
-)
+(radiomics_federated_central >> get_notebook_from_minio >> radiomics_reporting >> put_report_to_minio >> clean)

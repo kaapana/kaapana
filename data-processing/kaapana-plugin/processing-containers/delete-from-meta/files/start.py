@@ -4,7 +4,7 @@ import os
 from os import getenv
 
 import pydicom
-from kaapanapy.helper import load_workflow_config, get_opensearch_client
+from kaapanapy.helper import get_opensearch_client, load_workflow_config
 from kaapanapy.logger import get_logger
 from kaapanapy.settings import KaapanaSettings, OperatorSettings
 
@@ -49,9 +49,7 @@ class DeleteFromMetaOperator:
                 and self.workflow_config["workflow_form"] is not None
                 and "delete_complete_study" in self.workflow_config["workflow_form"]
             ):
-                self.delete_complete_study = self.workflow_config["workflow_form"][
-                    "delete_complete_study"
-                ]
+                self.delete_complete_study = self.workflow_config["workflow_form"]["delete_complete_study"]
         logger.info(f"Delete entire study set to {self.delete_complete_study}")
 
         if not self.delete_all_documents:
@@ -60,9 +58,7 @@ class DeleteFromMetaOperator:
                 and self.workflow_config["workflow_form"] is not None
                 and "delete_all_documents" in self.workflow_config["workflow_form"]
             ):
-                self.delete_all_documents = self.workflow_config["workflow_form"][
-                    "delete_all_documents"
-                ]
+                self.delete_all_documents = self.workflow_config["workflow_form"]["delete_all_documents"]
         logger.info(f"Delete all documents set to {self.delete_all_documents}")
 
     def start(self):
@@ -76,12 +72,7 @@ class DeleteFromMetaOperator:
             self.os_client.delete_by_query(index=self.os_index, body=query)
 
         else:
-            batch_folder = [
-                f
-                for f in glob.glob(
-                    os.path.join(self.workflow_dir, self.batch_name, "*")
-                )
-            ]
+            batch_folder = [f for f in glob.glob(os.path.join(self.workflow_dir, self.batch_name, "*"))]
 
             dicoms_to_delete = []
             for batch_element_dir in batch_folder:
@@ -102,9 +93,7 @@ class DeleteFromMetaOperator:
                 else:
                     json_files = sorted(
                         glob.glob(
-                            os.path.join(
-                                batch_element_dir, self.operator_in_dir, "*.json*"
-                            ),
+                            os.path.join(batch_element_dir, self.operator_in_dir, "*.json*"),
                             recursive=True,
                         )
                     )
@@ -113,21 +102,13 @@ class DeleteFromMetaOperator:
                             metadata = json.load(fs)
                             dicoms_to_delete.append(
                                 {
-                                    "study_uid": metadata[
-                                        "0020000D StudyInstanceUID_keyword"
-                                    ],
-                                    "series_uid": metadata[
-                                        "0020000E SeriesInstanceUID_keyword"
-                                    ],
+                                    "study_uid": metadata["0020000D StudyInstanceUID_keyword"],
+                                    "series_uid": metadata["0020000E SeriesInstanceUID_keyword"],
                                 }
                             )
 
             if self.delete_complete_study:
-                query = {
-                    "query": {
-                        "terms": {"0020000D StudyInstanceUID_keyword": dicoms_to_delete}
-                    }
-                }
+                query = {"query": {"terms": {"0020000D StudyInstanceUID_keyword": dicoms_to_delete}}}
             else:
                 query = {"query": {"terms": {"_id": dicoms_to_delete}}}
 
@@ -135,7 +116,6 @@ class DeleteFromMetaOperator:
 
 
 if __name__ == "__main__":
-
     delete_complete_study = getenv("DELETE_COMPLETE_STUDY", False)
     delete_complete_study = delete_complete_study.lower() == "true"
 

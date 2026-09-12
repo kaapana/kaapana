@@ -1,15 +1,13 @@
 # !!! DEPRECATION WARNING: Local Operators are deprecated and will be replaced with operators that run in Kubernetes pods in the next release v0.7.0.
 # If you have a custom Local Operator, it should be migrated to a processing container based operator.
+import json
 import os
 import shutil
-import json
-import numpy as np
-import nibabel as nib
 from datetime import timedelta
-from multiprocessing.pool import ThreadPool
 from glob import glob
+from os.path import basename, dirname, join
 from pathlib import Path
-from os.path import join, basename, dirname, exists
+
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
@@ -18,27 +16,19 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
         if len(json_list) == 1:
             return json_list[0]
         elif len(json_list) > 1:
-            filter_id = (
-                basename(filename).replace(".nii.gz", "").replace("_combination_", "-")
-            )
+            filter_id = basename(filename).replace(".nii.gz", "").replace("_combination_", "-")
             print(f"# filter_id: {filter_id}")
             json_file_filtered = [
-                json_file
-                for json_file in json_list
-                if filter_id in json_file or "seg_info" in json_file
+                json_file for json_file in json_list if filter_id in json_file or "seg_info" in json_file
             ]
-            ensemble_file_filtered = [
-                json_file
-                for json_file in json_list
-                if "ensemble_seg_info.json" in json_file
-            ]
+            ensemble_file_filtered = [json_file for json_file in json_list if "ensemble_seg_info.json" in json_file]
             if len(ensemble_file_filtered) > 0:
                 return ensemble_file_filtered[0]
 
             if len(json_file_filtered) > 0:
                 return json_file_filtered[0]
             else:
-                print(f"# No fitting json could be identified!")
+                print("# No fitting json could be identified!")
                 print(f"# Filename: {filename}")
                 print(json.dumps(json_list, indent=4, sort_keys=True, default=str))
                 return None
@@ -55,11 +45,7 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
         print(f"# nifti_files: {nifti_files}")
 
         print(f"# filter_id: {filter_id}")
-        nifti_filtered = [
-            dirname(dirname(nifti_file))
-            for nifti_file in nifti_files
-            if f"{filter_id}" in nifti_file
-        ]
+        nifti_filtered = [dirname(dirname(nifti_file)) for nifti_file in nifti_files if f"{filter_id}" in nifti_file]
         print(f"# get_batch_element nifti_filtered: {nifti_filtered}")
         if len(nifti_filtered) == 1:
             return nifti_filtered[0]
@@ -88,9 +74,7 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
         if self.origin == "batch":
             iter_dirs = [run_dir]
         elif self.origin == "batchelement":
-            iter_dirs = sorted(
-                [f for f in glob(os.path.join(run_dir, self.batch_name, "*"))]
-            )
+            iter_dirs = sorted([f for f in glob(os.path.join(run_dir, self.batch_name, "*"))])
 
         print(f"# Found {len(iter_dirs)} iter_dirs")
         model_id = 0
@@ -109,7 +93,7 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
                         filename=nifti_file,
                         batch_path=join(run_dir, self.target_batchname),
                     )
-                    assert target_batch_element != None
+                    assert target_batch_element is not None
                     target_dir = join(target_batch_element, self.operator_out_dir)
                 Path(target_dir).mkdir(parents=True, exist_ok=True)
 
@@ -128,10 +112,10 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
                     print(f"# copy JSON: {json_file} -> {target_json_path}")
                     shutil.copy2(json_file, target_json_path)
                 else:
-                    print(f"# No json found!")
+                    print("# No json found!")
                     raise ValueError("ERROR")
-                print(f"#")
-            print(f"#")
+                print("#")
+            print("#")
 
         print("# ")
         print("#")

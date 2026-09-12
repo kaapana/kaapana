@@ -14,11 +14,7 @@ console = Console()
 SUPPORTED_ENGINES = ["airflow", "argo", "cpp"]
 
 
-def create_workflow(
-    workflow_name: str,
-    output_dir: Path,
-    workflow_engine: str = "airflow"
-) -> Path:
+def create_workflow(workflow_name: str, output_dir: Path, workflow_engine: str = "airflow") -> Path:
     """
     Create new workflow template from scratch.
 
@@ -33,10 +29,7 @@ def create_workflow(
 
     if workflow_engine not in SUPPORTED_ENGINES:
         supported = ", ".join(SUPPORTED_ENGINES)
-        raise ValueError(
-            f"Unsupported workflow engine: {workflow_engine}. "
-            f"Supported: {supported}"
-        )
+        raise ValueError(f"Unsupported workflow engine: {workflow_engine}. Supported: {supported}")
 
     # Clean directory name
     safe_name = workflow_name.lower().replace(" ", "-").replace("_", "-")
@@ -96,9 +89,7 @@ def _generate_chart_files(env: Environment, context: dict, chart_path: Path) -> 
 
     if engine in definition_templates:
         template_file, ext = definition_templates[engine]
-        files_to_create.append(
-            (template_file, chart_path / "files" / f"workflow_definition{ext}")
-        )
+        files_to_create.append((template_file, chart_path / "files" / f"workflow_definition{ext}"))
 
     for template_name, output_path in files_to_create:
         try:

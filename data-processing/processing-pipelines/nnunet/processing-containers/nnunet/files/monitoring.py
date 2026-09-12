@@ -1,13 +1,12 @@
-import os
-import sys
-import json
+import datetime
 import glob
+import json
 import pathlib
 import sched
+import sys
 import time
-import datetime
-from shutil import copy2
-from os.path import join, basename, dirname
+from os.path import basename, dirname, join
+
 from tensorboardX import SummaryWriter
 
 #######################
@@ -67,27 +66,30 @@ else:
 
 
 def get_logs(sc):
-    global experiment_name, writer, last_written_epoch, experiment_path, fold, tensorboard_dir_path, timeout, last_training_log_file, dataset_json
+    global \
+        experiment_name, \
+        writer, \
+        last_written_epoch, \
+        experiment_path, \
+        fold, \
+        tensorboard_dir_path, \
+        timeout, \
+        last_training_log_file, \
+        dataset_json
     logs_path = join(experiment_path, "**", "training_log_*.txt*")
     log_files = sorted(glob.glob(logs_path, recursive=True))
     log_files = [i for i in log_files if "fold" not in i or f"fold_{fold}" in i]
     if len(log_files) > 0:
         if log_files[-1] != last_training_log_file:
             last_training_log_file = log_files[-1]
-            if dataset_json != None:
-                with open(
-                    join(dirname(last_training_log_file), "dataset.json"), "w"
-                ) as outfile:
+            if dataset_json is not None:
+                with open(join(dirname(last_training_log_file), "dataset.json"), "w") as outfile:
                     json.dump(dataset_json, outfile, indent=4, sort_keys=False)
 
             # debug_json_path = join(dirname(last_training_log_file), "debug.json")
             if "fold" in last_training_log_file:
-                fold_no = int(
-                    basename(dirname(last_training_log_file)).replace("fold_", "")
-                )
-                experiment_log_path = join(
-                    tensorboard_dir_path, experiment_name, f"fold_{fold_no}"
-                )
+                fold_no = int(basename(dirname(last_training_log_file)).replace("fold_", ""))
+                experiment_log_path = join(tensorboard_dir_path, experiment_name, f"fold_{fold_no}")
                 print(f"# Fold_No: {fold_no}..")
             else:
                 experiment_log_path = join(tensorboard_dir_path, experiment_name)
@@ -122,32 +124,23 @@ def get_logs(sc):
                 epoch_data["validation-loss"] = float(line.split(":")[-1].strip())
             elif "Average global foreground Dice" in line:
                 epoch_data["foreground-dice"] = [
-                    float(x)
-                    for x in line.split(":")[-1]
-                    .strip()
-                    .replace("[", "")
-                    .replace("]", "")
-                    .split(",")
+                    float(x) for x in line.split(":")[-1].strip().replace("[", "").replace("]", "").split(",")
                 ]
             elif "lr:" in line:
                 epoch_data["lr"] = float(line.split(":")[-1].strip())
             elif "This epoch took" in line:
-                epoch_data["time"] = float(
-                    line.split("This epoch took")[-1].strip()[:-2]
-                )
+                epoch_data["time"] = float(line.split("This epoch took")[-1].strip()[:-2])
 
         for epoch in epoch_log_data:
             if (len(epoch)) != 6 or last_written_epoch >= epoch["count"]:
                 continue
             writer.add_scalar("loss/train", epoch["train-loss"], epoch["count"])
-            writer.add_scalar(
-                "loss/validation", epoch["validation-loss"], epoch["count"]
-            )
+            writer.add_scalar("loss/validation", epoch["validation-loss"], epoch["count"])
 
             scalars_dict = {}
             for i in range(0, len(epoch["foreground-dice"])):
                 label_tag = str(i + 1)
-                if dataset_json != None and label_tag in dataset_json["labels"]:
+                if dataset_json is not None and label_tag in dataset_json["labels"]:
                     label_tag = dataset_json["labels"][label_tag]
                 scalars_dict[label_tag] = epoch["foreground-dice"][i]
                 writer.add_scalar(

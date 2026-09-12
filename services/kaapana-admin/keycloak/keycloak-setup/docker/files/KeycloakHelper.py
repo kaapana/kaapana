@@ -1,10 +1,11 @@
+import logging
 import os
+
 import requests
+from logger import get_logger
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-from logger import get_logger
-import logging
 
 logger = get_logger(__name__, logging.DEBUG)
 
@@ -17,9 +18,7 @@ class KeycloakHelper:
 
     def __init__(self, access_token, keycloak_host=None, keycloak_https_port=None):
         self.keycloak_host = keycloak_host or os.environ["KEYCLOAK_HOST"]
-        self.keycloak_https_port = keycloak_https_port or os.getenv(
-            "KEYCLOAK_HTTPS_PORT", 443
-        )
+        self.keycloak_https_port = keycloak_https_port or os.getenv("KEYCLOAK_HTTPS_PORT", 443)
         self.auth_url = f"https://{self.keycloak_host}:{self.keycloak_https_port}/auth/admin/realms/"
         self.access_token = access_token
 
@@ -35,9 +34,7 @@ class KeycloakHelper:
         keycloak_user = keycloak_user or os.environ["KEYCLOAK_USER"]
         keycloak_password = keycloak_password or os.environ["KEYCLOAK_PASSWORD"]
         keycloak_host = keycloak_host or os.environ["KEYCLOAK_HOST"]
-        keycloak_https_port = keycloak_https_port or os.getenv(
-            "KEYCLOAK_HTTPS_PORT", 443
-        )
+        keycloak_https_port = keycloak_https_port or os.getenv("KEYCLOAK_HTTPS_PORT", 443)
         token = cls._fetch_token(
             keycloak_host,
             keycloak_https_port,
@@ -60,9 +57,7 @@ class KeycloakHelper:
     ):
         """Authenticate via a service-account client (client_credentials grant)."""
         keycloak_host = keycloak_host or os.environ["KEYCLOAK_HOST"]
-        keycloak_https_port = keycloak_https_port or os.getenv(
-            "KEYCLOAK_HTTPS_PORT", 443
-        )
+        keycloak_https_port = keycloak_https_port or os.getenv("KEYCLOAK_HTTPS_PORT", 443)
         token = cls._fetch_token(
             keycloak_host,
             keycloak_https_port,
@@ -123,14 +118,12 @@ class KeycloakHelper:
         if r.status_code in [409]:
             logger.warning("Ressource already exists.")
             if update_url:
-                logger.info(f"Ressource will be updated!")
-                r = self.make_authorized_request(
-                    update_url, requests.put, payload, timeout=timeout, **kwargs
-                )
-                logger.info(f"Ressource was updated!")
+                logger.info("Ressource will be updated!")
+                r = self.make_authorized_request(update_url, requests.put, payload, timeout=timeout, **kwargs)
+                logger.info("Ressource was updated!")
                 r.raise_for_status()
             else:
-                logger.warning(f"Ressource won't be updated")
+                logger.warning("Ressource won't be updated")
         else:
             r.raise_for_status()
         return r
@@ -170,17 +163,13 @@ class KeycloakHelper:
         group = payload["name"]
         group_id = self.get_group_id(group)
         update_url = url + f"/{group_id}" if update and group_id and group_id else ""
-        return self.make_authorized_request(
-            url, requests.post, payload=payload, update_url=update_url, **kwargs
-        )
+        return self.make_authorized_request(url, requests.post, payload=payload, update_url=update_url, **kwargs)
 
     def get_realm_roles(self):
         url = self.auth_url + "kaapana/roles"
         return self.make_authorized_request(url, requests.get)
 
-    def post_role_mapping(
-        self, roles_to_add: list, group: str = None, user: str = None
-    ):
+    def post_role_mapping(self, roles_to_add: list, group: str = None, user: str = None):
         assert group or user
         if group:
             group_id = self.get_group_id(group)
@@ -199,22 +188,18 @@ class KeycloakHelper:
         url = self.auth_url + "kaapana/users"
         response = self.make_authorized_request(url, requests.post, payload, **kwargs)
         if response.status_code == 409 and reset_password:
-            logger.warning(f"Reset password!")
+            logger.warning("Reset password!")
             user = self.get_user_by_name(payload.get("username"))
             user_id = user.get("id")
             url = self.auth_url + f"kaapana/users/{user_id}/reset-password"
             reset_payload = payload.get("credentials")[0]
             reset_payload["temporary"] = False
-            reset_response = self.make_authorized_request(
-                url, requests.put, reset_payload, **kwargs
-            )
+            reset_response = self.make_authorized_request(url, requests.put, reset_payload, **kwargs)
             reset_response.raise_for_status()
             logger.info(f"Reset password for user {user_id} ")
 
     def get_client_id(self, client_name: str):
-        all_clients = self.make_authorized_request(
-            self.auth_url + f"kaapana/clients", requests.get
-        ).json()
+        all_clients = self.make_authorized_request(self.auth_url + "kaapana/clients", requests.get).json()
         for client in all_clients:
             if client["clientId"] == client_name:
                 id = client["id"]
@@ -231,34 +216,22 @@ class KeycloakHelper:
         client_name = payload["clientId"]
         client_id = self.get_client_id(client_name)
         update_url = url + f"/{client_id}" if update and client_id else ""
-        return self.make_authorized_request(
-            url, requests.post, payload=payload, update_url=update_url, **kwargs
-        )
+        return self.make_authorized_request(url, requests.post, payload=payload, update_url=update_url, **kwargs)
 
     def post_composite_role(self, composite_role: str, roles_to_add: list):
         roles = self.get_realm_roles().json()
         role_id = [
-            available_role.get("id")
-            for available_role in roles
-            if available_role.get("name") == composite_role
+            available_role.get("id") for available_role in roles if available_role.get("name") == composite_role
         ][0]
 
-        payload = [
-            role_to_add
-            for role_to_add in roles
-            if role_to_add.get("name") in roles_to_add
-        ]
+        payload = [role_to_add for role_to_add in roles if role_to_add.get("name") in roles_to_add]
 
         url = self.auth_url + f"kaapana/roles-by-id/{role_id}/composites"
         return self.make_authorized_request(url, requests.post, payload)
 
     def get_composite_role(self, role):
         roles = self.get_realm_roles().json()
-        role_id = [
-            available_role.get("id")
-            for available_role in roles
-            if available_role.get("name") == role
-        ][0]
+        role_id = [available_role.get("id") for available_role in roles if available_role.get("name") == role][0]
         url = self.auth_url + f"kaapana/roles-by-id/{role_id}/composites"
         return self.make_authorized_request(url, requests.get)
 
@@ -272,34 +245,22 @@ class KeycloakHelper:
         client_id = self.get_client_id(client)
         role_representation = self.get_client_role(client_id, client_role)
         user_id = self.get_user_by_name(username).get("id")
-        url = (
-            self.auth_url + f"kaapana/users/{user_id}/role-mappings/clients/{client_id}"
-        )
+        url = self.auth_url + f"kaapana/users/{user_id}/role-mappings/clients/{client_id}"
         return self.make_authorized_request(url, requests.post, [role_representation])
 
-    def post_service_account_role_mapping(
-        self, service_client: str, managing_client: str, client_role: str
-    ):
+    def post_service_account_role_mapping(self, service_client: str, managing_client: str, client_role: str):
         """
         Assign a role from managing_client to the service account of service_client.
         Uses /clients/{uuid}/service-account-user which works for service accounts
         (regular /users?username=... does not return service account users).
         """
         service_client_uuid = self.get_client_id(service_client)
-        url = (
-            self.auth_url
-            + f"kaapana/clients/{service_client_uuid}/service-account-user"
-        )
+        url = self.auth_url + f"kaapana/clients/{service_client_uuid}/service-account-user"
         user_id = self.make_authorized_request(url, requests.get).json().get("id")
         managing_client_uuid = self.get_client_id(managing_client)
         role_representation = self.get_client_role(managing_client_uuid, client_role)
-        assign_url = (
-            self.auth_url
-            + f"kaapana/users/{user_id}/role-mappings/clients/{managing_client_uuid}"
-        )
-        return self.make_authorized_request(
-            assign_url, requests.post, [role_representation]
-        )
+        assign_url = self.auth_url + f"kaapana/users/{user_id}/role-mappings/clients/{managing_client_uuid}"
+        return self.make_authorized_request(assign_url, requests.post, [role_representation])
 
     def get_client_role(self, client_id: str, client_role: str):
         """

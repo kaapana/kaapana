@@ -1,10 +1,11 @@
-import uuid
 import datetime
-from sqlalchemy import Column, UUID, CheckConstraint
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy.types import String, ARRAY, DateTime
+import uuid
+
+from sqlalchemy import UUID, CheckConstraint, Column
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.sql import func
+from sqlalchemy.types import ARRAY, DateTime, String
 
 
 class Base(DeclarativeBase): ...
@@ -12,13 +13,9 @@ class Base(DeclarativeBase): ...
 
 class Notification(Base):
     __tablename__ = "notifications"
-    __table_args__ = (
-        CheckConstraint("array_ndims(receivers) = 1", name="receivers_one_dimensional"),
-    )
+    __table_args__ = (CheckConstraint("array_ndims(receivers) = 1", name="receivers_one_dimensional"),)
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     topic: Mapped[str | None] = Column(String, nullable=True)
     title: Mapped[str] = Column(String)
@@ -30,6 +27,4 @@ class Notification(Base):
         server_default=func.now(),
     )
     receivers: Mapped[list[str]] = Column(ARRAY(String))
-    receviers_read: Mapped[dict[str, datetime.datetime | None]] = Column(
-        JSONB, default=dict
-    )
+    receviers_read: Mapped[dict[str, datetime.datetime | None]] = Column(JSONB, default=dict)

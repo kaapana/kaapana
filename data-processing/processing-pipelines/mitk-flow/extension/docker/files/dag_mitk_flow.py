@@ -3,7 +3,6 @@ from datetime import timedelta
 from airflow.models import DAG
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
-from kaapana.blueprints.kaapana_global_variables import KAAPANA_BUILD_VERSION
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.GetRefSeriesOperator import GetRefSeriesOperator
@@ -56,9 +55,7 @@ dag = DAG(
 
 get_input = GetInputOperator(dag=dag)
 branch_get_ref_series = LocalBranchGetReferenceSeries(dag=dag, input_operator=get_input)
-get_ref_series = GetRefSeriesOperator(
-    dag=dag, input_operator=branch_get_ref_series, skip_empty_ref_dir=True
-)
+get_ref_series = GetRefSeriesOperator(dag=dag, input_operator=branch_get_ref_series, skip_empty_ref_dir=True)
 mitk = LocalMiktInputOperator(
     dag=dag,
     input_operator=get_input,

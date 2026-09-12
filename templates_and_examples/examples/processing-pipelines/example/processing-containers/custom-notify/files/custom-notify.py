@@ -52,9 +52,7 @@ def main():
     ):
         logger.info(f"operator_in_dir: {operator_in_dir}")
         logger.info(f"operator_out_dir: {operator_out_dir}")
-        dicom_files = [
-            pydicom.dcmread(filename) for filename in operator_in_dir.iterdir()
-        ]
+        dicom_files = [pydicom.dcmread(filename) for filename in operator_in_dir.iterdir()]
         # Do whatever you need with the DCMs files
         notification = Notification(
             topic=dag_id,

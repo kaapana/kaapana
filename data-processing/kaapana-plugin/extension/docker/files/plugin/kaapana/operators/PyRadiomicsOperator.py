@@ -1,10 +1,10 @@
 from datetime import timedelta
 
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 from kaapana.blueprints.kaapana_global_variables import (
     DEFAULT_REGISTRY,
     KAAPANA_BUILD_VERSION,
 )
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 
 
 class PyRadiomicsOperator(KaapanaBaseOperator):
@@ -38,7 +38,7 @@ class PyRadiomicsOperator(KaapanaBaseOperator):
         envs = {
             # directory that contains the segmentation objects
             "OPERATOR_IN_SEGMENATIONS_DIR": segmentation_operator.operator_out_dir,
-            "ALGORITHM_NAME": f'{alg_name or "kaapana"}',
+            "ALGORITHM_NAME": f"{alg_name or 'kaapana'}",
         }
         env_vars.update(envs)
 

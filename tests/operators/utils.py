@@ -45,9 +45,5 @@ def mock_modules():
 
 
 KAAPANA_DIR = Path(__file__).resolve().parents[2]
-PLUGIN_DIR = (
-    KAAPANA_DIR / "data-processing/kaapana-plugin/extension/docker/files/plugin/"
-)
-DICOM_TAG_DICT = (
-    KAAPANA_DIR / "services/flow/airflow/docker/files/scripts/dicom_tag_dict.json"
-)
+PLUGIN_DIR = KAAPANA_DIR / "data-processing/kaapana-plugin/extension/docker/files/plugin/"
+DICOM_TAG_DICT = KAAPANA_DIR / "services/flow/airflow/docker/files/scripts/dicom_tag_dict.json"

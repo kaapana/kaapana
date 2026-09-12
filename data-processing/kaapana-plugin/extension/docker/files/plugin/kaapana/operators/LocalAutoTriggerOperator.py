@@ -12,6 +12,7 @@ import pydicom
 import requests
 from airflow.api.common.trigger_dag import trigger_dag as trigger
 from airflow.models import DagBag
+
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.blueprints.kaapana_utils import generate_run_id
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
@@ -75,7 +76,7 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
         print(f"# conf: {conf}")
         print("#")
         trigger(dag_id=dag_id, run_id=dag_run_id, conf=conf, replace_microseconds=False)
-        print(f"# Triggered! ")
+        print("# Triggered! ")
 
     def set_data_input(self, dag_id, dcm_path, dag_run_id, series_uid, conf={}):
         print("Set input data")
@@ -88,9 +89,7 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
                     print(f"# found dag_id: {dag.dag_id}")
                     for task in dag.tasks:
                         if "LocalGetInputDataOperator" == task.__class__.__name__:
-                            print(
-                                f"# found LocalGetInputDataOperator task: {task.name}"
-                            )
+                            print(f"# found LocalGetInputDataOperator task: {task.name}")
                             get_input_dir_name = task.operator_out_dir
                             target = os.path.join(
                                 self.airflow_workflow_dir,
@@ -105,7 +104,7 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
                             break
                     break
         else:
-            print(f"# Using PACS fetch-method !")
+            print("# Using PACS fetch-method !")
 
             if "data_form" not in conf or "identifiers" not in conf["data_form"]:
                 conf["data_form"] = {"identifiers": []}
@@ -178,14 +177,10 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
         Raises:
             Exception: If the API request fails with a non-200 status code.
         """
-        client_endpoint = (
-            f"http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000"
-        )
+        client_endpoint = f"http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000"
         # convert the workflow name / DAG name to camel_case, since dag names are stored in
         # camel case in the backend
-        workflow_settings_url = (
-            f"{client_endpoint}/settings/workflows/{camel_case(workflow_name)}"
-        )
+        workflow_settings_url = f"{client_endpoint}/settings/workflows/{camel_case(workflow_name)}"
         try:
             res = requests.get(
                 workflow_settings_url,
@@ -214,9 +209,7 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
                 trigger_rule_list = trigger_rule_list + json.load(f)
 
         print("# ")
-        print(
-            f"# Found {len(trigger_rule_list)} auto-trigger configurations -> start processing ..."
-        )
+        print(f"# Found {len(trigger_rule_list)} auto-trigger configurations -> start processing ...")
         print("# ")
 
         batch_folders = sorted(
@@ -252,11 +245,7 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
             print(f"# Found {len(input_files)} input-files!")
 
             incoming_dcm = pydicom.dcmread(input_files[0])
-            dcm_dataset = (
-                str(incoming_dcm[0x0012, 0x0020].value).lower()
-                if (0x0012, 0x0020) in incoming_dcm
-                else "N/A"
-            )
+            dcm_dataset = str(incoming_dcm[0x0012, 0x0020].value).lower() if (0x0012, 0x0020) in incoming_dcm else "N/A"
             series_uid = str(incoming_dcm[0x0020, 0x000E].value)
 
             print("#")
@@ -271,14 +260,10 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
                     print(f"# search_tag: {search_key}")
                     dicom_tag = search_key.split(",")
                     if dicom_tag not in incoming_dcm:
-                        print(
-                            f"# dicom_tag: {dicom_tag} could not be found in incoming dcm file -> skipping"
-                        )
+                        print(f"# dicom_tag: {dicom_tag} could not be found in incoming dcm file -> skipping")
                         continue
                     incoming_tag_value = (
-                        str(incoming_dcm[dicom_tag].value).lower()
-                        if (dicom_tag in incoming_dcm)
-                        else ""
+                        str(incoming_dcm[dicom_tag].value).lower() if (dicom_tag in incoming_dcm) else ""
                     )
                     search_tag_values = search_value.lower().split(",")
                     print(f"# incoming_tag_value: {incoming_tag_value}")
@@ -288,7 +273,7 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
                         fullfills_all_search_tags = False
                     else:
                         print(f"# Match for tag {dicom_tag}! -> triggering")
-                    print(f"#")
+                    print("#")
 
                 if fullfills_all_search_tags is True:
                     for (
@@ -296,8 +281,7 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
                         conf,
                     ) in config_entry["dag_ids"].items():
                         if dag_id == "service-extract-metadata" or (
-                            dcm_dataset != "dicom-test"
-                            and dcm_dataset != "phantom-example"
+                            dcm_dataset != "dicom-test" and dcm_dataset != "phantom-example"
                         ):
                             print(f"# Triggering '{dag_id}'")
                             single_execution = False
@@ -354,9 +338,7 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
             if "get_settings_from_api" in conf and conf["get_settings_from_api"]:
                 # make a request to settings backend to get dag settings using the dag name
                 # remove the service prefix from the service dag name
-                workflow_form = self.get_workflow_settings_from_api(
-                    ignore_service_prefix(triggering["dag_id"])
-                )
+                workflow_form = self.get_workflow_settings_from_api(ignore_service_prefix(triggering["dag_id"]))
                 if "service" not in triggering["dag_id"]:
                     workflow_form["username"] = "system"
                 conf["workflow_form"] = workflow_form
@@ -366,6 +348,4 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
             self.trigger_it(triggering)
 
     def __init__(self, dag, **kwargs):
-        super().__init__(
-            dag=dag, name="auto-dag-trigger", python_callable=self.start, **kwargs
-        )
+        super().__init__(dag=dag, name="auto-dag-trigger", python_callable=self.start, **kwargs)

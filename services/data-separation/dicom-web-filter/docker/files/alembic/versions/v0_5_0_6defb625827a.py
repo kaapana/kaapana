@@ -46,9 +46,7 @@ def upgrade() -> None:
         "data_projects",
         type_="unique",
     )
-    op.alter_column(
-        "data_projects", "project_id", new_column_name="old_project_id", nullable=True
-    )
+    op.alter_column("data_projects", "project_id", new_column_name="old_project_id", nullable=True)
     op.add_column("data_projects", sa.Column("project_id", UUID(), nullable=True))
 
     # Update existing records using the map
@@ -62,9 +60,7 @@ def upgrade() -> None:
                 ),
                 {"uuid": new_uuid, "old_id": old_id},
             )
-    op.create_unique_constraint(
-        None, "data_projects", ["project_id", "series_instance_uid"]
-    )
+    op.create_unique_constraint(None, "data_projects", ["project_id", "series_instance_uid"])
     op.alter_column("data_projects", "project_id", nullable=False)
 
     ### end Alembic commands ###

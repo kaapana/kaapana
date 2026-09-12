@@ -1,15 +1,17 @@
+# sys.path, the environment and the JSONB shim below must be in place before the app modules import.
+# ruff: noqa: E402
 """
 Test configuration following SQLModel testing patterns.
 Uses pytest fixtures with in-memory SQLite database.
 """
 
+import json
 import os
 import sys
 from pathlib import Path
 
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-import json
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -42,15 +44,9 @@ def pytest_configure(config):
     # Route-specific markers
     config.addinivalue_line("markers", "post_workflows: Tests for POST /v1/workflows")
     config.addinivalue_line("markers", "get_workflows: Tests for GET /v1/workflows")
-    config.addinivalue_line(
-        "markers", "get_workflow_by_id: Tests for GET /v1/workflows/{workflow_id}"
-    )
-    config.addinivalue_line(
-        "markers", "patch_workflow: Tests for PATCH /v1/workflows/{workflow_id}"
-    )
-    config.addinivalue_line(
-        "markers", "delete_workflow: Tests for DELETE /v1/workflows/{workflow_id}"
-    )
+    config.addinivalue_line("markers", "get_workflow_by_id: Tests for GET /v1/workflows/{workflow_id}")
+    config.addinivalue_line("markers", "patch_workflow: Tests for PATCH /v1/workflows/{workflow_id}")
+    config.addinivalue_line("markers", "delete_workflow: Tests for DELETE /v1/workflows/{workflow_id}")
     config.addinivalue_line(
         "markers",
         "get_workflow_revisions: Tests for GET /v1/workflows/{workflow_id}/revisions",
@@ -59,28 +55,16 @@ def pytest_configure(config):
         "markers",
         "restore_workflow_revision: Tests for POST /v1/workflows/{workflow_id}/revisions/{n}/restore",
     )
-    config.addinivalue_line(
-        "markers", "get_workflow_tasks: Tests for GET /v1/workflows/{workflow_id}/tasks"
-    )
+    config.addinivalue_line("markers", "get_workflow_tasks: Tests for GET /v1/workflows/{workflow_id}/tasks")
     config.addinivalue_line(
         "markers",
         "get_task: Tests for GET /v1/workflows/{workflow_id}/tasks/{task_title}",
     )
-    config.addinivalue_line(
-        "markers", "post_workflow_runs: Tests for POST /v1/workflow-runs"
-    )
-    config.addinivalue_line(
-        "markers", "get_workflow_runs: Tests for GET /v1/workflow-runs"
-    )
-    config.addinivalue_line(
-        "markers", "get_workflow_run_by_id: Tests for GET /v1/workflow-runs/{id}"
-    )
-    config.addinivalue_line(
-        "markers", "cancel_workflow_run: Tests for PUT /v1/workflow-runs/{id}/cancel"
-    )
-    config.addinivalue_line(
-        "markers", "retry_workflow_run: Tests for PUT /v1/workflow-runs/{id}/retry"
-    )
+    config.addinivalue_line("markers", "post_workflow_runs: Tests for POST /v1/workflow-runs")
+    config.addinivalue_line("markers", "get_workflow_runs: Tests for GET /v1/workflow-runs")
+    config.addinivalue_line("markers", "get_workflow_run_by_id: Tests for GET /v1/workflow-runs/{id}")
+    config.addinivalue_line("markers", "cancel_workflow_run: Tests for PUT /v1/workflow-runs/{id}/cancel")
+    config.addinivalue_line("markers", "retry_workflow_run: Tests for PUT /v1/workflow-runs/{id}/retry")
     config.addinivalue_line(
         "markers",
         "get_workflow_run_task_runs: Tests for GET /v1/workflow-runs/{id}/task-runs",
@@ -118,9 +102,7 @@ async def session_fixture():
         await conn.run_sync(Base.metadata.create_all)
 
     # Create session maker
-    async_session_maker = sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
+    async_session_maker = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     # Yield session for test
     async with async_session_maker() as session:

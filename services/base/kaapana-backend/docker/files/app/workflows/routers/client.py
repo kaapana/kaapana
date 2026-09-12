@@ -1,4 +1,5 @@
 import copy
+import functools
 import json
 import logging
 import math
@@ -8,7 +9,6 @@ import shutil
 import string
 import uuid
 from datetime import datetime
-import functools
 from pathlib import Path
 from threading import Thread
 from typing import List, Tuple, Union
@@ -42,35 +42,24 @@ UPLOAD_DIR = "/kaapana/app/uploads"
 
 def remove_outdated_tmp_files(search_dir):
     max_hours_tmp_files = 24
-    files_grabbed = (
-        p.resolve()
-        for p in Path(search_dir).glob("*")
-        if p.suffix in {".tmppatch", ".tmpfile"}
-    )
+    files_grabbed = (p.resolve() for p in Path(search_dir).glob("*") if p.suffix in {".tmppatch", ".tmpfile"})
 
     for file_found in files_grabbed:
         hours_since_creation = int(
-            (
-                datetime.now() - datetime.fromtimestamp(os.path.getmtime(file_found))
-            ).total_seconds()
-            / 3600
+            (datetime.now() - datetime.fromtimestamp(os.path.getmtime(file_found))).total_seconds() / 3600
         )
         if hours_since_creation > max_hours_tmp_files:
             logging.warning(f"File {file_found} outdated -> delete")
             try:
                 os.remove(file_found)
                 pass
-            except Exception as e:
-                logging.warning(
-                    f"Something went wrong with the removal of {file_found} .. "
-                )
+            except Exception:
+                logging.warning(f"Something went wrong with the removal of {file_found} .. ")
 
 
 @router.head("/file")
 def head_file_upload(request: Request, patch: str):
-    uoffset = request.headers.get("upload-offset", None)
     ulength = request.headers.get("upload-length", None)
-    uname = request.headers.get("upload-name", None)
     fpath = Path(UPLOAD_DIR) / f"{patch}.tmpfile"
     if fpath.is_file():
         offset = int(ulength) - fpath.stat().st_size
@@ -89,9 +78,7 @@ async def get_file(request: Request, pattern: str = "*"):
     return [
         file.relative_to(UPLOAD_DIR)
         for file in absolute_file_paths
-        if file.is_file()
-        and file.resolve().parts[: len(Path(UPLOAD_DIR).parts)]
-        == Path(UPLOAD_DIR).parts
+        if file.is_file() and file.resolve().parts[: len(Path(UPLOAD_DIR).parts)] == Path(UPLOAD_DIR).parts
     ]
 
 
@@ -124,9 +111,7 @@ async def patch_file(
     request: Request,
     patch: str,
 ):
-    uoffset = request.headers.get("upload-offset", None)
     ulength = request.headers.get("upload-length", None)
-    uname = request.headers.get("upload-name", None)
     fpath = Path(UPLOAD_DIR) / f"{patch}.tmpfile"
     with open(fpath, "ab") as f:
         async for chunk in request.stream():
@@ -139,9 +124,7 @@ async def patch_file(
                 with open(patch_fpath, "r") as fp:
                     filename = fp.read()
             else:
-                logging.error(
-                    f"upload mapping dictionary file {patch_fpath} does not exist"
-                )
+                logging.error(f"upload mapping dictionary file {patch_fpath} does not exist")
             logging.info(f"{patch=}, {filename=}")
             target_path = Path(UPLOAD_DIR) / filename.strip("/")
             target_path.parents[0].mkdir(parents=True, exist_ok=True)
@@ -157,9 +140,7 @@ async def patch_file(
                 fpath.unlink()
             if patch_fpath.is_file():
                 patch_fpath.unlink()
-            raise HTTPException(
-                status_code=500, detail=f"Failed to upload {filename} to Minio: {e}"
-            )
+            raise HTTPException(status_code=500, detail=f"Failed to upload {filename} to Minio: {e}")
     return Response(patch)
 
 
@@ -187,9 +168,7 @@ def create_remote_kaapana_instance(
     db: Session = Depends(get_db),
 ):
     return schemas.KaapanaInstance.clean_return(
-        crud.create_and_update_remote_kaapana_instance(
-            db=db, remote_kaapana_instance=remote_kaapana_instance
-        )
+        crud.create_and_update_remote_kaapana_instance(db=db, remote_kaapana_instance=remote_kaapana_instance)
     )
 
 
@@ -223,9 +202,7 @@ def put_client_kaapana_instance(
 
 @router.get("/kaapana-instance", response_model=schemas.KaapanaInstance)
 def get_kaapana_instance(instance_name: str = None, db: Session = Depends(get_db)):
-    return schemas.KaapanaInstance.clean_return(
-        crud.get_kaapana_instance(db, instance_name)
-    )
+    return schemas.KaapanaInstance.clean_return(crud.get_kaapana_instance(db, instance_name))
 
 
 @router.post("/get-kaapana-instances", response_model=List[schemas.KaapanaInstance])
@@ -233,9 +210,7 @@ def get_kaapana_instances(
     filter_kaapana_instances: schemas.FilterKaapanaInstances = None,
     db: Session = Depends(get_db),
 ):
-    kaapana_instances = crud.get_kaapana_instances(
-        db, filter_kaapana_instances=filter_kaapana_instances
-    )
+    kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=filter_kaapana_instances)
 
     for instance in kaapana_instances:
         schemas.KaapanaInstance.clean_return(instance)
@@ -271,10 +246,7 @@ def create_job(
         )
 
     # Block non-whitelisted DAGs on archived projects
-    if (
-        _aii_project(project.get("id")).get("is_archived")
-        and job.dag_id not in ARCHIVED_PROJECT_DAG_WHITELIST
-    ):
+    if _aii_project(project.get("id")).get("is_archived") and job.dag_id not in ARCHIVED_PROJECT_DAG_WHITELIST:
         raise HTTPException(
             status_code=403,
             detail=(
@@ -285,9 +257,7 @@ def create_job(
 
     job = crud.create_job(db=db, job=job)
     if job.kaapana_instance:
-        job.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
-            job.kaapana_instance
-        )
+        job.kaapana_instance = schemas.KaapanaInstance.clean_full_return(job.kaapana_instance)
     return job
 
 
@@ -296,9 +266,7 @@ def create_job(
 def get_job(job_id: int = None, run_id: str = None, db: Session = Depends(get_db)):
     job = crud.get_job(db, job_id, run_id)
     if job.kaapana_instance:
-        job.kaapana_instance = schemas.KaapanaInstance.clean_return(
-            job.kaapana_instance
-        )
+        job.kaapana_instance = schemas.KaapanaInstance.clean_return(job.kaapana_instance)
     return job
 
 
@@ -311,14 +279,10 @@ def get_jobs(
     limit: int = None,
     db: Session = Depends(get_db),
 ):
-    jobs = crud.get_jobs(
-        db, instance_name, workflow_name, status, remote=False, limit=limit
-    )
+    jobs = crud.get_jobs(db, instance_name, workflow_name, status, remote=False, limit=limit)
     for job in jobs:
         if job.kaapana_instance:
-            job.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
-                job.kaapana_instance
-            )
+            job.kaapana_instance = schemas.KaapanaInstance.clean_full_return(job.kaapana_instance)
     return jobs
 
 
@@ -359,9 +323,7 @@ async def dags(
     allowed_software=Depends(get_allowed_software),
 ):
     filter_allowed_dags = None if include_all else allowed_software
-    return get_dag_list(
-        only_dag_names=only_dag_names, filter_allowed_dags=filter_allowed_dags
-    )
+    return get_dag_list(only_dag_names=only_dag_names, filter_allowed_dags=filter_allowed_dags)
 
 
 @router.get("/get-job-taskinstances")
@@ -388,9 +350,7 @@ def get_dags(
                 filter_allowed_dags=allowed_software,
             )
 
-    if (
-        len(dags) > 1
-    ):  # if multiple instances are selected -> find intersection of their allowed dags
+    if len(dags) > 1:  # if multiple instances are selected -> find intersection of their allowed dags
         overall_allowed_dags = []
         for i in range(len(dags) - 1):
             if len(overall_allowed_dags) == 0:
@@ -401,9 +361,7 @@ def get_dags(
                 list1 = list(dags.values())[i]
                 overall_allowed_dags = list(set(overall_allowed_dags) & set(list1))
         return JSONResponse(content=overall_allowed_dags)
-    elif (
-        len(dags) == 1
-    ):  # if just one instance is selected -> return (allowed) dags of this instance
+    elif len(dags) == 1:  # if just one instance is selected -> return (allowed) dags of this instance
         return JSONResponse(content=list(dags.values())[0])
 
 
@@ -430,9 +388,7 @@ def ui_form_schemas(
             # w/o .keys() --> get dags incl. its meta information (not only dag_name)
         dags[db_kaapana_instance.instance_name] = allowed_dags
         just_all_dags = {**just_all_dags, **allowed_dags}
-    if (
-        len(dags) > 1
-    ):  # if multiple instances are selected -> find intersection of their allowed dags
+    if len(dags) > 1:  # if multiple instances are selected -> find intersection of their allowed dags
         overall_allowed_dags = []
         for i in range(len(dags) - 1):
             if len(overall_allowed_dags) == 0:
@@ -445,13 +401,9 @@ def ui_form_schemas(
         # get details of overall_allowed_dags
         overall_allowed_dags_datailed = {}
         for overall_allowed_dag in overall_allowed_dags:
-            overall_allowed_dags_datailed[overall_allowed_dag] = just_all_dags[
-                overall_allowed_dag
-            ]
+            overall_allowed_dags_datailed[overall_allowed_dag] = just_all_dags[overall_allowed_dag]
         dags = overall_allowed_dags_datailed
-    elif (
-        len(dags) == 1
-    ):  # if just one instance is selected -> return (allowed) dags of this instance
+    elif len(dags) == 1:  # if just one instance is selected -> return (allowed) dags of this instance
         dags = list(dags.values())[0]
 
     datasets = {}
@@ -460,9 +412,7 @@ def ui_form_schemas(
         db_kaapana_instance = crud.get_kaapana_instance(db, instance_name)
         if not db_kaapana_instance.remote:
             # or rather get allowed_datasets of db_client_kaapana, but also a little bit unnecessary to restrict local datasets
-            client_datasets = crud.get_datasets(
-                db, username=username, project_id=project.get("id")
-            )
+            client_datasets = crud.get_datasets(db, username=username, project_id=project.get("id"))
             datasets[db_kaapana_instance.instance_name] = [
                 schemas.AllowedDataset(
                     name=ds.name,
@@ -489,21 +439,13 @@ def ui_form_schemas(
         # Only consider project datasets for federated workflow execution
 
         all_datasets = [
-            {
-                ds.name: ds
-                for ds in instance_datasets
-                if ds.access_level == schemas.AccessLevel.project
-            }
+            {ds.name: ds for ds in instance_datasets if ds.access_level == schemas.AccessLevel.project}
             for instance_datasets in datasets.values()
         ]
 
-        dataset_intersection = functools.reduce(
-            lambda x, y: x.keys() & y.keys(), all_datasets
-        )
+        dataset_intersection = functools.reduce(lambda x, y: x.keys() & y.keys(), all_datasets)
 
-        overall_allowed_datasets = [
-            all_datasets[0][ds_name] for ds_name in dataset_intersection
-        ]
+        overall_allowed_datasets = [all_datasets[0][ds_name] for ds_name in dataset_intersection]
 
         dataset_names = [
             {
@@ -543,9 +485,7 @@ def ui_form_schemas(
                 # in this project yet — let form validation handle the required field.
                 form_schemas["data_form"]["__empty__"] = "true"
             else:
-                form_schemas["data_form"]["properties"]["dataset_name"][
-                    "oneOf"
-                ] = dataset_names
+                form_schemas["data_form"]["properties"]["dataset_name"]["oneOf"] = dataset_names
         # Installed Models: Checking for installed models
         if (
             "workflow_form" in form_schemas
@@ -554,15 +494,11 @@ def ui_form_schemas(
             and "properties-template" in form_schemas["workflow_form"]
         ):
             # Inserting installed_models for this project
-            form_schemas["workflow_form"]["oneOf"] = (
-                crud.replace_installed_models_in_schemas(
-                    db=db,
-                    project_id=project.get("id"),
-                    properties_template=form_schemas["workflow_form"][
-                        "properties-template"
-                    ],
-                    kind=form_schemas["workflow_form"].get("kind", "nnunet"),
-                )
+            form_schemas["workflow_form"]["oneOf"] = crud.replace_installed_models_in_schemas(
+                db=db,
+                project_id=project.get("id"),
+                properties_template=form_schemas["workflow_form"]["properties-template"],
+                kind=form_schemas["workflow_form"].get("kind", "nnunet"),
             )
 
             # Remove properties-template from response (it's not needed in frontend)
@@ -586,13 +522,7 @@ def ui_form_schemas(
     if filter_kaapana_instances.dag_id is None:
         return JSONResponse(content=schemas_dict)
     elif filter_kaapana_instances.dag_id in schemas_dict:
-        return JSONResponse(
-            content={
-                filter_kaapana_instances.dag_id: schemas_dict[
-                    filter_kaapana_instances.dag_id
-                ]
-            }
-        )
+        return JSONResponse(content={filter_kaapana_instances.dag_id: schemas_dict[filter_kaapana_instances.dag_id]})
     else:
         raise HTTPException(
             status_code=404,
@@ -603,7 +533,7 @@ def ui_form_schemas(
 @router.get("/check-for-remote-updates")
 def check_for_remote_updates(db: Session = Depends(get_db)):
     crud.get_remote_updates(db, periodically=False)
-    return {f"Federated backend is up and running!"}
+    return {"Federated backend is up and running!"}
 
 
 @router.post("/dataset", response_model=schemas.Dataset)
@@ -642,9 +572,7 @@ async def create_dataset_from_query(
             if "_index" in filter_item["match_phrase"]:
                 project_index = filter_item["match_phrase"]["_index"]
                 break
-    response = await get_aggregatedSeriesNum(
-        data=query, os_client=os_client, project_index=project_index
-    )
+    response = await get_aggregatedSeriesNum(data=query, os_client=os_client, project_index=project_index)
     response_content = json.loads(response.body.decode("utf-8"))
     aggregated_series_num = response_content
     pages = math.ceil(aggregated_series_num / MAX_RETURN_LIMIT)
@@ -793,17 +721,11 @@ def create_workflow(
         # Get all software-mappings for the project
         # and verify that the current user is allowed to create the workflow
         project_id = project.get("id")
-        aii_response = httpx.get(
-            f"http://aii-service.services.svc:8080/projects/{project_id}/software-mappings"
-        )
+        aii_response = httpx.get(f"http://aii-service.services.svc:8080/projects/{project_id}/software-mappings")
         software_mappings = aii_response.json()
         dag_id = json_schema_data.dag_id
-        if dag_id not in [
-            mapping.get("software_uuid") for mapping in software_mappings
-        ]:
-            raise HTTPException(
-                status_code=403, detail="Unauthorized to start this workflow."
-            )
+        if dag_id not in [mapping.get("software_uuid") for mapping in software_mappings]:
+            raise HTTPException(status_code=403, detail="Unauthorized to start this workflow.")
 
     # validate incoming json_schema_data
     try:
@@ -813,9 +735,7 @@ def create_workflow(
         )
     except jsonschema.exceptions.ValidationError as e:
         logging.error(f"JSON Schema is not valid for the Pydantic model. Error: {e}")
-        raise HTTPException(
-            status_code=400, detail="JSON Schema is not valid for the Pydantic model."
-        )
+        raise HTTPException(status_code=400, detail="JSON Schema is not valid for the Pydantic model.")
 
     # username
     if json_schema_data.username is not None:
@@ -844,10 +764,8 @@ def create_workflow(
     # TODO adapt involed instances per job?
     if json_schema_data.federated:  # == True ;-)
         involved_instance_names = copy.deepcopy(json_schema_data.instance_names)
-        involved_instance_names.extend(
-            json_schema_data.conf_data["external_schema_instance_names"]
-        )
-    if not "workflow_form" in json_schema_data.conf_data:
+        involved_instance_names.extend(json_schema_data.conf_data["external_schema_instance_names"])
+    if "workflow_form" not in json_schema_data.conf_data:
         json_schema_data.conf_data["workflow_form"] = {}
     json_schema_data.conf_data["workflow_form"].update(
         {
@@ -855,9 +773,7 @@ def create_workflow(
             "workflow_id": workflow_id,
             "workflow_name": workflow_name,
             "involved_instances": (
-                json_schema_data.instance_names
-                if json_schema_data.federated == False
-                else involved_instance_names
+                json_schema_data.instance_names if not json_schema_data.federated else involved_instance_names
             ),  # instances on which workflow is created!
             "runner_instances": json_schema_data.instance_names,  # instances on which jobs of workflow are created!
         }
@@ -871,9 +787,7 @@ def create_workflow(
             "username": username,
             "kaapana_instance_id": db_client_kaapana.id,
             # "workflow_jobs": db_jobs,
-            "involved_kaapana_instances": json_schema_data.conf_data["workflow_form"][
-                "involved_instances"
-            ],
+            "involved_kaapana_instances": json_schema_data.conf_data["workflow_form"]["involved_instances"],
             "federated": json_schema_data.federated,
             "project_id": project.get("id"),
         }
@@ -891,8 +805,7 @@ def create_workflow(
 
     # thread async w/ db session in thread
     if (
-        db_client_kaapana.instance_name
-        not in json_schema_data.conf_data["workflow_form"]["involved_instances"]
+        db_client_kaapana.instance_name not in json_schema_data.conf_data["workflow_form"]["involved_instances"]
         or len(json_schema_data.conf_data["workflow_form"]["involved_instances"]) > 1
     ):
         # sync solution for remote or any federated workflows
@@ -917,9 +830,7 @@ def get_workflow(
     db: Session = Depends(get_db),
 ):
     workflow = crud.get_workflow(db, workflow_id, workflow_name, dag_id)
-    workflow.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
-        workflow.kaapana_instance
-    )
+    workflow.kaapana_instance = schemas.KaapanaInstance.clean_full_return(workflow.kaapana_instance)
     return workflow
 
 
@@ -951,9 +862,7 @@ def get_workflows(
     )
     for workflow in workflows:
         if workflow.kaapana_instance:
-            workflow.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
-                workflow.kaapana_instance
-            )
+            workflow.kaapana_instance = schemas.KaapanaInstance.clean_full_return(workflow.kaapana_instance)
 
     return workflows, total_items
 
@@ -982,10 +891,7 @@ def put_workflow(workflow: schemas.WorkflowUpdate, db: Session = Depends(get_db)
 
         # update aborted workflow
         return crud.update_workflow(db, workflow)
-    elif (
-        workflow.workflow_status == "scheduled"
-        or workflow.workflow_status == "confirmed"
-    ):
+    elif workflow.workflow_status == "scheduled" or workflow.workflow_status == "confirmed":
         return crud.update_workflow(db, workflow)
     else:
         raise HTTPException(
@@ -1022,9 +928,7 @@ def delete_workflows(db: Session = Depends(get_db)):
 
 
 # model installation endpoints
-@router.put(
-    "/installed_models/sync", response_model=schemas.UpdateInstalledModelsResponse
-)
+@router.put("/installed_models/sync", response_model=schemas.UpdateInstalledModelsResponse)
 async def sync_installed_models(
     installed_models_wrapper: dict = Body(..., description="Dict of installed_tasks"),
     project=Depends(get_project),

@@ -16,10 +16,7 @@ console = Console()
 
 
 # Supported UI form types
-SUPPORTED_UI_FORMS = {
-    "bool", "int", "float", "list", "str",
-    "dataset", "data_entity", "file", "terms"
-}
+SUPPORTED_UI_FORMS = {"bool", "int", "float", "list", "str", "dataset", "data_entity", "file", "terms"}
 
 
 class ValidationReport:
@@ -160,15 +157,14 @@ def _check_chart_yaml(chart_path: Path, report: ValidationReport) -> None:
 
     if missing:
         report.errors.append(f"Chart.yaml missing: {', '.join(missing)}")
-    
+
     # Check for kaapanaworkflow-v2 keyword
     keywords = chart_data.get("keywords", [])
     if "kaapanaworkflow-v2" not in keywords:
         report.errors.append(
-            "Chart.yaml must have 'kaapanaworkflow-v2' in keywords. "
-            "Only workflow-v2 format is supported."
+            "Chart.yaml must have 'kaapanaworkflow-v2' in keywords. Only workflow-v2 format is supported."
         )
-    
+
     if not missing:
         report.info.append("Chart.yaml valid")
 
@@ -191,13 +187,12 @@ def _check_values_yaml(chart_path: Path, report: ValidationReport) -> None:
     # Check processingContainers exists
     if "processingContainers" not in values_data:
         report.errors.append(
-            "values.yaml must have 'processingContainers' field. "
-            "Can be empty list [] but must be present."
+            "values.yaml must have 'processingContainers' field. Can be empty list [] but must be present."
         )
         return
 
     processing_containers = values_data.get("processingContainers", [])
-    
+
     if not isinstance(processing_containers, list):
         report.errors.append("processingContainers must be a list")
         return
@@ -210,12 +205,11 @@ def _check_values_yaml(chart_path: Path, report: ValidationReport) -> None:
             if container in seen:
                 duplicates.add(container)
             seen.add(container)
-        
+
         if duplicates:
             for dup in sorted(duplicates):
                 report.errors.append(
-                    f"Duplicate container '{dup}' in processingContainers. "
-                    "Each container should be listed only once."
+                    f"Duplicate container '{dup}' in processingContainers. Each container should be listed only once."
                 )
 
     if processing_containers:
@@ -276,16 +270,13 @@ def _validate_parameters(params: List[Dict], report: ValidationReport) -> None:
         elif form_type not in SUPPORTED_UI_FORMS:
             supported_list = ", ".join(sorted(SUPPORTED_UI_FORMS))
             report.errors.append(
-                f"Parameter '{param_name}' has unsupported ui_form type: '{form_type}'. "
-                f"Supported: {supported_list}"
+                f"Parameter '{param_name}' has unsupported ui_form type: '{form_type}'. Supported: {supported_list}"
             )
 
         required_ui_fields = ["title", "description"]
         missing = [f for f in required_ui_fields if f not in ui_form]
         if missing:
-            report.warnings.append(
-                f"Parameter '{param_name}' ui_form should have: {', '.join(missing)}"
-            )
+            report.warnings.append(f"Parameter '{param_name}' ui_form should have: {', '.join(missing)}")
 
 
 def _validate_labels(labels: List[Dict], report: ValidationReport) -> None:
@@ -307,15 +298,11 @@ def _check_workflow_definition(chart_path: Path, report: ValidationReport) -> No
     """Check workflow definition files exist."""
 
     files_dir = chart_path / "files"
-    definition_files = [
-        f for f in files_dir.iterdir()
-        if f.is_file() and f.name != "workflow.json"
-    ]
+    definition_files = [f for f in files_dir.iterdir() if f.is_file() and f.name != "workflow.json"]
 
     if not definition_files:
         report.errors.append(
-            "No workflow definition files found in workflow-chart/files/. "
-            "Expected .py, .yaml, or other workflow file."
+            "No workflow definition files found in workflow-chart/files/. Expected .py, .yaml, or other workflow file."
         )
     else:
         report.info.append(f"Found {len(definition_files)} definition file(s)")
@@ -327,10 +314,7 @@ def _check_icon(chart_path: Path, report: ValidationReport) -> None:
     icon_extensions = {".png", ".svg", ".jpg", ".jpeg"}
     chart_files = list(chart_path.glob("*"))
 
-    icon_files = [
-        f for f in chart_files
-        if f.is_file() and f.suffix.lower() in icon_extensions
-    ]
+    icon_files = [f for f in chart_files if f.is_file() and f.suffix.lower() in icon_extensions]
 
     if not icon_files:
         extensions_str = ", ".join(icon_extensions)
@@ -342,31 +326,31 @@ def _check_icon(chart_path: Path, report: ValidationReport) -> None:
 def _extract_containers_from_workflow_definition(files_dir: Path) -> set:
     """
     Extract container image names from workflow definition files.
-    
+
     Looks for patterns like:
     - image=f"{DEFAULT_REGISTRY}/container-name:..."
     - image="registry/container-name:tag"
     """
     import re
-    
+
     containers = set()
-    
+
     # Pattern to match image definitions in workflow files
     # Matches: image=f"{DEFAULT_REGISTRY}/container-name:..." or image="registry/container-name:..."
     pattern = re.compile(r'image\s*=\s*f?["\'].*?/([^:/\'"]+)[:"\']', re.MULTILINE)
-    
+
     for definition_file in files_dir.iterdir():
         if definition_file.name == "workflow.json" or not definition_file.is_file():
             continue
-            
+
         try:
-            with open(definition_file, 'r') as f:
+            with open(definition_file, "r") as f:
                 content = f.read()
                 matches = pattern.findall(content)
                 containers.update(matches)
         except (OSError, UnicodeDecodeError):
             continue
-    
+
     return containers
 
 
@@ -379,26 +363,26 @@ def _check_containers_usage(chart_path: Path, report: ValidationReport) -> None:
     files_dir = chart_path / "files"
     values_yaml_path = chart_path / "values.yaml"
     processing_containers_dir = workflow_path / "processing-containers"
-    
+
     if not values_yaml_path.exists():
         return
-    
+
     try:
         with open(values_yaml_path) as f:
             values_data = yaml.safe_load(f)
     except yaml.YAMLError:
         return
-    
+
     declared_containers = set(values_data.get("processingContainers", []))
     used_containers = _extract_containers_from_workflow_definition(files_dir)
-    
+
     # Get containers that actually exist in processing-containers/
     existing_containers = set()
     if processing_containers_dir.exists():
         for container_dir in processing_containers_dir.iterdir():
             if not container_dir.is_dir():
                 continue
-            
+
             # Check for Dockerfile to get actual image name
             dockerfile = container_dir / "Dockerfile"
             if dockerfile.exists():
@@ -411,7 +395,7 @@ def _check_containers_usage(chart_path: Path, report: ValidationReport) -> None:
                                 break
                 except OSError:
                     pass
-    
+
     if not used_containers:
         if declared_containers:
             report.warnings.append(
@@ -419,33 +403,31 @@ def _check_containers_usage(chart_path: Path, report: ValidationReport) -> None:
                 "but workflow definition doesn't seem to use any"
             )
         return
-    
+
     # Check each used container is declared
     undeclared = used_containers - declared_containers
     if undeclared:
         for container in sorted(undeclared):
             report.errors.append(
-                f"Container '{container}' used in workflow but not declared in "
-                f"processingContainers in values.yaml"
+                f"Container '{container}' used in workflow but not declared in processingContainers in values.yaml"
             )
-    
+
     # Check declared containers actually exist
     for container in sorted(declared_containers):
         if container not in existing_containers:
             report.errors.append(
                 f"Container '{container}' declared in processingContainers but not found in "
-                f"processing-containers/ directory. Add Dockerfile with LABEL IMAGE=\"{container}\""
+                f'processing-containers/ directory. Add Dockerfile with LABEL IMAGE="{container}"'
             )
-    
+
     # Check declared containers are used
     unused = declared_containers - used_containers
     if unused:
         for container in sorted(unused):
             report.warnings.append(
-                f"Container '{container}' declared in processingContainers "
-                f"but not used in workflow definition"
+                f"Container '{container}' declared in processingContainers but not used in workflow definition"
             )
-    
+
     # Info about matches
     used_and_declared = used_containers & declared_containers & existing_containers
     if used_and_declared:

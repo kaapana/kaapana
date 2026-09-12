@@ -1,10 +1,9 @@
 import random
+from datetime import datetime, timezone
 from typing import List
 
 from app import schemas
 from app.adapters.base import WorkflowEngineAdapter
-
-from datetime import datetime, timezone
 
 # module-level store for mocked statuses
 _MOCKED_RUN_STATUSES: dict[str, schemas.WorkflowRunStatus] = {}
@@ -43,9 +42,7 @@ class DummyAdapter(WorkflowEngineAdapter):
         )
         return [task1, task2]
 
-    async def submit_workflow_revision(
-        self, revision: schemas.WorkflowRevision
-    ) -> schemas.WorkflowRevision:
+    async def submit_workflow_revision(self, revision: schemas.WorkflowRevision) -> schemas.WorkflowRevision:
         return revision
 
     async def submit_workflow_run(
@@ -68,9 +65,7 @@ class DummyAdapter(WorkflowEngineAdapter):
         """Clears the status dictionary."""
         _MOCKED_RUN_STATUSES.clear()
 
-    async def get_workflow_run_status(
-        self, workflow_run_external_id: str
-    ) -> schemas.WorkflowRunStatus:
+    async def get_workflow_run_status(self, workflow_run_external_id: str) -> schemas.WorkflowRunStatus:
         """
         Gets the current status of a workflow run from engine.
 
@@ -90,9 +85,7 @@ class DummyAdapter(WorkflowEngineAdapter):
         # (This is your original hardcoded logic)
         return schemas.WorkflowRunStatus.RUNNING
 
-    async def get_workflow_run_task_runs(
-        self, workflow_run_external_id: str
-    ) -> List[schemas.TaskRunUpdate]:
+    async def get_workflow_run_task_runs(self, workflow_run_external_id: str) -> List[schemas.TaskRunUpdate]:
         """
         Gets the task runs of a workflow run from Airflow.
         Args:
@@ -114,9 +107,7 @@ class DummyAdapter(WorkflowEngineAdapter):
             ),
         ]
 
-    async def cancel_workflow_run(
-        self, workflow_run_external_id: str
-    ) -> schemas.WorkflowRunStatus:
+    async def cancel_workflow_run(self, workflow_run_external_id: str) -> schemas.WorkflowRunStatus:
         """
         Cancels a running workflow run in the engine.
 
@@ -129,9 +120,7 @@ class DummyAdapter(WorkflowEngineAdapter):
 
         return schemas.WorkflowRunStatus.CANCELED
 
-    async def retry_workflow_run(
-        self, workflow_run_external_id: str
-    ) -> schemas.WorkflowRunStatus:
+    async def retry_workflow_run(self, workflow_run_external_id: str) -> schemas.WorkflowRunStatus:
         """
         Retries a workflow run in the engine.
 
@@ -143,9 +132,7 @@ class DummyAdapter(WorkflowEngineAdapter):
         """
         return schemas.WorkflowRunStatus.PENDING
 
-    async def get_task_run_logs(
-        self, task_run_external_id: str
-    ) -> list[schemas.LogLine]:
+    async def get_task_run_logs(self, task_run_external_id: str) -> list[schemas.LogLine]:
         raw_log = await self._fetch_raw_logs(task_run_external_id)
         return self._parse_task_run_logs(raw_log)
 
@@ -186,17 +173,11 @@ class DummyAdapter(WorkflowEngineAdapter):
     def was_cleaned(external_id: str) -> bool:
         return external_id in _CLEANED_RUNS
 
-    async def clean_workflow_run_data(
-        self, workflow_run_external_id: str, project_id: str
-    ) -> None:
+    async def clean_workflow_run_data(self, workflow_run_external_id: str, project_id: str) -> None:
         if workflow_run_external_id in _MOCKED_CLEAN_RAISES:
             _MOCKED_CLEAN_RAISES.discard(workflow_run_external_id)
-            raise RuntimeError(
-                f"Simulated cleanup failure for {workflow_run_external_id}"
-            )
+            raise RuntimeError(f"Simulated cleanup failure for {workflow_run_external_id}")
         _CLEANED_RUNS.add(workflow_run_external_id)
 
-    async def is_workflow_run_data_clean(
-        self, workflow_run_external_id: str, project_id: str
-    ) -> bool:
+    async def is_workflow_run_data_clean(self, workflow_run_external_id: str, project_id: str) -> bool:
         return workflow_run_external_id in _CLEANED_RUNS

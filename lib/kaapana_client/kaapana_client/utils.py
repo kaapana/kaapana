@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 import requests
+
 from kaapana_client.logger import get_logger
 from kaapana_client.settings import ServicesSettings
 
@@ -41,9 +42,7 @@ def is_batch_mode(workflow_dir: Path, batch_name: Path) -> bool:
 
     if batch_dir.exists() and batch_dir.is_dir():
         # Check if there are subdirectories inside the batch directory
-        batch_folders = [
-            folder for folder in batch_dir.iterdir() if (batch_dir / folder).is_dir()
-        ]
+        batch_folders = [folder for folder in batch_dir.iterdir() if (batch_dir / folder).is_dir()]
 
         if batch_folders:
             return True  # Multiple batch elements found, batch mode is confirmed
@@ -94,7 +93,7 @@ def process_batches(
         )
 
         logger.info(f"Processing batch: {batch} done")
-    logger.info(f"Processing batches done")
+    logger.info("Processing batches done")
 
 
 def process_single(
@@ -157,9 +156,7 @@ def process_single(
 
     # Only add ref_in_dir if it's provided
     if operator_get_ref_series_dir:
-        task_args["operator_get_ref_series_dir"] = (
-            base_dir / operator_get_ref_series_dir
-        )
+        task_args["operator_get_ref_series_dir"] = base_dir / operator_get_ref_series_dir
 
     queue.append(task_args)
 

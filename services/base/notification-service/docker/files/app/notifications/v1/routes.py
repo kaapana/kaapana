@@ -1,38 +1,35 @@
-from fastapi import APIRouter, Depends, HTTPException, Header
+import datetime
+from typing import Annotated
+from uuid import UUID
+
+from app.decorators import deprecated
+from app.dependencies import get_access_service, get_async_db, get_connection_manager
+from app.models import Notification as NotificationModel
 from app.notifications.v1.schemas import (
     Notification,
-    NotificationUser,
     NotificationCreate,
     NotificationCreateNoReceivers,
+    NotificationUser,
 )
-from app.models import Notification as NotificationModel
-from app.decorators import deprecated
-from app.dependencies import get_async_db, get_connection_manager, get_access_service
-from uuid import UUID
-from sqlalchemy import select, delete, update, func, cast
-from sqlalchemy.dialects.postgresql import JSONB, ARRAY, TEXT
-from typing import Annotated
-import datetime
+from fastapi import APIRouter, Depends, Header, HTTPException
+from sqlalchemy import cast, delete, func, select, update
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TEXT
 
 router = APIRouter()
 
 
-async def add_notification(
-    notification: NotificationModel, db, con_mgr
-) -> NotificationModel:
+async def add_notification(notification: NotificationModel, db, con_mgr) -> NotificationModel:
     db.add(notification)
     await db.commit()
     await db.refresh(notification)
-    await con_mgr.notify_new_notification(
-        user_ids=notification.receivers, id=notification.id
-    )
+    await con_mgr.notify_new_notification(user_ids=notification.receivers, id=notification.id)
     return notification
 
 
 async def get_users(project_id: str, access_service):
     try:
         users = await access_service.fetch_user_ids(project_id)
-    except Exception as e:
+    except Exception:
         raise HTTPException(502, "Upsream AII request failed")
     if not users:
         raise HTTPException(404, f"Project {project_id} not found")
@@ -81,9 +78,7 @@ async def post_notification_user(
     users = await get_users(project_id, access_service)
 
     if user_id not in users:
-        raise HTTPException(
-            404, f"User ID {user_id} not present in project {project_id}"
-        )
+        raise HTTPException(404, f"User ID {user_id} not present in project {project_id}")
     notification = NotificationModel(
         topic=n.topic,
         title=n.title,
@@ -128,9 +123,7 @@ async def post_notification(
     path="/notifications/v1/",
     replacement="/notifications/v2/",
 )
-async def get_notifications(
-    db=Depends(get_async_db), x_forwarded_user: Annotated[str | None, Header()] = None
-):
+async def get_notifications(db=Depends(get_async_db), x_forwarded_user: Annotated[str | None, Header()] = None):
     if not x_forwarded_user:
         raise HTTPException(400, "Missing user info")
 
@@ -193,21 +186,15 @@ async def mark_read(
 
     # If notification is read by all recipients it is delete form the database
     notification = (
-        await db.execute(
-            select(NotificationModel).where(NotificationModel.id == notification_id)
-        )
+        await db.execute(select(NotificationModel).where(NotificationModel.id == notification_id))
     ).scalar_one_or_none()
     if not notification:
         # Notification is already deleted
         return
 
-    all_read = all(
-        user in notification.receviers_read for user in notification.receivers
-    )
+    all_read = all(user in notification.receviers_read for user in notification.receivers)
     print(all_read)
 
     if all_read:
-        await db.execute(
-            delete(NotificationModel).where(NotificationModel.id == notification_id)
-        )
+        await db.execute(delete(NotificationModel).where(NotificationModel.id == notification_id))
         await db.commit()

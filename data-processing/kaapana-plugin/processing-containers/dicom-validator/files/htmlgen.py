@@ -1,6 +1,6 @@
 import re
-from string import Template
 from html import escape
+from string import Template
 
 from base import ValidationItem
 
@@ -131,11 +131,7 @@ def replace_html_like_tags(target: str):
 def get_html_from_validation_item(vitem: ValidationItem, htmlclass: str = "error"):
     validtn_dicoms = ""
     if len(vitem.list_of_dicoms) > 0 and vitem.list_of_dicoms[0] != "all":
-        validtn_dicoms = (
-            f"<span>Slices With {htmlclass}: <b>"
-            + ", ".join(vitem.list_of_dicoms)
-            + "</b></span>"
-        )
+        validtn_dicoms = f"<span>Slices With {htmlclass}: <b>" + ", ".join(vitem.list_of_dicoms) + "</b></span>"
 
     validation_str = f"""
     <div class="row validation-item mt-n3">
@@ -179,9 +175,7 @@ def generate_html(
 
     series_completeness_str = ""
     if series_completete_stat:
-        missing_slices = ", ".join(
-            str(x) for x in series_completete_stat.missing_instance_numbers
-        )
+        missing_slices = ", ".join(str(x) for x in series_completete_stat.missing_instance_numbers)
         if not series_completete_stat.is_series_complete:
             series_completeness_str = f"""
             <div class='incomplete-alert'>
@@ -210,7 +204,9 @@ def generate_html(
 
     warn_str = ""
     if len(warnings) > 0:
-        warn_str = f"<h3 class='py-3 mb-3'>Warnings <span class='item-count-label warning'>{len(warnings)}</span></h3>\n"
+        warn_str = (
+            f"<h3 class='py-3 mb-3'>Warnings <span class='item-count-label warning'>{len(warnings)}</span></h3>\n"
+        )
         for warn in warnings:
             warn_str += get_html_from_validation_item(warn, htmlclass="warning")
 

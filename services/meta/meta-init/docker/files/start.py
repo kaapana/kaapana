@@ -1,9 +1,10 @@
-import requests
 import os
-from opensearchpy.exceptions import TransportError
+import time
+
+import requests
 from kaapanapy.helper import get_opensearch_client, get_project_user_access_token
 from kaapanapy.logger import get_logger
-import time
+from opensearchpy.exceptions import TransportError
 
 logger = get_logger(__name__)
 
@@ -248,9 +249,7 @@ if __name__ == "__main__":
     logger.info("Create index template")
     while not successfull and tries < 60:
         try:
-            os_client.indices.put_index_template(
-                name="project_", body=index_template_body
-            )
+            os_client.indices.put_index_template(name="project_", body=index_template_body)
             successfull = True
         except TransportError as e:
             if str(e.error) == "resource_already_exists_exception":
@@ -287,9 +286,7 @@ if __name__ == "__main__":
         raise Exception("Error, when creating index")
 
     ### Set hostname and https_port in the index pattern file
-    replace_hostname_and_port_in_index_pattern(
-        "project_index_pattern.ndjson", HOSTNAME, HTTPS_PORT
-    )
+    replace_hostname_and_port_in_index_pattern("project_index_pattern.ndjson", HOSTNAME, HTTPS_PORT)
 
     ### Wait for dashboard to be available
     logger.info("Wait for dashboard to be available.")

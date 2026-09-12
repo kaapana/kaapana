@@ -13,9 +13,7 @@ import requests
 
 
 def parser():
-    p = argparse.ArgumentParser(
-        description="Upload CI/CD variables from environment to GitLab project"
-    )
+    p = argparse.ArgumentParser(description="Upload CI/CD variables from environment to GitLab project")
     p.add_argument(
         "--api-token",
         help="GitLab API token (or set GITLAB_API_TOKEN env var)",
@@ -61,9 +59,7 @@ def get_existing_variables(gitlab_host, project_id, api_token):
     return set()
 
 
-def upload_variable(
-    gitlab_host, project_id, api_token, key, value, masked=False, exists=False
-):
+def upload_variable(gitlab_host, project_id, api_token, key, value, masked=False, exists=False):
     """Create or update a CI variable."""
     headers = {"PRIVATE-TOKEN": api_token}
     data = {
@@ -135,9 +131,7 @@ def load_from_file(path):
 
             parsed = yaml.safe_load(text)
         except Exception:
-            print(
-                "Error: ci vars file is not valid JSON and PyYAML is not available or file is invalid"
-            )
+            print("Error: ci vars file is not valid JSON and PyYAML is not available or file is invalid")
             sys.exit(2)
     if isinstance(parsed, dict):
         parsed = [
@@ -165,6 +159,7 @@ def scan_env_vars():
             out.append((key, env_v, masked))
     return out
 
+
 # -------------------------------------------------------------------------------
 
 
@@ -185,9 +180,7 @@ def main():
     print()
 
     # Get existing variables
-    existing_vars = get_existing_variables(
-        args.gitlab_host, args.project_id, args.api_token
-    )
+    existing_vars = get_existing_variables(args.gitlab_host, args.project_id, args.api_token)
     print(f"Found {len(existing_vars)} existing variables in project")
     print()
     # Collect variables using modular functions
@@ -201,9 +194,7 @@ def main():
     if args.dry_run:
         print("DRY RUN - Would upload the following variables:")
         for key, value, masked in variables_to_upload:
-            display_value = (
-                "****" if masked else value[:50] + "..." if len(value) > 50 else value
-            )
+            display_value = "****" if masked else value[:50] + "..." if len(value) > 50 else value
             action = "UPDATE" if key in existing_vars else "CREATE"
             print(f"  [{action}] {key} = {display_value}")
         return

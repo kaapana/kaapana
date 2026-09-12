@@ -1,11 +1,10 @@
-import os
-from os import getenv
-from os.path import join, exists, dirname, basename
 from glob import glob
-from pathlib import Path
 
 # For multiprocessing -> usually you should scale via multiple containers!
 from multiprocessing.pool import ThreadPool
+from os import getenv
+from os.path import exists, join
+from pathlib import Path
 
 # For shell-execution
 from subprocess import PIPE, run
@@ -16,15 +15,15 @@ execution_timeout = 10
 processed_count = 0
 
 
-# Process smth
-def process_input_file(filepath):
+# Example: process smth in Python (unused; the shell variant below is the one wired in)
+def process_input_file_python(filepath):
     global processed_count
 
     processed_count += 1
     return True, filepath
 
 
-# Alternative Process smth via shell-command
+# Process smth via shell-command
 def process_input_file(filepath):
     global processed_count, execution_timeout
 
@@ -48,7 +47,7 @@ def process_input_file(filepath):
         print(f"# Command:  {command}")
         print(f"# Filepath: {filepath}")
         print("#")
-        print(f"# STDOUT:")
+        print("# STDOUT:")
         print("#")
         for line in output.stdout.split("\\n"):
             print(f"# {line}")
@@ -56,7 +55,7 @@ def process_input_file(filepath):
         print("#")
         print("#")
         print("#")
-        print(f"# STDERR:")
+        print("# STDERR:")
         print("#")
         for line in output.stderr.split("\\n"):
             print(f"# {line}")

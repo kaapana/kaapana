@@ -1,19 +1,20 @@
-from os import getenv, remove
-from os.path import join, exists, dirname, basename, split
-from glob import glob
-import pydicom
-from pathlib import Path
 import logging
+from glob import glob
+
+# For multiprocessing -> usually you should scale via multiple containers!
+from multiprocessing.pool import ThreadPool
+from os import getenv, remove
+from os.path import basename, dirname, exists, join, split
+from pathlib import Path
+
+# For shell-execution
+from subprocess import PIPE, run
+
+import pydicom
 import SimpleITK as sitk
 
 # Logging
 logging.basicConfig(level=logging.INFO)
-
-# For multiprocessing -> usually you should scale via multiple containers!
-from multiprocessing.pool import ThreadPool
-
-# For shell-execution
-from subprocess import PIPE, run
 
 execution_timeout = 1200
 
@@ -26,14 +27,13 @@ def nrrd2nifti(nrrd_path):
     # split dir and file name
     d, fname = split(nrrd_path)
     # new file name with .nii.gz extension
-    new_fname = fname.rsplit('.', 1)[0] + ".nii.gz"
+    new_fname = fname.rsplit(".", 1)[0] + ".nii.gz"
     new_path = join(d, new_fname)
-    
-    
+
     sitk.WriteImage(img, new_path)
-    
+
     print(f"# Converted: {nrrd_path} -> {new_path}")
-    
+
     # remove the original .nrrd file
     try:
         remove(nrrd_path)
@@ -50,10 +50,8 @@ def process_input_file(paras):
     for input_filepath in input_filepaths:
         try:
             # Try to get the SeriesInstanceUID from the dicom file
-            incoming_dcm_series_id = str(
-                pydicom.dcmread(input_filepath, force=True).SeriesInstanceUID
-            )
-        except:
+            incoming_dcm_series_id = str(pydicom.dcmread(input_filepath, force=True).SeriesInstanceUID)
+        except Exception:
             # If the SeriesInstanceUID could not be read, use the filename
             file_name = basename(input_filepath).split(".")[0]
             logging.warning(
@@ -62,13 +60,9 @@ def process_input_file(paras):
 
             incoming_dcm_series_id = file_name
 
-        # by default output is nrrd since mitk can not convert multi label dcmseg to nifti 
-        output_filepath = join(
-            element_output_dir, f"{incoming_dcm_series_id}.nrrd"
-        )
-        print(
-            f"# Starting conversion: {basename(input_filepath)} -> {basename(output_filepath)}"
-        )
+        # by default output is nrrd since mitk can not convert multi label dcmseg to nifti
+        output_filepath = join(element_output_dir, f"{incoming_dcm_series_id}.nrrd")
+        print(f"# Starting conversion: {basename(input_filepath)} -> {basename(output_filepath)}")
         if not exists(output_filepath):
             command = [
                 "/kaapana/app/apps/MitkFileConverter.sh",
@@ -103,7 +97,7 @@ def process_input_file(paras):
                 print("#")
                 return False, input_filepath
             elif output.returncode == 0 and input_file_extension == "dcm":
-                target_files = glob(join(dirname(output_filepath), f"*.nrrd"))
+                target_files = glob(join(dirname(output_filepath), "*.nrrd"))
                 if len(target_files) != 1:
                     print("#")
                     print("##################################################")
@@ -114,9 +108,7 @@ def process_input_file(paras):
                     print(f"# input_filepath:  {input_filepath}")
                     print(f"# output_filepath: {output_filepath}")
                     print("#")
-                    print(
-                        f"# -> found {len(target_files)} files in target_dir -> error"
-                    )
+                    print(f"# -> found {len(target_files)} files in target_dir -> error")
                     print("#")
                     print("##################################################")
                     print("#")
@@ -125,12 +117,12 @@ def process_input_file(paras):
             else:
                 out_fpaths.append(output_filepath)
         else:
-            print(f"# Target already exists -> skipping ")
+            print("# Target already exists -> skipping ")
 
         if input_file_extension == "dcm":
             print("# Dicom -> only one slice needed -> break")
             break
-    
+
     # if output is nifti, manually convert and delete nrrd files
     if convert_to == "nii.gz" or convert_to == "nifti":
         print("# Converting nrrd to nifti")
@@ -157,9 +149,7 @@ operator_out_dir = operator_out_dir if operator_out_dir.lower() != "none" else N
 assert operator_out_dir is not None
 
 parallel_processes = getenv("THREADS", "1")
-parallel_processes = (
-    int(parallel_processes) if parallel_processes.lower() != "none" else None
-)
+parallel_processes = int(parallel_processes) if parallel_processes.lower() != "none" else None
 assert parallel_processes is not None
 
 operator_out_dir = getenv("OPERATOR_OUT_DIR", "None")
@@ -167,9 +157,7 @@ operator_out_dir = operator_out_dir if operator_out_dir.lower() != "none" else N
 assert operator_out_dir is not None
 
 input_file_extension = getenv("CONVERTFROM", "*.dcm")
-input_file_extension = (
-    input_file_extension if input_file_extension.lower() != "none" else None
-)
+input_file_extension = input_file_extension if input_file_extension.lower() != "none" else None
 assert input_file_extension is not None
 
 convert_to = getenv("CONVERTTO", "None")
@@ -218,9 +206,7 @@ for batch_element_dir in batch_folders:
     Path(element_output_dir).mkdir(parents=True, exist_ok=True)
 
     # creating output dir
-    input_files = glob(
-        join(element_input_dir, f"**/*.{input_file_extension}"), recursive=True
-    )
+    input_files = glob(join(element_input_dir, f"**/*.{input_file_extension}"), recursive=True)
     job_list.append((input_files, element_output_dir))
 
 
@@ -280,9 +266,7 @@ if processed_count == 0:
 
         # creating output dir
         dir_names = {}
-        input_files = glob(
-            join(element_input_dir, f"*.{input_file_extension}"), recursive=True
-        )
+        input_files = glob(join(element_input_dir, f"*.{input_file_extension}"), recursive=True)
         for file in input_files:
             input_dirname = dirname(file)
             if input_dirname not in dir_names.keys():

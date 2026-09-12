@@ -1,20 +1,19 @@
+import os
 import subprocess
-from pathlib import Path
-import docker
-import sys, os
+import sys
 import time
 
-from task_api.processing_container import task_models, pc_models
+import docker
+from task_api.processing_container import pc_models, task_models
+from task_api.processing_container.common import (
+    create_task_instance,
+    get_task_template,
+)
 from task_api.processing_container.resources import (
     calculate_bytes,
     compute_memory_requirement,
     human_readable_size,
 )
-from task_api.processing_container.common import (
-    get_task_template,
-    create_task_instance,
-)
-
 from task_api.runners.base import BaseRunner
 
 
@@ -28,9 +27,7 @@ class DockerRunner(BaseRunner):
         if isinstance(task.taskTemplate, pc_models.TaskTemplate):
             task_template = task.taskTemplate
         else:
-            task_template = get_task_template(
-                task.image, task.taskTemplate, mode="docker"
-            )
+            task_template = get_task_template(task.image, task.taskTemplate, mode="docker")
 
         task_instance = create_task_instance(task_template=task_template, task=task)
 
@@ -42,8 +39,7 @@ class DockerRunner(BaseRunner):
             memory_limit = None
 
         input_volumes = {
-            vol.volume_source.host_path: {"bind": vol.mounted_path, "mode": "ro"}
-            for vol in task_instance.inputs
+            vol.volume_source.host_path: {"bind": vol.mounted_path, "mode": "ro"} for vol in task_instance.inputs
         }
         output_volumes = {
             vol.volume_source.host_path: {"bind": vol.mounted_path, "mode": "rw"}
@@ -61,9 +57,7 @@ class DockerRunner(BaseRunner):
             mem_limit=memory_limit,
         )
 
-        return task_models.TaskRun(
-            id=container.id, mode="docker", **task_instance.model_dump()
-        )
+        return task_models.TaskRun(id=container.id, mode="docker", **task_instance.model_dump())
 
     @classmethod
     def logs(
@@ -80,9 +74,7 @@ class DockerRunner(BaseRunner):
         try:
             logs = container.logs(stream=follow)
             if abs(time.time() - start_time) > log_timeout:
-                cls._logger.error(
-                    f"Log streaming exceeded timeout of {log_timeout}s for pod {task_run.id}"
-                )
+                cls._logger.error(f"Log streaming exceeded timeout of {log_timeout}s for pod {task_run.id}")
                 raise TimeoutError(f"Log streaming exceeded timeout of {log_timeout}s")
             for line in logs:
                 cls._logger.info(line.decode().rstrip())
@@ -104,11 +96,7 @@ class DockerRunner(BaseRunner):
         Return the memory limit for a task_instance based on Resources and ScaleRules
         """
         memory_limit = 0
-        if (
-            task_instance.resources
-            and task_instance.resources.limits
-            and task_instance.resources.limits.get("memory")
-        ):
+        if task_instance.resources and task_instance.resources.limits and task_instance.resources.limits.get("memory"):
             memory_limit = calculate_bytes(task_instance.resources.limits.get("memory"))
 
         for channel in task_instance.inputs:
@@ -145,7 +133,7 @@ class DockerRunner(BaseRunner):
         """
         Monitor the memory usage of a container and return the maxmimum memory utilization.
         """
-        cls._logger.info(f"Start monitoring memory usage")
+        cls._logger.info("Start monitoring memory usage")
         container_id = task_run.id
         container = cls.client.containers.get(container_id=container_id)
         attrs = container.attrs
@@ -160,9 +148,7 @@ class DockerRunner(BaseRunner):
         cgroup_pid_path = process.stdout.lstrip("0:").rstrip()
         max_memory_usage = 0
         logging_interval = time.time()
-        while os.path.exists(f"/proc/{pid}/status") and os.path.exists(
-            f"/sys/fs/cgroup/{cgroup_pid_path}/memory.peak"
-        ):
+        while os.path.exists(f"/proc/{pid}/status") and os.path.exists(f"/sys/fs/cgroup/{cgroup_pid_path}/memory.peak"):
             process = subprocess.run(
                 ["cat", f"/sys/fs/cgroup/{cgroup_pid_path}/memory.peak"],
                 capture_output=True,
@@ -176,9 +162,7 @@ class DockerRunner(BaseRunner):
             max_memory_usage = max(memory_peak, max_memory_usage)
 
             if abs(time.time() - logging_interval) >= 1:
-                cls._logger.info(
-                    f"Memory peak: {human_readable_size(max_memory_usage)}"
-                )
+                cls._logger.info(f"Memory peak: {human_readable_size(max_memory_usage)}")
                 logging_interval = time.time()
             time.sleep(0.1)
 

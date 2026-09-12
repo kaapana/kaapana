@@ -1,15 +1,17 @@
-import os
-import glob
 import functools
+import glob
+import os
 import shutil
-from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
-from kaapana.operators.HelperMinio import apply_action_to_object_dirs
-from kaapana.blueprints.kaapana_utils import (
-    get_operator_properties,
-    clean_previous_dag_run,
-)
+
 from kaapanapy.helper import get_minio_client
 from urllib3.util import Timeout
+
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+from kaapana.blueprints.kaapana_utils import (
+    clean_previous_dag_run,
+    get_operator_properties,
+)
+from kaapana.operators.HelperMinio import apply_action_to_object_dirs
 
 JOB_API_URL = f"http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000/client/job"
 TIMEOUT_SEC = 5
@@ -18,9 +20,7 @@ TIMEOUT = Timeout(TIMEOUT_SEC)
 
 def cache_action(batch_name, cache_operator_dirs, action, dag_run_dir, dag_run):
     loaded_from_cache = True
-    batch_folders = sorted(
-        [f for f in glob.glob(os.path.join(dag_run_dir, batch_name, "*"))]
-    )
+    batch_folders = sorted([f for f in glob.glob(os.path.join(dag_run_dir, batch_name, "*"))])
     if not batch_folders:
         loaded_from_cache = False
 
@@ -47,13 +47,9 @@ def cache_action(batch_name, cache_operator_dirs, action, dag_run_dir, dag_run):
     return loaded_from_cache
 
 
-def from_previous_dag_run_action(
-    airflow_workflow_dir, batch_name, operator_out_dir, action, dag_run_dir, federated
-):
+def from_previous_dag_run_action(airflow_workflow_dir, batch_name, operator_out_dir, action, dag_run_dir, federated):
     if action == "from_previous_dag_run":
-        src = os.path.join(
-            airflow_workflow_dir, federated["from_previous_dag_run"], operator_out_dir
-        )
+        src = os.path.join(airflow_workflow_dir, federated["from_previous_dag_run"], operator_out_dir)
         print(src)
         dst = os.path.join(dag_run_dir, operator_out_dir)
         print(dst)
@@ -62,9 +58,7 @@ def from_previous_dag_run_action(
             shutil.copytree(src=src, dst=dst, dirs_exist_ok=True)
 
     if action == "from_previous_dag_run":
-        src_root_dir = os.path.join(
-            airflow_workflow_dir, federated["from_previous_dag_run"], batch_name
-        )
+        src_root_dir = os.path.join(airflow_workflow_dir, federated["from_previous_dag_run"], batch_name)
         dst_root_dir = os.path.join(dag_run_dir, batch_name)
         batch_folders = sorted([f for f in glob.glob(os.path.join(src_root_dir, "*"))])
         for batch_element_dir in batch_folders:
@@ -95,19 +89,14 @@ def cache_operator_output(func):
         conf = dag_run.conf
 
         # get the federated conf object
-        if (
-            conf is not None
-            and "federated_form" in conf
-            and conf["federated_form"] is not None
-        ):
+        if conf is not None and "federated_form" in conf and conf["federated_form"] is not None:
             federated = conf["federated_form"]
             print("Federated config")
             print(federated)
             last_round = (
                 "federated_total_rounds" in federated
                 and "federated_round" in federated
-                and int(federated["federated_total_rounds"])
-                == (int(federated["federated_round"]) + 1)
+                and int(federated["federated_total_rounds"]) == (int(federated["federated_round"]) + 1)
             )
             print("Last round", last_round)
         else:
@@ -122,15 +111,11 @@ def cache_operator_output(func):
             if last_round is False:
                 print("Skipping")
                 skip_downstream_tasks = [
-                    task
-                    for task in downstream_tasks
-                    if task.task_id in federated["skip_operators"]
+                    task for task in downstream_tasks if task.task_id in federated["skip_operators"]
                 ]
                 self.skip(dag_run, dag_run.execution_date, skip_downstream_tasks)
                 return
-            elif not set(downstream_tasks_ids).issubset(
-                set(federated["skip_operators"])
-            ):
+            elif not set(downstream_tasks_ids).issubset(set(federated["skip_operators"])):
                 print("Soft skipping, since we are in the last round...")
                 return
 
@@ -147,13 +132,10 @@ def cache_operator_output(func):
                 and last_round is True
             ):
                 print(
-                    f"Ignoring from_previous_dag_run_action for operators since we are in the last round and we are part of the skip_operators..."
+                    "Ignoring from_previous_dag_run_action for operators since we are in the last round and we are part of the skip_operators..."
                 )
             # federated operator
-            elif (
-                "federated_operators" in federated
-                and self.operator_out_dir in federated["federated_operators"]
-            ):
+            elif "federated_operators" in federated and self.operator_out_dir in federated["federated_operators"]:
                 if self.whitelist_federated_learning is not None:
                     print(
                         "Since self.whitelist_federated_learning  not None still copying the data, in the federated_sharing_decorator decorator the whitelist data will be oerwritten!"
@@ -168,9 +150,7 @@ def cache_operator_output(func):
                     )
             # caching / copying data from previous dag_run
             else:
-                print(
-                    f"Copying data from previous workflow for {self.operator_out_dir}"
-                )
+                print(f"Copying data from previous workflow for {self.operator_out_dir}")
                 from_previous_dag_run_action(
                     self.airflow_workflow_dir,
                     self.batch_name,
@@ -182,19 +162,12 @@ def cache_operator_output(func):
                 return
 
         if self.manage_cache == "overwrite" or self.manage_cache == "clear":
-            cache_action(
-                self.batch_name, cache_operator_dirs, "remove", dag_run_dir, dag_run
-            )
+            cache_action(self.batch_name, cache_operator_dirs, "remove", dag_run_dir, dag_run)
             print("Clearing cache")
 
         if self.manage_cache == "cache":
-            if (
-                cache_action(
-                    self.batch_name, cache_operator_dirs, "get", dag_run_dir, dag_run
-                )
-                is True
-            ):
-                print(f'{", ".join(cache_operator_dirs)} output loaded from cache')
+            if cache_action(self.batch_name, cache_operator_dirs, "get", dag_run_dir, dag_run) is True:
+                print(f"{', '.join(cache_operator_dirs)} output loaded from cache")
                 return
 
         try:
@@ -203,10 +176,8 @@ def cache_operator_output(func):
             raise e
 
         if self.manage_cache == "cache" or self.manage_cache == "overwrite":
-            cache_action(
-                self.batch_name, cache_operator_dirs, "put", dag_run_dir, dag_run
-            )
-            print(f'{", ".join(cache_operator_dirs)} output saved to cache')
+            cache_action(self.batch_name, cache_operator_dirs, "put", dag_run_dir, dag_run)
+            print(f"{', '.join(cache_operator_dirs)} output saved to cache")
         else:
             print("Caching is not used!")
 
@@ -217,9 +188,7 @@ def cache_operator_output(func):
             and set(downstream_tasks_ids).issubset(set(federated["skip_operators"]))
         ):
             print("The rest is skipped cleaning up!", downstream_tasks)
-            clean_previous_dag_run(
-                self.airflow_workflow_dir, conf, "before_previous_dag_run"
-            )
+            clean_previous_dag_run(self.airflow_workflow_dir, conf, "before_previous_dag_run")
             print("Update remote job")
 
             print("Skipping the following tasks", downstream_tasks)

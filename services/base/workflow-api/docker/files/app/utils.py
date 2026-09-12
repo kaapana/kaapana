@@ -1,7 +1,4 @@
 from fastapi import WebSocket
-from fastapi.encoders import jsonable_encoder
-from uuid import UUID
-from pydantic import BaseModel
 
 
 class ConnectionManager:

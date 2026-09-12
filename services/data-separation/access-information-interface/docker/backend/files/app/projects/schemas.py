@@ -106,9 +106,7 @@ class Project(OrmBaseModel):
         # for validation
         valid_ae_title = is_valid_dicom_ae_title(v.upper())
         if not valid_ae_title:
-            raise AssertionError(
-                f"Invalid AE TITLE {v.upper()}. {is_valid_dicom_ae_title.__doc__}"
-            )
+            raise AssertionError(f"Invalid AE TITLE {v.upper()}. {is_valid_dicom_ae_title.__doc__}")
         return v
 
 

@@ -42,9 +42,7 @@ def generate_thumbnail_with_dcm2pnm(dcm_file: Path, thumbnail_size: int) -> Imag
             str(output_png_file),
         ]
         try:
-            subprocess.run(
-                dcm2pnm_command, check=True, stderr=subprocess.PIPE, text=True
-            )
+            subprocess.run(dcm2pnm_command, check=True, stderr=subprocess.PIPE, text=True)
             thumbnail = Image.open(output_png_file)
             return thumbnail
         except subprocess.CalledProcessError as e:
@@ -52,9 +50,7 @@ def generate_thumbnail_with_dcm2pnm(dcm_file: Path, thumbnail_size: int) -> Imag
             raise RuntimeError(f"dcm2pnm failed: {e}")
 
 
-def _apply_windowing(
-    pixel_array: np.ndarray, dicom_ds: pydicom.FileDataset
-) -> np.ndarray:
+def _apply_windowing(pixel_array: np.ndarray, dicom_ds: pydicom.FileDataset) -> np.ndarray:
     """
     Apply windowing (VOI LUT or default) to the pixel data.
 
@@ -96,9 +92,7 @@ def _apply_windowing(
     return pixel_array
 
 
-def _apply_rescale(
-    pixel_array: np.ndarray, dicom_ds: pydicom.FileDataset
-) -> np.ndarray:
+def _apply_rescale(pixel_array: np.ndarray, dicom_ds: pydicom.FileDataset) -> np.ndarray:
     """
     Apply rescale slope and intercept to the DICOM pixel data.
 
@@ -219,10 +213,7 @@ def _convert_ybr(dicom_ds: pydicom.FileDataset) -> Image.Image:
         cb_channel = pixel_array[:, :, 2]  # Cb channel (chrominance blue)
 
         # Interpolate Cb and Cr channels to match Y channel size if necessary (for subsampling)
-        if (
-            cr_channel.shape[0] != y_channel.shape[0]
-            or cr_channel.shape[1] != y_channel.shape[1]
-        ):
+        if cr_channel.shape[0] != y_channel.shape[0] or cr_channel.shape[1] != y_channel.shape[1]:
             cr_channel_resized = cv2.resize(
                 cr_channel,
                 (y_channel.shape[1], y_channel.shape[0]),
@@ -235,9 +226,7 @@ def _convert_ybr(dicom_ds: pydicom.FileDataset) -> Image.Image:
             )
 
         # Stack the channels back together
-        ycrcb_image = np.stack(
-            [y_channel, cb_channel_resized, cr_channel_resized], axis=-1
-        )
+        ycrcb_image = np.stack([y_channel, cb_channel_resized, cr_channel_resized], axis=-1)
 
         # Convert from YCrCb to BGR (OpenCV uses BGR, but PIL uses RGB)
         bgr_image = cv2.cvtColor(ycrcb_image, cv2.COLOR_YCrCb2BGR)
@@ -286,7 +275,6 @@ def _convert_palette(dicom_ds: pydicom.FileDataset) -> Image.Image:
         and "GreenPaletteColorLookupTableData" in dicom_ds
         and "BluePaletteColorLookupTableData" in dicom_ds
     ):
-
         # Extract the individual color components from the DICOM dataset
         red_palette_data = dicom_ds.RedPaletteColorLookupTableData
         green_palette_data = dicom_ds.GreenPaletteColorLookupTableData
@@ -308,16 +296,12 @@ def _convert_palette(dicom_ds: pydicom.FileDataset) -> Image.Image:
         # Convert to Image and apply thumbnail size
         img = Image.fromarray(palette_image)
     else:
-        logger.warning(
-            "No PaletteColorLookupTableData found in DICOM for PALETTE COLOR."
-        )
+        logger.warning("No PaletteColorLookupTableData found in DICOM for PALETTE COLOR.")
         img = Image.fromarray(pixel_array)
     return img
 
 
-def convert_dicom_to_thumbnail(
-    dcm_file: Path, thumbnail_size: int
-) -> Optional[Image.Image]:
+def convert_dicom_to_thumbnail(dcm_file: Path, thumbnail_size: int) -> Optional[Image.Image]:
     """
     Convert a DICOM file to a PNG image, applying windowing, VOI LUT, and rescaling.
 
@@ -345,9 +329,7 @@ def convert_dicom_to_thumbnail(
     ]:
         image = _convert_ybr(dicom_ds)
     else:
-        logger.error(
-            f"Not supported PhotometricInterpretation: {dicom_ds.PhotometricInterpretation}"
-        )
+        logger.error(f"Not supported PhotometricInterpretation: {dicom_ds.PhotometricInterpretation}")
         image = None
 
     if image:
@@ -355,9 +337,7 @@ def convert_dicom_to_thumbnail(
     return image
 
 
-def generate_generic_thumbnail(
-    operator_in_dir: Path, thumbnail_size: int
-) -> Optional[Image.Image]:
+def generate_generic_thumbnail(operator_in_dir: Path, thumbnail_size: int) -> Optional[Image.Image]:
     """
     Generates a thumbnail for DICOM files in a given directory.
     1. Try dcm2pnm

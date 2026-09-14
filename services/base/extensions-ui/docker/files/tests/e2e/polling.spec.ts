@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import type { ExtensionMock } from './fixtures/mock-backend'
 import { installMockBackend, defaultMockData, VIEW_PATH } from './fixtures/mock-backend'
 
@@ -141,4 +141,134 @@ test('the refresh control triggers an update-extensions request', async ({ page 
   )
   await page.getByTestId('update-extensions').click()
   await reqPromise
+})
+
+// Stand-in for portal-ui: a same-origin parent that embeds the view and records
+// what it receives.
+async function shellHarness(page: Page) {
+  await page.route('**/shell-harness', (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: `<!doctype html><html><body><script>
+               window.__msgs = []
+               addEventListener('message', (e) => window.__msgs.push(e.data))
+             </script><iframe src="${VIEW_PATH}" style="width:1280px;height:900px;border:0"></iframe></body></html>`,
+    }),
+  )
+}
+
+const shellMessages = (page: Page) =>
+  page.evaluate(() => (window as unknown as { __msgs: unknown[] }).__msgs)
+
+// A second, undeployed version for the row's dropdown to switch to.
+function twoVersionApp(): ExtensionMock {
+  return {
+    ...codeServer('ready'),
+    versions: ['1.0.0', '2.0.0'],
+    available_versions: {
+      ...codeServer('ready').available_versions,
+      '2.0.0': { deployments: [] },
+    },
+  }
+}
+
+// Two instances sharing one deployments list, as kube-helm serves them.
+function instanceRows(secondReady: boolean): ExtensionMock[] {
+  const base: ExtensionMock = {
+    ...codeServer('ready'),
+    name: 'jupyterlab',
+    chart_name: 'jupyterlab',
+    multiinstallable: 'yes',
+    available_versions: codeServer('ready').available_versions,
+  }
+  return [
+    { ...base, releaseName: 'jupyterlab-a', display_name: 'jupyterlab-a', successful: 'yes' },
+    {
+      ...base,
+      releaseName: 'jupyterlab-b',
+      display_name: 'jupyterlab-b',
+      successful: secondReady ? 'yes' : 'pending',
+    },
+  ]
+}
+
+test('embedded, an extension becoming ready asks the shell to refresh', async ({ page }) => {
+  await page.clock.install()
+  await installMockBackend(page)
+
+  let call = 0
+  await page.route(/\/kube-helm-api\/extensions(\?.*)?$/, (r) => {
+    call++
+    r.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([codeServer(call <= 1 ? 'pending' : 'ready')]),
+    })
+  })
+  await shellHarness(page)
+
+  await page.goto('/shell-harness')
+  const view = page.frameLocator('iframe')
+  await expect(view.getByRole('button', { name: 'Pending' })).toBeVisible()
+  expect(await shellMessages(page)).toEqual([])
+
+  await page.clock.runFor(5_000)
+  await expect(view.getByRole('button', { name: 'Uninstall' })).toBeVisible()
+  const msgs = () => shellMessages(page)
+  await expect.poll(msgs).toEqual([{ type: 'kaapana:shell-refresh' }])
+
+  // One transition, one message: no settling window re-refreshing for cycles.
+  await page.clock.runFor(10_000)
+  await page.waitForTimeout(300)
+  expect(await msgs()).toEqual([{ type: 'kaapana:shell-refresh' }])
+})
+
+test('embedded, picking another version does not ask the shell to refresh', async ({ page }) => {
+  await page.clock.install()
+  await installMockBackend(page)
+  await page.route(/\/kube-helm-api\/extensions(\?.*)?$/, (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([twoVersionApp()]),
+    }),
+  )
+  await shellHarness(page)
+
+  await page.goto('/shell-harness')
+  const view = page.frameLocator('iframe')
+  await expect(view.getByRole('button', { name: 'Uninstall' })).toBeVisible()
+
+  await view.getByRole('row', { name: /Code Server/ }).getByRole('combobox').first().click()
+  await view.getByRole('option', { name: '2.0.0' }).click()
+
+  await page.clock.runFor(10_000)
+  await page.waitForTimeout(300)
+  expect(await shellMessages(page)).toEqual([])
+})
+
+test('embedded, a second multiinstallable instance becoming ready asks the shell to refresh', async ({
+  page,
+}) => {
+  await page.clock.install()
+  await installMockBackend(page)
+  let call = 0
+  await page.route(/\/kube-helm-api\/extensions(\?.*)?$/, (r) => {
+    call++
+    r.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(instanceRows(call > 1)),
+    })
+  })
+  await shellHarness(page)
+
+  await page.goto('/shell-harness')
+  const view = page.frameLocator('iframe')
+  await expect(view.getByRole('row', { name: /jupyterlab-b/ })).toBeVisible()
+  expect(await shellMessages(page)).toEqual([])
+
+  await page.clock.runFor(5_000)
+  await expect.poll(() => shellMessages(page)).toEqual([{ type: 'kaapana:shell-refresh' }])
 })

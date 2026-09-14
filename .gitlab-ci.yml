@@ -208,6 +208,7 @@ include:
       exec_deploy: $[[ inputs.exec_deploy ]]
       exec_server_installation: $[[ inputs.exec_server_installation ]]
       exec_redeploy: $[[ inputs.exec_redeploy ]]
+      exec_integration_tests: $[[ inputs.exec_integration_tests ]]
   - local: /ci/pipeline/ci-image.yml
     inputs:
       runner_tag: $[[ inputs.build_runner_tag ]]
@@ -238,7 +239,6 @@ include:
       runner_tag: $[[ inputs.deploy_runner_tag ]]
       exec_integration_tests: $[[ inputs.exec_integration_tests ]]
       exec_integration_test_jobs: $[[ inputs.exec_integration_test_jobs ]]
-      exec_deploy: $[[ inputs.exec_deploy ]]
   - local: /ci/pipeline/clean.yml
     inputs:
       runner_tag: $[[ inputs.deploy_runner_tag ]]

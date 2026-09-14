@@ -8,6 +8,8 @@ spec:
       type: boolean
     exec_redeploy:
       type: boolean
+    exec_integration_tests:
+      type: boolean
     runner_tag:
       type: string
 ---
@@ -25,8 +27,6 @@ preflight_variables:
   image: python:3.12
   variables:
     GIT_STRATEGY: none # no checkout needed
-    CI_EXEC_BUILD: "$[[ inputs.exec_build ]]"
-    CI_EXEC_DEPLOY: "$[[ inputs.exec_deploy ]]"
   rules:
     - when: always
   script:
@@ -70,31 +70,24 @@ preflight_variables:
       fi
 
       # build and deploy need the registry credentials
-      if [ "$CI_EXEC_BUILD" = "true" ] || [ "$CI_EXEC_DEPLOY" = "true" ]; then
+      if [ "$[[ inputs.exec_build ]]" = "true" ] || [ "$[[ inputs.exec_deploy ]]" = "true" ]; then
         require REGISTRY_URL
         require REGISTRY_USER
         require REGISTRY_TOKEN
+        require REGISTRY_ENV
       fi
       if [ -n "${DOCKER_IO_USER:-}" ] && [ -z "${DOCKER_IO_PASSWORD:-}" ]; then
         fail "DOCKER_IO_USER is set but DOCKER_IO_PASSWORD is empty — leave both empty to skip the docker.io login."
       fi
 
-      # A git tag like "0.7.1" starts a release pipeline
-      # build_packages then publishes to the release registry using RELEASE_REGISTRY_* var.s
-      # The tag pattern below is a copy of the one in build.yml
+      # release tag (e.g. "0.7.1"): publishes to the release registry instead
       if [[ "${CI_COMMIT_TAG:-}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
         require RELEASE_REGISTRY_URL
         require RELEASE_REGISTRY_USER
         require RELEASE_REGISTRY_TOKEN
       fi
 
-      # Registry credentials are scoped to this environment; a typo means the
-      # jobs get no credentials at all (environment: name: $REGISTRY_ENV).
-      if [ "$CI_EXEC_BUILD" = "true" ] || [ "$CI_EXEC_DEPLOY" = "true" ]; then
-        require REGISTRY_ENV
-      fi
-
-      if [ "$CI_EXEC_DEPLOY" = "true" ]; then
+      if [ "$[[ inputs.exec_deploy ]]" = "true" ]; then
         require_file DEPLOYMENT_INSTANCE_SSH_KEY
         require DEPLOYMENT_INSTANCE_USER
         require DEPLOYMENT_INSTANCE_PLATFORM_PREFIX
@@ -105,14 +98,25 @@ preflight_variables:
             fail "DEPLOYMENT_INSTANCE_PLATFORM_PREFIX is ${#DEPLOYMENT_INSTANCE_PLATFORM_PREFIX} characters, over the 46 that keep project namespaces within the 63-character k8s limit."
           fi
         fi
-        if [ -z "$DEPLOYMENT_INSTANCE_FQDN" ]; then
+      fi
+
+      if [ -z "${DEPLOYMENT_INSTANCE_FQDN:-}" ]; then
+        # no target given: exec_deploy provisions a fresh VM instead
+        if [ "$[[ inputs.exec_deploy ]]" = "true" ]; then
           require_file HARVESTER_KUBECONFIG
           require DEPLOYMENT_INSTANCE_DOMAIN
           require DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE
         fi
-        # dcmsend rejects peerhosts longer than 57 chars; prepare_deployment
-        # checks this too, but only after the whole build stage has run
-        if [ -n "${DEPLOYMENT_INSTANCE_FQDN:-}" ] && [ "${#DEPLOYMENT_INSTANCE_FQDN}" -gt 57 ]; then
+        if [ "$[[ inputs.exec_deploy ]]" = "true" ] && [ "$[[ inputs.exec_server_installation ]]" = "false" ]; then
+            fail "exec_deploy cannot be run on the freshly provisioned VM with exec_server_installation=false"
+          fi
+        if [ "$[[ inputs.exec_integration_tests ]]" = "true" ] && [ "$[[ inputs.exec_deploy ]]" = "false" ]; then
+          fail "exec_integration_tests=true cannot be run on the freshly provisioned VM with exec_deploy=false"
+        fi
+      else
+        # custom target: an already-reachable instance, reused across runs
+        if [ "$[[ inputs.exec_deploy ]]" = "true" ] && [ "${#DEPLOYMENT_INSTANCE_FQDN}" -gt 57 ]; then
+          # dcmsend rejects peerhosts over 57 chars
           fail "DEPLOYMENT_INSTANCE_FQDN is ${#DEPLOYMENT_INSTANCE_FQDN} characters, over the 57-character dcmsend peerhost limit."
         fi
       fi

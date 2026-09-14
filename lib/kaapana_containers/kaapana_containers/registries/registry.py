@@ -116,11 +116,7 @@ class OCIRegistryDiscovery:
         self._client: Optional[httpx.AsyncClient] = None
 
     async def __aenter__(self) -> "OCIRegistryDiscovery":
-        overrides = (
-            {}
-            if self.timeout is httpx.USE_CLIENT_DEFAULT
-            else {"timeout": self.timeout}
-        )
+        overrides = {} if self.timeout is httpx.USE_CLIENT_DEFAULT else {"timeout": self.timeout}
         self._client = httpx.AsyncClient(**overrides)
         return self
 
@@ -136,9 +132,7 @@ class OCIRegistryDiscovery:
             Dict with 'Authorization' header if credentials provided, empty dict otherwise.
         """
         if self.username and self.password:
-            token = base64.b64encode(
-                f"{self.username}:{self.password}".encode()
-            ).decode()
+            token = base64.b64encode(f"{self.username}:{self.password}".encode()).decode()
             return {"Authorization": f"Basic {token}"}
         return {}
 
@@ -154,9 +148,7 @@ class OCIRegistryDiscovery:
         if scope:
             params["scope"] = scope
 
-        auth = (
-            (self.username, self.password) if self.username and self.password else None
-        )
+        auth = (self.username, self.password) if self.username and self.password else None
         resp = await self._client.get(realm, params=params, auth=auth)
         if resp.is_error:
             raise OCIError(
@@ -179,9 +171,7 @@ class OCIRegistryDiscovery:
             return {"Authorization": f"Bearer {self.bearer_token}"}
         return self.basic_auth_header.copy()
 
-    async def _request_with_auth_retry(
-        self, method: str, url: str, **kwargs
-    ) -> httpx.Response:
+    async def _request_with_auth_retry(self, method: str, url: str, **kwargs) -> httpx.Response:
         """Perform an HTTP request with automatic auth retry using OAuth 2.0 bearer tokens.
 
         Follows the OCI/Docker registry authentication flow:
@@ -204,9 +194,7 @@ class OCIRegistryDiscovery:
             token = await self._get_bearer_token(response.headers["WWW-Authenticate"])
             self.bearer_token = token
             headers["Authorization"] = f"Bearer {token}"
-            response = await self._client.request(
-                method, url, headers=headers, **kwargs
-            )
+            response = await self._client.request(method, url, headers=headers, **kwargs)
 
         if response.is_error:
             raise OCIError.from_response(response)
@@ -225,9 +213,7 @@ class OCIRegistryDiscovery:
         await self._request_with_auth_retry("GET", f"{self.registry_url}/v2/")
         return True
 
-    async def _upload_blob(
-        self, data: Union[str, bytes], media_type: str
-    ) -> SHA256Digest:
+    async def _upload_blob(self, data: Union[str, bytes], media_type: str) -> SHA256Digest:
         """Upload raw blob data to the OCI registry.
 
         Follows the OCI blob upload API:
@@ -253,14 +239,10 @@ class OCIRegistryDiscovery:
         )
         location = resp.headers.get("Location")
         if not location:
-            raise OCIError(
-                "registry did not return a Location header", code="BLOB_UPLOAD_INVALID"
-            )
+            raise OCIError("registry did not return a Location header", code="BLOB_UPLOAD_INVALID")
 
         if not location.startswith(("http://", "https://")):
-            location = urljoin(
-                self.registry_url.rstrip("/") + "/", location.lstrip("/")
-            )
+            location = urljoin(self.registry_url.rstrip("/") + "/", location.lstrip("/"))
 
         data_bytes = data.encode("utf-8") if isinstance(data, str) else data
         digest = SHA256Digest(f"sha256:{hashlib.sha256(data_bytes).hexdigest()}")
@@ -305,9 +287,7 @@ class OCIRegistryDiscovery:
             ".css": "text/css",
         }.get(ext.lower(), "application/octet-stream")
 
-    async def _upload_file(
-        self, file_path: str, stored_name: Optional[str] = None
-    ) -> Dict[str, Any]:
+    async def _upload_file(self, file_path: str, stored_name: Optional[str] = None) -> Dict[str, Any]:
         """Upload a file as a blob and return its metadata.
 
         Reads the file content, determines the appropriate media type,
@@ -376,17 +356,11 @@ class OCIRegistryDiscovery:
             for f in files:
                 abs_path = str(Path(base_dir) / f) if base_dir else f
                 file_meta = await self._upload_file(abs_path, stored_name=f)
-                metadata["files"].append(
-                    {"filename": file_meta["filename"], "digest": file_meta["digest"]}
-                )
-                layers.append(
-                    {k: file_meta[k] for k in ["digest", "mediaType", "size"]}
-                )
+                metadata["files"].append({"filename": file_meta["filename"], "digest": file_meta["digest"]})
+                layers.append({k: file_meta[k] for k in ["digest", "mediaType", "size"]})
 
         config_json = json.dumps(metadata, indent=2)
-        config_digest = await self._upload_blob(
-            config_json, "application/vnd.oci.image.config.v1+json"
-        )
+        config_digest = await self._upload_blob(config_json, "application/vnd.oci.image.config.v1+json")
 
         manifest = {
             "schemaVersion": 2,
@@ -446,9 +420,7 @@ class OCIRegistryDiscovery:
         try:
             config_digest = manifest_resp.json()["config"]["digest"]
         except (json.JSONDecodeError, KeyError) as exc:
-            raise OCIError(
-                f"cannot parse manifest for {tag!r}: {exc}", code="MANIFEST_INVALID"
-            ) from exc
+            raise OCIError(f"cannot parse manifest for {tag!r}: {exc}", code="MANIFEST_INVALID") from exc
 
         config_resp = await self._request_with_auth_retry(
             "GET", f"{self.registry_url}/v2/{self.repository}/blobs/{config_digest}"
@@ -534,9 +506,7 @@ class OCIRegistryDiscovery:
         """
         metadata_list = await self.get_all_metadata(tag)
         if not metadata_list:
-            raise OCIError(
-                f"no metadata found for tag {tag!r}", code="MANIFEST_UNKNOWN"
-            )
+            raise OCIError(f"no metadata found for tag {tag!r}", code="MANIFEST_UNKNOWN")
 
         _, metadata = metadata_list[0]
         if "files" not in metadata:

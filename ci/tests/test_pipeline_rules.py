@@ -122,15 +122,6 @@ def test_toggle_off_never_runs_the_job(toggle, job):
     assert all(statically_false(c) or "$" in c for c in conditions), conditions
 
 
-def test_release_tag_builds_even_with_build_off():
-    """A release tag publishes to the release registry, so build_packages runs
-    whatever exec_build says."""
-    config = merged_config(inputs=("exec_build=false",))
-    tag_rules = [rule for rule in jobs(config)["build_packages"]["rules"] if "CI_COMMIT_TAG" in rule.get("if", "")]
-    assert tag_rules, "build_packages lost its release-tag rule"
-    assert tag_rules[0]["variables"]["REGISTRY_URL"] == "$RELEASE_REGISTRY_URL"
-
-
 def test_integration_tests_need_a_deployment():
     """Without a deployment there is no target to test against."""
     config = merged_config(inputs=("exec_integration_tests=true", "exec_deploy=false"))

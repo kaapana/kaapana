@@ -114,18 +114,83 @@ def test_busy_ports_are_only_a_warning_when_our_own_platform_holds_them(readines
     assert other.checks[0]["status"] == readiness.FAILED
 
 
-def test_the_node_port_range_must_cover_the_platform_ports(readiness, monkeypatch, tmp_path):
-    args = tmp_path / "kube-apiserver"
-    args.write_text("--service-node-port-range=30000-32767\n")
-    monkeypatch.setattr(readiness, "MICROK8S_APISERVER_ARGS", str(args))
-    report = readiness.Report()
-    readiness.check_node_port_range(report, [80, 443, 11112])
-    assert report.checks[0]["status"] == readiness.FAILED
+def _apiserver(rejects=(), unreachable=False):
+    """A kubectl that answers a NodePort dry-run the way the API server does."""
 
-    args.write_text("--service-node-port-range=80-32000\n")
+    def fake_run(cmd, timeout=60):
+        if unreachable:
+            return 1, "", "The connection to the server 127.0.0.1:16443 was refused"
+        port = int([arg for arg in cmd if arg.startswith("--node-port=")][0].split("=")[1])
+        if port in rejects:
+            return (
+                1,
+                "",
+                f'The Service "kaapana-node-port-probe" is invalid: '
+                f"spec.ports[0].nodePort: Invalid value: {port}: provided port is not "
+                "in the valid range. The range of valid ports is 30000-32767",
+            )
+        return 0, "service/kaapana-node-port-probe created (server dry run)", ""
+
+    return fake_run
+
+
+def test_the_node_port_range_is_read_from_the_api_server(readiness, monkeypatch):
+    monkeypatch.setattr(readiness, "run", _apiserver(rejects=(80, 443)))
+    report = readiness.Report()
+    readiness.check_node_port_range(report, "/snap/bin/microk8s", [80, 443, 11112])
+    assert report.checks[0]["status"] == readiness.FAILED
+    assert "30000-32767" in report.checks[0]["details"]
+
+    monkeypatch.setattr(readiness, "run", _apiserver())
     ok = readiness.Report()
-    readiness.check_node_port_range(ok, [80, 443, 11112])
+    readiness.check_node_port_range(ok, "/snap/bin/microk8s", [80, 443, 11112])
     assert ok.checks[0]["status"] == readiness.PASSED
+
+
+def test_the_node_port_probe_runs_through_microk8s_kubectl(readiness, monkeypatch):
+    seen = []
+    monkeypatch.setattr(readiness, "run", lambda cmd, timeout=60: (seen.append(cmd), (0, "", ""))[1])
+    readiness.check_node_port_range(readiness.Report(), "/snap/bin/microk8s", [80])
+    assert seen[0][:2] == ["/snap/bin/microk8s", "kubectl"]
+
+
+def test_the_node_port_probe_falls_back_to_plain_kubectl(readiness, monkeypatch):
+    """No kube distribution is assumed: any kubectl on PATH will do."""
+    seen = []
+    monkeypatch.setattr(readiness.shutil, "which", lambda name: "/usr/bin/kubectl")
+    monkeypatch.setattr(readiness, "run", lambda cmd, timeout=60: (seen.append(cmd), (0, "", ""))[1])
+    readiness.check_node_port_range(readiness.Report(), "", [80])
+    assert seen[0][:1] == ["/usr/bin/kubectl"]
+
+
+def test_an_allocated_node_port_is_inside_the_range(readiness, monkeypatch):
+    """check_ports_free owns occupancy; this check only asks about the range."""
+    monkeypatch.setattr(
+        readiness,
+        "run",
+        lambda *a, **k: (1, "", "provided port is already allocated"),
+    )
+    report = readiness.Report()
+    readiness.check_node_port_range(report, "/snap/bin/microk8s", [80])
+    assert report.checks[0]["status"] == readiness.PASSED
+
+
+def test_an_unanswered_node_port_probe_fails_instead_of_skipping(readiness, monkeypatch):
+    """An unchecked range must not pass the gate silently."""
+    monkeypatch.setattr(readiness, "run", _apiserver(unreachable=True))
+    report = readiness.Report()
+    readiness.check_node_port_range(report, "/snap/bin/microk8s", [80, 443, 11112])
+    assert report.checks[0]["status"] == readiness.FAILED
+    assert report.ready is False
+
+
+def test_the_node_port_range_is_skipped_without_a_kubectl(readiness, monkeypatch):
+    """Advisory run: server_installation installs the cluster and sets the range."""
+    monkeypatch.setattr(readiness.shutil, "which", lambda name: None)
+    report = readiness.Report(advisory=True)
+    readiness.check_node_port_range(report, "", [80, 443, 11112])
+    assert report.checks[0]["status"] == readiness.SKIPPED
+    assert report.ready is True
 
 
 @pytest.mark.parametrize(

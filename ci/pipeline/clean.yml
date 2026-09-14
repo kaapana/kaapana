@@ -35,7 +35,7 @@ destroy_deployment:
     - { job: playwright_ui_tests, optional: true, artifacts: false }
   rules:
     # Never destroy externally-provided VMs
-    - if: '"$[[ inputs.exec_deploy ]]" == "true" && $DEPLOYMENT_INSTANCE_FQDN != ""'
+    - if: '$DEPLOYMENT_INSTANCE_FQDN != ""'
       when: never
     # Opt-in delayed destruction (e.g. keep VM alive to inspect after success)
     - if: '"$[[ inputs.exec_deploy ]]" == "true" && "$[[ inputs.exec_destroy_delayed ]]" == "true"'

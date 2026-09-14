@@ -30,8 +30,6 @@ _RESET = "\033[0m"
 
 STATUS_ORDER = (FAILED, WARNED, SKIPPED, PASSED)
 
-MICROK8S_APISERVER_ARGS = "/var/snap/microk8s/current/args/kube-apiserver"
-
 
 class Report:
     def __init__(self, advisory=False, target=""):
@@ -352,39 +350,92 @@ def check_existing_platform(report, helm, redeploy, admin_chart, helm_namespace)
     return prefix or admin_chart
 
 
-def check_node_port_range(report, required_ports):
-    try:
-        with open(MICROK8S_APISERVER_ARGS) as handle:
-            args = handle.read()
-    except OSError as exc:
-        report.add(
-            "node_port_range",
-            "microk8s NodePort range covers the platform ports",
-            SKIPPED,
-            FATAL,
-            details=f"{MICROK8S_APISERVER_ARGS}: {exc}",
-        )
+NODE_PORT_TITLE = "the API server accepts the platform NodePorts"
+NODE_PORT_PROBE = "kaapana-node-port-probe"
+NODE_PORT_FIX = (
+    "The API server must run with '--service-node-port-range=80-32000'; without "
+    "it the platform services are rejected. On microk8s add it to the "
+    "kube-apiserver arguments ('./kaapanactl.sh install' does that) and restart "
+    "it ('microk8s stop && microk8s start')."
+)
+
+
+def _kubectl(microk8s):
+    """The kubectl that talks to the target cluster, whatever ships it."""
+    if microk8s:
+        return [microk8s, "kubectl"]
+    kubectl = shutil.which("kubectl")
+    return [kubectl] if kubectl else []
+
+
+def _api_accepts_node_port(kubectl, port):
+    """Ask the API server whether it would accept this NodePort.
+
+    (accepted, range), range being the one the server named or "". accepted is
+    None when the probe got no answer at all.
+    """
+    rc, out, err = run(
+        kubectl
+        + [
+            "create",
+            "service",
+            "nodeport",
+            NODE_PORT_PROBE,
+            f"--tcp={port}:{port}",
+            f"--node-port={port}",
+            "--dry-run=server",
+        ],
+        timeout=120,
+    )
+    message = " ".join(part for part in (out, err) if part)
+    # already allocated: inside the range, just taken - check_ports_free owns that
+    if rc == 0 or "already allocated" in message:
+        return True, ""
+    match = re.search(r"valid ports is (\d+-\d+)", message)
+    if match:
+        return False, match.group(1)
+    if "not in the valid range" in message:
+        return False, ""
+    return None, message
+
+
+def check_node_port_range(report, microk8s, required_ports):
+    kubectl = _kubectl(microk8s)
+    if not kubectl:
+        report.add("node_port_range", NODE_PORT_TITLE, SKIPPED, FATAL, details="no kubectl on the target")
         return
 
-    match = re.search(r"--service-node-port-range=(\d+)-(\d+)", args)
-    if match:
-        low, high = int(match.group(1)), int(match.group(2))
-        outside = [port for port in required_ports if not low <= port <= high]
-    else:
-        low, high, outside = None, None, list(required_ports)
-    configured = f"{low}-{high}" if match else "not set (k8s default 30000-32767)"
+    needed = ",".join(str(port) for port in required_ports)
+    outside, named = [], set()
+    for port in required_ports:
+        accepted, found = _api_accepts_node_port(kubectl, port)
+        if accepted is None:
+            report.add(
+                "node_port_range",
+                NODE_PORT_TITLE,
+                FAILED,
+                FATAL,
+                details=f"{' '.join(kubectl)}: {found}",
+                remediation=(
+                    "The API server did not answer the NodePort probe, so the "
+                    "range could not be checked at all. Fix the cluster access "
+                    "reported above and re-run."
+                ),
+            )
+            return
+        if not accepted:
+            outside.append(port)
+            if found:
+                named.add(found)
+
+    configured = ", ".join(sorted(named)) or ("covers them" if not outside else "not named")
     report.add(
         "node_port_range",
-        "microk8s NodePort range covers the platform ports",
+        NODE_PORT_TITLE,
         PASSED if not outside else FAILED,
         FATAL,
-        details=f"configured: {configured}; needed: {','.join(str(port) for port in required_ports)}",
-        remediation=(
-            "Add '--service-node-port-range=80-32000' to "
-            f"{MICROK8S_APISERVER_ARGS} and restart microk8s "
-            "('microk8s stop && microk8s start'); without it the platform "
-            "services are rejected by the API server."
-        ),
+        details=f"configured: {configured}; needed: {needed}",
+        remediation=NODE_PORT_FIX,
     )
 
 
@@ -724,7 +775,7 @@ def main():
         admin_chart=args.admin_chart,
         helm_namespace=args.helm_namespace,
     )
-    check_node_port_range(report, required_ports)
+    check_node_port_range(report, microk8s, required_ports)
     check_ports_free(report, required_ports, existing_platform)
     check_sysctl(
         report,

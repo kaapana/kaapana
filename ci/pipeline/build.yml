@@ -65,8 +65,7 @@ build_packages:
     - when: never
   script:
     - |
-      if [[ "$CI_EXEC_DOCKER_PRUNE" == "true" \
-        || "$CI_COMMIT_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+      if [[ "$CI_EXEC_DOCKER_PRUNE" == "true" ]]; then
         docker system prune --all --volumes -f
       fi
 

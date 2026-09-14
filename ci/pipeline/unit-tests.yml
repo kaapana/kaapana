@@ -332,7 +332,6 @@ ui_e2e_tests:
       fi
     - cd "$KAAPANA_DIR/$APP_DIR"
     - npm ci
-    - npx playwright install chromium
     - npm run build
     - npx playwright test
   # artifact paths resolve against $CI_PROJECT_DIR, not the script's cwd, so

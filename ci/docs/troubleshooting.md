@@ -14,7 +14,7 @@ Starting runs and the inputs behind them: [README.md](../README.md).
 | Job dies in *prepare*: `failed to pull image … access forbidden` | `DOCKER_AUTH_CONFIG` has no valid entry for the active registry host ([internals.md](internals.md#docker_auth_config)) |
 | A job hits the 5-minute `.test_template` cap | The suite got slower, or the runner is slower than the cap assumes. Split the suite, or raise `timeout:` on the job |
 | `build_packages` fails immediately | Registry login (`CI_REGISTRY_*`) or the build VM's docker daemon. Full log in the `build.log` artifact |
-| `build_packages` fails on one image | Search the trace for `Build failed!` — the line is prefixed with the image tag, and the docker output follows under `LOG:`. Usually reproducible with `kaapana-build` locally |
+| `build_packages` fails on one image | Search the trace for `Build failed!` — the line is prefixed with the image tag, and the docker output follows under `LOG:`. The same output is in the `image-logs/<image>.stdout.log` / `.stderr.log` artifact. Usually reproducible with `kaapana-build` locally |
 | `prepare_deployment` fails provisioning | The failure names its cause: the VM state and what it implies, an exhausted timeout, a quota rejection, or the scheduler's own message |
 | `prepare_deployment`: `kaapana-admin-chart '<tag>' not found in …` | The commit was never built and pushed. The check runs before any VM is created. Build it first |
 | `preflight_target`: `existing_platform` FATAL | A platform is already deployed there. Undeploy it (`./kaapanactl.sh deploy --undeploy`), or re-run with `exec_redeploy:bool(true)` — that demotes the check to a warning and undeploys first |

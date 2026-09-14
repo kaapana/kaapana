@@ -4,7 +4,7 @@ Extension Development Kit for Kaapana. You can use this environment to develop c
 
 Start by running the first `./build_extension.sh` command to build and push the new extension pyradiomics-feature-extractor in your Kaapana instance. When the script is finished you should be able to see a new entry under Extensions view, just make sure to change Kind, Version and Resources filters to "All" in order to see the new extension.
 
-If you want to understand more about how extension development works and how to take more advantage of the underlying technologies, refer to our development guide at https://kaapana.readthedocs.io/en/stable/development_guide
+If you want to understand more about how extension development works and how to take more advantage of the underlying technologies, refer to our development guide at https://kaapana.readthedocs.io/en/stable/development_guide_root.html
 
 
 ## Build Extension pyradiomics-feature-extractor in `/dag` folder

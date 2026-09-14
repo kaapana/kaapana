@@ -184,7 +184,7 @@ jobs with ↻; you rarely need the whole pipeline.
 | `task_api_tests`: "connection refused" to `docker:2375` | Its dind service died. Usual cause: the service image name must stay **fully qualified** (`docker.io/library/docker:…`) — the privileged-service allowlist matches the literal string. |
 | Test job times out talking to a service (e.g. `registry:5000`) | DKFZ proxy. The alias must be in `NO_PROXY` **and** `no_proxy` (both casings) in the job variables. |
 | `build_packages` fails immediately | Registry login (`CI_REGISTRY_*` variables) or the build VM's docker daemon. Full log in the `build.log` artifact. |
-| `build_packages` fails on one image | Read `build.log`; usually reproducible locally with `kaapana-build`. |
+| `build_packages` fails on one image | Read that image's `image-logs/<image>.stdout.log` / `.stderr.log` artifact (or grep `build.log`); usually reproducible locally with `kaapana-build`. |
 | Build very slow | Cold layer cache (`CI_EXEC_DOCKER_PRUNE`? new build VM?). |
 | `prepare_deployment` fails provisioning | Harvester capacity or API — check the job log. |
 | `prepare_deployment`: "chart … not found in registry" | The commit was never built. Build it first. |

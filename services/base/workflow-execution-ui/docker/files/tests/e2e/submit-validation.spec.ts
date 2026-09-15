@@ -83,16 +83,11 @@ test('clearing the required workflow name blocks submit with a field error', asy
   await bootView(page)
   await selectDag(page, 'mock-all-fields')
 
-  let fired = false
-  page.on('request', (r) => {
-    if (r.url().includes('/client/workflow')) fired = true
-  })
-
   await page.getByLabel('Workflow name').fill('')
-  await page.getByRole('button', { name: 'Start Workflow' }).click()
   await expect(page.getByText('Workflow name is required')).toBeVisible()
-  await page.waitForTimeout(300)
-  expect(fired).toBe(false)
+  // The Start Workflow button now reflects the form's own validity, so an
+  // empty required field disables it rather than only erroring after a click.
+  await expect(page.getByRole('button', { name: 'Start Workflow' })).toBeDisabled()
 })
 
 test('property-level `required: true` schema renders all fields and submits', async ({
@@ -132,21 +127,13 @@ test('property-level `required: true` schema renders all fields and submits', as
   })
 })
 
-test('empty required field blocks submit with a validation message and no request', async ({
-  page,
-}) => {
+test('empty required field blocks submit with no request', async ({ page }) => {
   await bootView(page)
   await selectDag(page, 'mock-required')
 
-  let fired = false
-  page.on('request', (r) => {
-    if (r.url().includes('/client/workflow')) fired = true
-  })
-
-  await page.getByRole('button', { name: 'Start Workflow' }).click()
-  await expect(page.getByText(/Validation of form input values failed!/)).toBeVisible()
-  await page.waitForTimeout(300)
-  expect(fired).toBe(false)
+  // The button reflects the form's own validity, so a required vjsf field left
+  // empty disables Start Workflow rather than only erroring after a click.
+  await expect(page.getByRole('button', { name: 'Start Workflow' })).toBeDisabled()
 })
 
 test('filling the required field unblocks submit and its value reaches the payload', async ({
@@ -256,7 +243,7 @@ test('a failed submit does not carry a stale dataset_limit into the retry', asyn
   const req1P = page.waitForRequest(WORKFLOW)
   await page.getByRole('button', { name: 'Start Workflow' }).click()
   expect((await req1P).postDataJSON().conf_data.data_form.dataset_limit).toBe(25)
-  await expect(page.getByText('An error occured during the workflow creation!')).toBeVisible()
+  await expect(page.getByText('An error occurred during the workflow creation!')).toBeVisible()
 
   // Toggle back to "whole dataset", make the endpoint succeed, and resubmit.
   await page.getByRole('checkbox', { name: 'Process whole dataset' }).click()
@@ -276,5 +263,7 @@ test('submit backend error surfaces an error notification', async ({ page }) => 
   )
   await selectDag(page, 'mock-all-fields')
   await page.getByRole('button', { name: 'Start Workflow' }).click()
-  await expect(page.getByText('An error occured during the workflow creation!')).toBeVisible()
+  const toast = page.locator('.vue-notification-wrapper')
+  await expect(toast.getByText('An error occurred during the workflow creation!')).toBeVisible()
+  await expect(toast.getByText('nope')).toBeVisible()
 })

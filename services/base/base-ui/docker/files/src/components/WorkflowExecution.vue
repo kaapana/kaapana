@@ -660,9 +660,6 @@ function findRequiredFields(obj: any, result: string[] = [], prefix = ""): strin
   for (const key in obj) {
     const value = obj[key];
     const fullKey = prefix ? `${prefix}.${key}` : key;
-    // A `required` marker inside a oneOf branch (the v2 `dependencies` shape
-    // normalizeV2Schema turns into allOf/if/then) is not tracked here; only
-    // vjsf's own schema validation covers a field required within one.
     if (key === "oneOf") {
       continue;
     }

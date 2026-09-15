@@ -1,5 +1,6 @@
 import { defineComponent, h } from 'vue'
 import { VBtn, VTooltip } from 'vuetify/components'
+import { kaapanaIcons } from '../utils/icons'
 
 // A keyboard-focusable (i) button that reveals a field's help in a tooltip on
 // hover and focus. type="button" keeps it from submitting a surrounding v-form.
@@ -12,7 +13,7 @@ export const HelpIcon = defineComponent({
         activator: ({ props: activator }: any) =>
           h(VBtn, {
             ...activator,
-            icon: 'mdi-information-outline',
+            icon: kaapanaIcons.help,
             type: 'button',
             variant: 'text',
             density: 'compact',

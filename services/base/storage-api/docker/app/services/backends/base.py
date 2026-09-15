@@ -28,9 +28,7 @@ class StorageBackend:
 
     store_type: str = ""
 
-    def fetch(
-        self, coordinate, access_token: Optional[str]
-    ) -> Iterator[Tuple[str, bytes]]:
+    def fetch(self, coordinate, access_token: Optional[str]) -> Iterator[Tuple[str, bytes]]:
         """Yield ``(relative_path, content)`` for the data at ``coordinate``.
 
         A PACS series yields one entry per instance; an S3 object yields one.

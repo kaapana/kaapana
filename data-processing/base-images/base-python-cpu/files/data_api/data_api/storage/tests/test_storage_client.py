@@ -12,7 +12,6 @@ from pathlib import Path
 
 import httpx
 import pytest
-
 from data_api import StorageClient
 
 
@@ -59,9 +58,7 @@ async def test_download_entities_unpacks_and_groups_by_id(tmp_path):
 
     data = _FakeData(
         {
-            "e1": [
-                {"type": "pacs", "pacs_id": "p", "study_uid": "s", "series_uid": "se"}
-            ],
+            "e1": [{"type": "pacs", "pacs_id": "p", "study_uid": "s", "series_uid": "se"}],
             "e2": [{"type": "s3", "bucket": "b", "key": "k"}],
         }
     )
@@ -106,9 +103,7 @@ async def test_download_entities_bounds_concurrency(tmp_path, monkeypatch):
         transport=httpx.MockTransport(lambda r: httpx.Response(200)),
     ) as storage:
         monkeypatch.setattr(storage, "download", fake_download)
-        await storage.download_entities(
-            ids, tmp_path, data_client=data, max_concurrency=5
-        )
+        await storage.download_entities(ids, tmp_path, data_client=data, max_concurrency=5)
 
     assert peak <= 5
     assert peak > 1  # proves the downloads actually overlapped
@@ -129,9 +124,7 @@ async def test_download_entities_fails_loud_on_incomplete(tmp_path):
         }
     )
     with pytest.raises(RuntimeError, match="Incomplete download"):
-        async with StorageClient(
-            base_url="http://s", transport=httpx.MockTransport(handler)
-        ) as storage:
+        async with StorageClient(base_url="http://s", transport=httpx.MockTransport(handler)) as storage:
             await storage.download_entities(["e1", "e2"], tmp_path, data_client=data)
 
 
@@ -139,9 +132,7 @@ async def test_download_entities_noop_on_empty(tmp_path):
     def handler(request):  # pragma: no cover - must not be called
         raise AssertionError("storage-api should not be contacted for empty input")
 
-    async with StorageClient(
-        base_url="http://s", transport=httpx.MockTransport(handler)
-    ) as storage:
+    async with StorageClient(base_url="http://s", transport=httpx.MockTransport(handler)) as storage:
         out = await storage.download_entities([], tmp_path, data_client=_FakeData({}))
     assert out == tmp_path
 
@@ -156,11 +147,7 @@ async def test_upload_posts_multipart_and_returns_coordinates():
         captured["body"] = request.content
         return httpx.Response(
             200,
-            json={
-                "coordinates": [
-                    {"type": "s3", "bucket": "proj", "key": "models/run-1/model.bin"}
-                ]
-            },
+            json={"coordinates": [{"type": "s3", "bucket": "proj", "key": "models/run-1/model.bin"}]},
         )
 
     async with StorageClient(

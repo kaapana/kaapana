@@ -71,9 +71,7 @@ class DataClient:
         payload: Dict[str, Any] = {"where": where, "limit": limit}
         if cursor:
             payload["cursor"] = cursor
-        response = await request_with_retries(
-            self._client, "POST", f"{self.base_url}/entities/query", json=payload
-        )
+        response = await request_with_retries(self._client, "POST", f"{self.base_url}/entities/query", json=payload)
         response.raise_for_status()
         return response.json()
 
@@ -105,9 +103,7 @@ class DataClient:
 
     async def get_entity(self, entity_id: str) -> dict:
         """Fetch a full entity record (storage_coordinates, metadata, links)."""
-        response = await request_with_retries(
-            self._client, "GET", f"{self.base_url}/entities/{entity_id}"
-        )
+        response = await request_with_retries(self._client, "GET", f"{self.base_url}/entities/{entity_id}")
         response.raise_for_status()
         return response.json()
 
@@ -116,9 +112,7 @@ class DataClient:
         """Return the storage coordinates of an entity record."""
         return entity.get("storage_coordinates", [])
 
-    async def resolve_dataset_members(
-        self, dataset_entity_id: str, extra_where: Optional[dict] = None
-    ) -> List[str]:
+    async def resolve_dataset_members(self, dataset_entity_id: str, extra_where: Optional[dict] = None) -> List[str]:
         """Resolve a dataset entity to its member IDs via ``contains`` links.
 
         Uses ``descendant_of`` so it composes (optionally ANDed with
@@ -149,17 +143,13 @@ class DataClient:
 
         ``POST /metadata/keys/{key}`` is register-or-replace, so this is idempotent.
         """
-        response = await request_with_retries(
-            self._client, "POST", f"{self.base_url}/metadata/keys/{key}", json=schema
-        )
+        response = await request_with_retries(self._client, "POST", f"{self.base_url}/metadata/keys/{key}", json=schema)
         response.raise_for_status()
         return response.json()
 
     async def create_entity(self, entity: dict) -> dict:
         """Create or replace an entity (id, storage_coordinates, metadata)."""
-        response = await request_with_retries(
-            self._client, "POST", f"{self.base_url}/entities", json=entity
-        )
+        response = await request_with_retries(self._client, "POST", f"{self.base_url}/entities", json=entity)
         response.raise_for_status()
         return response.json()
 
@@ -179,9 +169,7 @@ class DataClient:
         errors (the endpoint is idempotent on ``where``).
         """
         payload = {"where": where, "entity": entity}
-        response = await request_with_retries(
-            self._client, "POST", f"{self.base_url}/entities/ensure", json=payload
-        )
+        response = await request_with_retries(self._client, "POST", f"{self.base_url}/entities/ensure", json=payload)
         response.raise_for_status()
         return response.json()
 

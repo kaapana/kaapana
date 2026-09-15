@@ -12,9 +12,7 @@ import pathlib
 import sys
 import types
 
-MODULE_PATH = (
-    pathlib.Path(__file__).resolve().parents[1] / "files" / "ensure_data_schema.py"
-)
+MODULE_PATH = pathlib.Path(__file__).resolve().parents[1] / "files" / "ensure_data_schema.py"
 
 
 class _FakeData:
@@ -37,9 +35,7 @@ def _load():
     data_api.DataClient = _FakeData
     sys.modules["data_api"] = data_api
 
-    spec = importlib.util.spec_from_file_location(
-        "ensure_data_schema_standalone", MODULE_PATH
-    )
+    spec = importlib.util.spec_from_file_location("ensure_data_schema_standalone", MODULE_PATH)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod

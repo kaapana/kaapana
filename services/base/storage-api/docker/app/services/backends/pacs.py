@@ -27,9 +27,7 @@ class PacsBackend(StorageBackend):
 
     store_type = "pacs"
 
-    def fetch(
-        self, coordinate: PacsCoordinate, access_token: Optional[str]
-    ) -> Iterator[Tuple[str, bytes]]:
+    def fetch(self, coordinate: PacsCoordinate, access_token: Optional[str]) -> Iterator[Tuple[str, bytes]]:
         import pydicom
         import requests
         from requests_toolbelt.multipart import decoder
@@ -83,11 +81,7 @@ class PacsBackend(StorageBackend):
             ds = pydicom.dcmread(BytesIO(content), stop_before_pixels=True)
             series.setdefault((str(ds.StudyInstanceUID), str(ds.SeriesInstanceUID)))
             body_parts.append(
-                (
-                    f"--{boundary}\r\n"
-                    f"Content-Type: application/dicom\r\n"
-                    f"Content-Length: {len(content)}\r\n\r\n"
-                ).encode()
+                (f"--{boundary}\r\nContent-Type: application/dicom\r\nContent-Length: {len(content)}\r\n\r\n").encode()
                 + content
                 + b"\r\n"
             )
@@ -96,18 +90,14 @@ class PacsBackend(StorageBackend):
 
         body = b"".join(body_parts) + f"--{boundary}--\r\n".encode()
         headers = {
-            "Content-Type": (
-                f'multipart/related; type="application/dicom"; boundary={boundary}'
-            ),
+            "Content-Type": (f'multipart/related; type="application/dicom"; boundary={boundary}'),
             "Accept": "application/dicom+json",
         }
         if access_token:
             headers["Authorization"] = f"Bearer {access_token}"
             headers["x-forwarded-access-token"] = access_token
 
-        response = requests.post(
-            f"{base}/studies", data=body, headers=headers, timeout=_TIMEOUT
-        )
+        response = requests.post(f"{base}/studies", data=body, headers=headers, timeout=_TIMEOUT)
         response.raise_for_status()
 
         return [

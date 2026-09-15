@@ -107,9 +107,7 @@ def cleanup_metadata_artifacts(entity_id: UUID | str, key: str) -> None:
         )
 
 
-async def validate_no_cycle(
-    db: AsyncSession, source_id: UUID, target_id: UUID, link_type: str
-) -> None:
+async def validate_no_cycle(db: AsyncSession, source_id: UUID, target_id: UUID, link_type: str) -> None:
     """Reject links that would close a cycle for the given link type.
 
     Walks forward from `target_id` along outgoing edges of the same link type;

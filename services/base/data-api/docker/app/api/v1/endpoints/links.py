@@ -2,16 +2,15 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Response
-from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.db.models import EntityLinkORM
 from app.db.session import get_async_db
 from app.models.domain import EntityLink, EntityLinkCreate
 from app.models.events import EventAction
 from app.services.entity_repository import link_from_orm
+from fastapi import APIRouter, Depends, HTTPException, Response
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from .helpers import broadcast_link_event, require_entity, validate_no_cycle
 
@@ -79,9 +78,7 @@ async def delete_link(
     link_id: UUID,
     db: AsyncSession = Depends(get_async_db),
 ) -> Response:
-    stmt = select(EntityLinkORM).where(
-        EntityLinkORM.id == link_id, EntityLinkORM.source_id == source_id
-    )
+    stmt = select(EntityLinkORM).where(EntityLinkORM.id == link_id, EntityLinkORM.source_id == source_id)
     result = await db.execute(stmt)
     orm = result.scalar_one_or_none()
     if orm is None:

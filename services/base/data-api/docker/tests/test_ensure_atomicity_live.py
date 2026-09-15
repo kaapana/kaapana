@@ -28,9 +28,7 @@ import pytest
 
 LIVE_URL = os.environ.get("DATA_API_LIVE_URL")
 
-pytestmark = pytest.mark.skipif(
-    not LIVE_URL, reason="set DATA_API_LIVE_URL to run the live atomicity test"
-)
+pytestmark = pytest.mark.skipif(not LIVE_URL, reason="set DATA_API_LIVE_URL to run the live atomicity test")
 
 _CONCURRENCY = 24
 
@@ -79,9 +77,7 @@ async def test_concurrent_ensure_creates_exactly_one() -> None:
     async with httpx.AsyncClient(base_url=LIVE_URL, timeout=30.0) as client:
 
         async def call() -> dict:
-            resp = await client.post(
-                "/entities/ensure", json=_ensure_payload(dataset_name, project_id)
-            )
+            resp = await client.post("/entities/ensure", json=_ensure_payload(dataset_name, project_id))
             resp.raise_for_status()
             return resp.json()
 

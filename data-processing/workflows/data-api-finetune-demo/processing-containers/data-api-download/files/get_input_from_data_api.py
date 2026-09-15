@@ -26,17 +26,13 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("data-api-download")
 
 
-async def _validate_constraint(
-    data: DataClient, entity_ids: list, constraint: dict
-) -> None:
+async def _validate_constraint(data: DataClient, entity_ids: list, constraint: dict) -> None:
     """Fail loudly unless every supplied ID satisfies the designer constraint.
 
     Resolves ``AND(constraint, id in entity_ids)`` and requires the result to
     equal the input set — this also catches IDs that no longer exist.
     """
-    logger.info(
-        "Re-validating %d entity ID(s) against the channel constraint", len(entity_ids)
-    )
+    logger.info("Re-validating %d entity ID(s) against the channel constraint", len(entity_ids))
     where = {
         "type": "group",
         "op": "and",
@@ -58,8 +54,7 @@ def _validate_cardinality(entity_ids: list, cardinality: str) -> None:
     """A ``single`` channel accepts at most one ID (0 allowed when optional)."""
     if cardinality == "single" and len(entity_ids) > 1:
         raise RuntimeError(
-            f"Channel is single-cardinality but {len(entity_ids)} entity IDs were "
-            f"supplied: {entity_ids}"
+            f"Channel is single-cardinality but {len(entity_ids)} entity IDs were supplied: {entity_ids}"
         )
 
 
@@ -69,9 +64,7 @@ async def _amain() -> None:
     from kaapanapy.helper import get_project_user_access_token
 
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-o", "--output", type=Path, default=Path("/home/kaapana/downloads")
-    )
+    parser.add_argument("-o", "--output", type=Path, default=Path("/home/kaapana/downloads"))
     parser.add_argument(
         "--max-concurrency",
         type=int,
@@ -97,9 +90,7 @@ async def _amain() -> None:
     if not entity_ids:
         logger.info("No entity IDs supplied — nothing to download.")
 
-    async with DataClient(access_token=access_token) as data, StorageClient(
-        access_token=access_token
-    ) as storage:
+    async with DataClient(access_token=access_token) as data, StorageClient(access_token=access_token) as storage:
         if constraint and entity_ids:
             await _validate_constraint(data, entity_ids, constraint)
         logger.info(

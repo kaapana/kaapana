@@ -13,9 +13,7 @@ import pathlib
 
 import pytest
 
-MODULE_PATH = (
-    pathlib.Path(__file__).resolve().parents[1] / "files" / "get_input_from_data_api.py"
-)
+MODULE_PATH = pathlib.Path(__file__).resolve().parents[1] / "files" / "get_input_from_data_api.py"
 
 CONSTRAINT = {"type": "filter", "field": "metadata.model", "op": "has_key"}
 

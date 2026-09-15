@@ -10,9 +10,7 @@ class Settings(BaseSettings):
     access token to each store (DICOMweb bearer / MinIO web-identity).
     """
 
-    model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     dicom_wadors_endpoint: str = ""
     dicom_stowrs_endpoint: str = ""

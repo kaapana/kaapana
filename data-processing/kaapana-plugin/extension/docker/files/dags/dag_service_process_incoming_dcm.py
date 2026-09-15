@@ -22,6 +22,7 @@ from kaapana.operators.LocalAssignDataToProjectOperator import (
     LocalAssignDataToProjectOperator,
 )
 from kaapana.operators.LocalAutoTriggerOperator import LocalAutoTriggerOperator
+from kaapana.operators.LocalDataApiUploadOperator import LocalDataApiUploadOperator
 from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
 from kaapana.operators.LocalDcmBranchingOperator import LocalDcmBranchingOperator
 from kaapana.operators.LocalDicomSendOperator import LocalDicomSendOperator
@@ -34,7 +35,6 @@ from kaapana.operators.LocalValidationResult2MetaOperator import (
     LocalValidationResult2MetaOperator,
 )
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from kaapana.operators.LocalDataApiUploadOperator import LocalDataApiUploadOperator
 from kaapanapy.helper import get_minio_client
 from kaapanapy.helper.HelperOpensearch import DicomTags
 from kaapanapy.settings import KaapanaSettings

@@ -35,9 +35,7 @@ def _inspect_channel(name: str, path: Path, *, allow_empty: bool = False) -> Lis
     """
     if not path.is_dir():
         if allow_empty:
-            logger.info(
-                "Channel '%s' has no mount at %s — treating as empty.", name, path
-            )
+            logger.info("Channel '%s' has no mount at %s — treating as empty.", name, path)
             return []
         raise RuntimeError(f"Input channel '{name}' has no mount at {path}")
 
@@ -50,9 +48,7 @@ def _inspect_channel(name: str, path: Path, *, allow_empty: bool = False) -> Lis
 
     summary = []
     for entity_dir in entities:
-        files = sorted(
-            str(f.relative_to(entity_dir)) for f in entity_dir.rglob("*") if f.is_file()
-        )
+        files = sorted(str(f.relative_to(entity_dir)) for f in entity_dir.rglob("*") if f.is_file())
         logger.info("[%s] %s -> %d file(s)", name, entity_dir.name, len(files))
         summary.append({"entity_id": entity_dir.name, "files": files})
     return summary
@@ -60,13 +56,9 @@ def _inspect_channel(name: str, path: Path, *, allow_empty: bool = False) -> Lis
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--segmentations", type=Path, default=Path("/home/kaapana/segmentations")
-    )
+    parser.add_argument("--segmentations", type=Path, default=Path("/home/kaapana/segmentations"))
     parser.add_argument("--model", type=Path, default=Path("/home/kaapana/model"))
-    parser.add_argument(
-        "-o", "--output", type=Path, default=Path("/home/kaapana/output")
-    )
+    parser.add_argument("-o", "--output", type=Path, default=Path("/home/kaapana/output"))
     args = parser.parse_args()
 
     segmentations = _inspect_channel("segmentations", args.segmentations)
@@ -115,9 +107,7 @@ def main() -> None:
         },
         "upstream_entity_ids": upstream_entity_ids,
     }
-    (args.output / UPLOAD_MANIFEST_NAME).write_text(
-        json.dumps(upload_manifest, indent=2)
-    )
+    (args.output / UPLOAD_MANIFEST_NAME).write_text(json.dumps(upload_manifest, indent=2))
 
     logger.info(
         "Dummy fine-tune done: %d segmentation + %d model entities (from_scratch=%s) -> %s",

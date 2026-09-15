@@ -24,13 +24,12 @@ import os
 from uuid import uuid4
 
 import pytest
-from sqlalchemy.exc import DBAPIError
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-
 from app.models.domain import DataEntity
 from app.models.query import QueryRequest
 from app.services.entity_query import execute_entity_query
 from app.services.entity_repository import entity_to_orm
+from sqlalchemy.exc import DBAPIError
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 DB_URL = os.environ.get("DATA_API_TEST_DATABASE_URL")
 
@@ -83,12 +82,8 @@ async def _interleave(isolation: str) -> tuple[bool, str | None, int]:
 
     Returns ``(second_committed, second_sqlstate, matching_rows)``.
     """
-    engine = create_async_engine(
-        DB_URL.replace("postgresql://", "postgresql+asyncpg://")
-    )
-    session_factory = async_sessionmaker(
-        bind=engine, expire_on_commit=False, autoflush=False
-    )
+    engine = create_async_engine(DB_URL.replace("postgresql://", "postgresql+asyncpg://"))
+    session_factory = async_sessionmaker(bind=engine, expire_on_commit=False, autoflush=False)
     name, project = f"ssi-{uuid4()}", str(uuid4())
     where = _where(name, project)
     query = QueryRequest(where=where, limit=1)
@@ -115,9 +110,7 @@ async def _interleave(isolation: str) -> tuple[bool, str | None, int]:
             second_sqlstate = getattr(exc.orig, "sqlstate", None)
 
         async with session_factory() as s3:
-            rows, _, _ = await execute_entity_query(
-                s3, QueryRequest(where=where, limit=10)
-            )
+            rows, _, _ = await execute_entity_query(s3, QueryRequest(where=where, limit=10))
         return second_committed, second_sqlstate, len(rows)
     finally:
         await s1.close()

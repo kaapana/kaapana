@@ -2,8 +2,6 @@
 
 import json
 
-from jsonschema import Draft7Validator
-
 from app.system_schemas import (
     DATASET_SCHEMA,
     DATASET_SCHEMA_KEY,
@@ -13,6 +11,7 @@ from app.system_schemas import (
     PROVENANCE_SCHEMA_KEY,
     SYSTEM_SCHEMAS,
 )
+from jsonschema import Draft7Validator
 
 
 def test_provenance_schema_is_valid_draft7() -> None:

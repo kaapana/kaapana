@@ -85,9 +85,7 @@ class EntityLink(BaseModel):
     """Directed, typed edge between two data entities, with optional properties."""
 
     id: UUID = Field(..., description="Stable UUID identifying this link")
-    source_id: UUID = Field(
-        ..., description="UUID of the entity the link originates from"
-    )
+    source_id: UUID = Field(..., description="UUID of the entity the link originates from")
     target_id: UUID = Field(..., description="UUID of the entity the link points to")
     link_type: str = Field(
         ...,
@@ -99,9 +97,7 @@ class EntityLink(BaseModel):
         default_factory=dict,
         description="Arbitrary JSON properties attached to this edge",
     )
-    created_at: Optional[datetime] = Field(
-        None, description="Timestamp when the link was created (UTC)"
-    )
+    created_at: Optional[datetime] = Field(None, description="Timestamp when the link was created (UTC)")
 
 
 class EntityLinkCreate(BaseModel):
@@ -114,9 +110,7 @@ class EntityLinkCreate(BaseModel):
         max_length=64,
         description="Edge type; 'contains' is cycle-checked server-side",
     )
-    properties: Dict[str, Any] = Field(
-        default_factory=dict, description="Optional JSON properties for the edge"
-    )
+    properties: Dict[str, Any] = Field(default_factory=dict, description="Optional JSON properties for the edge")
 
 
 class DataEntity(BaseModel):

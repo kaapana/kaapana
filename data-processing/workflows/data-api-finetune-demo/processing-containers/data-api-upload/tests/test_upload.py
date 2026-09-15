@@ -7,7 +7,6 @@ upload → create-entity → attach-metadata orchestration (and that provenance 
 built from run-context env, not the manifest).
 """
 
-import asyncio
 import importlib.util
 import json
 import pathlib
@@ -16,9 +15,7 @@ import types
 
 import pytest
 
-MODULE_PATH = (
-    pathlib.Path(__file__).resolve().parents[1] / "files" / "upload_to_data_api.py"
-)
+MODULE_PATH = pathlib.Path(__file__).resolve().parents[1] / "files" / "upload_to_data_api.py"
 
 
 def _load():
@@ -185,9 +182,7 @@ def test_upload_bucket_override_wins(tmp_path, monkeypatch):
     mod = _load()
     storage, _ = _prep(mod, tmp_path, monkeypatch, manifest=_MANIFEST)
     monkeypatch.setenv("UPLOAD_S3_BUCKET", "explicit-bucket")
-    monkeypatch.setenv(
-        "KAAPANA_PROJECT_IDENTIFIER", "04b73a5d-dead-beef-0000-000000000000"
-    )
+    monkeypatch.setenv("KAAPANA_PROJECT_IDENTIFIER", "04b73a5d-dead-beef-0000-000000000000")
 
     def _boom(*a, **k):  # AII must not be called when the override is set
         raise AssertionError("AII should not be queried when UPLOAD_S3_BUCKET is set")

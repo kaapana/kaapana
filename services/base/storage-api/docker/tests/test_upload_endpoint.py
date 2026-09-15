@@ -1,11 +1,9 @@
 import json
 
-import pytest
-from fastapi.testclient import TestClient
-
 from app.main import app
 from app.models import S3Coordinate
 from app.services.backends.base import StorageBackend
+from fastapi.testclient import TestClient
 
 
 class _FakeS3Backend(StorageBackend):
@@ -22,10 +20,7 @@ class _FakeS3Backend(StorageBackend):
             "files": materialised,
         }
         prefix = target.key_prefix or ""
-        return [
-            S3Coordinate(bucket=target.bucket, key=f"{prefix}{name}")
-            for name, _ in materialised
-        ]
+        return [S3Coordinate(bucket=target.bucket, key=f"{prefix}{name}") for name, _ in materialised]
 
 
 def _descriptor(**kw) -> dict:

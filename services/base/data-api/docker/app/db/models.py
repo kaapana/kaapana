@@ -79,9 +79,7 @@ class StorageCoordinateORM(Base):
 class EntityLinkORM(Base):
     __tablename__ = "entity_links"
     __table_args__ = (
-        UniqueConstraint(
-            "source_id", "target_id", "link_type", name="uq_entity_links_triple"
-        ),
+        UniqueConstraint("source_id", "target_id", "link_type", name="uq_entity_links_triple"),
         CheckConstraint("source_id <> target_id", name="ck_entity_links_no_self_loop"),
         Index("ix_entity_links_source", "source_id", "link_type"),
         Index("ix_entity_links_target", "target_id", "link_type"),
@@ -103,9 +101,7 @@ class EntityLinkORM(Base):
         nullable=False,
     )
     link_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    properties: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, nullable=False, server_default=text("'{}'::jsonb")
-    )
+    properties: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

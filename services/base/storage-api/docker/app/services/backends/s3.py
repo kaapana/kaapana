@@ -31,9 +31,7 @@ def _translate_s3_errors() -> Iterator[None]:
     except S3Error as exc:
         status = getattr(exc.response, "status", None)
         if isinstance(status, int) and 400 <= status < 500:
-            raise StorageError(
-                status, exc.message or exc.code or "Object store request rejected"
-            ) from exc
+            raise StorageError(status, exc.message or exc.code or "Object store request rejected") from exc
         raise
 
 
@@ -60,8 +58,7 @@ def _minio_client(access_token: str, endpoint: str):
     from minio import Minio
 
     response = requests.post(
-        f"http://{endpoint}?Action=AssumeRoleWithWebIdentity"
-        f"&WebIdentityToken={access_token}&Version=2011-06-15",
+        f"http://{endpoint}?Action=AssumeRoleWithWebIdentity&WebIdentityToken={access_token}&Version=2011-06-15",
         timeout=_TIMEOUT,
     )
     response.raise_for_status()
@@ -96,13 +93,9 @@ class S3Backend(StorageBackend):
             response.close()
             response.release_conn()
 
-    def fetch(
-        self, coordinate: S3Coordinate, access_token: Optional[str]
-    ) -> Iterator[Tuple[str, bytes]]:
+    def fetch(self, coordinate: S3Coordinate, access_token: Optional[str]) -> Iterator[Tuple[str, bytes]]:
         if not access_token:
-            raise ValueError(
-                "S3 download requires an access token for web-identity auth"
-            )
+            raise ValueError("S3 download requires an access token for web-identity auth")
 
         endpoint = get_settings().minio_url
         client = _minio_client(access_token, endpoint)
@@ -120,9 +113,7 @@ class S3Backend(StorageBackend):
         if prefix and not prefix.endswith("/"):
             prefix += "/"
         with _translate_s3_errors():
-            for obj in client.list_objects(
-                coordinate.bucket, prefix=prefix, recursive=True
-            ):
+            for obj in client.list_objects(coordinate.bucket, prefix=prefix, recursive=True):
                 key = obj.object_name
                 if key.endswith("/"):  # skip explicit directory markers
                     continue
@@ -149,9 +140,7 @@ class S3Backend(StorageBackend):
         files = list(files)
         if unit == "file":
             if len(files) != 1:
-                raise ValueError(
-                    f"Upload unit 'file' expects exactly one file, got {len(files)}"
-                )
+                raise ValueError(f"Upload unit 'file' expects exactly one file, got {len(files)}")
         elif not prefix:
             # A folder coordinate with an empty prefix would later list the whole
             # bucket on fetch — refuse it rather than mint that footgun.
@@ -176,7 +165,5 @@ class S3Backend(StorageBackend):
 
         if unit == "folder":
             # One coordinate for the whole folder; fetch lists everything under it.
-            coordinates.append(
-                S3Coordinate(bucket=target.bucket, key=prefix, is_prefix=True)
-            )
+            coordinates.append(S3Coordinate(bucket=target.bucket, key=prefix, is_prefix=True))
         return coordinates

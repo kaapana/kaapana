@@ -62,11 +62,7 @@ def _require_run_context() -> None:
     worst failure to debug. These vars are always present in a real Task-API pod,
     so this guard only fires when something is genuinely broken.
     """
-    missing = [
-        key
-        for key in ("KAAPANA_DAG_ID", "KAAPANA_WORKFLOW_RUN_ID")
-        if not os.environ.get(key)
-    ]
+    missing = [key for key in ("KAAPANA_DAG_ID", "KAAPANA_WORKFLOW_RUN_ID") if not os.environ.get(key)]
     if missing:
         raise RuntimeError(
             f"Missing run-context env {missing}; the KaapanaTaskOperator must inject "
@@ -104,17 +100,12 @@ def _project_bucket() -> str:
     identifier = os.environ.get("KAAPANA_PROJECT_IDENTIFIER", "").strip()
     if not identifier:
         return ""
-    aii_url = os.environ.get(
-        "KAAPANA_AII_URL", "http://aii-service.services.svc:8080"
-    ).rstrip("/")
+    aii_url = os.environ.get("KAAPANA_AII_URL", "http://aii-service.services.svc:8080").rstrip("/")
     resp = httpx.get(f"{aii_url}/projects/{identifier}", timeout=30)
     resp.raise_for_status()
     bucket = resp.json().get("s3_bucket", "")
     if not bucket:
-        raise RuntimeError(
-            f"AII returned no s3_bucket for project {identifier!r}; "
-            "set UPLOAD_S3_BUCKET to override"
-        )
+        raise RuntimeError(f"AII returned no s3_bucket for project {identifier!r}; set UPLOAD_S3_BUCKET to override")
     return bucket
 
 
@@ -129,9 +120,7 @@ def _s3_target(entity_id: str) -> dict:
     """
     bucket = os.environ.get("UPLOAD_S3_BUCKET") or _project_bucket()
     if not bucket:
-        raise RuntimeError(
-            "No S3 bucket: set UPLOAD_S3_BUCKET or KAAPANA_PROJECT_IDENTIFIER"
-        )
+        raise RuntimeError("No S3 bucket: set UPLOAD_S3_BUCKET or KAAPANA_PROJECT_IDENTIFIER")
     return {
         "bucket": bucket,
         "key_prefix": f"{DATA_API_PREFIX}/{entity_id}/",
@@ -142,9 +131,7 @@ async def _amain() -> None:
     from kaapanapy.helper import get_project_user_access_token
 
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-i", "--input", type=Path, default=Path("/home/kaapana/results")
-    )
+    parser.add_argument("-i", "--input", type=Path, default=Path("/home/kaapana/results"))
     args = parser.parse_args()
 
     # Fail before writing any bytes if provenance would be empty.
@@ -152,9 +139,7 @@ async def _amain() -> None:
 
     manifest_path = args.input / UPLOAD_MANIFEST_NAME
     if not manifest_path.is_file():
-        raise RuntimeError(
-            f"No {UPLOAD_MANIFEST_NAME} on the input channel {args.input}"
-        )
+        raise RuntimeError(f"No {UPLOAD_MANIFEST_NAME} on the input channel {args.input}")
     manifest = json.loads(manifest_path.read_text())
 
     files = _collect_files(args.input)
@@ -180,9 +165,7 @@ async def _amain() -> None:
         target = {**target, "unit": unit}
 
     access_token = get_project_user_access_token()
-    async with DataClient(access_token=access_token) as data, StorageClient(
-        access_token=access_token
-    ) as storage:
+    async with DataClient(access_token=access_token) as data, StorageClient(access_token=access_token) as storage:
         # Bytes first: a later failure orphans a GC-able object, not a dangling
         # coordinate. The returned coordinates are already in the Data API's
         # flat coordinate shape (type + store fields).
@@ -195,9 +178,7 @@ async def _amain() -> None:
         coordinates = await storage.upload(files, store=store, target=target)
 
         logger.info("Creating Data API entity %s", entity_id)
-        await data.create_entity(
-            {"id": entity_id, "storage_coordinates": coordinates, "metadata": []}
-        )
+        await data.create_entity({"id": entity_id, "storage_coordinates": coordinates, "metadata": []})
         for key, value in manifest.get("metadata", {}).items():
             logger.info("Attaching metadata '%s' to entity %s", key, entity_id)
             await data.attach_metadata(entity_id, key, value)

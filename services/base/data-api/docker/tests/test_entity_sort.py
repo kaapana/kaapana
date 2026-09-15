@@ -1,8 +1,6 @@
 from uuid import UUID
 
 import pytest
-from sqlalchemy.dialects import postgresql
-
 from app.models.query import QueryRequest, SortSpec
 from app.services.entity_query import (
     DataEntityORM,
@@ -12,16 +10,13 @@ from app.services.entity_query import (
     _parse_metadata_field,
     _schema_path_is_numeric,
 )
+from sqlalchemy.dialects import postgresql
 
 _CURSOR = UUID("12345678-1234-5678-1234-567812345678")
 
 
 def _sql(clause) -> str:
-    return str(
-        clause.compile(
-            dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}
-        )
-    ).lower()
+    return str(clause.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True})).lower()
 
 
 # ---- SortSpec / QueryRequest defaults ------------------------------------

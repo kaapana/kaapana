@@ -19,11 +19,7 @@ from sqlalchemy.dialects import postgresql
 
 def _sql(clause) -> str:
     """Compile a SQLAlchemy clause to a literal SQL string for assertions."""
-    return str(
-        clause.compile(
-            dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}
-        )
-    ).lower()
+    return str(clause.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True})).lower()
 
 
 def test_parse_metadata_field_requires_key() -> None:
@@ -73,9 +69,7 @@ def test_sequence_from_value_handles_scalars_and_lists() -> None:
 
 
 def test_has_key_builds_presence_exists_without_value() -> None:
-    clause = _build_metadata_predicate(
-        _parse_metadata_field("metadata.model-card"), QueryOp.HAS_KEY, None
-    )
+    clause = _build_metadata_predicate(_parse_metadata_field("metadata.model-card"), QueryOp.HAS_KEY, None)
     sql = _sql(clause)
     # Presence check: an EXISTS keyed on the metadata key, with no value comparison
     # and no JSON traversal of the data column.
@@ -109,9 +103,7 @@ def test_has_key_routes_through_filter_predicate_without_value() -> None:
 
 def test_coerce_link_value_returns_uuid_and_normalized_type() -> None:
     raw = "12345678-1234-5678-1234-567812345678"
-    entity_id, link_type = _coerce_link_value(
-        {"entity_id": raw, "link_type": " Contains "}
-    )
+    entity_id, link_type = _coerce_link_value({"entity_id": raw, "link_type": " Contains "})
     assert entity_id == UUID(raw)
     assert link_type == "contains"
 
@@ -149,9 +141,7 @@ def test_eq_on_nested_metadata_path_builds_json_value_comparison() -> None:
     # Compiled WITHOUT literal_binds: a JSONB literal can't be rendered inline, but
     # it binds and executes fine at runtime — the structure is what we assert here.
     node = FilterNode(field="metadata.dataset.name", op=QueryOp.EQ, value="cohort-a")
-    sql = str(
-        _build_filter_predicate(node).compile(dialect=postgresql.dialect())
-    ).lower()
+    sql = str(_build_filter_predicate(node).compile(dialect=postgresql.dialect())).lower()
     assert "exists" in sql
     assert ".data ->" in sql  # JSON traversal into the .name path segment
     assert "::jsonb" in sql  # value compared as a JSONB literal, not presence-only

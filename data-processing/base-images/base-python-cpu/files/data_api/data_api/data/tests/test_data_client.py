@@ -3,14 +3,11 @@
 import json
 
 import httpx
-
 from data_api import DataClient
 
 
 def _client(handler):
-    return DataClient(
-        base_url="http://data-api/v1", transport=httpx.MockTransport(handler)
-    )
+    return DataClient(base_url="http://data-api/v1", transport=httpx.MockTransport(handler))
 
 
 async def test_query_index_collects_items():
@@ -18,14 +15,10 @@ async def test_query_index_collects_items():
 
     def handler(request):
         calls.append(request)
-        return httpx.Response(
-            200, json={"total_count": 2, "items": ["a", "b"], "next_cursor": None}
-        )
+        return httpx.Response(200, json={"total_count": 2, "items": ["a", "b"], "next_cursor": None})
 
     async with _client(handler) as client:
-        ids = await client.query_index(
-            {"type": "filter", "field": "metadata.model", "op": "has_key"}
-        )
+        ids = await client.query_index({"type": "filter", "field": "metadata.model", "op": "has_key"})
 
     assert ids == ["a", "b"]
     assert calls[0].url.path.endswith("/entities/query/index")
@@ -74,9 +67,7 @@ async def test_resolve_dataset_members_builds_descendant_query():
 
 
 def test_get_storage_coordinates_reads_field():
-    assert DataClient.get_storage_coordinates(
-        {"storage_coordinates": [{"type": "s3"}]}
-    ) == [{"type": "s3"}]
+    assert DataClient.get_storage_coordinates({"storage_coordinates": [{"type": "s3"}]}) == [{"type": "s3"}]
     assert DataClient.get_storage_coordinates({}) == []
 
 
@@ -105,12 +96,8 @@ async def test_create_entity_and_attach_metadata():
         return httpx.Response(200, json={"id": "e1"})
 
     async with _client(handler) as client:
-        await client.create_entity(
-            {"id": "e1", "storage_coordinates": [], "metadata": []}
-        )
-        await client.attach_metadata(
-            "e1", "permissions", {"project": "p", "owner": None}
-        )
+        await client.create_entity({"id": "e1", "storage_coordinates": [], "metadata": []})
+        await client.attach_metadata("e1", "permissions", {"project": "p", "owner": None})
 
     assert seen[0][0] == "POST" and seen[0][1].endswith("/entities")
     assert seen[1][1].endswith("/entities/e1/metadata")

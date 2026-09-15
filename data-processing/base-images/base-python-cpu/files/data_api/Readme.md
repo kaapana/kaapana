@@ -30,14 +30,19 @@ An `access_token` (when given) is sent as `Authorization: Bearer` and
 import asyncio
 from data_api import DataClient, StorageClient
 
+
 async def main(token):
-    async with DataClient(access_token=token) as data, \
-               StorageClient(access_token=token) as storage:
+    async with DataClient(access_token=token) as data, StorageClient(access_token=token) as storage:
         # select entities that carry a model, then materialise them on disk
-        ids = await data.query_index(where={
-            "type": "filter", "op": "has_key", "field": "metadata.model",
-        })
+        ids = await data.query_index(
+            where={
+                "type": "filter",
+                "op": "has_key",
+                "field": "metadata.model",
+            }
+        )
         await storage.download_entities(ids, "/home/kaapana/downloads", data_client=data)
+
 
 asyncio.run(main(token))
 ```
@@ -49,8 +54,7 @@ async with DataClient() as data:
     await data.register_metadata_schema("dicom-series", schema)
     await data.create_entity({"id": eid, "storage_coordinates": [...], "metadata": [...]})
     await data.attach_metadata(eid, "permissions", {"project": pid, "owner": None})
-    await data.upload_artifact(eid, "dicom-series", "thumbnail", png_bytes,
-                               content_type="image/png")
+    await data.upload_artifact(eid, "dicom-series", "thumbnail", png_bytes, content_type="image/png")
 ```
 
 Sync callers (Airflow PythonOperator tasks, CLIs) wrap the async entry point with

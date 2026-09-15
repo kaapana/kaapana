@@ -2,10 +2,9 @@ import io
 import tarfile
 
 import pytest
-from fastapi.testclient import TestClient
-
 from app.main import app
 from app.services.backends.base import StorageBackend
+from fastapi.testclient import TestClient
 
 
 class _FakeBackend(StorageBackend):
@@ -60,21 +59,13 @@ def test_download_forwards_access_token(monkeypatch) -> None:
 
     monkeypatch.setattr("app.api.v1.get_backend", lambda store_type: _CaptureBackend())
     client = TestClient(app)
-    body = {
-        "items": [
-            {"id": "e", "coordinates": [{"type": "s3", "bucket": "b", "key": "k"}]}
-        ]
-    }
+    body = {"items": [{"id": "e", "coordinates": [{"type": "s3", "bucket": "b", "key": "k"}]}]}
 
-    resp = client.post(
-        "/v1/download", json=body, headers={"x-forwarded-access-token": "tok-1"}
-    )
+    resp = client.post("/v1/download", json=body, headers={"x-forwarded-access-token": "tok-1"})
     assert resp.status_code == 200 and resp.content
     assert captured["token"] == "tok-1"
 
-    resp = client.post(
-        "/v1/download", json=body, headers={"Authorization": "Bearer tok-2"}
-    )
+    resp = client.post("/v1/download", json=body, headers={"Authorization": "Bearer tok-2"})
     assert resp.status_code == 200 and resp.content
     assert captured["token"] == "tok-2"
 

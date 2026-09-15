@@ -65,9 +65,7 @@ class S3UploadTarget(BaseModel):
 
     store: Literal["s3"] = "s3"
     bucket: str = Field(..., description="Target MinIO/S3 bucket")
-    key_prefix: str = Field(
-        "", description="Object-key prefix; file paths are appended to it"
-    )
+    key_prefix: str = Field("", description="Object-key prefix; file paths are appended to it")
     unit: Literal["file", "folder"] = Field(
         "folder",
         description="'folder': store all files under the prefix and return one "
@@ -86,9 +84,7 @@ class PacsUploadTarget(BaseModel):
     )
 
 
-UploadTarget = Annotated[
-    Union[S3UploadTarget, PacsUploadTarget], Field(discriminator="store")
-]
+UploadTarget = Annotated[Union[S3UploadTarget, PacsUploadTarget], Field(discriminator="store")]
 
 
 class UploadResponse(BaseModel):

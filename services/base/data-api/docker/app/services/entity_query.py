@@ -15,6 +15,7 @@ from app.models.query import (
     QueryNode,
     QueryOp,
     QueryRequest,
+    SortSpec,
 )
 from app.services import entity_repository
 from sqlalchemy import (
@@ -83,9 +84,7 @@ async def execute_entity_query(
     return entity_repository.entities_from_orms(page), total_count, next_cursor
 
 
-async def find_one_matching(
-    session: AsyncSession, where: QueryNode | None
-) -> DataEntity | None:
+async def find_one_matching(session: AsyncSession, where: QueryNode | None) -> DataEntity | None:
     """Return the first entity matching ``where``, or ``None``.
 
     A single ``LIMIT 1`` scan with no count or pagination — the cheap existence
@@ -156,9 +155,7 @@ async def _apply_sorted_page(
     stmt = stmt.order_by(ordered.nulls_last(), DataEntityORM.id.asc()).limit(limit + 1)
     if request.cursor:
         cursor_value = await _resolve_sort_value(session, sort_expr, request.cursor)
-        stmt = stmt.where(
-            _keyset_after(sort_expr, sort.direction, cursor_value, request.cursor)
-        )
+        stmt = stmt.where(_keyset_after(sort_expr, sort.direction, cursor_value, request.cursor))
     return stmt
 
 
@@ -200,12 +197,8 @@ def _metadata_sort_subquery(field: ParsedMetadataField, numeric: bool):
     )
 
 
-async def _metadata_sort_is_numeric(
-    session: AsyncSession, key: str, path: tuple[str, ...]
-) -> bool:
-    result = await session.execute(
-        select(MetadataSchemaORM.schema).where(MetadataSchemaORM.key == key)
-    )
+async def _metadata_sort_is_numeric(session: AsyncSession, key: str, path: tuple[str, ...]) -> bool:
+    result = await session.execute(select(MetadataSchemaORM.schema).where(MetadataSchemaORM.key == key))
     return _schema_path_is_numeric(result.scalar_one_or_none(), path)
 
 
@@ -222,9 +215,7 @@ def _schema_path_is_numeric(schema: Any, path: tuple[str, ...]) -> bool:
     return declared in _SORT_NUMERIC_TYPES
 
 
-def _keyset_after(
-    sort_expr, direction: str, cursor_value: Any, cursor_id: UUID
-) -> ColumnElement[bool]:
+def _keyset_after(sort_expr, direction: str, cursor_value: Any, cursor_id: UUID) -> ColumnElement[bool]:
     """Rows strictly after (cursor_value, cursor_id) in the sort order.
 
     Ordering is ``sort_expr <dir> NULLS LAST, id ASC``. NULLs sort after every
@@ -233,9 +224,7 @@ def _keyset_after(
     id_col = DataEntityORM.id
     if cursor_value is None:
         return and_(sort_expr.is_(None), id_col > cursor_id)
-    primary = (
-        sort_expr < cursor_value if direction == "desc" else sort_expr > cursor_value
-    )
+    primary = sort_expr < cursor_value if direction == "desc" else sort_expr > cursor_value
     return or_(
         primary,
         sort_expr.is_(None),
@@ -244,9 +233,7 @@ def _keyset_after(
 
 
 async def _resolve_sort_value(session: AsyncSession, sort_expr, cursor_id: UUID) -> Any:
-    result = await session.execute(
-        select(sort_expr).where(DataEntityORM.id == cursor_id)
-    )
+    result = await session.execute(select(sort_expr).where(DataEntityORM.id == cursor_id))
     row = result.one_or_none()
     if row is None:
         raise ValueError("Cursor ID not found")
@@ -378,14 +365,9 @@ def _build_traversal_cte(anchor_id: UUID, link_type: str, *, forward: bool):
 
 def _coerce_link_value(value: Any) -> tuple[UUID, str]:
     if not isinstance(value, dict):
-        raise QueryTranslationError(
-            "Link traversal operators require an object value with "
-            "'entity_id' and 'link_type'"
-        )
+        raise QueryTranslationError("Link traversal operators require an object value with 'entity_id' and 'link_type'")
     if "entity_id" not in value or "link_type" not in value:
-        raise QueryTranslationError(
-            "Link traversal operators require both 'entity_id' and 'link_type'"
-        )
+        raise QueryTranslationError("Link traversal operators require both 'entity_id' and 'link_type'")
     return _coerce_uuid(value["entity_id"]), _coerce_link_type(value["link_type"])
 
 

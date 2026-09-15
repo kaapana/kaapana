@@ -7,15 +7,15 @@ from uuid import uuid4
 
 import httpx
 import requests
-
 from data_api import DataClient
+from kaapanapy.helper.HelperOpensearch import DicomTags
+from kaapanapy.settings import KaapanaSettings
+
 from kaapana.blueprints.kaapana_global_variables import (
     AIRFLOW_WORKFLOW_DIR,
     BATCH_NAME,
 )
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapanapy.helper.HelperOpensearch import DicomTags
-from kaapanapy.settings import KaapanaSettings
 
 DATASET_NAME_TAG = "00120010 ClinicalTrialSponsorName_keyword"
 
@@ -85,16 +85,11 @@ class LocalDataApiUploadOperator(KaapanaPythonBaseOperator):
                 },
                 DicomTags.clinical_trial_protocol_id_tag: {
                     "title": "Project (Clinical Trial Protocol ID)",
-                    "description": (
-                        "ClinicalTrialProtocolID (0012,0020); may be a list for "
-                        "multi-protocol series."
-                    ),
+                    "description": ("ClinicalTrialProtocolID (0012,0020); may be a list for multi-protocol series."),
                 },
                 DicomTags.dcmweb_endpoint_tag: {
                     "title": "Source Endpoint",
-                    "description": (
-                        "Source presentation address / DICOMweb endpoint (0002,0026)."
-                    ),
+                    "description": ("Source presentation address / DICOMweb endpoint (0002,0026)."),
                 },
                 DicomTags.custom_tag: {
                     "title": "Tags",
@@ -102,18 +97,14 @@ class LocalDataApiUploadOperator(KaapanaPythonBaseOperator):
                 },
                 DATASET_NAME_TAG: {
                     "title": "Dataset (Clinical Trial Sponsor Name)",
-                    "description": (
-                        "ClinicalTrialSponsorName (0012,0010); names the dataset the "
-                        "series belongs to."
-                    ),
+                    "description": ("ClinicalTrialSponsorName (0012,0010); names the dataset the series belongs to."),
                 },
                 # Derived/standard tags LocalDcm2JsonOperator emits (keys verified
                 # against the operator's normalization).
                 "00000000 Timestamp_datetime": {
                     "title": "Acquisition Timestamp",
                     "description": (
-                        "Acquisition datetime derived from the available DICOM "
-                        "date/time tags, normalized to UTC."
+                        "Acquisition datetime derived from the available DICOM date/time tags, normalized to UTC."
                     ),
                 },
                 "00000000 TimestampArrived_datetime": {
@@ -123,8 +114,7 @@ class LocalDataApiUploadOperator(KaapanaPythonBaseOperator):
                 "00000000 DerivedPatientAge_integer": {
                     "title": "Patient Age (derived)",
                     "description": (
-                        "Patient age in years, computed from birth date and "
-                        "acquisition time (or the PatientAge tag)."
+                        "Patient age in years, computed from birth date and acquisition time (or the PatientAge tag)."
                     ),
                 },
                 "00100030 PatientBirthDate_date": {
@@ -215,13 +205,9 @@ class LocalDataApiUploadOperator(KaapanaPythonBaseOperator):
                     print(f"Successfully registered {label} metadata schema")
                 except httpx.HTTPError as e:
                     # Schema might already exist, continue anyway
-                    print(
-                        f"Note: Could not register {label} schema (may already exist): {e}"
-                    )
+                    print(f"Note: Could not register {label} schema (may already exist): {e}")
 
-            batch_dir = (
-                Path(AIRFLOW_WORKFLOW_DIR) / kwargs["dag_run"].run_id / BATCH_NAME
-            )
+            batch_dir = Path(AIRFLOW_WORKFLOW_DIR) / kwargs["dag_run"].run_id / BATCH_NAME
             batch_folder = [f for f in glob.glob(os.path.join(batch_dir, "*"))]
 
             dataset_cache: dict = {}
@@ -242,9 +228,7 @@ class LocalDataApiUploadOperator(KaapanaPythonBaseOperator):
                 instance_uid = metadata.get(DicomTags.SOPInstanceUID_tag)
 
                 if not series_uid or not study_uid:
-                    print(
-                        f"Warning: Missing series UID or study UID in metadata file {metadata_file}"
-                    )
+                    print(f"Warning: Missing series UID or study UID in metadata file {metadata_file}")
                     continue
 
                 # Generate UUID for entity ID
@@ -262,16 +246,12 @@ class LocalDataApiUploadOperator(KaapanaPythonBaseOperator):
                             "instance_uid": instance_uid,
                         }
                     ],
-                    "metadata": [
-                        {"key": "dicom-series", "data": metadata, "artifacts": []}
-                    ],
+                    "metadata": [{"key": "dicom-series", "data": metadata, "artifacts": []}],
                 }
 
                 try:
                     await data_api.create_entity(entity_data)
-                    print(
-                        f"Successfully created/updated entity {entity_id} for series {series_uid}"
-                    )
+                    print(f"Successfully created/updated entity {entity_id} for series {series_uid}")
                 except httpx.HTTPError as e:
                     print(f"Error creating entity for series {series_uid}: {e}")
                     continue
@@ -292,9 +272,7 @@ class LocalDataApiUploadOperator(KaapanaPythonBaseOperator):
                                 filename=thumbnail_path.name,
                                 content_type="image/png",
                             )
-                        print(
-                            f"Successfully uploaded thumbnail for series {series_uid}"
-                        )
+                        print(f"Successfully uploaded thumbnail for series {series_uid}")
                     except httpx.HTTPError as e:
                         print(f"Error uploading thumbnail for series {series_uid}: {e}")
 
@@ -302,9 +280,7 @@ class LocalDataApiUploadOperator(KaapanaPythonBaseOperator):
                 # Extract project name and fetch project details (aii-service, NOT data-api).
                 # ClinicalTrialProtocolID carries the project SHORT_ID (e.g. "admin"),
                 # not the project UUID — match AII projects on short_id
-                project_short_id = metadata.get(
-                    DicomTags.clinical_trial_protocol_id_tag
-                )
+                project_short_id = metadata.get(DicomTags.clinical_trial_protocol_id_tag)
                 project = None
                 if project_short_id:
                     try:
@@ -313,15 +289,11 @@ class LocalDataApiUploadOperator(KaapanaPythonBaseOperator):
                         )
                         response.raise_for_status()
                         projects = response.json()
-                        matching_projects = [
-                            p for p in projects if p.get("short_id") == project_short_id
-                        ]
+                        matching_projects = [p for p in projects if p.get("short_id") == project_short_id]
                         if matching_projects:
                             project = matching_projects[0]
                         else:
-                            print(
-                                f"Warning: Project with short_id '{project_short_id}' not found"
-                            )
+                            print(f"Warning: Project with short_id '{project_short_id}' not found")
                     except requests.exceptions.RequestException as e:
                         print(f"Warning: Failed to fetch projects: {e}")
 
@@ -332,13 +304,9 @@ class LocalDataApiUploadOperator(KaapanaPythonBaseOperator):
                             "permissions",
                             {"project": project.get("id"), "owner": None},
                         )
-                        print(
-                            f"Added permissions metadata to entity {entity_id} for project {project.get('id')}"
-                        )
+                        print(f"Added permissions metadata to entity {entity_id} for project {project.get('id')}")
                     except httpx.HTTPError as e:
-                        print(
-                            f"Error adding permissions metadata for entity {entity_id}: {e}"
-                        )
+                        print(f"Error adding permissions metadata for entity {entity_id}: {e}")
 
                 # Add the series to datasets
                 if project:
@@ -359,33 +327,21 @@ class LocalDataApiUploadOperator(KaapanaPythonBaseOperator):
                         except httpx.HTTPStatusError as e:
                             if e.response.status_code == 409:
                                 # The contains link already exists (series re-processed).
-                                print(
-                                    f"Series {series_uid} already linked to dataset "
-                                    f"'{dataset_name}'"
-                                )
+                                print(f"Series {series_uid} already linked to dataset '{dataset_name}'")
                             else:
-                                print(
-                                    f"Error adding series {series_uid} to dataset "
-                                    f"'{dataset_name}': {e}"
-                                )
+                                print(f"Error adding series {series_uid} to dataset '{dataset_name}': {e}")
                         except httpx.HTTPError as e:
-                            print(
-                                f"Error adding series {series_uid} to dataset "
-                                f"'{dataset_name}': {e}"
-                            )
+                            print(f"Error adding series {series_uid} to dataset '{dataset_name}': {e}")
                     else:
                         print(
-                            f"No dataset tag ({DATASET_NAME_TAG}) on series {series_uid}; "
-                            "skipping dataset assignment"
+                            f"No dataset tag ({DATASET_NAME_TAG}) on series {series_uid}; skipping dataset assignment"
                         )
 
                 # Add validation results
                 # Append validation metadata and upload HTML report artifacts.
                 validator_results_dir = Path(batch_element_dir) / self.validation_dir
                 validation_reports = [f for f in validator_results_dir.glob("*.html")]
-                validation_json_files = [
-                    f for f in validator_results_dir.glob("results-*.json")
-                ]
+                validation_json_files = [f for f in validator_results_dir.glob("results-*.json")]
 
                 if validation_json_files or validation_reports:
                     # Prefer the validator-produced JSON summary as the metadata payload.
@@ -395,9 +351,7 @@ class LocalDataApiUploadOperator(KaapanaPythonBaseOperator):
                             with open(validation_json_files[0], "r") as vf:
                                 validation_payload = json.load(vf)
                         except Exception as e:
-                            print(
-                                f"Warning: Failed to load validation JSON '{validation_json_files[0]}': {e}"
-                            )
+                            print(f"Warning: Failed to load validation JSON '{validation_json_files[0]}': {e}")
 
                     # Fallback to a minimal payload with report names if JSON is unavailable
                     if validation_payload is None:
@@ -407,9 +361,7 @@ class LocalDataApiUploadOperator(KaapanaPythonBaseOperator):
                         }
 
                     try:
-                        await data_api.attach_metadata(
-                            entity_id, "dicom-series-validation", validation_payload
-                        )
+                        await data_api.attach_metadata(entity_id, "dicom-series-validation", validation_payload)
                         print(f"Added validation metadata to entity {entity_id}")
 
                         # Upload each HTML report as an artifact under the 'validation' metadata
@@ -425,17 +377,13 @@ class LocalDataApiUploadOperator(KaapanaPythonBaseOperator):
                                         filename=report_path.name,
                                         content_type="text/html",
                                     )
-                                print(
-                                    f"Uploaded validation report artifact '{artifact_id}' for entity {entity_id}"
-                                )
+                                print(f"Uploaded validation report artifact '{artifact_id}' for entity {entity_id}")
                             except httpx.HTTPError as e:
                                 print(
                                     f"Error uploading validation report '{report_path.name}' for entity {entity_id}: {e}"
                                 )
                     except httpx.HTTPError as e:
-                        print(
-                            f"Error adding validation metadata for entity {entity_id}: {e}"
-                        )
+                        print(f"Error adding validation metadata for entity {entity_id}: {e}")
 
     def __init__(
         self,
@@ -518,9 +466,7 @@ async def _ensure_dataset_entity(
     )
     dataset_id = result["entity"]["id"]
     if result.get("created"):
-        print(
-            f"Created dataset entity {dataset_id} '{dataset_name}' for project {project_id}"
-        )
+        print(f"Created dataset entity {dataset_id} '{dataset_name}' for project {project_id}")
 
     cache[key] = dataset_id
 
@@ -535,22 +481,13 @@ async def _ensure_dataset_entity(
                 link_to_uploads=False,
             )
             await data_api.create_link(uploads_id, dataset_id)
-            print(
-                f"Filed dataset '{dataset_name}' ({dataset_id}) under "
-                f"'{UPLOADS_DATASET_NAME}' ({uploads_id})"
-            )
+            print(f"Filed dataset '{dataset_name}' ({dataset_id}) under '{UPLOADS_DATASET_NAME}' ({uploads_id})")
         except httpx.HTTPStatusError as e:
             if e.response.status_code != 409:
                 # 409 = already filed (expected on re-runs); anything else is a
                 # warning, not fatal — series membership is the primary job.
-                print(
-                    f"Warning: could not file dataset '{dataset_name}' under "
-                    f"'{UPLOADS_DATASET_NAME}': {e}"
-                )
+                print(f"Warning: could not file dataset '{dataset_name}' under '{UPLOADS_DATASET_NAME}': {e}")
         except httpx.HTTPError as e:
-            print(
-                f"Warning: could not file dataset '{dataset_name}' under "
-                f"'{UPLOADS_DATASET_NAME}': {e}"
-            )
+            print(f"Warning: could not file dataset '{dataset_name}' under '{UPLOADS_DATASET_NAME}': {e}")
 
     return dataset_id

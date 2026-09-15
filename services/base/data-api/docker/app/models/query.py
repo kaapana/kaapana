@@ -63,9 +63,7 @@ class SortSpec(BaseModel):
         ...,
         description="Dotted path to sort by: 'created_at', 'id', or 'metadata.<key>[.<dot.path>]'.",
     )
-    direction: Literal["asc", "desc"] = Field(
-        "asc", description="Sort direction. NULLs always sort last."
-    )
+    direction: Literal["asc", "desc"] = Field("asc", description="Sort direction. NULLs always sort last.")
 
 
 class QueryRequest(BaseModel):
@@ -136,9 +134,7 @@ class EnsureEntityResponse(BaseModel):
         ...,
         description="True if ``entity`` was inserted; False if an existing match was returned.",
     )
-    entity: "DataEntity" = Field(
-        ..., description="The created entity, or the pre-existing match."
-    )
+    entity: "DataEntity" = Field(..., description="The created entity, or the pre-existing match.")
 
 
 from app.models.domain import DataEntity  # noqa: E402

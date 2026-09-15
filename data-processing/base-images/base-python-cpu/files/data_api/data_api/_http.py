@@ -20,11 +20,7 @@ _RETRY_STATUS = frozenset({429, 500, 502, 503, 504})
 
 def services_namespace() -> str:
     """Resolve the in-cluster services namespace from the environment."""
-    return (
-        os.environ.get("KAAPANA_SERVICES_NAMESPACE")
-        or os.environ.get("SERVICES_NAMESPACE")
-        or "services"
-    )
+    return os.environ.get("KAAPANA_SERVICES_NAMESPACE") or os.environ.get("SERVICES_NAMESPACE") or "services"
 
 
 def default_data_api_url() -> str:

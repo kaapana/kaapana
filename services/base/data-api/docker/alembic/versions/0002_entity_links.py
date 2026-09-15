@@ -12,8 +12,8 @@ Existing parent_id rows are backfilled as edges of type 'contains'
 
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision = "0002_entity_links"
@@ -57,12 +57,8 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.UniqueConstraint(
-            "source_id", "target_id", "link_type", name="uq_entity_links_triple"
-        ),
-        sa.CheckConstraint(
-            "source_id <> target_id", name="ck_entity_links_no_self_loop"
-        ),
+        sa.UniqueConstraint("source_id", "target_id", "link_type", name="uq_entity_links_triple"),
+        sa.CheckConstraint("source_id <> target_id", name="ck_entity_links_no_self_loop"),
     )
     op.create_index(
         "ix_entity_links_source",
@@ -95,7 +91,8 @@ def downgrade() -> None:
     # Best-effort restoration: only the single-parent slice of the graph fits
     # back into the old column. Refuse to drop link data we can't represent.
     bind = op.get_bind()
-    multi_parent = bind.execute(sa.text("""
+    multi_parent = bind.execute(
+        sa.text("""
             SELECT 1 FROM (
                 SELECT target_id, COUNT(*) AS n
                 FROM entity_links
@@ -103,7 +100,8 @@ def downgrade() -> None:
                 GROUP BY target_id
             ) c WHERE c.n > 1
             LIMIT 1
-            """)).first()
+            """)
+    ).first()
     if multi_parent is not None:
         raise RuntimeError(
             "Cannot downgrade: some entities have more than one incoming "
@@ -128,9 +126,7 @@ def downgrade() -> None:
         ["id"],
         ondelete="SET NULL",
     )
-    op.create_index(
-        "ix_data_entities_parent_id", "data_entities", ["parent_id"], unique=False
-    )
+    op.create_index("ix_data_entities_parent_id", "data_entities", ["parent_id"], unique=False)
 
     op.drop_index("ix_entity_links_target", table_name="entity_links")
     op.drop_index("ix_entity_links_source", table_name="entity_links")

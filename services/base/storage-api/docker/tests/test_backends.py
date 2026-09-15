@@ -14,7 +14,6 @@ def test_s3_sts_xml_parse_and_client_wiring(monkeypatch) -> None:
     pytest.importorskip("minio")
     pytest.importorskip("requests")
     import requests
-
     from app.services.backends import s3
 
     xml = (
@@ -71,10 +70,9 @@ def test_pacs_multipart_parse_yields_named_instances(monkeypatch) -> None:
     pytest.importorskip("requests_toolbelt")
     pytest.importorskip("requests")
     import requests
-    from requests.structures import CaseInsensitiveDict
-
     from app.models import PacsCoordinate
     from app.services.backends import pacs
+    from requests.structures import CaseInsensitiveDict
 
     # Build one minimal, valid DICOM instance.
     ds = pydicom.dataset.Dataset()
@@ -84,9 +82,7 @@ def test_pacs_multipart_parse_yields_named_instances(monkeypatch) -> None:
     file_meta.MediaStorageSOPClassUID = pydicom.uid.SecondaryCaptureImageStorage
     file_meta.MediaStorageSOPInstanceUID = "1.2.3.4"
     file_meta.TransferSyntaxUID = pydicom.uid.ExplicitVRLittleEndian
-    fds = pydicom.dataset.FileDataset(
-        "x.dcm", ds, file_meta=file_meta, preamble=b"\x00" * 128
-    )
+    fds = pydicom.dataset.FileDataset("x.dcm", ds, file_meta=file_meta, preamble=b"\x00" * 128)
     buf = io.BytesIO()
     fds.save_as(buf, write_like_original=False)
     dicom_bytes = buf.getvalue()
@@ -99,9 +95,7 @@ def test_pacs_multipart_parse_yields_named_instances(monkeypatch) -> None:
     )
 
     class _Resp:
-        headers = CaseInsensitiveDict(
-            {"Content-Type": f"multipart/related; boundary={boundary}"}
-        )
+        headers = CaseInsensitiveDict({"Content-Type": f"multipart/related; boundary={boundary}"})
         content = body
 
         def raise_for_status(self):
@@ -286,10 +280,9 @@ def test_s3_store_passes_through_non_4xx_s3_error(monkeypatch):
     """A genuine upstream 5xx is not the caller's fault — it must stay an
     S3Error (-> 500), not be masked as a 4xx."""
     pytest.importorskip("minio")
-    from minio.error import S3Error
-
     from app.models import S3UploadTarget
     from app.services.backends import s3
+    from minio.error import S3Error
 
     class _FailingMinio:
         def put_object(self, bucket, key, data, length):
@@ -306,7 +299,6 @@ def test_pacs_store_stows_multipart_and_returns_one_coord_per_series(monkeypatch
     pydicom = pytest.importorskip("pydicom")
     pytest.importorskip("requests")
     import requests
-
     from app.models import PacsUploadTarget
     from app.services.backends import pacs
 
@@ -319,9 +311,7 @@ def test_pacs_store_stows_multipart_and_returns_one_coord_per_series(monkeypatch
         file_meta.MediaStorageSOPClassUID = pydicom.uid.SecondaryCaptureImageStorage
         file_meta.MediaStorageSOPInstanceUID = sop
         file_meta.TransferSyntaxUID = pydicom.uid.ExplicitVRLittleEndian
-        fds = pydicom.dataset.FileDataset(
-            "x.dcm", ds, file_meta=file_meta, preamble=b"\x00" * 128
-        )
+        fds = pydicom.dataset.FileDataset("x.dcm", ds, file_meta=file_meta, preamble=b"\x00" * 128)
         buf = io.BytesIO()
         fds.save_as(buf, write_like_original=False)
         return buf.getvalue()
@@ -382,9 +372,7 @@ def test_s3_fetch_prefix_yields_structure_preserving_relpaths(monkeypatch):
     assert out == {"model.bin": b"weights", "weights/layer1.bin": b"L1"}
 
 
-def test_folder_coordinate_materialises_nested_structure_under_entity(
-    monkeypatch, tmp_path
-):
+def test_folder_coordinate_materialises_nested_structure_under_entity(monkeypatch, tmp_path):
     """End-to-end wiring: a folder coordinate's nested objects survive the
     fetch -> entity-prefixed arcname -> stream_tar -> extract round-trip.
 
@@ -409,10 +397,7 @@ def test_folder_coordinate_materialises_nested_structure_under_entity(
 
     coord = S3Coordinate(bucket="proj", key="models/run-1/", is_prefix=True)
     # Mirror api/v1._iter_files: prefix each relpath with the entity id.
-    files = (
-        (f"e1/{relpath}", content)
-        for relpath, content in s3.S3Backend().fetch(coord, "tok")
-    )
+    files = ((f"e1/{relpath}", content) for relpath, content in s3.S3Backend().fetch(coord, "tok"))
     archive = b"".join(stream_tar(files))
 
     with tarfile.open(fileobj=io.BytesIO(archive), mode="r") as tar:

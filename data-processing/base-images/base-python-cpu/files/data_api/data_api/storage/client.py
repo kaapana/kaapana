@@ -81,9 +81,7 @@ class StorageClient:
     async def aclose(self) -> None:
         await self._client.aclose()
 
-    async def download(
-        self, items: List[dict], output_dir, format: str = "tar"
-    ) -> Path:
+    async def download(self, items: List[dict], output_dir, format: str = "tar") -> Path:
         """Stream the storage-api archive for ``items`` and unpack into ``output_dir``.
 
         ``tarfile`` is synchronous and cannot read an async byte stream, so the
@@ -100,9 +98,7 @@ class StorageClient:
         tmp_path = Path(tmp.name)
         tmp.close()
         try:
-            async with self._client.stream(
-                "POST", url, json={"items": items, "format": format}
-            ) as response:
+            async with self._client.stream("POST", url, json={"items": items, "format": format}) as response:
                 response.raise_for_status()
                 with open(tmp_path, "wb") as fh:
                     async for chunk in response.aiter_bytes():
@@ -132,10 +128,7 @@ class StorageClient:
         (mirrors ``DataClient.upload_artifact``).
         """
         descriptor = {"store": store, **target}
-        multipart = [
-            ("files", (filename, content, "application/octet-stream"))
-            for filename, content in files
-        ]
+        multipart = [("files", (filename, content, "application/octet-stream")) for filename, content in files]
         response = await self._client.post(
             f"{self.base_url}/v1/upload",
             data={"descriptor": json.dumps(descriptor)},

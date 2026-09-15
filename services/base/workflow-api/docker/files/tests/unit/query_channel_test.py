@@ -7,7 +7,6 @@ import json
 from datetime import datetime, timezone
 
 import pytest
-
 from app import schemas
 from app.adapters.adapters.airflow_adapter import AirflowPluginAdapter
 
@@ -32,9 +31,7 @@ async def test_query_channel_value_flows_to_task_env_like_any_param(monkeypatch)
 
     monkeypatch.setattr(adapter, "get_workflow_tasks", _fake_tasks)
     monkeypatch.setattr(adapter, "_request", _fake_request)
-    monkeypatch.setattr(
-        adapter, "_get_dag_id_from_workflow", lambda wf: "dag-x", raising=True
-    )
+    monkeypatch.setattr(adapter, "_get_dag_id_from_workflow", lambda wf: "dag-x", raising=True)
 
     run = schemas.WorkflowRun(
         id=1,

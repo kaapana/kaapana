@@ -47,8 +47,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute(
-        sa.text("DELETE FROM metadata_schemas WHERE key = :key").bindparams(
-            key=_MODEL_KEY
-        )
-    )
+    op.execute(sa.text("DELETE FROM metadata_schemas WHERE key = :key").bindparams(key=_MODEL_KEY))

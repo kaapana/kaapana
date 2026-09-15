@@ -115,10 +115,10 @@ tag ([local-ci.md](docs/local-ci.md#scenario-1-run-the-jobs-on-your-machine)).
 
 | Input | Default | Runs |
 |---|---|---|
-| `tests_runner_tag` | `tests-runner` | preflight and the tests stage |
+| `tests_runner_tag` | `tests-runner` | preflight and the unittest stage |
 | `build_runner_tag` | `build-runner` | the ci-image and build stages |
 | `security_runner_tag` | `security-runner` | the security stage |
-| `deploy_runner_tag` | `deploy-runner` | deploy, integration tests and clean |
+| `deploy_runner_tag` | `deploy-runner` | deploy, integrationtest and clean |
 
 ### 2. `exec_*` inputs — what runs
 
@@ -126,15 +126,15 @@ Every stage toggle. Grouped as `[exec]` in the run form.
 
 | Input | Default | Meaning |
 |---|---|---|
-| `exec_unit_tests` | `true` | tests stage: unit tests + documentation build |
-| `exec_lint` | `true` | tests stage: `lint` matrix (ruff, ESLint/Prettier, hadolint, helm lint + kubeconform) |
+| `exec_unit_tests` | `true` | unittest stage: unit tests + documentation build |
+| `exec_lint` | `true` | unittest stage: `lint` matrix (ruff, ESLint/Prettier, hadolint, helm lint + kubeconform) |
 | `exec_mr_review` | `true` | .post stage: advisory AI review note on MRs with the `AI Review` label, or via the manual `mr_review_rerun`. The model is `MR_REVIEW_MODEL` (default `alias-code`), overridable by a project variable or in the manual run. Tokens: [internals.md](docs/internals.md#review) |
 | `exec_build` | `true` | build stage: full platform build |
 | `exec_security_scan` | `false` | trivy scan of the images this commit resolves to. A failed scan still publishes what it managed to check |
 | `exec_deploy` | `true` | deploy stage: deployment VM/target + platform installation |
 | `exec_server_installation` | `true` | `true` installs microk8s and helm on the target (needs passwordless sudo). `false` assumes a prepared target and checks it read-only |
 | `exec_redeploy` | `false` | `false` makes an already-deployed platform a fatal check; `true` undeploys it first |
-| `exec_integration_tests` | `true` | test stage: pytest + Playwright against the deployed platform |
+| `exec_integration_tests` | `true` | integrationtest stage: pytest + Playwright against the deployed platform |
 | `exec_integration_test_jobs` | `""` | comma-separated allowlist of integration-test jobs (`scan_ports`, `first_login`, `install_extensions`, `send_data`, `run_workflows`). Empty runs all of them; |
 | `exec_destroy_delayed` | `false` | keep the deployment VM for 4 h after the pipeline; a failing run leaves it to the sweep |
 | `exec_ci_image_rebuild` | `false` | force `build_ci_image` to run on any pipeline source, bypassing its normal MR/develop-push + changes gate |

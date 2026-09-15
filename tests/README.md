@@ -11,7 +11,7 @@ tests that build, deploy and exercise a platform under
 | Path | Covers | CI job |
 |---|---|---|
 | `operators/` | Airflow operators from `data-processing/kaapana-plugin`, called directly, without a scheduler or a platform | `unit_tests` |
-| `ui/` | Playwright against a running instance, needs its URL and the default credentials, see [ui/README.md](ui/README.md) | `playwright_ui_tests` (stage `test`) |
+| `ui/` | Playwright against a running instance, needs its URL and the default credentials, see [ui/README.md](ui/README.md) | `playwright_ui_tests` (stage `integrationtest`) |
 
 ## Running a suite
 
@@ -33,7 +33,7 @@ Stay in the repository root, as CI does. `pytest.ini` limits discovery to
 operator tests also write their scratch DICOM relative to the working
 directory.
 
-The whole `tests` stage runs locally through gitlab-ci-local, see
+The whole `unittest` stage runs locally through gitlab-ci-local, see
 [local-ci.md](../ci/docs/local-ci.md#scenario-3-run-jobs-without-gitlab).
 
 ## Where to go next

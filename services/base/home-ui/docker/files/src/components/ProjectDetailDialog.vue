@@ -6,7 +6,7 @@
         {{ projectStore.selectedProject.name ?? 'Project' }} in detail
         <v-spacer />
         <v-btn icon variant="text" aria-label="Close" @click="emit('update:modelValue', false)">
-          <v-icon>mdi-close</v-icon>
+          <v-icon>{{ kaapanaIcons.close }}</v-icon>
         </v-btn>
       </v-card-title>
       <v-card-text>
@@ -40,7 +40,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import HistogramChart from '@/components/HistogramChart.vue'
-import { useProjectStore } from '@kaapana/base-ui'
+import { kaapanaIcons, useProjectStore } from '@kaapana/base-ui'
 import { loadDashboard, type DashboardData } from '@/api/dashboard'
 import { settings as defaultSettings } from '@/static/defaultUIConfig'
 

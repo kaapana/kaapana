@@ -6,7 +6,7 @@
         <span class="detail-title">{{ notification.title }}</span>
         <v-spacer />
         <v-btn icon variant="text" aria-label="Close" @click="emit('update:modelValue', false)">
-          <v-icon>mdi-close</v-icon>
+          <v-icon>{{ kaapanaIcons.close }}</v-icon>
         </v-btn>
       </v-card-title>
       <v-card-subtitle>{{ new Date(notification.timestamp).toLocaleString() }}</v-card-subtitle>
@@ -45,6 +45,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { notify } from '@kyvg/vue3-notification'
+import { kaapanaIcons } from '@kaapana/base-ui'
 import { useNotificationsStore } from '@/stores/notifications'
 import type { KaapanaNotification } from '@/api/notifications'
 

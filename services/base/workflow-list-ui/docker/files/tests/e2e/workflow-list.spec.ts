@@ -58,7 +58,7 @@ test('renders an empty state when the backend returns no workflows', async ({ pa
   await page.goto(VIEW_PATH)
 
   await expect(page.getByText('Workflow List', { exact: true })).toBeVisible()
-  await expect(page.getByText('No data available')).toBeVisible()
+  await expect(page.getByText('No workflows yet.')).toBeVisible()
   await expect(page.getByText('running-wf', { exact: true })).toHaveCount(0)
 })
 

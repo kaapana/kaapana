@@ -58,6 +58,7 @@ def main():
         help="Comma separated docker volumes; empty leaves the registered value alone",
     )
     parser.add_argument("--global-concurrent", type=int, default=None)
+    parser.add_argument("--listen-address", default=None)
     args = parser.parse_args()
 
     config_path = args.config_path or f"{args.runner_home}/.gitlab-runner/config.toml"
@@ -77,6 +78,9 @@ def main():
 
     if args.global_concurrent is not None:
         config["concurrent"] = args.global_concurrent
+
+    if args.listen_address is not None:
+        config["listen_address"] = args.listen_address
 
     path = Path(config_path)
     path.parent.mkdir(parents=True, exist_ok=True)

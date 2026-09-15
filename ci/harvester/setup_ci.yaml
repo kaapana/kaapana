@@ -1,63 +1,184 @@
 ---
-# Provision all CI runner VMs on Harvester (tests, build, security, deploy)
-# Usage:
-#   export GITLAB_API_TOKEN=...
-#   export GITLAB_PROJECT_ID=...
-#   export GITLAB_URL=...
-#   export SSH_PUBLIC_KEY=~/.ssh/kaapana.pub
-#   export SSH_PRIVATE_KEY=~/.ssh/kaapana.pem
-#   export HARVESTER_KUBECONFIG=~/.kube/harvester.yaml
-#   ansible-playbook -i ci/harvester/inventory.yaml ci/harvester/setup_ci.yaml
+# Provision the CI runner fleet on Harvester.
 #
-# Optional:
-#   export FORCE_RECREATE=true  # Delete and recreate existing VMs
+# The fleet is declared in inventory.yaml under ci_instances: one entry per
+# VM, each listing the runner roles it hosts.
+#
+# Settings are read from .env next to this file, so nothing needs exporting.
+# Run from this directory: ansible.cfg here supplies the inventory and turns
+# off host-key checking, which a recreated VM would otherwise trip.
+#
+# Rebuild the entire fleet from scratch — VMs destroyed, recreated, and every
+# runner re-registered:
+#
+#   ansible-playbook setup_ci.yaml -e force_recreate=true
+#
+# Converge in place, creating only what is missing:
+#
+#   ansible-playbook setup_ci.yaml
+#
+# Tear down named VMs and unregister their runners (no recreate):
+#
+#   ansible-playbook setup_ci.yaml -e fleet_state=absent -e ci_hosts=kaapana-ci-01
+#
+# Options (-e, or the equivalent environment variable; -e wins):
+#   -e ci_hosts=kaapana-ci-01  CI_HOSTS         act on these hosts only
+#   -e force_recreate=true     FORCE_RECREATE   destroy and rebuild the VMs
+#   -e fleet_state=absent      FLEET_STATE      teardown mode (needs CI_HOSTS)
+#   -e runners_paused=true     RUNNERS_PAUSED   register the runners paused
+#
+# The options, the settings read from .env, and the day-to-day workflow are
+# documented in README.md.
 
-- name: Provision all CI runner VMs on Harvester
+- name: Provision CI runner VMs on Harvester
   hosts: localhost
   connection: local
   gather_facts: false
 
   vars:
-    harvester_namespace: "kaapana-ci"
     vm_image_name: "ubuntu24"
     vm_storage_class: "px-fa-direct-access"
     vm_network: "harvester-public/dkfz-net"
     vm_ssh_keypair: "kaapana"
-    vm_user: "ubuntu"
-    vm_dns_domain: "vms.dkfz.de"
-    force_recreate: "{{ lookup('env', 'FORCE_RECREATE') | default('false') | bool }}"
+    # -e wins over the environment, so either spelling works:
+    #   -e force_recreate=true        FORCE_RECREATE=true
+    #   -e ci_hosts=kaapana-ci-01     CI_HOSTS=kaapana-ci-01
+    # Kept unconverted: -e outranks this definition anyway, so the coercion
+    # that matters is the `| bool` at each point of use.
+    force_recreate: "{{ lookup('env', 'FORCE_RECREATE') | default('false', true) }}"
+    fleet_state: "{{ lookup('env', 'FLEET_STATE') | default('present', true) }}"
+    ci_hosts: "{{ lookup('env', 'CI_HOSTS') | default('', true) }}"
+    ci_hosts_filter: "{{ ci_hosts | split(',') | map('trim') | select | list }}"
 
-    gitlab_api_token: "{{ lookup('env', 'GITLAB_API_TOKEN') }}"
-    gitlab_project_id: "{{ lookup('env', 'GITLAB_PROJECT_ID') }}"
-    gitlab_url: "{{ lookup('env', 'GITLAB_URL') }}"
-    ssh_public_key: "{{ lookup('env', 'SSH_PUBLIC_KEY') }}"
-    ssh_private_key: "{{ lookup('env', 'SSH_PRIVATE_KEY') }}"
-    harvester_kubeconfig: "{{ lookup('env', 'HARVESTER_KUBECONFIG') }}"
-
-    # Every group of VMs this playbook owns. A new group is picked up by both
-    # the existence check and the provisioning list.
-    ci_vm_groups:
-      - tests_instances
-      - build_instances
-      - deploy_instances
-      - security_instances
-
-    required_env_vars:
-      - GITLAB_API_TOKEN
-      - GITLAB_PROJECT_ID
-      - GITLAB_URL
-      - SSH_PUBLIC_KEY
-      - SSH_PRIVATE_KEY
-      - HARVESTER_KUBECONFIG
+    # gitlab_* , ssh_private_key and harvester_kubeconfig come from the
+    # inventory, which reads harvester/.env — see ci_env there.
+    required_settings:
+      gitlab_api_token: "{{ gitlab_api_token }}"
+      gitlab_project_id: "{{ gitlab_project_id }}"
+      gitlab_url: "{{ gitlab_url }}"
+      ssh_private_key: "{{ ssh_private_key }}"
+      harvester_kubeconfig: "{{ harvester_kubeconfig }}"
+      harvester_namespace: "{{ harvester_namespace }}"
+      vm_dns_domain: "{{ vm_dns_domain }}"
+      vm_user: "{{ vm_user }}"
 
   tasks:
-    - name: Validate required environment variables
+    - name: Validate that every required setting is present
       ansible.builtin.assert:
         that:
-          - lookup('env', item) | default('', true) | length > 0
-        fail_msg: "Required variable {{ item }} is missing. Set it as environment variable."
-      loop: "{{ required_env_vars }}"
+          - item.value | default('', true) | length > 0
+        fail_msg: >-
+          {{ item.key }} is not set. Add it to {{ ci_env_file }}
+          (see .env.example) or export it.
+      loop: "{{ required_settings | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
       run_once: true
+
+    - name: Require an explicit host list to tear down
+      ansible.builtin.assert:
+        that:
+          - fleet_state != "absent" or ci_hosts_filter | length > 0
+        fail_msg: "fleet_state=absent needs CI_HOSTS. Name the hosts to remove."
+      run_once: true
+
+    - name: Select the fleet hosts to act on
+      ansible.builtin.set_fact:
+        fleet_hosts: >-
+          {{
+            groups['ci_instances'] | default([])
+            | select('in', ci_hosts_filter if ci_hosts_filter else groups['ci_instances'] | default([]))
+            | list
+          }}
+
+    - name: Fail if CI_HOSTS names hosts that are not in the inventory
+      ansible.builtin.assert:
+        that:
+          - ci_hosts_filter | difference(groups['ci_instances'] | default([])) | length == 0
+        fail_msg: >-
+          CI_HOSTS refers to unknown hosts:
+          {{ ci_hosts_filter | difference(groups['ci_instances'] | default([])) | join(', ') }}
+
+    - name: Build list of VMs to provision
+      ansible.builtin.set_fact:
+        vms_to_provision: >-
+          {{
+            fleet_hosts | map('extract', hostvars)
+            | selectattr('vm_name', 'defined') | list
+          }}
+
+    - name: Fail if no VM is selected
+      ansible.builtin.assert:
+        that:
+          - vms_to_provision | length > 0
+        fail_msg: "No VMs selected. Declare hosts under ci_instances in the inventory."
+
+    # runner_roles comes from the inventory's all.vars, which the implicit
+    # localhost does not inherit — read it off the target host instead.
+    - name: Validate that every VM lists known runner roles
+      ansible.builtin.assert:
+        that:
+          - item.runners | default([]) | length > 0
+          - item.runners | default([]) | difference(item.runner_roles.keys() | list) | length == 0
+        fail_msg: >-
+          {{ item.vm_name }} declares no runners, or unknown roles
+          ({{ item.runners | default([]) | difference(item.runner_roles.keys() | list) | join(', ') }}).
+          Known roles: {{ item.runner_roles.keys() | join(', ') }}
+      loop: "{{ vms_to_provision }}"
+      loop_control:
+        label: "{{ item.vm_name }}"
+
+    # Teardown: unregister runners, delete the VMs, drop stale SSH host keys.
+    # Play 2/3 (inventory + configure) are skipped below via fleet_state.
+    - name: Tear down the selected VMs
+      block:
+        - name: Delete the GitLab runner entries
+          community.general.gitlab_runner:
+            api_url: "{{ gitlab_url }}"
+            api_token: "{{ gitlab_api_token }}"
+            description: "{{ item.0.vm_name }}-{{ item.1 }}"
+            state: absent
+            project: "{{ gitlab_project_id }}"
+          loop: "{{ vms_to_provision | subelements('runners', skip_missing=True) }}"
+          loop_control:
+            label: "{{ item.0.vm_name }}-{{ item.1 }}"
+
+        - name: Delete the VirtualMachine
+          kubernetes.core.k8s:
+            state: absent
+            api_version: kubevirt.io/v1
+            kind: VirtualMachine
+            name: "{{ item.vm_name }}"
+            namespace: "{{ harvester_namespace }}"
+            kubeconfig: "{{ harvester_kubeconfig }}"
+          loop: "{{ vms_to_provision }}"
+          loop_control:
+            label: "{{ item.vm_name }}"
+
+        - name: Wait for the VirtualMachine to be gone
+          kubernetes.core.k8s_info:
+            api_version: kubevirt.io/v1
+            kind: VirtualMachine
+            name: "{{ item.vm_name }}"
+            namespace: "{{ harvester_namespace }}"
+            kubeconfig: "{{ harvester_kubeconfig }}"
+          loop: "{{ vms_to_provision }}"
+          loop_control:
+            label: "{{ item.vm_name }}"
+          register: vm_gone
+          until: vm_gone.resources | length == 0
+          retries: 60
+          delay: 5
+          changed_when: false
+
+        - name: Drop the stale SSH host key
+          ansible.builtin.command: ssh-keygen -R {{ item.vm_name }}.{{ vm_dns_domain }}
+          loop: "{{ vms_to_provision }}"
+          loop_control:
+            label: "{{ item.vm_name }}"
+          changed_when: false
+          failed_when: false
+      when: fleet_state == "absent"
 
     - name: Check if VM already exists
       kubernetes.core.k8s_info:
@@ -66,39 +187,30 @@
         name: "{{ item.vm_name }}"
         namespace: "{{ harvester_namespace }}"
         kubeconfig: "{{ harvester_kubeconfig }}"
-      loop: >-
-        {{
-          groups['tests_instances'] | map('extract', hostvars) | list +
-          groups['build_instances'] | map('extract', hostvars) | list +
-          groups['deploy_instances'] | map('extract', hostvars) | list
-        }}
+      loop: "{{ vms_to_provision }}"
       loop_control:
         label: "{{ item.vm_name }}"
       register: vm_exists_check
-      failed_when: false
+      # Deliberately allowed to fail the run. A missing VM already comes back
+      # as an empty resources list, so the only thing a swallowed error can
+      # mean is "could not tell" — and downstream that reads as "absent",
+      # which reprovisions a live VM onto a blank disk.
+      until: vm_exists_check is succeeded
+      retries: 3
+      delay: 5
       changed_when: false
+      when: fleet_state != "absent"
 
     - name: Build list of existing VM names
       ansible.builtin.set_fact:
         existing_vm_names: >-
           {{
             vm_exists_check.results
-            | selectattr('resources', 'defined')
             | rejectattr('resources', 'equalto', [])
             | map(attribute='resources.0.metadata.name')
             | list
           }}
-
-    - name: Build list of VMs to provision
-      ansible.builtin.set_fact:
-        vms_to_provision: >-
-          {{
-            (
-              groups['tests_instances'] | map('extract', hostvars) | list +
-              groups['build_instances'] | map('extract', hostvars) | list +
-              groups['deploy_instances'] | map('extract', hostvars) | list
-            ) | selectattr('vm_name', 'defined') | list
-          }}
+      when: fleet_state != "absent"
 
     - name: Filter to only new VMs (skip existing unless force_recreate)
       ansible.builtin.set_fact:
@@ -108,21 +220,24 @@
             | rejectattr('vm_name', 'in', existing_vm_names)
             | list
           }}
-      when: not force_recreate
+      when: not (force_recreate | bool) and fleet_state != "absent"
 
     - name: Filter to all VMs (force recreate)
       ansible.builtin.set_fact:
         vms_to_create: "{{ vms_to_provision }}"
-      when: force_recreate
+      when: force_recreate | bool and fleet_state != "absent"
 
-    - name: Display VMs to be created
+    - name: Display the fleet
       ansible.builtin.debug:
         msg: >-
           {{
-            "VMs to create: " + 
-            (vms_to_create | map(attribute='vm_name') | join(', '))
+            item.vm_name + ": " + (item.runners | default([]) | join(', ') or 'none')
+            + (" [create]" if item.vm_name in (vms_to_create | map(attribute='vm_name') | list) else " [exists]")
           }}
-      run_once: true
+      loop: "{{ vms_to_provision }}"
+      loop_control:
+        label: "{{ item.vm_name }}"
+      when: fleet_state != "absent"
 
     - name: Delete existing VMs (force recreate mode)
       kubernetes.core.k8s:
@@ -134,7 +249,7 @@
       loop: "{{ vms_to_provision }}"
       loop_control:
         label: "{{ item.vm_name }}"
-      when: force_recreate
+      when: force_recreate | bool and fleet_state != "absent"
 
     - name: Wait for VMs to be deleted
       kubernetes.core.k8s_info:
@@ -151,7 +266,60 @@
       retries: 30
       delay: 5
       changed_when: false
-      when: force_recreate
+      when: force_recreate | bool and fleet_state != "absent"
+
+    # Deleting the VM is supposed to cascade to its disk and cloud-init secret
+    # through their ownerReferences, but that GC is asynchronous and only
+    # reaches objects whose ownerReference still resolves — a disk left behind
+    # by an interrupted run has one pointing at a VM that was never removed.
+    # Because the disk name carries a random suffix, such a leftover never
+    # collides with the new disk and would sit there holding its full size
+    # forever. Sweeping by name is what makes "from scratch" mean it.
+    - name: List disks in the namespace
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: PersistentVolumeClaim
+        namespace: "{{ harvester_namespace }}"
+        kubeconfig: "{{ harvester_kubeconfig }}"
+      register: pvc_sweep
+      changed_when: false
+      when: force_recreate | bool and fleet_state != "absent"
+
+    - name: Delete every disk belonging to the targeted VMs
+      kubernetes.core.k8s:
+        state: absent
+        api_version: v1
+        kind: PersistentVolumeClaim
+        name: "{{ item }}"
+        namespace: "{{ harvester_namespace }}"
+        kubeconfig: "{{ harvester_kubeconfig }}"
+        wait: true
+        wait_timeout: 300
+      # Anchored on the targeted VM names only: the namespace also holds the
+      # short-lived deployment VMs that pipelines provision, and those are not
+      # this playbook's to delete.
+      loop: >-
+        {{
+          pvc_sweep.resources | default([])
+          | map(attribute='metadata.name')
+          | select('match', '^(' ~ (vms_to_provision | map(attribute='vm_name') | join('|')) ~ ')-disk-0-')
+          | list
+        }}
+      when: force_recreate | bool and fleet_state != "absent"
+
+    - name: Delete the cloud-init secret of each targeted VM
+      kubernetes.core.k8s:
+        state: absent
+        api_version: v1
+        kind: Secret
+        name: "{{ item.vm_name }}-cloudinit"
+        namespace: "{{ harvester_namespace }}"
+        kubeconfig: "{{ harvester_kubeconfig }}"
+        wait: true
+      loop: "{{ vms_to_provision }}"
+      loop_control:
+        label: "{{ item.vm_name }}"
+      when: force_recreate | bool and fleet_state != "absent"
 
     - name: Provision each VM
       ansible.builtin.include_tasks: tasks/provision-single-vm.yaml
@@ -159,15 +327,15 @@
       loop_control:
         loop_var: vm_config
         label: "{{ vm_config.vm_name }}"
-      when: vms_to_create | length > 0
+      when: vms_to_create | length > 0 and fleet_state != "absent"
 
 - name: Add all VMs to inventory (new and existing)
   hosts: localhost
   gather_facts: false
   vars:
-    vm_dns_domain: "vms.dkfz.de"
-    vm_user: "ubuntu"
-    ssh_private_key: "~/.ssh/kaapana.pem"
+    # Play vars do not cross plays, but the when: below needs the option —
+    # same definition as in play 1.
+    fleet_state: "{{ lookup('env', 'FLEET_STATE') | default('present', true) }}"
   tasks:
     - name: Register VM in inventory
       ansible.builtin.add_host:
@@ -177,31 +345,31 @@
         ansible_ssh_private_key_file: "{{ ssh_private_key }}"
         ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
         groups: "provisioned_vms"
-        runner_description: "{{ item.runner_description | default('') }}"
-        runner_tags: "{{ item.runner_tags | default([]) }}"
-        runner_limit: "{{ item.runner_limit | default(4) }}"
-        runner_concurrency: "{{ item.runner_concurrency | default(4) }}"
-        runner_global_concurrency: "{{ item.runner_global_concurrency | default(item.runner_limit) }}"
-        runner_executor: "{{ item.runner_executor | default('shell') }}"
-        runner_docker_volumes: "{{ item.runner_docker_volumes | default(['/cache']) }}"
-        runner_docker_services_privileged: "{{ item.runner_docker_services_privileged | default(false) }}"
-        runner_docker_allowed_privileged_services: "{{ item.runner_docker_allowed_privileged_services | default([]) }}"
+        vm_name: "{{ item.vm_name }}"
+        runners: "{{ item.runners | default([]) }}"
+        runner_overrides: "{{ item.runner_overrides | default({}) }}"
       loop: "{{ vms_to_provision }}"
       loop_control:
         loop_var: item
+        label: "{{ item.vm_name }}"
+      when: fleet_state != "absent"
 
 - name: Configure all provisioned VMs
   hosts: provisioned_vms
   gather_facts: false
-  remote_user: ubuntu
+  remote_user: "{{ vm_user }}"
   become: yes
   tasks:
+    # From the control node: running it on the target would need the very SSH
+    # connection it is waiting for.
     - name: Wait for SSH to be available
       ansible.builtin.wait_for:
-        host: "{{ inventory_hostname }}"
+        host: "{{ ansible_host }}"
         port: 22
         delay: 10
-        timeout: 300
+        timeout: 600
+      delegate_to: localhost
+      become: no
 
     - name: Configure VM base (venv, python requirements)
       ansible.builtin.include_tasks: tasks/configure-vm-base.yaml
@@ -215,8 +383,9 @@
     - name: Install Helm
       ansible.builtin.include_tasks: tasks/install-helm.yaml
 
-    - name: Configure GitLab Runner
+    - name: Configure GitLab Runners
       ansible.builtin.include_tasks: tasks/configure-gitlab-runner.yaml
+      when: runners | default([]) | length > 0
 
     - name: Display completion message
       ansible.builtin.debug:
@@ -224,4 +393,6 @@
           - "=========================================="
           - "CI runner setup complete!"
           - "VM: {{ inventory_hostname }} ({{ ansible_host }})"
+          - "Runners: {{ resolved_runners | default([]) | map(attribute='description') | join(', ') }}"
+          - "Concurrent job slots: {{ runner_global_concurrency | default(0) }}"
           - "=========================================="

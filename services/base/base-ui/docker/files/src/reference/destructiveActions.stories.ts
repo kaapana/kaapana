@@ -1,9 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { computed, defineComponent, h, ref, type PropType } from 'vue'
-import { VBtn, VCard, VCardActions, VCardText, VCardTitle, VDialog, VSpacer } from 'vuetify/components'
+import { VBtn, VCard, VCardText, VCardTitle } from 'vuetify/components'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
 import { note } from './storyNote'
 
-// The example demonstrates the confirmation contract:
+// This demonstrates the pattern using the actual shared `ConfirmDialog`
+// component, so the guideline example and the library implementation can
+// never drift apart. The contract it shows:
 //
 //   1. Cancel takes focus, so a stray Enter cancels instead of deleting.
 //   2. Escape and a backdrop click resolve as *cancelled*, not as nothing.
@@ -14,15 +17,14 @@ type Kind = 'destructive' | 'highImpact'
 const prompts = {
   destructive: {
     title: 'Delete workflow "Lung Segmentation"?',
-    consequence: 'This also deletes all jobs belonging to the workflow.',
+    text: 'This also deletes all jobs belonging to the workflow.',
     triggerText: 'Delete workflow',
     confirmText: 'Delete workflow',
     color: 'error',
   },
   highImpact: {
     title: 'Download dataset (86 GB)?',
-    consequence:
-      'The download may take several hours and use significant network bandwidth and local storage.',
+    text: 'The download may take several hours and use significant network bandwidth and local storage.',
     triggerText: 'Download Dataset',
     confirmText: 'Download',
     color: 'primary',
@@ -42,15 +44,6 @@ const ActionsRequiringConfirmation = defineComponent({
     const last = ref('—')
     const prompt = computed(() => prompts[props.kind])
 
-    function ask() {
-      open.value = true
-    }
-
-    function resolve(confirmed: boolean) {
-      open.value = false
-      last.value = confirmed ? 'confirmed' : 'cancelled'
-    }
-
     return () =>
       h('div', [
         note(
@@ -61,12 +54,11 @@ const ActionsRequiringConfirmation = defineComponent({
         h(VCard, null, {
           default: () => [
             h(VCardTitle, null, {
-              default: () =>
-                props.kind === 'destructive' ? 'Destructive action' : 'High-impact action',
+              default: () => (props.kind === 'destructive' ? 'Destructive action' : 'High-impact action'),
             }),
             h(VCardText, null, {
               default: () => [
-                h(VBtn, { color: prompt.value.color, onClick: ask }, {
+                h(VBtn, { color: prompt.value.color, onClick: () => (open.value = true) }, {
                   default: () => prompt.value.triggerText,
                 }),
                 h('div', { class: 'mt-4 text-body-2 text-medium-emphasis' }, [
@@ -77,38 +69,16 @@ const ActionsRequiringConfirmation = defineComponent({
             }),
           ],
         }),
-        h(
-          VDialog,
-          {
-            modelValue: open.value,
-            maxWidth: 400,
-            // Escape and the backdrop route through the same path as Cancel, so a
-            // dismissed prompt is an answer rather than a dangling state.
-            'onUpdate:modelValue': (value: boolean) => {
-              if (!value) resolve(false)
-            },
-          },
-          {
-            default: () =>
-              h(VCard, null, {
-                default: () => [
-                  h(VCardTitle, null, { default: () => prompt.value.title }),
-                  h(VCardText, null, { default: () => prompt.value.consequence }),
-                  h(VCardActions, null, {
-                    default: () => [
-                      h(VSpacer),
-                      h(VBtn, { autofocus: true, onClick: () => resolve(false) }, {
-                        default: () => 'Cancel',
-                      }),
-                      h(VBtn, { color: prompt.value.color, onClick: () => resolve(true) }, {
-                        default: () => prompt.value.confirmText,
-                      }),
-                    ],
-                  }),
-                ],
-              }),
-          },
-        ),
+        h(ConfirmDialog, {
+          modelValue: open.value,
+          'onUpdate:modelValue': (value: boolean) => (open.value = value),
+          title: prompt.value.title,
+          text: prompt.value.text,
+          confirmText: prompt.value.confirmText,
+          color: prompt.value.color,
+          onConfirm: () => (last.value = 'confirmed'),
+          onCancel: () => (last.value = 'cancelled'),
+        }),
       ])
   },
 })

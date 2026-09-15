@@ -44,6 +44,14 @@
       </v-col>
       </v-row>
     </v-card-title>
+    <ConfirmDialog
+      v-model="deleteDialogOpen"
+      :title='`Delete workflow "${workflowPendingDelete?.workflow_name}"?`'
+      text="This also deletes all jobs belonging to the workflow."
+      confirm-text="Delete workflow"
+      color="error"
+      @confirm="onDeleteConfirmed"
+    ></ConfirmDialog>
     <v-data-table-server
       :headers="workflowHeaders"
       :items="sortedWorkflows"
@@ -115,6 +123,7 @@
                 <v-btn
                   v-bind="props"
                   @click="abortWorkflow(item)"
+                  :disabled="isWorkflowTerminal(item)"
                   size="small"
                   icon
                   variant="text"
@@ -122,7 +131,11 @@
                   <v-icon color="primary">mdi-stop-circle-outline</v-icon>
                 </v-btn>
               </template>
-              <span>abort workflow including all its jobs</span>
+              <span>{{
+                isWorkflowTerminal(item)
+                  ? 'workflow already finished; nothing to abort'
+                  : 'abort workflow including all its jobs'
+              }}</span>
             </v-tooltip>
             <v-tooltip location="bottom">
               <template #activator="{ props }">
@@ -142,7 +155,7 @@
               <template #activator="{ props }">
                 <v-btn
                   v-bind="props"
-                  @click="deleteWorkflow(item)"
+                  @click="confirmDeleteWorkflow(item)"
                   size="small"
                   icon
                   variant="text"
@@ -184,7 +197,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useTheme } from 'vuetify'
 import { useNotification } from '@kyvg/vue3-notification'
-import { kaapanaApiService } from '@kaapana/base-ui'
+import { ConfirmDialog, kaapanaApiService } from '@kaapana/base-ui'
 import type { Workflow, Job } from '@/types/workflow'
 import JobTable from './JobTable.vue'
 
@@ -235,6 +248,8 @@ const options = ref<any>({
   itemsPerPage: 10,
   search: '',
 })
+const deleteDialogOpen = ref(false)
+const workflowPendingDelete = ref<Workflow | null>(null)
 
 const filteredWorkflows = computed<Workflow[]>(() => {
   if (props.workflows !== null) {
@@ -364,6 +379,12 @@ function startWorkflowManually(item: Workflow) {
   console.log('Manually start Workflow: ', item.workflow_id)
   manuallyStartClientWorkflowAPI(item.workflow_id, 'confirmed')
 }
+// A workflow whose jobs are all in a terminal state is done; aborting it is a
+// silent no-op on the backend, which otherwise still reports success.
+const TERMINAL_JOB_STATUSES = ['finished', 'failed', 'deleted']
+function isWorkflowTerminal(item: Workflow): boolean {
+  return item.workflow_jobs.length > 0 && item.workflow_jobs.every((status) => TERMINAL_JOB_STATUSES.includes(status))
+}
 function abortWorkflow(item: Workflow) {
   shouldExpand.value = false
   console.log('Abort Workflow: ', item.workflow_id)
@@ -373,6 +394,16 @@ function restartWorkflow(item: Workflow) {
   shouldExpand.value = false
   console.log('Restart Workflow: ', item.workflow_id)
   restartClientWorkflowAPI(item.workflow_id, 'scheduled')
+}
+function confirmDeleteWorkflow(item: Workflow) {
+  workflowPendingDelete.value = item
+  deleteDialogOpen.value = true
+}
+function onDeleteConfirmed() {
+  if (workflowPendingDelete.value) {
+    deleteWorkflow(workflowPendingDelete.value)
+  }
+  workflowPendingDelete.value = null
 }
 function deleteWorkflow(item: Workflow) {
   shouldExpand.value = false

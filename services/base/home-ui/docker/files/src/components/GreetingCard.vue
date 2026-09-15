@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h2>{{ greeting }}, {{ currentUser.username }}!</h2>
+    <h2 class="text-h5">{{ greeting }}, {{ currentUser.username }}!</h2>
     <!-- selectedProject is {} until it resolves, so gate on the name. -->
     <p v-if="projectStore.selectedProject.name" class="text-medium-emphasis mt-1">
       You are working in project <strong>{{ projectStore.selectedProject.name }}</strong>

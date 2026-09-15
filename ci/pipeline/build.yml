@@ -44,9 +44,13 @@ build_packages:
   extends: .build_cli_env
   stage: build
   dependencies: []
-  # Docker CLI talks to the host daemon (socket mount on the build runner):
-  # warm layer cache across pipelines, login state dies with the container.
+  services:
+    - name: docker.io/library/docker:28-dind
+      alias: docker
+      variables:
+        DOCKER_TLS_CERTDIR: ""
   variables:
+    DOCKER_HOST: "tcp://docker:2375"
     RUNNER_SCRIPT_TIMEOUT: 8h
     FF_DISABLE_UMASK_FOR_DOCKER_EXECUTOR: 1 # Disable umask 0000 in the gitlab-runner-helper image. Instead UID and GID are determined from the build image
   timeout: 8 hours

@@ -21,6 +21,13 @@ build_ci_image:
   # Not ci-base: the image that builds ci-base must not be ci-base, or a tag
   # bump could never bootstrap itself.
   image: docker.io/library/docker:28-cli
+  services:
+    - name: docker.io/library/docker:28-dind
+      alias: docker
+      variables:
+        DOCKER_TLS_CERTDIR: ""
+  variables:
+    DOCKER_HOST: "tcp://docker:2375"
   rules:
     # changes: only has a diff basis on push/MR pipelines — it evaluates to
     # true on schedule/web/api/trigger and would rebuild every run

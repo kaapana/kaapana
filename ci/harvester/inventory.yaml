@@ -51,11 +51,11 @@ all:
       build:
         tags: ["build", "build-runner"]
         maximum_timeout: 14400 # 4 hours
-        # Two builds share one Docker daemon and /cache; nothing caps job memory.
         limit: 2
         request_concurrency: 2
-        docker_volumes:
-          ["/var/run/docker.sock:/var/run/docker.sock", "/cache"]
+        docker_volumes: ["/cache", "/builds"]
+        docker_services_privileged: true
+        docker_allowed_privileged_services: ["docker.io/library/docker:*"]
 
       security:
         tags: ["security", "security-runner"]
@@ -81,6 +81,15 @@ all:
         # mount every job re-downloads the test data.
         docker_volumes: ["/cache", "/data:/data"]
 
+      universal:
+        tags: ["universal", "universal-runner"]
+        maximum_timeout: 14400 # 4 hours
+        limit: 8
+        request_concurrency: 8
+        docker_volumes: ["/cache", "/builds", "/data:/data"]
+        docker_services_privileged: true
+        docker_allowed_privileged_services: ["docker.io/library/docker:*"]
+
   children:
     ci_instances:
       hosts:
@@ -97,3 +106,10 @@ all:
           memory_guest: "128Gi"
           disk_size: "512Gi"
           runners: [build, tests, deploy, security]
+        
+        kaapana-ci-03:
+          vm_name: kaapana-ci-03
+          cpu_cores: 64
+          memory_guest: "128Gi"
+          disk_size: "512Gi"
+          runners: [universal]

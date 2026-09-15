@@ -7,8 +7,12 @@
       <span class="ml-3">Notifications</span>
     </v-card-title>
     <v-card-text class="pa-0">
+      <!-- An empty list only means "nothing yet" once a load has finished.
+           Before that the card would tell the user they are caught up without
+           knowing whether they are. -->
+      <v-skeleton-loader v-if="!notifications.loadedOnce" type="list-item-two-line@3" />
       <div
-        v-if="notifications.notifications.length === 0"
+        v-else-if="notifications.notifications.length === 0 && !notifications.loading"
         class="text-center text-medium-emphasis pa-4"
       >
         No notifications — you're all caught up

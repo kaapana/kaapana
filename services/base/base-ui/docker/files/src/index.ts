@@ -1,3 +1,4 @@
+export { default as ConfirmDialog } from './components/ConfirmDialog.vue'
 export { postViewDirty } from './utils/viewDirty'
 export { getProjectBase, getProjectSlug, switchProject } from './utils/selectedProject'
 export { navigateShell } from './utils/shellNavigation'

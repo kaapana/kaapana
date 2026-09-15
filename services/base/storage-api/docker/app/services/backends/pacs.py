@@ -13,6 +13,60 @@ from .base import StorageBackend
 logger = logging.getLogger(__name__)
 
 _TIMEOUT = 300
+_QIDO_PAGE = 5000  # instances requested per QIDO page
+
+
+def _list_instance_uids(session, series_url: str, headers: dict) -> List[str]:
+    """Page QIDO ``/instances`` until exhausted, returning every SOPInstanceUID.
+
+    ``offset`` advances by the count actually returned, so a server-side result
+    cap (dcm4chee ``QidoMaxNumberOfResults``, unlimited in Kaapana's own config)
+    can truncate a page but never the series. A missing SOPInstanceUID is a loud
+    failure, never a silent skip.
+    """
+    uids: List[str] = []
+    seen: set = set()
+    offset = 0
+    while True:
+        qido = session.get(
+            f"{series_url}/instances",
+            headers=headers,
+            params={"limit": _QIDO_PAGE, "offset": offset},
+            timeout=_TIMEOUT,
+        )
+        if qido.status_code == 204:
+            break
+        qido.raise_for_status()
+        page = qido.json()
+        if not page:
+            break
+        added = 0
+        for entry in page:
+            try:
+                sop_uid = entry["00080018"]["Value"][0]  # SOPInstanceUID
+            except (KeyError, IndexError, TypeError) as exc:
+                raise RuntimeError(
+                    f"QIDO instance listing for {series_url} has an entry without a "
+                    f"SOPInstanceUID; refusing to silently drop an instance"
+                ) from exc
+            if sop_uid not in seen:
+                seen.add(sop_uid)
+                uids.append(sop_uid)
+                added += 1
+        offset += len(page)
+        if added == 0:  # server ignored offset / only returned dups — stop, no loop
+            break
+    return uids
+
+
+def _retrieve_instance(session, url: str, headers: dict) -> bytes:
+    """WADO-RS one instance; only its bytes leave this frame, so the raw
+    multipart response is freed before the caller yields."""
+    from requests_toolbelt.multipart import decoder
+
+    response = session.get(url, headers=headers, timeout=_TIMEOUT)
+    response.raise_for_status()
+    return decoder.MultipartDecoder.from_response(response).parts[0].content
 
 
 class PacsBackend(StorageBackend):
@@ -27,10 +81,15 @@ class PacsBackend(StorageBackend):
 
     store_type = "pacs"
 
-    def fetch(self, coordinate: PacsCoordinate, access_token: Optional[str]) -> Iterator[Tuple[str, bytes]]:
-        import pydicom
+    def fetch(
+        self, coordinate: PacsCoordinate, access_token: Optional[str]
+    ) -> Iterator[Tuple[str, int, Iterator[bytes]]]:
+        """Fetch a series one instance at a time (QIDO listing, then WADO-RS per instance).
+
+        Bounds memory to a single instance instead of buffering the whole series
+        multipart: ``requests_toolbelt`` has no streaming decoder.
+        """
         import requests
-        from requests_toolbelt.multipart import decoder
 
         if not coordinate.series_uid:
             raise ValueError("PACS download requires a series_uid")
@@ -41,19 +100,17 @@ class PacsBackend(StorageBackend):
             headers["Authorization"] = f"Bearer {access_token}"
             headers["x-forwarded-access-token"] = access_token
 
-        url = f"{base}/studies/{coordinate.study_uid}/series/{coordinate.series_uid}"
-        response = requests.get(url, headers=headers, timeout=_TIMEOUT)
-        response.raise_for_status()
+        series_url = f"{base}/studies/{coordinate.study_uid}/series/{coordinate.series_uid}"
 
-        multipart = decoder.MultipartDecoder.from_response(response)
-        for index, part in enumerate(multipart.parts):
-            content = part.content
-            try:
-                ds = pydicom.dcmread(BytesIO(content), stop_before_pixels=True)
-                name = f"{ds.SOPInstanceUID}.dcm"
-            except Exception:  # noqa: BLE001 - fall back to a positional name
-                name = f"instance-{index}.dcm"
-            yield name, content
+        with requests.Session() as session:
+            uids = _list_instance_uids(session, series_url, headers)
+            if not uids:
+                # The dicom-web-filter answers 204 for a series outside the caller's
+                # project, so "no instances" is never a successful download.
+                raise RuntimeError(f"QIDO listed no instances for {series_url}")
+            for sop_uid in uids:
+                content = _retrieve_instance(session, f"{series_url}/instances/{sop_uid}", headers)
+                yield f"{sop_uid}.dcm", len(content), iter([content])
 
     def store(
         self,

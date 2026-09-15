@@ -28,9 +28,12 @@ class StorageBackend:
 
     store_type: str = ""
 
-    def fetch(self, coordinate, access_token: Optional[str]) -> Iterator[Tuple[str, bytes]]:
-        """Yield ``(relative_path, content)`` for the data at ``coordinate``.
+    def fetch(self, coordinate, access_token: Optional[str]) -> Iterator[Tuple[str, int, Iterator[bytes]]]:
+        """Yield ``(relative_path, size, chunks)`` for the data at ``coordinate``.
 
+        ``size`` is the exact byte length (mandatory — tar headers declare it
+        before the body); ``chunks`` is a lazy iterator streamed straight from
+        the store so peak memory is one chunk, not one whole object/series.
         A PACS series yields one entry per instance; an S3 object yields one.
         """
         raise NotImplementedError
@@ -43,5 +46,8 @@ class StorageBackend:
     ) -> List:
         """Write ``(filename, content)`` files to ``target`` and return the
         concrete storage coordinates the bytes are now addressable by.
+
+        The write contract is deliberately *not* streamed: uploads are bounded
+        by the request body, so files stay ``(filename, content)`` bytes pairs.
         """
         raise NotImplementedError

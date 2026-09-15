@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 _STS_NS = {"ns": "https://sts.amazonaws.com/doc/2011-06-15/"}
 _TIMEOUT = 30
+_CHUNK_SIZE = 1 << 20  # 1 MiB — bound the bytes resident while streaming a member
 
 
 @contextmanager
@@ -84,16 +85,31 @@ def _minio_client(access_token: str, endpoint: str):
 class S3Backend(StorageBackend):
     store_type = "s3"
 
-    def _get_object(self, client, bucket: str, key: str) -> bytes:
+    def _open_object(self, client, bucket: str, key: str) -> Tuple[int, Iterator[bytes]]:
+        """GET an object; return its exact length and a lazy chunk iterator.
+
+        The length comes from the GET itself so it always matches the bytes that
+        follow, and ``decode_content=False`` keeps content-encoded objects raw for
+        the same reason. The response is closed and released when the iterator
+        finishes or is dropped, so it lives exactly as long as its chunks are
+        pulled and only one object is open at a time.
+        """
         with _translate_s3_errors():
             response = client.get_object(bucket, key)
-        try:
-            return response.read()
-        finally:
-            response.close()
-            response.release_conn()
+        size = int(response.headers["Content-Length"])
 
-    def fetch(self, coordinate: S3Coordinate, access_token: Optional[str]) -> Iterator[Tuple[str, bytes]]:
+        def _chunks() -> Iterator[bytes]:
+            try:
+                yield from response.stream(_CHUNK_SIZE, decode_content=False)
+            finally:
+                response.close()
+                response.release_conn()
+
+        return size, _chunks()
+
+    def fetch(
+        self, coordinate: S3Coordinate, access_token: Optional[str]
+    ) -> Iterator[Tuple[str, int, Iterator[bytes]]]:
         if not access_token:
             raise ValueError("S3 download requires an access token for web-identity auth")
 
@@ -102,9 +118,9 @@ class S3Backend(StorageBackend):
 
         if not coordinate.is_prefix:
             # Single object → one file at the entity-folder root.
-            data = self._get_object(client, coordinate.bucket, coordinate.key)
             name = coordinate.key.rstrip("/").split("/")[-1] or "object"
-            yield name, data
+            size, chunks = self._open_object(client, coordinate.bucket, coordinate.key)
+            yield name, size, chunks
             return
 
         # Folder coordinate → every object under the prefix, internal structure
@@ -118,7 +134,8 @@ class S3Backend(StorageBackend):
                 if key.endswith("/"):  # skip explicit directory markers
                     continue
                 relpath = key[len(prefix) :] or key.rsplit("/", 1)[-1]
-                yield relpath, self._get_object(client, coordinate.bucket, key)
+                size, chunks = self._open_object(client, coordinate.bucket, key)
+                yield relpath, size, chunks
 
     def store(
         self,

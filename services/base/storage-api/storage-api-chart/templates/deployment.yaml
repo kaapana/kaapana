@@ -51,8 +51,10 @@ spec:
         ports:
           - containerPort: 8080
         resources:
+          # S3 members stream in 1 MiB chunks; a PACS instance is decoded in memory
+          # (about 3x its size transiently) and several downloads run concurrently.
           limits:
-            memory: "1024Mi"
+            memory: "2048Mi"
           requests:
             memory: "100Mi"
         securityContext:

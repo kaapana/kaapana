@@ -6,6 +6,7 @@ skipped automatically in the bare venv and run in the container/CI image.
 """
 
 import io
+from types import SimpleNamespace
 
 import pytest
 
@@ -65,7 +66,20 @@ def test_s3_sts_xml_parse_and_client_wiring(monkeypatch) -> None:
     assert minio_args["session_token"] == "ST"
 
 
-def test_pacs_multipart_parse_yields_named_instances(monkeypatch) -> None:
+class _FakeSession:
+    """Stand-in for ``requests.Session`` routing ``get`` to a test handler."""
+
+    def __init__(self, get):
+        self.get = get
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+def test_pacs_fetch_yields_one_named_file_per_instance(monkeypatch) -> None:
     pydicom = pytest.importorskip("pydicom")
     pytest.importorskip("requests_toolbelt")
     pytest.importorskip("requests")
@@ -94,26 +108,178 @@ def test_pacs_multipart_parse_yields_named_instances(monkeypatch) -> None:
         + f"\r\n--{boundary}--\r\n".encode()
     )
 
-    class _Resp:
+    class _QidoResp:
+        def __init__(self, instances):
+            self._instances = instances
+            self.status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return self._instances
+
+    class _InstanceResp:
         headers = CaseInsensitiveDict({"Content-Type": f"multipart/related; boundary={boundary}"})
         content = body
 
         def raise_for_status(self):
             pass
 
-    monkeypatch.setattr(requests, "get", lambda *a, **k: _Resp())
+    def _fake_get(url, headers=None, params=None, timeout=None):
+        if url.endswith("/instances"):
+            offset = int((params or {}).get("offset", 0))
+            page = [{"00080018": {"Value": ["1.2.3.4"]}}] if offset == 0 else []
+            return _QidoResp(page)
+        return _InstanceResp()
+
+    monkeypatch.setattr(requests, "Session", lambda: _FakeSession(_fake_get))
 
     coord = PacsCoordinate(pacs_id="http://pacs", study_uid="s", series_uid="se")
-    out = list(pacs.PacsBackend().fetch(coord, "tok"))
+    out = [(n, sz, b"".join(ch)) for n, sz, ch in pacs.PacsBackend().fetch(coord, "tok")]
 
-    assert len(out) == 1
-    name, content = out[0]
-    assert name == "1.2.3.4.dcm"
-    assert content == dicom_bytes
+    assert out == [("1.2.3.4.dcm", len(dicom_bytes), dicom_bytes)]
+
+
+def test_pacs_fetch_pages_qido_beyond_server_cap(monkeypatch) -> None:
+    """A server that caps each QIDO page below the requested limit must not
+    truncate the series — paging by actual returned count fetches them all."""
+    pytest.importorskip("requests_toolbelt")
+    pytest.importorskip("requests")
+    import requests
+    from app.models import PacsCoordinate
+    from app.services.backends import pacs
+    from requests.structures import CaseInsensitiveDict
+
+    all_uids = [f"1.2.{i}" for i in range(5)]
+
+    def _multipart(content: bytes) -> bytes:
+        return b"--B\r\nContent-Type: application/dicom\r\n\r\n" + content + b"\r\n--B--\r\n"
+
+    class _Qido:
+        def __init__(self, page):
+            self._page = page
+            self.status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return [{"00080018": {"Value": [u]}} for u in self._page]
+
+    class _Inst:
+        def __init__(self, sop):
+            self.headers = CaseInsensitiveDict({"Content-Type": "multipart/related; boundary=B"})
+            self.content = _multipart(f"dcm-{sop}".encode())
+
+        def raise_for_status(self):
+            pass
+
+    def _fake_get(url, headers=None, params=None, timeout=None):
+        if url.endswith("/instances"):
+            offset = int((params or {}).get("offset", 0))
+            return _Qido(all_uids[offset : offset + 2])  # server caps at 2 / page
+        return _Inst(url.rsplit("/", 1)[-1])
+
+    monkeypatch.setattr(requests, "Session", lambda: _FakeSession(_fake_get))
+
+    coord = PacsCoordinate(pacs_id="http://pacs", study_uid="s", series_uid="se")
+    out = [(n, sz, b"".join(ch)) for n, sz, ch in pacs.PacsBackend().fetch(coord, "tok")]
+
+    assert [n for n, _, _ in out] == [f"{u}.dcm" for u in all_uids]
+    assert out[0] == ("1.2.0.dcm", len(b"dcm-1.2.0"), b"dcm-1.2.0")
+
+
+def test_pacs_fetch_raises_on_missing_sop_uid(monkeypatch) -> None:
+    """A QIDO entry without a SOPInstanceUID is a loud failure, not a silent skip."""
+    pytest.importorskip("requests")
+    import requests
+    from app.models import PacsCoordinate
+    from app.services.backends import pacs
+
+    class _Qido:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return [{"00080016": {"Value": ["x"]}}]  # SOPClassUID, no 00080018
+
+    monkeypatch.setattr(requests, "Session", lambda: _FakeSession(lambda *a, **k: _Qido()))
+
+    coord = PacsCoordinate(pacs_id="http://pacs", study_uid="s", series_uid="se")
+    with pytest.raises(RuntimeError, match="without a SOPInstanceUID"):
+        list(pacs.PacsBackend().fetch(coord, "tok"))
+
+
+def test_pacs_fetch_raises_when_series_lists_no_instances(monkeypatch) -> None:
+    """The dicom-web-filter answers 204 for a series outside the project: never a success."""
+    pytest.importorskip("requests")
+    import requests
+    from app.models import PacsCoordinate
+    from app.services.backends import pacs
+
+    class _NoContent:
+        status_code = 204
+
+        def raise_for_status(self):
+            raise AssertionError("raise_for_status must not be called on 204")
+
+        def json(self):
+            raise AssertionError("204 has no body")
+
+    monkeypatch.setattr(requests, "Session", lambda: _FakeSession(lambda *a, **k: _NoContent()))
+
+    coord = PacsCoordinate(pacs_id="http://pacs", study_uid="s", series_uid="se")
+    with pytest.raises(RuntimeError, match="no instances"):
+        list(pacs.PacsBackend().fetch(coord, "tok"))
+
+
+def test_pacs_fetch_stops_when_server_ignores_offset(monkeypatch) -> None:
+    """A server that returns the same page for every offset must not loop forever."""
+    pytest.importorskip("requests_toolbelt")
+    pytest.importorskip("requests")
+    import requests
+    from app.models import PacsCoordinate
+    from app.services.backends import pacs
+    from requests.structures import CaseInsensitiveDict
+
+    qido_calls = {"n": 0}
+
+    class _Qido:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return [{"00080018": {"Value": [u]}} for u in ("1.2.0", "1.2.1")]
+
+    class _Inst:
+        headers = CaseInsensitiveDict({"Content-Type": "multipart/related; boundary=B"})
+        content = b"--B\r\nContent-Type: application/dicom\r\n\r\nd\r\n--B--\r\n"
+
+        def raise_for_status(self):
+            pass
+
+    def _fake_get(url, headers=None, params=None, timeout=None):
+        if url.endswith("/instances"):
+            qido_calls["n"] += 1
+            return _Qido()
+        return _Inst()
+
+    monkeypatch.setattr(requests, "Session", lambda: _FakeSession(_fake_get))
+
+    coord = PacsCoordinate(pacs_id="http://pacs", study_uid="s", series_uid="se")
+    names = [n for n, _, _ in pacs.PacsBackend().fetch(coord, "tok")]
+
+    assert names == ["1.2.0.dcm", "1.2.1.dcm"]
+    assert qido_calls["n"] == 2  # first page adds two, the repeat adds none
 
 
 class _FakeMinio:
-    """Minimal in-memory MinIO stand-in: put/list/get of objects by key."""
+    """Minimal in-memory MinIO stand-in: put/stat/list/stream of objects by key."""
 
     def __init__(self):
         self.objects: dict = {}
@@ -123,17 +289,29 @@ class _FakeMinio:
 
     def list_objects(self, bucket, prefix="", recursive=False):
         class _Obj:
-            def __init__(self, name):
+            def __init__(self, name, size):
                 self.object_name = name
+                self.size = size
 
-        return [_Obj(k) for k in sorted(self.objects) if k.startswith(prefix)]
+        return [_Obj(k, len(self.objects[k])) for k in sorted(self.objects) if k.startswith(prefix)]
+
+    def stat_object(self, bucket, key):
+        return SimpleNamespace(size=len(self.objects[key]))
 
     def get_object(self, bucket, key):
         payload = self.objects[key]
 
         class _Resp:
-            def read(self_inner):
-                return payload
+            headers = {"Content-Length": str(len(payload))}
+
+            def stream(self_inner, amt=None, decode_content=None):
+                # Emit in (up to) two chunks to exercise multi-chunk streaming.
+                if not payload:
+                    return
+                mid = max(1, len(payload) // 2)
+                yield payload[:mid]
+                if payload[mid:]:
+                    yield payload[mid:]
 
             def close(self_inner):
                 pass
@@ -155,9 +333,9 @@ def test_s3_fetch_single_object_yields_basename(monkeypatch):
     monkeypatch.setattr(s3, "_minio_client", lambda token, endpoint: client)
 
     coord = S3Coordinate(bucket="proj", key="single/report.txt")
-    out = list(s3.S3Backend().fetch(coord, "tok"))
+    out = [(n, sz, b"".join(ch)) for n, sz, ch in s3.S3Backend().fetch(coord, "tok")]
 
-    assert out == [("report.txt", b"hello")]
+    assert out == [("report.txt", 5, b"hello")]
 
 
 def test_s3_store_folder_preserves_structure_and_returns_one_prefix_coord(monkeypatch):
@@ -367,9 +545,9 @@ def test_s3_fetch_prefix_yields_structure_preserving_relpaths(monkeypatch):
     monkeypatch.setattr(s3, "_minio_client", lambda token, endpoint: client)
 
     coord = S3Coordinate(bucket="proj", key="models/run-1/", is_prefix=True)
-    out = dict(s3.S3Backend().fetch(coord, "tok"))
+    out = {n: (sz, b"".join(ch)) for n, sz, ch in s3.S3Backend().fetch(coord, "tok")}
 
-    assert out == {"model.bin": b"weights", "weights/layer1.bin": b"L1"}
+    assert out == {"model.bin": (7, b"weights"), "weights/layer1.bin": (2, b"L1")}
 
 
 def test_folder_coordinate_materialises_nested_structure_under_entity(monkeypatch, tmp_path):
@@ -397,7 +575,7 @@ def test_folder_coordinate_materialises_nested_structure_under_entity(monkeypatc
 
     coord = S3Coordinate(bucket="proj", key="models/run-1/", is_prefix=True)
     # Mirror api/v1._iter_files: prefix each relpath with the entity id.
-    files = ((f"e1/{relpath}", content) for relpath, content in s3.S3Backend().fetch(coord, "tok"))
+    files = ((f"e1/{relpath}", size, chunks) for relpath, size, chunks in s3.S3Backend().fetch(coord, "tok"))
     archive = b"".join(stream_tar(files))
 
     with tarfile.open(fileobj=io.BytesIO(archive), mode="r") as tar:

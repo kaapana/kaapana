@@ -34,12 +34,12 @@ def health() -> dict:
     return {"status": "ok"}
 
 
-def _iter_files(items: list[DownloadItem], access_token: Optional[str]) -> Iterator[Tuple[str, bytes]]:
+def _iter_files(items: list[DownloadItem], access_token: Optional[str]) -> Iterator[Tuple[str, int, Iterator[bytes]]]:
     for item in items:
         for coordinate in item.coordinates:
             backend = get_backend(coordinate.type)
-            for relpath, content in backend.fetch(coordinate, access_token):
-                yield f"{item.id}/{relpath}", content
+            for relpath, size, chunks in backend.fetch(coordinate, access_token):
+                yield f"{item.id}/{relpath}", size, chunks
 
 
 @router.post("/download")

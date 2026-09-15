@@ -13,7 +13,7 @@ class _FakeBackend(StorageBackend):
     def fetch(self, coordinate, access_token):
         # Echo a single canned file; no network. Surface the token so we can
         # assert it was forwarded if needed.
-        yield "model.bin", b"weights"
+        yield "model.bin", 7, iter([b"weights"])
 
 
 @pytest.fixture
@@ -55,7 +55,7 @@ def test_download_forwards_access_token(monkeypatch) -> None:
 
         def fetch(self, coordinate, access_token):
             captured["token"] = access_token
-            yield "f.bin", b"x"
+            yield "f.bin", 1, iter([b"x"])
 
     monkeypatch.setattr("app.api.v1.get_backend", lambda store_type: _CaptureBackend())
     client = TestClient(app)

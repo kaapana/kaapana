@@ -1124,15 +1124,14 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.is-invalid {
-  border: 1px solid red;
-}
-
 .justify-space-between {
   justify-content: 0;
 }
 
-.wfe-help-icon {
+/* HelpIcon renders its button from its own render function, not from this
+   template, so this scoped rule can only reach it through :deep() - the same
+   reason the vjsf rules below need it. */
+:deep(.wfe-help-icon) {
   color: #bdbdbd;
 }
 

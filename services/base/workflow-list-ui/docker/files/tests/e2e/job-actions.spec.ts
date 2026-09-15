@@ -51,6 +51,7 @@ test('delete job sends DELETE /job with the job_id', async ({ page }) => {
 
   const reqP = page.waitForRequest((r) => JOB.test(r.url()) && r.method() === 'DELETE')
   await jobRow(page).locator('button:has(.mdi-trash-can-outline)').click()
+  await page.getByRole('button', { name: 'Delete job' }).click()
   const req = await reqP
   expect(req.url()).toContain('job_id=101')
 })
@@ -89,6 +90,7 @@ test('delete job failure shows an error toast and keeps the job rows', async ({ 
   await fail500(page, JOB)
 
   await jobRow(page).locator('button:has(.mdi-trash-can-outline)').click()
+  await page.getByRole('button', { name: 'Delete job' }).click()
 
   await expect(page.getByText('Error while deleting job 101')).toBeVisible()
   await expect(page.getByText('dag-alpha')).toBeVisible()

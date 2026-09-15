@@ -161,7 +161,8 @@
       </v-card-text>
       <v-card-actions v-if="available_dags.length">
         <v-spacer></v-spacer>
-        <v-btn color="primary" variant="elevated" @click="submissionValidator()">
+        <v-btn color="primary" variant="elevated" :disabled="!valid || !dag_id || !workflow_name || submitting"
+          :loading="submitting" @click="submissionValidator()">
           Start Workflow
         </v-btn>
         <v-btn variant="elevated" @click="isDialog ? cancel() : clearForm()">
@@ -212,6 +213,7 @@ interface State {
   schemas_dict: Record<string, any>;
   external_schemas: Record<string, any>;
   workflow_name: string | null;
+  submitting: boolean;
   showConfData: boolean;
   datasets_available: boolean;
   workflowsSettings: Record<string, any>;
@@ -274,6 +276,7 @@ function initialState(): State {
     schemas_dict: {},
     external_schemas: {},
     workflow_name: null,
+    submitting: false,
     showConfData: false,
     datasets_available: true,
     workflowsSettings: {},
@@ -308,6 +311,7 @@ const {
   schemas_dict,
   external_schemas,
   workflow_name,
+  submitting,
   showConfData,
   datasets_available,
   hasBackendField,
@@ -702,6 +706,12 @@ function validConfirmation() {
   return failedConfirmations;
 }
 async function submissionValidator() {
+  // The button is disabled while submitting, but a click that lands before
+  // that reactive update paints (e.g. a rapid double-click) would otherwise
+  // still reach this handler a second time.
+  if (state.submitting) {
+    return false;
+  }
   let valid_check = [];
   let invalid_fields = [];
   if (state.datasets_available !== true) {
@@ -906,6 +916,7 @@ function submitWorkflow() {
       dataset_limit: state.datasetLimit ?? 1,
     };
   }
+  state.submitting = true;
   kaapanaApiService
     .federatedClientApiPost("/workflow", {
       workflow_name: state.workflow_name,
@@ -920,16 +931,14 @@ function submitWorkflow() {
         type: "success",
         title: "Workflow successfully created!",
       });
+      // reset() re-initializes state, submitting included.
       reset();
       // Navigation on success is the consumer's job (via @successful).
       emit("successful");
     })
     .catch((err) => {
-      console.log(err);
-      notify({
-        type: "error",
-        title: "An error occured during the workflow creation!",
-      });
+      state.submitting = false;
+      notifyLoadError("An error occurred during the workflow creation!", err);
     });
 }
 function toCamelCase(target: string) {

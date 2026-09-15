@@ -5,6 +5,7 @@
         :workflows="clientWorkflows"
         :ext-loading="workflowTableLoading"
         :total-items="totalItems"
+        :load-error="workflowLoadError"
         @refreshView="() => getClientWorkflows(true)"
         @update:options="onOptions"
       ></workflow-table>
@@ -31,6 +32,7 @@ const { notify } = useNotification()
 let polling = 0
 const clientWorkflows = ref<Workflow[]>([])
 const workflowTableLoading = ref(false)
+const workflowLoadError = ref(false)
 const totalItems = ref(0)
 const options = ref<WorkflowOptions>({
   page: 1,
@@ -53,6 +55,7 @@ function getClientWorkflows(userInitiated = false) {
     })
     .then((response: any) => {
       workflowTableLoading.value = false
+      workflowLoadError.value = false
       clientWorkflows.value = response.data[0]
       totalItems.value = response.data[1]
       if (userInitiated) {
@@ -64,6 +67,7 @@ function getClientWorkflows(userInitiated = false) {
     })
     .catch((err: any) => {
       workflowTableLoading.value = false
+      workflowLoadError.value = true
       notify({
         title: 'Error while refreshing workflow list.',
         type: 'error',

@@ -45,7 +45,7 @@ test('delete workflow sends DELETE /workflow with the workflow_id', async ({ pag
   await page.goto(VIEW_PATH)
 
   const reqP = page.waitForRequest((r) => WORKFLOW.test(r.url()) && r.method() === 'DELETE')
-  await runningRow(page).locator('button:has(.mdi-trash-can-outline)').click()
+  await runningRow(page).locator('button:has(.mdi-delete)').click()
   await page.getByRole('button', { name: 'Delete workflow' }).click()
   const req = await reqP
   expect(req.url()).toContain('workflow_id=wf-running-001')
@@ -63,7 +63,7 @@ test('manual-start (non-automatic workflow) sends PUT /workflow with status "con
   await page
     .getByRole('row')
     .filter({ hasText: 'queued-wf' })
-    .locator('button:has(.mdi-play-circle-outline)')
+    .locator('button:has(.mdi-play)')
     .click()
   const req = await reqP
   expect(req.postDataJSON()).toEqual({

@@ -207,6 +207,10 @@ test('notifications show a loading state before the first page arrives', async (
   await seedShellState(page)
   await page.goto(VIEW_PATH)
 
+  // Wait for the page itself first. The gate holds the first page open for as
+  // long as the test wants, so a slow boot must not be read as a missing
+  // loading state.
+  await expect(page.getByRole('heading', { name: /kaapana!$/ })).toBeVisible()
   const card = page.locator('.v-card').filter({ hasText: 'Notifications' })
   await expect(card.locator('.v-skeleton-loader')).toBeVisible()
   await expect(page.getByText("No notifications — you're all caught up")).toHaveCount(0)

@@ -17,6 +17,15 @@
         </v-card>
       </v-dialog>
 
+      <ConfirmDialog
+        v-model="deleteDialogOpen"
+        :title='`Delete job ${jobPendingDelete?.id}?`'
+        text="This permanently removes the job and its logs."
+        confirm-text="Delete job"
+        color="error"
+        @confirm="onDeleteConfirmed"
+      ></ConfirmDialog>
+
       <v-data-table
         :headers="headers"
         :items="filteredJobs"
@@ -87,11 +96,11 @@
             </v-tooltip>
             <v-tooltip location="bottom">
               <template #activator="{ props }">
-                <v-btn v-bind="props" @click='abortJob(item)' size="small" icon variant="text">
+                <v-btn v-bind="props" @click='abortJob(item)' :disabled="isJobTerminal(item)" size="small" icon variant="text">
                   <v-icon color="secondary">mdi-stop-circle-outline</v-icon>
                 </v-btn>
               </template>
-              <span>abort single job</span>
+              <span>{{ isJobTerminal(item) ? 'job already finished; nothing to abort' : 'abort single job' }}</span>
             </v-tooltip>
             <v-tooltip location="bottom">
               <template #activator="{ props }">
@@ -103,7 +112,7 @@
             </v-tooltip>
             <v-tooltip location="bottom">
               <template #activator="{ props }">
-                <v-btn v-bind="props" @click='deleteJob(item)' size="small" icon variant="text">
+                <v-btn v-bind="props" @click='confirmDeleteJob(item)' size="small" icon variant="text">
                   <v-icon color="secondary">mdi-trash-can-outline</v-icon>
                 </v-btn>
               </template>
@@ -113,11 +122,11 @@
           <div v-else-if="item.external_job_id">
             <v-tooltip location="bottom">
               <template #activator="{ props }">
-                <v-btn v-bind="props" @click='abortJob(item)' size="small" icon variant="text">
+                <v-btn v-bind="props" @click='abortJob(item)' :disabled="isJobTerminal(item)" size="small" icon variant="text">
                   <v-icon color="secondary">mdi-stop-circle-outline</v-icon>
                 </v-btn>
               </template>
-              <span>abort single job</span>
+              <span>{{ isJobTerminal(item) ? 'job already finished; nothing to abort' : 'abort single job' }}</span>
             </v-tooltip>
           </div>
           <div v-else>
@@ -141,7 +150,7 @@
 import { computed, ref, watch } from 'vue'
 import { useTheme } from 'vuetify'
 import { useNotification } from '@kyvg/vue3-notification'
-import { kaapanaApiService } from '@kaapana/base-ui'
+import { ConfirmDialog, kaapanaApiService } from '@kaapana/base-ui'
 import type { Job } from '@/types/workflow'
 
 const props = defineProps<{
@@ -158,6 +167,8 @@ const isDark = computed(() => vTheme.global.current.value.dark)
 
 const dialogConfData = ref(false)
 const prettyConfData = ref<any>({})
+const deleteDialogOpen = ref(false)
+const jobPendingDelete = ref<Job | null>(null)
 const jobStatus = ref('all')
 const search = ref('')
 const dag_run_tasks_n_states = ref<Record<string, any[]>>({})
@@ -258,6 +269,12 @@ function formatJson(jsonString: string | null | undefined) {
     }
   }
 }
+// A job in a terminal state is done; aborting it is a silent no-op on the
+// backend, which otherwise still reports success.
+const TERMINAL_JOB_STATUSES = ['finished', 'failed', 'deleted']
+function isJobTerminal(item: Job): boolean {
+  return TERMINAL_JOB_STATUSES.includes(item.status)
+}
 function abortJob(item: Job) {
   console.log('Abort Job:', item.id, 'Item:', item)
   abortJobAPI(item.id, 'abort', 'The worklow was aborted!')
@@ -265,6 +282,16 @@ function abortJob(item: Job) {
 function restartJob(item: Job) {
   console.log('Restart Job:', item.id, 'Item:', item)
   restartJobAPI(item.id, 'scheduled', 'The worklow was triggered!')
+}
+function confirmDeleteJob(item: Job) {
+  jobPendingDelete.value = item
+  deleteDialogOpen.value = true
+}
+function onDeleteConfirmed() {
+  if (jobPendingDelete.value) {
+    deleteJob(jobPendingDelete.value)
+  }
+  jobPendingDelete.value = null
 }
 function deleteJob(item: Job) {
   console.log('Delete Job:', item.id, 'Item:', item)

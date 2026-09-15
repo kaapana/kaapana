@@ -46,6 +46,7 @@ test('delete workflow sends DELETE /workflow with the workflow_id', async ({ pag
 
   const reqP = page.waitForRequest((r) => WORKFLOW.test(r.url()) && r.method() === 'DELETE')
   await runningRow(page).locator('button:has(.mdi-trash-can-outline)').click()
+  await page.getByRole('button', { name: 'Delete workflow' }).click()
   const req = await reqP
   expect(req.url()).toContain('workflow_id=wf-running-001')
   await expect(page.getByText('Successfully deleted workflow wf-running-001')).toBeVisible()

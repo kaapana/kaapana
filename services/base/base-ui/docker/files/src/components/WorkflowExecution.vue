@@ -656,6 +656,9 @@ function findRequiredFields(obj: any, result: string[] = [], prefix = ""): strin
   for (const key in obj) {
     const value = obj[key];
     const fullKey = prefix ? `${prefix}.${key}` : key;
+    // A `required` marker inside a oneOf branch (the v2 `dependencies` shape
+    // normalizeV2Schema turns into allOf/if/then) is not tracked here; only
+    // vjsf's own schema validation covers a field required within one.
     if (key === "oneOf") {
       continue;
     }
@@ -666,6 +669,20 @@ function findRequiredFields(obj: any, result: string[] = [], prefix = ""): strin
     }
   }
   return result;
+}
+
+// Schema-structure keywords that show up in a findRequiredFields() path but
+// are never part of the submitted form data itself.
+const SCHEMA_STRUCTURE_KEYS = new Set(["properties", "items", "allOf", "anyOf", "then", "else", "dependencies"]);
+
+// A required-field path looks like "<form>.properties.<prop>.properties.<nested>.required"
+// (schema keywords interleaved with the actual property names). Drop the
+// trailing "required" marker and every schema keyword, keeping only the form
+// name and the real, nested property path within it.
+function requiredFieldPath(fullKey: string): string[] {
+  return fullKey
+    .split(".")
+    .filter((segment) => segment !== "required" && !SCHEMA_STRUCTURE_KEYS.has(segment) && !/^\d+$/.test(segment));
 }
 function validConfirmation() {
   const formatted = formatFormData(state.formData);
@@ -701,20 +718,18 @@ async function submissionValidator() {
     // then the schema's required fields, which vjsf does not enforce itself
     for (let i = 0; i < form_requiredFields.value.length; i++) {
       const req_field = form_requiredFields.value[i];
-      // req_field looks like "<form>.<...>.<prop>.required"
-      const substrings = req_field.split(".");
-      let form_name = "";
-      let req_prop_name = "";
-      for (let i = 0; i < substrings.length; i++) {
-        if (i === 0) {
-          form_name = substrings[i];
-        } else if (substrings[i] === "required") {
-          req_prop_name = substrings[i - 1];
-          break;
-        }
+      const path = requiredFieldPath(req_field);
+      const form_name = path[0];
+      const nestedPath = path.slice(1);
+      const req_prop_name = nestedPath[nestedPath.length - 1];
+      // Walk down to the object that should own the required property; for a
+      // top-level property this is just state.formData[form_name] itself.
+      let target: any = state.formData[form_name];
+      for (const segment of nestedPath.slice(0, -1)) {
+        target = target?.[segment];
       }
-      if (state.formData[form_name].hasOwnProperty(req_prop_name)) {
-        const fieldValue = state.formData[form_name][req_prop_name];
+      if (target && typeof target === "object" && target.hasOwnProperty(req_prop_name)) {
+        const fieldValue = target[req_prop_name];
 
         // Validate arrays - check if array has at least one non-empty element
         // Validate all others, excluding null and "", but allowing 0 or false

@@ -53,7 +53,8 @@ test('a failing workflow submission surfaces an error and keeps the dialog open'
   await expect(page.getByLabel('Workflow name')).toHaveValue(IMPORT_DAG)
   await page.getByRole('button', { name: 'Start Workflow' }).click()
 
-  await expect(page.getByText('An error occured during the workflow creation!')).toBeVisible()
+  await expect(page.getByText('An error occurred during the workflow creation!')).toBeVisible()
+  await expect(page.getByText('nope')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Workflow Execution' })).toBeVisible()
 })
 
@@ -136,7 +137,8 @@ test('a failed submit does not carry a stale dataset_limit into the retry', asyn
   const req1P = page.waitForRequest(WORKFLOW)
   await page.getByRole('button', { name: 'Start Workflow' }).click()
   expect((await req1P).postDataJSON().conf_data.data_form.dataset_limit).toBe(25)
-  await expect(page.getByText('An error occured during the workflow creation!')).toBeVisible()
+  await expect(page.getByText('An error occurred during the workflow creation!')).toBeVisible()
+  await expect(page.getByText('boom')).toBeVisible()
 
   await page.getByRole('checkbox', { name: 'Process whole dataset' }).click()
   await page.route(WORKFLOW, (r) =>

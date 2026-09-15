@@ -46,7 +46,7 @@
     </v-card-title>
     <v-data-table-server
       :headers="workflowHeaders"
-      :items="filteredWorkflows"
+      :items="sortedWorkflows"
       item-value="workflow_name"
       class="elevation-1"
       v-model:expanded="expanded"
@@ -244,6 +244,30 @@ const filteredWorkflows = computed<Workflow[]>(() => {
     return props.workflows
   }
   return []
+})
+
+function getNestedValue(item: Workflow, path: string) {
+  return path.split('.').reduce<any>((value, key) => (value == null ? value : value[key]), item)
+}
+
+// The backend has no order_by param, so `/workflows` always returns one fixed
+// order; sort the current page in place so clicking a header actually
+// reorders what is visible, even though a later page keeps its own order.
+const sortedWorkflows = computed<Workflow[]>(() => {
+  const sortBy = options.value.sortBy as { key: string; order?: 'asc' | 'desc' }[] | undefined
+  if (!sortBy || sortBy.length === 0) {
+    return filteredWorkflows.value
+  }
+  const { key, order } = sortBy[0]
+  return [...filteredWorkflows.value].sort((a, b) => {
+    const valueA = getNestedValue(a, key)
+    const valueB = getNestedValue(b, key)
+    if (valueA == null && valueB == null) return 0
+    if (valueA == null) return 1
+    if (valueB == null) return -1
+    const comparison = valueA < valueB ? -1 : valueA > valueB ? 1 : 0
+    return order === 'desc' ? -comparison : comparison
+  })
 })
 
 watch(

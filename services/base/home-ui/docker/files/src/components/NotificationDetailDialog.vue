@@ -31,6 +31,8 @@
           color="primary"
           variant="text"
           prepend-icon="mdi-check-circle-outline"
+          :loading="submitting"
+          :disabled="submitting"
           @click="markRead"
         >
           Mark as read
@@ -41,6 +43,7 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import { notify } from '@kyvg/vue3-notification'
 import { useNotificationsStore } from '@/stores/notifications'
 import type { KaapanaNotification } from '@/api/notifications'
@@ -50,9 +53,14 @@ const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
 
 const notifications = useNotificationsStore()
 
+// Marks the button busy, which also keeps a second click from sending the
+// request again while the first one is still running.
+const submitting = ref(false)
+
 // read() drops the notification from the store, so the dialog would be left
 // showing an entry that no longer exists anywhere else.
 async function markRead() {
+  submitting.value = true
   try {
     await notifications.read(props.notification!.id)
   } catch (err: any) {
@@ -63,6 +71,10 @@ async function markRead() {
       title: 'Failed to mark as read',
       text: err?.response?.data?.detail ?? err?.message,
     })
+  } finally {
+    // The dialog is reused for the next notification, so the flag must not
+    // stay set once this request is done.
+    submitting.value = false
   }
   emit('update:modelValue', false)
 }

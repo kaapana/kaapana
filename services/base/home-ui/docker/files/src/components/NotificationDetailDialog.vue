@@ -5,7 +5,7 @@
         <v-icon class="mr-2">{{ notification.icon || 'mdi-information' }}</v-icon>
         <span class="detail-title">{{ notification.title }}</span>
         <v-spacer />
-        <v-btn icon variant="text" @click="emit('update:modelValue', false)">
+        <v-btn icon variant="text" aria-label="Close" @click="emit('update:modelValue', false)">
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-card-title>

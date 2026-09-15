@@ -109,8 +109,15 @@ function json(body: unknown) {
 /**
  * Intercept every backend call the home view makes so it boots without a
  * platform. Call before page.goto(). Override parts per test via `data`.
+ *
+ * Each call gets its own copy of the defaults, because the read handler below
+ * deletes from the bundle. Sharing one object would let a test that marks a
+ * notification read empty the list for every later test in the same worker.
  */
-export async function installMockBackend(page: Page, data: MockData = defaultMockData) {
+export async function installMockBackend(
+  page: Page,
+  data: MockData = structuredClone(defaultMockData),
+) {
   // Prod/preview build asks the oauth2 proxy, the dev server a static token file.
   await page.route('**/oauth2/userinfo', (r) => r.fulfill(json(data.userinfo)))
   await page.route('**/jsons/testingAuthenticationToken.json', (r) => r.fulfill(json(data.userinfo)))

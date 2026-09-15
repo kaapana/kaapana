@@ -47,12 +47,16 @@ test('large dataset list (1500) renders a searchable picker and submits the obje
 test('required dataset blocks submit until one is chosen (large list)', async ({ page }) => {
   await bootView(page, singleDagData('big-dataset', largeDatasetSchema(2400)))
   await selectDag(page, 'big-dataset')
-  let fired = false
-  page.on('request', (r) => { if (r.url().includes('/client/workflow')) fired = true })
-  await page.getByRole('button', { name: 'Start Workflow' }).click()
-  await page.waitForTimeout(500)
-  expect(fired).toBe(false)
-  await expect(page.getByText('Dataset name is required')).toBeVisible()
+
+  const submit = page.getByRole('button', { name: 'Start Workflow' })
+  await expect(submit).toBeDisabled()
+
+  const ds = page.locator('.v-autocomplete', { hasText: 'Dataset name (size)' })
+  await ds.click()
+  await page.keyboard.type('ds-1234')
+  await page.getByRole('option', { name: 'ds-1234 (project) (1234)', exact: true }).click()
+
+  await expect(submit).toBeEnabled()
 })
 
 test('nnunet "no models installed" (empty oneOf) renders the notice instead of blanking', async ({

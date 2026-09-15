@@ -277,12 +277,18 @@ watch(
   },
 )
 
+let searchDebounce: ReturnType<typeof setTimeout> | undefined
 watch(search, (newValue) => {
   console.log('Search backend for: ', newValue)
   loading.value = true
-  options.value.search = newValue
-  console.log('Search backend for: ', options.value)
-  emit('update:options', options.value)
+  clearTimeout(searchDebounce)
+  // Debounce the backend round-trip: without this, every keystroke fired its
+  // own request.
+  searchDebounce = setTimeout(() => {
+    options.value.search = newValue
+    console.log('Search backend for: ', options.value)
+    emit('update:options', options.value)
+  }, 300)
 })
 
 onMounted(() => {

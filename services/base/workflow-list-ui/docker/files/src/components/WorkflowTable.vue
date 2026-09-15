@@ -246,7 +246,6 @@ const workflowHeaders = [
 
 const expandedWorkflow = ref<Workflow | null>(null)
 const jobsofExpandedWorkflow = ref<Job[]>([])
-const jobsofWorkflows = ref<Job[]>([])
 const filteredJobState = ref<string | undefined>(undefined)
 const shouldExpand = ref(true)
 const shouldCollapse = ref(true)
@@ -303,14 +302,12 @@ watch(
 
 let searchDebounce: ReturnType<typeof setTimeout> | undefined
 watch(search, (newValue) => {
-  console.log('Search backend for: ', newValue)
   loading.value = true
   clearTimeout(searchDebounce)
   // Debounce the backend round-trip: without this, every keystroke fired its
   // own request.
   searchDebounce = setTimeout(() => {
     options.value.search = newValue
-    console.log('Search backend for: ', options.value)
     emit('update:options', options.value)
   }, 300)
 })
@@ -321,7 +318,6 @@ onMounted(() => {
 
 // General Methods
 function refreshClient() {
-  console.log('Refresh Button')
   emit('refreshView')
 }
 function checkForRemoteUpdates() {
@@ -331,11 +327,9 @@ function checkForRemoteUpdates() {
       title: 'Error while checking for remote updates',
       text: err?.response?.data?.detail ?? err.message,
     })
-    console.log(err)
   })
 }
 function updateOptions(newOptions: any) {
-  console.log('Table options changed.')
   loading.value = true
   options.value = newOptions
   emit('update:options', newOptions)
@@ -385,7 +379,6 @@ function redirectToAirflow() {
 }
 function startWorkflowManually(item: Workflow) {
   shouldExpand.value = false
-  console.log('Manually start Workflow: ', item.workflow_id)
   manuallyStartClientWorkflowAPI(item.workflow_id, 'confirmed')
 }
 // A workflow whose jobs are all in a terminal state is done; aborting it is a
@@ -396,12 +389,10 @@ function isWorkflowTerminal(item: Workflow): boolean {
 }
 function abortWorkflow(item: Workflow) {
   shouldExpand.value = false
-  console.log('Abort Workflow: ', item.workflow_id)
   abortClientWorkflowAPI(item.workflow_id, 'abort')
 }
 function restartWorkflow(item: Workflow) {
   shouldExpand.value = false
-  console.log('Restart Workflow: ', item.workflow_id)
   restartClientWorkflowAPI(item.workflow_id, 'scheduled')
 }
 function confirmDeleteWorkflow(item: Workflow) {
@@ -416,7 +407,6 @@ function onDeleteConfirmed() {
 }
 function deleteWorkflow(item: Workflow) {
   shouldExpand.value = false
-  console.log('Delete Workflow: ', item.workflow_id, 'Item:', item)
   deleteClientWorkflowAPI(item.workflow_id)
 }
 
@@ -427,9 +417,7 @@ function getLocalInstance() {
     .then((response: any) => {
       localInstance.value = response.data
     })
-    .catch((err: any) => {
-      console.log(err)
-    })
+    .catch(() => {})
 }
 function getJobsOfWorkflow(workflow_name: string, state: string | undefined, collapse = true) {
   if (typeof state !== 'undefined') {
@@ -453,8 +441,6 @@ function getJobsOfWorkflow(workflow_name: string, state: string | undefined, col
       }
       if (expanded.value.length > 0) {
         jobsofExpandedWorkflow.value = response.data
-      } else {
-        jobsofWorkflows.value = response.data
       }
     })
     .catch((err: any) => {
@@ -466,7 +452,6 @@ function getJobsOfWorkflow(workflow_name: string, state: string | undefined, col
         title: `Error while loading jobs of workflow ${workflow_name}`,
         text: err?.response?.data?.detail ?? err.message,
       })
-      console.log(err)
     })
 }
 function getSingleJobOfWorkflow(workflow_name: string) {
@@ -487,9 +472,7 @@ function getSingleJobOfWorkflow(workflow_name: string) {
         })
       }
     })
-    .catch((err: any) => {
-      console.log(err)
-    })
+    .catch(() => {})
 }
 function deleteClientWorkflowAPI(workflow_id: string) {
   loading.value = true
@@ -505,14 +488,13 @@ function deleteClientWorkflowAPI(workflow_id: string) {
         title: message,
       })
     })
-    .catch((err: any) => {
+    .catch(() => {
       loading.value = false
       const message = `Error while deleting workflow ${workflow_id}`
       notify({
         type: 'error',
         title: message,
       })
-      console.log(err)
     })
 }
 function restartClientWorkflowAPI(workflow_id: string, workflow_status: string) {
@@ -530,14 +512,13 @@ function restartClientWorkflowAPI(workflow_id: string, workflow_status: string) 
         title: message,
       })
     })
-    .catch((err: any) => {
+    .catch(() => {
       loading.value = false
       const message = `Error while restarting workflow ${workflow_id}`
       notify({
         type: 'error',
         title: message,
       })
-      console.log(err)
     })
 }
 function abortClientWorkflowAPI(workflow_id: string, workflow_status: string) {
@@ -555,14 +536,13 @@ function abortClientWorkflowAPI(workflow_id: string, workflow_status: string) {
         title: message,
       })
     })
-    .catch((err: any) => {
+    .catch(() => {
       loading.value = false
       const message = `Error while aborting workflow ${workflow_id}`
       notify({
         type: 'error',
         title: message,
       })
-      console.log(err)
     })
 }
 function manuallyStartClientWorkflowAPI(workflow_id: string, workflow_status: string) {
@@ -580,14 +560,13 @@ function manuallyStartClientWorkflowAPI(workflow_id: string, workflow_status: st
         title: message,
       })
     })
-    .catch((err: any) => {
+    .catch(() => {
       loading.value = false
       const message = `Error while manually starting workflow ${workflow_id}`
       notify({
         type: 'error',
         title: message,
       })
-      console.log(err)
     })
 }
 </script>

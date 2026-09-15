@@ -175,7 +175,6 @@ const dag_run_tasks_n_states = ref<Record<string, any[]>>({})
 const itemsPerPage = ref(10)
 
 const filteredJobs = computed<Job[]>(() => {
-  console.log('jobs: ', props.jobs)
   if (props.jobs !== null) {
     return props.jobs.filter((i) => {
       let statusFilter = false
@@ -217,7 +216,6 @@ function closeConfData() {
   dialogConfData.value = false
 }
 function getStatusColor(status: string, darkTheme: boolean) {
-  console.log('job status: ', status)
   if (status == 'queued') {
     return 'grey'
   } else if (status == 'pending') {
@@ -276,11 +274,9 @@ function isJobTerminal(item: Job): boolean {
   return TERMINAL_JOB_STATUSES.includes(item.status)
 }
 function abortJob(item: Job) {
-  console.log('Abort Job:', item.id, 'Item:', item)
   abortJobAPI(item.id, 'abort', 'The worklow was aborted!')
 }
 function restartJob(item: Job) {
-  console.log('Restart Job:', item.id, 'Item:', item)
   restartJobAPI(item.id, 'scheduled', 'The worklow was triggered!')
 }
 function confirmDeleteJob(item: Job) {
@@ -294,7 +290,6 @@ function onDeleteConfirmed() {
   jobPendingDelete.value = null
 }
 function deleteJob(item: Job) {
-  console.log('Delete Job:', item.id, 'Item:', item)
   deleteJobAPI(item.id)
 }
 function direct_airflow_grid_details(item: Job) {
@@ -352,7 +347,6 @@ function abortJobAPI(job_id: Job['id'], status: string, description: string) {
         title: `Error while aborting job ${job_id}`,
         text: err?.response?.data?.detail ?? err.message,
       })
-      console.log(err)
     })
 }
 function restartJobAPI(job_id: Job['id'], status: string, description: string) {
@@ -371,7 +365,6 @@ function restartJobAPI(job_id: Job['id'], status: string, description: string) {
         title: `Error while restarting job ${job_id}`,
         text: err?.response?.data?.detail ?? err.message,
       })
-      console.log(err)
     })
 }
 function deleteJobAPI(job_id: Job['id']) {
@@ -381,7 +374,6 @@ function deleteJobAPI(job_id: Job['id']) {
     })
     .then(() => {
       emit('refreshView')
-      console.log('Job deleted')
     })
     .catch((err: any) => {
       notify({
@@ -389,7 +381,6 @@ function deleteJobAPI(job_id: Job['id']) {
         title: `Error while deleting job ${job_id}`,
         text: err?.response?.data?.detail ?? err.message,
       })
-      console.log(err)
     })
 }
 async function getJobTaskinstancesAPI(job_id: Job['id']) {
@@ -406,17 +397,12 @@ async function getJobTaskinstancesAPI(job_id: Job['id']) {
         title: `Error while loading task instances of job ${job_id}`,
         text: err?.response?.data?.detail ?? err.message,
       })
-      console.log(err)
       throw err
     })
 }
 </script>
 
 <style scoped lang="scss">
-.my-chip {
-  border-width: 3px;
-}
-
 .custom-tooltip-content {
   line-height: 0.5;
   padding: 4px;

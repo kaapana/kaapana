@@ -17,9 +17,6 @@ export const useNotificationsStore = defineStore('notifications', {
     hasMore: true,
     total: 0,
     loading: false,
-    // Set once the first load attempt is over. A refresh never resets it: the
-    // card must not fall back to its loading state while it already shows
-    // notifications.
     loadedOnce: false,
     refreshId: 0,
     ws: null as NotificationWebsocket | null,

@@ -1,0 +1,49 @@
+# Monitoring agents for {{ inventory_hostname }} — rendered by
+# tasks/install-monitoring.yaml, do not edit on the VM.
+#
+# cgroup_parent pins both agents to system.slice, outside any cgroup limit
+# applied to the docker daemon — an agent inside it would be measuring itself.
+services:
+  node-exporter:
+    image: quay.io/prometheus/node-exporter:v1.8.2
+    container_name: node-exporter
+    cgroup_parent: system.slice
+    pid: host
+    network_mode: host
+    command:
+      - --path.rootfs=/host
+      # Pressure stall information: the share of time tasks were blocked on
+      # cpu/memory/io. Unlike utilisation it keeps rising past saturation,
+      # which is what makes it usable for a sizing decision.
+      - --collector.pressure
+      - --collector.processes
+    volumes:
+      - /:/host:ro,rslave
+    restart: unless-stopped
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: cadvisor
+    cgroup_parent: system.slice
+    privileged: true
+    ports:
+      - 8081:8080
+    command:
+      # No --docker_only: the monitoring server also runs k3s, whose containers
+      # are containerd's and would otherwise be invisible here.
+      - --housekeeping_interval=5s
+      - --store_container_labels=false
+      # Maps a container back to the CI job that owns it. Verify the keys on
+      # a VM with a job running:
+      #   docker inspect $(docker ps -q --filter name=runner-) \
+      #     --format '{{ '{{' }}json .Config.Labels{{ '}}' }}'
+      - --whitelisted_container_labels=com.gitlab.gitlab-runner.job.id,com.gitlab.gitlab-runner.pipeline.id,com.gitlab.gitlab-runner.project.id,com.gitlab.gitlab-runner.type
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg
+    restart: unless-stopped

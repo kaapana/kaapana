@@ -4,9 +4,7 @@
 
 ## Installation
 
-## Monitoring Export
 
-The GitLab‑runner metrics are exposed on port **9252** (`runner_metrics_port`). After a runner is up you can verify it with:
 ```bash
 curl http://$(hostname -I | awk '{print $1}'):9252/metrics
 ```
@@ -64,3 +62,10 @@ On a runner VM the agent runs **user-mode** as `ubuntu`:
 systemctl --user status gitlab-runner
 cat ~/.gitlab-runner/config.toml
 ```
+
+## Monitoring Export
+
+- **Node and container metrics** — node-exporter on port **9100** and cAdvisor
+  on port **8081**, installed by `tasks/install-monitoring.yaml` on every fleet
+  VM. A separate MR provides the scrape server that consumes them.
+- **GitLab-runner metrics** — exposed on port **9252** (`runner_metrics_port`).

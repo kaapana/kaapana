@@ -383,6 +383,9 @@
     - name: Install Helm
       ansible.builtin.include_tasks: tasks/install-helm.yaml
 
+    - name: Install monitoring agents
+      ansible.builtin.include_tasks: tasks/install-monitoring.yaml
+
     - name: Configure GitLab Runners
       ansible.builtin.include_tasks: tasks/configure-gitlab-runner.yaml
       when: runners | default([]) | length > 0

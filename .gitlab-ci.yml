@@ -9,11 +9,11 @@ spec:
     exec_unit_tests:
       default: true
       type: boolean
-      description: "[exec] tests stage: unit tests + documentation build"
+      description: "[exec] unittest stage: unit tests + documentation build"
     exec_lint:
       default: true
       type: boolean
-      description: "[exec] tests stage: ruff format/lint check + code quality report + helm chart lint"
+      description: "[exec] unittest stage: ruff format/lint check + code quality report + helm chart lint"
     exec_build:
       default: true
       type: boolean
@@ -33,7 +33,7 @@ spec:
     exec_integration_tests:
       default: true
       type: boolean
-      description: "[exec] test stage: pytest + Playwright against the deployment VM"
+      description: "[exec] integrationtest stage: pytest + Playwright against the deployment VM"
     exec_integration_test_jobs:
       default: ""
       type: string
@@ -67,7 +67,7 @@ spec:
     tests_runner_tag:
       default: tests
       type: string
-      description: "[runner] preflight and unit-test stages"
+      description: "[runner] preflight and unittest stages"
     deploy_runner_tag:
       default: deploy
       type: string
@@ -86,11 +86,11 @@ default:
 
 stages:
   - preflight
-  - tests
+  - unittest
   - build
   - security
   - deploy
-  - test
+  - integrationtest
   - maintenance
   - clean
 

@@ -5,7 +5,7 @@ spec:
     runner_tag:
       type: string
 ---
-# Stage: tests — lint report + Code Quality report + helm lint
+# Stage: unittest — lint report + Code Quality report + helm lint
 # In:  the job's own checkout
 # Out: `lint` fails on formatting drift or an enforced ruff rule,
 #      `helm_lint` on a chart that does not lint or kubeval
@@ -13,7 +13,7 @@ spec:
 # RUFF
 ##############################################
 .ruff_template:
-  stage: tests
+  stage: unittest
   tags:
     - $[[ inputs.runner_tag ]]
   image: python:3.12

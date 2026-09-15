@@ -7,7 +7,7 @@ spec:
     runner_tag:
       type: string
 ---
-# Stage: test — integration + UI tests against the live platform
+# Stage: integrationtest — integration + UI tests against the live platform
 # In:  VM_FQDN / VM_USER (deployment.env dotenv, else DEPLOYMENT_INSTANCE_*);
 #      CLIENT_SECRET dotenv from setup_integration_tests; the live platform
 #      over HTTPS/DICOM
@@ -26,7 +26,7 @@ spec:
 
 setup_integration_tests:
   extends: .deployment_target_template
-  stage: test
+  stage: integrationtest
   tags:
     - $[[ inputs.runner_tag ]]
   needs:
@@ -61,7 +61,7 @@ setup_integration_tests:
 ##############################################
 .integration_test_local:
   extends: .deployment_target_template
-  stage: test
+  stage: integrationtest
   rules:
     - if: '"$[[ inputs.exec_integration_tests ]]" == "true"'
       when: on_success
@@ -192,7 +192,7 @@ run_workflows:
 
 playwright_ui_tests:
   extends: .deployment_target_template
-  stage: test
+  stage: integrationtest
   rules:
     - if: '"$[[ inputs.exec_integration_tests ]]" == "true"'
       when: on_success

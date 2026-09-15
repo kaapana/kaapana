@@ -5,14 +5,14 @@ spec:
     runner_tag:
       type: string
 ---
-# Stage: tests — unit tests + docs
+# Stage: unittest — unit tests + docs
 # In:  the job's own checkout, nothing else
 # Out: JUnit, coverage and HTML report artifacts for the MR UI
 ##############################################
 # TESTS AND DOCS
 ##############################################
 .test_template:
-  stage: tests
+  stage: unittest
   tags:
     - $[[ inputs.runner_tag ]]
   image: python:3.12
@@ -369,7 +369,6 @@ ui_unit_tests:
 # Documentation Build
 ##############################################
 build_documentation:
-  stage: tests
   extends: .test_template
   script:
     - cd $KAAPANA_DIR/docs
@@ -402,7 +401,7 @@ check_readthedocs:
 ##############################################
 # Runs only when this MR touches CI files.
 ci_config_tests:
-  stage: tests
+  stage: unittest
   tags:
     - $[[ inputs.runner_tag ]]
   image: python:3.12

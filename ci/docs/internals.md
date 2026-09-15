@@ -16,11 +16,11 @@ Test the code → build the platform images → deploy them on a fresh throwaway
 | Stage | Jobs | Runs on | Duration |
 |---|---|---|---|
 | `preflight` | `preflight_variables`, `preflight_target`, `build_ci_image` | tests / build runner | seconds |
-| `tests` | ~20 unit-test jobs, the UI matrix, docs build, lint | tests runner | minutes |
+| `unittest` | ~20 unit-test jobs, the UI matrix, docs build, lint | tests runner | minutes |
 | `build` | `build_packages` | build runner | hours (much less with a warm cache) |
 | `security` | `security_scan` | security runner | hours |
 | `deploy` | `prepare_deployment` → `server_installation` → `platform_deployment` | deploy runner, ansible over SSH | ~1 h |
-| `test` | `setup_integration_tests`, `scan_ports`, `first_login`, `install_extensions`, `send_data`, `run_workflows`, `playwright_ui_tests` | deploy runner, against the live platform | 1–3 h |
+| `integrationtest` | `setup_integration_tests`, `scan_ports`, `first_login`, `install_extensions`, `send_data`, `run_workflows`, `playwright_ui_tests` | deploy runner, against the live platform | 1–3 h |
 | `maintenance` | `sweep_deployment_vms`, only with `exec_vm_sweep` | deploy runner | minutes |
 | `clean` | `destroy_deployment`, `if_ci_failing` | deploy runner | minutes |
 
@@ -79,7 +79,7 @@ even when the playbook failed; there is no artifact.
 
 `build_ci_image` rebuilds `ci-base` on change. Restricted to MR and `develop` push pipelines.
 
-### tests
+### unittest
 
 Around twenty jobs extending `.test_template`: `python:3.12`, a **5-minute
 timeout**, and a shared pip cache (`key: pip-test-jobs`).
@@ -169,7 +169,7 @@ report.
 
 Depending on `CI_EXEC_REDEPLOY` and `CI_EXEC_SERVER_INSTALLATION` values, preflight target changes behaviour.
 
-### integration tests
+### integrationtest
 
 `setup_integration_tests` extracts `CLIENT_SECRET` from the running platform and
 passes it on as a dotenv artifact. Everything after it extends
@@ -264,7 +264,7 @@ then posts to Slack.
 
 | Template | Carries |
 |---|---|
-| `.test_template` | tests-stage runner tag, `python:3.12`, 5-minute timeout, pip cache, the `exec_unit_tests` rule |
+| `.test_template` | unittest-stage runner tag, `python:3.12`, 5-minute timeout, pip cache, the `exec_unit_tests` rule |
 | `.pytest_template` | plus the cobertura coverage report |
 | `.build_cli_env` | build runner tag, `ci-base`, `environment: $REGISTRY_ENV`, full clone with tags, branch reconstruction |
 | `.remote_execution_template` | deploy runner tag, `ci-base`, ansible env, SSH key permissions |

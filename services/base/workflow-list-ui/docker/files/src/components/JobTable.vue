@@ -2,7 +2,7 @@
   <v-container fluid>
       <v-dialog
         v-model="dialogConfData"
-        width="600px"
+        width="900px"
       >
         <v-card>
           <v-card-title class="text-h5 lighten-2">Conf object</v-card-title>
@@ -113,7 +113,7 @@
             <v-tooltip location="bottom">
               <template #activator="{ props }">
                 <v-btn v-bind="props" @click='confirmDeleteJob(item)' size="small" icon variant="text">
-                  <v-icon color="secondary">mdi-trash-can-outline</v-icon>
+                  <v-icon color="secondary">{{ kaapanaIcons.delete }}</v-icon>
                 </v-btn>
               </template>
               <span>delete single job</span>
@@ -150,7 +150,7 @@
 import { computed, ref, watch } from 'vue'
 import { useTheme } from 'vuetify'
 import { useNotification } from '@kyvg/vue3-notification'
-import { ConfirmDialog, kaapanaApiService } from '@kaapana/base-ui'
+import { ConfirmDialog, kaapanaApiService, kaapanaIcons } from '@kaapana/base-ui'
 import type { Job } from '@/types/workflow'
 
 const props = defineProps<{

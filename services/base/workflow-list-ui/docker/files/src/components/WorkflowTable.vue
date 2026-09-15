@@ -25,7 +25,7 @@
         <v-tooltip location="bottom">
           <template #activator="{ props }">
             <v-btn v-bind="props" @click="refreshClient()" icon variant="text">
-              <v-icon color="primary">mdi-refresh</v-icon>
+              <v-icon color="primary">{{ kaapanaIcons.refresh }}</v-icon>
             </v-btn>
           </template>
           <span>refresh workflow list</span>
@@ -34,7 +34,7 @@
       <v-col cols="4">
         <v-text-field
           v-model="search"
-          append-inner-icon="mdi-magnify"
+          :append-inner-icon="kaapanaIcons.search"
           label="Search for Workflow"
           variant="underlined"
           single-line
@@ -65,6 +65,14 @@
       @update:options="updateOptions"
       :items-length="totalItems"
     >
+      <template #no-data>
+        <div v-if="loadError" class="text-error">
+          Could not load workflows.
+          <a href="#" @click.prevent="refreshClient()">Retry</a>
+        </div>
+        <div v-else-if="search">No workflows match your search "{{ search }}".</div>
+        <div v-else>No workflows yet.</div>
+      </template>
       <template v-slot:item.dataset_name="{ item }">
         {{ item.dataset_name != null ? item.dataset_name.name + '(' + item.dataset_name.access_level + ')' : "" }}
       </template>
@@ -110,7 +118,7 @@
                 icon
                 variant="text"
               >
-                <v-icon color="red">mdi-play-circle-outline</v-icon>
+                <v-icon color="primary">{{ kaapanaIcons.start }}</v-icon>
               </v-btn>
             </template>
             <span>start scheduled workflow manually</span>
@@ -160,7 +168,7 @@
                   icon
                   variant="text"
                 >
-                  <v-icon color="primary">mdi-trash-can-outline</v-icon>
+                  <v-icon color="primary">{{ kaapanaIcons.delete }}</v-icon>
                 </v-btn>
               </template>
               <span>delete workflow including all its jobs</span>
@@ -197,7 +205,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useTheme } from 'vuetify'
 import { useNotification } from '@kyvg/vue3-notification'
-import { ConfirmDialog, kaapanaApiService } from '@kaapana/base-ui'
+import { ConfirmDialog, kaapanaApiService, kaapanaIcons } from '@kaapana/base-ui'
 import type { Workflow, Job } from '@/types/workflow'
 import JobTable from './JobTable.vue'
 
@@ -205,6 +213,7 @@ const props = defineProps<{
   workflows: Workflow[]
   extLoading: boolean
   totalItems: number
+  loadError?: boolean
 }>()
 
 const emit = defineEmits<{

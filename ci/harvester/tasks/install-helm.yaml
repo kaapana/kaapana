@@ -12,8 +12,6 @@
     executable: /bin/bash
 
 - name: Wait for snapd to finish initial seeding
-  # A freshly booted VM's snapd is still seeding its initial snaps; snap
-  # install can fail with "unable to contact snap store" until that's done.
   become: yes
   command: snap wait system seed.loaded
   changed_when: false

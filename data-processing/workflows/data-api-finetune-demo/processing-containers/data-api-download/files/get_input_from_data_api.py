@@ -71,6 +71,12 @@ async def _amain() -> None:
         default=int(os.environ.get("INPUT_DOWNLOAD_CONCURRENCY", "10") or "10"),
         help="Max entities downloaded concurrently (simultaneous storage-api connections)",
     )
+    parser.add_argument(
+        "--download-retries",
+        type=int,
+        default=int(os.environ.get("INPUT_DOWNLOAD_RETRIES", "3") or "3"),
+        help="Per-entity download retries on transient storage-api failures (e.g. a restart mid-stream)",
+    )
     args = parser.parse_args()
 
     entity_ids = json.loads(os.environ.get("INPUT_ENTITY_IDS", "[]"))
@@ -104,6 +110,7 @@ async def _amain() -> None:
             args.output,
             data_client=data,
             max_concurrency=args.max_concurrency,
+            download_retries=args.download_retries,
         )
     logger.info(
         "Download complete: %d entity/-ies materialised under %s",

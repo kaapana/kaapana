@@ -137,6 +137,185 @@ async def test_download_entities_noop_on_empty(tmp_path):
     assert out == tmp_path
 
 
+async def test_download_entity_retries_on_transport_error(tmp_path):
+    # A storage-api restart mid-stream must be retried, not fail the entity.
+    calls = {"e1": 0}
+
+    def handler(request):
+        eid = json.loads(request.content)["items"][0]["id"]
+        calls[eid] += 1
+        if calls[eid] == 1:
+            raise httpx.RemoteProtocolError("peer closed connection", request=request)
+        return httpx.Response(200, content=_make_tar({"e1/a.dcm": b"x"}))
+
+    data = _FakeData({"e1": [{"type": "s3", "bucket": "b", "key": "k"}]})
+    async with StorageClient(
+        base_url="http://s",
+        access_token="tok",
+        transport=httpx.MockTransport(handler),
+    ) as storage:
+        await storage.download_entities(["e1"], tmp_path, data_client=data, retry_backoff=0.0)
+
+    assert calls["e1"] == 2
+    assert (tmp_path / "e1" / "a.dcm").read_bytes() == b"x"
+
+
+async def test_download_entity_retries_on_read_timeout(tmp_path):
+    # A peer that stops sending mid-body surfaces as ReadTimeout, a TransportError.
+    calls = {"e1": 0}
+
+    def handler(request):
+        calls["e1"] += 1
+        if calls["e1"] == 1:
+            raise httpx.ReadTimeout("no bytes for read_timeout seconds", request=request)
+        return httpx.Response(200, content=_make_tar({"e1/a.dcm": b"x"}))
+
+    data = _FakeData({"e1": [{"type": "s3", "bucket": "b", "key": "k"}]})
+    async with StorageClient(base_url="http://s", transport=httpx.MockTransport(handler)) as storage:
+        await storage.download_entities(["e1"], tmp_path, data_client=data, retry_backoff=0.0)
+
+    assert calls["e1"] == 2
+
+
+def test_storage_client_bounds_connect_and_read_timeouts():
+    storage = StorageClient(base_url="http://s")
+    t = storage._client.timeout
+    assert (t.connect, t.read, t.write) == (10.0, 120.0, 3600)
+
+
+async def test_download_entity_retries_on_retryable_status(tmp_path):
+    # A 503 (in _RETRY_STATUS) is retried.
+    calls = {"e1": 0}
+
+    def handler(request):
+        eid = json.loads(request.content)["items"][0]["id"]
+        calls[eid] += 1
+        if calls[eid] == 1:
+            return httpx.Response(503)
+        return httpx.Response(200, content=_make_tar({"e1/a.dcm": b"x"}))
+
+    data = _FakeData({"e1": [{"type": "s3", "bucket": "b", "key": "k"}]})
+    async with StorageClient(base_url="http://s", transport=httpx.MockTransport(handler)) as storage:
+        await storage.download_entities(["e1"], tmp_path, data_client=data, retry_backoff=0.0)
+
+    assert calls["e1"] == 2
+    assert (tmp_path / "e1" / "a.dcm").read_bytes() == b"x"
+
+
+async def test_download_entity_exhausts_retries_then_raises(tmp_path):
+    # Permanently failing entity: raises after download_retries+1 attempts.
+    calls = {"e1": 0}
+
+    def handler(request):
+        calls["e1"] += 1
+        return httpx.Response(503)
+
+    data = _FakeData({"e1": [{"type": "s3", "bucket": "b", "key": "k"}]})
+    with pytest.raises(httpx.HTTPStatusError) as exc_info:
+        async with StorageClient(base_url="http://s", transport=httpx.MockTransport(handler)) as storage:
+            await storage.download_entities(
+                ["e1"],
+                tmp_path,
+                data_client=data,
+                download_retries=2,
+                retry_backoff=0.0,
+            )
+
+    assert calls["e1"] == 3  # 1 initial + 2 retries
+    assert exc_info.value.response.status_code == 503
+
+
+async def test_download_entity_negative_retries_means_single_attempt(tmp_path):
+    calls = {"e1": 0}
+
+    def handler(request):
+        calls["e1"] += 1
+        return httpx.Response(503)
+
+    data = _FakeData({"e1": [{"type": "s3", "bucket": "b", "key": "k"}]})
+    with pytest.raises(httpx.HTTPStatusError):
+        async with StorageClient(base_url="http://s", transport=httpx.MockTransport(handler)) as storage:
+            await storage.download_entities(["e1"], tmp_path, data_client=data, download_retries=-1)
+
+    assert calls["e1"] == 1
+
+
+async def test_download_entity_does_not_retry_4xx(tmp_path):
+    # A 404 is not transient — fail fast, no retries.
+    calls = {"e1": 0}
+
+    def handler(request):
+        calls["e1"] += 1
+        return httpx.Response(404)
+
+    data = _FakeData({"e1": [{"type": "s3", "bucket": "b", "key": "k"}]})
+    with pytest.raises(httpx.HTTPStatusError) as exc_info:
+        async with StorageClient(base_url="http://s", transport=httpx.MockTransport(handler)) as storage:
+            await storage.download_entities(
+                ["e1"],
+                tmp_path,
+                data_client=data,
+                download_retries=3,
+                retry_backoff=0.0,
+            )
+
+    assert calls["e1"] == 1
+    assert exc_info.value.response.status_code == 404
+
+
+async def test_download_entity_mid_body_drop_leaves_existing_files_untouched(tmp_path):
+    # The realistic failure: the body starts streaming, then the peer goes away.
+    calls = {"e1": 0}
+    good = _make_tar({"e1/a.dcm": b"x"})
+
+    class _Truncated(httpx.AsyncByteStream):
+        async def __aiter__(self):
+            yield good[:512]
+            raise httpx.RemoteProtocolError("peer closed connection without sending complete message body")
+
+    def handler(request):
+        calls["e1"] += 1
+        if calls["e1"] == 1:
+            return httpx.Response(200, stream=_Truncated())
+        return httpx.Response(200, content=good)
+
+    (tmp_path / "e1").mkdir()
+    (tmp_path / "e1" / "keep").write_bytes(b"old")
+    data = _FakeData({"e1": [{"type": "s3", "bucket": "b", "key": "k"}]})
+    async with StorageClient(base_url="http://s", transport=httpx.MockTransport(handler)) as storage:
+        await storage.download_entities(["e1"], tmp_path, data_client=data, retry_backoff=0.0)
+
+    assert calls["e1"] == 2
+    assert (tmp_path / "e1" / "a.dcm").read_bytes() == b"x"
+    assert (tmp_path / "e1" / "keep").read_bytes() == b"old"
+
+
+async def test_download_retry_is_isolated_per_entity(tmp_path):
+    # e1 fails once then succeeds; e2 succeeds first try — retries don't leak.
+    calls = {"e1": 0, "e2": 0}
+
+    def handler(request):
+        eid = json.loads(request.content)["items"][0]["id"]
+        calls[eid] += 1
+        if eid == "e1" and calls[eid] == 1:
+            raise httpx.RemoteProtocolError("boom", request=request)
+        return httpx.Response(200, content=_make_tar({f"{eid}/f": b"x"}))
+
+    data = _FakeData(
+        {
+            "e1": [{"type": "s3", "bucket": "b", "key": "k1"}],
+            "e2": [{"type": "s3", "bucket": "b", "key": "k2"}],
+        }
+    )
+    async with StorageClient(base_url="http://s", transport=httpx.MockTransport(handler)) as storage:
+        await storage.download_entities(["e1", "e2"], tmp_path, data_client=data, retry_backoff=0.0)
+
+    assert calls["e1"] == 2
+    assert calls["e2"] == 1
+    assert (tmp_path / "e1" / "f").read_bytes() == b"x"
+    assert (tmp_path / "e2" / "f").read_bytes() == b"x"
+
+
 async def test_upload_posts_multipart_and_returns_coordinates():
     captured = {}
 

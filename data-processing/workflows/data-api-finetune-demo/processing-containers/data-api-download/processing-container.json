@@ -26,6 +26,12 @@
                     "description": "Max number of entities downloaded concurrently (simultaneous storage-api connections)"
                 },
                 {
+                    "name": "INPUT_DOWNLOAD_RETRIES",
+                    "value": "3",
+                    "choices": [],
+                    "description": "Per-entity download retries on transient storage-api failures (e.g. a restart mid-stream)"
+                },
+                {
                     "name": "KAAPANA_STORAGE_API_URL",
                     "value": "",
                     "choices": [],

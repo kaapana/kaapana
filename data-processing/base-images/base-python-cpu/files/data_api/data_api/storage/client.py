@@ -16,7 +16,7 @@ from typing import List, Optional
 
 import httpx
 
-from data_api._http import auth_headers, default_storage_api_url
+from data_api._http import _RETRY_STATUS, auth_headers, default_storage_api_url
 
 logger = logging.getLogger(__name__)
 
@@ -60,14 +60,20 @@ class StorageClient:
         access_token: Optional[str] = None,
         timeout: int = 3600,
         *,
+        connect_timeout: float = 10.0,
+        read_timeout: float = 120.0,
         transport: Optional[httpx.AsyncBaseTransport] = None,
     ):
         # storage-api root; "/v1/download" is appended by the methods.
         self.base_url = (base_url or default_storage_api_url()).rstrip("/")
         self.access_token = access_token
         self.timeout = timeout
+        # ``timeout`` bounds writes and pool waits only. The read timeout is per
+        # chunk, so it caps the silence between bytes, not the transfer: a peer
+        # that vanished without a TCP reset (a force-deleted pod) is detected in
+        # ``read_timeout`` seconds and retried instead of hanging for an hour.
         self._client = httpx.AsyncClient(
-            timeout=timeout,
+            timeout=httpx.Timeout(timeout, connect=connect_timeout, read=read_timeout),
             headers=auth_headers(access_token),
             transport=transport,
         )
@@ -144,6 +150,8 @@ class StorageClient:
         data_client,
         format: str = "tar",
         max_concurrency: int = 10,
+        download_retries: int = 3,
+        retry_backoff: float = 1.0,
     ) -> Path:
         """Resolve each entity's coordinates via ``data_client`` and download them.
 
@@ -155,6 +163,15 @@ class StorageClient:
         each unpacked into ``<entity_id>/``). This bounds simultaneous
         connections to the storage-api and gives per-entity failure isolation
         (an earlier single-request design bundled every entity into one tar).
+
+        Each per-entity download is retried up to ``download_retries`` times with
+        exponential backoff (``retry_backoff * 2**attempt`` seconds) on transient
+        failures — transport errors (incl. a storage-api dropping the connection
+        mid-stream when it restarts) and retryable 5xx/429. The ``/v1/download``
+        request body is small replayable JSON, so re-issuing it is safe (unlike a
+        streamed upload). Non-retryable errors (4xx, a corrupt archive) fail fast.
+        A failed attempt never touches ``<entity_id>/``: :meth:`download` stages
+        the archive in a temp file and unpacks it only once fully received.
         """
         output = Path(output_dir)
         output.mkdir(parents=True, exist_ok=True)
@@ -164,6 +181,7 @@ class StorageClient:
             return output
 
         semaphore = asyncio.Semaphore(max(1, max_concurrency))
+        retries = max(0, download_retries)
 
         async def _one(entity_id: str) -> None:
             async with semaphore:
@@ -172,7 +190,29 @@ class StorageClient:
                     "id": entity_id,
                     "coordinates": data_client.get_storage_coordinates(entity),
                 }
-                await self.download([item], output, format=format)
+                last_exc: Optional[Exception] = None
+                for attempt in range(retries + 1):
+                    try:
+                        await self.download([item], output, format=format)
+                        return
+                    except httpx.HTTPStatusError as exc:
+                        if exc.response.status_code not in _RETRY_STATUS:
+                            raise
+                        last_exc = exc
+                    except httpx.TransportError as exc:
+                        last_exc = exc
+                    if attempt < retries:
+                        delay = retry_backoff * (2**attempt)
+                        logger.warning(
+                            "entity %s download failed (%s); retry %d/%d in %.1fs",
+                            entity_id,
+                            type(last_exc).__name__,
+                            attempt + 1,
+                            retries,
+                            delay,
+                        )
+                        await asyncio.sleep(delay)
+                raise last_exc
 
         await asyncio.gather(*(_one(eid) for eid in entity_ids))
         await asyncio.to_thread(_verify_complete, entity_ids, output)

@@ -5,7 +5,7 @@
         <v-icon class="mr-2">mdi-database-outline</v-icon>
         {{ projectStore.selectedProject.name ?? 'Project' }} in detail
         <v-spacer />
-        <v-btn icon variant="text" @click="emit('update:modelValue', false)">
+        <v-btn icon variant="text" aria-label="Close" @click="emit('update:modelValue', false)">
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-card-title>

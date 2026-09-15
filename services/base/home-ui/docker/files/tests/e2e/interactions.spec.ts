@@ -75,6 +75,20 @@ test('clicking a notification row opens its detail dialog with the full body', a
   await expect(dialog.locator('a[href="/web/workflows/workflows"]')).toHaveAttribute('target', '_top')
 })
 
+// The close button carries no text, and for a keyboard or screen-reader user it
+// is the way out of the dialog.
+test('both detail dialogs name their close button', async ({ page }) => {
+  await page.goto(VIEW_PATH)
+  await page.getByRole('button', { name: 'Details' }).click()
+  const dialog = page.locator('.v-dialog')
+  await dialog.getByRole('button', { name: 'Close' }).click()
+  await expect(dialog).toBeHidden()
+
+  await notificationsCard(page).getByText('Workflow finished').click()
+  await dialog.getByRole('button', { name: 'Close' }).click()
+  await expect(dialog).toBeHidden()
+})
+
 test('marking as read from the dialog calls the read endpoint and clears the list', async ({ page }) => {
   await page.goto(VIEW_PATH)
   const card = notificationsCard(page)

@@ -161,7 +161,8 @@
       </v-card-text>
       <v-card-actions v-if="available_dags.length">
         <v-spacer></v-spacer>
-        <v-btn color="primary" variant="elevated" :disabled="!valid || !dag_id || !workflow_name || submitting"
+        <v-btn color="primary" variant="elevated"
+          :disabled="!valid || !dag_id || !workflow_name || !requiredFieldsSatisfied || submitting"
           :loading="submitting" @click="submissionValidator()">
           Start Workflow
         </v-btn>
@@ -685,6 +686,38 @@ function requiredFieldPath(fullKey: string): string[] {
     .split(".")
     .filter((segment) => segment !== "required" && !SCHEMA_STRUCTURE_KEYS.has(segment) && !/^\d+$/.test(segment));
 }
+
+// Whether a single required-field path (as collected by findRequiredFields) is
+// currently satisfied in formData. An array counts as satisfied only once it
+// has at least one non-empty entry; every other type just needs a non-empty
+// value (0 and false are valid values, not missing ones).
+function evaluateRequiredField(reqField: string): { name: string; satisfied: boolean } {
+  const path = requiredFieldPath(reqField);
+  const form_name = path[0];
+  const nestedPath = path.slice(1);
+  const req_prop_name = nestedPath[nestedPath.length - 1];
+  let target: any = state.formData[form_name];
+  for (const segment of nestedPath.slice(0, -1)) {
+    target = target?.[segment];
+  }
+  if (!target || typeof target !== "object" || !target.hasOwnProperty(req_prop_name)) {
+    return { name: req_prop_name, satisfied: false };
+  }
+  const fieldValue = target[req_prop_name];
+  const satisfied = Array.isArray(fieldValue)
+    ? fieldValue.length > 0 && fieldValue.some((val) => val && val.trim() !== "")
+    : fieldValue !== null && fieldValue !== undefined && fieldValue !== "";
+  return { name: req_prop_name, satisfied };
+}
+
+// Reactive counterpart to submissionValidator()'s own required-fields loop, so
+// the Start Workflow button can reflect a schema-required field vjsf itself
+// never wires into the surrounding v-form's own valid state (e.g. a required
+// array/multi-select), not just the fields Vuetify's own :rules cover.
+const requiredFieldsSatisfied = computed(() =>
+  form_requiredFields.value.every((reqField) => evaluateRequiredField(reqField).satisfied)
+);
+
 function validConfirmation() {
   const formatted = formatFormData(state.formData);
   const failedConfirmations: string[] = [];
@@ -724,35 +757,12 @@ async function submissionValidator() {
   if (validation.valid) {
     // then the schema's required fields, which vjsf does not enforce itself
     for (let i = 0; i < form_requiredFields.value.length; i++) {
-      const req_field = form_requiredFields.value[i];
-      const path = requiredFieldPath(req_field);
-      const form_name = path[0];
-      const nestedPath = path.slice(1);
-      const req_prop_name = nestedPath[nestedPath.length - 1];
-      // Walk down to the object that should own the required property; for a
-      // top-level property this is just state.formData[form_name] itself.
-      let target: any = state.formData[form_name];
-      for (const segment of nestedPath.slice(0, -1)) {
-        target = target?.[segment];
-      }
-      if (target && typeof target === "object" && target.hasOwnProperty(req_prop_name)) {
-        const fieldValue = target[req_prop_name];
-
-        // Validate arrays - check if array has at least one non-empty element
-        // Validate all others, excluding null and "", but allowing 0 or false
-        const isValid = Array.isArray(fieldValue)
-          ? fieldValue.length > 0 && fieldValue.some((val) => val && val.trim() !== "")
-          : fieldValue !== null && fieldValue !== undefined && fieldValue !== "";
-
-        if (isValid) {
-          valid_check.push(true);
-        } else {
-          valid_check.push(false);
-          invalid_fields.push(req_prop_name);
-        }
+      const { name, satisfied } = evaluateRequiredField(form_requiredFields.value[i]);
+      if (satisfied) {
+        valid_check.push(true);
       } else {
         valid_check.push(false);
-        invalid_fields.push(req_prop_name);
+        invalid_fields.push(name);
       }
     }
     if (valid_check.every((value) => value === true)) {

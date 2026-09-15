@@ -23,3 +23,19 @@ test('renders on a fresh profile, with no shell-seeded settings', async ({ page 
   // is engine-version specific.
   expect(consoleErrors.filter((t) => /SyntaxError/.test(t))).toEqual([])
 })
+
+// Same fresh profile, so the view has to fall back to the defaults it ships
+// with. They cover one setting: the fields the detail dialog groups by.
+test('a fresh profile falls back to the local grouping fields', async ({ page }) => {
+  await installMockBackend(page)
+  await page.goto(VIEW_PATH)
+
+  const detailRequest = page.waitForRequest(
+    (r) =>
+      r.url().includes('/kaapana-backend/dataset/dashboard') &&
+      r.method() === 'POST' &&
+      r.postDataJSON().names.length > 0,
+  )
+  await page.getByRole('button', { name: 'Details' }).click()
+  expect((await detailRequest).postDataJSON().names).toEqual(['Patient Sex', 'Modality'])
+})

@@ -49,7 +49,7 @@ all:
 
     runner_roles:
       build:
-        tags: ["build", "build-runner"]
+        tags: ["build"]
         maximum_timeout: 14400 # 4 hours
         limit: 2
         request_concurrency: 2
@@ -58,11 +58,11 @@ all:
         docker_allowed_privileged_services: ["docker.io/library/docker:*"]
 
       security:
-        tags: ["security", "security-runner"]
+        tags: ["security"]
         maximum_timeout: 14400 # 4 hours
 
       tests:
-        tags: ["tests", "tests-runner"]
+        tags: ["tests"]
         # preflight, lint and unit-tests all carry this tag: ~35 jobs per
         # pipeline, each under a 5m timeout, so the queue and not the job is
         # what the stage waits on.
@@ -73,7 +73,7 @@ all:
         docker_allowed_privileged_services: ["docker.io/library/docker:*"]
 
       deploy:
-        tags: ["deploy", "deploy-runner"]
+        tags: ["deploy"]
         # Integration tests run on this tag and each job holds a deployment VM.
         limit: 2
         request_concurrency: 2
@@ -104,8 +104,8 @@ all:
           vm_name: kaapana-ci-01
           cpu_cores: 64
           memory_guest: "128Gi"
-          disk_size: "512Gi"
-          runners: [build, tests, deploy, security]
+          disk_size: "256Gi"
+          runners: [universal]
         
         kaapana-ci-02:
           vm_name: kaapana-ci-02

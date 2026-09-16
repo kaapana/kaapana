@@ -22,14 +22,28 @@ test('selecting a file opens a preview panel with an iframe at its url', async (
   await expect(page.locator('iframe')).toHaveAttribute('src', /\/minio-console\/download\/results\/overview\.html$/)
 })
 
-test('the open-in-new icon opens the file url in a new tab', async ({ page }) => {
+test('the open-in-new button opens the file url in a new tab', async ({ page }) => {
   await page.locator('.v-list-item', { hasText: 'overview.html' }).getByRole('checkbox').first().check()
   await expect(page.locator('iframe')).toBeVisible()
 
   const popupPromise = page.waitForEvent('popup')
-  await page.locator('.mdi-open-in-new').first().click()
+  await page.getByRole('button', { name: 'Open overview.html in a new tab', exact: true }).click()
   const popup = await popupPromise
   expect(popup.url()).toContain('/minio-console/download/results/overview.html')
+})
+
+// The control sat inside the panel header with no click guard, so opening the
+// file in a new tab also collapsed the panel behind it.
+test('opening a result in a new tab leaves its panel open', async ({ page }) => {
+  await page.locator('.v-list-item', { hasText: 'overview.html' }).getByRole('checkbox').first().check()
+  await expect(page.locator('.v-expansion-panel--active')).toHaveCount(1)
+
+  const popupPromise = page.waitForEvent('popup')
+  await page.getByRole('button', { name: 'Open overview.html in a new tab', exact: true }).click()
+  await popupPromise
+
+  await expect(page.locator('.v-expansion-panel--active')).toHaveCount(1)
+  await expect(page.locator('iframe')).toBeVisible()
 })
 
 test('selecting multiple files opens a panel per file', async ({ page }) => {

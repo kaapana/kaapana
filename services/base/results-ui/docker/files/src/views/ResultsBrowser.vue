@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { notify } from '@kyvg/vue3-notification'
+import { kaapanaIcons } from '@kaapana/base-ui'
 import { fetchResultsTree, type ResultsTreeNode } from '@/api/results'
 import IFrameWindow from '@/components/IFrameWindow.vue'
 
@@ -479,15 +480,20 @@ onMounted(() => {
         <v-expansion-panels v-model="panel" variant="accordion">
           <v-expansion-panel v-for="node in selectedFiles" :key="node.path" :value="node.path">
             <v-expansion-panel-title>
-              <span>
-                {{ node.name }}
-                <v-tooltip location="bottom">
-                  <template #activator="{ props }">
-                    <v-icon color="primary" v-bind="props">mdi-folder</v-icon>
-                  </template>
-                  <span>{{ node.url }}</span>
-                </v-tooltip>
-                <v-icon color="primary" @click="openExternalPage(node.url!)">mdi-open-in-new</v-icon>
+              <span class="d-flex align-center ga-2">
+                <span class="text-truncate">{{ node.name }}</span>
+                <v-btn
+                  icon
+                  :aria-label="`Open ${node.name} in a new tab`"
+                  color="primary"
+                  variant="text"
+                  density="comfortable"
+                  size="small"
+                  @click.stop="openExternalPage(node.url!)"
+                >
+                  <v-icon>{{ kaapanaIcons.externalLink }}</v-icon>
+                  <v-tooltip activator="parent" location="bottom">{{ node.url }}</v-tooltip>
+                </v-btn>
               </span>
             </v-expansion-panel-title>
             <v-expansion-panel-text>

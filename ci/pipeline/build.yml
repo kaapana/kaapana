@@ -45,7 +45,7 @@ build_packages:
   stage: build
   dependencies: []
   services:
-    - name: docker.io/library/docker:28-dind
+    - name: docker.io/library/docker:29.8.1-dind-alpine3.24
       alias: docker
       variables:
         DOCKER_TLS_CERTDIR: ""
@@ -68,8 +68,6 @@ build_packages:
       when: on_success
     - when: never
   script:
-    - docker version
-    - docker ps
     - |
       if [[ "$CI_EXEC_DOCKER_PRUNE" == "true" ]]; then
         docker system prune --all --volumes -f

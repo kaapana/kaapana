@@ -69,10 +69,7 @@ task_api_tests:
   # Bind mounts resolve because the runner shares /builds with services, so
   # all mounted paths (TASK_DIR, TMPDIR) must live under $CI_PROJECT_DIR.
   services:
-    # Must stay fully qualified: the runner's privileged-service allowlist
-    # matches the literal string — a bare "docker:28-dind" silently loses
-    # privileged and dind dies.
-    - name: docker.io/library/docker:28-dind
+    - name: docker.io/library/docker:29.8.1-dind-alpine3.24
       alias: docker
       variables:
         DOCKER_TLS_CERTDIR: ""

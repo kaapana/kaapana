@@ -20,9 +20,9 @@ build_ci_image:
     name: $REGISTRY_ENV
   # Not ci-base: the image that builds ci-base must not be ci-base, or a tag
   # bump could never bootstrap itself.
-  image: docker.io/library/docker:28-cli
+  image: docker.io/library/docker:29.8.1-cli-alpine3.24
   services:
-    - name: docker.io/library/docker:28-dind
+    - name: docker.io/library/docker:29.8.1-dind-alpine3.24
       alias: docker
       variables:
         DOCKER_TLS_CERTDIR: ""

@@ -1,7 +1,9 @@
 import { test, expect } from '@playwright/test'
 import { defaultMockData, installMockBackend, seedShellState, VIEW_PATH } from './fixtures/mock-backend'
 
-test('reports an error and shows an empty tree when the results endpoint errors', async ({ page }) => {
+// A failure must not read as "there are no results"; it stays on screen, next to
+// the tree it replaces, with the way to try again.
+test('reports an error inline when the results endpoint errors', async ({ page }) => {
   await seedShellState(page)
   await installMockBackend(page)
   // Later route wins: fail every tree request with a 500.
@@ -10,11 +12,32 @@ test('reports an error and shows an empty tree when the results endpoint errors'
   )
   await page.goto(VIEW_PATH)
 
+  await expect(page.getByText('Could not load the results')).toBeVisible()
   await expect(page.getByText('The workflow results could not be loaded.')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible()
   // View still mounts; nothing loaded, so the tree stays empty.
   await expect(page.getByRole('textbox', { name: 'Search loaded results' })).toBeVisible()
   await expect(page.locator('.v-treeview .v-list-item')).toHaveCount(0)
-  await expect(page.getByRole('heading', { name: 'Workflow results' })).toBeVisible()
+})
+
+test('retrying after a failed load shows the results', async ({ page }) => {
+  await seedShellState(page)
+  await installMockBackend(page)
+  let failNext = true
+  await page.route('**/kaapana-backend/get-static-website-results-tree**', (r) => {
+    if (failNext) {
+      failNext = false
+      return r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'boom' }) })
+    }
+    return r.fallback()
+  })
+  await page.goto(VIEW_PATH)
+  await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Retry' }).click()
+
+  await expect(page.getByText('nnunet-training-230101')).toBeVisible()
+  await expect(page.getByText('Could not load the results')).toBeHidden()
 })
 
 test('a failed folder expansion reports the error and leaves the folder without children', async ({ page }) => {

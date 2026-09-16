@@ -75,7 +75,23 @@ test('shows no tree rows when the backend returns an empty listing', async ({ pa
   await expect(page.getByText('nnunet-training-230101')).toHaveCount(0)
   await expect(page.locator('.v-treeview .v-list-item')).toHaveCount(0)
 
-  await expect(page.getByRole('heading', { name: 'Workflow results' })).toBeVisible()
+  // An empty listing says so, rather than leaving a blank panel.
+  await expect(page.getByText('No workflow results yet.')).toBeVisible()
+})
+
+test('a search that matches nothing says so and offers to clear itself', async ({ page }) => {
+  await seedShellState(page)
+  await installMockBackend(page)
+  await page.goto(VIEW_PATH)
+  await expect(page.getByText('nnunet-training-230101')).toBeVisible()
+
+  await page.getByRole('textbox', { name: 'Search loaded results' }).fill('no-such-result')
+  await expect(page.getByText('No loaded result matches your search.')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Clear search', exact: true }).click()
+
+  await expect(page.getByText('No loaded result matches your search.')).toBeHidden()
+  await expect(page.getByText('nnunet-training-230101')).toBeVisible()
 })
 
 // The icon map lists the extensions the backend produced historically; anything

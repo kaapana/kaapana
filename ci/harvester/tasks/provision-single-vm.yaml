@@ -168,7 +168,9 @@
     namespace: "{{ harvester_namespace }}"
     kubeconfig: "{{ harvester_kubeconfig }}"
   register: vm_status
-  until: vm_status.resources | length > 0 and (vm_status.resources[0].status | default({}, true)).ready | default(false, true)
+  until: >-
+    vm_status.get('resources', []) | length > 0
+    and vm_status.get('resources')[0].get('status', {}).get('ready', false)
   retries: 30
   delay: 10
   changed_when: false

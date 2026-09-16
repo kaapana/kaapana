@@ -1,8 +1,5 @@
 import { httpClient } from '@kaapana/base-ui'
 
-// One entry of the results listing. Folders carry `file: false`, result files a
-// type string. `hasChildren` distinguishes the two before any child is loaded,
-// because the backend sends an empty `children` array on files as well.
 export interface ResultsTreeNode {
   name: string
   path: string

@@ -116,3 +116,17 @@ test('a file with an unlisted extension still gets an icon', async ({ page }) =>
   await expect(row).toBeVisible()
   await expect(row.locator('.mdi-file-outline')).toHaveCount(1)
 })
+
+// The two columns used to keep their desktop split at every width, leaving the
+// tree a quarter of a narrow window.
+test('the tree and the preview stack on a narrow viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 600, height: 900 })
+  await seedShellState(page)
+  await installMockBackend(page)
+  await page.goto(VIEW_PATH)
+  await expect(page.getByText('nnunet-training-230101')).toBeVisible()
+
+  const treeColumn = page.locator('.v-treeview').locator('xpath=ancestor::div[contains(@class,"v-col")][1]')
+  const box = await treeColumn.boundingBox()
+  expect(box!.width).toBeGreaterThan(400)
+})

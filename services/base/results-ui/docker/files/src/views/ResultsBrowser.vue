@@ -440,9 +440,9 @@ onMounted(() => {
 </script>
 
 <template>
-  <v-container class="text-left" fluid>
+  <v-container class="text-left results-browser" fluid>
     <v-row>
-      <v-col cols="3">
+      <v-col cols="12" md="4" lg="3">
         <v-card>
           <v-text-field
             v-model="search"
@@ -544,7 +544,7 @@ onMounted(() => {
         </v-card>
       </v-col>
 
-      <v-col cols="9">
+      <v-col cols="12" md="8" lg="9">
         <div
           v-if="selectedFiles.length === 0"
           class="d-flex flex-column align-center text-center text-medium-emphasis py-16"
@@ -601,4 +601,12 @@ onMounted(() => {
     </v-dialog>
   </v-container>
 </template>
+
+<style scoped lang="scss">
+// The results are a viewer and earn the width they are given, but past this the
+// tree and the preview drift too far apart to scan as one screen.
+.results-browser {
+  max-width: 2100px;
+}
+</style>
 

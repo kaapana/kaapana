@@ -14,11 +14,3 @@ const { viewKey } = useShellSettings()
     </v-app>
   </div>
 </template>
-
-<style lang="scss">
-@media (min-width: 2100px) {
-  .container--fluid {
-    max-width: 2100px !important;
-  }
-}
-</style>

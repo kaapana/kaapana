@@ -1,25 +1,15 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { notify } from '@kyvg/vue3-notification'
-import { kaapanaApiService } from '@kaapana/base-ui'
+import { fetchResultsTree, type ResultsTreeNode } from '@/api/results'
 import IFrameWindow from '@/components/IFrameWindow.vue'
 
-interface TreeNode {
-  name: string
-  path: string
-  url?: string
-  // Real backend sends `false` on folders and a type string on files.
-  file?: string | false
+// The backend node plus the paging and loading state the tree keeps per folder.
+interface TreeNode extends ResultsTreeNode {
   children?: TreeNode[]
-  hasChildren?: boolean
   nextContinuationToken?: string | null
   loadingMore?: boolean
   childrenLoaded?: boolean
-}
-
-interface ResultsPayload {
-  items?: TreeNode[]
-  nextContinuationToken?: string | null
 }
 
 // Small page size keeps a single "Load more" burst renderable: VTreeview has no
@@ -57,8 +47,8 @@ const isFolder = (node: TreeNode) => !node.file
 // The backend emits `children: []` + hasChildren on every node; Vuetify treats
 // any defined `children` as an expandable group, so a file with `children: []`
 // gets a bogus expand toggle. Strip the key from leaves, keep it on folders.
-function normalizeNodes(items: TreeNode[] | undefined): TreeNode[] {
-  return (items || []).map((item) => {
+function normalizeNodes(items: ResultsTreeNode[]): TreeNode[] {
+  return items.map((item: TreeNode) => {
     if (item.hasChildren === false) {
       const { children, ...leaf } = item
       return leaf
@@ -94,14 +84,12 @@ function notifyLoadFailed(text: string) {
 
 function getStaticWebsiteResults() {
   rootLoading.value = true
-  kaapanaApiService
-    .kaapanaApiGet('/get-static-website-results-tree', { limit: PAGE_SIZE })
-    .then((response: any) => {
-      const payload: ResultsPayload = response.data || { items: [], nextContinuationToken: null }
-      staticUrls.value = normalizeNodes(payload.items)
-      rootNextContinuationToken.value = payload.nextContinuationToken || null
+  fetchResultsTree({ limit: PAGE_SIZE })
+    .then((page) => {
+      staticUrls.value = normalizeNodes(page.items)
+      rootNextContinuationToken.value = page.nextContinuationToken
     })
-    .catch((error: any) => {
+    .catch((error) => {
       console.error('Failed to load workflow results:', error)
       notifyLoadFailed('The workflow results could not be loaded. Please try again.')
     })
@@ -119,13 +107,9 @@ async function fetchChildren(rawItem: unknown): Promise<boolean> {
   }
 
   try {
-    const response: any = await kaapanaApiService.kaapanaApiGet('/get-static-website-results-tree', {
-      prefix: item.path,
-      limit: PAGE_SIZE,
-    })
-    const payload: ResultsPayload = response.data || { items: [], nextContinuationToken: null }
-    item.children = normalizeNodes(payload.items)
-    item.nextContinuationToken = payload.nextContinuationToken || null
+    const page = await fetchResultsTree({ prefix: item.path, limit: PAGE_SIZE })
+    item.children = normalizeNodes(page.items)
+    item.nextContinuationToken = page.nextContinuationToken
     item.childrenLoaded = true
     return true
   } catch (error) {
@@ -156,14 +140,13 @@ async function loadMoreForNode(item: TreeNode): Promise<boolean> {
 
   item.loadingMore = true
   try {
-    const response: any = await kaapanaApiService.kaapanaApiGet('/get-static-website-results-tree', {
+    const page = await fetchResultsTree({
       prefix: item.path,
-      continuation_token: item.nextContinuationToken,
+      continuationToken: item.nextContinuationToken,
       limit: PAGE_SIZE,
     })
-    const payload: ResultsPayload = response.data || { items: [], nextContinuationToken: null }
-    item.children = (item.children || []).concat(normalizeNodes(payload.items))
-    item.nextContinuationToken = payload.nextContinuationToken || null
+    item.children = (item.children || []).concat(normalizeNodes(page.items))
+    item.nextContinuationToken = page.nextContinuationToken
     return true
   } catch (error) {
     console.error('Failed to load more workflow result children:', error)
@@ -188,13 +171,12 @@ async function loadMoreRootResults() {
 
   rootLoadingMore.value = true
   try {
-    const response: any = await kaapanaApiService.kaapanaApiGet('/get-static-website-results-tree', {
-      continuation_token: rootNextContinuationToken.value,
+    const page = await fetchResultsTree({
+      continuationToken: rootNextContinuationToken.value,
       limit: PAGE_SIZE,
     })
-    const payload: ResultsPayload = response.data || { items: [], nextContinuationToken: null }
-    staticUrls.value = staticUrls.value.concat(normalizeNodes(payload.items))
-    rootNextContinuationToken.value = payload.nextContinuationToken || null
+    staticUrls.value = staticUrls.value.concat(normalizeNodes(page.items))
+    rootNextContinuationToken.value = page.nextContinuationToken
   } catch (error) {
     console.error('Failed to load more root workflow results:', error)
     notifyLoadFailed('The next page of results could not be loaded. Please try again.')

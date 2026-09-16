@@ -20,8 +20,10 @@ test('renders the typical result tree on load', async ({ page }) => {
   await expect(page.getByText('total-segmentator-230102')).toBeVisible()
   await expect(page.getByText('overview.html')).toBeVisible()
 
-  // Nothing selected yet, so the right pane shows the placeholder.
+  // Nothing selected yet, so the right pane shows the placeholder and says what
+  // to do next.
   await expect(page.getByRole('heading', { name: 'Workflow results' })).toBeVisible()
+  await expect(page.getByText('Select a result on the left to preview it here.')).toBeVisible()
 })
 
 // Pages are requested in 100-node chunks so a single render burst stays small

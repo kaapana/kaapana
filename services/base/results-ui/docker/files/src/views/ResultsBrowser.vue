@@ -545,10 +545,13 @@ onMounted(() => {
       </v-col>
 
       <v-col cols="9">
-        <div v-if="selectedFiles.length == 0">
-          <h1>Workflow results</h1>
-          <p>Results from the workflows will be shown here!</p>
-          <v-icon class="results-icon">mdi-chart-bar-stacked</v-icon>
+        <div
+          v-if="selectedFiles.length === 0"
+          class="d-flex flex-column align-center text-center text-medium-emphasis py-16"
+        >
+          <v-icon size="96" icon="mdi-chart-bar-stacked" />
+          <h2 class="text-h5 mt-4">Workflow results</h2>
+          <p class="text-body-1 mt-2">Select a result on the left to preview it here.</p>
         </div>
         <v-expansion-panels v-model="panel" variant="accordion">
           <v-expansion-panel v-for="node in selectedFiles" :key="node.path" :value="node.path">
@@ -599,10 +602,3 @@ onMounted(() => {
   </v-container>
 </template>
 
-<style lang="scss">
-.results-icon {
-  font-size: 425px !important;
-  text-align: center;
-  width: 100%;
-}
-</style>

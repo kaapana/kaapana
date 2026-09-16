@@ -60,6 +60,9 @@ all:
       security:
         tags: ["security"]
         maximum_timeout: 14400 # 4 hours
+        docker_volumes: ["/cache", "/builds"]
+        docker_services_privileged: true
+        docker_allowed_privileged_services: ["docker.io/library/docker:*"]
 
       tests:
         tags: ["tests"]

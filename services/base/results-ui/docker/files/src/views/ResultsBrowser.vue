@@ -50,14 +50,14 @@ const isFolder = (node: TreeNode) => !node.file
 function normalizeNodes(items: ResultsTreeNode[]): TreeNode[] {
   return items.map((item: TreeNode) => {
     if (item.hasChildren === false) {
-      const { children, ...leaf } = item
+      const { children: _dropped, ...leaf } = item
       return leaf
     }
     return item
   })
 }
 
-const files: Record<string, string> = {
+const FILE_ICONS: Record<string, string> = {
   html: 'mdi-language-html5',
   js: 'mdi-nodejs',
   json: 'mdi-code-json',
@@ -67,7 +67,13 @@ const files: Record<string, string> = {
   txt: 'mdi-file-document-outline',
   xls: 'mdi-file-excel',
 }
+const FALLBACK_FILE_ICON = 'mdi-file-outline'
 
+// Only .html objects reach the tree today, so an unlisted extension would
+// otherwise render an empty icon slot rather than nothing at all.
+const fileIcon = (node: TreeNode) => FILE_ICONS[node.file as string] ?? FALLBACK_FILE_ICON
+
+// VTreeview types its slot payload as unknown; every slot here is a result node.
 const asNode = (item: unknown): TreeNode => item as TreeNode
 
 const selectedFiles = computed(() => tree.value.filter((item) => item.file && item.url))
@@ -426,7 +432,7 @@ onMounted(() => {
                 {{ isOpen ? 'mdi-folder-open' : 'mdi-folder' }}
               </v-icon>
               <v-icon v-else>
-                {{ files[asNode(item).file as string] }}
+                {{ fileIcon(asNode(item)) }}
               </v-icon>
             </template>
             <template #title="{ item }">
@@ -504,15 +510,6 @@ onMounted(() => {
 </template>
 
 <style lang="scss">
-.v-treeview-node__content,
-.v-treeview-node__label {
-  flex-shrink: 1;
-}
-
-.v-treeview-node__root {
-  height: auto;
-}
-
 .results-icon {
   font-size: 425px !important;
   text-align: center;

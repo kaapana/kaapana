@@ -77,3 +77,24 @@ test('shows no tree rows when the backend returns an empty listing', async ({ pa
 
   await expect(page.getByRole('heading', { name: 'Workflow results' })).toBeVisible()
 })
+
+// The icon map lists the extensions the backend produced historically; anything
+// outside it used to render an empty icon slot.
+test('a file with an unlisted extension still gets an icon', async ({ page }) => {
+  const data = structuredClone(defaultMockData)
+  data.root.items.push({
+    name: 'summary.csv',
+    path: 'summary.csv',
+    file: 'csv',
+    children: [],
+    hasChildren: false,
+    url: '/minio-console/download/results/summary.csv',
+  })
+  await seedShellState(page)
+  await installMockBackend(page, data)
+  await page.goto(VIEW_PATH)
+
+  const row = page.locator('.v-list-item', { hasText: 'summary.csv' })
+  await expect(row).toBeVisible()
+  await expect(row.locator('.mdi-file-outline')).toHaveCount(1)
+})

@@ -49,8 +49,11 @@ build_ci_image:
       # # DOCKER_AUTH_CONFIG shadows CLI logins, unset it so build/scan pushes use their logins
       unset DOCKER_AUTH_CONFIG
       echo "$CI_REGISTRY_TOKEN" | docker login "$CI_REGISTRY_URL" -u "$CI_REGISTRY_USER" --password-stdin
-    # context is ci/, not the repo root (no .dockerignore exists)
+    # context is ci/, not the repo root (no .dockerignore exists). Disable
+    # image attestations, as not all registries support them (matches
+    # build_cli's Container.build()).
     - docker build --build-arg http_proxy="$HTTP_PROXY" --build-arg https_proxy="$HTTPS_PROXY"
+        --provenance=false --sbom=false
         -f ci/images/ci-base/Dockerfile -t "$CI_BASE_IMAGE" ci
     - docker push "$CI_BASE_IMAGE"
   after_script:

@@ -68,3 +68,24 @@ test('the result preview iframe fills the panel instead of collapsing', async ({
   const box = await iframe.boundingBox()
   expect(box!.height).toBeGreaterThan(400)
 })
+
+// The panel index used to be recomputed on every selection change, so removing
+// one result silently expanded the last remaining one.
+test('unchecking one result leaves the other panels as they were', async ({ page }) => {
+  await page.getByText('nnunet-training-230101').click()
+  await expect(page.getByText('report.html')).toBeVisible()
+
+  await page.locator('.v-list-item', { hasText: 'report.html' }).getByRole('checkbox').first().check()
+  await page.locator('.v-list-item', { hasText: 'metrics.json' }).getByRole('checkbox').first().check()
+  await page.locator('.v-list-item', { hasText: 'overview.html' }).getByRole('checkbox').first().check()
+  await expect(page.locator('.v-expansion-panel')).toHaveCount(3)
+
+  // The newest result is the expanded one; keep it expanded while an older
+  // result is removed from the selection.
+  const openPanel = page.locator('.v-expansion-panel--active')
+  await expect(openPanel).toContainText('overview.html')
+
+  await page.locator('.v-list-item', { hasText: 'report.html' }).getByRole('checkbox').first().uncheck()
+  await expect(page.locator('.v-expansion-panel')).toHaveCount(2)
+  await expect(openPanel).toContainText('overview.html')
+})

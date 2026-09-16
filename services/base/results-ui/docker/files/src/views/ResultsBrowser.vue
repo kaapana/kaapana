@@ -23,7 +23,9 @@ const MAX_CASCADE_FILES = 300
 // reaching it.
 const MAX_CASCADE_REQUESTS = 300
 
-const panel = ref<number | null>(null)
+// The open preview panel, keyed by result path rather than by position, so
+// that removing a result cannot point it at a different one.
+const panel = ref<string | null>(null)
 const staticUrls = ref<TreeNode[]>([])
 const rootNextContinuationToken = ref<string | null>(null)
 const rootLoadingMore = ref(false)
@@ -78,9 +80,13 @@ const asNode = (item: unknown): TreeNode => item as TreeNode
 
 const selectedFiles = computed(() => tree.value.filter((item) => item.file && item.url))
 
-watch(selectedFiles, (newValue) => {
-  if (newValue.length > 0) {
-    panel.value = newValue.length - 1
+// Expand the result that was just added. Reacting to removals as well would
+// collapse whatever the user is reading whenever another result is unchecked.
+watch(selectedFiles, (newValue, oldValue) => {
+  const previous = new Set(oldValue.map((node) => node.path))
+  const added = newValue.filter((node) => !previous.has(node.path))
+  if (added.length) {
+    panel.value = added[added.length - 1].path
   }
 })
 
@@ -471,7 +477,7 @@ onMounted(() => {
           <v-icon class="results-icon">mdi-chart-bar-stacked</v-icon>
         </div>
         <v-expansion-panels v-model="panel" variant="accordion">
-          <v-expansion-panel v-for="node in selectedFiles" :key="node.path">
+          <v-expansion-panel v-for="node in selectedFiles" :key="node.path" :value="node.path">
             <v-expansion-panel-title>
               <span>
                 {{ node.name }}

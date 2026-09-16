@@ -49,6 +49,9 @@ preflight_variables:
         errors="$errors
         - $1"
       }
+      warn() {
+        echo "WARNING: $1"
+      }
 
       # every job pulls the ci-base image from this registry
       require CI_REGISTRY_URL
@@ -102,6 +105,9 @@ preflight_variables:
 
       if [ -z "${DEPLOYMENT_INSTANCE_FQDN:-}" ]; then
         # no target given: exec_deploy provisions a fresh VM instead
+        if [ "$[[ inputs.exec_redeploy ]]" = "true" ]; then
+          warn "exec_redeploy=true has no effect on a freshly provisioned VM — there's nothing to undeploy yet. Set DEPLOYMENT_INSTANCE_FQDN to redeploy onto an existing target instead."
+        fi
         if [ "$[[ inputs.exec_deploy ]]" = "true" ]; then
           require_file HARVESTER_KUBECONFIG
           require DEPLOYMENT_INSTANCE_DOMAIN
@@ -111,7 +117,7 @@ preflight_variables:
             fail "exec_deploy cannot be run on the freshly provisioned VM with exec_server_installation=false"
           fi
         if [ "$[[ inputs.exec_integration_tests ]]" = "true" ] && [ "$[[ inputs.exec_deploy ]]" = "false" ]; then
-          fail "exec_integration_tests=true cannot be run on the freshly provisioned VM with exec_deploy=false"
+          fail "exec_integration_tests=true cannot be run on the freshly provisioned VM with exec_deploy=false; set DEPLOYMENT_INSTANCE_FQDN to test against an existing target instead."
         fi
       else
         # custom target: an already-reachable instance, reused across runs

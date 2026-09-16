@@ -189,14 +189,21 @@ def test_skipping_server_installation_needs_a_custom_target(tmp_path_factory, en
     assert "exec_server_installation" in result.stdout
 
 
-def test_redeploy_needs_a_custom_target(tmp_path_factory, env):
+def test_redeploy_without_a_target_only_warns(tmp_path_factory, tmp_path, env):
     """exec_redeploy=true undeploys a platform already on the target; a
-    freshly provisioned VM has nothing to undeploy."""
+    freshly provisioned VM has nothing to undeploy, but undeploy_platform.yaml
+    already no-ops gracefully in that case, so this should warn, not block
+    the pipeline."""
     config = merged_config(inputs=DEPLOY_INPUTS + ("exec_redeploy=true",))
     path = write_script(config, tmp_path_factory.mktemp("preflight_redeploy"))
+    kubeconfig = tmp_path / "kubeconfig"
+    kubeconfig.write_text("not a real kubeconfig\n")
     env["DEPLOYMENT_INSTANCE_FQDN"] = ""
+    env["HARVESTER_KUBECONFIG"] = str(kubeconfig)
+    env["DEPLOYMENT_INSTANCE_DOMAIN"] = "vms.dkfz.de"
+    env["DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE"] = "kaapana-ci"
     result = run(path, env)
-    assert result.returncode == 1
+    assert result.returncode == 0, result.stdout
     assert "exec_redeploy" in result.stdout
 
 

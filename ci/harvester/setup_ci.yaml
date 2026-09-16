@@ -242,6 +242,7 @@
     - name: Delete existing VMs (force recreate mode)
       kubernetes.core.k8s:
         state: absent
+        api_version: kubevirt.io/v1
         kind: VirtualMachine
         name: "{{ item.vm_name }}"
         namespace: "{{ harvester_namespace }}"

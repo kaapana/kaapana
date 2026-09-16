@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch, type ComponentPublicInstance } from 'vue'
 import { notify } from '@kyvg/vue3-notification'
 import { kaapanaIcons } from '@kaapana/base-ui'
 import { fetchResultsTree, type ResultsTreeNode } from '@/api/results'
@@ -39,6 +39,7 @@ const tree = ref<TreeNode[]>([])
 
 const confirmDialog = ref(false)
 const confirmCount = ref(0)
+const cancelButton = ref<ComponentPublicInstance | null>(null)
 let pendingCascade: { folder: TreeNode; files: TreeNode[]; truncated: boolean } | null = null
 // Incremented synchronously around our own writes to `tree` so the selection
 // watcher ignores them and only reacts to user checkbox changes. A counter (not
@@ -356,13 +357,26 @@ async function confirmCascade() {
   }
 }
 
-async function cancelCascade() {
-  confirmDialog.value = false
+// Dismissing the dialog any way at all -- Cancel, Escape, a click outside --
+// has to leave the folder unchecked, or it would stay ticked without its
+// results ever opening.
+async function cancelPendingCascade() {
   if (pendingCascade) {
     const { folder } = pendingCascade
     pendingCascade = null
     await unselectFolder(folder)
   }
+}
+
+function cancelCascade() {
+  confirmDialog.value = false
+}
+
+// Focus the safe action, so confirming a large open takes a deliberate move.
+// The dialog otherwise focuses its own content element once it has opened.
+function focusCancelButton() {
+  const button = cancelButton.value?.$el as HTMLElement | undefined
+  button?.focus()
 }
 
 // Unchecking a folder drops its already-selected descendants from the selection
@@ -504,7 +518,12 @@ onMounted(() => {
       </v-col>
     </v-row>
 
-    <v-dialog v-model="confirmDialog" max-width="420" persistent>
+    <v-dialog
+      v-model="confirmDialog"
+      max-width="400"
+      @after-enter="focusCancelButton"
+      @after-leave="cancelPendingCascade"
+    >
       <v-card>
         <v-card-title>Open {{ confirmCount }} results?</v-card-title>
         <v-card-text>
@@ -513,7 +532,7 @@ onMounted(() => {
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="cancelCascade">Cancel</v-btn>
+          <v-btn ref="cancelButton" variant="text" @click="cancelCascade">Cancel</v-btn>
           <v-btn color="primary" variant="text" @click="confirmCascade">Open all</v-btn>
         </v-card-actions>
       </v-card>

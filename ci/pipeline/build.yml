@@ -68,6 +68,8 @@ build_packages:
       when: on_success
     - when: never
   script:
+    - docker version
+    - docker ps
     - |
       if [[ "$CI_EXEC_DOCKER_PRUNE" == "true" ]]; then
         docker system prune --all --volumes -f

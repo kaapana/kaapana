@@ -31,6 +31,7 @@ const staticUrls = ref<TreeNode[]>([])
 const rootNextContinuationToken = ref<string | null>(null)
 const rootLoadingMore = ref(false)
 const rootLoading = ref(false)
+const rootLoadFailed = ref(false)
 // A folder cascade fetches unloaded descendants directly (bypassing VTreeview's
 // per-node spinner), so surface its own progress or a deep check feels frozen.
 const cascadeLoading = ref(false)
@@ -47,6 +48,24 @@ let pendingCascade: { folder: TreeNode; files: TreeNode[]; truncated: boolean } 
 let suppressSelectionWatch = 0
 
 const isFolder = (node: TreeNode) => !node.file
+
+// VTreeview hides the rows it filters out but reports nothing about how many
+// are left, so the same match test runs here to recognise an empty result.
+function matchesSearch(nodes: TreeNode[], term: string): boolean {
+  return nodes.some(
+    (node) =>
+      node.name.toLowerCase().includes(term) || matchesSearch(node.children || [], term),
+  )
+}
+
+const searchTerm = computed(() => (search.value || '').trim().toLowerCase())
+const hasSearchMatches = computed(
+  () => !searchTerm.value || matchesSearch(staticUrls.value, searchTerm.value),
+)
+const treeIsEmpty = computed(() => !rootLoading.value && !rootLoadFailed.value && !staticUrls.value.length)
+const searchFoundNothing = computed(
+  () => !rootLoading.value && !rootLoadFailed.value && !!staticUrls.value.length && !hasSearchMatches.value,
+)
 
 // The backend emits `children: []` + hasChildren on every node; Vuetify treats
 // any defined `children` as an expandable group, so a file with `children: []`
@@ -98,6 +117,7 @@ function notifyLoadFailed(text: string) {
 
 function getStaticWebsiteResults() {
   rootLoading.value = true
+  rootLoadFailed.value = false
   fetchResultsTree({ limit: PAGE_SIZE })
     .then((page) => {
       staticUrls.value = normalizeNodes(page.items)
@@ -105,7 +125,9 @@ function getStaticWebsiteResults() {
     })
     .catch((error) => {
       console.error('Failed to load workflow results:', error)
-      notifyLoadFailed('The workflow results could not be loaded. Please try again.')
+      // Reported inline rather than as a notification, because the alert stays
+      // next to the empty tree it explains and carries the retry.
+      rootLoadFailed.value = true
     })
     .finally(() => {
       rootLoading.value = false
@@ -435,7 +457,44 @@ onMounted(() => {
             clear-icon="mdi-close-circle-outline"
           />
           <v-progress-linear v-if="rootLoading || cascadeLoading" indeterminate color="primary" />
+
+          <v-alert
+            v-if="rootLoadFailed"
+            type="error"
+            variant="tonal"
+            density="compact"
+            class="ma-3"
+            title="Could not load the results"
+          >
+            <p class="text-body-2">The workflow results could not be loaded.</p>
+            <template #append>
+              <v-btn
+                variant="text"
+                color="error"
+                :prepend-icon="kaapanaIcons.refresh"
+                :loading="rootLoading"
+                @click="getStaticWebsiteResults"
+              >
+                Retry
+              </v-btn>
+            </template>
+          </v-alert>
+
+          <div v-else-if="treeIsEmpty" class="pa-6 text-center text-medium-emphasis">
+            <p class="text-body-2">
+              No workflow results yet. Results appear here once a workflow run has produced them.
+            </p>
+          </div>
+
+          <div v-else-if="searchFoundNothing" class="pa-6 text-center text-medium-emphasis">
+            <p class="text-body-2">No loaded result matches your search.</p>
+            <v-btn variant="text" color="primary" class="mt-2" @click="search = null">
+              Clear search
+            </v-btn>
+          </div>
+
           <v-treeview
+            v-show="!rootLoadFailed"
             v-model:selected="tree"
             :items="staticUrls"
             :search="search || undefined"

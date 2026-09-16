@@ -324,7 +324,7 @@
 
     - name: Provision each VM
       ansible.builtin.include_tasks: tasks/provision-single-vm.yaml
-      loop: "{{ vms_to_create }}"
+      loop: "{{ vms_to_create | default([]) }}"
       loop_control:
         loop_var: vm_config
         label: "{{ vm_config.vm_name }}"

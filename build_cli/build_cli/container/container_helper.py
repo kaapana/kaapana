@@ -101,6 +101,8 @@ class ContainerHelper:
                     BUILDX_BUILDER_NAME,
                     "--driver",
                     "docker-container",
+                    "--driver-opt",
+                    "network=host",
                 ]
                 create_command.extend(cls._buildx_proxy_driver_opts())
                 create_command.extend(cls._buildx_dns_config_opts(Path(tmp_dir)))
@@ -145,16 +147,20 @@ class ContainerHelper:
     @classmethod
     def _buildx_proxy_driver_opts(cls) -> list:
         """
-        Build the --driver-opt flags for the docker-container buildx builder.
-        """
-        driver_opts = []
-        if not os.environ.get("DOCKER_HOST", "").startswith("tcp://"):
-            driver_opts.extend(["--driver-opt", "network=host"])
+        Build --driver-opt env.* flags so the isolated docker-container
+        builder inherits proxy settings, mirroring the --http-proxy value
+        already used for --build-arg http_proxy/https_proxy in Container.build().
 
+        Without this, the builder container has its own network namespace and
+        does not automatically pick up the host's proxy, causing outbound
+        requests (e.g. apk/apt package fetches) to fail even though a plain
+        `docker build` on the host succeeds.
+        """
         http_proxy = cls._build_config.http_proxy
         if not http_proxy:
-            return driver_opts
+            return []
 
+        driver_opts = []
         for proxy_var in ("http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY"):
             driver_opts.extend(["--driver-opt", f"env.{proxy_var}={http_proxy}"])
 

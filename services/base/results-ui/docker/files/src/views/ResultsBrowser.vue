@@ -452,7 +452,7 @@ onMounted(() => {
             hide-details="auto"
             variant="outlined"
             density="compact"
-            prepend-inner-icon="mdi-magnify"
+            :prepend-inner-icon="kaapanaIcons.search"
             clearable
             clear-icon="mdi-close-circle-outline"
           />

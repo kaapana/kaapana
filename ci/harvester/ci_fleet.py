@@ -60,17 +60,28 @@ def env():
         val = os.environ.get(key) or file_values.get(key, "")
         return os.path.expanduser(val)
 
-    return {key: get(key) for key in (
-        "GITLAB_URL", "GITLAB_API_TOKEN", "GITLAB_PROJECT_ID",
-        "SSH_PRIVATE_KEY", "HARVESTER_KUBECONFIG",
-        "HARVESTER_NAMESPACE", "VM_DNS_DOMAIN", "VM_USER",
-    )}
+    return {
+        key: get(key)
+        for key in (
+            "GITLAB_URL",
+            "GITLAB_API_TOKEN",
+            "GITLAB_PROJECT_ID",
+            "SSH_PRIVATE_KEY",
+            "HARVESTER_KUBECONFIG",
+            "HARVESTER_NAMESPACE",
+            "VM_DNS_DOMAIN",
+            "VM_USER",
+        )
+    }
 
 
 def inventory():
     out = subprocess.run(
         [find("ansible-inventory"), "-i", "inventory.yaml", "--list"],
-        cwd=HERE, check=True, capture_output=True, text=True,
+        cwd=HERE,
+        check=True,
+        capture_output=True,
+        text=True,
     ).stdout
     return json.loads(out)
 
@@ -92,15 +103,25 @@ def fleet_list():
         typer.echo(f"{name}: {h['cpu_cores']} CPU / {h['memory_guest']} / {h['disk_size']}")
         for role in h["runners"]:
             cfg = role_config(h, role)
-            typer.echo(f"  {role:<9} tags={cfg['tags']}"
-                       f"  limit={cfg['limit']} conc={cfg['request_concurrency']}")
+            typer.echo(f"  {role:<9} tags={cfg['tags']}  limit={cfg['limit']} conc={cfg['request_concurrency']}")
 
 
 def harvester_vms(cfg):
     out = subprocess.run(
-        [find("kubectl"), "--kubeconfig", cfg["HARVESTER_KUBECONFIG"],
-         "get", "vm", "-n", cfg["HARVESTER_NAMESPACE"], "-o", "json"],
-        capture_output=True, text=True, check=True,
+        [
+            find("kubectl"),
+            "--kubeconfig",
+            cfg["HARVESTER_KUBECONFIG"],
+            "get",
+            "vm",
+            "-n",
+            cfg["HARVESTER_NAMESPACE"],
+            "-o",
+            "json",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
     ).stdout
     vms = {}
     for r in json.loads(out)["items"]:
@@ -136,10 +157,22 @@ def trim_version(val):
 def installed_versions(cfg, vm):
     """Version line per installed tool, or None if the VM is unreachable."""
     res = subprocess.run(
-        ["ssh", "-i", cfg["SSH_PRIVATE_KEY"],
-         "-o", "StrictHostKeyChecking=no", "-o", "BatchMode=yes",
-          "-o", "ConnectTimeout=10", f"{cfg['VM_USER']}@{vm}.{cfg['VM_DNS_DOMAIN']}", VERSION_CMD],
-        capture_output=True, text=True, timeout=30,
+        [
+            "ssh",
+            "-i",
+            cfg["SSH_PRIVATE_KEY"],
+            "-o",
+            "StrictHostKeyChecking=no",
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "ConnectTimeout=10",
+            f"{cfg['VM_USER']}@{vm}.{cfg['VM_DNS_DOMAIN']}",
+            VERSION_CMD,
+        ],
+        capture_output=True,
+        text=True,
+        timeout=30,
     )
     if res.returncode != 0:
         return None
@@ -157,8 +190,7 @@ def status():
     cfg = env()
     missing = [k for k, v in cfg.items() if not v]
     if missing:
-        raise typer.Exit(f"missing settings: {', '.join(missing)} "
-                         f"(put them in {HERE / '.env'})", code=1)
+        raise typer.Exit(f"missing settings: {', '.join(missing)} (put them in {HERE / '.env'})", code=1)
 
     fleet = dict(declared_fleet(inventory()))
     vms = harvester_vms(cfg)
@@ -198,9 +230,10 @@ def status():
 
 
 @app.command()
-def up(force: bool = typer.Option(False, "--force", help="destroy and rebuild"),
-       hosts: str = typer.Option(None, "--hosts",
-                                 help="only the named VMs (comma separated)")):
+def up(
+    force: bool = typer.Option(False, "--force", help="destroy and rebuild"),
+    hosts: str = typer.Option(None, "--hosts", help="only the named VMs (comma separated)"),
+):
     """Converge VMs and runner roles to the inventory."""
     cmd = ["ansible-playbook", "setup_ci.yaml"]
     if force:
@@ -211,11 +244,9 @@ def up(force: bool = typer.Option(False, "--force", help="destroy and rebuild"),
 
 
 @app.command()
-def down(hosts: str = typer.Option(..., "--hosts",
-                                   help="VMs to destroy (comma separated)")):
+def down(hosts: str = typer.Option(..., "--hosts", help="VMs to destroy (comma separated)")):
     """Destroy named VMs and unregister their runners."""
-    run("ansible-playbook", "setup_ci.yaml",
-        "-e", "fleet_state=absent", "-e", f"ci_hosts={hosts}")
+    run("ansible-playbook", "setup_ci.yaml", "-e", "fleet_state=absent", "-e", f"ci_hosts={hosts}")
 
 
 if __name__ == "__main__":

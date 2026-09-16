@@ -21,9 +21,10 @@ Single view, `src/views/ResultsBrowser.vue`:
   continuation token is kept so the button stays retryable.
 - **Selecting a file → preview** — checking a file adds an accordion panel on the
   right that loads the file's `url` in an iframe (`IFrameWindow.vue`); checking
-  several opens one panel each, and the newest expands. Each panel header has an
-  open-in-new icon (`window.open`) and a tooltip showing the url. Unchecking a
-  file removes its panel.
+  several opens one panel each, and the newest expands. Panels are keyed by
+  result path, so unchecking one leaves the others as they are. Each panel header
+  has a button that opens the file in a new tab, labelled with the result's name
+  and carrying the url in its tooltip. Unchecking a file removes its panel.
 - **Folder cascade (check a folder → open all its files)** — checking a folder
   walks its whole subtree (fetching unloaded descendants and draining
   continuation pages) and opens a panel per result file. Guards: a confirm
@@ -31,16 +32,29 @@ Single view, `src/views/ResultsBrowser.vue`:
   warning), stop-not-storm on a mid-cascade fetch error, one confirm at a time,
   and re-checks that the folder is still selected after the async fetch.
   Unchecking a folder prunes its descendants from the selection by path prefix.
+  The confirm dialog opens with **Cancel** focused; Cancel, Escape and a click
+  outside all cancel and uncheck the folder again.
 - **Search** — a text field filters the tree. Note (the field's own hint says
   so): it only filters folders and files **already loaded** — it is not a
-  backend search.
+  backend search. A search that matches nothing offers to clear itself.
 - **File-type icons** — tree rows show an extension-based icon for
-  `html/js/json/md/pdf/png/txt/xls`; the map has no fallback, so any other
-  extension renders **no** icon. Moot today — the backend lists only `*.html`
-  results, so `html` is the only kind that reaches the tree. Display only;
-  every file previews identically in an iframe regardless of type.
-- **Empty / error states** — an empty listing renders no rows; a failed root or
-  folder fetch leaves that level empty rather than erroring the view.
+  `html/js/json/md/pdf/png/txt/xls`, and a generic file icon for anything else.
+  Display only; every file previews identically in an iframe regardless of type.
+- **Empty / error states** — an empty listing says that no results exist yet; a
+  failed root fetch shows an inline alert with a **Retry** button in place of the
+  tree; a failed folder fetch or paging call reports through a notification and
+  leaves the loaded rows in place.
+- **Layout** — the tree and the preview sit side by side above the `md`
+  breakpoint and stack below it. The view is capped at 2100 px wide.
+
+## Theme and typeface
+
+`src/plugins/vuetify.ts` returns `createKaapanaVuetify()` from
+`@kaapana/base-ui`, which carries the Kaapana light and dark themes, the mdi
+icon aliases and the platform typeface (Roboto). `App.vue` follows the shell's
+dark-mode setting through `useShellSettings()`. Icons for actions that exist
+across views come from the shared `kaapanaIcons` map rather than from `mdi-*`
+names at the call site.
 
 ## Backend endpoints
 
@@ -60,10 +74,9 @@ url are **not** prefixed. This app has **no** project store and makes **no**
 | `GET /oauth2/userinfo` (prod) / `GET /jsons/testingAuthenticationToken.json` (dev) | no | Userinfo JWT; run on every navigation via a router `beforeEach` (`useAuthStore().checkAuth()`). Non-blocking — a failure is logged and navigation proceeds. |
 | `GET <file node url>` (iframe `src` + `window.open`) | no | Load/open a result file. The url is whatever the backend puts on the node — the app does not construct it. (In the e2e mock it is `/minio-console/download/results/<path>`.) |
 
-The four rows above are all the same endpoint in different query-param modes
-(`kaapanaApiService.kaapanaApiGet('/get-static-website-results-tree', …)`). All
-five calls above (auth via `httpClient`, the tree via `kaapanaApiService`) come
-from `@kaapana/base-ui`.
+The four rows above are all the same endpoint in different query-param modes.
+`src/api/results.ts` wraps it as `fetchResultsTree()` over the shared
+`httpClient`; the auth call goes through `httpClient` as well.
 
 ## Development
 
@@ -108,5 +121,5 @@ import the stale `dist/` through the npm symlink and nothing errors, the
 change is just missing.
 
 Suites cover render, navigation (lazy load + independent folders + search),
-pagination, folder cascade, cascade errors, preview, project-scope, and error
-handling.
+pagination, folder cascade, cascade errors, preview, project-scope, error
+handling, and presentation (typeface and dark theme).

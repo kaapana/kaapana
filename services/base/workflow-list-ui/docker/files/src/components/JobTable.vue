@@ -97,8 +97,8 @@
             </v-tooltip>
             <v-tooltip location="bottom">
               <template #activator="{ props }">
-                <v-btn v-bind="props" @click='abortJob(item)' :disabled="isJobTerminal(item)" size="small" icon variant="text">
-                  <v-icon color="secondary">mdi-stop-circle-outline</v-icon>
+                <v-btn v-bind="props" @click='abortJob(item)' :disabled="isJobTerminal(item)" size="small" icon variant="text" aria-label="Abort job">
+                  <v-icon color="secondary">{{ kaapanaIcons.stop }}</v-icon>
                 </v-btn>
               </template>
               <span>{{ isJobTerminal(item) ? 'job already finished; nothing to abort' : 'abort single job' }}</span>
@@ -123,8 +123,8 @@
           <div v-else-if="item.external_job_id">
             <v-tooltip location="bottom">
               <template #activator="{ props }">
-                <v-btn v-bind="props" @click='abortJob(item)' :disabled="isJobTerminal(item)" size="small" icon variant="text">
-                  <v-icon color="secondary">mdi-stop-circle-outline</v-icon>
+                <v-btn v-bind="props" @click='abortJob(item)' :disabled="isJobTerminal(item)" size="small" icon variant="text" aria-label="Abort job">
+                  <v-icon color="secondary">{{ kaapanaIcons.stop }}</v-icon>
                 </v-btn>
               </template>
               <span>{{ isJobTerminal(item) ? 'job already finished; nothing to abort' : 'abort single job' }}</span>

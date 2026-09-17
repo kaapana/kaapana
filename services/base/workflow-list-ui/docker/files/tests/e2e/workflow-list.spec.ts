@@ -150,3 +150,20 @@ test('the job table explains an empty row instead of saying "No data available"'
   await runningRow.getByRole('button', { name: '2', exact: true }).click()
   await expect(page.getByText('No job of this workflow is in state "running".')).toBeVisible()
 })
+
+test.describe('on a wide screen', () => {
+  test.use({ viewport: { width: 2560, height: 1000 } })
+
+  test('the view stops widening once the columns fit', async ({ page }) => {
+    await installMockBackend(page)
+    await page.goto(VIEW_PATH)
+    await expect(page.getByText('Workflow List', { exact: true })).toBeVisible()
+
+    const box = await page.locator('.workflow-list-container').boundingBox()
+    expect(box).not.toBeNull()
+    if (!box) return
+    expect(box.width).toBeLessThanOrEqual(1600)
+    // the leftover space becomes margin on both sides, not more table
+    expect(Math.abs(box.x - (2560 - box.x - box.width))).toBeLessThan(2)
+  })
+})

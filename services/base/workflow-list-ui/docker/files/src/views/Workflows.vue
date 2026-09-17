@@ -1,6 +1,6 @@
 <template>
   <div>
-    <v-container class="text-left" fluid>
+    <v-container class="text-left workflow-list-container" fluid>
       <workflow-table
         :workflows="clientWorkflows"
         :ext-loading="workflowTableLoading"
@@ -102,5 +102,12 @@ onBeforeUnmount(() => {
 <style lang="scss">
 a {
   text-decoration: none;
+}
+
+// The nine columns need about 1500px; past that they only drift apart and the
+// row's values end up far from each other. Cap the view there and let the rest
+// of a wide screen become margin. Nothing changes below that width.
+.workflow-list-container {
+  max-width: 1600px;
 }
 </style>

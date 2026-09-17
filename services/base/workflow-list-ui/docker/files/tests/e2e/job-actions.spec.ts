@@ -41,7 +41,7 @@ test('restart job sends PUT /job with status "scheduled"', async ({ page }) => {
   await expandRunningWorkflow(page)
 
   const reqP = page.waitForRequest((r) => JOB.test(r.url()) && r.method() === 'PUT')
-  await jobRow(page).locator('button:has(.mdi-rotate-left)').click()
+  await jobRow(page).getByRole('button', { name: 'Restart job' }).click()
   const req = await reqP
   expect(req.postDataJSON()).toMatchObject({ job_id: 101, status: 'scheduled' })
 })
@@ -76,7 +76,7 @@ test('restart job failure shows an error toast and keeps the job rows', async ({
   await expandRunningWorkflow(page)
   await fail500(page, JOB)
 
-  await jobRow(page).locator('button:has(.mdi-rotate-left)').click()
+  await jobRow(page).getByRole('button', { name: 'Restart job' }).click()
 
   await expect(page.getByText('Error while restarting job 101')).toBeVisible()
   await expect(page.getByText('dag-alpha')).toBeVisible()

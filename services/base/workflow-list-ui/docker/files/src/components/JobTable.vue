@@ -47,9 +47,10 @@
         {{ new Date(item.time_created).toLocaleString() }}
       </template>
         <template v-slot:item.conf_data="{ item }">
-          <v-icon color="secondary" @click="openConfData(item.conf_data)">
-              mdi-email
-          </v-icon>
+          <v-btn @click="openConfData(item.conf_data)" size="small" icon variant="text"
+            aria-label="Show the configuration of this job">
+            <v-icon color="secondary">{{ kaapanaIcons.info }}</v-icon>
+          </v-btn>
         </template>
         <template v-slot:item.status="{ item }">
           <v-tooltip location="bottom">
@@ -119,7 +120,7 @@
             </v-tooltip>
             <v-tooltip location="bottom">
               <template #activator="{ props }">
-                <v-btn v-bind="props" @click='confirmDeleteJob(item)' size="small" icon variant="text">
+                <v-btn v-bind="props" @click='confirmDeleteJob(item)' size="small" icon variant="text" aria-label="Delete job">
                   <v-icon color="secondary">{{ kaapanaIcons.delete }}</v-icon>
                 </v-btn>
               </template>

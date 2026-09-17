@@ -34,6 +34,12 @@
         :sort-by="[{ key: 'time_updated', order: 'desc' }]"
         :items-per-page="itemsPerPage"
       >
+        <template #no-data>
+          <div v-if="statusFilter">
+            No job of this workflow is in state "{{ statusFilter }}".
+          </div>
+          <div v-else>This workflow has no jobs yet.</div>
+        </template>
       <template v-slot:item.time_updated="{ item }">
         {{ new Date(item.time_updated).toLocaleString() }}
       </template>
@@ -156,6 +162,9 @@ import type { Job } from '@/types/workflow'
 
 const props = defineProps<{
   jobs: Job[]
+  // The job state the rows were fetched for, when the user picked one from the
+  // workflow's status chips. Undefined means "all states".
+  statusFilter?: string
 }>()
 
 const emit = defineEmits<{

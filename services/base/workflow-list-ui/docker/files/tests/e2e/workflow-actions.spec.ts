@@ -32,7 +32,7 @@ test('restart workflow sends PUT /workflow with status "scheduled"', async ({ pa
   await page.goto(VIEW_PATH)
 
   const reqP = page.waitForRequest((r) => WORKFLOW.test(r.url()) && r.method() === 'PUT')
-  await runningRow(page).locator('button:has(.mdi-rotate-left)').click()
+  await runningRow(page).getByRole('button', { name: 'Restart workflow' }).click()
   const req = await reqP
   expect(req.postDataJSON()).toEqual({
     workflow_id: 'wf-running-001',

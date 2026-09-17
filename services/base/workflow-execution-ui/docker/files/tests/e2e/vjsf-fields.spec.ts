@@ -38,7 +38,7 @@ test('integer field renders as a number input with the default', async ({ page }
 })
 
 test('number field renders as a number input with the fractional default', async ({ page }) => {
-  await expect(page.getByLabel('Ratio')).toHaveValue('0.5')
+  await expect(page.getByLabel('Ratio', { exact: true })).toHaveValue('0.5')
 })
 
 test('array field renders as a chips input', async ({ page }) => {

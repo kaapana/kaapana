@@ -5,7 +5,8 @@
         <h5>Workflow Execution</h5>
         <v-tooltip location="bottom">
           <template v-slot:activator="{ props }">
-            <v-btn v-bind="props" @click="getKaapanaInstances()" size="small" icon variant="text">
+            <v-btn v-bind="props" @click="getKaapanaInstances()" size="small" icon variant="text"
+              aria-label="Reload the runner instances">
               <v-icon color="primary">
                 {{ kaapanaIcons.refresh }}
               </v-icon>
@@ -142,8 +143,8 @@
             <v-col cols="12">
               <v-tooltip v-model="showConfData" location="top">
                 <template v-slot:activator="{ props }">
-                  <v-btn icon variant="text" v-bind="props">
-                    <v-icon color="secondary">mdi-email</v-icon>
+                  <v-btn icon variant="text" v-bind="props" aria-label="Show the configuration of this workflow">
+                    <v-icon color="secondary">{{ kaapanaIcons.info }}</v-icon>
                   </v-btn>
                 </template>
                 <pre class="text-left">Workflow name: {{ workflow_name }}</pre>

@@ -25,9 +25,11 @@ export const kaapanaIcons = {
   help: 'mdi-help-circle-outline',
   info: 'mdi-information',
   refresh: 'mdi-refresh',
+  restart: 'mdi-restart',
   save: 'mdi-content-save',
   search: 'mdi-magnify',
   start: 'mdi-play',
+  stop: 'mdi-stop-circle-outline',
   success: 'mdi-check-circle',
 } as const
 

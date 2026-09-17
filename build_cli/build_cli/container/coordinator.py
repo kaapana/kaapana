@@ -170,6 +170,7 @@ class BuildCoordinator:
                 if ContainerHelper._build_config.build_only:
                     self.mark_completed(event.container)
                     self.progress_bar.advance(last_processed_container=event.container, advance=1)
+                    self.progress_bar.finished_print(event.container)
 
             case BuildEventType.FAILED:
                 self.mark_completed(event.container)

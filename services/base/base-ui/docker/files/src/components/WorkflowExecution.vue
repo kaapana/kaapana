@@ -398,6 +398,19 @@ function normalizeV2Schema(fragment: any): any {
   if (!fragment || typeof fragment !== "object" || Array.isArray(fragment)) {
     return fragment;
   }
+  // A `readOnly` field renders disabled, which on its own only tells the user
+  // that they cannot change it. Say why, through the description channel the
+  // form already shows under the field.
+  if (fragment.readOnly === true && typeof fragment.type === "string") {
+    const layout = fragment.layout && typeof fragment.layout === "object" ? fragment.layout : {};
+    fragment.layout = {
+      ...layout,
+      hint: "Fixed by this workflow.",
+      // A disabled field cannot take focus, and Vuetify only reveals a hint on
+      // focus unless it is persistent.
+      props: { ...(layout.props ?? {}), persistentHint: true },
+    };
+  }
   // ajv rejects empty `enum`/`oneOf` and crashes the whole form; real DAGs emit
   // them for "nothing to pick yet" fields. Drop the constraint, mark readOnly.
   if (Array.isArray(fragment.enum) && fragment.enum.length === 0) {

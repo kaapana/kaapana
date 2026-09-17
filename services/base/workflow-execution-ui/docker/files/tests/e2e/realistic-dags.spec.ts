@@ -92,3 +92,30 @@ test('empty upload list (empty enum) renders the field instead of failing schema
   expect(pageErrors).toHaveLength(0)
   expect(consoleErrors.join('\n')).not.toContain('non-empty array')
 })
+
+// Real dags pin values the workflow controls itself (BOA's "Input modality",
+// total-segmentator's "single execution"). vjsf renders those disabled, which
+// alone does not say why.
+test('a schema-readOnly field says why it cannot be edited', async ({ page }) => {
+  await bootView(
+    page,
+    singleDagData('fixed-field', {
+      workflow_form: {
+        type: 'object',
+        properties: {
+          input: {
+            title: 'Input modality',
+            description: 'Expected input modality.',
+            type: 'string',
+            default: 'CT',
+            readOnly: true,
+          },
+        },
+      },
+    }),
+  )
+  await selectDag(page, 'fixed-field')
+
+  await expect(page.getByLabel('Input modality')).toBeDisabled()
+  await expect(page.getByText('Fixed by this workflow.')).toBeVisible()
+})

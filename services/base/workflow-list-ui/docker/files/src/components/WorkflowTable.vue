@@ -262,15 +262,7 @@ const options = ref<any>({
 const deleteDialogOpen = ref(false)
 const workflowPendingDelete = ref<Workflow | null>(null)
 
-const filteredWorkflows = computed<Workflow[]>(() => {
-  if (props.workflows !== null) {
-    if (expandedWorkflow.value) {
-      getJobsOfWorkflow(expandedWorkflow.value.workflow_name, filteredJobState.value)
-    }
-    return props.workflows
-  }
-  return []
-})
+const filteredWorkflows = computed<Workflow[]>(() => props.workflows ?? [])
 
 function getNestedValue(item: Workflow, path: string) {
   return path.split('.').reduce<any>((value, key) => (value == null ? value : value[key]), item)
@@ -300,6 +292,17 @@ watch(
   () => props.extLoading,
   () => {
     loading.value = props.extLoading
+  },
+)
+
+// Keep the expanded row in step with the list's 15s poll. This used to run as a
+// side effect of a computed, so every poll refetched the jobs and a workflow
+// without any re-raised its warning each time.
+watch(
+  () => props.workflows,
+  () => {
+    if (!expandedWorkflow.value) return
+    getJobsOfWorkflow(expandedWorkflow.value.workflow_name, filteredJobState.value, true, false)
   },
 )
 
@@ -352,9 +355,8 @@ function expandRow(item: Workflow) {
     } else {
       expanded.value = [item.workflow_name]
       expandedWorkflow.value = item
-      if (!jobsofExpandedWorkflow.value) {
-        getJobsOfWorkflow(expandedWorkflow.value.workflow_name, filteredJobState.value)
-      }
+      jobsofExpandedWorkflow.value = []
+      getJobsOfWorkflow(item.workflow_name, filteredJobState.value)
     }
   } else {
     shouldExpand.value = true
@@ -425,7 +427,15 @@ function getLocalInstance() {
     })
     .catch(() => {})
 }
-function getJobsOfWorkflow(workflow_name: string, state: string | undefined, collapse = true) {
+// `probeEmpty` asks the backend whether the workflow has any jobs at all when
+// this request comes back empty. Only a request the user triggered wants that:
+// the background refresh would otherwise repeat the same warning every 15s.
+function getJobsOfWorkflow(
+  workflow_name: string,
+  state: string | undefined,
+  collapse = true,
+  probeEmpty = true,
+) {
   if (typeof state !== 'undefined') {
     filteredJobState.value = state
   }
@@ -439,14 +449,12 @@ function getJobsOfWorkflow(workflow_name: string, state: string | undefined, col
       status: state,
     })
     .then((response: any) => {
-      if (response.data.length !== 0) {
-        loading.value = false
-      } else {
-        // no jobs in this state -> check whether the workflow has any jobs at all
-        getSingleJobOfWorkflow(workflow_name)
-      }
+      loading.value = false
       if (expanded.value.length > 0) {
         jobsofExpandedWorkflow.value = response.data
+      }
+      if (response.data.length === 0 && probeEmpty) {
+        getSingleJobOfWorkflow(workflow_name)
       }
     })
     .catch((err: any) => {

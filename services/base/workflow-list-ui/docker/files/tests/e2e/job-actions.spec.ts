@@ -32,7 +32,7 @@ test('abort job sends PUT /job with status "abort"', async ({ page }) => {
   await expandRunningWorkflow(page)
 
   const reqP = page.waitForRequest((r) => JOB.test(r.url()) && r.method() === 'PUT')
-  await jobRow(page).locator('button:has(.mdi-stop-circle-outline)').click()
+  await jobRow(page).getByRole('button', { name: 'Abort job' }).click()
   const req = await reqP
   expect(req.postDataJSON()).toMatchObject({ job_id: 101, status: 'abort' })
 })
@@ -62,7 +62,7 @@ test('abort job failure shows an error toast and keeps the job rows', async ({ p
   await expandRunningWorkflow(page)
   await fail500(page, JOB)
 
-  await jobRow(page).locator('button:has(.mdi-stop-circle-outline)').click()
+  await jobRow(page).getByRole('button', { name: 'Abort job' }).click()
 
   await expect(page.getByText('Error while aborting job 101')).toBeVisible()
   await expect(page.getByText('boom')).toBeVisible()

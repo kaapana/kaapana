@@ -16,7 +16,7 @@ test('abort workflow sends PUT /workflow with status "abort"', async ({ page }) 
   const reqP = page.waitForRequest(
     (r) => WORKFLOW.test(r.url()) && r.method() === 'PUT',
   )
-  await runningRow(page).locator('button:has(.mdi-stop-circle-outline)').click()
+  await runningRow(page).getByRole('button', { name: 'Abort workflow' }).click()
   const req = await reqP
   expect(req.postDataJSON()).toEqual({
     workflow_id: 'wf-running-001',

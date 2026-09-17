@@ -136,8 +136,9 @@
                   size="small"
                   icon
                   variant="text"
+                  aria-label="Abort workflow"
                 >
-                  <v-icon color="primary">mdi-stop-circle-outline</v-icon>
+                  <v-icon color="primary">{{ kaapanaIcons.stop }}</v-icon>
                 </v-btn>
               </template>
               <span>{{

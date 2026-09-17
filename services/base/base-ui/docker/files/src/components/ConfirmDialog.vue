@@ -5,8 +5,7 @@
       <v-card-text>{{ text }}</v-card-text>
       <v-card-actions>
         <v-spacer></v-spacer>
-        <!-- Cancel takes initial focus, so a stray Enter cancels instead of confirming. -->
-        <v-btn autofocus @click="cancel">{{ cancelText }}</v-btn>
+        <v-btn ref="cancelButton" @click="cancel">{{ cancelText }}</v-btn>
         <v-btn :color="color" @click="confirm">{{ confirmText }}</v-btn>
       </v-card-actions>
     </v-card>
@@ -18,9 +17,10 @@
 // Requiring Confirmation" design guideline. Escape and a backdrop click close
 // the dialog through the same `update:modelValue` path as Cancel, so a
 // dismissed prompt always resolves as "cancelled" rather than as nothing.
+import { nextTick, ref, watch } from 'vue'
 import { VBtn, VCard, VCardActions, VCardText, VCardTitle, VDialog, VSpacer } from 'vuetify/components'
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     modelValue: boolean
     title: string
@@ -35,6 +35,21 @@ withDefaults(
     confirmText: 'Confirm',
     cancelText: 'Cancel',
     color: 'primary',
+  },
+)
+
+const cancelButton = ref<InstanceType<typeof VBtn> | null>(null)
+
+// Cancel must take the initial focus, so a stray Enter cancels instead of
+// confirming. The `autofocus` attribute does not achieve that here: VDialog
+// mounts its content after the activator is handled and then focuses the
+// overlay itself, so the button is focused explicitly once it exists.
+watch(
+  () => props.modelValue,
+  async (open) => {
+    if (!open) return
+    await nextTick()
+    cancelButton.value?.$el?.focus()
   },
 )
 

@@ -133,3 +133,20 @@ test('a workflow without jobs settles and warns once, not on every refresh', asy
   await expect(page.getByText('Request is processed - wait a few seconds.')).toBeHidden()
   expect(probes).toHaveLength(1)
 })
+
+test('the job table explains an empty row instead of saying "No data available"', async ({
+  page,
+}) => {
+  await installMockBackend(page, { ...defaultMockData, jobs: [] })
+  await page.goto(VIEW_PATH)
+
+  await page.getByText('running-wf', { exact: true }).click()
+  await expect(page.getByText('This workflow has no jobs yet.')).toBeVisible()
+  await expect(page.getByText('No data available')).toHaveCount(0)
+
+  // Picking a state from the status chips narrows the fetch, so the empty
+  // result means something different and has to say so.
+  const runningRow = page.getByRole('row').filter({ hasText: 'running-wf' })
+  await runningRow.getByRole('button', { name: '2', exact: true }).click()
+  await expect(page.getByText('No job of this workflow is in state "running".')).toBeVisible()
+})

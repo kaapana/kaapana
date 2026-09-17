@@ -195,6 +195,7 @@
             <job-table
               v-if="jobsofExpandedWorkflow"
               :jobs="jobsofExpandedWorkflow"
+              :status-filter="filteredJobState"
               @refreshView="refreshClient()"
             ></job-table>
           </td>

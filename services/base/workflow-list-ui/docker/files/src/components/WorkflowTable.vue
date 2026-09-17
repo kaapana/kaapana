@@ -308,7 +308,7 @@ watch(
 )
 
 let searchDebounce: ReturnType<typeof setTimeout> | undefined
-watch(search, (newValue) => {
+watch(search, (newValue, _oldValue, onCleanup) => {
   loading.value = true
   clearTimeout(searchDebounce)
   // Debounce the backend round-trip: without this, every keystroke fired its
@@ -317,6 +317,7 @@ watch(search, (newValue) => {
     options.value.search = newValue
     emit('update:options', options.value)
   }, 300)
+  onCleanup(() => clearTimeout(searchDebounce))
 })
 
 onMounted(() => {

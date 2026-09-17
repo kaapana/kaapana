@@ -1,6 +1,6 @@
 <template>
   <v-dialog :model-value="modelValue" max-width="400" @update:model-value="onUpdate">
-    <v-card>
+    <v-card :elevation="5">
       <v-card-title>{{ title }}</v-card-title>
       <v-card-text>{{ text }}</v-card-text>
       <v-card-actions>

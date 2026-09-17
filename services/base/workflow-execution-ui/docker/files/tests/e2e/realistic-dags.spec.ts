@@ -70,8 +70,13 @@ test('nnunet "no models installed" (empty oneOf) renders the notice instead of b
   await bootView(page, singleDagData('no-models', noModelsSchema))
   await selectDag(page, 'no-models')
 
+  // The notice is a sentence the backend put in a field title. It belongs next
+  // to the form as an inline alert, not as the label of a disabled input.
+  const notice = page.locator('.v-alert', { hasText: 'No tasks are available in this project!' })
+  await expect(notice).toBeVisible()
+  await expect(notice).toContainText('You first have to install a task with nnunet-install-model.')
+  await expect(page.getByLabel('No tasks are available in this project!')).toHaveCount(0)
   // the dataset picker alongside the notice must survive too
-  await expect(page.getByText('No tasks are available in this project!').first()).toBeVisible()
   await expect(page.locator('.v-autocomplete', { hasText: 'Dataset name (size)' })).toBeVisible()
   expect(pageErrors).toHaveLength(0)
   expect(consoleErrors.join('\n')).not.toContain('non-empty array')

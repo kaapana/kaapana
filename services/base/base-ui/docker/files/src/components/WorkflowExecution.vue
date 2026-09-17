@@ -62,6 +62,9 @@
                 target="_blank">
                 <span> Link to the documentation </span>
               </a>
+              <v-alert v-for="field in unavailableFields[name] ?? []" :key="field.key" type="warning"
+                variant="tonal" density="comfortable" class="mb-4" :title="field.title"
+                :text="field.description"></v-alert>
               <Vjsf v-if="name != 'documentation_form'" v-model="formData[name]" :schema="compatSchemas[name]" :options="vjsfOptions"></Vjsf>
             </v-col>
             <!-- Plain Vuetify autocomplete instead of a vjsf field: vjsf builds
@@ -190,7 +193,7 @@ import { notify } from "@kyvg/vue3-notification";
 // app's auto-import/global registration cannot resolve components for it.
 // Vuetify stays a peer, so these bind to the consumer's copy.
 import {
-  VCard, VForm, VCardTitle, VCardText, VCardActions, VContainer, VRow, VCol,
+  VAlert, VCard, VForm, VCardTitle, VCardText, VCardActions, VContainer, VRow, VCol,
   VIcon, VBtn, VTooltip, VSelect, VAutocomplete, VTextField, VProgressCircular,
   VSwitch, VNumberInput, VTreeview, VSpacer,
 } from "vuetify/components";
@@ -201,6 +204,14 @@ import kaapanaApiService from "../utils/kaapanaApiService";
 import Vjsf from "@koumoul/vjsf";
 import { v2compat } from "@koumoul/vjsf/compat/v2";
 import "@koumoul/vjsf/styles/vjsf.css";
+
+// A field the backend offers no choices for yet, lifted out of the form (see
+// liftUnavailableFields).
+interface UnavailableField {
+  key: string;
+  title: string;
+  description: string;
+}
 
 interface TreeItem {
   name: string;
@@ -235,6 +246,7 @@ interface State {
   datasetItems: { title: string; value: string }[];
   datasetRequired: boolean;
   showDatasetPicker: boolean;
+  unavailableFields: Record<string, UnavailableField[]>;
   selectedDataset: string | null;
   showDatasetLimit: boolean;
   datasetLimitWhole: boolean;
@@ -298,6 +310,7 @@ function initialState(): State {
     datasetItems: [],
     datasetRequired: false,
     showDatasetPicker: false,
+    unavailableFields: {},
     selectedDataset: null,
     showDatasetLimit: false,
     datasetLimitWhole: true,
@@ -331,6 +344,7 @@ const {
   datasetItems,
   datasetRequired,
   showDatasetPicker,
+  unavailableFields,
   selectedDataset,
   showDatasetLimit,
   datasetLimitWhole,
@@ -700,6 +714,37 @@ function findRequiredFields(obj: any, result: string[] = [], prefix = ""): strin
   return result;
 }
 
+// A property whose `enum` or `oneOf` came back empty offers nothing to choose:
+// the backend is saying the thing is not installed or not available in this
+// project. Rendering it as a disabled input turns that sentence into a field
+// label, so lift those properties out of the schema and let the caller show
+// them as inline alerts instead. Runs after findRequiredFields, so a lifted
+// field that was required still blocks the submit.
+function liftUnavailableFields(schemas: any): Record<string, UnavailableField[]> {
+  const lifted: Record<string, UnavailableField[]> = {};
+  for (const [formName, form] of Object.entries<any>(schemas)) {
+    const properties = form?.properties;
+    if (!properties || typeof properties !== "object") continue;
+    for (const [key, prop] of Object.entries<any>(properties)) {
+      const empty =
+        (Array.isArray(prop?.enum) && prop.enum.length === 0) ||
+        (Array.isArray(prop?.oneOf) && prop.oneOf.length === 0);
+      if (!empty) continue;
+      (lifted[formName] ??= []).push({
+        key,
+        title: prop.title ?? key,
+        description: prop.description ?? "",
+      });
+      delete properties[key];
+      if (Array.isArray(form.required)) {
+        form.required = form.required.filter((name: string) => name !== key);
+        if (!form.required.length) delete form.required;
+      }
+    }
+  }
+  return lifted;
+}
+
 // Schema-structure keywords that show up in a findRequiredFields() path but
 // are never part of the submitted form data itself.
 const SCHEMA_STRUCTURE_KEYS = new Set(["properties", "items", "allOf", "anyOf", "then", "else", "dependencies"]);
@@ -1057,6 +1102,7 @@ watch(
     userTouchedForm.value = false;
     state.selectedDataset = null;
     state.showDatasetPicker = false;
+    state.unavailableFields = {};
     state.datasetItems = [];
     state.datasetRequired = false;
     state.showDatasetLimit = false;
@@ -1108,6 +1154,7 @@ watch(
       }
 
       form_requiredFields.value = findRequiredFields(schemas);
+      state.unavailableFields = liftUnavailableFields(schemas);
       if ("external_schemas" in schemas) {
         state.external_dag_id = schemas["external_schemas"];
         delete schemas.external_schemas;

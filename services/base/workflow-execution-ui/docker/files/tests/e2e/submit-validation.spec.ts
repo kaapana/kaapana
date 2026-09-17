@@ -267,3 +267,19 @@ test('submit backend error surfaces an error notification', async ({ page }) => 
   await expect(toast.getByText('An error occurred during the workflow creation!')).toBeVisible()
   await expect(toast.getByText('nope')).toBeVisible()
 })
+
+test('a disabled Start Workflow says which required field is missing', async ({ page }) => {
+  await bootView(page)
+  await selectDag(page, 'mock-required')
+
+  const submit = page.getByRole('button', { name: 'Start Workflow' })
+  await expect(submit).toBeDisabled()
+
+  // The reason lives on the wrapper around the button: a disabled button emits
+  // no pointer events of its own.
+  await submit.locator('xpath=..').hover()
+  await expect(page.getByText('Fill in the required field: aetitle.')).toBeVisible()
+
+  await page.getByLabel('AE Title').fill('KAAPANA')
+  await expect(submit).toBeEnabled()
+})

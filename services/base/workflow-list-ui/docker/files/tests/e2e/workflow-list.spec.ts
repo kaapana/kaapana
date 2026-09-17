@@ -106,3 +106,30 @@ test('shows an error notification when the workflow fetch fails', async ({ page 
   await expect(page.getByText('Error while refreshing workflow list.')).toBeVisible()
   await expect(page.getByText('running-wf', { exact: true })).toHaveCount(0)
 })
+
+// Regression: expanding a workflow that has no jobs left the table spinning
+// forever and re-raised its warning on every 15s poll, because the job fetch
+// ran as a side effect of a computed and only cleared `loading` on a non-empty
+// response.
+test('a workflow without jobs settles and warns once, not on every refresh', async ({ page }) => {
+  await installMockBackend(page, { ...defaultMockData, jobs: [] })
+
+  // The "has this workflow any jobs at all?" probe is the limit=1 request.
+  const probes: string[] = []
+  page.on('request', (r) => {
+    if (/\/client\/jobs\?/.test(r.url()) && r.url().includes('limit=1')) probes.push(r.url())
+  })
+
+  await page.goto(VIEW_PATH)
+  await page.getByText('running-wf', { exact: true }).click()
+
+  await expect(page.getByText('No jobs for workflow running-wf')).toBeVisible()
+  await expect(page.getByText('Request is processed - wait a few seconds.')).toBeHidden()
+  expect(probes).toHaveLength(1)
+
+  // A list refresh re-fetches the expanded row's jobs but must not probe again.
+  await page.locator('.v-card-title button:has(.mdi-refresh)').click()
+  await expect(page.getByText('Successfully refreshed workflow list.')).toBeVisible()
+  await expect(page.getByText('Request is processed - wait a few seconds.')).toBeHidden()
+  expect(probes).toHaveLength(1)
+})

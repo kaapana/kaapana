@@ -7,7 +7,7 @@
           <template v-slot:activator="{ props }">
             <v-btn v-bind="props" @click="getKaapanaInstances()" size="small" icon variant="text">
               <v-icon color="primary">
-                mdi-refresh
+                {{ kaapanaIcons.refresh }}
               </v-icon>
             </v-btn>
           </template>
@@ -186,6 +186,7 @@ import {
   VSwitch, VNumberInput, VTreeview, VSpacer,
 } from "vuetify/components";
 import { HelpIcon } from "./HelpIcon";
+import { kaapanaIcons } from "../utils/icons";
 import { postViewDirty } from "../utils/viewDirty";
 import kaapanaApiService from "../utils/kaapanaApiService";
 import Vjsf from "@koumoul/vjsf";

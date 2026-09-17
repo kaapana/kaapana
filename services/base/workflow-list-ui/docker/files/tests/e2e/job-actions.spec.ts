@@ -133,3 +133,20 @@ test('failed-operator logs: a failed job with no failed task warns instead of cr
   // Match the error NAME - the message wording is engine-version specific.
   expect(consoleErrors.filter((t) => /TypeError/.test(t))).toEqual([])
 })
+
+test('the delete confirmation gives Cancel the initial focus', async ({ page }) => {
+  await expandRunningWorkflow(page)
+
+  await jobRow(page).locator('button:has(.mdi-delete)').click()
+  await expect(page.getByRole('button', { name: 'Delete job' })).toBeVisible()
+
+  // The guideline asks for focus on the safe action. VDialog focuses its own
+  // overlay wrapper, so the component has to move focus itself; assert where it
+  // actually landed rather than trusting the markup.
+  // innerText is read through the button's uppercasing, hence the lowercasing.
+  await expect
+    .poll(() =>
+      page.evaluate(() => (document.activeElement as HTMLElement | null)?.innerText?.trim().toLowerCase()),
+    )
+    .toBe('cancel')
+})

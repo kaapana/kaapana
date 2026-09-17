@@ -36,10 +36,10 @@ test('toolbar icon buttons render their glyph centered', async ({ page }) => {
   await page.goto(VIEW_PATH)
   await expect(page.getByText('Workflow List', { exact: true })).toBeVisible()
 
-  // Scoped to the card title: mdi-chart-timeline-variant also appears inside
-  // expanded-row job tables, which would trip strict mode if a row were open.
+  // Scoped to the card title: mdi-open-in-new also appears inside expanded-row
+  // job tables, which would trip strict mode if a row were open.
   const toolbar = page.locator('.v-card-title')
-  for (const icon of ['mdi-sync', 'mdi-chart-timeline-variant', 'mdi-refresh']) {
+  for (const icon of ['mdi-sync', 'mdi-open-in-new', 'mdi-refresh']) {
     const btn = await toolbar.locator(`button:has(.${icon})`).boundingBox()
     const glyph = await toolbar.locator(`.${icon}`).boundingBox()
     expect(btn, icon).not.toBeNull()

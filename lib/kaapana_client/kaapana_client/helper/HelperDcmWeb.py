@@ -357,6 +357,21 @@ class HelperDcmWeb:
         if response.status_code == 404 and "errorMessage" in response.json():
             logger.error(f"Some error occurred: {response.json()['errorMessage']}")
             return response
+        # dicom-web-filter answers 403 with this text when the project holds no
+        # mapping for the series, e.g. the project index still lists data that was
+        # already unmapped. The project has nothing left to delete in the PACS, so
+        # skip the series instead of failing the whole delete run before
+        # delete-from-meta gets to clean the index. Its other 403 ("User not in
+        # project") is a real authorization failure and still raises below.
+        if (
+            response.status_code == 403
+            and "Series not mapped to project" in response.text
+        ):
+            logger.warning(
+                f"Series {series_uid} in study {study_uid} is not mapped to project "
+                f"{project_id}. Skipping delete."
+            )
+            return response
         response.raise_for_status()
         logger.info(f"Series {series_uid} in study {study_uid} deleted")
 

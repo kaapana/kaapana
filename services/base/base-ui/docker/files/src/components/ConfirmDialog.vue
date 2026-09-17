@@ -27,13 +27,14 @@ withDefaults(
     text: string
     confirmText?: string
     cancelText?: string
-    // 'error' for a destructive action, 'primary' for a reversible high-impact one.
+    // 'error' for a destructive action, 'primary' for a reversible high-impact
+    // one. A caller that means "destructive" has to say so.
     color?: string
   }>(),
   {
     confirmText: 'Confirm',
     cancelText: 'Cancel',
-    color: 'error',
+    color: 'primary',
   },
 )
 

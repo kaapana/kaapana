@@ -16,8 +16,8 @@
         </v-tooltip>
         <v-tooltip location="bottom">
           <template #activator="{ props }">
-            <v-btn v-bind="props" @click="redirectToAirflow()" icon variant="text">
-              <v-icon color="primary">mdi-chart-timeline-variant</v-icon>
+            <v-btn v-bind="props" @click="redirectToAirflow()" icon variant="text" aria-label="Open Airflow">
+              <v-icon color="primary">{{ kaapanaIcons.externalLink }}</v-icon>
             </v-btn>
           </template>
           <span>redirect to Airflow workflow engine</span>

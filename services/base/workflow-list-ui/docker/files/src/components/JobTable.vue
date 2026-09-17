@@ -64,8 +64,8 @@
         <template v-slot:item.airflow="{ item }">
           <v-tooltip v-if="item.kaapana_instance.instance_name == item.owner_kaapana_instance_name || item.external_job_id" location="bottom">
             <template #activator="{ props }">
-              <v-btn v-bind="props" @click='direct_airflow_grid_details(item)' size="small" icon variant="text">
-                <v-icon color="secondary">mdi-chart-timeline-variant</v-icon>
+              <v-btn v-bind="props" @click='direct_airflow_grid_details(item)' size="small" icon variant="text" aria-label="Open the Airflow run details">
+                <v-icon color="secondary">{{ kaapanaIcons.externalLink }}</v-icon>
               </v-btn>
             </template>
             <span>airflow's dag_run details</span>

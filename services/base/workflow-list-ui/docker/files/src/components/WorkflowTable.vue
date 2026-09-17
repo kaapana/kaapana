@@ -155,8 +155,9 @@
                   size="small"
                   icon
                   variant="text"
+                  aria-label="Restart workflow"
                 >
-                  <v-icon color="primary">mdi-rotate-left</v-icon>
+                  <v-icon color="primary">{{ kaapanaIcons.restart }}</v-icon>
                 </v-btn>
               </template>
               <span>restart workflow including all its jobs</span>

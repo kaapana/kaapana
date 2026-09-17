@@ -105,8 +105,8 @@
             </v-tooltip>
             <v-tooltip location="bottom">
               <template #activator="{ props }">
-                <v-btn v-bind="props" @click='restartJob(item)' size="small" icon variant="text">
-                  <v-icon color="secondary">mdi-rotate-left</v-icon>
+                <v-btn v-bind="props" @click='restartJob(item)' size="small" icon variant="text" aria-label="Restart job">
+                  <v-icon color="secondary">{{ kaapanaIcons.restart }}</v-icon>
                 </v-btn>
               </template>
               <span>restart single job</span>

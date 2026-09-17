@@ -106,7 +106,7 @@ test('failed-operator logs: a task-instance fetch failure toasts instead of open
   await fail500(page, TASKINSTANCES)
 
   // job 102 (dag-beta) is failed -> it has the failed-operator logs button.
-  await failedJobRow(page).locator('button:has(.mdi-alert-decagram-outline)').click()
+  await failedJobRow(page).getByRole('button', { name: 'Airflow logs of the failed operator' }).click()
 
   await expect(page.getByText('Error while loading task instances of job 102')).toBeVisible()
   await expect(page.getByText('boom')).toBeVisible()
@@ -126,7 +126,7 @@ test('failed-operator logs: a failed job with no failed task warns instead of cr
   // with no task whose last state is 'failed'.
   await expandRunningWorkflow(page)
 
-  await failedJobRow(page).locator('button:has(.mdi-alert-decagram-outline)').click()
+  await failedJobRow(page).getByRole('button', { name: 'Airflow logs of the failed operator' }).click()
 
   await expect(page.getByText('No failed operator found for job 102')).toBeVisible()
   expect(pageErrors).toEqual([])

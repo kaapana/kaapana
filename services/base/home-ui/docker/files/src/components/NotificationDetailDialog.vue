@@ -2,7 +2,7 @@
   <v-dialog :model-value="modelValue" max-width="600" @update:model-value="emit('update:modelValue', $event)">
     <v-card v-if="notification">
       <v-card-title class="d-flex align-start">
-        <v-icon class="mr-2">{{ notification.icon || 'mdi-information' }}</v-icon>
+        <v-icon class="mr-2">{{ notification.icon || kaapanaIcons.info }}</v-icon>
         <span class="detail-title">{{ notification.title }}</span>
         <v-spacer />
         <v-btn icon variant="text" aria-label="Close" @click="emit('update:modelValue', false)">
@@ -20,7 +20,7 @@
           v-if="notification.link"
           color="primary"
           variant="text"
-          prepend-icon="mdi-open-in-new"
+          :prepend-icon="kaapanaIcons.externalLink"
           :href="notification.link"
           target="_top"
         >

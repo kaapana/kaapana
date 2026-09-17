@@ -22,7 +22,7 @@
           @click="openDetail(notif)"
         >
           <template #prepend>
-            <v-icon>{{ notif.icon || 'mdi-information' }}</v-icon>
+            <v-icon>{{ notif.icon || kaapanaIcons.info }}</v-icon>
           </template>
           <v-list-item-title>{{ notif.title }}</v-list-item-title>
           <v-list-item-subtitle>
@@ -41,6 +41,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import NotificationDetailDialog from '@/components/NotificationDetailDialog.vue'
+import { kaapanaIcons } from '@kaapana/base-ui'
 import { useNotificationsStore } from '@/stores/notifications'
 import type { KaapanaNotification } from '@/api/notifications'
 

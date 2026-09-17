@@ -51,6 +51,7 @@
       confirm-text="Delete workflow"
       color="error"
       @confirm="onDeleteConfirmed"
+      @cancel="onDeleteCancelled"
     ></ConfirmDialog>
     <v-data-table-server
       :headers="workflowHeaders"
@@ -403,6 +404,9 @@ function onDeleteConfirmed() {
   if (workflowPendingDelete.value) {
     deleteWorkflow(workflowPendingDelete.value)
   }
+  workflowPendingDelete.value = null
+}
+function onDeleteCancelled() {
   workflowPendingDelete.value = null
 }
 function deleteWorkflow(item: Workflow) {

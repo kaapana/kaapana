@@ -24,6 +24,7 @@
         confirm-text="Delete job"
         color="error"
         @confirm="onDeleteConfirmed"
+        @cancel="onDeleteCancelled"
       ></ConfirmDialog>
 
       <v-data-table
@@ -287,6 +288,9 @@ function onDeleteConfirmed() {
   if (jobPendingDelete.value) {
     deleteJob(jobPendingDelete.value)
   }
+  jobPendingDelete.value = null
+}
+function onDeleteCancelled() {
   jobPendingDelete.value = null
 }
 function deleteJob(item: Job) {

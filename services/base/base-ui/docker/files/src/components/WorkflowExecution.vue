@@ -511,6 +511,10 @@ function toVjsfSchema(schema: any) {
 // so listing it would pre-empt the help toggle.
 const vjsfOptions = {
   useDescription: ["subtitle", "help"] as ("hint" | "subtitle" | "help")[],
+  // vjsf draws its own help toggle with an "i" glyph. The form already has the
+  // platform's "?" help affordance next to the native fields, so pin vjsf's to
+  // the same symbol rather than teach two icons for one thing.
+  icons: { infoSymbol: kaapanaIcons.help },
 };
 
 const compatSchemas = computed<Record<string, any>>(() => {

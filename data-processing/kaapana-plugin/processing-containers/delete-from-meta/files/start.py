@@ -72,8 +72,13 @@ class DeleteFromMetaOperator:
             logger.info("Deleting all documents from META ...")
             query = {"query": {"match_all": {}}}
 
-            # Delete from project index
-            self.os_client.delete_by_query(index=self.os_index, body=query)
+            # Delete from project index. The client from get_opensearch_client waits
+            # only 10 s per request, and emptying a large index takes longer, so the
+            # container fails while OpenSearch is still deleting. Give this one
+            # request a long client-side wait.
+            self.os_client.delete_by_query(
+                index=self.os_index, body=query, request_timeout=600
+            )
 
         else:
             batch_folder = [

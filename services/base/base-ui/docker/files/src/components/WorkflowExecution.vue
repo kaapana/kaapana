@@ -140,7 +140,7 @@
               <v-tooltip v-model="showConfData" location="top">
                 <template v-slot:activator="{ props }">
                   <v-btn icon variant="text" v-bind="props">
-                    <v-icon color="#BDBDBD">mdi-email</v-icon>
+                    <v-icon color="secondary">mdi-email</v-icon>
                   </v-btn>
                 </template>
                 <pre class="text-left">Workflow name: {{ workflow_name }}</pre>

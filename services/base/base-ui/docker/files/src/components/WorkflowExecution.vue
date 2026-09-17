@@ -79,7 +79,7 @@
             </v-col>
             <v-col cols="12" v-if="showDatasetLimit" :key="'__dataset_limit__'">
               <div class="d-flex align-center ga-4">
-                <v-switch v-model="datasetLimitWhole" label="Process whole dataset" color="primary"
+                <v-switch v-model="datasetLimitWhole" label="Process whole dataset"
                   hide-details></v-switch>
                 <v-number-input v-if="!datasetLimitWhole" v-model="datasetLimit" :min="1"
                   label="Limit dataset size" hide-details></v-number-input>

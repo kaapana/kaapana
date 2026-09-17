@@ -80,3 +80,10 @@ test('editing fields updates the rendered values', async ({ page }) => {
   await enabled.check()
   await expect(enabled).toBeChecked()
 })
+
+test('the schema-driven help toggle uses the same icon as the native one', async ({ page }) => {
+  // Two help affordances on one form taught two symbols for one thing: vjsf's
+  // own "i" toggle next to the platform's "?" HelpIcon.
+  await expect(page.locator('.vjsf-help-message-toggle .mdi-help-circle-outline').first()).toBeVisible()
+  await expect(page.locator('.wfe-help-icon .mdi-help-circle-outline').first()).toBeVisible()
+})

@@ -845,6 +845,11 @@ async function submissionValidator() {
     });
     return false;
   }
+  // The button is disabled whenever any check below would fail, so the failure
+  // paths from here on are a backstop rather than the normal route. They still
+  // matter: both the form's validity and the required-field check settle
+  // asynchronously, so a click can arrive against a button that has not caught
+  // up yet.
   // vuetify field rules first
   const validation = await executeWorkflow.value!.validate();
   if (validation.valid) {

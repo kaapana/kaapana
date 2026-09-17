@@ -11,8 +11,15 @@ processed_count = 0
 def unzip_file(zip_path, target_path):
     global processed_count
 
-    with zipfile.ZipFile(zip_path, "r") as zip_ref:
-        zip_ref.extractall(target_path)
+    try:
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            zip_ref.extractall(target_path)
+    except zipfile.BadZipFile as e:
+        # One corrupt archive must not abort the whole task: skip it so the
+        # remaining archives are still extracted. If every archive is bad,
+        # processed_count stays 0 and the final check below fails the task.
+        print(f"# WARNING: skipping invalid zip file {zip_path}: {e}")
+        return
     processed_count += 1
 
 
@@ -174,6 +181,14 @@ if __name__ == "__main__":
             pathlib.Path(batch_output_dir).mkdir(parents=True, exist_ok=True)
 
             zip_files = glob.glob(join(batch_input_dir, "*.zip"), recursive=True)
+            if not zip_files:
+                # Some input operators write per batch element instead of into the
+                # workflow-level input dir; look there before failing with "no files".
+                for batch_element_dir in batch_folders:
+                    element_input_dir = join(
+                        batch_element_dir, os.environ["OPERATOR_IN_DIR"]
+                    )
+                    zip_files += glob.glob(join(element_input_dir, "*.zip"))
             for zip_file in zip_files:
                 unzip_file(zip_path=zip_file, target_path=batch_output_dir)
 

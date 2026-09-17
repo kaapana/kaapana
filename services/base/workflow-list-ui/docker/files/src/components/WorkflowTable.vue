@@ -426,7 +426,11 @@ function getLocalInstance() {
     .then((response: any) => {
       localInstance.value = response.data
     })
-    .catch(() => {})
+    // Deliberately not notified: the view works without it, and a toast on
+    // load would be noise. It still has to be traceable.
+    .catch((err: any) => {
+      console.error('Could not load the local instance', err)
+    })
 }
 // `probeEmpty` asks the backend whether the workflow has any jobs at all when
 // this request comes back empty. Only a request the user triggered wants that:
@@ -487,7 +491,11 @@ function getSingleJobOfWorkflow(workflow_name: string) {
         })
       }
     })
-    .catch(() => {})
+    // Deliberately not notified: this is a follow-up probe for a request that
+    // already reported its own failure. It still has to be traceable.
+    .catch((err: any) => {
+      console.error(`Could not probe the jobs of workflow ${workflow_name}`, err)
+    })
 }
 function deleteClientWorkflowAPI(workflow_id: string) {
   loading.value = true

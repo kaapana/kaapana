@@ -161,11 +161,20 @@
       </v-card-text>
       <v-card-actions v-if="available_dags.length">
         <v-spacer></v-spacer>
-        <v-btn color="primary" variant="elevated"
-          :disabled="!valid || !dag_id || !workflow_name || !requiredFieldsSatisfied || submitting"
-          :loading="submitting" @click="submissionValidator()">
-          Start Workflow
-        </v-btn>
+        <v-tooltip location="top" :disabled="!submitBlockedReason">
+          <template v-slot:activator="{ props }">
+            <!-- A disabled button emits no pointer events, so the surrounding
+                 span has to be the tooltip's activator. -->
+            <span v-bind="props" class="d-inline-block">
+              <v-btn color="primary" variant="elevated"
+                :disabled="!!submitBlockedReason || submitting"
+                :loading="submitting" @click="submissionValidator()">
+                Start Workflow
+              </v-btn>
+            </span>
+          </template>
+          <span>{{ submitBlockedReason }}</span>
+        </v-tooltip>
         <v-btn variant="elevated" @click="isDialog ? cancel() : clearForm()">
           {{ isDialog ? "Cancel" : "Clear" }}
         </v-btn>
@@ -710,6 +719,27 @@ function evaluateRequiredField(reqField: string): { name: string; satisfied: boo
     : fieldValue !== null && fieldValue !== undefined && fieldValue !== "";
   return { name: req_prop_name, satisfied };
 }
+
+// Why Start Workflow cannot be clicked, or null when it can. The button used to
+// be disabled with no explanation, leaving the user to guess which field was
+// missing; the checks below are the same ones submissionValidator() applies
+// after a click, in the order it applies them.
+const submitBlockedReason = computed<string | null>(() => {
+  if (!state.dag_id) return "Select a workflow first.";
+  if (!state.workflow_name) return "Enter a name for this workflow run.";
+  if (state.datasets_available !== true) {
+    return "The selected runner instances have no common allowed datasets.";
+  }
+  const missing = form_requiredFields.value
+    .map((reqField) => evaluateRequiredField(reqField))
+    .filter((field) => !field.satisfied)
+    .map((field) => field.name);
+  if (missing.length > 0) {
+    return `Fill in the required ${missing.length === 1 ? "field" : "fields"}: ${missing.join(", ")}.`;
+  }
+  if (!state.valid) return "Some fields still hold an invalid value.";
+  return null;
+});
 
 // Reactive counterpart to submissionValidator()'s own required-fields loop, so
 // the Start Workflow button can reflect a schema-required field vjsf itself

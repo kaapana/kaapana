@@ -72,8 +72,8 @@
           </v-tooltip>
           <v-tooltip v-if="item.kaapana_instance.instance_name == item.owner_kaapana_instance_name || item.external_job_id" location="bottom">
             <template #activator="{ props }">
-              <v-btn v-if="item.status == 'failed'" v-bind="props" @click='direct_airflow_operator_logs(item)' size="small" icon variant="text">
-                <v-icon color="secondary">mdi-alert-decagram-outline</v-icon>
+              <v-btn v-if="item.status == 'failed'" v-bind="props" @click='direct_airflow_operator_logs(item)' size="small" icon variant="text" aria-label="Airflow logs of the failed operator">
+                <v-icon color="secondary">{{ kaapanaIcons.error }}</v-icon>
               </v-btn>
             </template>
             <span>airflow logs of failed operator</span>

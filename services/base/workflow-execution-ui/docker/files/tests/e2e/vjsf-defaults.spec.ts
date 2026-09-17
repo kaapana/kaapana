@@ -9,7 +9,7 @@ test('schema defaults populate every field', async ({ page }) => {
   await expect(page.getByLabel('Text Field')).toHaveValue('hello')
   await expect(page.getByRole('combobox', { name: 'Algorithm' })).toHaveValue('alpha')
   await expect(page.getByLabel('Threshold', { exact: true })).toHaveValue('5')
-  await expect(page.getByLabel('Ratio')).toHaveValue('0.5')
+  await expect(page.getByLabel('Ratio', { exact: true })).toHaveValue('0.5')
   await expect(page.getByLabel('Retries')).toHaveValue('3')
 })
 

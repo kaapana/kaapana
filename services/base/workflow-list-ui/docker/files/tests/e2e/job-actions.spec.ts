@@ -1,6 +1,13 @@
 import { test, expect } from '@playwright/test'
 import { installMockBackend, VIEW_PATH } from './fixtures/mock-backend'
 
+// The confirmation's action carries the same accessible name as the row button
+// that opened it, so it has to be addressed inside the dialog.
+function confirmButton(page: import('@playwright/test').Page, name: string) {
+  return page.getByRole('dialog').getByRole('button', { name })
+}
+
+
 const JOB = /\/kaapana-backend\/client\/job(\?|$)/
 const TASKINSTANCES = /\/kaapana-backend\/client\/get-job-taskinstances/
 
@@ -50,8 +57,8 @@ test('delete job sends DELETE /job with the job_id', async ({ page }) => {
   await expandRunningWorkflow(page)
 
   const reqP = page.waitForRequest((r) => JOB.test(r.url()) && r.method() === 'DELETE')
-  await jobRow(page).locator('button:has(.mdi-delete)').click()
-  await page.getByRole('button', { name: 'Delete job' }).click()
+  await jobRow(page).getByRole('button', { name: 'Delete job' }).click()
+  await confirmButton(page, 'Delete job').click()
   const req = await reqP
   expect(req.url()).toContain('job_id=101')
 })
@@ -89,8 +96,8 @@ test('delete job failure shows an error toast and keeps the job rows', async ({ 
   await expandRunningWorkflow(page)
   await fail500(page, JOB)
 
-  await jobRow(page).locator('button:has(.mdi-delete)').click()
-  await page.getByRole('button', { name: 'Delete job' }).click()
+  await jobRow(page).getByRole('button', { name: 'Delete job' }).click()
+  await confirmButton(page, 'Delete job').click()
 
   await expect(page.getByText('Error while deleting job 101')).toBeVisible()
   await expect(page.getByText('dag-alpha')).toBeVisible()
@@ -137,8 +144,8 @@ test('failed-operator logs: a failed job with no failed task warns instead of cr
 test('the delete confirmation gives Cancel the initial focus', async ({ page }) => {
   await expandRunningWorkflow(page)
 
-  await jobRow(page).locator('button:has(.mdi-delete)').click()
-  await expect(page.getByRole('button', { name: 'Delete job' })).toBeVisible()
+  await jobRow(page).getByRole('button', { name: 'Delete job' }).click()
+  await expect(confirmButton(page, 'Delete job')).toBeVisible()
 
   // The guideline asks for focus on the safe action. VDialog focuses its own
   // overlay wrapper, so the component has to move focus itself; assert where it

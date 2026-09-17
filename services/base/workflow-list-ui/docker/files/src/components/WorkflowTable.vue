@@ -8,7 +8,7 @@
       <v-col cols="4" class="text-right">
         <v-tooltip location="bottom">
           <template #activator="{ props }">
-            <v-btn v-bind="props" @click="checkForRemoteUpdates" icon variant="text">
+            <v-btn v-bind="props" @click="checkForRemoteUpdates" icon variant="text" aria-label="Sync with the remote instances">
               <v-icon color="primary">mdi-sync</v-icon>
             </v-btn>
           </template>
@@ -24,7 +24,7 @@
         </v-tooltip>
         <v-tooltip location="bottom">
           <template #activator="{ props }">
-            <v-btn v-bind="props" @click="refreshClient()" icon variant="text">
+            <v-btn v-bind="props" @click="refreshClient()" icon variant="text" aria-label="Refresh the workflow list">
               <v-icon color="primary">{{ kaapanaIcons.refresh }}</v-icon>
             </v-btn>
           </template>
@@ -118,6 +118,7 @@
                 size="small"
                 icon
                 variant="text"
+                aria-label="Start workflow"
               >
                 <v-icon color="primary">{{ kaapanaIcons.start }}</v-icon>
               </v-btn>
@@ -170,6 +171,7 @@
                   size="small"
                   icon
                   variant="text"
+                  aria-label="Delete workflow"
                 >
                   <v-icon color="primary">{{ kaapanaIcons.delete }}</v-icon>
                 </v-btn>

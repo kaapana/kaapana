@@ -1,6 +1,13 @@
 import { test, expect } from '@playwright/test'
 import { installMockBackend, VIEW_PATH } from './fixtures/mock-backend'
 
+// The confirmation's action carries the same accessible name as the row button
+// that opened it, so it has to be addressed inside the dialog.
+function confirmButton(page: import('@playwright/test').Page, name: string) {
+  return page.getByRole('dialog').getByRole('button', { name })
+}
+
+
 const WORKFLOW = /\/kaapana-backend\/client\/workflow(\?|$)/
 const SYNC = /\/kaapana-backend\/client\/check-for-remote-updates/
 
@@ -45,8 +52,8 @@ test('delete workflow sends DELETE /workflow with the workflow_id', async ({ pag
   await page.goto(VIEW_PATH)
 
   const reqP = page.waitForRequest((r) => WORKFLOW.test(r.url()) && r.method() === 'DELETE')
-  await runningRow(page).locator('button:has(.mdi-delete)').click()
-  await page.getByRole('button', { name: 'Delete workflow' }).click()
+  await runningRow(page).getByRole('button', { name: 'Delete workflow' }).click()
+  await confirmButton(page, 'Delete workflow').click()
   const req = await reqP
   expect(req.url()).toContain('workflow_id=wf-running-001')
   await expect(page.getByText('Successfully deleted workflow wf-running-001')).toBeVisible()

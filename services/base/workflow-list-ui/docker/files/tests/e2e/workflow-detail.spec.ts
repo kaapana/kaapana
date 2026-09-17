@@ -30,7 +30,7 @@ test('opening a job conf shows the conf-data dialog', async ({ page }) => {
     .locator('td .v-data-table')
     .getByRole('row')
     .filter({ hasText: 'dag-alpha' })
-    .locator('.mdi-email')
+    .getByRole('button', { name: 'Show the configuration of this job' })
     .click()
 
   await expect(page.getByText('Conf object')).toBeVisible()

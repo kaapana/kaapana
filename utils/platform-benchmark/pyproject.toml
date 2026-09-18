@@ -1,0 +1,21 @@
+[project]
+name = "kaapana-platform-benchmark"
+version = "0.1.0"
+description = "Benchmark a running Kaapana instance: ingestion pipeline, internet, GPU, helm"
+requires-python = ">=3.9"
+dependencies = [
+    "typer",
+    "requests",
+    "urllib3",
+]
+
+[project.scripts]
+benchmark = "cli:app"
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["cli", "client", "core", "send", "openmetrics"]
+packages = ["suites"]

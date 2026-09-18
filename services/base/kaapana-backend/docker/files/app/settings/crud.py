@@ -121,9 +121,12 @@ def create_or_update_settings(
     # Processes the incoming value before storing it.
     settings_item.value = settings_item.value
 
-    # Retrieves the existing setting by key for the `kaapana_instance`.
+    # Retrieves the existing setting by key for the `kaapana_instance` and this user.
+    # The lookup must include the username: settings are read per user, so looking the
+    # key up across all users made the first user's row the only one and let every
+    # other user's save overwrite it while their own reads stayed empty.
     db_kaapana_instance = get_kaapana_instance(db, instance_name)
-    db_settings = get_settings_item(db, settings_item.key)
+    db_settings = get_settings_item(db, settings_item.key, username=username)
 
     # If the setting exists and the value is unchanged, the existing setting is returned.
     if db_settings and (settings_item.value == db_settings.value):

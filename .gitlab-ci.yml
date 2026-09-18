@@ -69,6 +69,13 @@ spec:
       type: string
       description: "[runner] deploy, integration-test and clean"
 
+    # --- [deploy] deployment target
+    deployment_os_image_id:
+      default: "ubuntu24"
+      type: string
+      options: ["ubuntu24", "almalinux10"]
+      description: "[deploy] Harvester VirtualMachineImage (by imageDisplayName) to provision as the deployment target OS"
+
 ---
 default:
   interruptible: true
@@ -159,7 +166,7 @@ variables:
   # (<vm_name>.<domain>) stays within the 57-char dcmsend peerhost limit.
   DEPLOYMENT_INSTANCE_VM_NAME: "ci-$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHORT_SHA"
   DEPLOYMENT_INSTANCE_DOMAIN: "vms.dkfz.de"
-  DEPLOYMENT_INSTANCE_IMAGE_ID: "ubuntu24"
+  DEPLOYMENT_INSTANCE_IMAGE_ID: "$[[ inputs.deployment_os_image_id ]]"
   DEPLOYMENT_INSTANCE_CPU: "32"
   DEPLOYMENT_INSTANCE_MEMORY: "256Gi"
   DEPLOYMENT_INSTANCE_DISK: "128Gi"

@@ -137,6 +137,34 @@ docker run --rm -v ~/.gitlab-runner:/etc/gitlab-runner --entrypoint sh \
 
 ## Scenario 2: deploy the platform on your machine
 
+### Choosing the deployment OS image
+
+When `DEPLOYMENT_INSTANCE_FQDN` is empty, `prepare_deployment` provisions a
+fresh Harvester VM from `deployment_os_image_id`
+(`DEPLOYMENT_INSTANCE_IMAGE_ID`), a pipeline input that names a Harvester
+`VirtualMachineImage` by its `harvesterhci.io/imageDisplayName` label in the
+`kaapana-ci` namespace. Today that's `ubuntu24` (default) or `almalinux10`:
+
+```bash
+glab ci run -b my-branch -i deployment_os_image_id:almalinux10 \
+  --variables DEPLOYMENT_INSTANCE_USER:<the image's default cloud-init user>
+```
+
+`DEPLOYMENT_INSTANCE_USER` is a separate knob, not derived from the image —
+it has to match whatever user the chosen image's cloud-init actually creates.
+Getting it wrong fails the SSH connection in `prepare_deployment`, not image
+selection itself.
+
+Once the VM is up, `server_installation` runs `kaapanactl.sh install`
+unchanged for either OS: that script already detects AlmaLinux vs. Ubuntu
+from `/etc/os-release` and branches accordingly, so no CI code depends on
+which image was picked past this point.
+
+To add another OS, register its cloud image as a `VirtualMachineImage` in
+the `kaapana-ci` Harvester namespace with a unique
+`harvesterhci.io/imageDisplayName`, then add that id to
+`deployment_os_image_id`'s `options` in [`.gitlab-ci.yml`](../../.gitlab-ci.yml).
+
 ### Prepare the target
 
 Run the readiness check on the target, as the user CI will SSH in as. It is

@@ -2,6 +2,8 @@ spec:
   inputs:
     exec_build:
       type: boolean
+    exec_benchmark:
+      type: boolean
     exec_deploy:
       type: boolean
     exec_server_installation:
@@ -27,6 +29,7 @@ preflight_variables:
   image: python:3.12
   variables:
     GIT_STRATEGY: none # no checkout needed
+    CI_EXEC_BENCHMARK: "$[[ inputs.exec_benchmark ]]"
   rules:
     - when: always
   script:
@@ -124,6 +127,18 @@ preflight_variables:
         if [ "$[[ inputs.exec_deploy ]]" = "true" ] && [ "${#DEPLOYMENT_INSTANCE_FQDN}" -gt 57 ]; then
           # dcmsend rejects peerhosts over 57 chars
           fail "DEPLOYMENT_INSTANCE_FQDN is ${#DEPLOYMENT_INSTANCE_FQDN} characters, over the 57-character dcmsend peerhost limit."
+        fi
+      fi
+
+      # the benchmark's scenario definitions are a pipeline variable, so they
+      # can be swapped per run — but that also means they can be broken per run
+      if [ "$CI_EXEC_BENCHMARK" = "true" ]; then
+        require CI_EXEC_BENCHMARK_SCENARIOS
+        require CI_EXEC_BENCHMARK_DATA_REPO_URL
+        require CI_EXEC_BENCHMARK_DATA_REPO_TOKEN
+        if [ -n "${CI_EXEC_BENCHMARK_SCENARIOS:-}" ] \
+            && ! python3 -c "import json, os; assert 'scenarios' in json.loads(os.environ['CI_EXEC_BENCHMARK_SCENARIOS'])" 2>/dev/null; then
+          fail "CI_EXEC_BENCHMARK_SCENARIOS is not valid JSON, or has no top-level 'scenarios' object."
         fi
       fi
 

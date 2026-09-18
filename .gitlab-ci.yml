@@ -42,6 +42,10 @@ spec:
       default: false
       type: boolean
       description: "[exec] registry scan of the images this pipeline pushed"
+    exec_benchmark:
+      default: false
+      type: boolean
+      description: "[exec] test stage: platform benchmark against the deployment VM (needs exec_deploy)"
     exec_destroy_delayed:
       default: false
       type: boolean
@@ -80,6 +84,7 @@ stages:
   - security
   - deploy
   - test
+  - benchmark
   - clean
 
 workflow:
@@ -146,6 +151,24 @@ variables:
     value: "false"
     options: ["false", "true"]
     description: "true wipes the build runner's docker cache before the build (cold build)"
+  
+  # Benchmarking information
+  CI_EXEC_BENCHMARK_ARGUMENTS:
+    value: "--suite ingest --runs 3"
+  CI_EXEC_BENCHMARK_SCENARIOS:
+    value: |
+      {
+        "root_path": "image_modalities",
+        "scenarios": {
+          "minimal": ["NSCLC/CT/LUNG1-001", "NSCLC/SEG/LUNG1-001", "NSCLC/RTSTRUCT/LUNG1-001"],
+          "ct-seg": ["NSCLC/CT", "NSCLC/SEG"],
+          "max": ["NSCLC/CT", "NSCLC/SEG", "NSCLC/RTSTRUCT", "CDDP-EAGLE/SM"]
+        }
+      }
+    description: "JSON for the ingest suite: root_path (subdirectory of the data repo scenario paths are relative to; \"\" for the repo root) plus a scenarios map of name to the list of directories it sends. Must match whatever data repo you pair it with, or the benchmark fails fast."
+  CI_EXEC_BENCHMARK_DATA_REPO_URL:
+    value: "https://codebase.helmholtz.cloud/kaapana/data.git"
+  CI_EXEC_BENCHMARK_DATA_REPO_TOKEN: $CI_EXEC_BENCHMARK_DATA_REPO_TOKEN
 
   # --- Deployment target:
   DEPLOYMENT_INSTANCE_FQDN:
@@ -206,6 +229,7 @@ include:
     inputs:
       runner_tag: $[[ inputs.tests_runner_tag ]]
       exec_build: $[[ inputs.exec_build ]]
+      exec_benchmark: $[[ inputs.exec_benchmark ]]
       exec_deploy: $[[ inputs.exec_deploy ]]
       exec_server_installation: $[[ inputs.exec_server_installation ]]
       exec_redeploy: $[[ inputs.exec_redeploy ]]
@@ -241,6 +265,11 @@ include:
       runner_tag: $[[ inputs.deploy_runner_tag ]]
       exec_integration_tests: $[[ inputs.exec_integration_tests ]]
       exec_integration_test_jobs: $[[ inputs.exec_integration_test_jobs ]]
+  - local: /ci/pipeline/benchmark.yml
+    inputs:
+      runner_tag: $[[ inputs.deploy_runner_tag ]]
+      exec_benchmark: $[[ inputs.exec_benchmark ]]
+      exec_deploy: $[[ inputs.exec_deploy ]]
   - local: /ci/pipeline/clean.yml
     inputs:
       runner_tag: $[[ inputs.deploy_runner_tag ]]

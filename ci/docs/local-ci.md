@@ -146,14 +146,16 @@ fresh Harvester VM from `deployment_os_image_id`
 `kaapana-ci` namespace. Today that's `ubuntu24` (default) or `almalinux10`:
 
 ```bash
-glab ci run -b my-branch -i deployment_os_image_id:almalinux10 \
-  --variables DEPLOYMENT_INSTANCE_USER:<the image's default cloud-init user>
+glab ci run -b my-branch -i deployment_os_image_id:almalinux10
 ```
 
-`DEPLOYMENT_INSTANCE_USER` is a separate knob, not derived from the image —
-it has to match whatever user the chosen image's cloud-init actually creates.
-Getting it wrong fails the SSH connection in `prepare_deployment`, not image
-selection itself.
+The SSH user for a provisioned VM is derived from the image automatically —
+`provision_harvester_vm.yaml`'s `deployment_image_users` map
+(`ubuntu24: ubuntu`, `almalinux10: almalinux`). 
+
+`DEPLOYMENT_INSTANCE_USER` only matters when
+`DEPLOYMENT_INSTANCE_FQDN` points at an existing target instead (see
+"Prepare the target" below), where there is no image to derive a user from.
 
 Once the VM is up, `server_installation` runs `kaapanactl.sh install`
 unchanged for either OS: that script already detects AlmaLinux vs. Ubuntu
@@ -162,8 +164,11 @@ which image was picked past this point.
 
 To add another OS, register its cloud image as a `VirtualMachineImage` in
 the `kaapana-ci` Harvester namespace with a unique
-`harvesterhci.io/imageDisplayName`, then add that id to
-`deployment_os_image_id`'s `options` in [`.gitlab-ci.yml`](../../.gitlab-ci.yml).
+`harvesterhci.io/imageDisplayName`, add that id to `deployment_os_image_id`'s
+`options` in [`.gitlab-ci.yml`](../../.gitlab-ci.yml), and add its default
+cloud-init user to `deployment_image_users` in
+[`provision_harvester_vm.yaml`](../ci-code/deploy/provision_harvester_vm.yaml)
+— provisioning fails fast if that last step is missed.
 
 ### Prepare the target
 

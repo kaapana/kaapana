@@ -6,19 +6,12 @@ Existing Operators
 This section lists the ready-to-use operators available in Kaapana.
 Note that all operators might not be documented yet. For the full list, please refer to the `kaapana.operators <https://github.com/kaapana/kaapana/tree/develop/data-processing/kaapana-plugin/extension/docker/files/plugin/kaapana/operators>`_ package.
 
-The base class, not the name, decides whether an operator can be tested with
-pytest alone, without a scheduler and without a deployed platform:
-``KaapanaPythonBaseOperator`` and ``KaapanaBranchPythonBaseOperator`` run their
-code in the Airflow process and are plain Python, while ``KaapanaBaseOperator``
-launches a pod and keeps its logic in the container image. Most of the in-process
-ones are named ``Local*``, but the prefix alone is not reliable, see
-:ref:`writing_tests`.
-
 Base operators
 --------------
 
 Base operators serve as foundational classes for task-specific operators.
 When developing your own customized operator leverage these operators as base classes.
+The base class also decides how the operator can be tested, see :ref:`writing_tests`.
 
 KaapanaBaseOperator
 ^^^^^^^^^^^^^^^^^^^^^^^

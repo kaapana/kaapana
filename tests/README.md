@@ -1,10 +1,12 @@
 # Tests
 
-This directory holds the Airflow operator unit tests and the Playwright suite
-that runs against a deployed platform. Every other suite lives next to the code
-it covers, under `services/**/docker/**/tests/` or `lib/<package>/tests/`. The
-system tests that build, deploy and exercise a platform are not here either,
-they live under `ci/ci-code/integration_tests/`.
+What lives here, and how to run it. Writing a suite of your own is covered in
+[../ci/README.md](../ci/README.md), section 9.
+
+Two suites live here. Every other suite lives next to the code it covers, most
+under `services/**/docker/**/tests/` or `lib/<package>/tests/`, and the system
+tests that build, deploy and exercise a platform under
+`ci/ci-code/integration_tests/`.
 
 | Path | Covers | CI job |
 |---|---|---|
@@ -20,144 +22,25 @@ pip install -r tests/requirements.txt
 pytest tests/operators
 ```
 
-Any other suite runs the same way, by its path and with the `requirements.txt`
-that belongs to it:
-
-```bash
-pip install -r <suite>/requirements.txt
-pytest <suite>
-```
+A service suite runs the same way, by its path and with the `requirements.txt`
+that belongs to it. A library suite under `lib/` has none. Its dependencies sit
+in the package's `pyproject.toml` and the extras differ per package, so take the
+install line from the suite's job in
+[../ci/pipeline/unit-tests.yml](../ci/pipeline/unit-tests.yml).
 
 Stay in the repository root, as CI does. `pytest.ini` limits discovery to
 `tests/`, so a bare `pytest` finds the operator tests and nothing else. The
 operator tests also write their scratch DICOM relative to the working
 directory.
 
-The whole `tests` stage also runs on any machine with docker, see "Running the
+The whole `tests` stage runs locally through gitlab-ci-local, see "Running the
 pipeline locally" in [../ci/README.md](../ci/README.md).
 
-## Adding a suite
+## Where to go next
 
-Put `tests/` next to the app package in the service's build context, usually
-`docker/files/tests/` beside `docker/files/app/`, and name the files
-`test_*.py`.
-
-A `conftest.py` beside them carries up to three things:
-
-```python
-# Settings are read at import time, so set them before the app is imported.
-# Dummy values are enough as long as nothing connects.
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost/test")
-
-# Stub the modules that only ship in the base image, so the suite needs no image.
-sys.modules.setdefault("kaapanapy", types.ModuleType("kaapanapy"))
-
-# Make `import app` work whatever directory pytest was started from.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-```
-
-Every suite needs the `sys.path` line, because the app code is not an
-installable package. A suite that imports nothing heavy needs only that line,
-as in [portal-api](../services/base/portal-api/docker/tests/conftest.py). One
-that needs all three is
-[notification-service](../services/base/notification-service/docker/files/tests/conftest.py).
-
-Pin the suite's external test dependencies with `==` in its own
-`requirements.txt`. The job starts from the bare Python image named in
-`.test_template` and inherits nothing. The `constraints/` floors that the
-service images build under do not apply either, so a suite can pin a version
-the platform would never install. Runtime dependencies of the service belong
-in the service's `requirements.txt`, not in the suite's.
-
-## Choosing a test level
-
-Three levels, from cheapest to most involved. Take the first one that reaches
-the behaviour under test.
-
-### Function
-
-Logic reachable without a request: a [plain pytest](https://docs.pytest.org/)
-test.
-
-Setup appears only where the function takes a framework object as its input.
-A fixture in `conftest.py` then builds the minimal version of that object, as
-`make_request` does for an ASGI scope in the example.
-
-Example:
-[dicom-web-filter/test_scope.py](../services/data-separation/dicom-web-filter/docker/files/tests/test_scope.py)
-
-### Synchronous route
-
-A route whose database dependency can be faked. It runs in-process under a
-`TestClient`, with that dependency replaced.
-
-```python
-client = TestClient(app)
-app.dependency_overrides[get_async_db] = override_db
-```
-
-Example:
-[notification-service/test_read_all.py](../services/base/notification-service/docker/files/tests/test_read_all.py)
-
-### Async route with a database
-
-A route that needs real database behaviour. SQLite in memory, one engine
-shared by every connection, tables created per test, the app reached through
-its ASGI interface. Without `StaticPool` every connection opens its own empty
-database, and Postgres-only column types such as `JSONB` have to be mapped to
-a portable one before the models are imported.
-
-```python
-engine = create_async_engine("sqlite+aiosqlite:///:memory:", poolclass=StaticPool)
-async with engine.begin() as conn:
-    await conn.run_sync(Base.metadata.create_all)
-
-async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-    ...
-```
-
-Example:
-[workflow-api/tests/unit/conftest.py](../services/base/workflow-api/docker/files/tests/unit/conftest.py)
-
-## Getting a suite into CI
-
-The jobs live in [../ci/pipeline/unit-tests.yml](../ci/pipeline/unit-tests.yml)
-and are gated with the `tests` stage as a whole. Whether a new test runs depends
-on how its job was written:
-
-1. A file under `tests/` runs without touching CI, because `unit_tests` passes
-   the directory to pytest. New dependencies go into `tests/requirements.txt`.
-2. The same holds wherever an existing job passes a directory. Where a job
-   names a single file instead, a new file beside it stays silent until the
-   job is changed.
-3. A suite at a new location needs its own job:
-
-```yaml
-<name>_tests:
-  extends: .pytest_template
-  script:
-    - pip install -r $KAAPANA_DIR/<suite>/requirements.txt
-    - pytest $KAAPANA_DIR/<suite> --junitxml=<name>_report.xml
-        --cov=<the app directory this suite exercises>
-        --cov-report=term --cov-report=xml:coverage.xml
-  artifacts:
-    reports:
-      junit:
-        - <name>_report.xml
-```
-
-Then work through the "Adding a job" checklist in
-[../ci/README.md](../ci/README.md), which covers the wiring a job needs beyond
-its own script, and try it locally with
-`gitlab-ci-local <name>_tests --variable CI_PIPELINE_SOURCE=web`.
-
-## What CI reports back
-
-The JUnit report feeds the pipeline's Tests tab whichever template a job
-extends. Coverage is opt-in on top of that: a suite reaches the coverage badge
-and the line markers in the merge request diff only if its job extends
-`.pytest_template` *and* its `pytest` call passes the `--cov` flags shown above.
-Several suites meet neither condition and are simply not measured, so a green
-pipeline says nothing about their coverage. What is excluded from the
-measurement is set once in [../.coveragerc](../.coveragerc). "Reports in the
-GitLab UI" in [../ci/README.md](../ci/README.md) lists what GitLab renders.
+- [../ci/README.md](../ci/README.md), section 9: where a suite belongs, what
+  its `conftest.py` has to carry, which test level to pick, and how to get it
+  running in the pipeline. Section 11 covers what the pipeline reports back.
+- [Writing Tests](../docs/source/development_guide/writing_tests.rst) in the
+  development guide: testing a processing-container, a local operator or a
+  user interface on a development machine.

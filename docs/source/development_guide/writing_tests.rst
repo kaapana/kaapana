@@ -17,41 +17,49 @@ in the pipeline instead.
 Processing containers
 =====================
 
-A processing-container declares its contract in the
-:file:`processing-container.json` inside the image. A :file:`task.json`
-instantiates one of its task templates. The Task API CLI validates both files
-and runs the task on Docker, with nothing else installed:
+The Task API ships a CLI that runs a single task of a container on Docker,
+without Airflow and without a deployed platform. To exercise a container
+against your own data:
+
+1. Put the test data in a local directory.
+2. Write a :file:`task.json` whose input channel points at that directory.
+3. Run it:
+
+   .. code-block:: bash
+
+       python3 -m task_api.cli run task.json --mode docker
+
+``run`` parses the :file:`task.json` first, so a malformed one fails before any
+container starts. The second file, the :file:`processing-container.json` that
+declares what the image can do, is checked on its own:
 
 .. code-block:: bash
 
     python3 -m task_api.cli validate processing-container.json --schema pc
-    python3 -m task_api.cli validate task.json --schema task
-    python3 -m task_api.cli run task.json --mode docker
 
-A run writes a :file:`task_run-<id>.pkl` to the working directory;
-:code:`task_api.cli logs` reads that file. The run confirms that the container
-finds its inputs at the paths its task template declares and writes its results
-in the layout of :ref:`data_structure_convention`.
-
-:ref:`processing_container_dev_guide` covers installing the CLI and describes
-the :file:`task.json` format, including a minimal file to start from.
+:ref:`processing_container_dev_guide` covers installing the CLI, the fields of
+a :file:`task.json` and a minimal file to start from.
 
 Local operators
 ===============
 
-An operator deriving from ``KaapanaPythonBaseOperator`` or
-``KaapanaBranchPythonBaseOperator`` runs its code in the Airflow process itself,
-so a pytest test imports it and calls it directly, with no scheduler and no
-platform. One deriving from ``KaapanaBaseOperator`` launches a pod and keeps its
-logic in the container image. That logic is tested as a processing-container,
-above. The suite lives in :file:`tests/operators`.
+Operators deriving from ``KaapanaPythonBaseOperator`` or
+``KaapanaBranchPythonBaseOperator`` run their code in the Airflow process, so
+pytest can import them and call them directly. Operators deriving from
+``KaapanaBaseOperator`` only launch a container and keep their logic inside the
+image; that logic is tested as a processing-container, above. The base class
+decides this, not the name: most in-process operators are called ``Local*``,
+but the prefix alone does not settle it, so check what the class derives from.
 
-Ordinary imports do not work at the top of the file. The plugin directory has
-to be on the path first, and an operator that pulls in modules from the
-Airflow image needs those mocked as well. Take both from
-:file:`tests/operators/utils.py` rather than spelling them out per file, so a
-moved directory or a new module to mock is a one-line change for the whole
-suite. In outline:
+The suite lives in :file:`tests/operators`, and a test there is built like this.
+
+**1. Put the plugin directory on the path and mock the Airflow image.** Both
+come from
+`utils.py <https://github.com/kaapana/kaapana/blob/develop/tests/operators/utils.py>`_:
+``PLUGIN_DIR`` is the directory Airflow loads the operators from, and
+``mock_modules`` stubs the modules that ship in the Airflow image alone, the
+Kubernetes client, the MinIO and notification helpers and ``kaapanapy`` among
+them:
 
 .. code-block:: python
 
@@ -60,23 +68,33 @@ suite. In outline:
     from .utils import PLUGIN_DIR, mock_modules
 
     sys.path.insert(0, str(PLUGIN_DIR))
-    mock_modules()  # only if the operator imports from the Airflow image
+    mock_modules()  # drop it if the import below works without it
 
-    # only now, not at the top of the file
-    from kaapana.operators.<Module> import <name>
+**2. Import the operator, and only after those two lines:**
 
-A test takes one of two shapes:
+.. code-block:: python
 
-- calling a helper function over a table of cases with
-  :code:`@pytest.mark.parametrize`, as in :file:`test_HelperThumbnails.py`
-- building the operator in a pytest fixture and calling its :code:`start()`
-  method, as in :file:`test_LocalDcm2JsonOperator.py`
+    from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
 
-DICOM inputs are not committed: :file:`generator.py` writes them per case to
-the path it is given, with a parameter dictionary overriding individual tags.
+**3. Generate the inputs.** DICOM files are not committed to the repository,
+they are written per test case by
+`generator.py <https://github.com/kaapana/kaapana/blob/develop/tests/operators/generator.py>`_.
+Its :code:`generate_ct`, :code:`generate_seg` and :code:`generate_rtstruct` each
+take a target path and a dictionary of DICOM tag names, which overrides
+individual tags of the default series they build.
 
-Run the suite from the repository root, which is where the operators write
-their scratch directory:
+**4. Build the operator in a fixture and call it.** The fixture constructs the
+operator, points its :code:`airflow_workflow_dir` at a scratch directory, writes
+the generated files into the batch below it and calls :code:`start()`, as in
+`test_LocalDcm2JsonOperator.py <https://github.com/kaapana/kaapana/blob/develop/tests/operators/test_LocalDcm2JsonOperator.py>`_.
+Where the behaviour under test is a helper function rather than a whole
+operator, there is neither fixture nor operator:
+`test_HelperThumbnails.py <https://github.com/kaapana/kaapana/blob/develop/tests/operators/test_HelperThumbnails.py>`_
+calls the function over a table of cases, one case per
+:code:`@pytest.mark.parametrize` entry.
+
+**5. Run the suite from the repository root**, which is where the operators
+write their scratch directory:
 
 .. code-block:: bash
 
@@ -86,44 +104,47 @@ their scratch directory:
 User interfaces
 ===============
 
-The shell and most of its views carry a Playwright end-to-end suite of their
-own, each with its own fixture that intercepts the app's backend calls in the
-browser and serves fixture data. A suite therefore needs no cluster and no
-backend.
+The shell ui and most of its views ship a Playwright end-to-end suite that
+intercepts the backend calls in the browser and serves fixture data, so a suite
+needs neither cluster nor backend. To run one:
 
-Every view imports :code:`@kaapana/base-ui` and needs its :file:`dist/` built
-first, see :ref:`ui_dev_loop`. There is no repository-wide setup: each app
-installs into its own :file:`docker/files`, so run the steps below once per app,
-and again whenever the app's lockfile changes:
+1. Build :code:`@kaapana/base-ui` first if the app consumes it, see
+   :ref:`ui_dev_loop` in the UI development guide.
+2. Install the app's dependencies and the browser. There is no repository-wide
+   setup, each app installs into its own :file:`docker/files`, so this is once
+   per app and again whenever its lockfile changes:
 
-.. code-block:: bash
+   .. code-block:: bash
 
-    cd services/base/<app>-ui/docker/files
-    npm ci
-    npx playwright install chromium   # once per pinned playwright version
+       cd services/base/<app>-ui/docker/files
+       npm ci
+       npx playwright install chromium
 
-From then on the suite runs on its own, because Playwright starts the app's
-dev server:
+3. Run the suite. Playwright starts the app's dev server itself, and each app
+   listens on its own fixed port, so suites can run in parallel:
 
-.. code-block:: bash
+   .. code-block:: bash
 
-    npx playwright test
+       npx playwright test
 
-Each app listens on its own fixed port, so the suites can run in parallel. The
-shell additionally ships vitest unit suites, run with
-:code:`npm run test:unit`, for logic that a browser test reaches only
-indirectly, such as the API client and the stores.
+The shell ui additionally carries vitest unit suites for logic that a browser
+test reaches only indirectly, such as the API client and the stores. Run them
+with :code:`npm run test:unit`.
 
-A new view brings its own suite and fixture with it, and has to be entered in
-the CI matrix by hand, or it is never tested. The port registry, the
-mock-backend fixture and that matrix are described in the
-:ref:`UI development guide <ui_testing>`.
+A new view brings its own suite and fixture with it, and has to be added to the
+CI matrix by hand. A suite that is not in the matrix never runs in the pipeline.
+The :ref:`UI development guide <ui_testing>` covers the port registry, the
+mock-backend fixture and that matrix.
+
+The Playwright suite in :file:`tests/ui` is a different thing. It drives a
+deployed instance through a real login, so it takes a URL and credentials
+instead of fixtures.
 
 Where to go next
 ================
 
-- :file:`tests/README.md` in the repository: where a suite belongs, which test
-  level to pick, and how to get it running in the pipeline.
-- :file:`ci/README.md` together with :file:`ci/pipeline/unit-tests.yml`: how
-  the suites run in CI. The pipeline reports test results and coverage back
-  into the merge request.
+- `ci/README.md <https://github.com/kaapana/kaapana/blob/develop/ci/README.md>`_,
+  section 9: where a suite for a service belongs, what its :file:`conftest.py`
+  has to carry, which test level to pick, and how to give it a CI job.
+- `tests/README.md <https://github.com/kaapana/kaapana/blob/develop/tests/README.md>`_:
+  what the two suites in that directory cover and how to run them.

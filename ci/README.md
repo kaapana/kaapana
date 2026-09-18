@@ -322,15 +322,84 @@ python3 ci/harvester/control/set_ci_variables.py \
 The script cannot set protected variables — create the `RELEASE_REGISTRY_*`
 triple manually in the UI.
 
-## 9. Adding a job
+## 9. Adding a test suite and its job
+
+### The suite
+
+Put the suite in a `tests/` directory inside the import root, the directory
+that holds the `app/` package. That is `docker/files/tests/` for most services
+and `docker/tests/` for a few. Name the files `test_*.py`, which is what pytest
+[discovers](https://docs.pytest.org/en/stable/explanation/goodpractices.html#conventions-for-python-test-discovery)
+by default.
+
+The job is a `python:3.12` container with the repository checked out. It
+installs the suite's `requirements.txt` and nothing else: no base image, no
+database, no deployed platform. The suite supplies the rest itself, with the
+imports below and a stand-in for every service a route talks to. The three
+suites in the table below show how.
+
+A `conftest.py` beside the tests adds what that runner is missing. Three lines
+at most, below the imports they need:
+
+```python
+# Every suite: the app code is not an installable package.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+# Only if settings are read at import time. Dummy values do, as long as nothing connects.
+os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost/test")
+
+# Only if the app imports modules that ship in the base image alone.
+sys.modules.setdefault("kaapanapy", types.ModuleType("kaapanapy"))
+```
+
+[notification-service's](../services/base/notification-service/docker/files/tests/conftest.py)
+conftest carries all three, [portal-api's](../services/base/portal-api/docker/tests/conftest.py)
+only the path line.
+
+Pin the suite's test dependencies with `==` in its own `requirements.txt`. The
+job installs that one file and nothing else, in particular not the
+`constraints/` files that the image build applies.
+
+Take the cheapest level that reaches the behaviour under test, and start from
+the suite that already works that way:
+
+| Level | Use when | Start from |
+|---|---|---|
+| plain pytest | the logic is reachable without a request | [dicom-web-filter](../services/data-separation/dicom-web-filter/docker/files/tests/test_scope.py) |
+| [`TestClient`](https://fastapi.tiangolo.com/tutorial/testing/) | a route whose database dependency can be faked | [notification-service](../services/base/notification-service/docker/files/tests/test_read_all.py) |
+| [`AsyncClient`](https://fastapi.tiangolo.com/advanced/async-tests/) on SQLite in memory | a route that needs real database behaviour | [workflow-api](../services/base/workflow-api/docker/files/tests/unit/conftest.py) |
+
+### The job
+
+A new test file does not always need one. Most jobs hand pytest a directory, so
+a `test_*.py` file below one of those runs on the next pipeline. Two jobs name a
+single file instead, `kube_helm_tests` and `access_information_interface_tests`.
+A new file next to those runs once the job names it too.
+
+A suite at a new location does need one:
+
+```yaml
+<name>_tests:
+  extends: .pytest_template
+  script:
+    - pip install -r $KAAPANA_DIR/<suite>/requirements.txt
+    - pytest $KAAPANA_DIR/<suite> --junitxml=<name>_report.xml
+        --cov=<the app directory this suite exercises>
+        --cov-report=term --cov-report=xml:coverage.xml
+  artifacts:
+    reports:
+      junit:
+        - <name>_report.xml
+```
+
+`kaapana_backend_tests` in [unit-tests.yml](pipeline/unit-tests.yml) is this
+filled in. Section 11 covers what the `--cov` flags report.
+
+Then, for any job:
 
 1. Extend the right template (`.test_template`, `.pytest_template`, `.build_cli_env`,
    `.remote_execution_template`, `.integration_test_local`) — they carry the
    runner tag, image, and rules conventions. `.test_template` caps a single job at 5 minutes.
-   A new pytest job extends `.pytest_template`, which adds the coverage regex and the
-   cobertura artifact on top of it; the job's own `pytest` call still has to pass
-   `--cov=<dir> --cov-report=term --cov-report=xml:coverage.xml`, or the job stays
-   green and silently reports nothing. See section 11.
 2. Add required CI/CD variable that is not already checked to
    `preflight_variables` ([`ci/pipeline/preflight.yml`](pipeline/preflight.yml))
 3. Gate it with `rules:` on the matching `CI_EXEC_*` toggle.
@@ -385,13 +454,17 @@ GitLab reads them, no pipeline job does.
 | Report | Produced by | Where it shows |
 |---|---|---|
 | JUnit | every pytest job + `playwright_ui_tests` | pipeline **Tests** tab, failed-test summary in the MR |
-| Coverage (cobertura) | the pytest jobs that opt in via `.pytest_template` | coverage badge, line markers in the MR diff |
+| Coverage (cobertura) | the pytest jobs that pass `--cov` | coverage badge, line markers in the MR diff |
 | Code Quality | `code_quality` | MR **Code Quality** widget |
 | Container scanning | `security` | MR security widget, vulnerability report |
 
 Notes:
 
 - The `coverage` is per suite - each job measures the one directory it exercises. GitLab merges the reports for the diff view.
+- A job reports coverage when it extends `.pytest_template` and its `pytest` call
+  passes the [`--cov`](https://pytest-cov.readthedocs.io/en/latest/) flags. With
+  one of the two missing, the job passes and reports nothing.
+- What the measurement leaves out is set once in [`.coveragerc`](../.coveragerc).
 - The `lint` job enforces the smaller set in `ruff.toml`.
 - The `code_quality` never fails. It widens the ruleset
 - Container scanning only runs when `CI_EXEC_SECURITY_SCAN=true` (nightly).
@@ -512,9 +585,10 @@ Target branch: _develop_
 - A workflow testcase whose DAG the platform does not know counts as passed, so a
   failed extension install can leave `run_workflows` green.
 - `install_extensions` and `send_data` carry `retry: 2` — known flakiness.
-- Coverage is opt-in per job, not a property of the tests stage: several pytest
-  suites report none at all, `dicom_web_filter_tests` among them.
-  [`tests/README.md`](../tests/README.md) says how a job opts in.
+- Several pytest jobs still extend `.test_template` and pass no `--cov` flags,
+  so they report no coverage, `dicom_web_filter_tests` and
+  `notification_service_tests` among them. Section 11 has the two conditions a
+  job has to meet.
 - `ci/docs/local-ci.md` predates the current variable set (it references
   variables that no longer exist) — for local runs use
   [section 10](#10-running-the-pipeline-locally) instead.

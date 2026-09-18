@@ -14,12 +14,24 @@ from pathlib import Path
 from client import KaapanaClient
 
 
-def series_uids(paths: str | list[str]) -> set[str]:
-    """Unique SeriesInstanceUIDs of all DICOM files under *paths* (via dcmdump)."""
+def _files(paths: str | list[str]) -> list[Path]:
     files = []
     for path in [paths] if isinstance(paths, str) else paths:
         p = Path(path)
         files += [p] if p.is_file() else [f for f in p.rglob("*") if f.is_file()]
+    return files
+
+
+def dir_stats(paths: str | list[str]) -> tuple[int, int]:
+    """(file_count, total_bytes) of everything under *paths* — what a
+    scenario is about to send, before dcmdump even looks at DICOM headers."""
+    files = _files(paths)
+    return len(files), sum(f.stat().st_size for f in files)
+
+
+def series_uids(paths: str | list[str]) -> set[str]:
+    """Unique SeriesInstanceUIDs of all DICOM files under *paths* (via dcmdump)."""
+    files = _files(paths)
     out = subprocess.run(
         ["dcmdump", *map(str, files)],
         capture_output=True,

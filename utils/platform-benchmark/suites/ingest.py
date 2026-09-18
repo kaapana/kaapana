@@ -7,9 +7,10 @@ import json
 import time
 from pathlib import Path
 
+import resources
 from client import KaapanaClient
 from core import _ts, analyze
-from send import send_and_wait
+from send import dir_stats, send_and_wait
 
 
 def load(path: Path) -> tuple[str, dict[str, list[str]]]:
@@ -63,7 +64,11 @@ def run(
     results = {}
     for name in names:
         paths = scenario_paths(Path(data_dir), root_path, config[name])
-        print(f"\n=== scenario {name}: {', '.join(config[name])} ===")
+        num_files, disk_size_bytes = dir_stats(paths)
+        sent = {"files": num_files, "disk_size_bytes": disk_size_bytes}
+        print(
+            f"\n=== scenario {name}: {', '.join(config[name])} ({num_files} files, {disk_size_bytes / 1e6:.0f} MB) ==="
+        )
         t0 = time.time()
         try:
             dag_runs, uids = send_and_wait(
@@ -77,12 +82,14 @@ def run(
             )
         except Exception as e:  # keep the other scenarios' results
             print(f"    x scenario failed: {e}")
-            results[name] = {"failed_scenario": 1, "error": str(e)}
+            results[name] = {**sent, "failed_scenario": 1, "error": str(e)}
             continue
         wall = time.time() - t0
         r = analyze(client, dag_id, runs=dag_runs)
+        usage = resources.usage_during(client, t0)
         triggered = {d.get("conf", {}).get("seriesInstanceUID") for d in dag_runs}
         results[name] = {
+            **sent,
             "series": len(uids),
             "failed_scenario": 0,
             "wall_s": round(wall, 1),
@@ -97,6 +104,8 @@ def run(
             "task_p50_s": {
                 t: round(s["p50"], 1) for t, s in sorted(r["tasks"].items(), key=lambda kv: -kv[1]["p50"])[:3]
             },
+            "resource_avg": usage["avg"],
+            "resource_max": usage["max"],
         }
         print(
             f"    wall {wall:.0f}s, run p50 {r['dag_p50']:.0f}s, "

@@ -17,5 +17,5 @@ requires = ["setuptools>=64"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-py-modules = ["cli", "client", "core", "send", "openmetrics"]
+py-modules = ["cli", "client", "core", "send", "openmetrics", "resources"]
 packages = ["suites"]

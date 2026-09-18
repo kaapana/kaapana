@@ -80,6 +80,18 @@ class KaapanaClient:
         r = self.session.post(f"{self.host}/kaapana-backend/client/workflow", json=payload, timeout=60)
         r.raise_for_status()
 
+    def query_range(self, promql: str, minutes: int, step: int = 15) -> list[dict]:
+        """PromQL range query via kaapana-backend's Prometheus proxy, covering
+        the last *minutes* up to now. The {query} path segment is a dummy —
+        the actual query goes in ?q=."""
+        r = self.session.get(
+            f"{self.host}/kaapana-backend/monitoring/query-range/benchmark",
+            params={"q": promql, "minutes": minutes, "step": step},
+            timeout=self.timeout,
+        )
+        r.raise_for_status()
+        return r.json()
+
     def get_task_log(self, dag_id: str, dag_run_id: str, task_id: str, try_number: int) -> str:
         r = self.session.get(
             f"{self.host}/flow/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}",

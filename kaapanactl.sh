@@ -1388,11 +1388,12 @@ install_gpu_operator() {
   fi
 
   # Feed JSON values to Helm via stdin (equivalent to -f - in the Python script)
-  # RUNTIME_CONFIG_SOURCE pins what the toolkit bases its config on. Without it the toolkit dumps
-  # whichever containerd it finds on the host - containerd 2.x when Docker is installed - and writes
-  # a config version 3 file that MicroK8s' bundled containerd 1.7 then refuses to start with. It
-  # reads the rendered containerd.toml, like the online path, because the template it writes to
-  # still carries MicroK8s' ${...} placeholders.
+  # RUNTIME_CONFIG_SOURCE pins what the toolkit bases its config on, and the config version it
+  # writes is inherited from that source - including the drop-in that toolkit 1.18 adds under
+  # /etc/containerd/conf.d. Without the pin the toolkit dumps whichever containerd it finds on the
+  # host, containerd 2.x where Docker is installed, and the resulting config version 3 is one
+  # MicroK8s' bundled containerd 1.7 refuses to start with. Template as CONTAINERD_CONFIG plus
+  # rendered containerd.toml as the source is the pair NVIDIA documents for MicroK8s.
   cat <<EOF | "${helm}" upgrade --install "${chart_name}" "${chart_path}" \
     --version="${chart_version}" \
     --create-namespace \

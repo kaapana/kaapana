@@ -22,6 +22,8 @@ benchmark_platform:
   dependencies:
     - prepare_deployment
   rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_LABELS =~ /(^|,)Benchmark(,|$)/
+      when: on_success
     - if: '"$[[ inputs.exec_benchmark ]]" == "true"'
       when: on_success
     - when: never

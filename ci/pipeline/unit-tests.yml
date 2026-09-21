@@ -31,6 +31,20 @@ unit_tests:
         - unittest_report.xml
 
 ##############################################
+# dcm4chee Tests
+##############################################
+dcm4chee_tests:
+  extends: .test_template
+  # ci-base rather than python:3.12: the tests render the chart with helm
+  image: $CI_BASE_IMAGE
+  script:
+    - pytest $KAAPANA_DIR/services/store/dcm4chee/tests/ --junitxml=dcm4chee_report.xml
+  artifacts:
+    reports:
+      junit:
+        - dcm4chee_report.xml
+
+##############################################
 # Task API Tests
 ##############################################
 task_api_tests:

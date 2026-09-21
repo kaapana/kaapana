@@ -247,6 +247,7 @@ PACS configurations
 .. note::
 
    Changing the policy does not rewrite stored data and does not merge patients that were already split.
+   An instance whose archive rules were already changed by hand, for example by an earlier nullify rule, can be reset to dcm4chee's defaults with ``services/store/dcm4chee/scripts/restore-stock-issuer-rules.sh`` before the re-deploy.
 
 Data configurations
 ---------------------

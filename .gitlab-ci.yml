@@ -159,7 +159,7 @@ variables:
     description: "Deployment target host. Empty provisions a fresh Harvester VM. Max 57 characters (dcmsend peerhost limit)."
   DEPLOYMENT_INSTANCE_USER:
     value: "ubuntu"
-    description: "SSH user on the deployment target"
+    description: "SSH user on an existing deployment target (DEPLOYMENT_INSTANCE_FQDN set). Ignored when Harvester provisions a fresh VM — that path derives its user from deployment_os_image_id instead."
 
 
   # vm_name is truncated in the provisioning playbook so the FQDN

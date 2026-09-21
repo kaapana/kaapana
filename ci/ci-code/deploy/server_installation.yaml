@@ -42,6 +42,7 @@
         DOCKER_IO_PASSWORD: "{{ lookup('ansible.builtin.env', 'DOCKER_IO_PASSWORD') }}"
       register: server_installation_output
       become: yes
+      become_flags: '-E'
       ignore_errors: true
 
     - name: Show script output in CI logs

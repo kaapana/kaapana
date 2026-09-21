@@ -1551,10 +1551,10 @@ function load_kaapana_config {
     # How the PACS identifies a patient: archive_default (dcm4chee's own behaviour),
     # patient_id_only, fixed_issuer or supplement_issuer; see the deployment guide in the docs.
     # Changing it needs --re-deploy and does not merge patients that were already split.
-    PACS_PATIENT_ISSUER_POLICY="archive_default"
+    PACS_PATIENT_ISSUER_POLICY="${PACS_PATIENT_ISSUER_POLICY:-archive_default}"
     # The local issuer written by fixed_issuer and supplement_issuer: 1-64 letters, digits,
     # space, dot, underscore or hyphen. It becomes part of every stored patient's identity.
-    PACS_PATIENT_ISSUER_VALUE=""
+    PACS_PATIENT_ISSUER_VALUE="${PACS_PATIENT_ISSUER_VALUE:-}"
 
     ######################################################
     # Login page branding (shown on the Keycloak login page)

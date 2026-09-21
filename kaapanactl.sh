@@ -1548,6 +1548,14 @@ function load_kaapana_config {
 
     INSTANCE_NAME=""
 
+    # How the PACS identifies a patient: archive_default (dcm4chee's own behaviour),
+    # patient_id_only, fixed_issuer or supplement_issuer; see the deployment guide in the docs.
+    # Changing it needs --re-deploy and does not merge patients that were already split.
+    PACS_PATIENT_ISSUER_POLICY="archive_default"
+    # The local issuer written by fixed_issuer and supplement_issuer: 1-64 letters, digits,
+    # space, dot, underscore or hyphen. It becomes part of every stored patient's identity.
+    PACS_PATIENT_ISSUER_VALUE=""
+
     ######################################################
     # Login page branding (shown on the Keycloak login page)
     ######################################################
@@ -2201,6 +2209,17 @@ function deploy_chart {
         echo "${YELLOW}No INSTANCE_NAME is set, setting it to $DOMAIN!${NC}"
     fi
 
+    # Checked here as well as in the chart: helm --set-string drops backslashes and splits on
+    # commas before the chart sees the value, so those would deploy silently altered.
+    case "$PACS_PATIENT_ISSUER_POLICY" in
+        fixed_issuer|supplement_issuer)
+            local issuer_pattern='^[A-Za-z0-9._-]([A-Za-z0-9 ._-]{0,62}[A-Za-z0-9._-])?$'
+            if ! [[ "$PACS_PATIENT_ISSUER_VALUE" =~ $issuer_pattern ]]; then
+                echo "${RED}PACS_PATIENT_ISSUER_VALUE='$PACS_PATIENT_ISSUER_VALUE' is not valid for PACS_PATIENT_ISSUER_POLICY=$PACS_PATIENT_ISSUER_POLICY: use 1-64 letters, digits, space, dot, underscore or hyphen, not starting or ending with a space.${NC}"
+                exit 1
+            fi;;
+    esac
+
     if [ "${GPU_SUPPORT,,}" == true ];then
         echo -e "${GREEN} -> GPU found ...${NC}"
     else
@@ -2436,6 +2455,8 @@ function deploy_chart {
     --set global.patch_workflows_if_conflict=$PATCH_WORKFLOWS_IF_CONFLICT \
     --set-string global.kaapana_init_password="$KAAPANA_INIT_PASSWORD" \
     --set-string global.pacs_memory_limit="$PACS_MEMORY_LIMIT" \
+    --set-string global.pacs_patient_issuer_policy="$PACS_PATIENT_ISSUER_POLICY" \
+    --set-string global.pacs_patient_issuer_value="$PACS_PATIENT_ISSUER_VALUE" \
     --set-string global.airflow_memory_limit="$AIRFLOW_MEMORY_LIMIT" \
     --set-string global.opensearch_memory_limit="$OPENSEARCH_MEMORY_LIMIT" \
     --set-string global.pacs_memory_request="$PACS_MEMORY_REQUEST" \

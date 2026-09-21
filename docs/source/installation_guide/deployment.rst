@@ -209,6 +209,45 @@ Resource configurations
      - int
      - % of allocable memory for Opensearch metadata and search system.
 
+PACS configurations
+--------------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 20 10 50
+
+   * - Variable
+     - Default
+     - Type
+     - Description
+   * - ``PACS_PATIENT_ISSUER_POLICY``
+     - ``"archive_default"``
+     - string
+     - How dcm4chee identifies a patient, see the policies below. Changing it needs a re-deploy.
+   * - ``PACS_PATIENT_ISSUER_VALUE``
+     - ``""``
+     - string
+     - Issuer written by ``fixed_issuer`` and ``supplement_issuer``, required for those two. 1-64 letters, digits, space, dot, underscore or hyphen.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 25 75
+
+   * - Policy
+     - Behaviour
+   * - ``archive_default``
+     - dcm4chee's own behaviour: a missing issuer is filled with a hash of ``PatientName`` and ``PatientBirthDate``, so the same ``PatientID`` with different names or birth dates becomes different patients.
+   * - ``patient_id_only``
+     - Clears the issuer on every received object, so patients match by ``PatientID`` alone.
+   * - ``fixed_issuer``
+     - Writes ``PACS_PATIENT_ISSUER_VALUE`` as issuer on every object, also where the sender supplied one.
+   * - ``supplement_issuer``
+     - Writes ``PACS_PATIENT_ISSUER_VALUE`` only where the sender supplied no issuer.
+
+.. note::
+
+   Changing the policy does not rewrite stored data and does not merge patients that were already split.
+
 Data configurations
 ---------------------
 

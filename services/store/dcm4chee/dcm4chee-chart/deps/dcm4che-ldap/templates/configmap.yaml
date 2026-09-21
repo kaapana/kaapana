@@ -1,5 +1,35 @@
+{{- /*
+Patient issuer policy: how dcm4chee identifies a patient. dcm4chee matches a patient by
+PatientID plus IssuerOfPatientID, and its own SupplementIssuerOfPatientID rule fills a
+missing issuer with a hash of PatientName and PatientBirthDate, so one PatientID with a
+different name or birth date per sender becomes several patients (kaapana#2100).
+
+The selected policy is one coercion, cn=KaapanaPatientIssuerPolicy, at dcmRulePriority -1:
+coercions run highest priority first and the archive's own rule sits at 0, so ours runs
+last and overwrites what that rule wrote. archive_default installs no rule of ours.
+
+The policy is a separate ConfigMap key on purpose. The ldap container imports
+dcm4che-iid.ldif once, with a plain ldapadd that stops at the first failing record; the
+policy file is applied by the dcm4chee init container before every archive start instead,
+as "delete, then add", so a re-deploy with another policy or issuer converges the
+persistent LDAP volume without a modify record per attribute.
+*/ -}}
+{{- $policy := .Values.global.pacs_patient_issuer_policy | default "archive_default" -}}
+{{- if not (has $policy (list "archive_default" "patient_id_only" "fixed_issuer" "supplement_issuer")) -}}
+  {{- fail (printf "Unknown pacs_patient_issuer_policy %q: use archive_default, patient_id_only, fixed_issuer or supplement_issuer" $policy) -}}
+{{- end -}}
+{{- $issuer := "" -}}
+{{- if has $policy (list "fixed_issuer" "supplement_issuer") -}}
+  {{- /* The issuer becomes part of every stored patient's identity, so it is set explicitly
+         rather than derived from a hostname that may change. Every accepted character is
+         literal in LDIF and in the archive's MessageFormat, so nothing needs escaping. */ -}}
+  {{- $issuer = required "pacs_patient_issuer_value is required for the fixed_issuer and supplement_issuer policies" .Values.global.pacs_patient_issuer_value -}}
+  {{- if not (regexMatch "^[A-Za-z0-9._-]([A-Za-z0-9 ._-]{0,62}[A-Za-z0-9._-])?$" $issuer) -}}
+    {{- fail (printf "pacs_patient_issuer_value %q: use 1 to 64 characters of letters, digits, space, dot, underscore or hyphen, not starting or ending with a space" $issuer) -}}
+  {{- end -}}
+{{- end -}}
 apiVersion: v1
-data: 
+data:
   dcm4che-iid.ldif: |-
     version: 1
     dn: dcmWebAppName=KAAPANA,dicomDeviceName=kaapana,cn=Devices,cn=DICOM Configuration,dc=dcm4che,dc=org
@@ -36,25 +66,25 @@ data:
     replace: dcmQidoMaxNumberOfResults
     dcmQidoMaxNumberOfResults: 0
     -
-
-    # dcm4chee identifies a patient by PatientID plus IssuerOfPatientID. Its default
-    # SupplementIssuerOfPatientID rule fills a missing issuer with a hash of PatientName and
-    # PatientBirthDate, so one PatientID whose name or birth date differs between senders
-    # (pseudonymised, multicentric data) becomes several patients, and a later series of an
-    # existing study is refused (409 on STOW). Drop that rule and nullify the issuer on every
-    # received object instead: without an issuer dcm4chee matches the existing patient and
-    # study by PatientID alone and keeps whatever issuer is already stored, so earlier data
-    # needs no rewrite.
-    dn: cn=SupplementIssuerOfPatientID,dicomAETitle=KAAPANA,dicomDeviceName=kaapana,cn=Devices,cn=DICOM Configuration,dc=dcm4che,dc=org
+  patient-issuer-policy.ldif: |-
+    version: 1
+    dn: cn=KaapanaPatientIssuerPolicy,dicomAETitle=KAAPANA,dicomDeviceName=kaapana,cn=Devices,cn=DICOM Configuration,dc=dcm4che,dc=org
     changetype: delete
+{{- if ne $policy "archive_default" }}
 
-    dn: cn=NullifyIssuerOfPatientID,dicomAETitle=KAAPANA,dicomDeviceName=kaapana,cn=Devices,cn=DICOM Configuration,dc=dcm4che,dc=org
+    dn: cn=KaapanaPatientIssuerPolicy,dicomAETitle=KAAPANA,dicomDeviceName=kaapana,cn=Devices,cn=DICOM Configuration,dc=dcm4che,dc=org
     objectClass: dcmArchiveAttributeCoercion2
-    cn: NullifyIssuerOfPatientID
+    cn: KaapanaPatientIssuerPolicy
     dcmDIMSE: C_STORE_RQ
     dicomTransferRole: SCU
+    dcmRulePriority: -1
     dcmURI: merge-attrs:
-    dcmMergeAttribute: IssuerOfPatientID=
+{{- if eq $policy "supplement_issuer" }}
+    dcmProperty: IssuerOfPatientID=
+{{- end }}
+    dcmMergeAttribute: IssuerOfPatientID={{ $issuer }}
+    dcmMergeAttribute: IssuerOfPatientIDQualifiersSequence=
+{{- end }}
 kind: ConfigMap
 metadata:
   name: dcm4che-iid-config

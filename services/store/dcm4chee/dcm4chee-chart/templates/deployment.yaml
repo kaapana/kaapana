@@ -28,10 +28,11 @@ spec:
             value: "10"
       # The ldap image imports dcm4che-iid.ldif only when it initialises an empty LDAP volume, so a
       # site that already ran once never received later changes to that file. This step re-applies
-      # the file before every dcm4chee start: `-a` adds entries without a changetype, `-c` carries on
-      # past the "already exists" / "no such object" answers that every entry but the first-ever
-      # application produces. The file must therefore stay idempotent. dcm4chee starts afterwards
-      # and reads the result at boot, so no reload is needed.
+      # both mounted files before every dcm4chee start: `-a` adds entries without a changetype, `-c`
+      # carries on past the "already exists" / "no such object" answers every later run produces.
+      # It then reads the patient issuer rule back and refuses to start the archive unless the
+      # directory holds exactly the policy this ConfigMap describes: -c would otherwise hide a
+      # rejected add and the archive would silently run with dcm4chee's default behaviour.
       - name: apply-ldap-config
         image: "{{ .Values.global.registry_url }}/dcm4chee-ldap:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_images }}
@@ -40,14 +41,19 @@ spec:
           - |
             set -u
             AE_DN="dicomAETitle=KAAPANA,dicomDeviceName=kaapana,cn=Devices,cn=DICOM Configuration,dc=dcm4che,dc=org"
+            as_admin() { tool=$1; shift; "$tool" -x -H "$LDAP_URL" -D cn=admin,dc=dcm4che,dc=org -w "$LDAP_ROOTPASS" "$@"; }
             # On a fresh install the ldap container is still importing its default configuration;
-            # wait until the archive AE exists so the file is applied to a complete tree.
+            # wait until the archive AE exists so the files are applied to a complete tree.
             for i in $(seq 1 150); do
-              ldapsearch -x -H "$LDAP_URL" -D cn=admin,dc=dcm4che,dc=org -w "$LDAP_ROOTPASS" -b "$AE_DN" -s base dn >/dev/null 2>&1 && break
+              as_admin ldapsearch -b "$AE_DN" -s base dn >/dev/null 2>&1 && break
               echo "waiting for the archive AE in LDAP ($i)"; sleep 2
             done
-            ldapmodify -a -c -x -H "$LDAP_URL" -D cn=admin,dc=dcm4che,dc=org -w "$LDAP_ROOTPASS" -f /import/dcm4che-iid.ldif || true
-            exit 0
+            as_admin ldapsearch -b "$AE_DN" -s base dn >/dev/null 2>&1 || { echo "archive AE not found in LDAP" >&2; exit 1; }
+            as_admin ldapmodify -a -c -f /import/dcm4che-iid.ldif || true
+            as_admin ldapmodify -a -c -f /import/patient-issuer-policy.ldif || true
+            want=$(grep -E '^dcm(MergeAttribute|Property):' /import/patient-issuer-policy.ldif | sort)
+            have=$(as_admin ldapsearch -LLL -o ldif-wrap=no -b "cn=KaapanaPatientIssuerPolicy,$AE_DN" -s base dcmMergeAttribute dcmProperty 2>/tmp/readback.err | grep -E '^dcm(MergeAttribute|Property):' | sort)
+            [ "$want" = "$have" ] || { printf 'patient issuer policy not applied\nexpected:\n%s\nfound:\n%s\n' "$want" "$have" >&2; cat /tmp/readback.err >&2; exit 1; }
         env:
           - name: LDAP_URL
             value: ldap://ldap-service.{{  .Values.global.services_namespace  }}.svc:389

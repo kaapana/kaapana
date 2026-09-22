@@ -93,6 +93,7 @@ class OCIRegistryDiscovery:
         repository: str,
         username: Optional[str] = None,
         password: Optional[str] = None,
+        timeout: Any = httpx.USE_CLIENT_DEFAULT,
     ):
         """Initialize the OCIRegistryDiscovery client.
 
@@ -101,6 +102,8 @@ class OCIRegistryDiscovery:
             repository: Repository name within the registry (e.g., 'user.name/kaapana/extensions').
             username: Optional username for basic authentication.
             password: Optional password for basic authentication.
+            timeout: Per-request timeout, seconds or an :class:`httpx.Timeout`;
+                     ``None`` waits forever, the default leaves it to httpx.
         """
         self.logger = logging.getLogger(__name__)
         self.registry_url = registry_url.rstrip("/")
@@ -109,10 +112,12 @@ class OCIRegistryDiscovery:
         self.password = password
         self.bearer_token: Optional[str] = None
         self.basic_auth_header = self._build_basic_auth_header()
+        self.timeout = timeout
         self._client: Optional[httpx.AsyncClient] = None
 
     async def __aenter__(self) -> "OCIRegistryDiscovery":
-        self._client = httpx.AsyncClient()
+        overrides = {} if self.timeout is httpx.USE_CLIENT_DEFAULT else {"timeout": self.timeout}
+        self._client = httpx.AsyncClient(**overrides)
         return self
 
     async def __aexit__(self, *args: Any) -> None:
@@ -304,7 +309,12 @@ class OCIRegistryDiscovery:
         media_type = self._media_type_from_ext(Path(file_path).suffix)
         digest = await self._upload_blob(data, media_type)
         name = stored_name if stored_name is not None else file_path
-        return {"digest": digest, "filename": name, "mediaType": media_type, "size": len(data)}
+        return {
+            "digest": digest,
+            "filename": name,
+            "mediaType": media_type,
+            "size": len(data),
+        }
 
     async def create_or_update_tag(
         self,
@@ -418,7 +428,10 @@ class OCIRegistryDiscovery:
         try:
             return config_resp.json()
         except json.JSONDecodeError as exc:
-            raise OCIError(f"config blob for {tag!r} is not valid JSON: {exc}", code="MANIFEST_INVALID") from exc
+            raise OCIError(
+                f"config blob for {tag!r} is not valid JSON: {exc}",
+                code="MANIFEST_INVALID",
+            ) from exc
 
     async def list_tags(self) -> List[str]:
         """List all tags in the repository.

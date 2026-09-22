@@ -11,7 +11,7 @@
     vm_image_name: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_IMAGE_ID', default=undef()) }}"
     vm_storage_class: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_STORAGE_CLASS', default=undef()) }}"
     vm_network: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_NETWORK', default=undef()) }}"
-    vm_ssh_keypair: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_SSH_KEYPAIR', default=undef()) }}"
+    vm_ssh_keypair: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_HARVESTER_KEYPAIR', default=undef()) }}"
     vm_user: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_USER', default=undef()) }}"
     vm_dns_domain: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_DOMAIN', default=undef()) }}"
     vm_cpu_cores: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_CPU', default=undef()) }}"

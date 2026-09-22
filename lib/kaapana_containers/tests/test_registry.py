@@ -1,5 +1,6 @@
 from unittest.mock import AsyncMock, MagicMock
 
+import httpx
 import pytest
 from kaapana_containers.registries.registry import OCIError, OCIRegistryDiscovery
 
@@ -49,7 +50,15 @@ class TestOCIError:
     def test_from_response_with_detail(self):
         resp = _mock_response(
             401,
-            body={"errors": [{"code": "UNAUTHORIZED", "message": "auth required", "detail": "token expired"}]},
+            body={
+                "errors": [
+                    {
+                        "code": "UNAUTHORIZED",
+                        "message": "auth required",
+                        "detail": "token expired",
+                    }
+                ]
+            },
         )
         err = OCIError.from_response(resp)
         assert err.code == "UNAUTHORIZED"
@@ -114,3 +123,18 @@ class TestListTags:
         client._request_with_auth_retry.side_effect = OCIError("server error", code="INTERNAL_ERROR")
         with pytest.raises(OCIError, match="server error"):
             await client.list_tags()
+
+
+# ---------------------------------------------------------------------------
+# client configuration
+# ---------------------------------------------------------------------------
+
+
+class TestClientConfiguration:
+    async def test_timeout_defaults_to_httpx(self):
+        async with OCIRegistryDiscovery("https://registry.example.com", "user/repo") as client:
+            assert client._client.timeout == httpx.AsyncClient().timeout
+
+    async def test_timeout_is_configurable(self):
+        async with OCIRegistryDiscovery("https://registry.example.com", "user/repo", timeout=1.5) as client:
+            assert client._client.timeout.read == 1.5

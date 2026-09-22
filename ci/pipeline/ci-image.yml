@@ -1,7 +1,11 @@
-# Stage: tests (build_ci_image) — rebuild of the CI job image
+spec:
+  inputs:
+    runner_tag:
+      type: string
+---
+# Stage: preflight (build_ci_image) — rebuild of the CI job image
 # In:  ci/images/**, pinned dependency files (rules:changes)
-# Out: $CI_BASE_IMAGE pushed to the CI registry (consumed by all other jobs
-#      from the NEXT pipeline on — same-pipeline jobs use the previous tag)
+# Out: $CI_BASE_IMAGE pushed to the CI registry in preflight.
 ##############################################
 # CI IMAGE
 ##############################################
@@ -9,9 +13,9 @@
 # registry is a manual build+push, see README section 5). Land image changes
 # with a CI_IMAGES_TAG bump — jobs pull the new tag on first use.
 build_ci_image:
-  stage: tests
+  stage: preflight
   tags:
-    - build-runner
+    - $[[ inputs.runner_tag ]]
   environment:
     name: $REGISTRY_ENV
   # Not ci-base: the image that builds ci-base must not be ci-base, or a tag

@@ -167,7 +167,7 @@ class ContainerHelper:
         no_proxy = os.environ.get("no_proxy") or os.environ.get("NO_PROXY")
         if no_proxy:
             for no_proxy_var in ("no_proxy", "NO_PROXY"):
-                driver_opts.extend(["--driver-opt", f"env.{no_proxy_var}={no_proxy}"])
+                driver_opts.extend(["--driver-opt", f'"env.{no_proxy_var}={no_proxy}"'])
 
         return driver_opts
 

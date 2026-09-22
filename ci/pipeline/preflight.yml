@@ -1,17 +1,32 @@
-# Stage: tests — preflight variable check
-# In:  CI/CD variables only, no checkout
-# Out: nothing — fails within seconds when a required variable is empty,
-#      instead of build/deploy finding out an hour later
+spec:
+  inputs:
+    exec_build:
+      type: boolean
+    exec_deploy:
+      type: boolean
+    exec_server_installation:
+      type: boolean
+    exec_redeploy:
+      type: boolean
+    runner_tag:
+      type: string
+---
+# Stage: preflight — cheap checks that need nothing built
+# In:  CI/CD variables, and the deployment target when one is given by FQDN
+# Out: nothing — the readiness table is in the job log, and a run aimed at a
+#      given FQDN is never reported by the clean stage
 ##############################################
 # PREFLIGHT
 ##############################################
 preflight_variables:
   stage: preflight
   tags:
-    - tests-runner
+    - $[[ inputs.runner_tag ]]
   image: python:3.12
   variables:
     GIT_STRATEGY: none # no checkout needed
+    CI_EXEC_BUILD: "$[[ inputs.exec_build ]]"
+    CI_EXEC_DEPLOY: "$[[ inputs.exec_deploy ]]"
   rules:
     - when: always
   script:
@@ -45,7 +60,7 @@ preflight_variables:
         fail "CI_REGISTRY_USER is 'gitlab-ci-token' — the project variable is missing, so pushes will be denied."
       fi
       # DOCKER_AUTH_CONFIG must contain the registry host, otherwise
-      # image pulls fail (see ci/README.md section 8)
+      # image pulls fail (see ci/docs/internals.md#registries)
       if [ -n "${DOCKER_AUTH_CONFIG:-}" ] && [ -n "${CI_REGISTRY_URL:-}" ]; then
         registry_host="${CI_REGISTRY_URL%%/*}"
         case "$DOCKER_AUTH_CONFIG" in
@@ -73,12 +88,28 @@ preflight_variables:
         require RELEASE_REGISTRY_TOKEN
       fi
 
+      # Registry credentials are scoped to this environment; a typo means the
+      # jobs get no credentials at all (environment: name: $REGISTRY_ENV).
+      if [ "$CI_EXEC_BUILD" = "true" ] || [ "$CI_EXEC_DEPLOY" = "true" ]; then
+        require REGISTRY_ENV
+      fi
+
       if [ "$CI_EXEC_DEPLOY" = "true" ]; then
-        # logging into the deployment target always needs the SSH key
-        require_file CI_SSH_PRIVATE_KEY
-        # the kubeconfig is only needed to create a test VM, which is
-        # skipped when an external VM is given
-        [ -n "$DEPLOYMENT_INSTANCE_FQDN" ] || require_file HARVESTER_KUBECONFIG
+        require_file DEPLOYMENT_INSTANCE_SSH_KEY
+        require DEPLOYMENT_INSTANCE_USER
+        require DEPLOYMENT_INSTANCE_PLATFORM_PREFIX
+        if [ -n "${DEPLOYMENT_INSTANCE_PLATFORM_PREFIX:-}" ]; then
+          if ! [[ "$DEPLOYMENT_INSTANCE_PLATFORM_PREFIX" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]]; then
+            fail "DEPLOYMENT_INSTANCE_PLATFORM_PREFIX '$DEPLOYMENT_INSTANCE_PLATFORM_PREFIX' is not a DNS-1123 label (lowercase alphanumerics and hyphens, must start and end alphanumeric)."
+          elif [ "${#DEPLOYMENT_INSTANCE_PLATFORM_PREFIX}" -gt 46 ]; then
+            fail "DEPLOYMENT_INSTANCE_PLATFORM_PREFIX is ${#DEPLOYMENT_INSTANCE_PLATFORM_PREFIX} characters, over the 46 that keep project namespaces within the 63-character k8s limit."
+          fi
+        fi
+        if [ -z "$DEPLOYMENT_INSTANCE_FQDN" ]; then
+          require_file HARVESTER_KUBECONFIG
+          require DEPLOYMENT_INSTANCE_DOMAIN
+          require DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE
+        fi
         # dcmsend rejects peerhosts longer than 57 chars; prepare_deployment
         # checks this too, but only after the whole build stage has run
         if [ -n "${DEPLOYMENT_INSTANCE_FQDN:-}" ] && [ "${#DEPLOYMENT_INSTANCE_FQDN}" -gt 57 ]; then
@@ -103,7 +134,45 @@ preflight_variables:
       if [ -n "$missing" ] || [ -n "$errors" ]; then
         [ -z "$missing" ] || echo "ERROR: required CI variables are empty or missing: $missing"
         [ -z "$errors" ] || echo "ERROR: $errors"
-        echo "Fix them under Settings -> CI/CD -> Variables (see ci/README.md section 8)."
+        echo "Fix them under Settings -> CI/CD -> Variables (see ci/docs/internals.md#registries)."
         exit 1
       fi
       echo "Preflight OK: all required CI variables are set."
+
+##############################################
+preflight_target:
+  stage: preflight
+  tags:
+    - $[[ inputs.runner_tag ]]
+  image: $CI_BASE_IMAGE
+  rules:
+    - if: '"$[[ inputs.exec_deploy ]]" == "true" && $DEPLOYMENT_INSTANCE_FQDN != ""'
+      when: on_success
+    - when: never
+  variables:
+    ANSIBLE_HOST_KEY_CHECKING: "False"
+    ANSIBLE_FORCE_COLOR: "true"
+    VM_FQDN: "$DEPLOYMENT_INSTANCE_FQDN"
+    VM_USER: "$DEPLOYMENT_INSTANCE_USER"
+    CI_EXEC_REDEPLOY: "$[[ inputs.exec_redeploy ]]"
+    CI_EXEC_SERVER_INSTALLATION: "$[[ inputs.exec_server_installation ]]"
+  needs:
+    - job: preflight_variables
+      artifacts: false
+  before_script: !reference [.remote_execution_template, before_script]
+  script:
+    - |
+      ansible-playbook "$CI_PROJECT_DIR/ci/ci-code/deploy/target_readiness.yaml" \
+        -i "$VM_FQDN," \
+        -u "$VM_USER" \
+        --private-key "$DEPLOYMENT_INSTANCE_SSH_KEY"
+  # the table, in color; after_script runs even when the playbook failed
+  after_script:
+    - cat "$ARTIFACTS_DIR/target_readiness.log" 2>/dev/null || true
+  artifacts:
+    expire_in: 2 weeks
+    paths:
+      - "artifacts/target_readiness.log"
+      - "artifacts/target_readiness.json"
+    when: always
+    access: developer

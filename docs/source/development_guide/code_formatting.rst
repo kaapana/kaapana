@@ -17,6 +17,27 @@ Installation
 
     pip install ruff
 
+VS Code
+--------
+
+Install the `Ruff extension <https://marketplace.visualstudio.com/items?itemName=charliermarsh.ruff>`_
+(:code:`charliermarsh.ruff`), then in your :code:`.vscode/settings.json`:
+
+.. code-block:: json
+
+    {
+      "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+          "source.organizeImports.ruff": "explicit"
+        }
+      }
+    }
+
+The extension reads :code:`ruff.toml` from the repository root, so the editor
+formats exactly the way the pre-commit hook and the :code:`lint` job do.
+
 Usage
 ------
 Format and lint the whole repository from its root:

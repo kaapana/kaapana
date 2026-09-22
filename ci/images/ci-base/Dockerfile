@@ -20,8 +20,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         jq \
         nmap \
         dcmtk \
-        nodejs \
-        npm \
         snapd \
         squashfs-tools \
     && curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc \
@@ -53,6 +51,16 @@ RUN pip install --no-cache-dir /tmp/integration_tests \
     && pip uninstall -y integration-tests \
     && rm -rf /tmp/integration_tests
 
-# Chromium + its system libraries for the playwright-based integration tests
+# bookworm ships node 18, the apps need >=20.19
+ARG NODE_MAJOR=22
+RUN curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Chromium for playwright. Version must stay in step with the
+# playwright pins in integration_tests/pyproject.toml, tests/ui and UI services.
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+ARG JS_PLAYWRIGHT_VERSION=1.61.1
 RUN python -m playwright install --with-deps chromium \
+    && npx --yes playwright@${JS_PLAYWRIGHT_VERSION} install --with-deps chromium \
     && rm -rf /var/lib/apt/lists/*

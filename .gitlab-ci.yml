@@ -1,3 +1,71 @@
+# Pipeline inputs:
+# - Set per run in the "Run pipeline" form on GitLab
+# - Set per schedule on GitLab
+# - `glab ci run -i <name>:<value>`
+# Input syntax and types: https://docs.gitlab.com/ci/inputs/
+spec:
+  inputs:
+    # --- [exec] stage toggles and their arguments
+    exec_unit_tests:
+      default: true
+      type: boolean
+      description: "[exec] tests stage: unit tests + documentation build"
+    exec_lint:
+      default: true
+      type: boolean
+      description: "[exec] tests stage: ruff format/lint check + code quality report"
+    exec_build:
+      default: true
+      type: boolean
+      description: "[exec] build stage: full platform build"
+    exec_deploy:
+      default: true
+      type: boolean
+      description: "[exec] deploy stage: provision deployment VM + server install + platform deploy"
+    exec_server_installation:
+      default: true
+      type: boolean
+      description: "[exec] false skips the OS/microk8s install — for an already-prepared target"
+    exec_redeploy:
+      default: false
+      type: boolean
+      description: "[exec] true undeploys a platform already on the target, false fails the job"
+    exec_integration_tests:
+      default: true
+      type: boolean
+      description: "[exec] test stage: pytest + Playwright against the deployment VM"
+    exec_integration_test_jobs:
+      default: ""
+      type: string
+      description: "[exec] comma-separated allowlist of integration-test jobs (scan_ports, first_login, install_extensions, send_data, run_workflows). Empty runs all of them"
+    exec_security_scan:
+      default: false
+      type: boolean
+      description: "[exec] registry scan of the images this pipeline pushed"
+    exec_destroy_delayed:
+      default: false
+      type: boolean
+      description: "[exec] true keeps the deployment VM for 4h after the pipeline"
+
+    # --- [runner] runner tag per stage group.
+    build_runner_tag:
+      default: build-runner
+      type: string
+      description: "[runner] ci-image and build stages"
+    security_runner_tag:
+      default: security-runner
+      type: string
+      description: "[runner] security stage"
+    tests_runner_tag:
+      default: tests-runner
+      type: string
+      description: "[runner] preflight and unit-test stages"
+    deploy_runner_tag:
+      default: deploy-runner
+      type: string
+      description: "[runner] deploy, integration-test and clean"
+
+---
 default:
   interruptible: true
 
@@ -29,63 +97,12 @@ workflow:
       when: always
     - if: $CI_PIPELINE_SOURCE == "schedule"
       when: always
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_LABELS =~ /(^|,)Security(,|$)/
-      when: always
-      variables:
-        CI_EXEC_SECURITY_SCAN: "true"
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       when: always
     - when: never
 
 variables:
-  # --- Execution toggles: which stages a pipeline runs.
-  # Override per-run via "Run pipeline" or per-schedule via schedule variables.
-  # A variable that carries a `description` is prefilled on the New pipeline page
-  CI_EXEC_UNIT_TESTS:
-    value: "true"
-    options: ["true", "false"]
-    description: "tests stage: unit tests + documentation build"
-  CI_EXEC_LINT:
-    value: "true"
-    options: ["true", "false"]
-    description: "lint stage: ruff lint and formatting"
-  CI_EXEC_BUILD:
-    value: "true"
-    options: ["true", "false"]
-    description: "build stage: full platform build"
-  CI_EXEC_BUILD_ARGUMENTS:
-    value: "--cache-from -pp 8 --keep-buildx-builder"
-    description: 'Extra kaapana-build flags, e.g. "--latest"'
-  CI_EXEC_DEPLOY:
-    value: "true"
-    options: ["true", "false"]
-    description: "deploy stage: provision test VM + platform deploy"
-  CI_EXEC_SERVER_INSTALLATION:
-    value: "true"
-    options: ["true", "false"]
-    description: '"false" skips the OS/microk8s install (target already prepared)'
-  CI_EXEC_INTEGRATION_TESTS:
-    value: "true"
-    options: ["true", "false"]
-    description: "test stage: pytest + Playwright against the deployed VM"
-  CI_EXEC_INTEGRATION_TEST_JOBS:
-    value: "scan_ports,first_login,playwright_ui_tests,install_extensions,send_data,run_workflows"
-    description: "test stage: which jobs run; remove entries to skip them"
-  CI_EXEC_SECURITY_SCAN:
-    value: "false"
-    options: ["true", "false"]
-    description: "Registry scan of the images this pipeline pushed; needs CI_EXEC_BUILD."
-  CI_EXEC_SECURITY_SCAN_ARGUMENTS:
-    value: "--vulnerability-scan --offline-packages-scan --configuration-check --create-sboms"
-    description: "Extra security scan flags; needs CI_EXEC_SECURITY_SCAN"
-  CI_EXEC_DOCKER_PRUNE: "false"
-  CI_EXEC_DESTROY_DELAYED:
-    value: "false"
-    options: ["true", "false"]
-    description: '"true" = keep the test VM for 4h after the pipeline for inspection'
-  
-  # "true" pauses push/schedule/MR pipelines (workflow:rules)
-  MAINTENANCE: "false" 
+  MAINTENANCE: "false" # "true" pauses push/schedule/MR pipelines (workflow:rules)
 
   # --- Registries, both configured as project variables: CI_REGISTRY_* for
   # normal builds, RELEASE_REGISTRY_* (protected) for release tag pipelines.
@@ -106,7 +123,7 @@ variables:
   # CI_IMAGES_TAG in the same MR that changes ci/images/** — re-pushing an
   # existing tag leaves warm runners on the stale image. Always
   # $CI_REGISTRY_URL, never the release registry.
-  CI_IMAGES_TAG: "v6"
+  CI_IMAGES_TAG: "v7"
   CI_BASE_IMAGE: "$CI_REGISTRY_URL/ci-base:$CI_IMAGES_TAG"
 
   # Purpose-specific tokens, currently aliasing the shared CI_REGISTRY_TOKEN.
@@ -115,15 +132,25 @@ variables:
   GITLAB_API_TOKEN: $CI_REGISTRY_TOKEN
   BLABLADOR_API_TOKEN: $CI_REGISTRY_TOKEN
 
-  # --- Deployment instance: the per-pipeline test VM on Harvester.
-  # FQDN empty → provision a fresh VM; set (plus _USER) → deploy onto an
-  # existing machine instead, which the clean stage never destroys.
+  CI_EXEC_BUILD_ARGUMENTS:
+    value: "--cache-from -pp 8 --keep-buildx-builder"
+    description: "Extra kaapana-build flags for build_packages"
+  CI_EXEC_SECURITY_SCAN_ARGUMENTS:
+    value: "--vulnerability-scan --offline-packages-scan --configuration-check --create-sboms"
+    description: "Flags for the security scan (kaapana-build --scan-only)"
+  CI_EXEC_DOCKER_PRUNE:
+    value: "false"
+    options: ["false", "true"]
+    description: "true wipes the build runner's docker cache before the build (cold build)"
+
+  # --- Deployment target:
   DEPLOYMENT_INSTANCE_FQDN:
-    value: ""
-    description: "Empty = provision a fresh Harvester VM. Set = deploy onto this existing host, which the clean stage never destroys. Max 57 chars (dcmsend peerhost limit)."
+    description: "Deployment target host. Empty provisions a fresh Harvester VM. Max 57 characters (dcmsend peerhost limit)."
   DEPLOYMENT_INSTANCE_USER:
     value: "ubuntu"
     description: "SSH user on the deployment target"
+
+
   # vm_name is truncated in the provisioning playbook so the FQDN
   # (<vm_name>.<domain>) stays within the 57-char dcmsend peerhost limit.
   DEPLOYMENT_INSTANCE_VM_NAME: "ci-$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHORT_SHA"
@@ -135,13 +162,13 @@ variables:
   DEPLOYMENT_INSTANCE_NETWORK: "harvester-public/dkfz-net"
   DEPLOYMENT_INSTANCE_STORAGE_CLASS: "px-fa-direct-access"
   DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE: "kaapana-ci"
-  DEPLOYMENT_INSTANCE_SSH_KEYPAIR: "kaapana" # Harvester KeyPair resource in the namespace
+  DEPLOYMENT_INSTANCE_HARVESTER_KEYPAIR: "kaapana" # Harvester KeyPair resource in the namespace
   DEPLOYMENT_INSTANCE_PLATFORM_PREFIX: "ci-dep" # project namespaces become <prefix>-project-<short_id>
-
-  # --- Deploy-stage credentials: File-type project variables (the runner
-  # writes the value to a temp file, the variable holds that file's path):
-  #   HARVESTER_KUBECONFIG — Harvester cluster access (VM lifecycle)
-  #   CI_SSH_PRIVATE_KEY   — private key matching the Harvester "kaapana" KeyPair
+  # kaapanactl's own defaults (kaapanactl.sh, load_kaapana_config): the helm
+  # release is named after the chart and installed into HELM_NAMESPACE=default.
+  # The deploy/undeploy playbooks look the release up under these names.
+  DEPLOYMENT_INSTANCE_ADMIN_CHART: "kaapana-admin-chart"
+  DEPLOYMENT_INSTANCE_HELM_NAMESPACE: "default"
 
   # --- Notifications (if_ci_failing on develop)
   SLACK_BOT_TOKEN: $SLACK_BOT_TOKEN # secret — project variable (masked)
@@ -151,12 +178,15 @@ variables:
   KAAPANA_READTHEDOCS_TOKEN: $KAAPANA_READTHEDOCS_TOKEN # secret — project variable (masked)
 
   # --- DKFZ network proxy. NO_PROXY is mandatory alongside: without the
-  # exemptions, requests to localhost and internal targets (test VMs, Harvester
+  # exemptions, requests to localhost and internal targets (deployment VMs, Harvester
   # API) hairpin through the proxy and time out.
   HTTP_PROXY: "http://www-int2.dkfz-heidelberg.de:80"
   HTTPS_PROXY: "http://www-int2.dkfz-heidelberg.de:80"
   NO_PROXY: "localhost,127.0.0.1,.dkfz.de,.dkfz-heidelberg.de,10.129.1.5" # Harvester API
-  no_proxy: "$NO_PROXY" # lowercase twin — some tools read only one casing
+  # Lowercase for apt in ui unit tests on servers that need proxy
+  http_proxy: "$HTTP_PROXY"
+  https_proxy: "$HTTPS_PROXY"
+  no_proxy: "$NO_PROXY"
 
   # --- Fixed settings
   ANSIBLE_VERBOSITY: 0 # read natively by ansible-playbook
@@ -172,11 +202,45 @@ variables:
 # the stage takes in and hands out.
 include:
   - local: /ci/pipeline/preflight.yml
+    inputs:
+      runner_tag: $[[ inputs.tests_runner_tag ]]
+      exec_build: $[[ inputs.exec_build ]]
+      exec_deploy: $[[ inputs.exec_deploy ]]
+      exec_server_installation: $[[ inputs.exec_server_installation ]]
+      exec_redeploy: $[[ inputs.exec_redeploy ]]
   - local: /ci/pipeline/ci-image.yml
+    inputs:
+      runner_tag: $[[ inputs.build_runner_tag ]]
   - local: /ci/pipeline/lint.yml
+    inputs:
+      runner_tag: $[[ inputs.tests_runner_tag ]]
+      exec_lint: $[[ inputs.exec_lint ]]
   - local: /ci/pipeline/unit-tests.yml
+    inputs:
+      runner_tag: $[[ inputs.tests_runner_tag ]]
+      exec_unit_tests: $[[ inputs.exec_unit_tests ]]
   - local: /ci/pipeline/build.yml
+    inputs:
+      runner_tag: $[[ inputs.build_runner_tag ]]
+      exec_build: $[[ inputs.exec_build ]]
   - local: /ci/pipeline/security.yml
+    inputs:
+      runner_tag: $[[ inputs.security_runner_tag ]]
+      exec_security_scan: $[[ inputs.exec_security_scan ]]
   - local: /ci/pipeline/deploy.yml
+    inputs:
+      runner_tag: $[[ inputs.deploy_runner_tag ]]
+      exec_deploy: $[[ inputs.exec_deploy ]]
+      exec_server_installation: $[[ inputs.exec_server_installation ]]
+      exec_redeploy: $[[ inputs.exec_redeploy ]]
   - local: /ci/pipeline/integration-tests.yml
+    inputs:
+      runner_tag: $[[ inputs.deploy_runner_tag ]]
+      exec_integration_tests: $[[ inputs.exec_integration_tests ]]
+      exec_integration_test_jobs: $[[ inputs.exec_integration_test_jobs ]]
+      exec_deploy: $[[ inputs.exec_deploy ]]
   - local: /ci/pipeline/clean.yml
+    inputs:
+      runner_tag: $[[ inputs.deploy_runner_tag ]]
+      exec_deploy: $[[ inputs.exec_deploy ]]
+      exec_destroy_delayed: $[[ inputs.exec_destroy_delayed ]]

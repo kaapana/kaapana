@@ -1,3 +1,14 @@
+spec:
+  inputs:
+    exec_integration_tests:
+      type: boolean
+    exec_integration_test_jobs:
+      type: string
+    exec_deploy:
+      type: boolean
+    runner_tag:
+      type: string
+---
 # Stage: test — integration + UI tests against the live platform
 # In:  VM_FQDN / VM_USER (deployment.env dotenv, else DEPLOYMENT_INSTANCE_*);
 #      CLIENT_SECRET dotenv from setup_integration_tests; the live platform
@@ -11,7 +22,7 @@ setup_integration_tests:
   extends: .remote_execution_template
   stage: test
   tags:
-    - deploy-runner
+    - $[[ inputs.runner_tag ]]
   needs:
     - job: prepare_deployment
       artifacts: true
@@ -19,7 +30,7 @@ setup_integration_tests:
     - job: platform_deployment
       optional: true
   rules:
-    - if: '$CI_EXEC_INTEGRATION_TESTS == "true"'
+    - if: '"$[[ inputs.exec_integration_tests ]]" == "true" && "$[[ inputs.exec_deploy ]]" == "true"'
       when: on_success
     - when: never
   script:
@@ -32,7 +43,7 @@ setup_integration_tests:
       ansible-playbook "$CI_PROJECT_DIR/ci/ci-code/integration_tests/remote_execution/setup_integration_tests.yaml" \
         -i "$VM_FQDN," \
         -u "$VM_USER" \
-        --private-key "$CI_SSH_PRIVATE_KEY"
+        --private-key "$DEPLOYMENT_INSTANCE_SSH_KEY"
   artifacts:
     reports:
       dotenv:
@@ -46,7 +57,7 @@ setup_integration_tests:
   extends: .remote_execution_template
   stage: test
   rules:
-    - if: '$CI_EXEC_INTEGRATION_TESTS == "true"'
+    - if: '"$[[ inputs.exec_integration_tests ]]" == "true" && "$[[ inputs.exec_deploy ]]" == "true"'
       when: on_success
     - when: never
   needs:
@@ -79,7 +90,7 @@ setup_integration_tests:
 scan_ports:
   extends: .integration_test_local
   rules:
-    - if: $CI_EXEC_INTEGRATION_TEST_JOBS !~ /(^|,)\s*scan_ports\s*(,|$)/
+    - if: '"$[[ inputs.exec_integration_test_jobs ]]" != "" && "$[[ inputs.exec_integration_test_jobs ]]" !~ /(^|,)\s*scan_ports\s*(,|$)/'
       when: never
     - !reference [.integration_test_local, rules]
   variables:
@@ -90,7 +101,7 @@ scan_ports:
 first_login:
   extends: .integration_test_local
   rules:
-    - if: $CI_EXEC_INTEGRATION_TEST_JOBS !~ /(^|,)\s*first_login\s*(,|$)/
+    - if: '"$[[ inputs.exec_integration_test_jobs ]]" != "" && "$[[ inputs.exec_integration_test_jobs ]]" !~ /(^|,)\s*first_login\s*(,|$)/'
       when: never
     - !reference [.integration_test_local, rules]
   variables:
@@ -101,7 +112,7 @@ first_login:
 install_extensions:
   extends: .integration_test_local
   rules:
-    - if: $CI_EXEC_INTEGRATION_TEST_JOBS !~ /(^|,)\s*install_extensions\s*(,|$)/
+    - if: '"$[[ inputs.exec_integration_test_jobs ]]" != "" && "$[[ inputs.exec_integration_test_jobs ]]" !~ /(^|,)\s*install_extensions\s*(,|$)/'
       when: never
     - !reference [.integration_test_local, rules]
   needs:
@@ -126,7 +137,7 @@ install_extensions:
 send_data:
   extends: .integration_test_local
   rules:
-    - if: $CI_EXEC_INTEGRATION_TEST_JOBS !~ /(^|,)\s*send_data\s*(,|$)/
+    - if: '"$[[ inputs.exec_integration_test_jobs ]]" != "" && "$[[ inputs.exec_integration_test_jobs ]]" !~ /(^|,)\s*send_data\s*(,|$)/'
       when: never
     - !reference [.integration_test_local, rules]
   needs:
@@ -151,7 +162,7 @@ run_workflows:
   timeout: 2 hours
   allow_failure: true
   rules:
-    - if: $CI_EXEC_INTEGRATION_TEST_JOBS !~ /(^|,)\s*run_workflows\s*(,|$)/
+    - if: '"$[[ inputs.exec_integration_test_jobs ]]" != "" && "$[[ inputs.exec_integration_test_jobs ]]" !~ /(^|,)\s*run_workflows\s*(,|$)/'
       when: never
     - !reference [.integration_test_local, rules]
   needs:
@@ -177,9 +188,9 @@ playwright_ui_tests:
   extends: .remote_execution_template
   stage: test
   rules:
-    - if: $CI_EXEC_INTEGRATION_TEST_JOBS !~ /(^|,)\s*playwright_ui_tests\s*(,|$)/
-      when: never
-    - !reference [.integration_test_local, rules]
+    - if: '"$[[ inputs.exec_integration_tests ]]" == "true" && "$[[ inputs.exec_deploy ]]" == "true"'
+      when: on_success
+    - when: never
   needs:
     - job: prepare_deployment
       artifacts: true

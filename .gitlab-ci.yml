@@ -53,19 +53,19 @@ spec:
 
     # --- [runner] runner tag per stage group.
     build_runner_tag:
-      default: build-runner
+      default: build
       type: string
       description: "[runner] ci-image and build stages"
     security_runner_tag:
-      default: security-runner
+      default: security
       type: string
       description: "[runner] security stage"
     tests_runner_tag:
-      default: tests-runner
+      default: tests
       type: string
       description: "[runner] preflight and unit-test stages"
     deploy_runner_tag:
-      default: deploy-runner
+      default: deploy
       type: string
       description: "[runner] deploy, integration-test and clean"
 

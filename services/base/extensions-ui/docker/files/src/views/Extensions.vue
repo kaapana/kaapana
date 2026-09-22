@@ -353,6 +353,14 @@ import Upload from "@/components/Upload.vue";
 import { useCommonDataStore } from "@/stores/commonData";
 import { useAuthStore, useProjectStore } from "@kaapana/base-ui";
 import { checkAuthR } from "@/utils/opa";
+import {
+  checkDeploymentReady,
+  checkInstalled,
+  getHelmStatus,
+  getHref,
+  getKubeStatus,
+  hasReadyDeployment,
+} from "@/utils/extensionState";
 
 interface DataTableHeader {
   title: string;
@@ -469,11 +477,6 @@ const filteredLaunchedAppLinks = computed<any[]>(() => {
   }
 });
 
-function getHref(link: string) {
-  return link.match(/^:(\d+)(.*)/)
-    ? "http://" + window.location.hostname + link
-    : link;
-}
 function fileStart(file: any) {
   console.log("filestart", file);
 }
@@ -501,109 +504,6 @@ function fileComplete(error: any, file: any) {
         });
     }
   }
-}
-function checkDeploymentReady(item: any) {
-  if (
-    item["multiinstallable"] == "yes" &&
-    item["chart_name"] == item["releaseName"]
-  ) {
-    return false;
-  }
-  const deployments = item?.["available_versions"]?.[item.version]?.["deployments"];
-  if (deployments && deployments.length > 0) {
-    return deployments[0].ready;
-  }
-  return false;
-}
-// Readiness across all versions, so picking another version in a row's dropdown
-// does not read as a transition. Instance rows of a multiinstallable chart share
-// one deployments list (kube-helm shallow-copies), so they go by `successful`.
-function hasReadyDeployment(item: any) {
-  if (item["multiinstallable"] == "yes") {
-    return (
-      item["chart_name"] != item["releaseName"] && item["successful"] == "yes"
-    );
-  }
-  return Object.values(item?.["available_versions"] ?? {}).some(
-    (version: any) => version?.["deployments"]?.[0]?.ready,
-  );
-}
-function getKubeStatus(item: any) {
-  if (
-    item["multiinstallable"] == "yes" &&
-    item["chart_name"] == item["releaseName"]
-  ) {
-    return "";
-  }
-  const deployments = item?.["available_versions"]?.[item.version]?.["deployments"];
-  if (deployments && deployments.length > 0) {
-    let statArr: any = deployments[0]["kube_status"];
-    if (typeof statArr != "string" && statArr.length > 3) {
-      let count: any = {};
-      let s = "";
-      for (let i = 0; i < statArr.length; i++) {
-        let key = "";
-        if (typeof statArr[i] == "string") {
-          let stat = statArr[i];
-          key = stat.charAt(0).toUpperCase() + stat.slice(1);
-        } else {
-          let stat = statArr[i];
-          key += stat.charAt(0).toUpperCase() + stat.slice(1);
-        }
-
-        if (key in count) {
-          count[key] += 1;
-        } else {
-          count[key] = 1;
-        }
-      }
-      for (let k in count) {
-        s += k + ": " + String(count[k]) + " ,\n";
-      }
-      return s.slice(0, s.length - 2);
-    } else if (typeof statArr != "string" && statArr.length > 0) {
-      let s = "";
-      for (let i = 0; i < statArr.length; i++) {
-        let stat = statArr[i];
-        let key = stat.charAt(0).toUpperCase() + stat.slice(1);
-        s += key + ", ";
-      }
-      return s.slice(0, s.length - 2);
-    } else if (typeof statArr == "string" && statArr.length > 0) {
-      let s = statArr;
-      return s.charAt(0).toUpperCase() + s.slice(1);
-    } else {
-      return "";
-    }
-  }
-  return "";
-}
-function getHelmStatus(item: any) {
-  if (
-    item["multiinstallable"] == "yes" &&
-    item["chart_name"] == item["releaseName"]
-  ) {
-    return "";
-  }
-  const deployments = item?.["available_versions"]?.[item.version]?.["deployments"];
-  if (deployments && deployments.length > 0) {
-    let s = deployments[0]["helm_status"];
-    return s.charAt(0).toUpperCase() + s.slice(1);
-  }
-  return "";
-}
-function checkInstalled(item: any) {
-  if (
-    item["multiinstallable"] == "yes" &&
-    item["chart_name"] == item["releaseName"]
-  ) {
-    return "no";
-  }
-  const deployments = item?.["available_versions"]?.[item.version]?.["deployments"];
-  if (deployments && deployments.length > 0) {
-    return "yes";
-  }
-  return "no";
 }
 function getHelmCharts() {
   let params = {

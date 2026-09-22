@@ -6,18 +6,17 @@
           <v-row>
             <v-col cols="12" md="12">
               <span>Applications and workflows &nbsp;
-                <v-tooltip v-if="canUpdateExtensions" location="bottom">
-                  <template #activator="{ props }">
-                    <v-icon
-                      @click="updateExtensions()"
-                      color="primary"
-                      v-bind="props"
-                      data-testid="update-extensions"
-                      :icon="kaapanaIcons.refresh"
-                    />
-                  </template>
-                  <span>Click to download latest extensions, this might take some time.</span>
-                </v-tooltip>
+                <v-btn
+                  v-if="canUpdateExtensions"
+                  data-testid="update-extensions"
+                  color="primary"
+                  :prepend-icon="kaapanaIcons.refresh"
+                  :loading="updatingExtensions"
+                  :disabled="updatingExtensions"
+                  @click="askUpdateExtensions"
+                >
+                  Download latest extensions
+                </v-btn>
               </span>
             </v-col>
           </v-row>
@@ -196,7 +195,7 @@
           <template #item.installed="{ item }">
             <v-btn
               v-if="checkInstalled(item) === 'yes' && item.successful !== 'pending' && item.successful !== 'justLaunched'"
-              @click="deleteChart(item)"
+              @click="askUninstall(item, false)"
               color="primary"
               min-width="160px"
             >
@@ -317,24 +316,26 @@
             >
               <span>Launched</span>
             </v-btn>
-            <v-menu :close-on-content-click="false" v-if="item.successful === 'pending'">
+            <v-menu
+              v-if="item.successful === 'pending'"
+              v-model="pendingMenu[item.releaseName]"
+              :close-on-content-click="false"
+            >
               <template #activator="{ props }">
-                <v-btn color="primary" min-width="160px" v-bind="props">
+                <v-btn color="primary" min-width="160px" v-bind="props" :append-icon="kaapanaIcons.expand">
                   Pending
-                  <v-icon :icon="kaapanaIcons.expand" />
                 </v-btn>
               </template>
-              <v-card max-width="300px" class="text-left">
-                <v-card-title>Pending states</v-card-title>
-                <v-card-text>If an installation gets stuck in the "Pending" state, it is likely due to an error in the Helm chart. You can force to uninstall the extension to resolve the issue.</v-card-text>
+              <v-card max-width="320px" class="text-left">
+                <v-card-title class="text-subtitle-1">Stuck in Pending?</v-card-title>
+                <v-card-text class="text-body-2">
+                  An installation that stays pending usually means an error in the Helm chart. Forcing
+                  the uninstall skips the chart's hooks and clears the release.
+                </v-card-text>
                 <v-card-actions>
-                  <v-btn
-                    @click="deleteChart(item, '--no-hooks')"
-                    color="primary"
-                    min-width="160px"
-                  >
-                    <span v-if="item.multiinstallable === 'yes'">Force Delete</span>
-                    <span v-if="item.multiinstallable === 'no'">Force Uninstall</span>
+                  <v-spacer />
+                  <v-btn color="error" :prepend-icon="kaapanaIcons.delete" @click="askUninstall(item, true)">
+                    {{ item.multiinstallable === 'yes' ? 'Force Delete' : 'Force Uninstall' }}
                   </v-btn>
                 </v-card-actions>
               </v-card>
@@ -343,13 +344,22 @@
         </v-data-table>
       </v-card>
     </v-container>
+
+    <ConfirmDialog
+      v-model="confirmOpen"
+      :color="confirmContent.color"
+      :title="confirmContent.title"
+      :text="confirmContent.text"
+      :confirm-text="confirmContent.confirmText"
+      @confirm="runPendingAction"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useNotification } from "@kyvg/vue3-notification";
-import { kaapanaApiService, refreshShell } from "@kaapana/base-ui";
+import { ConfirmDialog, kaapanaApiService, refreshShell } from "@kaapana/base-ui";
 import Upload from "@/components/Upload.vue";
 import { usePolicyStore } from "@/stores/policy";
 import { useAuthStore, useProjectStore } from "@kaapana/base-ui";
@@ -412,6 +422,8 @@ const allowedFileTypes = [
   "application/x-compressed-tar",
 ];
 const loading = ref(true);
+const updatingExtensions = ref(false);
+const pendingMenu = ref<Record<string, boolean>>({});
 let polling = 0;
 let pollErrorNotified = false;
 let previousReadyReleases: string | null = null;
@@ -581,26 +593,116 @@ function startExtensionsInterval() {
 function clearExtensionsInterval() {
   window.clearInterval(polling);
 }
-function updateExtensions() {
-  loading.value = true;
+function restartExtensionsInterval() {
   clearExtensionsInterval();
   startExtensionsInterval();
+}
+function updateExtensions() {
+  updatingExtensions.value = true;
+  restartExtensionsInterval();
   kaapanaApiService
     .helmApiGet("/update-extensions", {})
     .then((response: any) => {
-      loading.value = false;
       console.log(response.data);
     })
     .catch((err: any) => {
-      loading.value = false;
       console.log(err);
       notify({
         type: "error",
         title: "Refresh failed",
         text: `Could not refresh the extension list. ${err?.response?.data?.detail ?? err?.message}`,
       });
+    })
+    .finally(() => {
+      updatingExtensions.value = false;
     });
 }
+
+/* -------------------------------------------------------- confirmations --- */
+
+type PendingAction =
+  | { kind: "uninstall"; item: any; force: boolean }
+  | { kind: "update-extensions" };
+
+// Kept after the dialog closes so its content does not blank out during the
+// leave transition; the next ask replaces it.
+const pendingAction = ref<PendingAction | null>(null);
+const confirmOpen = ref(false);
+
+function askUninstall(item: any, force: boolean) {
+  pendingMenu.value[item.releaseName] = false;
+  pendingAction.value = { kind: "uninstall", item, force };
+  confirmOpen.value = true;
+}
+
+function askUpdateExtensions() {
+  pendingAction.value = { kind: "update-extensions" };
+  confirmOpen.value = true;
+}
+
+function runPendingAction() {
+  const action = pendingAction.value;
+  if (!action) return;
+  if (action.kind === "update-extensions") {
+    updateExtensions();
+    return;
+  }
+  deleteChart(action.item, action.force ? "--no-hooks" : "");
+}
+
+// Each text states what happens, what is affected and what follows. `error` for
+// the destructive uninstall, `primary` for the download, which is expensive but
+// reversible.
+const confirmContent = computed(() => {
+  const action = pendingAction.value;
+
+  if (action?.kind === "update-extensions") {
+    return {
+      color: "primary",
+      title: "Download the latest extensions?",
+      text:
+        "Kaapana pulls the current chart catalogue from the configured Helm repository. " +
+        "This can take several minutes and use significant network bandwidth and disk space on the platform. " +
+        "Extensions that are already installed keep running; only the list of available versions changes.",
+      confirmText: "Download",
+    };
+  }
+
+  if (action?.kind === "uninstall") {
+    const { item, force } = action;
+    const noun = item.multiinstallable === "yes" ? "instance" : "extension";
+    const verb = item.multiinstallable === "yes" ? "Delete" : "Uninstall";
+
+    if (force) {
+      return {
+        color: "error",
+        title: `Force ${verb.toLowerCase()} "${item.uiVisibleName}"?`,
+        text:
+          `The release ${item.releaseName} (version ${item.version}) is removed with Helm's hooks skipped. ` +
+          "Because the chart's cleanup hooks do not run, resources it would normally remove may be left behind in the cluster. " +
+          "Use this only for an installation that is genuinely stuck in Pending.",
+        confirmText: `Force ${verb.toLowerCase()} ${noun}`,
+      };
+    }
+
+    return {
+      color: "error",
+      title: `${verb} "${item.uiVisibleName}"?`,
+      text:
+        `The release ${item.releaseName} (version ${item.version}) is removed from this project. ` +
+        `Containers running for this ${noun} are stopped, and anything stored only inside them is lost. ` +
+        "The extension stays in the catalogue and can be installed again later.",
+      confirmText: `${verb} ${noun}`,
+    };
+  }
+
+  return {
+    color: "error",
+    title: "",
+    text: "",
+    confirmText: "Confirm",
+  };
+});
 function deleteChart(item: any, helmCommandAddons: any = "") {
   let params = {
     release_name: item.releaseName,

@@ -6,7 +6,7 @@ import {
   VIEW_PATH,
   viewPathFor,
 } from './fixtures/mock-backend'
-import { HELM, row } from './fixtures/helpers'
+import { confirmAction, HELM, row } from './fixtures/helpers'
 
 // The four services base-ui's httpClient rewrites onto /project/<short_id>/
 // (its PROJECT_SCOPED allowlist). Matched anywhere in the path so a call that
@@ -57,6 +57,7 @@ test('no request to a project-scoped service escapes the /project/<slug>/ prefix
   // Refresh the marketplace (the only header action that calls the backend).
   const refreshed = called(HELM.update)
   await page.getByTestId('update-extensions').click()
+  await confirmAction(page, 'Download')
   await refreshed
 
   // Install: the one action whose URL the interceptor rewrites on a POST.
@@ -67,6 +68,7 @@ test('no request to a project-scoped service escapes the /project/<slug>/ prefix
   // Uninstall, the mirror-image call.
   const uninstalled = called(HELM.uninstall)
   await row(page, 'MITK Workbench').getByRole('button', { name: 'Uninstall' }).click()
+  await confirmAction(page, 'Uninstall extension')
   await uninstalled
 
   // The motivating call: FilePond never touches httpClient, so Upload.vue

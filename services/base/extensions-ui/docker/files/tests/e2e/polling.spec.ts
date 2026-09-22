@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import { installMockBackend, VIEW_PATH, type ExtensionMock } from './fixtures/mock-backend'
-import { catalogue, deployed, extension, HELM, openView, row } from './fixtures/helpers'
+import { catalogue, confirmAction, deployed, extension, HELM, openView, row } from './fixtures/helpers'
 
 // The list is re-fetched every 5 s. `page.clock` drives the interval so a
 // cycle costs nothing to wait for.
@@ -43,11 +43,12 @@ test('a pending extension becomes ready across polling cycles', async ({ page })
   await expect(server.getByRole('button', { name: 'Pending' })).toHaveCount(0)
 })
 
-test('the refresh control triggers an update-extensions request', async ({ page }) => {
+test('the catalogue download is confirmed, then requested', async ({ page }) => {
   await openView(page)
 
   const requested = page.waitForRequest((r) => r.url().includes(HELM.update))
   await page.getByTestId('update-extensions').click()
+  await confirmAction(page, 'Download')
   await requested
 })
 

@@ -1,6 +1,16 @@
 import { test, expect } from '@playwright/test'
 import { installMockBackend, VIEW_PATH } from './fixtures/mock-backend'
-import { collectPageErrors, deployed, extension, failRoute, HELM, openView, row, toasts } from './fixtures/helpers'
+import {
+  collectPageErrors,
+  confirmAction,
+  deployed,
+  extension,
+  failRoute,
+  HELM,
+  openView,
+  row,
+  toasts,
+} from './fixtures/helpers'
 
 test('a failed uninstall notifies and leaves the row installed', async ({ page }) => {
   const pageErrors = collectPageErrors(page)
@@ -9,6 +19,7 @@ test('a failed uninstall notifies and leaves the row installed', async ({ page }
   })
 
   await row(page, 'MITK Workbench').getByRole('button', { name: 'Uninstall' }).click()
+  await confirmAction(page, 'Uninstall extension')
 
   await expect(page.getByText('Uninstall failed', { exact: true })).toBeVisible()
   await expect(page.getByText('release is locked')).toBeVisible()
@@ -24,6 +35,7 @@ test('a failed marketplace refresh notifies and keeps the list', async ({ page }
   })
 
   await page.getByTestId('update-extensions').click()
+  await confirmAction(page, 'Download')
 
   await expect(page.getByText('Refresh failed', { exact: true })).toBeVisible()
   await expect(page.getByText('helm repo update failed')).toBeVisible()

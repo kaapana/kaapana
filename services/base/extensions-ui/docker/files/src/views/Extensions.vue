@@ -351,7 +351,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useNotification } from "@kyvg/vue3-notification";
 import { kaapanaApiService, refreshShell } from "@kaapana/base-ui";
 import Upload from "@/components/Upload.vue";
-import { useCommonDataStore } from "@/stores/commonData";
+import { usePolicyStore } from "@/stores/policy";
 import { useAuthStore, useProjectStore } from "@kaapana/base-ui";
 import { checkAuthR } from "@/utils/opa";
 import { extensionIcons, kaapanaIcons } from "@/utils/extensionIcons";
@@ -371,7 +371,7 @@ interface DataTableHeader {
 }
 
 const { notify } = useNotification();
-const commonDataStore = useCommonDataStore();
+const policyStore = usePolicyStore();
 const authStore = useAuthStore();
 
 // The shipped policy grants these kube-helm endpoints to admins only and their
@@ -379,7 +379,7 @@ const authStore = useAuthStore();
 // permission the user can never acquire is not a transient state worth showing.
 // authStore.currentUser is {} until checkAuth resolves; read roles defensively.
 const allowed = (path: string) =>
-  checkAuthR(commonDataStore.policyData, path, {
+  checkAuthR(policyStore.policyData, path, {
     roles: authStore.currentUser?.roles ?? [],
   });
 const canUpdateExtensions = computed(() =>
@@ -482,30 +482,30 @@ const filteredLaunchedAppLinks = computed<any[]>(() => {
 function fileStart(file: any) {
   console.log("filestart", file);
 }
+// FilePond reports an upload failure inline on the file itself, so only the
+// follow-up import of a container image needs feedback from here.
 function fileComplete(error: any, file: any) {
   if (error !== null) {
     console.log("filepond file upload error", error);
     return;
-  } else {
-    console.log("successfully uploaded file", file);
-    let fname = file.filename;
-    let fExt = file.fileExtension;
-    if (fExt == "tar") {
-      console.log("importing container...");
-      kaapanaApiService
-        .helmApiGet("/import-container", { filename: fname }, 120000)
-        .then((response: any) => {
-          console.log(response.data);
-        })
-        .catch((err: any) => {
-          notify({
-            type: "error",
-            title: "Import failed",
-            text: `Import of ${fname} failed. ${err?.response?.data?.detail ?? err?.message}`,
-          });
-        });
-    }
   }
+  console.log("successfully uploaded file", file);
+  const fname = file.filename;
+  if (file.fileExtension !== "tar") return;
+
+  console.log("importing container...");
+  kaapanaApiService
+    .helmApiGet("/import-container", { filename: fname }, 120000)
+    .then((response: any) => {
+      console.log(response.data);
+    })
+    .catch((err: any) => {
+      notify({
+        type: "error",
+        title: "Import failed",
+        text: `Import of ${fname} failed. ${err?.response?.data?.detail ?? err?.message}`,
+      });
+    });
 }
 function getHelmCharts() {
   let params = {
@@ -725,8 +725,6 @@ function installChart(item: any) {
       });
     });
 }
-
-commonDataStore.loadCommonData();
 
 onMounted(() => {
   getHelmCharts();

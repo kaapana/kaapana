@@ -1,68 +1,46 @@
 import { test, expect, type Page } from '@playwright/test'
-import type { ExtensionMock } from './fixtures/mock-backend'
-import { installMockBackend, defaultMockData, VIEW_PATH } from './fixtures/mock-backend'
+import { installMockBackend, VIEW_PATH, type ExtensionMock } from './fixtures/mock-backend'
+import { catalogue, deployed, extension, HELM, openView, row } from './fixtures/helpers'
+
+// The list is re-fetched every 5 s. `page.clock` drives the interval so a
+// cycle costs nothing to wait for.
 
 // A single extension whose backend state flips from pending to ready.
 function codeServer(state: 'pending' | 'ready'): ExtensionMock {
-  return {
+  return extension({
     releaseName: 'code-server-1',
     name: 'code-server',
-    chart_name: 'code-server',
-    version: '1.0.0',
-    versions: ['1.0.0'],
-    available_versions: {
-      '1.0.0': {
-        deployments:
-          state === 'ready'
-            ? [
-                {
-                  deployment_id: 'code-server-1',
-                  helm_status: 'deployed',
-                  kube_status: 'Running',
-                  links: [],
-                  ready: true,
-                },
-              ]
-            : [],
-      },
-    },
-    multiinstallable: 'no',
-    kind: 'application',
-    experimental: 'no',
-    resourceRequirement: 'cpu',
+    display_name: 'Code Server',
+    description: 'VS Code in the browser',
+    available_versions: { '1.0.0': state === 'ready' ? deployed('code-server-1') : { deployments: [] } },
     successful: state === 'ready' ? 'yes' : 'pending',
     installed: state === 'ready' ? 'yes' : 'no',
-    description: 'VS Code in the browser',
-    display_name: 'Code Server',
-    keywords: ['kaapana-application'],
-  }
+  })
+}
+
+/** Serve `states[n]` on the n-th list fetch, the last one from then on. */
+function serveSequence(page: Page, states: ExtensionMock[][]) {
+  let call = 0
+  return page.route(HELM.extensions, (r) => {
+    const body = states[Math.min(call++, states.length - 1)]
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
 }
 
 test('a pending extension becomes ready across polling cycles', async ({ page }) => {
-  // Fake clock so the 5s poll is driven with clock.runFor.
   await page.clock.install()
-  await installMockBackend(page)
-
   // First response pending; every subsequent poll (5s interval) returns ready.
-  let call = 0
-  await page.route(/\/kube-helm-api\/extensions(\?.*)?$/, (r) => {
-    call++
-    const state = call <= 1 ? 'pending' : 'ready'
-    r.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify([codeServer(state)]),
-    })
+  await openView(page, catalogue([codeServer('pending')]), {
+    routes: (p) => serveSequence(p, [[codeServer('pending')], [codeServer('ready')]]),
   })
-
-  await page.goto(VIEW_PATH)
-
-  await expect(page.getByRole('button', { name: 'Pending' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Uninstall' })).toHaveCount(0)
+  const server = row(page, 'Code Server')
+  await expect(server.getByRole('button', { name: 'Pending' })).toBeVisible()
+  await expect(server.getByRole('button', { name: 'Uninstall' })).toHaveCount(0)
 
   await page.clock.runFor(5_000)
-  await expect(page.getByRole('button', { name: 'Uninstall' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Pending' })).toHaveCount(0)
+
+  await expect(server.getByRole('button', { name: 'Uninstall' })).toBeVisible()
+  await expect(server.getByRole('button', { name: 'Pending' })).toHaveCount(0)
 })
 
 // A revoked kaapana.ai/applications claim makes the 5s poll fail for as long as
@@ -100,7 +78,7 @@ test('a persistently failing poll notifies once, and again after a recovery', as
 
   let failing = true
   let calls = 0
-  await page.route(/\/kube-helm-api\/extensions(\?.*)?$/, (r) => {
+  await page.route(HELM.extensions, (r) => {
     calls++
     if (failing) return r.fulfill({ status: 403, contentType: 'application/json', body: '{}' })
     r.fulfill({
@@ -125,150 +103,91 @@ test('a persistently failing poll notifies once, and again after a recovery', as
   // A successful poll re-arms the latch, so a later failure is reported again.
   failing = false
   await page.clock.runFor(5_000)
-  await expect(page.getByRole('button', { name: 'Uninstall' })).toBeVisible()
+  await expect(row(page, 'Code Server').getByRole('button', { name: 'Uninstall' })).toBeVisible()
   failing = true
   await page.clock.runFor(5_000)
   await expect.poll(toasts).toBe(2)
 })
 
 test('the refresh control triggers an update-extensions request', async ({ page }) => {
-  await installMockBackend(page, defaultMockData)
-  await page.goto(VIEW_PATH)
-  await expect(page.getByText('MITK Workbench')).toBeVisible()
+  await openView(page)
 
-  const reqPromise = page.waitForRequest((r) =>
-    r.url().includes('/kube-helm-api/update-extensions'),
-  )
+  const requested = page.waitForRequest((r) => r.url().includes(HELM.update))
   await page.getByTestId('update-extensions').click()
-  await reqPromise
+  await requested
 })
 
 // Stand-in for portal-ui: a same-origin parent that embeds the view and records
-// what it receives.
-async function shellHarness(page: Page) {
-  await page.route('**/shell-harness', (r) =>
-    r.fulfill({
-      status: 200,
-      contentType: 'text/html',
-      body: `<!doctype html><html><body><script>
-               window.__msgs = []
-               addEventListener('message', (e) => window.__msgs.push(e.data))
-             </script><iframe src="${VIEW_PATH}" style="width:1280px;height:900px;border:0"></iframe></body></html>`,
-    }),
-  )
-}
-
-const shellMessages = (page: Page) =>
-  page.evaluate(() => (window as unknown as { __msgs: unknown[] }).__msgs)
-
-// A second, undeployed version for the row's dropdown to switch to.
-function twoVersionApp(): ExtensionMock {
-  return {
-    ...codeServer('ready'),
-    versions: ['1.0.0', '2.0.0'],
-    available_versions: {
-      ...codeServer('ready').available_versions,
-      '2.0.0': { deployments: [] },
-    },
+// what it receives. refreshShell() only posts when embedded.
+test.describe('embedded in the shell', () => {
+  async function openEmbedded(page: Page, states: ExtensionMock[][]) {
+    await page.clock.install()
+    await installMockBackend(page)
+    await serveSequence(page, states)
+    await page.route('**/shell-harness', (r) =>
+      r.fulfill({
+        status: 200,
+        contentType: 'text/html',
+        body: `<!doctype html><html><body><script>
+                 window.__msgs = []
+                 addEventListener('message', (e) => window.__msgs.push(e.data))
+               </script><iframe src="${VIEW_PATH}" style="width:1280px;height:900px;border:0"></iframe></body></html>`,
+      }),
+    )
+    await page.goto('/shell-harness')
+    return page.frameLocator('iframe')
   }
-}
+  const messages = (page: Page) => page.evaluate(() => (window as any).__msgs as unknown[])
 
-// Two instances sharing one deployments list, as kube-helm serves them.
-function instanceRows(secondReady: boolean): ExtensionMock[] {
-  const base: ExtensionMock = {
-    ...codeServer('ready'),
-    name: 'jupyterlab',
-    chart_name: 'jupyterlab',
-    multiinstallable: 'yes',
-    available_versions: codeServer('ready').available_versions,
-  }
-  return [
-    { ...base, releaseName: 'jupyterlab-a', display_name: 'jupyterlab-a', successful: 'yes' },
-    {
-      ...base,
-      releaseName: 'jupyterlab-b',
-      display_name: 'jupyterlab-b',
-      successful: secondReady ? 'yes' : 'pending',
-    },
-  ]
-}
+  test('an extension becoming ready asks the shell to refresh', async ({ page }) => {
+    const view = await openEmbedded(page, [[codeServer('pending')], [codeServer('ready')]])
+    await expect(view.getByRole('button', { name: 'Pending' })).toBeVisible()
+    expect(await messages(page)).toEqual([])
 
-test('embedded, an extension becoming ready asks the shell to refresh', async ({ page }) => {
-  await page.clock.install()
-  await installMockBackend(page)
+    await page.clock.runFor(5_000)
+    await expect(view.getByRole('button', { name: 'Uninstall' })).toBeVisible()
+    await expect.poll(() => messages(page)).toEqual([{ type: 'kaapana:shell-refresh' }])
 
-  let call = 0
-  await page.route(/\/kube-helm-api\/extensions(\?.*)?$/, (r) => {
-    call++
-    r.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify([codeServer(call <= 1 ? 'pending' : 'ready')]),
-    })
+    // One transition, one message: no settling window re-refreshing for cycles.
+    await page.clock.runFor(10_000)
+    await page.waitForTimeout(300)
+    expect(await messages(page)).toEqual([{ type: 'kaapana:shell-refresh' }])
   })
-  await shellHarness(page)
 
-  await page.goto('/shell-harness')
-  const view = page.frameLocator('iframe')
-  await expect(view.getByRole('button', { name: 'Pending' })).toBeVisible()
-  expect(await shellMessages(page)).toEqual([])
+  test('picking another version does not ask the shell to refresh', async ({ page }) => {
+    // A second, undeployed version for the row's dropdown to switch to.
+    const twoVersions: ExtensionMock = {
+      ...codeServer('ready'),
+      versions: ['1.0.0', '2.0.0'],
+      available_versions: { ...codeServer('ready').available_versions, '2.0.0': { deployments: [] } },
+    }
+    const view = await openEmbedded(page, [[twoVersions]])
+    await expect(view.getByRole('button', { name: 'Uninstall' })).toBeVisible()
 
-  await page.clock.runFor(5_000)
-  await expect(view.getByRole('button', { name: 'Uninstall' })).toBeVisible()
-  const msgs = () => shellMessages(page)
-  await expect.poll(msgs).toEqual([{ type: 'kaapana:shell-refresh' }])
+    await view.getByRole('row', { name: /Code Server/ }).getByRole('combobox').first().click()
+    await view.getByRole('option', { name: '2.0.0' }).click()
 
-  // One transition, one message: no settling window re-refreshing for cycles.
-  await page.clock.runFor(10_000)
-  await page.waitForTimeout(300)
-  expect(await msgs()).toEqual([{ type: 'kaapana:shell-refresh' }])
-})
-
-test('embedded, picking another version does not ask the shell to refresh', async ({ page }) => {
-  await page.clock.install()
-  await installMockBackend(page)
-  await page.route(/\/kube-helm-api\/extensions(\?.*)?$/, (r) =>
-    r.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify([twoVersionApp()]),
-    }),
-  )
-  await shellHarness(page)
-
-  await page.goto('/shell-harness')
-  const view = page.frameLocator('iframe')
-  await expect(view.getByRole('button', { name: 'Uninstall' })).toBeVisible()
-
-  await view.getByRole('row', { name: /Code Server/ }).getByRole('combobox').first().click()
-  await view.getByRole('option', { name: '2.0.0' }).click()
-
-  await page.clock.runFor(10_000)
-  await page.waitForTimeout(300)
-  expect(await shellMessages(page)).toEqual([])
-})
-
-test('embedded, a second multiinstallable instance becoming ready asks the shell to refresh', async ({
-  page,
-}) => {
-  await page.clock.install()
-  await installMockBackend(page)
-  let call = 0
-  await page.route(/\/kube-helm-api\/extensions(\?.*)?$/, (r) => {
-    call++
-    r.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(instanceRows(call > 1)),
-    })
+    await page.clock.runFor(10_000)
+    await page.waitForTimeout(300)
+    expect(await messages(page)).toEqual([])
   })
-  await shellHarness(page)
 
-  await page.goto('/shell-harness')
-  const view = page.frameLocator('iframe')
-  await expect(view.getByRole('row', { name: /jupyterlab-b/ })).toBeVisible()
-  expect(await shellMessages(page)).toEqual([])
+  test('a second multiinstallable instance becoming ready asks the shell to refresh', async ({
+    page,
+  }) => {
+    // Two instances sharing one deployments list, as kube-helm serves them.
+    const instances = (secondReady: boolean): ExtensionMock[] => {
+      const base = { ...codeServer('ready'), name: 'jupyterlab', chart_name: 'jupyterlab', multiinstallable: 'yes' as const }
+      return [
+        { ...base, releaseName: 'jupyterlab-a', display_name: 'jupyterlab-a', successful: 'yes' },
+        { ...base, releaseName: 'jupyterlab-b', display_name: 'jupyterlab-b', successful: secondReady ? 'yes' : 'pending' },
+      ]
+    }
+    const view = await openEmbedded(page, [instances(false), instances(true)])
+    await expect(view.getByRole('row', { name: /jupyterlab-b/ })).toBeVisible()
+    expect(await messages(page)).toEqual([])
 
-  await page.clock.runFor(5_000)
-  await expect.poll(() => shellMessages(page)).toEqual([{ type: 'kaapana:shell-refresh' }])
+    await page.clock.runFor(5_000)
+    await expect.poll(() => messages(page)).toEqual([{ type: 'kaapana:shell-refresh' }])
+  })
 })

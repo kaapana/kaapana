@@ -1,11 +1,12 @@
 import { test, expect } from '@playwright/test'
 import {
-  installMockBackend,
   defaultMockData,
-  viewPathFor,
+  installMockBackend,
   UNSCOPED_VIEW_PATH,
   VIEW_PATH,
+  viewPathFor,
 } from './fixtures/mock-backend'
+import { HELM, row } from './fixtures/helpers'
 
 // The four services base-ui's httpClient rewrites onto /project/<short_id>/
 // (its PROJECT_SCOPED allowlist). Matched anywhere in the path so a call that
@@ -16,13 +17,13 @@ const PROJECT_SCOPED_SERVICE = /(^|\/)(kaapana-backend|kube-helm-api|workflow-ap
 // must be scoped to it (not to a default or any shared state), and a document
 // without the prefix adopts the user's first project by redirecting onto it.
 
+// Deliberately NOT the first project, so a fallback-to-default would fail.
+const project = defaultMockData.projects[1]
+
 test('API calls are scoped to the project in the document URL', async ({ page }) => {
   await installMockBackend(page)
-  // Deliberately NOT the first project, so a fallback-to-default would fail.
-  const project = defaultMockData.projects[1]
-  const scoped = page.waitForRequest((r) =>
-    r.url().includes(`/project/${project.short_id}/kube-helm-api/`),
-  )
+  const scoped = page.waitForRequest((r) => r.url().includes(`/project/${project.short_id}/kube-helm-api/`))
+
   await page.goto(viewPathFor(project))
   await scoped
 })
@@ -33,7 +34,6 @@ test('API calls are scoped to the project in the document URL', async ({ page })
 test('no request to a project-scoped service escapes the /project/<slug>/ prefix', async ({
   page,
 }) => {
-  const project = defaultMockData.projects[1]
   const prefix = `/project/${project.short_id}/`
   const unscoped: string[] = []
   page.on('request', (r) => {
@@ -47,30 +47,32 @@ test('no request to a project-scoped service escapes the /project/<slug>/ prefix
   // Barrier on the boot RESPONSE, matched without a prefix so it holds whether
   // or not the call is scoped; a DOM barrier can be satisfied before the
   // request even goes out.
-  const listed = page.waitForResponse((r) => /\/kube-helm-api\/extensions(\?.*)?$/.test(r.url()))
+  const listed = page.waitForResponse((r) => HELM.extensions.test(r.url()))
   await page.goto(viewPathFor(project))
   await listed
-  await expect(page.getByText('MITK Workbench')).toBeVisible()
+  await expect(row(page, 'MITK Workbench')).toBeVisible()
+
+  const called = (url: string) => page.waitForResponse((r) => r.url().includes(url))
 
   // Refresh the marketplace (the only header action that calls the backend).
-  const refreshed = page.waitForResponse((r) => r.url().includes('/kube-helm-api/update-extensions'))
+  const refreshed = called(HELM.update)
   await page.getByTestId('update-extensions').click()
   await refreshed
 
   // Install: the one action whose URL the interceptor rewrites on a POST.
-  const installed = page.waitForResponse((r) => r.url().includes('/kube-helm-api/helm-install-chart'))
-  await page.getByRole('button', { name: 'Launch' }).first().click()
+  const installed = called(HELM.install)
+  await row(page, 'JupyterLab').getByRole('button', { name: 'Launch' }).click()
   await installed
 
   // Uninstall, the mirror-image call.
-  const uninstalled = page.waitForResponse((r) => r.url().includes('/kube-helm-api/helm-delete-chart'))
-  await page.getByRole('button', { name: 'Uninstall' }).first().click()
+  const uninstalled = called(HELM.uninstall)
+  await row(page, 'MITK Workbench').getByRole('button', { name: 'Uninstall' }).click()
   await uninstalled
 
   // The motivating call: FilePond never touches httpClient, so Upload.vue
   // prepends getProjectBase() by hand. Only a real file drop exercises it —
   // setOptions merely CONFIGURES the endpoint.
-  const uploaded = page.waitForResponse((r) => r.url().includes('/kube-helm-api/filepond-upload'))
+  const uploaded = called(HELM.upload)
   await page.locator('input.filepond--browser').setInputFiles({
     name: 'chart.tgz',
     mimeType: 'application/gzip',
@@ -85,5 +87,5 @@ test('without a project prefix the view redirects onto the first project', async
   await installMockBackend(page)
   await page.goto(UNSCOPED_VIEW_PATH)
   await page.waitForURL(`**${VIEW_PATH}`)
-  await expect(page.getByText('MITK Workbench')).toBeVisible()
+  await expect(row(page, 'MITK Workbench')).toBeVisible()
 })

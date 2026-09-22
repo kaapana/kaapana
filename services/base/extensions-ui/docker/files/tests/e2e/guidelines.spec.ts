@@ -76,6 +76,19 @@ test.describe('visual language', () => {
 })
 
 test.describe('accessibility', () => {
+  test('icon-only controls carry accessible names', async ({ page }) => {
+    await expect(page.getByTestId('filter-kind')).toHaveAccessibleName('Filter by type')
+    await expect(page.getByTestId('filter-maturity')).toHaveAccessibleName('Filter by maturity')
+    await expect(page.getByTestId('filter-hardware')).toHaveAccessibleName(
+      'Filter by hardware requirement',
+    )
+    const mitk = row(page, 'MITK Workbench')
+    // The <input> is what a keyboard user lands on, so that is what needs the name.
+    await expect(mitk.locator('input[role="combobox"]')).toHaveAccessibleName('Version of MITK Workbench')
+    await expect(mitk.getByRole('link', { name: 'Documentation for MITK Workbench (opens in a new tab)' })).toBeVisible()
+    await expect(mitk.getByRole('link', { name: 'Open MITK Workbench in a new tab' })).toBeVisible()
+  })
+
   test('the catalogue download control is a real, keyboard-reachable button', async ({ page }) => {
     const control = page.getByTestId('update-extensions')
     await expect(control).toHaveRole('button')

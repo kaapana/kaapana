@@ -64,6 +64,16 @@ test.describe('install and launch', () => {
 
     expect(await posted).toMatchObject({ name: 'jupyterlab', version: '3.1.0' })
   })
+
+  test('after launching, the row shows a disabled Launched state that explains itself', async ({
+    page,
+  }) => {
+    const jupyter = row(page, 'JupyterLab')
+    await jupyter.getByRole('button', { name: 'Launch' }).click()
+
+    await expect(jupyter.getByRole('button', { name: 'Launched' })).toBeDisabled()
+    await expect(jupyter).toContainText('Already launched in this session')
+  })
 })
 
 test('a version picked before a poll refresh survives into the install payload', async ({

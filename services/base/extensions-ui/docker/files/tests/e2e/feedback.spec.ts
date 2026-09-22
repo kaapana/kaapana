@@ -85,7 +85,7 @@ test('survives a backend error, shows no rows, and notifies the user', async ({ 
   )
   await page.goto(VIEW_PATH)
 
-  await expect(page.getByLabel('Search')).toBeVisible()
+  await expect(page.getByRole('textbox', { name: 'Search' })).toBeVisible()
   await expect(page.getByText('No data available')).toBeVisible()
   await expect(row(page, 'MITK Workbench')).toHaveCount(0)
 

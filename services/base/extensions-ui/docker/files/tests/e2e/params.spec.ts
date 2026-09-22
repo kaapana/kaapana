@@ -45,3 +45,41 @@ test('a param-less install does not inherit the previous extension params', asyn
   // nnU-Net's params must NOT ride along on JupyterLab's install.
   expect(payload.extension_params).toBeUndefined()
 })
+
+test('section headings, documentation and multi-select parameters render and serialise', async ({
+  page,
+}) => {
+  await openView(
+    page,
+    catalogue([
+      extension({
+        releaseName: 'rich-params',
+        display_name: 'Rich Params',
+        extension_params: {
+          advanced: { type: 'group_name', default: 'Advanced settings' },
+          notes: { type: 'doc', title: 'Before you start', html: 'Needs a <b>GPU node</b>.' },
+          models: { type: 'list_multi', default: ['a'], value: ['a', 'b'], definition: 'Models' },
+        },
+      }),
+    ]),
+  )
+  await row(page, 'Rich Params').getByRole('button', { name: 'Install' }).click()
+
+  const form = dialog(page)
+  await expect(form.getByText('Advanced settings')).toBeVisible()
+  await expect(form.getByText('Before you start')).toBeVisible()
+  await expect(form.locator('b', { hasText: 'GPU node' })).toBeVisible()
+
+  await form.locator('.v-select', { hasText: 'Models (models)' }).click()
+  await page.getByRole('option', { name: 'b' }).click()
+  await form.getByText('Configure Rich Params').click() // closes the select menu
+
+  const posted = nextPost(page, HELM.install)
+  await form.getByRole('button', { name: 'Install', exact: true }).click()
+
+  const params = (await posted).extension_params
+  // kube-helm takes every parameter as a string: a multi-select is comma-joined.
+  expect(params.models).toBe('a,b')
+  expect(params.advanced).toBe('Advanced settings')
+  expect(params).not.toHaveProperty('notes')
+})

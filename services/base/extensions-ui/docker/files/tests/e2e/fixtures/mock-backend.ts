@@ -143,7 +143,12 @@ export const defaultExtensions: ExtensionMock[] = [
     annotations: { documentation: 'nnunet' },
     latest_version: '2.1.0',
     extension_params: {
-      workflow_name: { type: 'string', default: 'nnunet-run', definition: 'Workflow name' },
+      workflow_name: {
+        type: 'string',
+        default: 'nnunet-run',
+        definition: 'Workflow name',
+        help: 'Shown in the workflow list once the training starts.',
+      },
       enable_gpu: { type: 'bool', default: true, definition: 'Enable GPU' },
       model_type: {
         type: 'list_single',

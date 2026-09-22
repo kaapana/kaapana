@@ -59,7 +59,7 @@ security_scan:
   artifacts:
     name: "security_$CI_COMMIT_SHORT_SHA"
     when: always
-    expire_in: never
+    expire_in: 30 days
     paths:
     # globs -> optional: missing file only warns, never fails the job
       - "$CI_PROJECT_DIR/reports/interactive_report*.html"

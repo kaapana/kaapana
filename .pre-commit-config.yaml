@@ -10,3 +10,15 @@ repos:
       - id: ruff-format
         # ruff also formats Python fences in Markdown and the CI job checks them
         types_or: [python, pyi, jupyter, markdown]
+
+  # Same helm lint + kubeval as the helm_lint CI job.
+  # build_cli is installed into the hook's venv on first use.
+  # Needs helm and its kubeval plugin.
+  - repo: local
+    hooks:
+      - id: helm-lint
+        name: helm lint
+        entry: bash -c "python -c 'import build_cli.cli' 2>/dev/null || python -m pip install -q -e build_cli; exec kaapana-build --lint-only --log-level WARN --build-dir build/helm-lint"
+        language: python
+        pass_filenames: false
+        files: (^|/)(Chart\.yaml|requirements\.yaml|values\.yaml|templates/.*)$

@@ -13,7 +13,8 @@
                       color="primary"
                       v-bind="props"
                       data-testid="update-extensions"
-                    >mdi-cloud-refresh-outline</v-icon>
+                      :icon="kaapanaIcons.refresh"
+                    />
                   </template>
                   <span>Click to download latest extensions, this might take some time.</span>
                 </v-tooltip>
@@ -35,7 +36,7 @@
             <v-col cols="12" sm="6">
               <v-text-field
                 v-model="search"
-                prepend-icon="mdi-magnify"
+                :prepend-icon="kaapanaIcons.search"
                 label="Search"
                 variant="underlined"
                 hide-details
@@ -58,7 +59,7 @@
             <v-menu>
               <template #activator="{ props }">
                 <v-btn icon variant="text" size="small" v-bind="props" data-testid="filter-kind">
-                  <v-icon>mdi-filter</v-icon>
+                  <v-icon :icon="extensionIcons.filter" />
                 </v-btn>
               </template>
               <v-card min-width="200px">
@@ -72,7 +73,7 @@
             <v-menu>
               <template #activator="{ props }">
                 <v-btn icon variant="text" size="small" v-bind="props" data-testid="filter-maturity">
-                  <v-icon>mdi-filter</v-icon>
+                  <v-icon :icon="extensionIcons.filter" />
                 </v-btn>
               </template>
               <v-card min-width="200px">
@@ -86,7 +87,7 @@
             <v-menu>
               <template #activator="{ props }">
                 <v-btn icon variant="text" size="small" v-bind="props">
-                  <v-icon>mdi-filter</v-icon>
+                  <v-icon :icon="extensionIcons.filter" />
                 </v-btn>
               </template>
               <v-card min-width="200px">
@@ -98,13 +99,13 @@
           <template #item.kind="{ item }">
             <v-tooltip location="bottom" v-if="item.kind === 'dag'">
               <template #activator="{ props }">
-                <v-icon color="primary" v-bind="props">mdi-gamepad-variant</v-icon>
+                <v-icon color="primary" v-bind="props" :icon="extensionIcons.workflow" />
               </template>
               <span>One or multiple workflows that will trigger Airflow DAGs</span>
             </v-tooltip>
             <v-tooltip location="bottom" v-if="item.kind === 'application'">
               <template #activator="{ props }">
-                <v-icon color="primary" v-bind="props">mdi-application-outline</v-icon>
+                <v-icon color="primary" v-bind="props" :icon="extensionIcons.application" />
               </template>
               <span>An application with a user interface</span>
             </v-tooltip>
@@ -126,7 +127,7 @@
                     target="_blank"
                     v-bind="props"
                   >
-                    <v-icon color="primary">mdi-information</v-icon>
+                    <v-icon color="primary" :icon="kaapanaIcons.help" />
                   </a>
                 </template>
               </v-tooltip>
@@ -139,7 +140,7 @@
               :href="getHref(link)"
               target="_blank"
             >
-              <v-icon color="primary">mdi-open-in-new</v-icon>
+              <v-icon color="primary" :icon="kaapanaIcons.externalLink" />
             </a>
           </template>
           <template #item.versions="{ item }">
@@ -167,13 +168,13 @@
             </v-tooltip>
             <v-tooltip location="right" v-else-if="item.successful === 'no'">
               <template #activator="{ props }">
-                <v-icon color="red" v-bind="props">mdi-alert-circle</v-icon>
+                <v-icon color="red" v-bind="props" :icon="kaapanaIcons.error" />
               </template>
               <span>Helm status: {{ getHelmStatus(item) }} <br /> Kubernetes status: {{ getKubeStatus(item) }}</span>
             </v-tooltip>
             <v-tooltip location="right" v-if="checkDeploymentReady(item) === true">
               <template #activator="{ props }">
-                <v-icon color="green" v-bind="props">mdi-check-circle</v-icon>
+                <v-icon color="green" v-bind="props" :icon="kaapanaIcons.success" />
               </template>
               <span>Helm status: {{ getHelmStatus(item) }} <br /> Kubernetes status: {{ getKubeStatus(item) }}</span>
             </v-tooltip>
@@ -181,13 +182,13 @@
           <template #item.experimental="{ item }">
             <v-tooltip location="bottom" v-if="item.experimental === 'yes'">
               <template #activator="{ props }">
-                <v-icon color="primary" v-bind="props">mdi-test-tube</v-icon>
+                <v-icon color="primary" v-bind="props" :icon="extensionIcons.experimental" />
               </template>
               <span>Experimental extension</span>
             </v-tooltip>
             <v-tooltip location="bottom" v-else>
               <template #activator="{ props }">
-                <v-icon color="primary" v-bind="props">mdi-check-decagram</v-icon>
+                <v-icon color="primary" v-bind="props" :icon="extensionIcons.stable" />
               </template>
               <span>Stable extension</span>
             </v-tooltip>
@@ -239,7 +240,7 @@
                           <template v-if="param.help" #append>
                             <v-tooltip location="right">
                               <template #activator="{ props }">
-                                <v-icon v-bind="props">mdi-tooltip-question</v-icon>
+                                <v-icon v-bind="props" :icon="kaapanaIcons.help" />
                               </template>
                               <div v-html="param.help"></div>
                             </v-tooltip>
@@ -253,7 +254,7 @@
                           <template v-if="param.help" #append>
                             <v-tooltip location="right">
                               <template #activator="{ props }">
-                                <v-icon v-bind="props">mdi-tooltip-question</v-icon>
+                                <v-icon v-bind="props" :icon="kaapanaIcons.help" />
                               </template>
                               <div v-html="param.help"></div>
                             </v-tooltip>
@@ -270,7 +271,7 @@
                           <template v-if="param.help" #append>
                             <v-tooltip location="right">
                               <template #activator="{ props }">
-                                <v-icon v-bind="props">mdi-tooltip-question</v-icon>
+                                <v-icon v-bind="props" :icon="kaapanaIcons.help" />
                               </template>
                               <div v-html="param.help"></div>
                             </v-tooltip>
@@ -289,7 +290,7 @@
                           <template v-if="param.help" #append>
                             <v-tooltip location="right">
                               <template #activator="{ props }">
-                                <v-icon v-bind="props">mdi-tooltip-question</v-icon>
+                                <v-icon v-bind="props" :icon="kaapanaIcons.help" />
                               </template>
                               <div v-html="param.help"></div>
                             </v-tooltip>
@@ -320,7 +321,7 @@
               <template #activator="{ props }">
                 <v-btn color="primary" min-width="160px" v-bind="props">
                   Pending
-                  <v-icon>mdi-chevron-down</v-icon>
+                  <v-icon :icon="kaapanaIcons.expand" />
                 </v-btn>
               </template>
               <v-card max-width="300px" class="text-left">
@@ -353,6 +354,7 @@ import Upload from "@/components/Upload.vue";
 import { useCommonDataStore } from "@/stores/commonData";
 import { useAuthStore, useProjectStore } from "@kaapana/base-ui";
 import { checkAuthR } from "@/utils/opa";
+import { extensionIcons, kaapanaIcons } from "@/utils/extensionIcons";
 import {
   checkDeploymentReady,
   checkInstalled,

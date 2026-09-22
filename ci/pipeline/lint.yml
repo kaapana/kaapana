@@ -5,47 +5,53 @@ spec:
     runner_tag:
       type: string
 ---
-# Stage: tests — lint report + Code Quality report
+# Stage: tests — one matrix job per linter
 # In:  the job's own checkout
-# Out: `lint` fails on formatting drift or an enforced ruff rule
+# Out: each linter fails on formatting drift or an enforced rule, and
+#      publishes its findings to the MR Code Quality widget
 ##############################################
-# RUFF
+# Lint: one matrix entry per linter
 ##############################################
-.ruff_template:
+# The same commands run locally; see docs/source/development_guide/code_formatting.rst.
+lint:
   stage: tests
   tags:
     - $[[ inputs.runner_tag ]]
-  image: python:3.12
+  image: $CI_BASE_IMAGE
   rules:
+    - if: '"$[[ inputs.exec_lint ]]" == "true" && $LINTER == "ui"'
+      when: on_success
+      allow_failure: true
     - if: '"$[[ inputs.exec_lint ]]" == "true"'
       when: on_success
     - when: never
   variables:
     # Bump together with the rev in .pre-commit-config.yaml.
     RUFF_VERSION: "0.16.4"
-  before_script:
-    - 'grep -q "rev: v$RUFF_VERSION" .pre-commit-config.yaml'
-    - pip install --no-cache-dir "ruff==$RUFF_VERSION"
-
-##############################################
-# Lint: formatting + the enforced rules from ruff.toml — blocks the pipeline
-##############################################
-lint:
-  extends: .ruff_template
+  parallel:
+    matrix:
+      - LINTER:
+          - ruff
+          - ui
   script:
-    # check only — run `ruff format .` locally to fix
-    - ruff format --check --diff .
-    - ruff check --output-format=full .
-
-##############################################
-# Code Quality report — advisory, never fails
-##############################################
-code_quality:
-  extends: .ruff_template
-  script:
-    - ruff check --config ci/ruff-quality.toml --output-format=gitlab --exit-zero . > gl-code-quality-report.json
-    # same findings, in the job log
-    - ruff check --config ci/ruff-quality.toml --statistics --exit-zero .
+    - |
+      case "$LINTER" in
+        ruff)
+          grep -q "rev: v$RUFF_VERSION" .pre-commit-config.yaml
+          pip install --no-cache-dir "ruff==$RUFF_VERSION"
+          ruff check --config ci/ruff-quality.toml --output-format=gitlab --exit-zero . > gl-code-quality-report.json
+          ruff check --config ci/ruff-quality.toml --statistics --exit-zero .
+          ruff format --check --diff .
+          ruff check --output-format=full .
+          ;;
+        ui)
+          ci/ci-code/lint/ui_lint.sh
+          ;;
+        *)
+          echo "unknown LINTER: $LINTER"
+          exit 1
+          ;;
+      esac
   artifacts:
     when: always
     reports:

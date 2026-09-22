@@ -156,3 +156,14 @@ def test_external_target_is_never_destroyed():
     first_rule = jobs(config)["destroy_deployment"]["rules"][0]
     assert first_rule["when"] == "never"
     assert "DEPLOYMENT_INSTANCE_FQDN" in first_rule["if"]
+
+
+def test_every_linter_has_its_commands(default_config):
+    """A LINTER added to the lint matrix without a case in the script would fail every pipeline."""
+    job = jobs(default_config)["lint"]
+    linters = [linter for entry in job["parallel"]["matrix"] for linter in entry["LINTER"]]
+    script = "\n".join(job["script"])
+    assert linters
+    for linter in linters:
+        assert f"{linter})" in script, linter
+    assert job["artifacts"]["reports"]["codequality"] == "gl-code-quality-report.json"

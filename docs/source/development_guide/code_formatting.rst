@@ -50,21 +50,29 @@ Format and lint the whole repository from its root:
 Both are safe to run repeatedly. Pass a path to limit them to one file or
 directory.
 
-Pre-commit hook
+Pre-commit hooks
 -----------------
 
 .. important::
-  Install the hook before committing — CI runs the same two commands and the
-  ``lint`` job fails the pipeline on any difference:
+  Install the hooks before committing — CI runs the same checks and fails the
+  pipeline on any difference:
 
   .. code-block:: bash
 
       pip install pre-commit && pre-commit install
 
-The hook lives in :code:`.pre-commit-config.yaml` and pins the same Ruff
-version the CI job uses. On commit it formats the staged files and applies the
-safe lint fixes. When it changes something, review the result and commit
-again.
+The hooks live in :code:`.pre-commit-config.yaml`. On commit they run one
+after the other:
+
+1. **ruff** pins the same Ruff version the CI job uses. On commit it formats
+   the staged files and applies the safe lint fixes. When it changes
+   something, review the result and commit again.
+
+2. **helm-lint** runs :code:`kaapana-build --lint-only` when the commit
+   changes a chart. It lints and validates the platform chart tree, exactly
+   what the :code:`helm_lint` CI job does. It needs :code:`helm` and its
+   kubeval plugin, the same as a local build; :code:`build_cli` is installed
+   into the hook's own environment the first time it runs.
 
 The commits that migrated the codebase to Ruff are listed in
 :code:`.git-blame-ignore-revs`, so :code:`git blame` skips them. To make your

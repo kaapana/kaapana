@@ -1,5 +1,6 @@
 export { default as ConfirmDialog } from './components/ConfirmDialog.vue'
 export { default as ErrorDetailsDialog } from './components/ErrorDetailsDialog.vue'
+export { HelpIcon } from './components/HelpIcon'
 export {
   apiErrorDetail,
   apiErrorInfo,

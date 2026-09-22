@@ -139,6 +139,15 @@ copy-pasted into every view. It currently exports:
 - ``kaapanaThemeLight`` / ``kaapanaThemeDark`` (+ their name constants) and
   ``useShellSettings()`` — the Vuetify themes and the
   ``localStorage["settings"]`` sync.
+- ``kaapanaIcons`` — the semantic icon map of the
+  :ref:`design guidelines <design_guidelines>`.
+- ``ConfirmDialog`` — the confirmation gate for destructive and high-impact
+  actions (initial focus on Cancel, Escape and backdrop cancel, focus restored
+  to the opener).
+- ``ErrorDetailsDialog`` with ``apiErrorInfo()`` / ``apiErrorText()`` — the
+  user-facing sentence for a failed request, and the disclosure holding its
+  status, request, backend message and request id.
+- ``HelpIcon`` — a focusable help button with a tooltip for field help.
 
 The shared workflow-execution form is a **subpath** export,
 ``@kaapana/base-ui/workflow-execution``, deliberately kept off the main entry so

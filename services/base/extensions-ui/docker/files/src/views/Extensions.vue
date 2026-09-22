@@ -92,8 +92,8 @@
               </v-btn>
             </template>
             <v-card min-width="200px">
-              <v-checkbox v-model="selectedFilters" density="compact" label="Applications" value="Applications" />
-              <v-checkbox v-model="selectedFilters" density="compact" label="Workflows" value="Workflows" />
+              <v-checkbox v-model="selectedFilters" color="primary" density="compact" label="Applications" value="Applications" />
+              <v-checkbox v-model="selectedFilters" color="primary" density="compact" label="Workflows" value="Workflows" />
             </v-card>
           </v-menu>
         </template>
@@ -106,8 +106,8 @@
               </v-btn>
             </template>
             <v-card min-width="200px">
-              <v-checkbox v-model="selectedFilters" density="compact" label="Experimental" value="Experimental" />
-              <v-checkbox v-model="selectedFilters" density="compact" label="Stable" value="Stable" />
+              <v-checkbox v-model="selectedFilters" color="primary" density="compact" label="Experimental" value="Experimental" />
+              <v-checkbox v-model="selectedFilters" color="primary" density="compact" label="Stable" value="Stable" />
             </v-card>
           </v-menu>
         </template>
@@ -120,8 +120,8 @@
               </v-btn>
             </template>
             <v-card min-width="200px">
-              <v-checkbox v-model="selectedFilters" density="compact" label="CPU" value="CPU" />
-              <v-checkbox v-model="selectedFilters" density="compact" label="GPU" value="GPU" />
+              <v-checkbox v-model="selectedFilters" color="primary" density="compact" label="CPU" value="CPU" />
+              <v-checkbox v-model="selectedFilters" color="primary" density="compact" label="GPU" value="GPU" />
             </v-card>
           </v-menu>
         </template>
@@ -197,13 +197,13 @@
           </v-tooltip>
           <v-tooltip location="right" v-else-if="item.successful === 'no'">
             <template #activator="{ props }">
-              <v-icon color="red" v-bind="props" :icon="kaapanaIcons.error" />
+              <v-icon color="error" v-bind="props" :icon="kaapanaIcons.error" />
             </template>
             <span>Helm status: {{ getHelmStatus(item) }} <br /> Kubernetes status: {{ getKubeStatus(item) }}</span>
           </v-tooltip>
           <v-tooltip location="right" v-if="checkDeploymentReady(item) === true">
             <template #activator="{ props }">
-              <v-icon color="green" v-bind="props" :icon="kaapanaIcons.success" />
+              <v-icon color="success" v-bind="props" :icon="kaapanaIcons.success" />
             </template>
             <span>Helm status: {{ getHelmStatus(item) }} <br /> Kubernetes status: {{ getKubeStatus(item) }}</span>
           </v-tooltip>
@@ -211,13 +211,13 @@
         <template #item.experimental="{ item }">
           <v-tooltip location="bottom" v-if="item.experimental === 'yes'">
             <template #activator="{ props }">
-              <v-icon color="primary" v-bind="props" :icon="extensionIcons.experimental" />
+              <v-icon color="warning" v-bind="props" :icon="extensionIcons.experimental" />
             </template>
             <span>Experimental extension</span>
           </v-tooltip>
           <v-tooltip location="bottom" v-else>
             <template #activator="{ props }">
-              <v-icon color="primary" v-bind="props" :icon="extensionIcons.stable" />
+              <v-icon color="success" v-bind="props" :icon="extensionIcons.stable" />
             </template>
             <span>Stable extension</span>
           </v-tooltip>

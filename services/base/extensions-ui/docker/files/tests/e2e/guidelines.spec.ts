@@ -40,6 +40,19 @@ test.describe('actions requiring confirmation', () => {
 })
 
 test.describe('visual language', () => {
+  test('the shared theme is in effect: platform typeface and theme roles', async ({ page }) => {
+    const fonts = await page.evaluate(() => ({
+      app: getComputedStyle(document.querySelector('#app')!).fontFamily,
+      body: getComputedStyle(document.body).fontFamily,
+    }))
+    expect(fonts.app).toContain('Roboto')
+    expect(fonts.body).toContain('Roboto')
+
+    // Status colours are theme roles, not literals: success = #2E7D32.
+    const ready = row(page, 'MITK Workbench').locator('.mdi-check-circle')
+    await expect(ready).toHaveCSS('color', 'rgb(46, 125, 50)')
+  })
+
   test('the view stays within a readable width on a wide display', async ({ page }) => {
     await page.setViewportSize({ width: 2560, height: 1200 })
 

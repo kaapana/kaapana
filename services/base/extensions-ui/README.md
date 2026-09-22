@@ -14,7 +14,19 @@ and parameterizing them against the `kube-helm-api` backend. Discovered via the
 > `kube-helm-api` view and is the one described here.
 
 The whole app lives under `docker/files/`; the single view is
-`src/views/Extensions.vue`.
+`src/views/Extensions.vue`, supported by three components and two stores:
+
+| Path | Purpose |
+| --- | --- |
+| `src/components/ExtensionParamsDialog.vue` | The `extension_params` configuration form, with unsaved-changes protection. |
+| `src/components/ExtensionsEmptyState.vue` | The three empty states (nothing yet / nothing matches / could not load), on `v-empty-state`. |
+| `src/components/Upload.vue` | The FilePond drop zone. |
+| `src/stores/policy.ts` | The open-policy data that decides which admin-only controls render. |
+| `src/stores/failureDetails.ts` | The one failure-details dialog, opened from a notification, alert or empty state. |
+
+The theme, typeface, icon map and the shared dialogs (`ConfirmDialog`,
+`ErrorDetailsDialog`, `HelpIcon`) come from `@kaapana/base-ui`; icons specific
+to this view live in `src/utils/extensionIcons.ts`.
 
 ## Features
 
@@ -36,12 +48,16 @@ Derived from `src/views/Extensions.vue` and the e2e specs:
   `extension_params`, a configuration dialog opens first; otherwise the install
   fires immediately. The form renders parameter types `string`, `bool`/
   `boolean`, `list_single`, `list_multi`, plus `group_name` and `doc`
-  (rich-text/HTML) section markers, with per-field validation and help
-  tooltips. A just-launched multi-instance briefly shows a disabled *Launched*
-  state.
+  (rich-text/HTML) section markers, with per-field validation and a help
+  button (`HelpIcon`) per field that carries `help`. A just-launched
+  multi-instance briefly shows a disabled *Launched* state, with a tooltip
+  explaining why. Closing the configuration form after editing it asks before
+  discarding, and an edited form reports the view as dirty to the shell via
+  `postViewDirty()`.
 - **Uninstall / Delete** — installed extensions show *Uninstall* (single) or
   *Delete* (multi-installable). A stuck *Pending* install exposes a
-  *Force Uninstall / Force Delete* action that passes `--no-hooks`.
+  *Force Uninstall / Force Delete* action that passes `--no-hooks`. Each opens
+  a confirmation naming the release and version.
 - **Version selection** — a per-row dropdown (`versions`) chooses which chart
   version the action targets; the selected version flows into the
   install/uninstall payload.
@@ -50,9 +66,19 @@ Derived from `src/views/Extensions.vue` and the e2e specs:
   spinner while `pending`, a red `mdi-alert-circle` on failure, a green
   `mdi-check-circle` when ready; the tooltip surfaces the aggregated Helm
   status and Kubernetes pod status.
-- **Polling & refresh** — the list is re-fetched every 5 s. The cloud-refresh
-  control triggers a backend re-download of the latest extensions
-  (`update-extensions`).
+- **Polling & refresh** — the list is re-fetched every 5 s. The
+  *Download latest extensions* control triggers a backend re-download
+  (`update-extensions`) and asks for confirmation first.
+- **Empty and failure states** — an empty screen says which of the three cases
+  it is and offers the way out: nothing published yet (download the catalogue),
+  nothing matching the filters (reset them), or a failed load (retry). While a
+  stale list is still on screen, an inline alert says so; both offer a
+  *Details* disclosure.
+- **Action feedback** — install and uninstall show progress on the row control
+  that started them and cannot be submitted twice; outcomes arrive as transient
+  notifications. A failed action's notification says what failed in the user's
+  terms; selecting it opens the failure-details dialog with the backend
+  message, status code, request line and a copy button.
 - **Upload** — a FilePond drop zone (chunked upload) accepts extension charts
   (`.tgz`) and container images (`.tar`); an uploaded `.tar` is then imported
   via `import-container`.
@@ -93,12 +119,13 @@ prefixed with the `/project/<short_id>` document prefix.
 - **none** — auth, `/aii/*`, and the `/jsons/*` static files are not
   project-scoped.
 
-> The `commonData` store also defines `getPolicyData`
-> (`GET /kaapana-backend/open-policy-data`), but this view **does not call it**
-> — no policy request is made at runtime. The vuex module it was ported from
-> also had `checkAvailableWebsites` / `getExternalWebpages`; neither survived
-> the port, so no external-webpages, traefik-routes or os-dashboards call
-> exists here either.
+> The router loads `getPolicyData` (`GET /kaapana-backend/open-policy-data`)
+> before the view mounts, so the admin-only controls do not flash in and out;
+> an unloaded policy hides them (fail closed). The vuex module it was ported
+> from also had `checkAvailableWebsites` / `getExternalWebpages` and a
+> `commonData.json` fetch whose value was never read; none survived the port,
+> so no external-webpages, traefik-routes, os-dashboards or commonData call
+> exists here.
 
 ## Development
 
@@ -132,8 +159,13 @@ stage (see `docker/Dockerfile`).
 ## Tests
 
 Mock-backed Playwright e2e under `docker/files/tests/e2e` — no backend or
-cluster needed; `fixtures/mock-backend.ts` intercepts every backend call with
-`page.route` (fixture shapes mirror the `kube-helm` `KaapanaExtension` schema).
+cluster needed. `fixtures/mock-backend.ts` intercepts every backend call with
+`page.route` (fixture shapes mirror the `kube-helm` `KaapanaExtension` schema);
+`fixtures/helpers.ts` is the shared vocabulary of the specs: `openView()` to
+boot against the mock, `extension()`/`catalogue()` to build rows, `nextPost()`
+and `countRequests()` to observe kube-helm calls, `confirmAction()` and
+`dismissWithEscape()` for confirmations, `openFailureDetails()` for the
+details dialog behind a failure notification.
 
 ```bash
 cd services/base/extensions-ui/docker/files
@@ -145,5 +177,19 @@ previews the production build. Rebuild `@kaapana/base-ui` (`npm run build`)
 after any change to its `src/` before running tests — consumers otherwise
 import the stale `dist/` through the npm symlink and nothing errors, the
 change is just missing.
+Specs by concern:
 
-Suites: `list`, `filter`, `install`, `uninstall`, `polling`, `project-scope`.
+| Spec | Covers |
+| --- | --- |
+| `boot` | fresh-profile boot, the shell's dark-mode setting |
+| `admin-actions` | admin-only controls, hidden for non-admins and when the policy fails to load |
+| `list` | row states, text alternatives, all rows on one page, the three empty states, a malformed row |
+| `filter` | search and the three column filters |
+| `install` | install/launch payloads, version selection (also across a poll), the Launched state, the configuration form |
+| `params` | `"null"` params, parameter isolation between installs, section/doc/multi-select parameters |
+| `config-form` | unsaved-changes protection, required-field validation, field help |
+| `uninstall` | uninstall/force/delete payloads through their confirmations, dismissal, no double submit |
+| `feedback` | success notifications, failed actions and their details dialog, load failures shown inline |
+| `polling` | pending to ready across cycles, the catalogue download, `kaapana:shell-refresh` when embedded |
+| `project-scope` | every call carries the `/project/<slug>/` prefix, including FilePond's; the unscoped-URL redirect |
+| `guidelines` | cross-cutting rules: confirmations, theme and typeface, readable width, action hierarchy, accessible names |

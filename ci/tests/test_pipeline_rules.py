@@ -111,6 +111,7 @@ def test_readiness_job_publishes_its_table():
         ("exec_deploy", "platform_deployment"),
         ("exec_build", "build_packages"),
         ("exec_unit_tests", "unit_tests"),
+        ("exec_unit_tests", "ci_config_tests"),
         ("exec_lint", "lint"),
     ],
 )

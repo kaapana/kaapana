@@ -408,7 +408,8 @@ ci_config_tests:
   image: python:3.12
   timeout: 5m
   rules:
-    - changes:
+    - if: '"$[[ inputs.exec_unit_tests ]]" == "true"'
+      changes:
         - .gitlab-ci.yml
         - ci/pipeline/**/*
         - ci/ci-code/deploy/**/*

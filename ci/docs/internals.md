@@ -16,7 +16,7 @@ Test the code → build the platform images → deploy them on a fresh throwaway
 | Stage | Jobs | Runs on | Duration |
 |---|---|---|---|
 | `preflight` | `preflight_variables`, `preflight_target`, `build_ci_image` | tests / build runner | seconds |
-| `unittest` | ~20 unit-test jobs, the UI matrix, docs build, lint | tests runner | minutes |
+| `unittest` | the service matrix, the library and UI suites, docs build, lint | tests runner | minutes |
 | `build` | `build_packages` | build runner | hours (much less with a warm cache) |
 | `security` | `security_scan` | security runner | hours |
 | `deploy` | `prepare_deployment` → `server_installation` → `platform_deployment` | deploy runner, ansible over SSH | ~1 h |
@@ -506,11 +506,15 @@ used as a starting point:
         - <name>_report.xml
 ```
 
-`kaapana_backend_tests` is this snippet filled in.
+`workflow_api_tests` is this snippet filled in.
 [Reports GitLab renders](#reports-gitlab-renders) covers what the `--cov` flags
 report, and the steps under [Adding a job](#adding-a-job) apply as well.
 
 ## Adding a job
+
+A service unit-test suite is usually not a job: if the service keeps `app/` and
+`tests/` side by side, add its root to the `service_test` matrix instead. A job of
+its own means the layout differs, and that job says how. For everything else:
 
 1. Extend the right template instead of repeating its settings.
 2. Gate it with `rules:` on the matching `exec_*` input. The input must be declared
@@ -557,7 +561,7 @@ When you recreate a token, update its row here.
   platform state along.
 - `install_extensions` and `send_data` carry `retry: 2` — known flakiness.
 - Several pytest jobs still extend `.test_template` and pass no `--cov` flags,
-  so they report no coverage, `dicom_web_filter_tests` and
-  `notification_service_tests` among them.
+  so they report no coverage, `kaapana_client_tests` and `kube_helm_tests`
+  among them.
   [Reports GitLab renders](#reports-gitlab-renders) has the two conditions a
   job has to meet.

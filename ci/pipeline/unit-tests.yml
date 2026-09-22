@@ -134,6 +134,8 @@ kaapana_client_tests:
       junit:
         - kaapana_client_report.xml
 
+# Own job: tests/ also holds integration and rest-http suites, so only
+# tests/unit runs on an empty runner.
 workflow_api_tests:
   extends: .pytest_template
   script:
@@ -146,48 +148,38 @@ workflow_api_tests:
         - workflow_api_report.xml
 
 ##############################################
-# Portal API Tests
+# Service Tests (one matrix entry per service)
 ##############################################
-portal_api_tests:
+# Each entry is a service root holding the import root `app/` and `tests/` side
+# by side, with the test requirements in `tests/requirements.txt`. That layout
+# is all this job knows: the whole suite runs, coverage measures `app/`.
+# Services below keep their own job because their layout differs; each names
+# what differs, and moving them here is a matter of aligning the layout.
+service_test:
   extends: .pytest_template
+  parallel:
+    matrix:
+      - SERVICE:
+          - services/base/portal-api/docker
+          - services/base/notification-service/docker/files
+          - services/data-separation/dicom-web-filter/docker/files
+          - services/base/kaapana-backend/docker/files
   script:
-    - pip install -r $KAAPANA_DIR/services/base/portal-api/docker/tests/requirements.txt
-    - pytest $KAAPANA_DIR/services/base/portal-api/docker/tests/ --junitxml=portal_api_report.xml
-        --cov=services/base/portal-api/docker/app --cov-report=term --cov-report=xml:coverage.xml
+    - pip install -r $KAAPANA_DIR/$SERVICE/tests/requirements.txt
+    # report paths resolve against $CI_PROJECT_DIR, so matrix instances write
+    # the same file name without colliding: each instance has its own artifacts
+    - pytest $KAAPANA_DIR/$SERVICE/tests --junitxml=service_report.xml
+        --cov=$SERVICE/app --cov-report=term --cov-report=xml:coverage.xml
   artifacts:
     reports:
       junit:
-        - portal_api_report.xml
-
-##############################################
-# Notification Service Tests
-##############################################
-notification_service_tests:
-  extends: .test_template
-  script:
-    - pip install -r $KAAPANA_DIR/services/base/notification-service/docker/files/tests/requirements.txt
-    - pytest $KAAPANA_DIR/services/base/notification-service/docker/files/tests/ --junitxml=notification_service_report.xml
-  artifacts:
-    reports:
-      junit:
-        - notification_service_report.xml
-
-##############################################
-# Dicom Web Filter Tests
-##############################################
-dicom_web_filter_tests:
-  extends: .test_template
-  script:
-    - pip install -r $KAAPANA_DIR/services/data-separation/dicom-web-filter/docker/files/tests/requirements.txt
-    - pytest $KAAPANA_DIR/services/data-separation/dicom-web-filter/docker/files/tests --junitxml=dicom_web_filter_report.xml
-  artifacts:
-    reports:
-      junit:
-        - dicom_web_filter_report.xml
+        - service_report.xml
 
 ##############################################
 # Extension API Tests
 ##############################################
+# Own job: the suite sits in app/tests and needs the two sibling libraries
+# installed before it.
 extensions_api_tests:
   extends: .pytest_template
   script:
@@ -203,22 +195,9 @@ extensions_api_tests:
         - extensions_api_report.xml
 
 ##############################################
-# Keycloak Backend Tests
-##############################################
-kaapana_backend_tests:
-  extends: .pytest_template
-  script:
-    - pip install -r $KAAPANA_DIR/services/base/kaapana-backend/docker/files/tests/requirements.txt
-    - pytest $KAAPANA_DIR/services/base/kaapana-backend/docker/files/tests/ --junitxml=kaapana_backend_report.xml
-        --cov=services/base/kaapana-backend/docker/files/app --cov-report=term --cov-report=xml:coverage.xml
-  artifacts:
-    reports:
-      junit:
-        - kaapana_backend_report.xml
-
-##############################################
 # Auth Backend Tests
 ##############################################
+# Own job: no app/ import root, so the coverage target is docker/files.
 auth_backend_tests:
   extends: .pytest_template
   script:
@@ -252,7 +231,8 @@ opa_policy_tests:
 # Kube-Helm Tests
 ##############################################
 # test_ttl_cache.py by name: its siblings are integration tests needing a live
-# kube-helm + cluster and fail at collection here.
+# kube-helm + cluster and fail at collection here. The suite also sits in
+# app/tests rather than beside it, hence its own job.
 kube_helm_tests:
   extends: .test_template
   script:
@@ -266,6 +246,8 @@ kube_helm_tests:
 ##############################################
 # Access Information Interface Tests
 ##############################################
+# Own job: test_naming_conventions.py reads DATABASE_URL at import time and
+# fails collection, so the suite runs by file name.
 access_information_interface_tests:
   extends: .pytest_template
   script:
@@ -281,6 +263,7 @@ access_information_interface_tests:
 ##############################################
 # Keycloak Setup Tests
 ##############################################
+# Own job: tests/ sits next to docker/ instead of beside the import root.
 keycloak_setup_tests:
   extends: .pytest_template
   script:

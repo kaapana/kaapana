@@ -46,6 +46,10 @@ spec:
       default: false
       type: boolean
       description: "[exec] registry scan of the images this pipeline pushed"
+    exec_benchmark:
+      default: false
+      type: boolean
+      description: "[exec] test stage: platform benchmark against the deployment VM (needs exec_deploy)"
     exec_destroy_delayed:
       default: false
       type: boolean
@@ -95,6 +99,7 @@ stages:
   - security
   - deploy
   - test
+  - benchmark
   - maintenance
   - clean
 
@@ -250,6 +255,7 @@ include:
     inputs:
       runner_tag: $[[ inputs.tests_runner_tag ]]
       exec_build: $[[ inputs.exec_build ]]
+      exec_benchmark: $[[ inputs.exec_benchmark ]]
       exec_deploy: $[[ inputs.exec_deploy ]]
       exec_server_installation: $[[ inputs.exec_server_installation ]]
       exec_redeploy: $[[ inputs.exec_redeploy ]]
@@ -290,6 +296,10 @@ include:
       runner_tag: $[[ inputs.deploy_runner_tag ]]
       exec_integration_tests: $[[ inputs.exec_integration_tests ]]
       exec_integration_test_jobs: $[[ inputs.exec_integration_test_jobs ]]
+  - local: /ci/pipeline/benchmark.yml
+    inputs:
+      runner_tag: $[[ inputs.deploy_runner_tag ]]
+      exec_benchmark: $[[ inputs.exec_benchmark ]]
   - local: /ci/pipeline/maintenance.yml
     inputs:
       runner_tag: $[[ inputs.deploy_runner_tag ]]

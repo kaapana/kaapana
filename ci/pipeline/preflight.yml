@@ -2,6 +2,8 @@ spec:
   inputs:
     exec_build:
       type: boolean
+    exec_benchmark:
+      type: boolean
     exec_deploy:
       type: boolean
     exec_server_installation:
@@ -32,6 +34,7 @@ preflight_variables:
     action: access
   variables:
     GIT_STRATEGY: none # no checkout needed
+    CI_EXEC_BENCHMARK: "$[[ inputs.exec_benchmark ]]"
   rules:
     - when: always
   script:
@@ -123,6 +126,14 @@ preflight_variables:
         fi
         if [ "$[[ inputs.exec_integration_tests ]]" = "true" ]; then
           fail "exec_integration_tests=true needs a target: set DEPLOYMENT_INSTANCE_FQDN, or exec_deploy=true for a fresh VM."
+        fi
+      fi
+
+      if [ "$CI_EXEC_BENCHMARK" = "true" ]; then
+        require_file BENCHMARK_DATA_CONFIG
+        if [ -s "${BENCHMARK_DATA_CONFIG:-}" ] \
+            && ! python3 -c "import json, os; d = json.loads(open(os.environ['BENCHMARK_DATA_CONFIG']).read()); assert d.get('url') and d.get('token') and d.get('scenarios')" 2>/dev/null; then
+          fail "BENCHMARK_DATA_CONFIG is not valid JSON, or is missing a non-empty 'url', 'token', or 'scenarios'."
         fi
       fi
 

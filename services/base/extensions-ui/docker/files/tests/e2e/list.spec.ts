@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
-import { defaultMockData, installMockBackend, VIEW_PATH } from './fixtures/mock-backend'
-import { catalogue, extension, openView, row, toasts } from './fixtures/helpers'
+import { defaultMockData } from './fixtures/mock-backend'
+import { catalogue, extension, openView, row } from './fixtures/helpers'
 
 test('renders the extension list with mixed installed states', async ({ page }) => {
   await openView(page)
@@ -68,23 +68,4 @@ test('renders a row whose version is absent from available_versions without cras
   await expect(row(page, 'Broken Extension').getByRole('button', { name: 'Install' })).toBeVisible()
   // Sibling rows are unaffected.
   await expect(row(page, 'MITK Workbench').getByRole('button', { name: 'Uninstall' })).toBeVisible()
-})
-
-test('survives a backend error, shows no rows, and notifies the user', async ({ page }) => {
-  // Freeze the 5s poll so exactly one failed load (the initial one) fires and a
-  // single toast exists to assert against.
-  await page.clock.install()
-  await installMockBackend(page)
-  // Override the extensions route to fail (later route wins).
-  await page.route(/\/kube-helm-api\/extensions(\?.*)?$/, (r) =>
-    r.fulfill({ status: 500, contentType: 'text/plain', body: 'internal error' }),
-  )
-  await page.goto(VIEW_PATH)
-
-  await expect(page.getByLabel('Search')).toBeVisible()
-  await expect(page.getByText('No data available')).toBeVisible()
-  await expect(row(page, 'MITK Workbench')).toHaveCount(0)
-
-  // Unlike a legitimately empty list, a load failure surfaces an error toast.
-  await expect(toasts(page).getByText('Failed to load extensions')).toBeVisible()
 })

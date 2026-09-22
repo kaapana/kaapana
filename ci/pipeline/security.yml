@@ -27,6 +27,13 @@ security_scan:
   timeout: 6 hours
   tags:
     - $[[ inputs.runner_tag ]]
+  services:
+    - name: docker.io/library/docker:29.8.1-dind-alpine3.24
+      alias: docker
+      variables:
+        DOCKER_TLS_CERTDIR: ""
+  variables:
+    DOCKER_HOST: "tcp://docker:2375"
   needs:
     - job: build_packages
       artifacts: false

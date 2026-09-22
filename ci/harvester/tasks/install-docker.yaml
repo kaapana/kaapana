@@ -64,10 +64,12 @@
     name: docker
     state: present
 
-- name: usermod
-  command: usermod -aG docker {{ ansible_user }}
+- name: Add user to docker group
   become: yes
-  ignore_errors: yes
+  ansible.builtin.user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: yes
   register: docker_usermod
 
 - name: Create docker directory

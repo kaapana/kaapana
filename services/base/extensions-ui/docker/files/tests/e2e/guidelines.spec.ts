@@ -39,6 +39,17 @@ test.describe('actions requiring confirmation', () => {
   })
 })
 
+test.describe('visual language', () => {
+  test('the view stays within a readable width on a wide display', async ({ page }) => {
+    await page.setViewportSize({ width: 2560, height: 1200 })
+
+    const box = (await page.locator('.v-container').boundingBox())!
+    expect(box.width).toBeLessThanOrEqual(1600)
+    // Centred: equal margins on both sides.
+    expect(Math.abs(box.x - (2560 - box.width - box.x))).toBeLessThan(2)
+  })
+})
+
 test.describe('accessibility', () => {
   test('the catalogue download control is a real, keyboard-reachable button', async ({ page }) => {
     const control = page.getByTestId('update-extensions')

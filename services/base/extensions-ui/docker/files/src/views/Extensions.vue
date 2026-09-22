@@ -1,5 +1,5 @@
 <template>
-  <v-container fluid class="text-left">
+  <v-container fluid class="text-left extensions-view">
     <div class="d-flex flex-wrap align-start justify-space-between ga-4 mb-4">
       <div>
         <h1 class="text-h4">Applications and workflows</h1>
@@ -863,7 +863,13 @@ onBeforeUnmount(() => {
 })
 </script>
 
-<style lang="scss">
+<style scoped>
+/* A readable maximum for an eight-column table; the container centres itself
+   in the space beyond it. */
+.extensions-view {
+  max-width: 1600px;
+}
+
 a {
   text-decoration: none;
 }

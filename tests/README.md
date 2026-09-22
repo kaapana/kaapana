@@ -10,8 +10,8 @@ tests that build, deploy and exercise a platform under
 
 | Path | Covers | CI job |
 |---|---|---|
-| `operators/` | Airflow operators from `data-processing/kaapana-plugin`, called directly, without a scheduler or a platform | `unit_tests` |
-| `ui/` | Playwright against a running instance, needs its URL and the default credentials, see [ui/README.md](ui/README.md) | `playwright_ui_tests` (stage `integrationtest`) |
+| `operators/` | Airflow operators from `data-processing/kaapana-plugin`, called directly, without a scheduler or a platform | `unit_test` |
+| `ui/` | Playwright against a running instance, needs its URL and the default credentials, see [ui/README.md](ui/README.md) | `playwright_ui_test` (stage `integrationtest`) |
 
 ## Running a suite
 

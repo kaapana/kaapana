@@ -47,7 +47,7 @@ spec:
 ##############################################
 # Unit Tests: General Platform Tests
 ##############################################
-unit_tests:
+unit_test:
   extends: .pytest_template
   script:
     - pip install -r $KAAPANA_DIR/tests/requirements.txt
@@ -62,7 +62,7 @@ unit_tests:
 ##############################################
 # Task API Tests
 ##############################################
-task_api_tests:
+task_api_test:
   extends: .pytest_template
   # These tests build and run real task containers, so they get a per-job
   # docker daemon as a privileged dind service — the only job that needs one.
@@ -92,7 +92,7 @@ task_api_tests:
       junit:
         - task_api_report.xml
 
-kaapana_extensions_tests:
+kaapana_extensions_test:
   extends: .pytest_template
   # One shared registry service for all xdist workers (KAAPANA_TEST_REGISTRY
   # skips pytest-docker; conftest isolates workers by repo).
@@ -122,7 +122,7 @@ kaapana_extensions_tests:
       junit:
         - kaapana_extensions_report.xml
 
-kaapana_client_tests:
+kaapana_client_test:
   extends: .test_template
   script:
     # No `[test]` extra: the suite needs only pytest on top of the package's own
@@ -136,7 +136,7 @@ kaapana_client_tests:
 
 # Own job: tests/ also holds integration and rest-http suites, so only
 # tests/unit runs on an empty runner.
-workflow_api_tests:
+workflow_api_test:
   extends: .pytest_template
   script:
     - pip install -r $KAAPANA_DIR/services/base/workflow-api/docker/files/tests/unit/requirements.txt
@@ -180,7 +180,7 @@ service_test:
 ##############################################
 # Own job: the suite sits in app/tests and needs the two sibling libraries
 # installed before it.
-extensions_api_tests:
+extensions_api_test:
   extends: .pytest_template
   script:
     - pip install -e "$KAAPANA_DIR/lib/kaapana_containers"
@@ -198,7 +198,7 @@ extensions_api_tests:
 # Auth Backend Tests
 ##############################################
 # Own job: no app/ import root, so the coverage target is docker/files.
-auth_backend_tests:
+auth_backend_test:
   extends: .pytest_template
   script:
     - pip install -r $KAAPANA_DIR/services/kaapana-admin/auth-backend/docker/files/tests/requirements.txt
@@ -219,7 +219,7 @@ auth_backend_tests:
 # opa 1.x rejects by default. opa emits no JUnit, hence no report artifact.
 # curl -f: without it a 404 or a proxy error page is saved as the "binary" and
 # only surfaces as an "exec format error" two lines down.
-opa_policy_tests:
+opa_policy_test:
   extends: .test_template
   script:
     - curl -fL -o /usr/local/bin/opa https://openpolicyagent.org/downloads/v1.18.2/opa_linux_amd64_static
@@ -233,7 +233,7 @@ opa_policy_tests:
 # test_ttl_cache.py by name: its siblings are integration tests needing a live
 # kube-helm + cluster and fail at collection here. The suite also sits in
 # app/tests rather than beside it, hence its own job.
-kube_helm_tests:
+kube_helm_test:
   extends: .test_template
   script:
     - pip install -r $KAAPANA_DIR/services/kaapana-admin/kube-helm/docker/files/backend/app/tests/requirements.txt
@@ -248,7 +248,7 @@ kube_helm_tests:
 ##############################################
 # Own job: test_naming_conventions.py reads DATABASE_URL at import time and
 # fails collection, so the suite runs by file name.
-access_information_interface_tests:
+access_information_interface_test:
   extends: .pytest_template
   script:
     - pip install -r $KAAPANA_DIR/services/data-separation/access-information-interface/docker/backend/files/tests/requirements.txt
@@ -264,7 +264,7 @@ access_information_interface_tests:
 # Keycloak Setup Tests
 ##############################################
 # Own job: tests/ sits next to docker/ instead of beside the import root.
-keycloak_setup_tests:
+keycloak_setup_test:
   extends: .pytest_template
   script:
     - pip install -r $KAAPANA_DIR/services/kaapana-admin/keycloak/keycloak-setup/tests/requirements.txt
@@ -280,7 +280,7 @@ keycloak_setup_tests:
 ##############################################
 # One matrix job per frontend app; each suite starts its app on its own fixed
 # port (4300-4310, see each app's playwright.config.ts).
-ui_e2e_tests:
+ui_e2e_test:
   extends: .test_template
   image: $CI_BASE_IMAGE
   variables:
@@ -330,7 +330,7 @@ ui_e2e_tests:
 ##############################################
 # The shell's vitest unit suites (src/**/__tests__); portal-ui is the only app
 # with a test:unit script, so a single job, not a matrix.
-ui_unit_tests:
+ui_unit_test:
   extends: .test_template
   image: $CI_BASE_IMAGE
   variables:
@@ -342,7 +342,7 @@ ui_unit_tests:
     - cd "$KAAPANA_DIR/services/base/portal-ui/docker/files"
     - npm ci
     - npm run test:unit -- --reporter=default --reporter=junit --outputFile.junit=test-results/junit.xml
-  # Relative, like every sibling job's report path — see ui_e2e_tests above.
+  # Relative, like every sibling job's report path — see ui_e2e_test above.
   artifacts:
     when: always
     reports:
@@ -384,7 +384,7 @@ check_readthedocs:
 # CI configuration tests — the pipeline's own unit tests
 ##############################################
 # Runs only when this MR touches CI files.
-ci_config_tests:
+ci_config_test:
   stage: unittest
   tags:
     - $[[ inputs.runner_tag ]]

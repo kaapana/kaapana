@@ -343,13 +343,13 @@ npm install -g gitlab-ci-local
 
 gitlab-ci-local --preview --variable CI_PIPELINE_SOURCE=web     # merged config
 gitlab-ci-local --list    --variable CI_PIPELINE_SOURCE=web     # what would run
-gitlab-ci-local unit_tests --variable CI_PIPELINE_SOURCE=web    # one job
+gitlab-ci-local unit_test --variable CI_PIPELINE_SOURCE=web    # one job
 gitlab-ci-local --stage unittest --variable CI_PIPELINE_SOURCE=web --privileged
 ```
 
 - `CI_PIPELINE_SOURCE=web` is required. Without it `workflow:rules` falls
   through to `when: never` and nothing runs.
-- `--privileged` is only for `task_api_tests` and its dind service.
+- `--privileged` is only for `task_api_test` and its dind service.
 - Your working tree runs: uncommitted changes to tracked files are included,
   untracked files are not.
 - Logs, artifacts and the copied tree land in `.gitlab-ci-local/` (gitignored).

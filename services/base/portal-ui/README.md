@@ -145,7 +145,7 @@ are awkward to drive through a browser: the project-prefix rewriting and the
 login-reload logic in `api/http.ts`, the WebSocket backoff in
 `api/notifications.ts`, the OPA filter in `utils/opa.ts`, and the menu,
 notifications and project stores. This is the only app in the platform with
-such a suite; CI runs it as `ui_unit_tests`.
+such a suite; CI runs it as `ui_unit_test`.
 
 ```bash
 cd services/base/portal-ui/docker/files
@@ -161,7 +161,7 @@ cd services/base/portal-ui/docker/files
 npx playwright test    # fixed port 4300 (views 4301-4309)
 ```
 
-Locally the suite runs against the dev server; in CI (`ui_e2e_tests`) it
+Locally the suite runs against the dev server; in CI (`ui_e2e_test`) it
 previews the production build — set `CI=1` to exercise what CI actually does,
 since `playwright.config.ts` branches on it for the reporter, the web-server
 command, retries and `reuseExistingServer`.

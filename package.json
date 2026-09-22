@@ -1,0 +1,25 @@
+{
+  "name": "kaapana-lint",
+  "private": true,
+  "description": "ESLint and Prettier for every TypeScript/Vue file in the repository",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "devDependencies": {
+    "@vitest/eslint-plugin": "^1.6.27",
+    "@vue/eslint-config-prettier": "^10.2.0",
+    "@vue/eslint-config-typescript": "^14.9.0",
+    "eslint": "^10.11.0",
+    "eslint-formatter-gitlab": "^7.2.0",
+    "eslint-plugin-playwright": "^2.12.0",
+    "eslint-plugin-vue": "^10.11.0",
+    "prettier": "3.9.8",
+    "typescript": "~5.8.0"
+  },
+  "scripts": {
+    "lint": "eslint --fix .",
+    "lint:check": "eslint .",
+    "format": "prettier --write \"**/*.{ts,mts,tsx,vue}\"",
+    "format:check": "prettier --check \"**/*.{ts,mts,tsx,vue}\""
+  }
+}

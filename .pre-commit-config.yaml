@@ -1,6 +1,3 @@
-# Install with:
-#   pip install pre-commit && pre-commit install
-# Keep rev in sync with RUFF_VERSION in ci/pipeline/lint.yml.
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.4
@@ -8,5 +5,11 @@ repos:
       - id: ruff-check
         args: [--fix]
       - id: ruff-format
-        # ruff also formats Python fences in Markdown and the CI job checks them
         types_or: [python, pyi, jupyter, markdown]
+  - repo: local
+    hooks:
+      - id: ui-lint
+        name: ESLint/Prettier
+        entry: ci/ci-code/lint/ui_lint.sh
+        language: system
+        files: \.(ts|mts|tsx|vue)$

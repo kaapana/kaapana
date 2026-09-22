@@ -110,27 +110,25 @@
             </v-tooltip>
           </template>
           <template #item.uiVisibleName="{ item }">
-            <div class="cell-content">
-              <v-tooltip location="bottom">
+            <div class="d-flex align-center ga-2">
+              <v-tooltip location="bottom" :text="item.description">
                 <template #activator="{ props }">
-                  <div class="text-content" v-bind="props">
-                    <span class="first-line">{{ item.uiVisibleName }}</span>
-                    <span class="second-line">{{ item.description.length > 28 ? item.description.slice(0, 28) + "..." : item.description }}</span>
+                  <div class="d-flex flex-column" v-bind="props">
+                    <span class="text-body-1 font-weight-medium">{{ item.uiVisibleName }}</span>
+                    <span class="text-caption text-medium-emphasis text-truncate extensions-description">{{ item.description }}</span>
                   </div>
                 </template>
-                <span>{{ item.description }}</span>
               </v-tooltip>
-              <v-tooltip location="bottom">
+              <v-tooltip location="bottom" text="Open the documentation in a new tab">
                 <template #activator="{ props }">
                   <a
                     :href="getHref('/docs/' + item.documentation)"
                     target="_blank"
                     v-bind="props"
                   >
-                    <v-icon class="cell-icon" color="primary">mdi-information</v-icon>
+                    <v-icon color="primary">mdi-information</v-icon>
                   </a>
                 </template>
-                <span>Link to the documentation.</span>
               </v-tooltip>
             </div>
           </template>
@@ -226,13 +224,10 @@
                   <v-card-text>
                     <v-form ref="popUpForm" class="px-3">
                       <template v-for="(param, key) in popUpItem.extension_params" :key="key">
-                        <span v-if="param.type == 'group_name'" style="font-weight:bold;font-size:25px;align:left">{{ param.default }}</span>
-                        <div v-if="param.type == 'doc'">
-                          <br />
-                          <span style="font-weight:bold;font-size:25px;align:left">{{ param.title }}</span>
-                          <div v-if="param.html">
-                            <div v-html="param.html"></div>
-                          </div>
+                        <div v-if="param.type == 'group_name'" class="text-subtitle-1 font-weight-medium mt-4 mb-2">{{ param.default }}</div>
+                        <div v-if="param.type == 'doc'" class="mt-4 mb-2">
+                          <div class="text-subtitle-1 font-weight-medium mb-1">{{ param.title }}</div>
+                          <div v-if="param.html" class="text-body-2" v-html="param.html"></div>
                         </div>
                         <v-text-field
                           v-if="param.type == 'string'"
@@ -846,110 +841,7 @@ a {
   text-decoration: none;
 }
 
-.dragdrop {
-  margin: auto;
-  width: 95%;
-  height: 8vh;
-  position: relative;
-  margin-bottom: 2vh;
-  border: 2px dashed #eee;
-}
-
-.dragdrop:hover {
-  border: 2px solid #2e94c4;
-}
-
-.dragdrop:hover .dragdrop-title {
-  color: #1975a0;
-}
-
-.dragdrop-info {
-  color: #a8a8a8;
-  position: absolute;
-  top: 50%;
-  width: 100%;
-  transform: translate(0, -50%);
-  text-align: center;
-}
-
-.dragdrop-title {
-  color: #787878;
-}
-
-.dragdrop input {
-  position: absolute;
-  cursor: pointer;
-  top: 0px;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-}
-
-.dragdrop-upload-limit-info {
-  display: flex;
-  justify-content: flex-start;
-  flex-direction: column;
-}
-
-.dragdrop-over {
-  background: #5c5c5c;
-  opacity: 0.8;
-}
-
-.dragdrop-uploaded {
-  margin: auto;
-  width: 95%;
-  height: 8vh;
-  position: relative;
-  margin-bottom: 2vh;
-  border: 2px dashed #eee;
-}
-
-.dragdrop-uploaded-info {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  color: #a8a8a8;
-  position: absolute;
-  top: 50%;
-  width: 100%;
-  transform: translate(0, -50%);
-  text-align: center;
-}
-
-.upload {
-  margin-top: 10px;
-  padding-top: 100px;
-  padding-bottom: 10px;
-}
-
-.cell-content {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-}
-
-.text-content {
-  display: flex;
-  flex-direction: column;
-}
-
-.first-line {
-  font-size: 16px;
-  font-weight: bold;
-}
-
-.second-line {
-  font-size: 12px;
-  color: gray;
-}
-
-.cell-icon {
-  font-size: 1.5em;
-  align-self: stretch;
+.extensions-description {
+  max-width: 24ch;
 }
 </style>

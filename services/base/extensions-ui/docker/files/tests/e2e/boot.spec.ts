@@ -19,3 +19,12 @@ test('renders on a fresh profile, with no shell-seeded settings', async ({ page 
   // is engine-version specific.
   expect(consoleErrors.filter((t) => /SyntaxError/.test(t))).toEqual([])
 })
+
+test('follows the shell dark-mode setting', async ({ page }) => {
+  await page.addInitScript(() =>
+    localStorage.setItem('settings', JSON.stringify({ darkMode: true })),
+  )
+  await openView(page, defaultMockData, { seedSettings: false })
+
+  await expect(page.locator('.v-application')).toHaveClass(/v-theme--kaapanaThemeDark/)
+})

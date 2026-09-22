@@ -41,8 +41,10 @@ test('shows every extension on one page by default', async ({ page }) => {
   await openView(page, catalogue(many))
 
   await expect(page.locator('tbody tr')).toHaveCount(30)
-  // The page-size selector must render "All", not a blank current value.
-  await expect(page.locator('.v-data-table-footer__items-per-page')).toContainText('All')
+  // Every row is on the page, so there is no pagination footer to repeat what
+  // the summary line above the table already says.
+  await expect(page.locator('.v-data-table-footer')).toHaveCount(0)
+  await expect(page.getByText('30 extensions available')).toBeVisible()
 })
 
 test('an empty catalogue explains itself and offers the first action', async ({ page }) => {

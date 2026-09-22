@@ -31,3 +31,11 @@ test('toggling the kind filter hides applications', async ({ page }) => {
   await expect(row(page, 'JupyterLab')).toHaveCount(0)
   await expect(row(page, 'nnU-Net Training')).toBeVisible()
 })
+
+test('unchecking a hardware requirement hides the extensions that need it', async ({ page }) => {
+  await page.getByTestId('filter-hardware').click()
+  await page.getByRole('checkbox', { name: 'GPU' }).uncheck()
+
+  await expect(row(page, 'nnU-Net Training')).toHaveCount(0)
+  await expect(row(page, 'MITK Workbench')).toBeVisible()
+})

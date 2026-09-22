@@ -19,6 +19,18 @@ test('renders the extension list with mixed installed states', async ({ page }) 
   await expect(page.getByText('4 of 5 extensions match the current filters')).toBeVisible()
 })
 
+test('states read as text, not colour alone', async ({ page }) => {
+  await openView(page)
+
+  // Vuetify hides a plain v-icon from the accessibility tree, so each
+  // status column carries a real text alternative.
+  await expect(row(page, 'MITK Workbench')).toContainText('Application')
+  await expect(row(page, 'MITK Workbench')).toContainText('Stable')
+  await expect(row(page, 'MITK Workbench')).toContainText('Ready')
+  await expect(row(page, 'nnU-Net Training')).toContainText('Not installed')
+  await expect(row(page, 'Code Server').getByRole('progressbar')).toBeVisible()
+})
+
 test('hides experimental extensions behind the default maturity filter', async ({ page }) => {
   await openView(page)
 

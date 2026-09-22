@@ -87,58 +87,132 @@
           {{ column.title }}
           <v-menu>
             <template #activator="{ props }">
-              <v-btn icon variant="text" size="small" v-bind="props" data-testid="filter-kind">
+              <v-btn
+                icon
+                variant="text"
+                size="small"
+                v-bind="props"
+                data-testid="filter-kind"
+                aria-label="Filter by type"
+              >
                 <v-icon :icon="extensionIcons.filter" />
               </v-btn>
             </template>
             <v-card min-width="200px" :elevation="5">
-              <v-checkbox v-model="selectedFilters" color="primary" density="compact" label="Applications" value="Applications" />
-              <v-checkbox v-model="selectedFilters" color="primary" density="compact" label="Workflows" value="Workflows" />
+              <v-checkbox
+                v-model="selectedFilters"
+                color="primary"
+                density="compact"
+                label="Applications"
+                value="Applications"
+                hide-details
+              />
+              <v-checkbox
+                v-model="selectedFilters"
+                color="primary"
+                density="compact"
+                label="Workflows"
+                value="Workflows"
+                hide-details
+              />
             </v-card>
           </v-menu>
         </template>
+
         <template #header.experimental="{ column }">
           {{ column.title }}
           <v-menu>
             <template #activator="{ props }">
-              <v-btn icon variant="text" size="small" v-bind="props" data-testid="filter-maturity">
+              <v-btn
+                icon
+                variant="text"
+                size="small"
+                v-bind="props"
+                data-testid="filter-maturity"
+                aria-label="Filter by maturity"
+              >
                 <v-icon :icon="extensionIcons.filter" />
               </v-btn>
             </template>
             <v-card min-width="200px" :elevation="5">
-              <v-checkbox v-model="selectedFilters" color="primary" density="compact" label="Experimental" value="Experimental" />
-              <v-checkbox v-model="selectedFilters" color="primary" density="compact" label="Stable" value="Stable" />
+              <v-checkbox
+                v-model="selectedFilters"
+                color="primary"
+                density="compact"
+                label="Experimental"
+                value="Experimental"
+                hide-details
+              />
+              <v-checkbox
+                v-model="selectedFilters"
+                color="primary"
+                density="compact"
+                label="Stable"
+                value="Stable"
+                hide-details
+              />
             </v-card>
           </v-menu>
         </template>
+
         <template #header.resourceRequirement="{ column }">
           {{ column.title }}
           <v-menu>
             <template #activator="{ props }">
-              <v-btn icon variant="text" size="small" v-bind="props">
+              <v-btn
+                icon
+                variant="text"
+                size="small"
+                v-bind="props"
+                data-testid="filter-hardware"
+                aria-label="Filter by hardware requirement"
+              >
                 <v-icon :icon="extensionIcons.filter" />
               </v-btn>
             </template>
             <v-card min-width="200px" :elevation="5">
-              <v-checkbox v-model="selectedFilters" color="primary" density="compact" label="CPU" value="CPU" />
-              <v-checkbox v-model="selectedFilters" color="primary" density="compact" label="GPU" value="GPU" />
+              <v-checkbox
+                v-model="selectedFilters"
+                color="primary"
+                density="compact"
+                label="CPU"
+                value="CPU"
+                hide-details
+              />
+              <v-checkbox
+                v-model="selectedFilters"
+                color="primary"
+                density="compact"
+                label="GPU"
+                value="GPU"
+                hide-details
+              />
             </v-card>
           </v-menu>
         </template>
+
+        <!-- Vuetify marks a v-icon without a click handler aria-hidden, so
+             the text alternative is its own element and the activator is
+             focusable for the tooltip. -->
         <template #item.kind="{ item }">
-          <v-tooltip location="bottom" v-if="item.kind === 'dag'">
+          <v-tooltip v-if="item.kind === 'dag'" location="bottom" text="One or multiple workflows that will trigger Airflow DAGs">
             <template #activator="{ props }">
-              <v-icon v-bind="props" :icon="extensionIcons.workflow" />
+              <span v-bind="props" tabindex="0" class="d-inline-flex align-center">
+                <v-icon :icon="extensionIcons.workflow" />
+                <span class="d-sr-only">Workflow</span>
+              </span>
             </template>
-            <span>One or multiple workflows that will trigger Airflow DAGs</span>
           </v-tooltip>
-          <v-tooltip location="bottom" v-if="item.kind === 'application'">
+          <v-tooltip v-else-if="item.kind === 'application'" location="bottom" text="An application with a user interface">
             <template #activator="{ props }">
-              <v-icon v-bind="props" :icon="extensionIcons.application" />
+              <span v-bind="props" tabindex="0" class="d-inline-flex align-center">
+                <v-icon :icon="extensionIcons.application" />
+                <span class="d-sr-only">Application</span>
+              </span>
             </template>
-            <span>An application with a user interface</span>
           </v-tooltip>
         </template>
+
         <template #item.uiVisibleName="{ item }">
           <div class="d-flex align-center ga-2">
             <v-tooltip location="bottom" :text="item.description">
@@ -149,79 +223,116 @@
                 </div>
               </template>
             </v-tooltip>
-            <v-tooltip location="bottom" text="Open the documentation in a new tab">
+            <v-tooltip v-if="item.documentation" location="bottom" text="Open the documentation in a new tab">
               <template #activator="{ props }">
-                <a
+                <v-btn
+                  v-bind="props"
+                  icon
+                  variant="text"
+                  size="small"
+                  color="primary"
                   :href="getHref('/docs/' + item.documentation)"
                   target="_blank"
-                  v-bind="props"
+                  rel="noopener"
+                  :aria-label="`Documentation for ${item.uiVisibleName} (opens in a new tab)`"
                 >
-                  <v-icon color="primary" :icon="kaapanaIcons.help" />
-                </a>
+                  <v-icon :icon="kaapanaIcons.help" />
+                </v-btn>
               </template>
             </v-tooltip>
           </div>
         </template>
+
         <template #item.links="{ item }">
-          <a
+          <v-btn
             v-for="link in item.links"
             :key="link"
+            icon
+            variant="text"
+            size="small"
+            color="primary"
             :href="getHref(link)"
             target="_blank"
+            rel="noopener"
+            :aria-label="`Open ${item.uiVisibleName} in a new tab`"
           >
-            <v-icon color="primary" :icon="kaapanaIcons.externalLink" />
-          </a>
+            <v-icon :icon="kaapanaIcons.externalLink" />
+          </v-btn>
         </template>
+
         <template #item.versions="{ item }">
           <v-select
-            :items="item.versions"
             v-model="item.version"
+            :items="item.versions"
             variant="underlined"
             density="compact"
             hide-details
+            :aria-label="`Version of ${item.uiVisibleName}`"
           />
         </template>
+
         <template #item.resourceRequirement="{ item }">
           <span>{{ item.resourceRequirement.toUpperCase() }}</span>
         </template>
+
         <template #item.successful="{ item }">
           <v-tooltip
-            location="right"
             v-if="item.successful === 'pending'"
-            :key="checkDeploymentReady(item)"
+            location="right"
+            :key="String(checkDeploymentReady(item))"
+            :text="statusTooltip(item)"
           >
             <template #activator="{ props }">
-              <v-progress-circular indeterminate color="primary" v-bind="props" />
+              <v-progress-circular
+                v-bind="props"
+                indeterminate
+                color="primary"
+                size="24"
+                aria-label="Installation in progress"
+              />
             </template>
-            <span>Helm status: {{ getHelmStatus(item) }} <br /> Kubernetes status: {{ getKubeStatus(item) }}</span>
           </v-tooltip>
-          <v-tooltip location="right" v-else-if="item.successful === 'no'">
+          <v-tooltip v-else-if="item.successful === 'no'" location="right" :text="statusTooltip(item)">
             <template #activator="{ props }">
-              <v-icon color="error" v-bind="props" :icon="kaapanaIcons.error" />
+              <span v-bind="props" tabindex="0" class="d-inline-flex align-center">
+                <v-icon color="error" :icon="kaapanaIcons.error" />
+                <span class="d-sr-only">Not ready. {{ statusTooltip(item) }}</span>
+              </span>
             </template>
-            <span>Helm status: {{ getHelmStatus(item) }} <br /> Kubernetes status: {{ getKubeStatus(item) }}</span>
           </v-tooltip>
-          <v-tooltip location="right" v-if="checkDeploymentReady(item) === true">
+          <v-tooltip v-else-if="checkDeploymentReady(item) === true" location="right" :text="statusTooltip(item)">
             <template #activator="{ props }">
-              <v-icon color="success" v-bind="props" :icon="kaapanaIcons.success" />
+              <span v-bind="props" tabindex="0" class="d-inline-flex align-center">
+                <v-icon color="success" :icon="kaapanaIcons.success" />
+                <span class="d-sr-only">Ready. {{ statusTooltip(item) }}</span>
+              </span>
             </template>
-            <span>Helm status: {{ getHelmStatus(item) }} <br /> Kubernetes status: {{ getKubeStatus(item) }}</span>
           </v-tooltip>
+          <span v-else class="text-medium-emphasis">
+            <span aria-hidden="true">—</span>
+            <span class="d-sr-only">Not installed</span>
+          </span>
         </template>
+
         <template #item.experimental="{ item }">
-          <v-tooltip location="bottom" v-if="item.experimental === 'yes'">
+          <v-tooltip v-if="item.experimental === 'yes'" location="bottom" text="Experimental extension">
             <template #activator="{ props }">
-              <v-icon color="warning" v-bind="props" :icon="extensionIcons.experimental" />
+              <span v-bind="props" tabindex="0" class="d-inline-flex align-center">
+                <v-icon color="warning" :icon="extensionIcons.experimental" />
+                <span class="d-sr-only">Experimental</span>
+              </span>
             </template>
-            <span>Experimental extension</span>
           </v-tooltip>
-          <v-tooltip location="bottom" v-else>
+          <v-tooltip v-else location="bottom" text="Stable extension">
             <template #activator="{ props }">
-              <v-icon color="success" v-bind="props" :icon="extensionIcons.stable" />
+              <span v-bind="props" tabindex="0" class="d-inline-flex align-center">
+                <v-icon color="success" :icon="extensionIcons.stable" />
+                <span class="d-sr-only">Stable</span>
+              </span>
             </template>
-            <span>Stable extension</span>
           </v-tooltip>
         </template>
+
         <template #item.installed="{ item }">
           <v-btn
             v-if="showRemoveAction(item)"
@@ -249,9 +360,22 @@
             {{ item.multiinstallable === 'yes' ? 'Launch' : 'Install' }}
           </v-btn>
 
-          <v-btn v-else-if="item.successful === 'justLaunched'" variant="text" min-width="160px" disabled>
-            Launched
-          </v-btn>
+          <!-- A disabled button receives no pointer or keyboard events, so
+               the wrapper is the tooltip's activator. -->
+          <v-tooltip
+            v-else-if="item.successful === 'justLaunched'"
+            location="bottom"
+            text="Already launched in this session. The list updates once the platform reports the new instance."
+          >
+            <template #activator="{ props }">
+              <span v-bind="props" tabindex="0" class="d-inline-block">
+                <v-btn variant="text" min-width="160px" disabled>Launched</v-btn>
+                <span class="d-sr-only">
+                  Already launched in this session. The list updates once the platform reports the new instance.
+                </span>
+              </span>
+            </template>
+          </v-tooltip>
 
           <v-menu
             v-else-if="item.successful === 'pending'"
@@ -499,6 +623,10 @@ const summaryLine = computed(() => {
 function resetFilters() {
   selectedFilters.value = [...DEFAULT_FILTERS]
   search.value = ''
+}
+
+function statusTooltip(item: any): string {
+  return `Helm status: ${getHelmStatus(item) || '—'} · Kubernetes status: ${getKubeStatus(item) || '—'}`
 }
 
 function isRowBusy(item: any): boolean {
@@ -884,10 +1012,6 @@ onBeforeUnmount(() => {
    in the space beyond it. */
 .extensions-view {
   max-width: 1600px;
-}
-
-a {
-  text-decoration: none;
 }
 
 .extensions-search {

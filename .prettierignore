@@ -1,0 +1,12 @@
+**/node_modules/
+**/.venv/
+**/test-results/
+**/dist/
+**/dist-ssr/
+**/coverage/
+build/
+docs/build/
+**/components.d.ts
+**/typed-router.d.ts
+**/auto-imports.d.ts
+services/meta/os-dashboards/

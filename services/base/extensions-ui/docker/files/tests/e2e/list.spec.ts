@@ -16,6 +16,7 @@ test('renders the extension list with mixed installed states', async ({ page }) 
   for (const [name, action] of expected) {
     await expect(row(page, name).getByRole('button', { name: action, exact: true })).toBeVisible()
   }
+  await expect(page.getByText('4 of 5 extensions match the current filters')).toBeVisible()
 })
 
 test('hides experimental extensions behind the default maturity filter', async ({ page }) => {
@@ -44,10 +45,25 @@ test('shows every extension on one page by default', async ({ page }) => {
   await expect(page.locator('.v-data-table-footer__items-per-page')).toContainText('All')
 })
 
-test('renders an empty table when no extensions are available', async ({ page }) => {
+test('an empty catalogue explains itself and offers the first action', async ({ page }) => {
   await openView(page, catalogue([]))
 
-  await expect(page.getByText('No data available')).toBeVisible()
+  const empty = page.getByTestId('extensions-empty-state')
+  await expect(empty.locator('.v-empty-state')).toContainText('No extensions available yet')
+  await expect(empty.getByRole('button', { name: 'Download latest extensions' })).toBeVisible()
+  await expect(page.getByText('No data available')).toHaveCount(0)
+})
+
+test('filters that exclude everything are reported as a filter result, with a way out', async ({
+  page,
+}) => {
+  await openView(page)
+  await page.getByRole('textbox', { name: 'Search' }).fill('no-such-extension-anywhere')
+
+  const empty = page.getByTestId('extensions-empty-state')
+  await expect(empty).toContainText('No extensions match the current filters')
+  await empty.getByRole('button', { name: 'Reset filters' }).click()
+  await expect(row(page, 'MITK Workbench')).toBeVisible()
 })
 
 test('renders a row whose version is absent from available_versions without crashing the table', async ({

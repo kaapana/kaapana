@@ -143,3 +143,38 @@ export function dialog(page: Page) {
 export function toasts(page: Page) {
   return page.locator('.vue-notification-wrapper')
 }
+
+/**
+ * Pass a confirmation by its confirming button, which always names the action
+ * ("Uninstall extension", "Download"), never "OK".
+ */
+export async function confirmAction(page: Page, name: string) {
+  const button = dialog(page).getByRole('button', { name, exact: true })
+  await expect(button, `no confirm button labelled "${name}"`).toBeVisible({ timeout: 5_000 })
+  await button.click()
+  await dialog(page).waitFor({ state: 'hidden' })
+}
+
+/**
+ * Press Escape until `settled` holds. Vuetify honours Escape only once its
+ * overlay stack has settled, which happens in a setTimeout after the dialog
+ * appears; under load a first Escape can be swallowed. Escape is idempotent
+ * here, so pressing again is safe and the outcome is what the test asserts.
+ */
+export async function pressEscapeUntil(page: Page, settled: () => Promise<boolean>) {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    await page.keyboard.press('Escape')
+    const deadline = Date.now() + 1_000
+    while (Date.now() < deadline) {
+      if (await settled()) return
+      await page.waitForTimeout(50)
+    }
+  }
+  throw new Error('Escape never took effect')
+}
+
+/** Dismiss the open dialog with Escape. */
+export async function dismissWithEscape(page: Page) {
+  await expect(dialog(page)).toBeVisible()
+  await pressEscapeUntil(page, () => dialog(page).isHidden())
+}

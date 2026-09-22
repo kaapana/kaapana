@@ -91,7 +91,7 @@
                 <v-icon :icon="extensionIcons.filter" />
               </v-btn>
             </template>
-            <v-card min-width="200px">
+            <v-card min-width="200px" :elevation="5">
               <v-checkbox v-model="selectedFilters" color="primary" density="compact" label="Applications" value="Applications" />
               <v-checkbox v-model="selectedFilters" color="primary" density="compact" label="Workflows" value="Workflows" />
             </v-card>
@@ -105,7 +105,7 @@
                 <v-icon :icon="extensionIcons.filter" />
               </v-btn>
             </template>
-            <v-card min-width="200px">
+            <v-card min-width="200px" :elevation="5">
               <v-checkbox v-model="selectedFilters" color="primary" density="compact" label="Experimental" value="Experimental" />
               <v-checkbox v-model="selectedFilters" color="primary" density="compact" label="Stable" value="Stable" />
             </v-card>
@@ -119,7 +119,7 @@
                 <v-icon :icon="extensionIcons.filter" />
               </v-btn>
             </template>
-            <v-card min-width="200px">
+            <v-card min-width="200px" :elevation="5">
               <v-checkbox v-model="selectedFilters" color="primary" density="compact" label="CPU" value="CPU" />
               <v-checkbox v-model="selectedFilters" color="primary" density="compact" label="GPU" value="GPU" />
             </v-card>
@@ -128,13 +128,13 @@
         <template #item.kind="{ item }">
           <v-tooltip location="bottom" v-if="item.kind === 'dag'">
             <template #activator="{ props }">
-              <v-icon color="primary" v-bind="props" :icon="extensionIcons.workflow" />
+              <v-icon v-bind="props" :icon="extensionIcons.workflow" />
             </template>
             <span>One or multiple workflows that will trigger Airflow DAGs</span>
           </v-tooltip>
           <v-tooltip location="bottom" v-if="item.kind === 'application'">
             <template #activator="{ props }">
-              <v-icon color="primary" v-bind="props" :icon="extensionIcons.application" />
+              <v-icon v-bind="props" :icon="extensionIcons.application" />
             </template>
             <span>An application with a user interface</span>
           </v-tooltip>
@@ -224,48 +224,46 @@
         </template>
         <template #item.installed="{ item }">
           <v-btn
-            v-if="checkInstalled(item) === 'yes' && item.successful !== 'pending' && item.successful !== 'justLaunched'"
+            v-if="showRemoveAction(item)"
+            color="error"
+            variant="text"
+            min-width="160px"
+            :loading="isRowBusy(item)"
+            :disabled="isRowBusy(item)"
+            :prepend-icon="kaapanaIcons.delete"
             @click="askUninstall(item, false)"
+          >
+            {{ item.multiinstallable === 'yes' ? 'Delete' : 'Uninstall' }}
+          </v-btn>
+
+          <v-btn
+            v-else-if="showInstallAction(item)"
             color="primary"
+            variant="text"
             min-width="160px"
             :loading="isRowBusy(item)"
             :disabled="isRowBusy(item)"
-          >
-            <span v-if="item.multiinstallable === 'yes'">Delete</span>
-            <span v-if="item.multiinstallable === 'no'">Uninstall</span>
-          </v-btn>
-          <v-btn
-            v-if="checkInstalled(item) === 'no' && item.successful !== 'pending' && item.successful !== 'justLaunched'"
+            :prepend-icon="kaapanaIcons.start"
             @click="getFormInfo(item)"
-            color="primary"
-            min-width="160px"
-            :loading="isRowBusy(item)"
-            :disabled="isRowBusy(item)"
           >
-            <span v-if="item.multiinstallable === 'yes'">Launch</span>
-            <span v-if="item.multiinstallable === 'no'">Install</span>
-
+            {{ item.multiinstallable === 'yes' ? 'Launch' : 'Install' }}
           </v-btn>
 
-          <v-btn
-            v-if="item.successful === 'justLaunched'"
-            color="primary"
-            min-width="160px"
-            disabled
-          >
-            <span>Launched</span>
+          <v-btn v-else-if="item.successful === 'justLaunched'" variant="text" min-width="160px" disabled>
+            Launched
           </v-btn>
+
           <v-menu
-            v-if="item.successful === 'pending'"
+            v-else-if="item.successful === 'pending'"
             v-model="pendingMenu[item.releaseName]"
             :close-on-content-click="false"
           >
             <template #activator="{ props }">
-              <v-btn color="primary" min-width="160px" v-bind="props" :append-icon="kaapanaIcons.expand">
+              <v-btn variant="text" min-width="160px" v-bind="props" :append-icon="kaapanaIcons.expand">
                 Pending
               </v-btn>
             </template>
-            <v-card max-width="320px" class="text-left">
+            <v-card max-width="320px" class="text-left" :elevation="5">
               <v-card-title class="text-subtitle-1">Stuck in Pending?</v-card-title>
               <v-card-text class="text-body-2">
                 An installation that stays pending usually means an error in the Helm chart. Forcing
@@ -505,6 +503,22 @@ function resetFilters() {
 
 function isRowBusy(item: any): boolean {
   return Boolean(busyRows.value[item.releaseName])
+}
+
+function showRemoveAction(item: any): boolean {
+  return (
+    checkInstalled(item) === 'yes' &&
+    item.successful !== 'pending' &&
+    item.successful !== 'justLaunched'
+  )
+}
+
+function showInstallAction(item: any): boolean {
+  return (
+    checkInstalled(item) === 'no' &&
+    item.successful !== 'pending' &&
+    item.successful !== 'justLaunched'
+  )
 }
 
 function fileStart(file: any) {

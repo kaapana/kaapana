@@ -16,7 +16,7 @@ Test the code → build the platform images → deploy them on a fresh throwaway
 | Stage | Jobs | Runs on | Duration |
 |---|---|---|---|
 | `preflight` | `preflight_variables`, `preflight_target`, `build_ci_image` | tests / build runner | seconds |
-| `unittest` | ~20 unit-test jobs, the UI matrix, docs build, lint | tests runner | minutes |
+| `unittest` | the service matrix, the library and UI suites, docs build, lint | tests runner | minutes |
 | `build` | `build_packages` | build runner | hours (much less with a warm cache) |
 | `security` | `security_scan` | security runner | hours |
 | `deploy` | `prepare_deployment` → `server_installation` → `platform_deployment` | deploy runner, ansible over SSH | ~1 h |
@@ -426,6 +426,10 @@ Coverage is per suite — each job measures the one directory it exercises, and
 GitLab merges the reports for the diff view.
 
 ## Adding a job
+
+A service unit-test suite is usually not a job: if the service keeps `app/` and
+`tests/` side by side, add its root to the `service_test` matrix instead. A job of
+its own means the layout differs, and that job says how. For everything else:
 
 1. Extend the right template instead of repeating its settings.
 2. Gate it with `rules:` on the matching `exec_*` input. The input must be declared

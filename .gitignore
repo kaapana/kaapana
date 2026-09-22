@@ -9,6 +9,7 @@ ci/ci-code/integration_tests/build/
 tmpcharts
 migrations
 .trivy_cache/*
+.gitlab-ci-local/
 .ipynb_checkpoints
 __pycache__
 .vscode

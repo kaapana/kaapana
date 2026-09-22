@@ -42,6 +42,10 @@ spec:
       default: false
       type: boolean
       description: "[exec] registry scan of the images this pipeline pushed"
+    exec_benchmark:
+      default: false
+      type: boolean
+      description: "[exec] test stage: platform benchmark against the deployment VM (needs exec_deploy)"
     exec_destroy_delayed:
       default: false
       type: boolean
@@ -80,6 +84,7 @@ stages:
   - security
   - deploy
   - test
+  - benchmark
   - clean
 
 workflow:
@@ -127,7 +132,7 @@ variables:
   # CI_IMAGES_TAG in the same MR that changes ci/images/** — re-pushing an
   # existing tag leaves warm runners on the stale image. Always
   # $CI_REGISTRY_URL, never the release registry.
-  CI_IMAGES_TAG: "v8"
+  CI_IMAGES_TAG: "v9"
   CI_BASE_IMAGE: "$CI_REGISTRY_URL/ci-base:$CI_IMAGES_TAG"
 
   # Purpose-specific tokens, currently aliasing the shared CI_REGISTRY_TOKEN.
@@ -206,6 +211,7 @@ include:
     inputs:
       runner_tag: $[[ inputs.tests_runner_tag ]]
       exec_build: $[[ inputs.exec_build ]]
+      exec_benchmark: $[[ inputs.exec_benchmark ]]
       exec_deploy: $[[ inputs.exec_deploy ]]
       exec_server_installation: $[[ inputs.exec_server_installation ]]
       exec_redeploy: $[[ inputs.exec_redeploy ]]
@@ -241,6 +247,10 @@ include:
       runner_tag: $[[ inputs.deploy_runner_tag ]]
       exec_integration_tests: $[[ inputs.exec_integration_tests ]]
       exec_integration_test_jobs: $[[ inputs.exec_integration_test_jobs ]]
+  - local: /ci/pipeline/benchmark.yml
+    inputs:
+      runner_tag: $[[ inputs.deploy_runner_tag ]]
+      exec_benchmark: $[[ inputs.exec_benchmark ]]
   - local: /ci/pipeline/clean.yml
     inputs:
       runner_tag: $[[ inputs.deploy_runner_tag ]]

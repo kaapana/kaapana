@@ -33,6 +33,7 @@ destroy_deployment:
     - { job: send_data, optional: true, artifacts: false }
     - { job: run_workflows, optional: true, artifacts: false }
     - { job: playwright_ui_tests, optional: true, artifacts: false }
+    - { job: benchmark_platform, optional: true, artifacts: false }
   rules:
     # Never destroy externally-provided VMs
     - if: '$DEPLOYMENT_INSTANCE_FQDN != ""'
@@ -56,6 +57,10 @@ if_ci_failing:
   tags:
     - $[[ inputs.runner_tag ]]
   image: $CI_BASE_IMAGE
+  # Jobs whose logs feed the issue report (create_ticket_if_ci_failed.py scans
+  # their downloaded *.log artifacts) — never list a job whose artifacts
+  # contain secrets. Not `needs:`: that would scope `when: on_failure` to
+  # only these jobs' own failures instead of any job in the pipeline.
   dependencies:
     - preflight_target
     - build_packages

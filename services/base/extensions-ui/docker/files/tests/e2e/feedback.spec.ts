@@ -86,7 +86,7 @@ test('survives a backend error, shows no rows, and notifies the user', async ({ 
   await page.goto(VIEW_PATH)
 
   await expect(page.getByRole('textbox', { name: 'Search' })).toBeVisible()
-  await expect(page.getByText('No data available')).toBeVisible()
+  await expect(page.getByTestId('extensions-empty-state')).toBeVisible()
   await expect(row(page, 'MITK Workbench')).toHaveCount(0)
 
   // Unlike a legitimately empty list, a load failure surfaces an error toast.

@@ -3,6 +3,9 @@
     <div class="d-flex flex-wrap align-start justify-space-between ga-4 mb-4">
       <div>
         <h1 class="text-h4">Applications and workflows</h1>
+        <p class="text-body-2 text-medium-emphasis mt-1">
+          {{ summaryLine }}
+        </p>
       </div>
 
       <v-btn
@@ -55,10 +58,10 @@
 
       <v-data-table
         :headers="headers"
-        :items="filteredLaunchedAppLinks"
+        :items="rows"
         :items-per-page="-1"
+        :hide-default-footer="rows.length === 0"
         :loading="loading"
-        :search="search"
         :sort-by="sortBy"
         loading-text="Loading extensions…"
       >
@@ -255,6 +258,17 @@
             </v-card>
           </v-menu>
         </template>
+
+        <template #no-data>
+          <ExtensionsEmptyState
+            v-if="!loading"
+            :state="emptyState"
+            :can-update-extensions="canUpdateExtensions"
+            :busy="updatingExtensions"
+            @clear-filters="resetFilters"
+            @update-extensions="askUpdateExtensions"
+          />
+        </template>
       </v-data-table>
     </v-card>
   </v-container>
@@ -286,6 +300,7 @@ import { useNotification } from '@kyvg/vue3-notification'
 import { ConfirmDialog, kaapanaApiService, postViewDirty, refreshShell } from '@kaapana/base-ui'
 import Upload from '@/components/Upload.vue'
 import ExtensionParamsDialog from '@/components/ExtensionParamsDialog.vue'
+import ExtensionsEmptyState from '@/components/ExtensionsEmptyState.vue'
 import { usePolicyStore } from '@/stores/policy'
 import { useAuthStore, useProjectStore } from '@kaapana/base-ui'
 import { checkAuthR } from '@/utils/opa'
@@ -352,9 +367,10 @@ const pendingMenu = ref<Record<string, boolean>>({})
 let polling = 0
 let pollErrorNotified = false
 let previousReadyReleases: string | null = null
-const launchedAppLinks = ref<any[] | null>([])
+const launchedAppLinks = ref<any[]>([])
 const search = ref('')
-const selectedFilters = ref<string[]>(['Stable', 'Applications', 'Workflows', 'GPU', 'CPU'])
+const DEFAULT_FILTERS = ['Stable', 'Applications', 'Workflows', 'GPU', 'CPU']
+const selectedFilters = ref<string[]>([...DEFAULT_FILTERS])
 const paramsDialogOpen = ref(false)
 const popUpItem = ref<any>(null)
 const popUpParams = ref<Record<string, any>>({})
@@ -373,41 +389,77 @@ const headers: DataTableHeader[] = [
   { title: 'Links', align: 'center', key: 'links' },
 ]
 
-const filteredLaunchedAppLinks = computed<any[]>(() => {
-  if (launchedAppLinks.value !== null) {
-    return launchedAppLinks.value.filter((i: any) => {
-      let devFilter = false
-      let kindFilter = false
-      let resourceFilter = false
+// Fields the search box matches: the displayed columns plus description and the
+// chart and release identifiers.
+function searchHaystack(item: any): string {
+  return [
+    item.kind,
+    item.uiVisibleName,
+    item.description,
+    item.name,
+    item.releaseName,
+    item.version,
+    ...(Array.isArray(item.versions) ? item.versions : []),
+    item.experimental === 'yes' ? 'experimental' : 'stable',
+    item.resourceRequirement,
+    item.installed,
+    item.successful,
+    ...(Array.isArray(item.links) ? item.links : []),
+  ]
+    .filter((value) => value !== null && value !== undefined && value !== '')
+    .join(' ')
+    .toLowerCase()
+}
 
-      if (selectedFilters.value.includes('Experimental') && i.experimental === 'yes') {
-        devFilter = true
-      } else if (selectedFilters.value.includes('Stable') && i.experimental === 'no') {
-        devFilter = true
-      }
+function matchesSearch(item: any, term: string): boolean {
+  if (!term) return true
+  return searchHaystack(item).includes(term)
+}
 
-      if (selectedFilters.value.includes('Applications') && i.kind === 'application') {
-        kindFilter = true
-      } else if (selectedFilters.value.includes('Workflows') && i.kind === 'dag') {
-        kindFilter = true
-      }
+function matchesFilters(item: any): boolean {
+  const filters = selectedFilters.value
 
-      if (selectedFilters.value.includes('CPU') && i.resourceRequirement == 'cpu') {
-        resourceFilter = true
-      } else if (
-        selectedFilters.value.includes('GPU') &&
-        i.resourceRequirement == 'gpu'
-      ) {
-        resourceFilter = true
-      }
+  const maturityMatch =
+    (filters.includes('Experimental') && item.experimental === 'yes') ||
+    (filters.includes('Stable') && item.experimental === 'no')
 
-      return devFilter && kindFilter && resourceFilter
-    })
-  } else {
-    loading.value = true
-    return []
-  }
+  const kindMatch =
+    (filters.includes('Applications') && item.kind === 'application') ||
+    (filters.includes('Workflows') && item.kind === 'dag')
+
+  const resourceMatch =
+    (filters.includes('CPU') && item.resourceRequirement === 'cpu') ||
+    (filters.includes('GPU') && item.resourceRequirement === 'gpu')
+
+  return maturityMatch && kindMatch && resourceMatch
+}
+
+// Search is applied here rather than by the table's own `search` prop, so the
+// view can tell "no extensions exist" from "the filters exclude all of them"
+// and show the right empty state.
+const rows = computed<any[]>(() => {
+  const term = (search.value ?? '').trim().toLowerCase()
+  return launchedAppLinks.value.filter((item) => matchesFilters(item) && matchesSearch(item, term))
 })
+
+const emptyState = computed<'no-matches' | 'empty'>(() =>
+  launchedAppLinks.value.length > 0 ? 'no-matches' : 'empty',
+)
+
+const summaryLine = computed(() => {
+  const total = launchedAppLinks.value.length
+  const shown = rows.value.length
+  if (total === 0) return 'No extensions available'
+  const noun = total === 1 ? 'extension' : 'extensions'
+  return shown === total
+    ? `${total} ${noun} available`
+    : `${shown} of ${total} ${noun} match the current filters`
+})
+
+function resetFilters() {
+  selectedFilters.value = [...DEFAULT_FILTERS]
+  search.value = ''
+}
 
 function fileStart(file: any) {
   console.log('filestart', file)
@@ -471,9 +523,7 @@ function getHelmCharts() {
           ? { ...item, version: selected }
           : item
       })
-      if (launchedAppLinks.value !== null) {
-        loading.value = false
-      }
+      loading.value = false
       // A release that just became ready has registered its ingress, so the
       // shell has a menu entry to pick up.
       const ready = (launchedAppLinks.value as any[])

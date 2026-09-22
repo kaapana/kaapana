@@ -12,6 +12,8 @@ import pytest
 import yaml
 from conftest import DEPLOY_INPUTS, FQDN, jobs, merged_config
 
+CI_DIR = Path(__file__).resolve().parents[1]
+
 
 def rule_ifs(job):
     return [rule.get("if", "") for rule in job.get("rules", [])]
@@ -169,9 +171,6 @@ def test_preflight_variables_checks_the_registry_scope_the_build_uses(default_co
     assert environment["action"] == "access"
 
 
-CI_DIR = Path(__file__).resolve().parents[1]
-
-
 def test_the_admin_chart_and_namespace_come_from_the_variables():
     files = [*(CI_DIR / "pipeline").glob("*.yml"), *(CI_DIR / "ci-code").rglob("*.yaml")]
     offenders = [str(f.relative_to(CI_DIR)) for f in files if "kaapana-admin-chart" in f.read_text()]
@@ -189,3 +188,14 @@ def test_build_does_not_lint_charts(default_config):
     """Charts are linted by helm_lint in the tests stage; the build must not repeat it."""
     script = "\n".join(jobs(default_config)["build_packages"]["script"])
     assert "--no-linting" in script
+
+
+def test_every_linter_has_its_commands(default_config):
+    """A LINTER added to the lint matrix without a case in the script would fail every pipeline."""
+    job = jobs(default_config)["lint"]
+    linters = [linter for entry in job["parallel"]["matrix"] for linter in entry["LINTER"]]
+    script = "\n".join(job["script"])
+    assert linters
+    for linter in linters:
+        assert f"{linter})" in script, linter
+    assert job["artifacts"]["reports"]["codequality"] == "gl-code-quality-report.json"

@@ -51,3 +51,4 @@ tests/ui/coverage/
 test-results/
 playwright-report/
 
+gl-code-quality-report.json

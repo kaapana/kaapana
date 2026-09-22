@@ -16,6 +16,7 @@ RUN printf '#!/bin/sh\nexit 101\n' > /usr/sbin/policy-rc.d && chmod +x /usr/sbin
 ARG DOCKER_CLI_VERSION=29.8.1
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
+        git-lfs \
         openssh-client \
         curl \
         ca-certificates \

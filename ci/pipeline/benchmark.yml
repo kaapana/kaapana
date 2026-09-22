@@ -1,0 +1,63 @@
+spec:
+  inputs:
+    exec_benchmark:
+      type: boolean
+    runner_tag:
+      type: string
+---
+# Stage: benchmark — runs after the test stage, so no test traffic skews the timing
+# In:  deployment.env dotenv (VM_FQDN, VM_USER); BENCHMARK_DATA_CONFIG
+#      (File-type CI variable: url/token/root_path/scenarios JSON); the live platform
+# Out: results.json + metrics.txt (OpenMetrics) as job artifacts
+##############################################
+# BENCHMARK
+##############################################
+benchmark_platform:
+  extends: .deployment_target_template
+  stage: benchmark
+  tags:
+    - $[[ inputs.runner_tag ]]
+  allow_failure: true
+  timeout: 8 hours
+  dependencies:
+    - prepare_deployment
+  rules:
+    - if: '"$[[ inputs.exec_benchmark ]]" == "true"'
+      when: on_success
+    - when: never
+  script:
+    - |
+      if [[ -z "$VM_FQDN" ]]; then
+        echo "ERROR: no deployment target. Either set exec_deploy=true to provision one, or set DEPLOYMENT_INSTANCE_FQDN (and DEPLOYMENT_INSTANCE_USER) to target an already-deployed platform."
+        exit 1
+      fi
+    - |
+      BENCHMARK_REPO_URL="$(jq -r '.url' "$BENCHMARK_DATA_CONFIG")"
+      BENCHMARK_TOKEN="$(jq -r '.token' "$BENCHMARK_DATA_CONFIG" | tr -d '[:space:]')"
+      BENCHMARK_REPO_DIR="/data/$(basename "$BENCHMARK_REPO_URL" .git)"
+      BENCHMARK_REPO_HOST="${BENCHMARK_REPO_URL#https://}"
+      BENCHMARK_CLONE_URL="https://oauth2:${BENCHMARK_TOKEN}@${BENCHMARK_REPO_HOST}"
+    - |
+      if [[ -d "$BENCHMARK_REPO_DIR/.git" ]]; then
+        git -C "$BENCHMARK_REPO_DIR" pull
+      else
+        git clone "$BENCHMARK_CLONE_URL" "$BENCHMARK_REPO_DIR"
+      fi
+    - git -C "$BENCHMARK_REPO_DIR" lfs pull
+    - pip install -e "$CI_PROJECT_DIR/utils/platform-benchmark"
+    - mkdir -p "$ARTIFACTS_DIR/benchmark"
+    - jq '{root_path, scenarios}' "$BENCHMARK_DATA_CONFIG" > "$ARTIFACTS_DIR/benchmark/scenarios.json"
+    - |
+      benchmark run \
+        --host "https://$VM_FQDN" --username kaapana --password admin \
+        --data-dir "$BENCHMARK_REPO_DIR" \
+        --scenario-file "$ARTIFACTS_DIR/benchmark/scenarios.json" \
+        --kubectl "ssh -i $DEPLOYMENT_INSTANCE_SSH_KEY -o StrictHostKeyChecking=no $VM_USER@$VM_FQDN microk8s kubectl" \
+        --out "$ARTIFACTS_DIR/benchmark"
+  artifacts:
+    when: always
+    paths:
+      - "$ARTIFACTS_DIR/benchmark/"
+    reports:
+      metrics: "$ARTIFACTS_DIR/benchmark/metrics.txt"
+    expose_as: "Benchmark Results"

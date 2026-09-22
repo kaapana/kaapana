@@ -64,12 +64,18 @@ The CI-specific parts:
 
 | Config | Ruleset | Used by |
 |---|---|---|
-| [`ruff.toml`](../ruff.toml) | enforced: `E4`, `E7`, `E9`, `F`, `I`, 120 columns | pre-commit, and the `lint` job |
-| [`ci/ruff-quality.toml`](ruff-quality.toml) | advisory: adds `B`, `C4`, `SIM`, `UP`, `RUF`, `W` | the `code_quality` job only |
+| [`ruff.toml`](../ruff.toml) | enforced: `E4`, `E7`, `E9`, `F`, `I`, 120 columns | pre-commit, and `lint: [ruff]` |
+| [`ci/ruff-quality.toml`](ruff-quality.toml) | advisory: adds `B`, `C4`, `SIM`, `UP`, `RUF`, `W` | the Code Quality report of `lint: [ruff]` |
+| [`eslint.config.mjs`](../eslint.config.mjs), [`.prettierrc.json`](../.prettierrc.json) | enforced: Vue *essential*, typescript-eslint *recommended*, Prettier style | pre-commit, and `lint: [ui]` |
 
-Both jobs are in [`ci/pipeline/lint.yml`](pipeline/lint.yml) and neither blocks
-a merge: `lint` is `allow_failure: true`, `code_quality` always exits zero and
-only publishes the report.
+[`ci/pipeline/lint.yml`](pipeline/lint.yml) has one `lint` job, a matrix over
+`LINTER` (`ruff`, `ui`), gated by `exec_lint`; the script picks each entry's
+commands by `$LINTER`. Each entry fails on an enforced rule or formatting
+drift and publishes `gl-code-quality-report.json` to the MR Code Quality
+widget. `RUFF_VERSION` must match the `rev` in `.pre-commit-config.yaml` (the
+job checks); ESLint and Prettier come from the root `package-lock.json`.
+`lint: [ruff]` blocks the pipeline; `lint: [ui]` is `allow_failure: true` until
+the TypeScript/Vue codebase is reformatted.
 
 ## Configuration reference
 
@@ -94,7 +100,7 @@ Every stage toggle. Grouped as `[exec]` in the run form.
 | Input | Default | Meaning |
 |---|---|---|
 | `exec_unit_tests` | `true` | tests stage: unit tests + documentation build |
-| `exec_lint` | `true` | tests stage: ruff check + code quality report |
+| `exec_lint` | `true` | tests stage: `lint` matrix (ruff, ESLint/Prettier) + Code Quality report |
 | `exec_build` | `true` | build stage: full platform build |
 | `exec_security_scan` | `false` | trivy scan of the images this commit resolves to. A failed scan still publishes what it managed to check |
 | `exec_deploy` | `true` | deploy stage: deployment VM/target + platform installation |

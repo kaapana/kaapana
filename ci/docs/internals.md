@@ -86,7 +86,8 @@ timeout**, and a shared pip cache (`key: pip-test-jobs`).
 `build_documentation` uploads the built HTML and its log. `check_readthedocs`
 runs only on scheduled `develop` pipelines. 
 
-`lint` and `code_quality`
+`lint` is a matrix over `LINTER` (`ruff`, `ui`) on `ci-base`; the script picks
+each entry's commands by `$LINTER`, and each entry publishes its Code Quality report.
 
 ### build
 
@@ -368,7 +369,7 @@ Four report types are wired up. Only GitLab reads them; no job does.
 |---|---|---|
 | JUnit | every pytest job, `ui_e2e_tests`, `ui_unit_tests`, `playwright_ui_tests` | pipeline **Tests** tab, failed-test summary in the MR |
 | Coverage (cobertura) | every job extending `.pytest_template` | coverage badge, line markers in the MR diff |
-| Code Quality | `code_quality` | MR **Code Quality** widget |
+| Code Quality | every `lint` matrix entry | MR **Code Quality** widget |
 | Container scanning | `security_scan` | MR security widget, vulnerability report |
 
 Coverage is per suite — each job measures the one directory it exercises, and

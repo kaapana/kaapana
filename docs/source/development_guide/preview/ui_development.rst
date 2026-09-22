@@ -345,6 +345,24 @@ per app, ``--strictPort``) so suites can keep running in parallel.
 The same file carries ``ui_unit_tests``, a single (non-matrix) job running
 ``portal-ui``'s vitest suites — it is the only app with a ``test:unit`` script.
 
+.. _ui_linting:
+
+Linting
+=======
+
+- One ESLint/Prettier toolchain at the repository root covers every app — see
+  :ref:`code_formatting` for installation, editor setup and the rules. The
+  apps carry no lint configuration or lint dependencies of their own.
+- One script, ``ci/ci-code/lint/ui_lint.sh``, runs both the ``lint: [ui]`` CI
+  job and the ``ui-lint`` pre-commit hook. It lints every committed
+  ``.ts``/``.mts``/``.tsx``/``.vue`` file — unlike ``ui_e2e_tests``, there's no
+  list to update for a new app.
+
+.. code-block:: bash
+
+   ci/ci-code/lint/ui_lint.sh                     # CI: eslint + prettier --check, every committed file
+   ci/ci-code/lint/ui_lint.sh <file> [<file> ...]  # pre-commit: eslint --fix + prettier --write, these files
+
 
 .. _ui_testing:
 

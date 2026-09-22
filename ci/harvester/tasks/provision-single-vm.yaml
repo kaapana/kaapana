@@ -76,15 +76,6 @@
         networkdata: ""
     kubeconfig: "{{ harvester_kubeconfig }}"
 
-- name: Calculate memory max (2x guest memory)
-  ansible.builtin.set_fact:
-    vm_memory_guest_value: "{{ vm_config.memory_guest | default('16Gi') | regex_replace('[^0-9]', '') | int }}"
-    vm_memory_guest_unit: "{{ vm_config.memory_guest | default('16Gi') | regex_replace('[0-9]', '') }}"
-
-- name: Set memory max fact
-  ansible.builtin.set_fact:
-    vm_memory_max: "{{ (vm_memory_guest_value * 2) }}{{ vm_memory_guest_unit }}"
-
 - name: Render VM manifest from Jinja template
   ansible.builtin.template:
     src: ../templates/vm.yml.j2
@@ -92,12 +83,10 @@
     mode: '0644'
   vars:
     vm_name: "{{ vm_config.vm_name }}"
-    vm_cpu_cores: "{{ vm_config.cpu_cores | default('8') }}"
-    vm_cpu_sockets: 1
-    vm_cpu_threads: 1
-    vm_cpu_max_sockets: 8
+    vm_cpu_cores: "{{ vm_config.cpu_cores | default(8) | int }}"
+    vm_cpu_sockets: "{{ vm_config.cpu_sockets | default(1) | int }}"
+    vm_cpu_threads: "{{ vm_config.cpu_threads | default(1) | int }}"
     vm_memory_guest: "{{ vm_config.memory_guest | default('16Gi') }}"
-    vm_memory_max: "{{ vm_memory_max }}"
     vm_disk_size: "{{ vm_config.disk_size | default('128Gi') }}"
     pvc_suffix: "{{ pvc_suffix }}"
 
@@ -179,7 +168,9 @@
     namespace: "{{ harvester_namespace }}"
     kubeconfig: "{{ harvester_kubeconfig }}"
   register: vm_status
-  until: vm_status.resources | length > 0 and (vm_status.resources[0].status | default({}, true)).ready | default(false, true)
+  until: >-
+    vm_status.get('resources', []) | length > 0
+    and vm_status.get('resources')[0].get('status', {}).get('ready', false)
   retries: 30
   delay: 10
   changed_when: false
@@ -196,11 +187,3 @@
   ansible.builtin.file:
     path: /tmp/{{ vm_config.vm_name }}-vm.yml
     state: absent
-
-- name: Write deployment env file
-  ansible.builtin.copy:
-    content: |
-      VM_FQDN={{ vm_config.vm_name }}.{{ vm_dns_domain }}
-      VM_USER={{ vm_user }}
-    dest: "{{ vm_config.vm_name }}-deployment.env"
-    mode: '0644'

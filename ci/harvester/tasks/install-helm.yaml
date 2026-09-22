@@ -11,9 +11,18 @@
   args:
     executable: /bin/bash
 
+- name: Wait for snapd to finish initial seeding
+  become: yes
+  command: snap wait system seed.loaded
+  changed_when: false
+
 - name: Install Helm
   become: yes
   command: snap install helm --classic --channel=latest/stable
+  register: helm_install
+  until: helm_install.rc == 0
+  retries: 5
+  delay: 15
 
 - name: Check helm push installed
   become: no

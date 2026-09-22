@@ -71,6 +71,11 @@ Both jobs are in [`ci/pipeline/lint.yml`](pipeline/lint.yml) and neither blocks
 a merge: `lint` is `allow_failure: true`, `code_quality` always exits zero and
 only publishes the report.
 
+Helm charts: the `helm_lint` job (same file) and the `helm-lint` pre-commit hook
+both run `kaapana-build --lint-only`, helm lint + kubeval of the platform chart
+tree. `helm_lint` blocks the pipeline; `build_packages` runs with `--no-linting`
+so the build does not repeat it.
+
 ## Configuration reference
 
 Four groups of knobs. Two are **inputs** and two are **variables**

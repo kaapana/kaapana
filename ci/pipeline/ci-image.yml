@@ -2,6 +2,8 @@ spec:
   inputs:
     runner_tag:
       type: string
+    exec_ci_image_rebuild:
+      type: boolean
 ---
 # Stage: preflight (build_ci_image) — rebuild of the CI job image
 # In:  ci/images/**, pinned dependency files (rules:changes)
@@ -9,9 +11,10 @@ spec:
 ##############################################
 # CI IMAGE
 ##############################################
-# Rebuilds the CI job image when its inputs change (bootstrap from an empty
-# registry is a manual build+push, see README section 5). Land image changes
-# with a CI_IMAGES_TAG bump — jobs pull the new tag on first use.
+# Rebuilds the CI job image when its inputs change. Land image changes
+# with a CI_IMAGES_TAG bump — jobs pull the new tag on first use. To force a
+# rebuild outside an MR/develop-push pipeline (e.g. bootstrapping an empty
+# registry), run with -i exec_ci_image_rebuild:true.
 build_ci_image:
   stage: preflight
   tags:
@@ -29,6 +32,8 @@ build_ci_image:
   variables:
     DOCKER_HOST: "tcp://docker:2375"
   rules:
+    - if: '"$[[ inputs.exec_ci_image_rebuild ]]" == "true"'
+      when: on_success
     # changes: only has a diff basis on push/MR pipelines — it evaluates to
     # true on schedule/web/api/trigger and would rebuild every run
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" || ($CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop")

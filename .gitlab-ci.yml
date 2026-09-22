@@ -46,6 +46,10 @@ spec:
       default: false
       type: boolean
       description: "[exec] true keeps the deployment VM for 4h after the pipeline"
+    exec_ci_image_rebuild:
+      default: false
+      type: boolean
+      description: "[exec] force build_ci_image to run on any pipeline source, bypassing its normal MR/develop-push + changes gate"
 
     # --- [runner] runner tag per stage group.
     build_runner_tag:
@@ -208,6 +212,7 @@ include:
   - local: /ci/pipeline/ci-image.yml
     inputs:
       runner_tag: $[[ inputs.build_runner_tag ]]
+      exec_ci_image_rebuild: $[[ inputs.exec_ci_image_rebuild ]]
   - local: /ci/pipeline/lint.yml
     inputs:
       runner_tag: $[[ inputs.tests_runner_tag ]]

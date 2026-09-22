@@ -4,7 +4,7 @@ import { openView, row } from './fixtures/helpers'
 test.beforeEach(({ page }) => openView(page))
 
 test('search filters the list down to matching extensions', async ({ page }) => {
-  await page.getByLabel('Search').fill('JupyterLab')
+  await page.getByRole('textbox', { name: 'Search' }).fill('JupyterLab')
 
   await expect(row(page, 'JupyterLab')).toBeVisible()
   await expect(row(page, 'MITK Workbench')).toHaveCount(0)

@@ -1,278 +1,286 @@
 <template>
-  <div class="workflow-applications">
-    <v-container fluid class="text-left">
-      <v-card>
-        <v-card-title>
-          <v-row>
-            <v-col cols="12" md="12">
-              <span>Applications and workflows &nbsp;
-                <v-btn
-                  v-if="canUpdateExtensions"
-                  data-testid="update-extensions"
-                  color="primary"
-                  :prepend-icon="kaapanaIcons.refresh"
-                  :loading="updatingExtensions"
-                  :disabled="updatingExtensions"
-                  @click="askUpdateExtensions"
-                >
-                  Download latest extensions
-                </v-btn>
-              </span>
-            </v-col>
-          </v-row>
-        </v-card-title>
-        <!-- TODO: set max file size limit -->
+  <v-container fluid class="text-left">
+    <div class="d-flex flex-wrap align-start justify-space-between ga-4 mb-4">
+      <div>
+        <h1 class="text-h4">Applications and workflows</h1>
+      </div>
+
+      <v-btn
+        v-if="canUpdateExtensions"
+        data-testid="update-extensions"
+        color="primary"
+        :prepend-icon="kaapanaIcons.refresh"
+        :loading="updatingExtensions"
+        :disabled="updatingExtensions"
+        @click="askUpdateExtensions"
+      >
+        Download latest extensions
+      </v-btn>
+    </div>
+
+    <!-- TODO: set max file size limit -->
+    <v-card v-if="canUploadExtensions" :elevation="2" class="mb-4">
+      <v-card-item>
+        <v-card-title>Upload an extension</v-card-title>
+        <v-card-subtitle>
+          Add a Helm chart (.tgz) or a container image (.tar) to this platform.
+        </v-card-subtitle>
+      </v-card-item>
+      <v-card-text>
         <upload
-          v-if="canUploadExtensions"
           :label-idle="labelIdle"
           url="/kube-helm-api/filepond-upload"
           :on-process-file-start="fileStart"
           :on-process-file="fileComplete"
           :accepted-file-types="allowedFileTypes"
         />
-        <v-card-title>
-          <v-row>
-            <v-col cols="12" sm="6">
-              <v-text-field
-                v-model="search"
-                :prepend-icon="kaapanaIcons.search"
-                label="Search"
-                variant="underlined"
-                hide-details
-              />
-            </v-col>
-          </v-row>
-        </v-card-title>
-        <v-data-table
-          class="elevation-1"
-          :headers="headers"
-          :items="filteredLaunchedAppLinks"
-          :items-per-page="-1"
-          :loading="loading"
-          :search="search"
-          :sort-by="sortBy"
-          loading-text="Waiting a few seconds..."
-        >
-          <template #header.kind="{ column }">
-            {{ column.title }}
-            <v-menu>
-              <template #activator="{ props }">
-                <v-btn icon variant="text" size="small" v-bind="props" data-testid="filter-kind">
-                  <v-icon :icon="extensionIcons.filter" />
-                </v-btn>
-              </template>
-              <v-card min-width="200px">
-                <v-checkbox v-model="selectedFilters" density="compact" label="Applications" value="Applications" />
-                <v-checkbox v-model="selectedFilters" density="compact" label="Workflows" value="Workflows" />
-              </v-card>
-            </v-menu>
-          </template>
-          <template #header.experimental="{ column }">
-            {{ column.title }}
-            <v-menu>
-              <template #activator="{ props }">
-                <v-btn icon variant="text" size="small" v-bind="props" data-testid="filter-maturity">
-                  <v-icon :icon="extensionIcons.filter" />
-                </v-btn>
-              </template>
-              <v-card min-width="200px">
-                <v-checkbox v-model="selectedFilters" density="compact" label="Experimental" value="Experimental" />
-                <v-checkbox v-model="selectedFilters" density="compact" label="Stable" value="Stable" />
-              </v-card>
-            </v-menu>
-          </template>
-          <template #header.resourceRequirement="{ column }">
-            {{ column.title }}
-            <v-menu>
-              <template #activator="{ props }">
-                <v-btn icon variant="text" size="small" v-bind="props">
-                  <v-icon :icon="extensionIcons.filter" />
-                </v-btn>
-              </template>
-              <v-card min-width="200px">
-                <v-checkbox v-model="selectedFilters" density="compact" label="CPU" value="CPU" />
-                <v-checkbox v-model="selectedFilters" density="compact" label="GPU" value="GPU" />
-              </v-card>
-            </v-menu>
-          </template>
-          <template #item.kind="{ item }">
-            <v-tooltip location="bottom" v-if="item.kind === 'dag'">
-              <template #activator="{ props }">
-                <v-icon color="primary" v-bind="props" :icon="extensionIcons.workflow" />
-              </template>
-              <span>One or multiple workflows that will trigger Airflow DAGs</span>
-            </v-tooltip>
-            <v-tooltip location="bottom" v-if="item.kind === 'application'">
-              <template #activator="{ props }">
-                <v-icon color="primary" v-bind="props" :icon="extensionIcons.application" />
-              </template>
-              <span>An application with a user interface</span>
-            </v-tooltip>
-          </template>
-          <template #item.uiVisibleName="{ item }">
-            <div class="d-flex align-center ga-2">
-              <v-tooltip location="bottom" :text="item.description">
-                <template #activator="{ props }">
-                  <div class="d-flex flex-column" v-bind="props">
-                    <span class="text-body-1 font-weight-medium">{{ item.uiVisibleName }}</span>
-                    <span class="text-caption text-medium-emphasis text-truncate extensions-description">{{ item.description }}</span>
-                  </div>
-                </template>
-              </v-tooltip>
-              <v-tooltip location="bottom" text="Open the documentation in a new tab">
-                <template #activator="{ props }">
-                  <a
-                    :href="getHref('/docs/' + item.documentation)"
-                    target="_blank"
-                    v-bind="props"
-                  >
-                    <v-icon color="primary" :icon="kaapanaIcons.help" />
-                  </a>
-                </template>
-              </v-tooltip>
-            </div>
-          </template>
-          <template #item.links="{ item }">
-            <a
-              v-for="link in item.links"
-              :key="link"
-              :href="getHref(link)"
-              target="_blank"
-            >
-              <v-icon color="primary" :icon="kaapanaIcons.externalLink" />
-            </a>
-          </template>
-          <template #item.versions="{ item }">
-            <v-select
-              :items="item.versions"
-              v-model="item.version"
-              variant="underlined"
-              density="compact"
-              hide-details
-            />
-          </template>
-          <template #item.resourceRequirement="{ item }">
-            <span>{{ item.resourceRequirement.toUpperCase() }}</span>
-          </template>
-          <template #item.successful="{ item }">
-            <v-tooltip
-              location="right"
-              v-if="item.successful === 'pending'"
-              :key="checkDeploymentReady(item)"
-            >
-              <template #activator="{ props }">
-                <v-progress-circular indeterminate color="primary" v-bind="props" />
-              </template>
-              <span>Helm status: {{ getHelmStatus(item) }} <br /> Kubernetes status: {{ getKubeStatus(item) }}</span>
-            </v-tooltip>
-            <v-tooltip location="right" v-else-if="item.successful === 'no'">
-              <template #activator="{ props }">
-                <v-icon color="red" v-bind="props" :icon="kaapanaIcons.error" />
-              </template>
-              <span>Helm status: {{ getHelmStatus(item) }} <br /> Kubernetes status: {{ getKubeStatus(item) }}</span>
-            </v-tooltip>
-            <v-tooltip location="right" v-if="checkDeploymentReady(item) === true">
-              <template #activator="{ props }">
-                <v-icon color="green" v-bind="props" :icon="kaapanaIcons.success" />
-              </template>
-              <span>Helm status: {{ getHelmStatus(item) }} <br /> Kubernetes status: {{ getKubeStatus(item) }}</span>
-            </v-tooltip>
-          </template>
-          <template #item.experimental="{ item }">
-            <v-tooltip location="bottom" v-if="item.experimental === 'yes'">
-              <template #activator="{ props }">
-                <v-icon color="primary" v-bind="props" :icon="extensionIcons.experimental" />
-              </template>
-              <span>Experimental extension</span>
-            </v-tooltip>
-            <v-tooltip location="bottom" v-else>
-              <template #activator="{ props }">
-                <v-icon color="primary" v-bind="props" :icon="extensionIcons.stable" />
-              </template>
-              <span>Stable extension</span>
-            </v-tooltip>
-          </template>
-          <template #item.installed="{ item }">
-            <v-btn
-              v-if="checkInstalled(item) === 'yes' && item.successful !== 'pending' && item.successful !== 'justLaunched'"
-              @click="askUninstall(item, false)"
-              color="primary"
-              min-width="160px"
-            >
-              <span v-if="item.multiinstallable === 'yes'">Delete</span>
-              <span v-if="item.multiinstallable === 'no'">Uninstall</span>
-            </v-btn>
-            <v-btn
-              v-if="checkInstalled(item) === 'no' && item.successful !== 'pending' && item.successful !== 'justLaunched'"
-              @click="getFormInfo(item)"
-              color="primary"
-              min-width="160px"
-            >
-              <span v-if="item.multiinstallable === 'yes'">Launch</span>
-              <span v-if="item.multiinstallable === 'no'">Install</span>
+      </v-card-text>
+    </v-card>
 
-            </v-btn>
+    <v-card :elevation="2">
+      <v-toolbar color="surface-light" flat density="comfortable">
+        <v-text-field
+          v-model="search"
+          :prepend-inner-icon="kaapanaIcons.search"
+          label="Search"
+          variant="outlined"
+          density="compact"
+          hide-details
+          clearable
+          class="mx-4 extensions-search"
+        />
+      </v-toolbar>
 
-            <v-btn
-              v-if="item.successful === 'justLaunched'"
-              color="primary"
-              min-width="160px"
-              disabled
-            >
-              <span>Launched</span>
-            </v-btn>
-            <v-menu
-              v-if="item.successful === 'pending'"
-              v-model="pendingMenu[item.releaseName]"
-              :close-on-content-click="false"
-            >
+      <v-divider />
+
+      <v-data-table
+        :headers="headers"
+        :items="filteredLaunchedAppLinks"
+        :items-per-page="-1"
+        :loading="loading"
+        :search="search"
+        :sort-by="sortBy"
+        loading-text="Loading extensions…"
+      >
+        <template #header.kind="{ column }">
+          {{ column.title }}
+          <v-menu>
+            <template #activator="{ props }">
+              <v-btn icon variant="text" size="small" v-bind="props" data-testid="filter-kind">
+                <v-icon :icon="extensionIcons.filter" />
+              </v-btn>
+            </template>
+            <v-card min-width="200px">
+              <v-checkbox v-model="selectedFilters" density="compact" label="Applications" value="Applications" />
+              <v-checkbox v-model="selectedFilters" density="compact" label="Workflows" value="Workflows" />
+            </v-card>
+          </v-menu>
+        </template>
+        <template #header.experimental="{ column }">
+          {{ column.title }}
+          <v-menu>
+            <template #activator="{ props }">
+              <v-btn icon variant="text" size="small" v-bind="props" data-testid="filter-maturity">
+                <v-icon :icon="extensionIcons.filter" />
+              </v-btn>
+            </template>
+            <v-card min-width="200px">
+              <v-checkbox v-model="selectedFilters" density="compact" label="Experimental" value="Experimental" />
+              <v-checkbox v-model="selectedFilters" density="compact" label="Stable" value="Stable" />
+            </v-card>
+          </v-menu>
+        </template>
+        <template #header.resourceRequirement="{ column }">
+          {{ column.title }}
+          <v-menu>
+            <template #activator="{ props }">
+              <v-btn icon variant="text" size="small" v-bind="props">
+                <v-icon :icon="extensionIcons.filter" />
+              </v-btn>
+            </template>
+            <v-card min-width="200px">
+              <v-checkbox v-model="selectedFilters" density="compact" label="CPU" value="CPU" />
+              <v-checkbox v-model="selectedFilters" density="compact" label="GPU" value="GPU" />
+            </v-card>
+          </v-menu>
+        </template>
+        <template #item.kind="{ item }">
+          <v-tooltip location="bottom" v-if="item.kind === 'dag'">
+            <template #activator="{ props }">
+              <v-icon color="primary" v-bind="props" :icon="extensionIcons.workflow" />
+            </template>
+            <span>One or multiple workflows that will trigger Airflow DAGs</span>
+          </v-tooltip>
+          <v-tooltip location="bottom" v-if="item.kind === 'application'">
+            <template #activator="{ props }">
+              <v-icon color="primary" v-bind="props" :icon="extensionIcons.application" />
+            </template>
+            <span>An application with a user interface</span>
+          </v-tooltip>
+        </template>
+        <template #item.uiVisibleName="{ item }">
+          <div class="d-flex align-center ga-2">
+            <v-tooltip location="bottom" :text="item.description">
               <template #activator="{ props }">
-                <v-btn color="primary" min-width="160px" v-bind="props" :append-icon="kaapanaIcons.expand">
-                  Pending
-                </v-btn>
+                <div class="d-flex flex-column" v-bind="props">
+                  <span class="text-body-1 font-weight-medium">{{ item.uiVisibleName }}</span>
+                  <span class="text-caption text-medium-emphasis text-truncate extensions-description">{{ item.description }}</span>
+                </div>
               </template>
-              <v-card max-width="320px" class="text-left">
-                <v-card-title class="text-subtitle-1">Stuck in Pending?</v-card-title>
-                <v-card-text class="text-body-2">
-                  An installation that stays pending usually means an error in the Helm chart. Forcing
-                  the uninstall skips the chart's hooks and clears the release.
-                </v-card-text>
-                <v-card-actions>
-                  <v-spacer />
-                  <v-btn color="error" :prepend-icon="kaapanaIcons.delete" @click="askUninstall(item, true)">
-                    {{ item.multiinstallable === 'yes' ? 'Force Delete' : 'Force Uninstall' }}
-                  </v-btn>
-                </v-card-actions>
-              </v-card>
-            </v-menu>
-          </template>
-        </v-data-table>
-      </v-card>
-    </v-container>
+            </v-tooltip>
+            <v-tooltip location="bottom" text="Open the documentation in a new tab">
+              <template #activator="{ props }">
+                <a
+                  :href="getHref('/docs/' + item.documentation)"
+                  target="_blank"
+                  v-bind="props"
+                >
+                  <v-icon color="primary" :icon="kaapanaIcons.help" />
+                </a>
+              </template>
+            </v-tooltip>
+          </div>
+        </template>
+        <template #item.links="{ item }">
+          <a
+            v-for="link in item.links"
+            :key="link"
+            :href="getHref(link)"
+            target="_blank"
+          >
+            <v-icon color="primary" :icon="kaapanaIcons.externalLink" />
+          </a>
+        </template>
+        <template #item.versions="{ item }">
+          <v-select
+            :items="item.versions"
+            v-model="item.version"
+            variant="underlined"
+            density="compact"
+            hide-details
+          />
+        </template>
+        <template #item.resourceRequirement="{ item }">
+          <span>{{ item.resourceRequirement.toUpperCase() }}</span>
+        </template>
+        <template #item.successful="{ item }">
+          <v-tooltip
+            location="right"
+            v-if="item.successful === 'pending'"
+            :key="checkDeploymentReady(item)"
+          >
+            <template #activator="{ props }">
+              <v-progress-circular indeterminate color="primary" v-bind="props" />
+            </template>
+            <span>Helm status: {{ getHelmStatus(item) }} <br /> Kubernetes status: {{ getKubeStatus(item) }}</span>
+          </v-tooltip>
+          <v-tooltip location="right" v-else-if="item.successful === 'no'">
+            <template #activator="{ props }">
+              <v-icon color="red" v-bind="props" :icon="kaapanaIcons.error" />
+            </template>
+            <span>Helm status: {{ getHelmStatus(item) }} <br /> Kubernetes status: {{ getKubeStatus(item) }}</span>
+          </v-tooltip>
+          <v-tooltip location="right" v-if="checkDeploymentReady(item) === true">
+            <template #activator="{ props }">
+              <v-icon color="green" v-bind="props" :icon="kaapanaIcons.success" />
+            </template>
+            <span>Helm status: {{ getHelmStatus(item) }} <br /> Kubernetes status: {{ getKubeStatus(item) }}</span>
+          </v-tooltip>
+        </template>
+        <template #item.experimental="{ item }">
+          <v-tooltip location="bottom" v-if="item.experimental === 'yes'">
+            <template #activator="{ props }">
+              <v-icon color="primary" v-bind="props" :icon="extensionIcons.experimental" />
+            </template>
+            <span>Experimental extension</span>
+          </v-tooltip>
+          <v-tooltip location="bottom" v-else>
+            <template #activator="{ props }">
+              <v-icon color="primary" v-bind="props" :icon="extensionIcons.stable" />
+            </template>
+            <span>Stable extension</span>
+          </v-tooltip>
+        </template>
+        <template #item.installed="{ item }">
+          <v-btn
+            v-if="checkInstalled(item) === 'yes' && item.successful !== 'pending' && item.successful !== 'justLaunched'"
+            @click="askUninstall(item, false)"
+            color="primary"
+            min-width="160px"
+          >
+            <span v-if="item.multiinstallable === 'yes'">Delete</span>
+            <span v-if="item.multiinstallable === 'no'">Uninstall</span>
+          </v-btn>
+          <v-btn
+            v-if="checkInstalled(item) === 'no' && item.successful !== 'pending' && item.successful !== 'justLaunched'"
+            @click="getFormInfo(item)"
+            color="primary"
+            min-width="160px"
+          >
+            <span v-if="item.multiinstallable === 'yes'">Launch</span>
+            <span v-if="item.multiinstallable === 'no'">Install</span>
 
-    <ExtensionParamsDialog
-      v-if="popUpItem"
-      :model-value="paramsDialogOpen"
-      :extension-name="popUpItem.uiVisibleName ?? popUpItem.name"
-      :submit-label="popUpItem.multiinstallable === 'yes' ? 'Launch' : 'Install'"
-      :params="popUpParams"
-      @update:model-value="onParamsDialogToggle"
-      @update:dirty="onParamsDirty"
-      @submit="onParamsSubmit"
-    />
+          </v-btn>
 
-    <ConfirmDialog
-      v-model="confirmOpen"
-      :color="confirmContent.color"
-      :title="confirmContent.title"
-      :text="confirmContent.text"
-      :confirm-text="confirmContent.confirmText"
-      @confirm="runPendingAction"
-    />
-  </div>
+          <v-btn
+            v-if="item.successful === 'justLaunched'"
+            color="primary"
+            min-width="160px"
+            disabled
+          >
+            <span>Launched</span>
+          </v-btn>
+          <v-menu
+            v-if="item.successful === 'pending'"
+            v-model="pendingMenu[item.releaseName]"
+            :close-on-content-click="false"
+          >
+            <template #activator="{ props }">
+              <v-btn color="primary" min-width="160px" v-bind="props" :append-icon="kaapanaIcons.expand">
+                Pending
+              </v-btn>
+            </template>
+            <v-card max-width="320px" class="text-left">
+              <v-card-title class="text-subtitle-1">Stuck in Pending?</v-card-title>
+              <v-card-text class="text-body-2">
+                An installation that stays pending usually means an error in the Helm chart. Forcing
+                the uninstall skips the chart's hooks and clears the release.
+              </v-card-text>
+              <v-card-actions>
+                <v-spacer />
+                <v-btn color="error" :prepend-icon="kaapanaIcons.delete" @click="askUninstall(item, true)">
+                  {{ item.multiinstallable === 'yes' ? 'Force Delete' : 'Force Uninstall' }}
+                </v-btn>
+              </v-card-actions>
+            </v-card>
+          </v-menu>
+        </template>
+      </v-data-table>
+    </v-card>
+  </v-container>
+
+  <ExtensionParamsDialog
+    v-if="popUpItem"
+    :model-value="paramsDialogOpen"
+    :extension-name="popUpItem.uiVisibleName ?? popUpItem.name"
+    :submit-label="popUpItem.multiinstallable === 'yes' ? 'Launch' : 'Install'"
+    :params="popUpParams"
+    @update:model-value="onParamsDialogToggle"
+    @update:dirty="onParamsDirty"
+    @submit="onParamsSubmit"
+  />
+
+  <ConfirmDialog
+    v-model="confirmOpen"
+    :color="confirmContent.color"
+    :title="confirmContent.title"
+    :text="confirmContent.text"
+    :confirm-text="confirmContent.confirmText"
+    @confirm="runPendingAction"
+  />
 </template>
 
-<script setup lang='ts'>
+<script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useNotification } from '@kyvg/vue3-notification'
 import { ConfirmDialog, kaapanaApiService, postViewDirty, refreshShell } from '@kaapana/base-ui'
@@ -738,6 +746,10 @@ onBeforeUnmount(() => {
 <style lang="scss">
 a {
   text-decoration: none;
+}
+
+.extensions-search {
+  max-width: 420px;
 }
 
 .extensions-description {

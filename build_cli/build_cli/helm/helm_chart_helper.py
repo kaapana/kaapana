@@ -314,6 +314,14 @@ class HelmChartHelper:
                     collection_container = next(iter(collection_chart.chart_containers))
                     collection_container.container_build_dir = collection_target_dir
 
+        if cls._build_config.lint_only:
+            logger.info("Lint-only: chart tree linted, skipping packaging and push")
+            return
+
+        # -------------------
+        # 3. Package collection dependencies
+        # -------------------
+        for collection_chart in platform_chart.kaapana_collections:
             with alive_bar(
                 len(collection_chart.chart_dependencies),
                 dual_line=True,

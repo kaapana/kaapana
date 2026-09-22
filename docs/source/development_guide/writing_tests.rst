@@ -7,7 +7,8 @@ Writing Tests
 Three layers of an extension can be tested on a development machine, without a
 deployed platform:
 
-- a :term:`processing-container`, through the Task API CLI on Docker
+- a :term:`processing-container` that ships a
+  :file:`processing-container.json`, through the Task API CLI on Docker
 - a local operator, through pytest
 - a user interface, through a mock-backed browser suite
 
@@ -43,13 +44,20 @@ a :file:`task.json` and a minimal file to start from.
 Local operators
 ===============
 
-Operators deriving from ``KaapanaPythonBaseOperator`` or
-``KaapanaBranchPythonBaseOperator`` run their code in the Airflow process, so
-pytest can import them and call them directly. Operators deriving from
-``KaapanaBaseOperator`` only launch a container and keep their logic inside the
-image; that logic is tested as a processing-container, above. The base class
-decides this, not the name: most in-process operators are called ``Local*``,
-but the prefix alone does not settle it, so check what the class derives from.
+Whether pytest can test an operator is decided by its base class, not by its
+name. Most in-process operators are called ``Local*``, but the prefix alone
+does not settle it.
+
+``KaapanaPythonBaseOperator``, ``KaapanaBranchPythonBaseOperator``
+   Run their code in the Airflow process. pytest imports them and calls them
+   directly, as the steps below show.
+
+``KaapanaBaseOperator``
+   Launches a container and keeps its logic inside the image, where pytest
+   cannot reach it. If that image ships a :file:`processing-container.json`,
+   test it with the Task API CLI, as in `Processing containers`_ above. The
+   images of the older operators do not ship one, and no suite in this
+   repository covers their logic.
 
 The suite lives in :file:`tests/operators`, and a test there is built like this.
 

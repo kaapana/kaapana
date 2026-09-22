@@ -115,6 +115,7 @@ def test_readiness_job_publishes_its_table():
         ("exec_unit_tests", "unit_tests"),
         ("exec_unit_tests", "ci_config_tests"),
         ("exec_lint", "lint"),
+        ("exec_helm_lint", "helm_lint"),
     ],
 )
 def test_toggle_off_never_runs_the_job(toggle, job):
@@ -182,3 +183,8 @@ def test_the_admin_chart_and_namespace_come_from_the_variables():
     assert "DEPLOYMENT_INSTANCE_HELM_NAMESPACE" in play["vars"]["helm_namespace"]
     lookup = next(task for task in play["tasks"] if "ansible.builtin.shell" in task)["ansible.builtin.shell"]
     assert "-n {{ helm_namespace | quote }} get values {{ admin_chart | quote }}" in lookup
+
+def test_build_does_not_lint_charts(default_config):
+    """Charts are linted by helm_lint in the tests stage; the build must not repeat it."""
+    script = "\n".join(jobs(default_config)["build_packages"]["script"])
+    assert "--no-linting" in script

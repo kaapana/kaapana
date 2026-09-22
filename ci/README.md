@@ -371,12 +371,10 @@ the suite that already works that way:
 
 ### The job
 
-A new test file does not always need one. Most jobs hand pytest a directory, so
-a `test_*.py` file below one of those runs on the next pipeline. Two jobs name a
-single file instead, `kube_helm_tests` and `access_information_interface_tests`.
-A new file next to those runs once the job names it too.
-
-A suite at a new location does need one:
+To add a test suite to the CI, create a new job in
+[`ci/pipeline/unit-tests.yml`](pipeline/unit-tests.yml) that points pytest at
+the suite's directory, not at a single file. The following yaml snippet can be
+used as a starting point:
 
 ```yaml
 <name>_tests:
@@ -392,8 +390,8 @@ A suite at a new location does need one:
         - <name>_report.xml
 ```
 
-`kaapana_backend_tests` in [unit-tests.yml](pipeline/unit-tests.yml) is this
-filled in. Section 11 covers what the `--cov` flags report.
+`kaapana_backend_tests` is this snippet filled in. Section 11 covers what the
+`--cov` flags report.
 
 Then, for any job:
 

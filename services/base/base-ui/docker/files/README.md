@@ -31,6 +31,7 @@ deliberately only small, stable pieces.
   dialog that stays until closed and can be copied.
 - `apiErrorDetail(err)`, `apiErrorText(err, fallback)` — the backend's own
   `detail` message, and a user-facing sentence built from it.
+- `HelpIcon` — a keyboard-focusable help button with a tooltip, for field help.
 - `useAuthStore`, `User` / `useProjectStore`, `Project` — the two Pinia stores
   every view registers.
 - `useShellSettings()` — follows the shell's UI settings (dark mode live, other

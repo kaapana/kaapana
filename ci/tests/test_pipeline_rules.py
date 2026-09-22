@@ -112,6 +112,7 @@ def test_readiness_job_publishes_its_table():
         ("exec_build", "build_packages"),
         ("exec_unit_tests", "unit_tests"),
         ("exec_lint", "lint"),
+        ("exec_helm_lint", "helm_lint"),
     ],
 )
 def test_toggle_off_never_runs_the_job(toggle, job):
@@ -135,3 +136,9 @@ def test_external_target_is_never_destroyed():
     first_rule = jobs(config)["destroy_deployment"]["rules"][0]
     assert first_rule["when"] == "never"
     assert "DEPLOYMENT_INSTANCE_FQDN" in first_rule["if"]
+
+
+def test_build_does_not_lint_charts(default_config):
+    """Charts are linted by helm_lint in the tests stage; the build must not repeat it."""
+    script = "\n".join(jobs(default_config)["build_packages"]["script"])
+    assert "--no-linting" in script

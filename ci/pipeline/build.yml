@@ -78,8 +78,8 @@ build_packages:
       fi
       export REGISTRY_PW="$REGISTRY_TOKEN"
 
-    # Run build, capturing exit code so artifacts are always collected
-    - kaapana-build --default-registry "$REGISTRY_URL" $CI_EXEC_BUILD_ARGUMENTS
+    # Charts are linted by helm_lint in the tests stage, not again here
+    - kaapana-build --no-linting --default-registry "$REGISTRY_URL" $CI_EXEC_BUILD_ARGUMENTS
 
   # No docker logout needed: login state dies with the job container.
 

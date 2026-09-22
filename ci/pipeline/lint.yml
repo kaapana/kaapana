@@ -2,12 +2,15 @@ spec:
   inputs:
     exec_lint:
       type: boolean
+    exec_helm_lint:
+      type: boolean
     runner_tag:
       type: string
 ---
-# Stage: tests — lint report + Code Quality report
+# Stage: tests — lint report + Code Quality report + helm lint
 # In:  the job's own checkout
-# Out: `lint` fails on formatting drift or an enforced ruff rule
+# Out: `lint` fails on formatting drift or an enforced ruff rule,
+#      `helm_lint` on a chart that does not lint or kubeval
 ##############################################
 # RUFF
 ##############################################
@@ -53,3 +56,32 @@ code_quality:
     # available in the job's artifacts via API
     paths:
       - gl-code-quality-report.json
+
+##############################################
+# Helm lint: helm lint + kubeval of the platform chart tree — blocks the pipeline
+##############################################
+# The same check kaapana-build runs while building, hours earlier and on its
+# own; build_packages therefore runs with --no-linting. ci-base has helm and
+# the kubeval plugin. Chart versions come from git describe: full clone + tags.
+helm_lint:
+  stage: tests
+  tags:
+    - $[[ inputs.runner_tag ]]
+  image: $CI_BASE_IMAGE
+  timeout: 15m
+  rules:
+    - if: '"$[[ inputs.exec_helm_lint ]]" == "true"'
+      when: on_success
+    - when: never
+  variables:
+    GIT_STRATEGY: clone
+    GIT_DEPTH: "0"
+  before_script:
+    - git fetch --tags
+    - pip install -e build_cli/
+  script:
+    - kaapana-build --lint-only --kaapana-dir "$CI_PROJECT_DIR"
+  artifacts:
+    when: always
+    paths:
+      - build/build.log

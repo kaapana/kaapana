@@ -1,86 +1,67 @@
-import { test, expect } from '@playwright/test'
-import { installMockBackend, VIEW_PATH } from './fixtures/mock-backend'
+import { test, expect, type Page } from '@playwright/test'
+import { countRequests, dialog, HELM, nextPost, openView, row } from './fixtures/helpers'
 
-test.beforeEach(async ({ page }) => {
-  await installMockBackend(page)
-  await page.goto(VIEW_PATH)
-  await expect(page.getByText('MITK Workbench')).toBeVisible()
-})
+async function pickVersion(page: Page, name: string, version: string) {
+  // v-select exposes a wrapper and an input, both role=combobox; open via the first.
+  await row(page, name).getByRole('combobox').first().click()
+  await page.getByRole('option', { name: version }).click()
+}
 
-test('installs a parameter-less extension and posts name/version/keywords', async ({ page }) => {
-  const reqPromise = page.waitForRequest(
-    (r) => r.url().includes('/kube-helm-api/helm-install-chart') && r.method() === 'POST',
-  )
-  // JupyterLab is multi-installable with no config form -> installs immediately.
-  await page.getByRole('button', { name: 'Launch' }).click()
+test.describe('install and launch', () => {
+  test.beforeEach(({ page }) => openView(page))
 
-  const req = await reqPromise
-  expect(req.postDataJSON()).toMatchObject({
-    name: 'jupyterlab',
-    version: '3.2.0',
-    keywords: ['kaapana-application'],
-  })
-  // extension_params must be absent when the extension has no config form.
-  expect(req.postDataJSON().extension_params).toBeUndefined()
+  test('installs a parameter-less extension and posts name/version/keywords', async ({ page }) => {
+    const request = page.waitForRequest((r) => r.url().includes(HELM.install))
+    // JupyterLab is multi-installable with no config form -> installs immediately.
+    await row(page, 'JupyterLab').getByRole('button', { name: 'Launch' }).click()
 
-  // The interceptor must rewrite the call onto the project-scoped route.
-  expect(req.url()).toContain('/project/admin/kube-helm-api/helm-install-chart')
-})
-
-test('opens the config form and posts entered parameters', async ({ page }) => {
-  // nnU-Net has a config form (string, bool, single-select).
-  // exact: true so "Install" does not also match the "Uninstall" button.
-  await page.getByRole('button', { name: 'Install', exact: true }).click()
-
-  const dialog = page.getByRole('dialog')
-  await expect(dialog).toBeVisible()
-  await dialog.getByRole('textbox', { name: /Workflow name/ }).fill('my-training-run')
-
-  const reqPromise = page.waitForRequest(
-    (r) => r.url().includes('/kube-helm-api/helm-install-chart') && r.method() === 'POST',
-  )
-  // Scope to the dialog: the Action-column button shares the "Install" label.
-  await dialog.getByRole('button', { name: 'Install', exact: true }).click()
-
-  const payload = (await reqPromise).postDataJSON()
-  expect(payload).toMatchObject({ name: 'nnunet-workflow', version: '2.1.0' })
-  expect(payload.extension_params).toEqual({
-    workflow_name: 'my-training-run',
-    enable_gpu: true,
-    model_type: '3d_fullres',
-  })
-})
-
-test('aborting the config form fires no install request', async ({ page }) => {
-  let installCalls = 0
-  page.on('request', (r) => {
-    if (r.url().includes('/kube-helm-api/helm-install-chart')) installCalls++
+    const posted = await request
+    expect(posted.postDataJSON()).toMatchObject({
+      name: 'jupyterlab',
+      version: '3.2.0',
+      keywords: ['kaapana-application'],
+    })
+    // extension_params must be absent when the extension has no config form.
+    expect(posted.postDataJSON().extension_params).toBeUndefined()
+    // The interceptor must rewrite the call onto the project-scoped route.
+    expect(posted.url()).toContain('/project/admin/kube-helm-api/helm-install-chart')
   })
 
-  await page.getByRole('button', { name: 'Install', exact: true }).click()
-  const dialog = page.getByRole('dialog')
-  await expect(dialog).toBeVisible()
-  await dialog.getByRole('button', { name: 'Abort' }).click()
+  test('opens the config form and posts entered parameters', async ({ page }) => {
+    // nnU-Net has a config form (string, bool, single-select).
+    await row(page, 'nnU-Net Training').getByRole('button', { name: 'Install' }).click()
+    await dialog(page).getByRole('textbox', { name: /Workflow name/ }).fill('my-training-run')
 
-  await expect(dialog).toBeHidden()
-  await page.waitForTimeout(500)
-  expect(installCalls).toBe(0)
-})
+    const posted = nextPost(page, HELM.install)
+    // Scope to the dialog: the Action-column button shares the "Install" label.
+    await dialog(page).getByRole('button', { name: 'Install', exact: true }).click()
 
-test('the selected version is reflected in the install payload', async ({ page }) => {
-  const row = page.getByRole('row', { name: /JupyterLab/ })
-  // v-select exposes both a wrapper and an input with role=combobox; open via the first.
-  await row.getByRole('combobox').first().click()
-  await page.getByRole('option', { name: '3.1.0' }).click()
+    const payload = await posted
+    expect(payload).toMatchObject({ name: 'nnunet-workflow', version: '2.1.0' })
+    expect(payload.extension_params).toEqual({
+      workflow_name: 'my-training-run',
+      enable_gpu: true,
+      model_type: '3d_fullres',
+    })
+  })
 
-  const reqPromise = page.waitForRequest(
-    (r) => r.url().includes('/kube-helm-api/helm-install-chart') && r.method() === 'POST',
-  )
-  await row.getByRole('button', { name: 'Launch' }).click()
+  test('aborting the config form fires no install request', async ({ page }) => {
+    const installs = countRequests(page, HELM.install)
+    await row(page, 'nnU-Net Training').getByRole('button', { name: 'Install' }).click()
 
-  expect((await reqPromise).postDataJSON()).toMatchObject({
-    name: 'jupyterlab',
-    version: '3.1.0',
+    await dialog(page).getByRole('button', { name: 'Abort' }).click()
+
+    await expect(dialog(page)).toBeHidden()
+    expect(installs()).toBe(0)
+  })
+
+  test('the selected version is reflected in the install payload', async ({ page }) => {
+    await pickVersion(page, 'JupyterLab', '3.1.0')
+
+    const posted = nextPost(page, HELM.install)
+    await row(page, 'JupyterLab').getByRole('button', { name: 'Launch' }).click()
+
+    expect(await posted).toMatchObject({ name: 'jupyterlab', version: '3.1.0' })
   })
 })
 
@@ -90,26 +71,18 @@ test('a version picked before a poll refresh survives into the install payload',
   // Regression: the 5s poll (Extensions.vue setInterval -> getHelmCharts) used to
   // replace the row array wholesale and reset the per-row version dropdown back
   // to the backend default, so a later Launch/Install posted the wrong version.
-  const row = page.getByRole('row', { name: /JupyterLab/ })
-  await row.getByRole('combobox').first().click()
-  await page.getByRole('option', { name: '3.1.0' }).click()
+  await page.clock.install()
+  await openView(page)
+  await pickVersion(page, 'JupyterLab', '3.1.0')
 
   // Let a full poll cycle land (it refetches /extensions and rebuilds the rows).
-  await page.waitForResponse(
-    (r) => /\/kube-helm-api\/extensions(\?.*)?$/.test(r.url()),
-    { timeout: 15000 },
-  )
-  // Give Vue a tick to re-render the refreshed rows before acting on them.
-  await page.waitForTimeout(500)
+  const polled = page.waitForResponse((r) => HELM.extensions.test(r.url()))
+  await page.clock.runFor(5_000)
+  await polled
 
-  const reqPromise = page.waitForRequest(
-    (r) => r.url().includes('/kube-helm-api/helm-install-chart') && r.method() === 'POST',
-  )
-  await row.getByRole('button', { name: 'Launch' }).click()
+  const posted = nextPost(page, HELM.install)
+  await row(page, 'JupyterLab').getByRole('button', { name: 'Launch' }).click()
 
   // The picked version, not the default 3.2.0, must survive the poll refresh.
-  expect((await reqPromise).postDataJSON()).toMatchObject({
-    name: 'jupyterlab',
-    version: '3.1.0',
-  })
+  expect(await posted).toMatchObject({ name: 'jupyterlab', version: '3.1.0' })
 })

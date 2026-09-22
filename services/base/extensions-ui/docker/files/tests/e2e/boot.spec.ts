@@ -1,22 +1,18 @@
 import { test, expect } from '@playwright/test'
-import { installMockBackend, defaultMockData, VIEW_PATH } from './fixtures/mock-backend'
+import { defaultMockData } from './fixtures/mock-backend'
+import { collectPageErrors, openView } from './fixtures/helpers'
 
 // Regression class that cost data-gallery-ui a blank page: installMockBackend
 // seeds localStorage["settings"] for every other spec, so only this one sees a
 // fresh-profile boot — an unguarded JSON.parse in App.vue's setup would blank
 // the whole document.
 test('renders on a fresh profile, with no shell-seeded settings', async ({ page }) => {
-  const pageErrors: string[] = []
+  const pageErrors = collectPageErrors(page)
   const consoleErrors: string[] = []
-  page.on('pageerror', (e) => pageErrors.push(String(e)))
-  page.on('console', (m) => {
-    if (m.type() === 'error') consoleErrors.push(m.text())
-  })
+  page.on('console', (m) => m.type() === 'error' && consoleErrors.push(m.text()))
 
-  await installMockBackend(page, defaultMockData, { seedSettings: false })
-  await page.goto(VIEW_PATH)
+  await openView(page, defaultMockData, { seedSettings: false })
 
-  await expect(page.getByText('MITK Workbench')).toBeVisible()
   expect(pageErrors).toEqual([])
   // Vue routes a throw from setup() to console.error, not window.onerror, so
   // pageerror alone cannot see this. Match the error NAME — the message wording

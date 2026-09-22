@@ -107,19 +107,19 @@ all:
           vm_name: kaapana-ci-01
           cpu_cores: 64
           memory_guest: "128Gi"
-          disk_size: "256Gi"
+          disk_size: "512Gi"
           runners: [universal]
         
         kaapana-ci-02:
           vm_name: kaapana-ci-02
           cpu_cores: 64
           memory_guest: "128Gi"
-          disk_size: "256Gi"
+          disk_size: "512Gi"
           runners: [universal]
         
         kaapana-ci-03:
           vm_name: kaapana-ci-03
           cpu_cores: 64
           memory_guest: "128Gi"
-          disk_size: "256Gi"
+          disk_size: "512Gi"
           runners: [universal]

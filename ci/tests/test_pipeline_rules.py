@@ -123,9 +123,18 @@ def test_toggle_off_never_runs_the_job(toggle, job):
     assert all(statically_false(c) or "$" in c for c in conditions), conditions
 
 
-def test_integration_tests_need_a_deployment():
-    """Without a deployment there is no target to test against."""
+def test_integration_tests_run_without_a_fresh_deployment():
+    """exec_integration_tests alone must still enable the test jobs — with
+    exec_deploy off, VM_FQDN falls back to DEPLOYMENT_INSTANCE_FQDN (an
+    already-deployed target) instead of coming from prepare_deployment."""
     config = merged_config(inputs=("exec_integration_tests=true", "exec_deploy=false"))
+    for name in ("scan_ports", "first_login", "send_data"):
+        conditions = [c for c in rule_ifs(jobs(config)[name]) if c]
+        assert not all(statically_false(c) for c in conditions), name
+
+
+def test_integration_tests_off_never_runs():
+    config = merged_config(inputs=("exec_integration_tests=false", "exec_deploy=true"))
     for name in ("scan_ports", "first_login", "send_data"):
         conditions = [c for c in rule_ifs(jobs(config)[name]) if c]
         assert all(statically_false(c) for c in conditions), name

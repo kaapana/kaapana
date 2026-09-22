@@ -226,6 +226,8 @@
             @click="askUninstall(item, false)"
             color="primary"
             min-width="160px"
+            :loading="isRowBusy(item)"
+            :disabled="isRowBusy(item)"
           >
             <span v-if="item.multiinstallable === 'yes'">Delete</span>
             <span v-if="item.multiinstallable === 'no'">Uninstall</span>
@@ -235,6 +237,8 @@
             @click="getFormInfo(item)"
             color="primary"
             min-width="160px"
+            :loading="isRowBusy(item)"
+            :disabled="isRowBusy(item)"
           >
             <span v-if="item.multiinstallable === 'yes'">Launch</span>
             <span v-if="item.multiinstallable === 'no'">Install</span>
@@ -299,6 +303,7 @@
     :extension-name="popUpItem.uiVisibleName ?? popUpItem.name"
     :submit-label="popUpItem.multiinstallable === 'yes' ? 'Launch' : 'Install'"
     :params="popUpParams"
+    :busy="isRowBusy(popUpItem)"
     @update:model-value="onParamsDialogToggle"
     @update:dirty="onParamsDirty"
     @submit="onParamsSubmit"
@@ -389,6 +394,9 @@ const allowedFileTypes = [
 ]
 const loading = ref(true)
 const updatingExtensions = ref(false)
+// Release names whose install or uninstall is in flight; only that row's action
+// is blocked.
+const busyRows = ref<Record<string, boolean>>({})
 const pendingMenu = ref<Record<string, boolean>>({})
 const loadError = ref(false)
 const loadErrorInfo = ref<ApiErrorInfo | null>(null)
@@ -491,6 +499,10 @@ const summaryLine = computed(() => {
 function resetFilters() {
   selectedFilters.value = [...DEFAULT_FILTERS]
   search.value = ''
+}
+
+function isRowBusy(item: any): boolean {
+  return Boolean(busyRows.value[item.releaseName])
 }
 
 function fileStart(file: any) {
@@ -729,9 +741,8 @@ function deleteChart(item: any, helmCommandAddons: any = '') {
     helm_command_addons: helmCommandAddons,
   }
   console.log('params', params)
-  loading.value = true
-  clearExtensionsInterval()
-  startExtensionsInterval()
+  busyRows.value = { ...busyRows.value, [item.releaseName]: true }
+  restartExtensionsInterval()
   kaapanaApiService
     .helmApiPost('/helm-delete-chart', params)
     .then((response: any) => {
@@ -745,9 +756,12 @@ function deleteChart(item: any, helmCommandAddons: any = '') {
       })
     })
     .catch((err: unknown) => {
-      loading.value = false
       console.log('helm delete error', err)
       notifyFailure('Uninstall failed', `Could not uninstall ${item.uiVisibleName}.`, err)
+    })
+    .finally(() => {
+      const { [item.releaseName]: _done, ...rest } = busyRows.value
+      busyRows.value = rest
     })
 }
 
@@ -813,7 +827,7 @@ function installChart(item: any, extensionParams?: Record<string, any>) {
     payload.extension_params = serialiseParams(extensionParams)
   }
 
-  loading.value = true
+  busyRows.value = { ...busyRows.value, [item.releaseName]: true }
   restartExtensionsInterval()
   kaapanaApiService
     .helmApiPost('/helm-install-chart', payload)
@@ -828,9 +842,12 @@ function installChart(item: any, extensionParams?: Record<string, any>) {
       })
     })
     .catch((err: unknown) => {
-      loading.value = false
       console.log('helm install error', err)
       notifyFailure('Installation failed', `Could not install ${item.uiVisibleName}.`, err)
+    })
+    .finally(() => {
+      const { [item.releaseName]: _done, ...rest } = busyRows.value
+      busyRows.value = rest
     })
 }
 

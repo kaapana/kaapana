@@ -131,6 +131,17 @@ def test_integration_tests_need_a_deployment():
         assert all(statically_false(c) for c in conditions), name
 
 
+def test_failure_notification_fires_on_any_failed_job(default_config):
+    """if_ci_failing runs on develop if any job fails"""
+    config = jobs(default_config)
+    job = config["if_ci_failing"]
+    assert "needs" not in job, "needs: would make if_ci_failing skip itself instead of reporting the failure"
+    stages = default_config["stages"]
+    for name in job["dependencies"]:
+        assert name in config, f"dependencies names a job that does not exist: {name}"
+        assert stages.index(config[name]["stage"]) < stages.index(job["stage"]), name
+
+
 def test_external_target_is_never_destroyed():
     config = merged_config(inputs=("exec_deploy=true",), variables=(FQDN,))
     first_rule = jobs(config)["destroy_deployment"]["rules"][0]

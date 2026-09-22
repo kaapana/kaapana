@@ -72,11 +72,13 @@
 
       <v-divider />
 
+      <!-- No pagination: every extension is shown and the summary line
+           carries the count. -->
       <v-data-table
         :headers="headers"
         :items="rows"
         :items-per-page="-1"
-        :hide-default-footer="rows.length === 0"
+        hide-default-footer
         :loading="loading"
         :sort-by="sortBy"
         loading-text="Loading extensions…"

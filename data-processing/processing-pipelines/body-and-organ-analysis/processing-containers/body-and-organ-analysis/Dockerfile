@@ -20,8 +20,13 @@ LABEL VERSION="0.1.5"
 LABEL BUILD_IGNORE="False"
 
 COPY --from=poetry2requirements /Requirements.txt /tmp
+# No nvidia-cuda-toolkit here: on Ubuntu it pulls in libnvidia-compute-*, which installs a
+# second libcuda.so.1 into the image. That shadows the driver library the container runtime
+# injects from the host, and CUDA then fails to initialise whenever the two versions differ.
+# Torch ships its own CUDA runtime (including nvrtc) and triton its own ptxas, so nothing
+# here needs a CUDA toolchain from apt.
 RUN apt-get -y update; DEBIAN_FRONTEND=noninteractive apt-get -y install \
-    jq curl ffmpeg libsm6 libxext6 libpangocairo-1.0-0 dcmtk xvfb libjemalloc2 nvidia-cuda-toolkit && rm -rf /var/lib/apt/lists/*
+    jq curl ffmpeg libsm6 libxext6 libpangocairo-1.0-0 dcmtk xvfb libjemalloc2 && rm -rf /var/lib/apt/lists/*
 
 ENV LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2
 

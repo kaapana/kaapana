@@ -25,6 +25,12 @@ deliberately only small, stable pieces.
   and high-impact (`color="primary"`, the default) actions: `title`, `text`,
   `confirmText`/`cancelText`; emits `confirm` / `cancel`. Cancel takes
   initial focus; Escape and the backdrop cancel.
+- `ErrorDetailsDialog`, `apiErrorInfo(err)`, `formatApiErrorInfo(info)` — the
+  "technical detail behind a disclosure" half of the Errors guideline: the
+  status, request, backend message and request id of a failed call, in a
+  dialog that stays until closed and can be copied.
+- `apiErrorDetail(err)`, `apiErrorText(err, fallback)` — the backend's own
+  `detail` message, and a user-facing sentence built from it.
 - `useAuthStore`, `User` / `useProjectStore`, `Project` — the two Pinia stores
   every view registers.
 - `useShellSettings()` — follows the shell's UI settings (dark mode live, other

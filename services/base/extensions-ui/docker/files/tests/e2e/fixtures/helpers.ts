@@ -179,6 +179,15 @@ export async function dismissWithEscape(page: Page) {
   await pressEscapeUntil(page, () => dialog(page).isHidden())
 }
 
+/** Open the details dialog behind a failure notification. */
+export async function openFailureDetails(page: Page, title: string) {
+  const toast = toasts(page).filter({ hasText: title })
+  await expect(toast).toBeVisible()
+  await toast.click()
+  await expect(dialog(page).getByText(title, { exact: true })).toBeVisible()
+  return dialog(page)
+}
+
 /**
  * Record every postMessage the view sends to its shell. Standalone, the
  * shell is the page itself, so the messages land on the same window.

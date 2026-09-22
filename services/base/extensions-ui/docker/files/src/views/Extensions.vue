@@ -40,6 +40,22 @@
       </v-card-text>
     </v-card>
 
+    <!-- Shown while a poll fails after a successful load; the rows below
+         are the last result that loaded. -->
+    <v-alert
+      v-if="loadError && rows.length > 0"
+      type="warning"
+      variant="tonal"
+      density="compact"
+      class="mb-4"
+      data-testid="stale-list-alert"
+    >
+      Could not refresh the extension list — showing the last version that loaded.
+      <template #append>
+        <v-btn variant="text" size="small" @click="showLoadFailureDetails">Details</v-btn>
+      </template>
+    </v-alert>
+
     <v-card :elevation="2">
       <v-toolbar color="surface-light" flat density="comfortable">
         <v-text-field
@@ -263,8 +279,12 @@
           <ExtensionsEmptyState
             v-if="!loading"
             :state="emptyState"
+            :has-error-details="loadErrorInfo !== null"
             :can-update-extensions="canUpdateExtensions"
             :busy="updatingExtensions"
+            :retrying="retrying"
+            @retry="retryLoad"
+            @show-details="showLoadFailureDetails"
             @clear-filters="resetFilters"
             @update-extensions="askUpdateExtensions"
           />
@@ -297,11 +317,20 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useNotification } from '@kyvg/vue3-notification'
-import { ConfirmDialog, kaapanaApiService, postViewDirty, refreshShell } from '@kaapana/base-ui'
+import {
+  ConfirmDialog,
+  apiErrorInfo,
+  kaapanaApiService,
+  postViewDirty,
+  refreshShell,
+  type ApiErrorInfo,
+} from '@kaapana/base-ui'
 import Upload from '@/components/Upload.vue'
 import ExtensionParamsDialog from '@/components/ExtensionParamsDialog.vue'
 import ExtensionsEmptyState from '@/components/ExtensionsEmptyState.vue'
+import { useFailureDetailsStore } from '@/stores/failureDetails'
 import { usePolicyStore } from '@/stores/policy'
+import { notifyFailure } from '@/utils/notifyFailure'
 import { useAuthStore, useProjectStore } from '@kaapana/base-ui'
 import { checkAuthR } from '@/utils/opa'
 import { extensionIcons, kaapanaIcons } from '@/utils/extensionIcons'
@@ -323,6 +352,7 @@ interface DataTableHeader {
 const { notify } = useNotification()
 const policyStore = usePolicyStore()
 const authStore = useAuthStore()
+const failureDetails = useFailureDetailsStore()
 
 // The shipped policy grants these kube-helm endpoints to admins only and their
 // catch bodies are silent, so the controls are HIDDEN rather than disabled — a
@@ -347,12 +377,8 @@ const canUploadExtensions = computed(
 // Resolves the project from the /project/<short_id> document prefix (see base-ui).
 useProjectStore()
   .getSelectedProject()
-  .catch((err: any) => {
-    notify({
-      type: 'error',
-      title: 'Project unavailable',
-      text: `Could not load the current project. ${err?.response?.data?.detail ?? err?.message}`,
-    })
+  .catch((err: unknown) => {
+    notifyFailure('Project unavailable', 'Could not load the current project.', err)
   })
 
 const allowedFileTypes = [
@@ -364,8 +390,9 @@ const allowedFileTypes = [
 const loading = ref(true)
 const updatingExtensions = ref(false)
 const pendingMenu = ref<Record<string, boolean>>({})
+const loadError = ref(false)
+const loadErrorInfo = ref<ApiErrorInfo | null>(null)
 let polling = 0
-let pollErrorNotified = false
 let previousReadyReleases: string | null = null
 const launchedAppLinks = ref<any[]>([])
 const search = ref('')
@@ -442,14 +469,19 @@ const rows = computed<any[]>(() => {
   return launchedAppLinks.value.filter((item) => matchesFilters(item) && matchesSearch(item, term))
 })
 
-const emptyState = computed<'no-matches' | 'empty'>(() =>
-  launchedAppLinks.value.length > 0 ? 'no-matches' : 'empty',
-)
+const emptyState = computed<'error' | 'no-matches' | 'empty'>(() => {
+  // Rows we already loaded outrank a later poll failure: filtering everything
+  // out is still "nothing matches", not "could not load".
+  if (launchedAppLinks.value.length > 0) return 'no-matches'
+  return loadError.value ? 'error' : 'empty'
+})
 
 const summaryLine = computed(() => {
   const total = launchedAppLinks.value.length
   const shown = rows.value.length
-  if (total === 0) return 'No extensions available'
+  if (total === 0) {
+    return loadError.value ? 'The extension list could not be loaded' : 'No extensions available'
+  }
   const noun = total === 1 ? 'extension' : 'extensions'
   return shown === total
     ? `${total} ${noun} available`
@@ -480,20 +512,44 @@ function fileComplete(error: any, file: any) {
     .helmApiGet('/import-container', { filename: fname }, 120000)
     .then((response: any) => {
       console.log(response.data)
-    })
-    .catch((err: any) => {
       notify({
-        type: 'error',
-        title: 'Import failed',
-        text: `Import of ${fname} failed. ${err?.response?.data?.detail ?? err?.message}`,
+        type: 'success',
+        title: 'Container imported',
+        text: `${fname} was imported into the platform registry.`,
       })
     })
+    .catch((err: unknown) => {
+      notifyFailure('Import failed', `Could not import ${fname}.`, err)
+    })
+}
+
+/* ----------------------------------------------------------------- load --- */
+
+const retrying = ref(false)
+
+/** The empty state's "Try again": same fetch, but visibly a user action. */
+function retryLoad() {
+  retrying.value = true
+  loading.value = true
+  restartExtensionsInterval()
+  getHelmCharts().finally(() => {
+    retrying.value = false
+  })
+}
+
+function showLoadFailureDetails() {
+  if (!loadErrorInfo.value) return
+  failureDetails.show({
+    title: 'Could not load the extension list',
+    text: 'The extension service could not be reached or reported an error.',
+    error: loadErrorInfo.value,
+  })
 }
 function getHelmCharts() {
   let params = {
     repo: 'kaapana-public',
   }
-  kaapanaApiService
+  return kaapanaApiService
     .helmApiGet('/extensions', params)
     .then((response: any) => {
       // Remember a version the user picked in the per-row dropdown so the 5s
@@ -524,6 +580,8 @@ function getHelmCharts() {
           : item
       })
       loading.value = false
+      loadError.value = false
+      loadErrorInfo.value = null
       // A release that just became ready has registered its ingress, so the
       // shell has a menu entry to pick up.
       const ready = (launchedAppLinks.value as any[])
@@ -535,22 +593,14 @@ function getHelmCharts() {
         refreshShell()
       }
       previousReadyReleases = ready
-      // Re-arm last: a throw while processing the payload lands in .catch and
-      // must not toast again every tick.
-      pollErrorNotified = false
     })
-    .catch((err: any) => {
+    .catch((err: unknown) => {
+      // Reported inline (empty state or stale-list alert), not as a
+      // notification: the poll runs every 5 s and would toast on every tick.
       loading.value = false
       console.log(err)
-      // Polled every 5s, so notify once and re-arm only after a success —
-      // otherwise a revoked kaapana.ai/applications claim toasts every tick.
-      if (pollErrorNotified) return
-      pollErrorNotified = true
-      notify({
-        type: 'error',
-        title: 'Failed to load extensions',
-        text: 'Could not load the list of extensions. Please try again later.',
-      })
+      loadError.value = true
+      loadErrorInfo.value = apiErrorInfo(err)
     })
 }
 function startExtensionsInterval() {
@@ -572,14 +622,15 @@ function updateExtensions() {
     .helmApiGet('/update-extensions', {})
     .then((response: any) => {
       console.log(response.data)
-    })
-    .catch((err: any) => {
-      console.log(err)
       notify({
-        type: 'error',
-        title: 'Refresh failed',
-        text: `Could not refresh the extension list. ${err?.response?.data?.detail ?? err?.message}`,
+        type: 'success',
+        title: 'Extension list updated',
+        text: 'The latest charts were downloaded from the configured Helm repository.',
       })
+    })
+    .catch((err: unknown) => {
+      console.log(err)
+      notifyFailure('Download failed', 'Could not download the latest extensions.', err)
     })
     .finally(() => {
       updatingExtensions.value = false
@@ -687,15 +738,16 @@ function deleteChart(item: any, helmCommandAddons: any = '') {
       console.log('helm delete response', response)
       item.installed = 'no'
       item.successful = 'pending'
-    })
-    .catch((err: any) => {
-      console.log('helm delete error', err)
-      loading.value = false
       notify({
-        type: 'error',
-        title: 'Uninstall failed',
-        text: `Could not uninstall ${item.releaseName}. ${err?.response?.data?.detail ?? err?.message}`,
+        type: 'success',
+        title: 'Uninstall started',
+        text: `${item.uiVisibleName} is being removed. The list updates as it progresses.`,
       })
+    })
+    .catch((err: unknown) => {
+      loading.value = false
+      console.log('helm delete error', err)
+      notifyFailure('Uninstall failed', `Could not uninstall ${item.uiVisibleName}.`, err)
     })
 }
 
@@ -769,15 +821,16 @@ function installChart(item: any, extensionParams?: Record<string, any>) {
       console.log('helm install response', response)
       item.installed = 'yes'
       item.successful = item.multiinstallable === 'yes' ? 'justLaunched' : 'pending'
-    })
-    .catch((err: any) => {
-      console.log('helm install error', err)
-      loading.value = false
       notify({
-        type: 'error',
-        title: 'Installation failed',
-        text: `Installation of ${item.name} failed. ${err?.response?.data?.detail ?? err?.message}`,
+        type: 'success',
+        title: item.multiinstallable === 'yes' ? 'Launch started' : 'Installation started',
+        text: `${item.uiVisibleName} is being deployed. The list updates as it progresses.`,
       })
+    })
+    .catch((err: unknown) => {
+      loading.value = false
+      console.log('helm install error', err)
+      notifyFailure('Installation failed', `Could not install ${item.uiVisibleName}.`, err)
     })
 }
 

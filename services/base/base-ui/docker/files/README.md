@@ -21,6 +21,10 @@ deliberately only small, stable pieces.
 - `createKaapanaVuetify()`, `KaapanaVuetifyOptions` — builds the shared theme,
   icon configuration and platform fonts while allowing consumer extensions.
 - `kaapanaIcons`, `KaapanaIconName` — semantic names for shared action icons.
+- `ConfirmDialog` — the confirmation gate for destructive (`color="error"`)
+  and high-impact (`color="primary"`, the default) actions: `title`, `text`,
+  `confirmText`/`cancelText`; emits `confirm` / `cancel`. Cancel takes
+  initial focus; Escape and the backdrop cancel.
 - `useAuthStore`, `User` / `useProjectStore`, `Project` — the two Pinia stores
   every view registers.
 - `useShellSettings()` — follows the shell's UI settings (dark mode live, other

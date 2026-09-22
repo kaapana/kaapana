@@ -61,6 +61,18 @@ test.describe('visual language', () => {
     // Centred: equal margins on both sides.
     expect(Math.abs(box.x - (2560 - box.width - box.x))).toBeLessThan(2)
   })
+
+  test('table actions are tertiary; the page keeps one filled primary action', async ({ page }) => {
+    await expect(page.getByTestId('update-extensions')).toHaveClass(/bg-primary/)
+
+    const install = row(page, 'nnU-Net Training').getByRole('button', { name: 'Install' })
+    await expect(install).toHaveClass(/text-primary/)
+    await expect(install).not.toHaveClass(/bg-primary/)
+
+    const uninstall = row(page, 'MITK Workbench').getByRole('button', { name: 'Uninstall' })
+    await expect(uninstall).toHaveClass(/text-error/)
+    await expect(uninstall).not.toHaveClass(/bg-error/)
+  })
 })
 
 test.describe('accessibility', () => {

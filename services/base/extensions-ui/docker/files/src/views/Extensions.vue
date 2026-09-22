@@ -356,15 +356,15 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from "vue";
-import { useNotification } from "@kyvg/vue3-notification";
-import { ConfirmDialog, kaapanaApiService, refreshShell } from "@kaapana/base-ui";
-import Upload from "@/components/Upload.vue";
-import { usePolicyStore } from "@/stores/policy";
-import { useAuthStore, useProjectStore } from "@kaapana/base-ui";
-import { checkAuthR } from "@/utils/opa";
-import { extensionIcons, kaapanaIcons } from "@/utils/extensionIcons";
+<script setup lang='ts'>
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { useNotification } from '@kyvg/vue3-notification'
+import { ConfirmDialog, kaapanaApiService, refreshShell } from '@kaapana/base-ui'
+import Upload from '@/components/Upload.vue'
+import { usePolicyStore } from '@/stores/policy'
+import { useAuthStore, useProjectStore } from '@kaapana/base-ui'
+import { checkAuthR } from '@/utils/opa'
+import { extensionIcons, kaapanaIcons } from '@/utils/extensionIcons'
 import {
   checkDeploymentReady,
   checkInstalled,
@@ -372,17 +372,17 @@ import {
   getHref,
   getKubeStatus,
   hasReadyDeployment,
-} from "@/utils/extensionState";
+} from '@/utils/extensionState'
 
 interface DataTableHeader {
-  title: string;
-  key: string;
-  align?: "start" | "center" | "end";
+  title: string
+  key: string
+  align?: 'start' | 'center' | 'end'
 }
 
-const { notify } = useNotification();
-const policyStore = usePolicyStore();
-const authStore = useAuthStore();
+const { notify } = useNotification()
+const policyStore = usePolicyStore()
+const authStore = useAuthStore()
 
 // The shipped policy grants these kube-helm endpoints to admins only and their
 // catch bodies are silent, so the controls are HIDDEN rather than disabled — a
@@ -391,170 +391,170 @@ const authStore = useAuthStore();
 const allowed = (path: string) =>
   checkAuthR(policyStore.policyData, path, {
     roles: authStore.currentUser?.roles ?? [],
-  });
+  })
 const canUpdateExtensions = computed(() =>
-  allowed("/kube-helm-api/update-extensions"),
-);
+  allowed('/kube-helm-api/update-extensions'),
+)
 // One control, two endpoints: the drop zone POSTs to filepond-upload, and a
 // completed .tar additionally calls import-container (see fileComplete), so it
 // needs both.
 const canUploadExtensions = computed(
   () =>
-    allowed("/kube-helm-api/filepond-upload") &&
-    allowed("/kube-helm-api/import-container"),
-);
+    allowed('/kube-helm-api/filepond-upload') &&
+    allowed('/kube-helm-api/import-container'),
+)
 
 // Resolves the project from the /project/<short_id> document prefix (see base-ui).
 useProjectStore()
   .getSelectedProject()
   .catch((err: any) => {
     notify({
-      type: "error",
-      title: "Project unavailable",
+      type: 'error',
+      title: 'Project unavailable',
       text: `Could not load the current project. ${err?.response?.data?.detail ?? err?.message}`,
-    });
-  });
+    })
+  })
 
 const allowedFileTypes = [
-  "application/x-compressed",
-  "application/x-tar",
-  "application/gzip",
-  "application/x-compressed-tar",
-];
-const loading = ref(true);
-const updatingExtensions = ref(false);
-const pendingMenu = ref<Record<string, boolean>>({});
-let polling = 0;
-let pollErrorNotified = false;
-let previousReadyReleases: string | null = null;
-const launchedAppLinks = ref<any[] | null>([]);
-const search = ref("");
-const selectedFilters = ref<string[]>(["Stable", "Applications", "Workflows", "GPU", "CPU"]);
-const popUpDialog = ref<Record<string, boolean>>({});
-const popUpItem = ref<any>({});
-const popUpExtension = ref<Record<string, any>>({});
-const popUpForm = ref<any>(null);
-const popUpRulesStr = [(v: any) => (v && v.length > 0) || "Empty string field"];
+  'application/x-compressed',
+  'application/x-tar',
+  'application/gzip',
+  'application/x-compressed-tar',
+]
+const loading = ref(true)
+const updatingExtensions = ref(false)
+const pendingMenu = ref<Record<string, boolean>>({})
+let polling = 0
+let pollErrorNotified = false
+let previousReadyReleases: string | null = null
+const launchedAppLinks = ref<any[] | null>([])
+const search = ref('')
+const selectedFilters = ref<string[]>(['Stable', 'Applications', 'Workflows', 'GPU', 'CPU'])
+const popUpDialog = ref<Record<string, boolean>>({})
+const popUpItem = ref<any>({})
+const popUpExtension = ref<Record<string, any>>({})
+const popUpForm = ref<any>(null)
+const popUpRulesStr = [(v: any) => (v && v.length > 0) || 'Empty string field']
 const popUpRulesSingleList = [
-  (v: any) => (v && v.length > 0) || "Empty single-selectable list field",
-];
+  (v: any) => (v && v.length > 0) || 'Empty single-selectable list field',
+]
 const popUpRulesMultiList = [
-  (v: any) => v.length > 0 || "Empty multi-selectable list field",
-];
-const labelIdle = "Upload chart (.tgz) or container (.tar) files";
-const sortBy = [{ key: "uiVisibleName", order: "asc" as const }];
+  (v: any) => v.length > 0 || 'Empty multi-selectable list field',
+]
+const labelIdle = 'Upload chart (.tgz) or container (.tar) files'
+const sortBy = [{ key: 'uiVisibleName', order: 'asc' as const }]
 
 const headers: DataTableHeader[] = [
-  { title: "Type", align: "center", key: "kind" },
-  { title: "Name", align: "start", key: "uiVisibleName" },
-  { title: "Version", align: "start", key: "versions" },
-  { title: "Maturity", align: "center", key: "experimental" },
-  { title: "Hardware requirement", align: "start", key: "resourceRequirement" },
-  { title: "Action", align: "center", key: "installed" },
-  { title: "Ready", align: "center", key: "successful" },
-  { title: "Links", align: "center", key: "links" },
-];
+  { title: 'Type', align: 'center', key: 'kind' },
+  { title: 'Name', align: 'start', key: 'uiVisibleName' },
+  { title: 'Version', align: 'start', key: 'versions' },
+  { title: 'Maturity', align: 'center', key: 'experimental' },
+  { title: 'Hardware requirement', align: 'start', key: 'resourceRequirement' },
+  { title: 'Action', align: 'center', key: 'installed' },
+  { title: 'Ready', align: 'center', key: 'successful' },
+  { title: 'Links', align: 'center', key: 'links' },
+]
 
 const filteredLaunchedAppLinks = computed<any[]>(() => {
   if (launchedAppLinks.value !== null) {
     return launchedAppLinks.value.filter((i: any) => {
-      let devFilter = false;
-      let kindFilter = false;
-      let resourceFilter = false;
+      let devFilter = false
+      let kindFilter = false
+      let resourceFilter = false
 
-      if (selectedFilters.value.includes("Experimental") && i.experimental === "yes") {
-        devFilter = true;
-      } else if (selectedFilters.value.includes("Stable") && i.experimental === "no") {
-        devFilter = true;
+      if (selectedFilters.value.includes('Experimental') && i.experimental === 'yes') {
+        devFilter = true
+      } else if (selectedFilters.value.includes('Stable') && i.experimental === 'no') {
+        devFilter = true
       }
 
-      if (selectedFilters.value.includes("Applications") && i.kind === "application") {
-        kindFilter = true;
-      } else if (selectedFilters.value.includes("Workflows") && i.kind === "dag") {
-        kindFilter = true;
+      if (selectedFilters.value.includes('Applications') && i.kind === 'application') {
+        kindFilter = true
+      } else if (selectedFilters.value.includes('Workflows') && i.kind === 'dag') {
+        kindFilter = true
       }
 
-      if (selectedFilters.value.includes("CPU") && i.resourceRequirement == "cpu") {
-        resourceFilter = true;
+      if (selectedFilters.value.includes('CPU') && i.resourceRequirement == 'cpu') {
+        resourceFilter = true
       } else if (
-        selectedFilters.value.includes("GPU") &&
-        i.resourceRequirement == "gpu"
+        selectedFilters.value.includes('GPU') &&
+        i.resourceRequirement == 'gpu'
       ) {
-        resourceFilter = true;
+        resourceFilter = true
       }
 
-      return devFilter && kindFilter && resourceFilter;
-    });
+      return devFilter && kindFilter && resourceFilter
+    })
   } else {
-    loading.value = true;
-    return [];
+    loading.value = true
+    return []
   }
-});
+})
 
 function fileStart(file: any) {
-  console.log("filestart", file);
+  console.log('filestart', file)
 }
 // FilePond reports an upload failure inline on the file itself, so only the
 // follow-up import of a container image needs feedback from here.
 function fileComplete(error: any, file: any) {
   if (error !== null) {
-    console.log("filepond file upload error", error);
-    return;
+    console.log('filepond file upload error', error)
+    return
   }
-  console.log("successfully uploaded file", file);
-  const fname = file.filename;
-  if (file.fileExtension !== "tar") return;
+  console.log('successfully uploaded file', file)
+  const fname = file.filename
+  if (file.fileExtension !== 'tar') return
 
-  console.log("importing container...");
+  console.log('importing container...')
   kaapanaApiService
-    .helmApiGet("/import-container", { filename: fname }, 120000)
+    .helmApiGet('/import-container', { filename: fname }, 120000)
     .then((response: any) => {
-      console.log(response.data);
+      console.log(response.data)
     })
     .catch((err: any) => {
       notify({
-        type: "error",
-        title: "Import failed",
+        type: 'error',
+        title: 'Import failed',
         text: `Import of ${fname} failed. ${err?.response?.data?.detail ?? err?.message}`,
-      });
-    });
+      })
+    })
 }
 function getHelmCharts() {
   let params = {
-    repo: "kaapana-public",
-  };
+    repo: 'kaapana-public',
+  }
   kaapanaApiService
-    .helmApiGet("/extensions", params)
+    .helmApiGet('/extensions', params)
     .then((response: any) => {
       // Remember a version the user picked in the per-row dropdown so the 5s
       // poll's wholesale array replacement below does not reset it — Install and
       // deleteChart keep operating on the version the user actually sees.
-      const previousVersions = new Map<string, any>();
+      const previousVersions = new Map<string, any>()
       if (Array.isArray(launchedAppLinks.value)) {
         for (const row of launchedAppLinks.value as any[]) {
-          previousVersions.set(row.releaseName, row.version);
+          previousVersions.set(row.releaseName, row.version)
         }
       }
-      launchedAppLinks.value = response.data;
+      launchedAppLinks.value = response.data
       launchedAppLinks.value = (launchedAppLinks.value as any[]).map((item: any) => ({
         documentation: item.annotations?.documentation ?? null,
         ...item,
-      }));
-      // "-" is the backend's placeholder for an unset display_name.
+      }))
+      // '-' is the backend's placeholder for an unset display_name.
       launchedAppLinks.value = (launchedAppLinks.value as any[]).map((item: any) => ({
-        uiVisibleName: (item["display_name"] && item["display_name"].trim() !== "" && item["display_name"].trim() !== "-")
-          ? item["display_name"]
-          : item.annotations?.["ui-visible-name"] ?? item.releaseName,
+        uiVisibleName: (item['display_name'] && item['display_name'].trim() !== '' && item['display_name'].trim() !== '-')
+          ? item['display_name']
+          : item.annotations?.['ui-visible-name'] ?? item.releaseName,
         ...item,
-      }));
+      }))
       launchedAppLinks.value = (launchedAppLinks.value as any[]).map((item: any) => {
-        const selected = previousVersions.get(item.releaseName);
+        const selected = previousVersions.get(item.releaseName)
         return selected && item.versions?.includes(selected)
           ? { ...item, version: selected }
-          : item;
-      });
+          : item
+      })
       if (launchedAppLinks.value !== null) {
-        loading.value = false;
+        loading.value = false
       }
       // A release that just became ready has registered its ingress, so the
       // shell has a menu entry to pick up.
@@ -562,233 +562,233 @@ function getHelmCharts() {
         .filter((item: any) => hasReadyDeployment(item))
         .map((item: any) => item.releaseName)
         .sort()
-        .join(",");
+        .join(',')
       if (previousReadyReleases !== null && ready !== previousReadyReleases) {
-        refreshShell();
+        refreshShell()
       }
-      previousReadyReleases = ready;
+      previousReadyReleases = ready
       // Re-arm last: a throw while processing the payload lands in .catch and
       // must not toast again every tick.
-      pollErrorNotified = false;
+      pollErrorNotified = false
     })
     .catch((err: any) => {
-      loading.value = false;
-      console.log(err);
+      loading.value = false
+      console.log(err)
       // Polled every 5s, so notify once and re-arm only after a success —
       // otherwise a revoked kaapana.ai/applications claim toasts every tick.
-      if (pollErrorNotified) return;
-      pollErrorNotified = true;
+      if (pollErrorNotified) return
+      pollErrorNotified = true
       notify({
-        type: "error",
-        title: "Failed to load extensions",
-        text: "Could not load the list of extensions. Please try again later.",
-      });
-    });
+        type: 'error',
+        title: 'Failed to load extensions',
+        text: 'Could not load the list of extensions. Please try again later.',
+      })
+    })
 }
 function startExtensionsInterval() {
   polling = window.setInterval(() => {
-    getHelmCharts();
-  }, 5000);
+    getHelmCharts()
+  }, 5000)
 }
 function clearExtensionsInterval() {
-  window.clearInterval(polling);
+  window.clearInterval(polling)
 }
 function restartExtensionsInterval() {
-  clearExtensionsInterval();
-  startExtensionsInterval();
+  clearExtensionsInterval()
+  startExtensionsInterval()
 }
 function updateExtensions() {
-  updatingExtensions.value = true;
-  restartExtensionsInterval();
+  updatingExtensions.value = true
+  restartExtensionsInterval()
   kaapanaApiService
-    .helmApiGet("/update-extensions", {})
+    .helmApiGet('/update-extensions', {})
     .then((response: any) => {
-      console.log(response.data);
+      console.log(response.data)
     })
     .catch((err: any) => {
-      console.log(err);
+      console.log(err)
       notify({
-        type: "error",
-        title: "Refresh failed",
+        type: 'error',
+        title: 'Refresh failed',
         text: `Could not refresh the extension list. ${err?.response?.data?.detail ?? err?.message}`,
-      });
+      })
     })
     .finally(() => {
-      updatingExtensions.value = false;
-    });
+      updatingExtensions.value = false
+    })
 }
 
 /* -------------------------------------------------------- confirmations --- */
 
 type PendingAction =
-  | { kind: "uninstall"; item: any; force: boolean }
-  | { kind: "update-extensions" };
+  | { kind: 'uninstall'; item: any; force: boolean }
+  | { kind: 'update-extensions' }
 
 // Kept after the dialog closes so its content does not blank out during the
 // leave transition; the next ask replaces it.
-const pendingAction = ref<PendingAction | null>(null);
-const confirmOpen = ref(false);
+const pendingAction = ref<PendingAction | null>(null)
+const confirmOpen = ref(false)
 
 function askUninstall(item: any, force: boolean) {
-  pendingMenu.value[item.releaseName] = false;
-  pendingAction.value = { kind: "uninstall", item, force };
-  confirmOpen.value = true;
+  pendingMenu.value[item.releaseName] = false
+  pendingAction.value = { kind: 'uninstall', item, force }
+  confirmOpen.value = true
 }
 
 function askUpdateExtensions() {
-  pendingAction.value = { kind: "update-extensions" };
-  confirmOpen.value = true;
+  pendingAction.value = { kind: 'update-extensions' }
+  confirmOpen.value = true
 }
 
 function runPendingAction() {
-  const action = pendingAction.value;
-  if (!action) return;
-  if (action.kind === "update-extensions") {
-    updateExtensions();
-    return;
+  const action = pendingAction.value
+  if (!action) return
+  if (action.kind === 'update-extensions') {
+    updateExtensions()
+    return
   }
-  deleteChart(action.item, action.force ? "--no-hooks" : "");
+  deleteChart(action.item, action.force ? '--no-hooks' : '')
 }
 
 // Each text states what happens, what is affected and what follows. `error` for
 // the destructive uninstall, `primary` for the download, which is expensive but
 // reversible.
 const confirmContent = computed(() => {
-  const action = pendingAction.value;
+  const action = pendingAction.value
 
-  if (action?.kind === "update-extensions") {
+  if (action?.kind === 'update-extensions') {
     return {
-      color: "primary",
-      title: "Download the latest extensions?",
+      color: 'primary',
+      title: 'Download the latest extensions?',
       text:
-        "Kaapana pulls the current chart catalogue from the configured Helm repository. " +
-        "This can take several minutes and use significant network bandwidth and disk space on the platform. " +
-        "Extensions that are already installed keep running; only the list of available versions changes.",
-      confirmText: "Download",
-    };
+        'Kaapana pulls the current chart catalogue from the configured Helm repository. ' +
+        'This can take several minutes and use significant network bandwidth and disk space on the platform. ' +
+        'Extensions that are already installed keep running; only the list of available versions changes.',
+      confirmText: 'Download',
+    }
   }
 
-  if (action?.kind === "uninstall") {
-    const { item, force } = action;
-    const noun = item.multiinstallable === "yes" ? "instance" : "extension";
-    const verb = item.multiinstallable === "yes" ? "Delete" : "Uninstall";
+  if (action?.kind === 'uninstall') {
+    const { item, force } = action
+    const noun = item.multiinstallable === 'yes' ? 'instance' : 'extension'
+    const verb = item.multiinstallable === 'yes' ? 'Delete' : 'Uninstall'
 
     if (force) {
       return {
-        color: "error",
+        color: 'error',
         title: `Force ${verb.toLowerCase()} "${item.uiVisibleName}"?`,
         text:
           `The release ${item.releaseName} (version ${item.version}) is removed with Helm's hooks skipped. ` +
           "Because the chart's cleanup hooks do not run, resources it would normally remove may be left behind in the cluster. " +
-          "Use this only for an installation that is genuinely stuck in Pending.",
+          'Use this only for an installation that is genuinely stuck in Pending.',
         confirmText: `Force ${verb.toLowerCase()} ${noun}`,
-      };
+      }
     }
 
     return {
-      color: "error",
+      color: 'error',
       title: `${verb} "${item.uiVisibleName}"?`,
       text:
         `The release ${item.releaseName} (version ${item.version}) is removed from this project. ` +
         `Containers running for this ${noun} are stopped, and anything stored only inside them is lost. ` +
-        "The extension stays in the catalogue and can be installed again later.",
+        'The extension stays in the catalogue and can be installed again later.',
       confirmText: `${verb} ${noun}`,
-    };
+    }
   }
 
   return {
-    color: "error",
-    title: "",
-    text: "",
-    confirmText: "Confirm",
-  };
-});
-function deleteChart(item: any, helmCommandAddons: any = "") {
+    color: 'error',
+    title: '',
+    text: '',
+    confirmText: 'Confirm',
+  }
+})
+function deleteChart(item: any, helmCommandAddons: any = '') {
   let params = {
     release_name: item.releaseName,
     release_version: item.version,
     helm_command_addons: helmCommandAddons,
-  };
-  console.log("params", params);
-  loading.value = true;
-  clearExtensionsInterval();
-  startExtensionsInterval();
+  }
+  console.log('params', params)
+  loading.value = true
+  clearExtensionsInterval()
+  startExtensionsInterval()
   kaapanaApiService
-    .helmApiPost("/helm-delete-chart", params)
+    .helmApiPost('/helm-delete-chart', params)
     .then((response: any) => {
-      console.log("helm delete response", response);
-      item.installed = "no";
-      item.successful = "pending";
+      console.log('helm delete response', response)
+      item.installed = 'no'
+      item.successful = 'pending'
     })
     .catch((err: any) => {
-      console.log("helm delete error", err);
-      loading.value = false;
+      console.log('helm delete error', err)
+      loading.value = false
       notify({
-        type: "error",
-        title: "Uninstall failed",
+        type: 'error',
+        title: 'Uninstall failed',
         text: `Could not uninstall ${item.releaseName}. ${err?.response?.data?.detail ?? err?.message}`,
-      });
-    });
+      })
+    })
 }
 
 function resetFormInfo(key: any) {
-  popUpDialog.value[key] = false;
+  popUpDialog.value[key] = false
   if (popUpForm.value) {
-    popUpExtension.value = {};
-    popUpForm.value.reset();
+    popUpExtension.value = {}
+    popUpForm.value.reset()
   }
 }
 
 function getFormInfo(item: any) {
-  popUpDialog.value[item.releaseName] = false;
-  popUpItem.value = {};
+  popUpDialog.value[item.releaseName] = false
+  popUpItem.value = {}
   // Reset the params buffer so one install's parameters cannot leak into the next.
-  popUpExtension.value = {};
+  popUpExtension.value = {}
 
-  const params = item["extension_params"];
-  // The backend reports a param-less extension as the literal string "null";
+  const params = item['extension_params']
+  // The backend reports a param-less extension as the literal string 'null';
   // no config form then — install directly.
-  if (params && params !== "null" && Object.keys(params).length > 0) {
-    popUpDialog.value[item.releaseName] = true;
-    popUpItem.value = item;
+  if (params && params !== 'null' && Object.keys(params).length > 0) {
+    popUpDialog.value[item.releaseName] = true
+    popUpItem.value = item
     for (let key of Object.keys(params)) {
-      popUpExtension.value[key] = params[key]["default"];
+      popUpExtension.value[key] = params[key]['default']
     }
   } else {
-    installChart(item);
+    installChart(item)
   }
 }
 
 async function submitForm(key: any) {
-  const result = await popUpForm.value?.validate();
+  const result = await popUpForm.value?.validate()
   if (result?.valid) {
-    popUpDialog.value[key] = false;
-    installChart(popUpItem.value);
+    popUpDialog.value[key] = false
+    installChart(popUpItem.value)
   }
 }
 
 function addExtensionParams(payload: any) {
-  let params = JSON.parse(JSON.stringify(popUpExtension.value));
-  console.log("add parameters", params);
+  let params = JSON.parse(JSON.stringify(popUpExtension.value))
+  console.log('add parameters', params)
 
-  let res = {} as any;
+  let res = {} as any
   for (let key of Object.keys(params)) {
-    let v = params[key];
-    let s = "" as string;
+    let v = params[key]
+    let s = '' as string
     // TODO: if more types like Object etc will exist as well, check them here
     if (Array.isArray(v) && v.length > 0) {
       for (let vv of v) {
-        s += String(vv) + ",";
+        s += String(vv) + ','
       }
-      s = s.slice(0, s.length - 1);
+      s = s.slice(0, s.length - 1)
     } else {
-      s = v;
+      s = v
     }
 
-    res[key] = s;
+    res[key] = s
   }
-  payload["extension_params"] = res;
-  return payload;
+  payload['extension_params'] = res
+  return payload
 }
 
 function installChart(item: any) {
@@ -796,46 +796,46 @@ function installChart(item: any) {
     name: item.name,
     version: item.version,
     keywords: item.keywords,
-  } as any;
+  } as any
 
-  console.log("payload", payload);
+  console.log('payload', payload)
   if (Object.keys(popUpExtension.value).length > 0) {
-    payload = addExtensionParams(payload);
+    payload = addExtensionParams(payload)
   }
 
-  loading.value = true;
-  clearExtensionsInterval();
-  startExtensionsInterval();
+  loading.value = true
+  clearExtensionsInterval()
+  startExtensionsInterval()
   kaapanaApiService
-    .helmApiPost("/helm-install-chart", payload)
+    .helmApiPost('/helm-install-chart', payload)
     .then((response: any) => {
-      console.log("helm install response", response);
-      item.installed = "yes";
-      if (item.multiinstallable === "yes") {
-        item.successful = "justLaunched";
+      console.log('helm install response', response)
+      item.installed = 'yes'
+      if (item.multiinstallable === 'yes') {
+        item.successful = 'justLaunched'
       } else {
-        item.successful = "pending";
+        item.successful = 'pending'
       }
     })
     .catch((err: any) => {
-      console.log("helm install error", err);
-      loading.value = false;
+      console.log('helm install error', err)
+      loading.value = false
       notify({
-        type: "error",
-        title: "Installation failed",
+        type: 'error',
+        title: 'Installation failed',
         text: `Installation of ${item.name} failed. ${err?.response?.data?.detail ?? err?.message}`,
-      });
-    });
+      })
+    })
 }
 
 onMounted(() => {
-  getHelmCharts();
-  startExtensionsInterval();
-});
+  getHelmCharts()
+  startExtensionsInterval()
+})
 
 onBeforeUnmount(() => {
-  clearExtensionsInterval();
-});
+  clearExtensionsInterval()
+})
 </script>
 
 <style lang="scss">

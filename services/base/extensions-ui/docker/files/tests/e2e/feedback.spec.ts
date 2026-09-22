@@ -1,164 +1,215 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import { installMockBackend, VIEW_PATH } from './fixtures/mock-backend'
 import {
   collectPageErrors,
   confirmAction,
-  deployed,
-  extension,
+  dialog,
+  dismissWithEscape,
   failRoute,
   HELM,
+  openFailureDetails,
   openView,
   row,
+  serverError,
   toasts,
 } from './fixtures/helpers'
 
-test('a failed uninstall notifies and leaves the row installed', async ({ page }) => {
-  const pageErrors = collectPageErrors(page)
-  await openView(page, undefined, {
-    routes: (p) => failRoute(p, HELM.uninstall, 'Chart uninstall failed: release is locked'),
+// How the view reports what happened, per "Feedback and system state":
+// action outcomes are transient notifications; the technical detail of a
+// failure sits behind a disclosure; a load failure is a condition of the
+// content on screen and is reported inline, never twice.
+
+test.describe('action outcomes', () => {
+  test.beforeEach(({ page }) => openView(page))
+
+  test('a started uninstall and launch are reported transiently', async ({ page }) => {
+    await row(page, 'MITK Workbench').getByRole('button', { name: 'Uninstall' }).click()
+    await confirmAction(page, 'Uninstall extension')
+    await expect(toasts(page).filter({ hasText: 'Uninstall started' })).toBeVisible()
+
+    await row(page, 'JupyterLab').getByRole('button', { name: 'Launch' }).click()
+    await expect(toasts(page).filter({ hasText: 'Launch started' })).toBeVisible()
   })
 
-  await row(page, 'MITK Workbench').getByRole('button', { name: 'Uninstall' }).click()
-  await confirmAction(page, 'Uninstall extension')
+  test('an uploaded container image is imported and reported', async ({ page }) => {
+    const imported = page.waitForRequest((r) => r.url().includes(HELM.importContainer))
+    await page.locator('input.filepond--browser').setInputFiles({
+      name: 'container.tar',
+      mimeType: 'application/x-tar',
+      buffer: Buffer.from('mock container'),
+    })
 
-  await expect(page.getByText('Uninstall failed', { exact: true })).toBeVisible()
-  await expect(page.getByText('release is locked')).toBeVisible()
-  // The extension is still deployed, so the row must keep offering Uninstall.
-  await expect(row(page, 'MITK Workbench').getByRole('button', { name: 'Uninstall' })).toBeVisible()
-  expect(pageErrors).toEqual([])
+    expect(new URL((await imported).url()).searchParams.get('filename')).toBe('container.tar')
+    await expect(toasts(page).filter({ hasText: 'Container imported' })).toBeVisible()
+  })
 })
 
-test('a failed marketplace refresh notifies and keeps the list', async ({ page }) => {
-  const pageErrors = collectPageErrors(page)
-  await openView(page, undefined, {
-    routes: (p) => failRoute(p, HELM.update, 'helm repo update failed'),
-  })
+test.describe('failed actions', () => {
+  const cases: {
+    title: string
+    text: string
+    detail: string
+    status?: number
+    arrange: (page: Page) => Promise<unknown>
+    act: (page: Page) => Promise<unknown>
+    /** What must still be true afterwards: a failure leaves the page usable. */
+    after: (page: Page) => Promise<unknown>
+  }[] = [
+    {
+      title: 'Uninstall failed',
+      text: 'Could not uninstall MITK Workbench.',
+      detail: 'Chart uninstall failed: release is locked',
+      arrange: (p) => failRoute(p, HELM.uninstall, 'Chart uninstall failed: release is locked'),
+      act: async (p) => {
+        await row(p, 'MITK Workbench').getByRole('button', { name: 'Uninstall' }).click()
+        await confirmAction(p, 'Uninstall extension')
+      },
+      // The extension is still deployed, so the row must keep offering Uninstall.
+      after: (p) => expect(row(p, 'MITK Workbench').getByRole('button', { name: 'Uninstall' })).toBeVisible(),
+    },
+    {
+      title: 'Installation failed',
+      text: 'Could not install JupyterLab.',
+      detail: 'release name jupyterlab already exists',
+      status: 409,
+      arrange: (p) => failRoute(p, HELM.install, 'release name jupyterlab already exists', 409),
+      act: (p) => row(p, 'JupyterLab').getByRole('button', { name: 'Launch' }).click(),
+      after: (p) => expect(row(p, 'JupyterLab').getByRole('button', { name: 'Launch' })).toBeVisible(),
+    },
+    {
+      title: 'Download failed',
+      text: 'Could not download the latest extensions.',
+      detail: 'helm repo update failed',
+      arrange: (p) => failRoute(p, HELM.update, 'helm repo update failed'),
+      act: async (p) => {
+        await p.getByTestId('update-extensions').click()
+        await confirmAction(p, 'Download')
+      },
+      // The list on screen is kept.
+      after: (p) => expect(row(p, 'MITK Workbench')).toBeVisible(),
+    },
+    {
+      title: 'Project unavailable',
+      text: 'Could not load the current project.',
+      detail: 'project lookup failed',
+      arrange: (p) => failRoute(p, '/aii/projects', 'project lookup failed'),
+      act: async () => {},
+      // The list is scoped by the document URL, so it still loads.
+      after: (p) => expect(row(p, 'MITK Workbench')).toBeVisible(),
+    },
+  ]
 
-  await page.getByTestId('update-extensions').click()
-  await confirmAction(page, 'Download')
+  for (const c of cases) {
+    test(`${c.title}: says what failed, keeps the backend message behind Details`, async ({
+      page,
+    }) => {
+      const pageErrors = collectPageErrors(page)
+      await openView(page, undefined, { routes: c.arrange })
+      await c.act(page)
 
-  await expect(page.getByText('Refresh failed', { exact: true })).toBeVisible()
-  await expect(page.getByText('helm repo update failed')).toBeVisible()
-  await expect(row(page, 'MITK Workbench')).toBeVisible()
-  expect(pageErrors).toEqual([])
-})
+      const toast = toasts(page).filter({ hasText: c.title })
+      await expect(toast).toContainText(c.text)
+      await expect(toast).not.toContainText(c.detail)
+      await expect(toast).not.toContainText('status code')
 
-// An aborted request leaves the axios error without a `response`.
-test('an unreachable import-container notifies instead of throwing', async ({ page }) => {
-  const pageErrors = collectPageErrors(page)
-  await openView(page, undefined, {
-    routes: (p) => p.route(`**${HELM.importContainer}*`, (r) => r.abort()),
-  })
+      const details = await openFailureDetails(page, c.title)
+      await expect(details.getByText(c.detail)).toBeVisible()
+      await expect(details.getByText(new RegExp(`^${c.status ?? 500}`))).toBeVisible()
+      await details.getByRole('button', { name: 'Close' }).click()
 
-  await page.locator('input.filepond--browser').setInputFiles({
-    name: 'container.tar',
-    mimeType: 'application/x-tar',
-    buffer: Buffer.from('mock container'),
-  })
-
-  await expect(page.getByText('Import failed', { exact: true })).toBeVisible()
-  expect(pageErrors).toEqual([])
-})
-
-test('a failed project lookup notifies instead of rejecting unhandled', async ({ page }) => {
-  const pageErrors = collectPageErrors(page)
-  // The list is scoped by the document URL, so it still loads.
-  await openView(page, undefined, {
-    routes: (p) => failRoute(p, '/aii/projects', 'project lookup failed'),
-  })
-
-  await expect(page.getByText('Project unavailable', { exact: true })).toBeVisible()
-  await expect(page.getByText('project lookup failed')).toBeVisible()
-  expect(pageErrors).toEqual([])
-})
-
-/* --------------------------------------------------------- load failures -- */
-
-test('survives a backend error, shows no rows, and notifies the user', async ({ page }) => {
-  // Freeze the 5s poll so exactly one failed load (the initial one) fires and a
-  // single toast exists to assert against.
-  await page.clock.install()
-  await installMockBackend(page)
-  // Override the extensions route to fail (later route wins).
-  await page.route(HELM.extensions, (r) =>
-    r.fulfill({ status: 500, contentType: 'text/plain', body: 'internal error' }),
-  )
-  await page.goto(VIEW_PATH)
-
-  await expect(page.getByRole('textbox', { name: 'Search' })).toBeVisible()
-  await expect(page.getByTestId('extensions-empty-state')).toBeVisible()
-  await expect(row(page, 'MITK Workbench')).toHaveCount(0)
-
-  // Unlike a legitimately empty list, a load failure surfaces an error toast.
-  await expect(toasts(page).getByText('Failed to load extensions')).toBeVisible()
-})
-
-// A revoked kaapana.ai/applications claim makes the 5s poll fail for as long as
-// the view is open; per-failure notifying would toast every five seconds, so
-// the error is latched and re-armed only by a successful poll.
-test('a persistently failing poll notifies once, and again after a recovery', async ({ page }) => {
-  await page.clock.install()
-  // Count toasts as they are ADDED, not as they are visible: the notification
-  // auto-dismisses after 5s and the poll ticks every 5s, so a visibility
-  // assertion cannot tell "notified once" from "notified and dismissed".
-  await page.addInitScript(() => {
-    ;(window as any).__errorToasts = 0
-    const SEL = '.vue-notification-template'
-    // Observe `document`, not documentElement: an init script runs before the
-    // document is parsed, so documentElement is still null here. The toast
-    // arrives inside an added .vue-notification-wrapper, so scan the subtree.
-    new MutationObserver((records) => {
-      for (const rec of records) {
-        for (const node of Array.from(rec.addedNodes)) {
-          if (!(node instanceof HTMLElement)) continue
-          const hits = [
-            ...(node.matches(SEL) ? [node] : []),
-            ...Array.from(node.querySelectorAll(SEL)),
-          ]
-          for (const hit of hits) {
-            if ((hit.textContent || '').includes('Failed to load extensions')) {
-              ;(window as any).__errorToasts++
-            }
-          }
-        }
-      }
-    }).observe(document, { childList: true, subtree: true })
-  })
-  await installMockBackend(page)
-
-  const server = extension({
-    releaseName: 'code-server-1',
-    name: 'code-server',
-    display_name: 'Code Server',
-    available_versions: { '1.0.0': deployed('code-server-1') },
-    successful: 'yes',
-    installed: 'yes',
-  })
-  let failing = true
-  let calls = 0
-  await page.route(HELM.extensions, (r) => {
-    calls++
-    if (failing) return r.fulfill({ status: 403, contentType: 'application/json', body: '{}' })
-    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([server]) })
-  })
-
-  const errorToasts = () => page.evaluate(() => (window as any).__errorToasts as number)
-
-  await page.goto(VIEW_PATH)
-  await expect.poll(errorToasts).toBe(1)
-
-  // Four further poll ticks, all failing: still exactly one toast emitted.
-  for (let i = 0; i < 4; i++) {
-    await page.clock.runFor(5_000)
-    await expect.poll(errorToasts).toBe(1)
+      await c.after(page)
+      expect(pageErrors).toEqual([])
+    })
   }
-  expect(calls).toBeGreaterThan(4)
 
-  // A successful poll re-arms the latch, so a later failure is reported again.
-  failing = false
-  await page.clock.runFor(5_000)
-  await expect(row(page, 'Code Server').getByRole('button', { name: 'Uninstall' })).toBeVisible()
-  failing = true
-  await page.clock.runFor(5_000)
-  await expect.poll(errorToasts).toBe(2)
+  test('an unreachable service is reported with the transport error', async ({ page }) => {
+    const pageErrors = collectPageErrors(page)
+    await openView(page, undefined, {
+      routes: (p) => p.route(`**${HELM.importContainer}*`, (r) => r.abort()),
+    })
+    await page.locator('input.filepond--browser').setInputFiles({
+      name: 'container.tar',
+      mimeType: 'application/x-tar',
+      buffer: Buffer.from('mock container'),
+    })
+
+    const details = await openFailureDetails(page, 'Import failed')
+    await expect(details.getByText('Network Error')).toBeVisible()
+    expect(pageErrors).toEqual([])
+  })
+
+  test('the details dialog holds the request line, can be copied, and stays until closed', async ({
+    page,
+  }) => {
+    await openView(page, undefined, {
+      routes: (p) => failRoute(p, HELM.install, 'release name jupyterlab already exists', 409),
+    })
+    await row(page, 'JupyterLab').getByRole('button', { name: 'Launch' }).click()
+
+    const details = await openFailureDetails(page, 'Installation failed')
+    await expect(details.getByText('409 Conflict')).toBeVisible()
+    await expect(details.getByText(/POST \/project\/admin\/kube-helm-api\/helm-install-chart/)).toBeVisible()
+    await expect(details.getByRole('button', { name: 'Copy details' })).toBeVisible()
+    await expect(details.getByRole('button', { name: 'Close' })).toBeFocused()
+
+    await dismissWithEscape(page)
+  })
+})
+
+test.describe('load failures', () => {
+  test('a failed first load is the empty state with a retry, not a toast', async ({ page }) => {
+    await page.clock.install()
+    await installMockBackend(page)
+    await page.route(HELM.extensions, (r) => r.fulfill(serverError('helm repo unreachable')))
+    await page.goto(VIEW_PATH)
+
+    const empty = page.getByTestId('extensions-empty-state')
+    await expect(empty).toContainText('Could not load the extension list')
+    await expect(page.getByText('No data available')).toHaveCount(0)
+    await page.clock.runFor(1_000)
+    await expect(toasts(page)).toHaveCount(0)
+
+    await empty.getByRole('button', { name: 'Details' }).click()
+    await expect(dialog(page).getByText('helm repo unreachable')).toBeVisible()
+    await dialog(page).getByRole('button', { name: 'Close' }).click()
+
+    const retried = page.waitForRequest((r) => HELM.extensions.test(r.url()))
+    await empty.getByRole('button', { name: 'Try again' }).click()
+    await retried
+    await expect(empty).toContainText('Could not load the extension list')
+    await expect(toasts(page)).toHaveCount(0)
+  })
+
+  test('a failed poll keeps the loaded list, says it is stale inline, and never toasts', async ({
+    page,
+  }) => {
+    await page.clock.install()
+    await openView(page)
+    const stale = page.getByTestId('stale-list-alert')
+
+    let failing = true
+    await page.route(HELM.extensions, (r) =>
+      failing ? r.fulfill(serverError('helm repo unreachable', 403)) : r.fallback(),
+    )
+    for (let i = 0; i < 3; i++) {
+      await page.clock.runFor(5_000)
+      await expect(stale).toContainText('Could not refresh the extension list')
+      await expect(row(page, 'MITK Workbench')).toBeVisible()
+      await expect(toasts(page)).toHaveCount(0)
+    }
+
+    await stale.getByRole('button', { name: 'Details' }).click()
+    await expect(dialog(page).getByText(/^403/)).toBeVisible()
+    await dialog(page).getByRole('button', { name: 'Close' }).click()
+
+    failing = false
+    await page.clock.runFor(5_000)
+    await expect(stale).toHaveCount(0)
+
+    // A later failure is reported again; the condition is not latched away.
+    failing = true
+    await page.clock.runFor(5_000)
+    await expect(stale).toContainText('Could not refresh the extension list')
+    await expect(toasts(page)).toHaveCount(0)
+  })
 })

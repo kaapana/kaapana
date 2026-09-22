@@ -178,3 +178,17 @@ export async function dismissWithEscape(page: Page) {
   await expect(dialog(page)).toBeVisible()
   await pressEscapeUntil(page, () => dialog(page).isHidden())
 }
+
+/**
+ * Record every postMessage the view sends to its shell. Standalone, the
+ * shell is the page itself, so the messages land on the same window.
+ */
+export async function recordShellMessages(page: Page) {
+  await page.addInitScript(() => {
+    ;(window as any).__shellMessages = []
+    window.addEventListener('message', (event: MessageEvent) => {
+      ;(window as any).__shellMessages.push(event.data)
+    })
+  })
+  return () => page.evaluate(() => (window as any).__shellMessages as { type: string }[])
+}

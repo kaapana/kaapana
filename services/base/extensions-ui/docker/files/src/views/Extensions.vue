@@ -211,101 +211,6 @@
               <span v-if="item.multiinstallable === 'yes'">Launch</span>
               <span v-if="item.multiinstallable === 'no'">Install</span>
 
-              <v-dialog
-                v-if="item.extension_params !== undefined && item.extension_params !== 'null'"
-                v-model="popUpDialog[item.releaseName]"
-                :retain-focus="false"
-                max-width="600px"
-                persistent
-                scrollable
-              >
-                <v-card>
-                  <v-card-title v-if="popUpItem.extension_params !== undefined && popUpItem.extension_params !== 'null' && Object.keys(popUpItem.extension_params).length > 0 && popUpItem.extension_params[Object.keys(popUpItem.extension_params)[0]].type !== 'doc'">Configure {{ popUpItem.name }}</v-card-title>
-                  <v-card-text>
-                    <v-form ref="popUpForm" class="px-3">
-                      <template v-for="(param, key) in popUpItem.extension_params" :key="key">
-                        <div v-if="param.type == 'group_name'" class="text-subtitle-1 font-weight-medium mt-4 mb-2">{{ param.default }}</div>
-                        <div v-if="param.type == 'doc'" class="mt-4 mb-2">
-                          <div class="text-subtitle-1 font-weight-medium mb-1">{{ param.title }}</div>
-                          <div v-if="param.html" class="text-body-2" v-html="param.html"></div>
-                        </div>
-                        <v-text-field
-                          v-if="param.type == 'string'"
-                          :label="param.definition ? `${param.definition} (${key}) ` : String(key)"
-                          v-model="popUpExtension[key]"
-                          clearable
-                          :rules="popUpRulesStr"
-                        >
-                          <template v-if="param.help" #append>
-                            <v-tooltip location="right">
-                              <template #activator="{ props }">
-                                <v-icon v-bind="props" :icon="kaapanaIcons.help" />
-                              </template>
-                              <div v-html="param.help"></div>
-                            </v-tooltip>
-                          </template>
-                        </v-text-field>
-                        <v-checkbox
-                          v-if="param.type == 'bool' || param.type == 'boolean'"
-                          :label="param.definition ? `${param.definition} (${key}) ` : String(key)"
-                          v-model="popUpExtension[key]"
-                        >
-                          <template v-if="param.help" #append>
-                            <v-tooltip location="right">
-                              <template #activator="{ props }">
-                                <v-icon v-bind="props" :icon="kaapanaIcons.help" />
-                              </template>
-                              <div v-html="param.help"></div>
-                            </v-tooltip>
-                          </template>
-                        </v-checkbox>
-                        <v-select
-                          v-if="param.type == 'list_single'"
-                          :items="param.value"
-                          :label="param.definition ? `${param.definition} (${key}) ` : String(key)"
-                          v-model="popUpExtension[key]"
-                          :rules="popUpRulesSingleList"
-                          clearable
-                        >
-                          <template v-if="param.help" #append>
-                            <v-tooltip location="right">
-                              <template #activator="{ props }">
-                                <v-icon v-bind="props" :icon="kaapanaIcons.help" />
-                              </template>
-                              <div v-html="param.help"></div>
-                            </v-tooltip>
-                          </template>
-                        </v-select>
-                        <v-select
-                          v-if="param.type == 'list_multi'"
-                          multiple
-                          :items="param.value"
-                          :item-title="param.default"
-                          :label="param.definition ? `${param.definition} (${key}) ` : String(key)"
-                          v-model="popUpExtension[key]"
-                          :rules="popUpRulesMultiList"
-                          clearable
-                        >
-                          <template v-if="param.help" #append>
-                            <v-tooltip location="right">
-                              <template #activator="{ props }">
-                                <v-icon v-bind="props" :icon="kaapanaIcons.help" />
-                              </template>
-                              <div v-html="param.help"></div>
-                            </v-tooltip>
-                          </template>
-                        </v-select>
-                      </template>
-                    </v-form>
-                  </v-card-text>
-                  <v-card-actions>
-                    <v-spacer />
-                    <v-btn color="error" @click="resetFormInfo(item.releaseName)">Abort</v-btn>
-                    <v-btn color="primary" v-if="item.multiinstallable === 'no'" @click="submitForm(item.releaseName)">Install</v-btn>
-                    <v-btn color="primary" v-if="item.multiinstallable === 'yes'" @click="submitForm(item.releaseName)">Launch</v-btn>
-                  </v-card-actions>
-                </v-card>
-              </v-dialog>
             </v-btn>
 
             <v-btn
@@ -345,6 +250,17 @@
       </v-card>
     </v-container>
 
+    <ExtensionParamsDialog
+      v-if="popUpItem"
+      :model-value="paramsDialogOpen"
+      :extension-name="popUpItem.uiVisibleName ?? popUpItem.name"
+      :submit-label="popUpItem.multiinstallable === 'yes' ? 'Launch' : 'Install'"
+      :params="popUpParams"
+      @update:model-value="onParamsDialogToggle"
+      @update:dirty="onParamsDirty"
+      @submit="onParamsSubmit"
+    />
+
     <ConfirmDialog
       v-model="confirmOpen"
       :color="confirmContent.color"
@@ -357,10 +273,11 @@
 </template>
 
 <script setup lang='ts'>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useNotification } from '@kyvg/vue3-notification'
-import { ConfirmDialog, kaapanaApiService, refreshShell } from '@kaapana/base-ui'
+import { ConfirmDialog, kaapanaApiService, postViewDirty, refreshShell } from '@kaapana/base-ui'
 import Upload from '@/components/Upload.vue'
+import ExtensionParamsDialog from '@/components/ExtensionParamsDialog.vue'
 import { usePolicyStore } from '@/stores/policy'
 import { useAuthStore, useProjectStore } from '@kaapana/base-ui'
 import { checkAuthR } from '@/utils/opa'
@@ -430,17 +347,10 @@ let previousReadyReleases: string | null = null
 const launchedAppLinks = ref<any[] | null>([])
 const search = ref('')
 const selectedFilters = ref<string[]>(['Stable', 'Applications', 'Workflows', 'GPU', 'CPU'])
-const popUpDialog = ref<Record<string, boolean>>({})
-const popUpItem = ref<any>({})
-const popUpExtension = ref<Record<string, any>>({})
-const popUpForm = ref<any>(null)
-const popUpRulesStr = [(v: any) => (v && v.length > 0) || 'Empty string field']
-const popUpRulesSingleList = [
-  (v: any) => (v && v.length > 0) || 'Empty single-selectable list field',
-]
-const popUpRulesMultiList = [
-  (v: any) => v.length > 0 || 'Empty multi-selectable list field',
-]
+const paramsDialogOpen = ref(false)
+const popUpItem = ref<any>(null)
+const popUpParams = ref<Record<string, any>>({})
+const paramsDirty = ref(false)
 const labelIdle = 'Upload chart (.tgz) or container (.tar) files'
 const sortBy = [{ key: 'uiVisibleName', order: 'asc' as const }]
 
@@ -731,91 +641,76 @@ function deleteChart(item: any, helmCommandAddons: any = '') {
     })
 }
 
-function resetFormInfo(key: any) {
-  popUpDialog.value[key] = false
-  if (popUpForm.value) {
-    popUpExtension.value = {}
-    popUpForm.value.reset()
-  }
-}
+/* --------------------------------------------------------- params dialog -- */
 
 function getFormInfo(item: any) {
-  popUpDialog.value[item.releaseName] = false
-  popUpItem.value = {}
-  // Reset the params buffer so one install's parameters cannot leak into the next.
-  popUpExtension.value = {}
-
-  const params = item['extension_params']
-  // The backend reports a param-less extension as the literal string 'null';
+  const params = item.extension_params
+  // The backend reports a param-less extension as the literal string "null";
   // no config form then — install directly.
-  if (params && params !== 'null' && Object.keys(params).length > 0) {
-    popUpDialog.value[item.releaseName] = true
+  if (params && params !== 'null' && typeof params === 'object' && Object.keys(params).length > 0) {
     popUpItem.value = item
-    for (let key of Object.keys(params)) {
-      popUpExtension.value[key] = params[key]['default']
-    }
-  } else {
-    installChart(item)
+    popUpParams.value = params
+    paramsDialogOpen.value = true
+    return
+  }
+  installChart(item)
+}
+
+function onParamsDialogToggle(open: boolean) {
+  paramsDialogOpen.value = open
+  if (!open) {
+    paramsDirty.value = false
+    popUpParams.value = {}
   }
 }
 
-async function submitForm(key: any) {
-  const result = await popUpForm.value?.validate()
-  if (result?.valid) {
-    popUpDialog.value[key] = false
-    installChart(popUpItem.value)
-  }
+function onParamsDirty(dirty: boolean) {
+  paramsDirty.value = dirty
 }
 
-function addExtensionParams(payload: any) {
-  let params = JSON.parse(JSON.stringify(popUpExtension.value))
-  console.log('add parameters', params)
-
-  let res = {} as any
-  for (let key of Object.keys(params)) {
-    let v = params[key]
-    let s = '' as string
-    // TODO: if more types like Object etc will exist as well, check them here
-    if (Array.isArray(v) && v.length > 0) {
-      for (let vv of v) {
-        s += String(vv) + ','
-      }
-      s = s.slice(0, s.length - 1)
-    } else {
-      s = v
-    }
-
-    res[key] = s
-  }
-  payload['extension_params'] = res
-  return payload
+function onParamsSubmit(values: Record<string, any>) {
+  const item = popUpItem.value
+  paramsDirty.value = false
+  if (item) installChart(item, values)
 }
 
-function installChart(item: any) {
-  let payload = {
+// Lets the shell warn before a project switch or view replacement while the
+// form has unsaved edits.
+watch(paramsDirty, (dirty) => postViewDirty(dirty))
+
+// kube-helm takes every parameter as a string; a multi-select arrives as a
+// comma-joined list.
+function serialiseParams(values: Record<string, any>): Record<string, any> {
+  console.log('add parameters', values)
+  const serialised: Record<string, any> = {}
+  for (const [key, value] of Object.entries(values)) {
+    // An empty array passes through unchanged, as kube-helm has always received
+    // it.
+    serialised[key] = Array.isArray(value) && value.length > 0 ? value.join(',') : value
+  }
+  return serialised
+}
+
+function installChart(item: any, extensionParams?: Record<string, any>) {
+  const payload: any = {
     name: item.name,
     version: item.version,
     keywords: item.keywords,
-  } as any
+  }
 
   console.log('payload', payload)
-  if (Object.keys(popUpExtension.value).length > 0) {
-    payload = addExtensionParams(payload)
+  if (extensionParams && Object.keys(extensionParams).length > 0) {
+    payload.extension_params = serialiseParams(extensionParams)
   }
 
   loading.value = true
-  clearExtensionsInterval()
-  startExtensionsInterval()
+  restartExtensionsInterval()
   kaapanaApiService
     .helmApiPost('/helm-install-chart', payload)
     .then((response: any) => {
       console.log('helm install response', response)
       item.installed = 'yes'
-      if (item.multiinstallable === 'yes') {
-        item.successful = 'justLaunched'
-      } else {
-        item.successful = 'pending'
-      }
+      item.successful = item.multiinstallable === 'yes' ? 'justLaunched' : 'pending'
     })
     .catch((err: any) => {
       console.log('helm install error', err)
@@ -835,6 +730,8 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   clearExtensionsInterval()
+  // Leave the shell in a clean state: a view being torn down has no unsaved work.
+  postViewDirty(false)
 })
 </script>
 

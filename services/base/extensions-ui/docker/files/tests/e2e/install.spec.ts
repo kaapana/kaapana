@@ -45,11 +45,12 @@ test.describe('install and launch', () => {
     })
   })
 
-  test('aborting the config form fires no install request', async ({ page }) => {
+  test('cancelling the config form fires no install request', async ({ page }) => {
     const installs = countRequests(page, HELM.install)
     await row(page, 'nnU-Net Training').getByRole('button', { name: 'Install' }).click()
 
-    await dialog(page).getByRole('button', { name: 'Abort' }).click()
+    // "Cancel": dismissing a form destroys nothing, so it is a secondary action.
+    await dialog(page).getByRole('button', { name: 'Cancel' }).click()
 
     await expect(dialog(page)).toBeHidden()
     expect(installs()).toBe(0)

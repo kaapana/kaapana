@@ -319,7 +319,7 @@ its menu entry navigates to — see
 CI
 --
 
-The ``ui_e2e_tests`` job in ``ci/pipeline/unit-tests.yml`` runs one matrix entry
+The ``ui_e2e_test`` job in ``ci/pipeline/unit-tests.yml`` runs one matrix entry
 per app. Before installing an app it checks the app's ``package.json`` for
 ``"@kaapana/base-ui"`` and, if present, first runs ``npm ci && npm run build``
 in the library — so a consumer gets the library built in CI automatically,
@@ -331,7 +331,7 @@ is a hard-coded list. A new view is not tested at all until it is added to it:
 .. code-block:: yaml
 
    # ci/pipeline/unit-tests.yml
-   ui_e2e_tests:
+   ui_e2e_test:
      parallel:
        matrix:
          - APP:
@@ -342,7 +342,7 @@ is a hard-coded list. A new view is not tested at all until it is added to it:
 Pick the app's Playwright port from the registry in :ref:`ui_testing` (one port
 per app, ``--strictPort``) so suites can keep running in parallel.
 
-The same file carries ``ui_unit_tests``, a single (non-matrix) job running
+The same file carries ``ui_unit_test``, a single (non-matrix) job running
 ``portal-ui``'s vitest suites — it is the only app with a ``test:unit`` script.
 
 
@@ -364,10 +364,10 @@ Each suite starts its app's own Vite server (the dev server locally, a
 ``portal-ui`` on 4300, the views on 4301–4309 — so all suites can run in
 parallel on one machine. Run a suite from the view's ``docker/files``
 directory with ``npx playwright test`` (build ``base-ui`` first if the view
-consumes it). CI runs the same suites in the ``ui_e2e_tests`` matrix job.
+consumes it). CI runs the same suites in the ``ui_e2e_test`` matrix job.
 
 ``portal-ui`` additionally ships vitest unit suites under
 ``src/**/__tests__`` for the pieces that are awkward to reach through the
 browser (the project-prefix rewriting in ``api/http.ts``, the OPA menu filter,
 the stores). Run them with ``npm run test:unit``; CI runs them in
-``ui_unit_tests``.
+``ui_unit_test``.

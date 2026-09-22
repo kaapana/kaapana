@@ -102,7 +102,7 @@ CI=1 npm run build && CI=1 npx playwright test    # what CI runs (preview + juni
 ```
 
 All backend traffic is stubbed via route interception in
-`tests/e2e/fixtures/mock-backend.ts`. CI runs the suite in the `ui_e2e_tests`
+`tests/e2e/fixtures/mock-backend.ts`. CI runs the suite in the `ui_e2e_test`
 job (`ci/pipeline/unit-tests.yml`), matrix entry `home-ui`.
 
 ## Required endpoints

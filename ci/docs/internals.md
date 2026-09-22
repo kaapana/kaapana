@@ -20,7 +20,7 @@ Test the code → build the platform images → deploy them on a fresh throwaway
 | `build` | `build_packages` | build runner | hours (much less with a warm cache) |
 | `security` | `security_scan` | security runner | hours |
 | `deploy` | `prepare_deployment` → `server_installation` → `platform_deployment` | deploy runner, ansible over SSH | ~1 h |
-| `integrationtest` | `setup_integration_tests`, `scan_ports`, `first_login`, `install_extensions`, `send_data`, `run_workflows`, `playwright_ui_tests` | deploy runner, against the live platform | 1–3 h |
+| `integrationtest` | `setup_integration_test`, `scan_ports`, `first_login`, `install_extensions`, `send_data`, `run_workflows`, `playwright_ui_test` | deploy runner, against the live platform | 1–3 h |
 | `maintenance` | `sweep_deployment_vms`, only with `exec_vm_sweep` | deploy runner | minutes |
 | `clean` | `destroy_deployment`, `if_ci_failing` | deploy runner | minutes |
 
@@ -171,7 +171,7 @@ Depending on `CI_EXEC_REDEPLOY` and `CI_EXEC_SERVER_INSTALLATION` values, prefli
 
 ### integrationtest
 
-`setup_integration_tests` extracts `CLIENT_SECRET` from the running platform and
+`setup_integration_test` extracts `CLIENT_SECRET` from the running platform and
 passes it on as a dotenv artifact. Everything after it extends
 `.integration_test_local`: `pip install --no-deps -e` the repo's test package
 (the dependencies are already baked into `ci-base`, so only the current code is
@@ -184,7 +184,7 @@ registered), then pytest against `--host $VM_FQDN`.
 | `install_extensions` | 4 xdist workers, `retry: 2` |
 | `send_data` | DICOM upload, serial (`PYTEST_WORKERS: 0`), `retry: 2`; test data cached in `/data` on the deploy runner |
 | `run_workflows` | 2-hour timeout, `allow_failure: true`, `PYTEST_DIST: loadgroup` ([below](#workflow-testcases-ci-config)) |
-| `playwright_ui_tests` | node + chromium from `ci-base`, one worker, `auth-setup` and `project-management` projects; publishes the Playwright HTML report |
+| `playwright_ui_test` | node + chromium from `ci-base`, one worker, `auth-setup` and `project-management` projects; publishes the Playwright HTML report |
 
 `exec_integration_test_jobs` narrows this set. Each job carries a rule that
 turns it off when the input is non-empty and does not name it, so the default
@@ -417,7 +417,7 @@ Four report types are wired up. Only GitLab reads them; no job does.
 
 | Report | Produced by | Where it shows |
 |---|---|---|
-| JUnit | every pytest job, `ui_e2e_tests`, `ui_unit_tests`, `playwright_ui_tests` | pipeline **Tests** tab, failed-test summary in the MR |
+| JUnit | every pytest job, `ui_e2e_test`, `ui_unit_test`, `playwright_ui_test` | pipeline **Tests** tab, failed-test summary in the MR |
 | Coverage (cobertura) | every job extending `.pytest_template` | coverage badge, line markers in the MR diff |
 | Code Quality | `code_quality` | MR **Code Quality** widget |
 | Container scanning | `security_scan` | MR security widget, vulnerability report |
@@ -437,7 +437,7 @@ its own means the layout differs, and that job says how. For everything else:
    in [`.gitlab-ci.yml`](../../.gitlab-ci.yml).
 3. Needs a CI/CD variable that is not checked yet? Add it to `preflight_variables`.
 4. Need docker? Prefer a plain daemonless service; a privileged dind service must
-   use the fully-qualified image name (see `task_api_tests`).
+   use the fully-qualified image name (see `task_api_test`).
 5. **Add the job to `if_ci_failing`'s `needs:` list** (`optional: true`;
    `artifacts: true` only if its logs should feed the failure ticket — never for
    jobs whose artifacts contain secrets). If the job uses the test VM, **also add

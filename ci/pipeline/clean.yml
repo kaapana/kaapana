@@ -27,13 +27,13 @@ destroy_deployment:
       artifacts: true
     - { job: server_installation, optional: true, artifacts: false }
     - { job: platform_deployment, optional: true, artifacts: false }
-    - { job: setup_integration_tests, optional: true, artifacts: false }
+    - { job: setup_integration_test, optional: true, artifacts: false }
     - { job: scan_ports, optional: true, artifacts: false }
     - { job: first_login, optional: true, artifacts: false }
     - { job: install_extensions, optional: true, artifacts: false }
     - { job: send_data, optional: true, artifacts: false }
     - { job: run_workflows, optional: true, artifacts: false }
-    - { job: playwright_ui_tests, optional: true, artifacts: false }
+    - { job: playwright_ui_test, optional: true, artifacts: false }
   rules:
     # Never destroy externally-provided VMs
     - if: '$DEPLOYMENT_INSTANCE_FQDN != ""'

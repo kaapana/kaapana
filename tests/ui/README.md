@@ -60,7 +60,7 @@ Failed tests automatically save:
 
 ## In CI
 
-The `playwright_ui_tests` GitLab CI job runs after `first_login` completes. It skips the
+The `playwright_ui_test` GitLab CI job runs after `first_login` completes. It skips the
 playwright `first-login` project (the pytest job already handled password setup) and runs:
 
 ```bash

@@ -225,7 +225,7 @@ variables:
   GIT_DEPTH: "1"
   ARTIFACTS_DIR: "$CI_PROJECT_DIR/artifacts"
   # Not declared here: CLIENT_SECRET is extracted from the deployed platform by
-  # setup_integration_tests and passed downstream via a dotenv artifact.
+  # setup_integration_test and passed downstream via a dotenv artifact.
 
   # --- Set only in Settings > CI/CD > Variables, never in this file:
   # REGISTRY_ENV                 required in every pipeline; environment scope whose CI_REGISTRY_* rows the jobs get

@@ -27,4 +27,4 @@ run
 
 `--v0-compatible` is required: the policies are written in rego v0 syntax, which
 opa 1.x rejects by default. The platform runs opa with the same flag. This is
-what CI's `opa_policy_tests` job runs.
+what CI's `opa_policy_test` job runs.

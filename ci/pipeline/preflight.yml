@@ -170,7 +170,7 @@ preflight_target:
   after_script:
     - cat "$ARTIFACTS_DIR/target_readiness.log" 2>/dev/null || true
   artifacts:
-    expire_in: 2 weeks
+    expire_in: 30 days
     paths:
       - "artifacts/target_readiness.log"
       - "artifacts/target_readiness.json"

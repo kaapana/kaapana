@@ -88,7 +88,7 @@ build_packages:
   # No docker logout needed: login state dies with the job container.
 
   artifacts:
-    expire_in: 2 weeks
+    expire_in: 30 days
     name: "build_$CI_COMMIT_SHORT_SHA"
     when: always
     paths:

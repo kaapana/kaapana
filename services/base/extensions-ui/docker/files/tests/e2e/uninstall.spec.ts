@@ -57,6 +57,29 @@ test.describe('uninstall', () => {
       helm_command_addons: '--no-hooks',
     })
   })
+
+  test('while it runs, the control shows progress and cannot be submitted twice', async ({
+    page,
+  }) => {
+    let release!: () => void
+    const held = new Promise<void>((resolve) => (release = resolve))
+    const uninstalls = countRequests(page, HELM.uninstall)
+    await page.route(`**${HELM.uninstall}`, async (r) => {
+      await held
+      await r.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+    })
+
+    const control = row(page, 'MITK Workbench').getByRole('button', { name: 'Uninstall' })
+    await control.click()
+    await confirmAction(page, 'Uninstall extension')
+
+    await expect(control).toBeDisabled()
+    await control.click({ force: true }).catch(() => {})
+    expect(uninstalls()).toBe(1)
+
+    release()
+    await expect(control).toBeHidden()
+  })
 })
 
 test('a multi-installable instance is deleted, not uninstalled, and the prompt says so', async ({

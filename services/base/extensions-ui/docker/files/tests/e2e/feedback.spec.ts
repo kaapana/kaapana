@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { installMockBackend, VIEW_PATH } from './fixtures/mock-backend'
-import { collectPageErrors, deployed, extension, failRoute, HELM, openView, row, serverError, toasts } from './fixtures/helpers'
+import { collectPageErrors, deployed, extension, failRoute, HELM, openView, row, toasts } from './fixtures/helpers'
 
 test('a failed uninstall notifies and leaves the row installed', async ({ page }) => {
   const pageErrors = collectPageErrors(page)
@@ -57,17 +57,6 @@ test('a failed project lookup notifies instead of rejecting unhandled', async ({
 
   await expect(page.getByText('Project unavailable', { exact: true })).toBeVisible()
   await expect(page.getByText('project lookup failed')).toBeVisible()
-  expect(pageErrors).toEqual([])
-})
-
-// The store's catch is the only thing keeping getCommonData's rejection off the page.
-test('a failed commonData load leaves the view working', async ({ page }) => {
-  const pageErrors = collectPageErrors(page)
-  await installMockBackend(page)
-  await page.route('**/jsons/commonData.json', (r) => r.fulfill(serverError('commonData missing')))
-  await page.goto(VIEW_PATH)
-
-  await expect(row(page, 'MITK Workbench')).toBeVisible()
   expect(pageErrors).toEqual([])
 })
 

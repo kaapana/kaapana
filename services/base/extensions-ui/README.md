@@ -80,7 +80,6 @@ prefixed with the `/project/<short_id>` document prefix.
 | GET | `/oauth2/userinfo` (prod) · `/jsons/testingAuthenticationToken.json` (dev) | Auth check per navigation (`useAuthStore().checkAuth`); failure is swallowed, the gateway enforces auth in front of the iframe. | none |
 | GET | `/aii/users/current` | Current user, to pick the project-list URL. | none |
 | GET | `/aii/projects` (admin) · `/aii/users/<id>/projects` (non-admin) | Resolve the URL slug against the user's projects; an unscoped document redirects onto the first project. **This app HAS the project store.** | none |
-| GET | `/jsons/commonData.json` | `commonDataStore.loadCommonData()`. Ported from the monolith; the fetched value is **never read** by the view (vestigial). | none |
 
 **Scope tiers**
 

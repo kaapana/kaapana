@@ -75,7 +75,7 @@ setup_integration_tests:
     - job: platform_deployment
       optional: true
   variables:
-    PYTEST_ARGS: "--client-secret $CLIENT_SECRET --allowed-ports 22,80,443 --download-directory $CI_PROJECT_DIR/downloaded_test_data --test-data-cache-dir /data"
+    PYTEST_ARGS: "--client-secret $CLIENT_SECRET --allowed-ports 22,80,443,11112 --download-directory $CI_PROJECT_DIR/downloaded_test_data --test-data-cache-dir /data"
   script:
     # deps are baked into the job image; this only registers the repo's
     # current test code

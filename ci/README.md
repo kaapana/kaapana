@@ -8,6 +8,7 @@ How to start a pipeline and choose what it runs.
 | [local-ci.md](docs/local-ci.md) | you want the jobs, or the deployment, on your own machine |
 | [internals.md](docs/internals.md) | how the pipeline works: stages, templates, runners scaling, registry switch, the ci-base image |
 | [troubleshooting.md](docs/troubleshooting.md) | a job failed - common causes|
+| [dependency-updates.md](docs/dependency-updates.md) | you review a Renovate MR, or change what Renovate updates |
 
 Pipeline configuration is [`.gitlab-ci.yml`](../.gitlab-ci.yml) plus stage files under [`ci/pipeline/`](pipeline/).
 

@@ -88,7 +88,7 @@ Manual steps:
 
 | Phase | Setting | What maintainers see |
 | --- | --- | --- |
-| 0 · Dry run | `RENOVATE_DRY_RUN=full` and a read-only token in the runner project | nothing; the run only logs what it would do |
+| 0 · Dry run | input `dry_run` = `full` and a read-only token in the runner project | nothing; the run only logs what it would do |
 | 1 · Dashboard only | `dependencyDashboardApproval: true` at the top level and in `vulnerabilityAlerts` | the dashboard issue; an MR only after someone ticks its box |
 | 2 · Security and tested components | remove the approval at the top level and in `vulnerabilityAlerts`; add `dependencyDashboardApproval: true` to the `Coverage: none` rule | security MRs and grouped MRs for tested components; untested ones wait for approval |
 | 3 · Target state | remove the approval from the `Coverage: none` rule; optionally add a `schedule` such as `["before 6am on monday"]` | the process table above |

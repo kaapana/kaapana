@@ -78,8 +78,8 @@ prepare_deployment:
     - |
       set +x
       echo "$REGISTRY_TOKEN" | helm registry login "${REGISTRY_URL%%/*}" -u "$REGISTRY_USER" --password-stdin >/dev/null 2>&1
-      if ! helm show chart "oci://$REGISTRY_URL/kaapana-admin-chart" --version "$VERSION_TAG" >/dev/null; then
-        echo "ERROR: kaapana-admin-chart '$VERSION_TAG' not found in $REGISTRY_URL — was this commit built and pushed?"
+      if ! helm show chart "oci://$REGISTRY_URL/$DEPLOYMENT_INSTANCE_ADMIN_CHART" --version "$VERSION_TAG" >/dev/null; then
+        echo "ERROR: $DEPLOYMENT_INSTANCE_ADMIN_CHART '$VERSION_TAG' not found in $REGISTRY_URL — was this commit built and pushed?"
         exit 1
       fi
 

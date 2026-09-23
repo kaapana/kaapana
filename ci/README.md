@@ -67,9 +67,9 @@ The CI-specific parts:
 | [`ruff.toml`](../ruff.toml) | enforced: `E4`, `E7`, `E9`, `F`, `I`, 120 columns | pre-commit, and the `lint` job |
 | [`ci/ruff-quality.toml`](ruff-quality.toml) | advisory: adds `B`, `C4`, `SIM`, `UP`, `RUF`, `W` | the `code_quality` job only |
 
-Both jobs are in [`ci/pipeline/lint.yml`](pipeline/lint.yml) and neither blocks
-a merge: `lint` is `allow_failure: true`, `code_quality` always exits zero and
-only publishes the report.
+Both jobs are in [`ci/pipeline/lint.yml`](pipeline/lint.yml). `lint` fails the
+pipeline on formatting drift or an enforced rule; `code_quality` always exits
+zero and only publishes the report.
 
 ## Configuration reference
 

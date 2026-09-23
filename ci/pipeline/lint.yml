@@ -22,6 +22,7 @@ spec:
     - when: never
   variables:
     # Bump together with the rev in .pre-commit-config.yaml.
+    # renovate: datasource=pypi depName=ruff
     RUFF_VERSION: "0.16.4"
   before_script:
     - 'grep -q "rev: v$RUFF_VERSION" .pre-commit-config.yaml'

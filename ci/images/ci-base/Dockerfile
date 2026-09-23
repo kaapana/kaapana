@@ -13,6 +13,7 @@ RUN printf '#!/bin/sh\nexit 101\n' > /usr/sbin/policy-rc.d && chmod +x /usr/sbin
 # squashfs-tools (`unsquashfs`): SecurityScanner (build_cli) scans offline
 # snap packages by extracting them and running `trivy rootfs` against that.
 # Must stay in step with the docker:*-dind tag pinned in ci/pipeline/*.yml
+# renovate: datasource=docker depName=docker.io/library/docker
 ARG DOCKER_CLI_VERSION=29.8.1
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
@@ -33,6 +34,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # helm + kubeval plugin: kaapana-build hard-fails without both
+# renovate: datasource=github-releases depName=helm/helm extractVersion=^v(?<version>\d+\.\d+\.\d+)$
 ARG HELM_VERSION=3.19.0
 RUN curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" \
         | tar -xzO linux-amd64/helm > /usr/local/bin/helm \
@@ -40,6 +42,7 @@ RUN curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" \
     && helm plugin install https://github.com/instrumenta/helm-kubeval
 
 # trivy: kaapana-build runs it as a plain process
+# renovate: datasource=github-releases depName=aquasecurity/trivy extractVersion=^v(?<version>\d+\.\d+\.\d+)$
 ARG TRIVY_VERSION=0.73.0
 RUN curl -fsSL "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz" \
         | tar -xz -C /usr/local/bin trivy
@@ -64,6 +67,7 @@ RUN curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | bash - \
 # Chromium for playwright. Version must stay in step with the
 # playwright pins in integration_tests/pyproject.toml, tests/ui and UI services.
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+# renovate: datasource=npm depName=playwright
 ARG JS_PLAYWRIGHT_VERSION=1.61.1
 RUN python -m playwright install --with-deps chromium \
     && npx --yes playwright@${JS_PLAYWRIGHT_VERSION} install --with-deps chromium \

@@ -1,4 +1,5 @@
 FROM golang:1.26.3-alpine3.23 AS builder
+# renovate: datasource=github-releases depName=oauth2-proxy/oauth2-proxy
 ARG OAUTH2_PROXY_VERSION=v7.15.2
 RUN apk add --no-cache git make && \
     git clone --depth 1 --branch ${OAUTH2_PROXY_VERSION} \

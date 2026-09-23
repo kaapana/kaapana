@@ -417,6 +417,7 @@ ci_config_tests:
       when: on_success
     - when: never
   variables:
+    # renovate: datasource=github-releases depName=firecow/gitlab-ci-local
     GITLAB_CI_LOCAL_VERSION: "4.75.1"
   before_script:
     - |

@@ -25,6 +25,9 @@ preflight_variables:
   tags:
     - $[[ inputs.runner_tag ]]
   image: python:3.12
+  environment:
+    name: $REGISTRY_ENV
+    action: access
   variables:
     GIT_STRATEGY: none # no checkout needed
   rules:

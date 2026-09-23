@@ -45,11 +45,15 @@ spec:
     exec_destroy_delayed:
       default: false
       type: boolean
-      description: "[exec] true keeps the deployment VM for 4h after the pipeline"
+      description: "[exec] true keeps the deployment VM for 4h after the pipeline; a failing run leaves it to the sweep"
     exec_ci_image_rebuild:
       default: false
       type: boolean
       description: "[exec] force build_ci_image to run on any pipeline source, bypassing its normal MR/develop-push + changes gate"
+    exec_vm_sweep:
+      default: false
+      type: boolean
+      description: "[exec] maintenance stage: sweep orphaned deployment VMs"
 
     # --- [runner] runner tag per stage group.
     build_runner_tag:
@@ -110,10 +114,6 @@ variables:
   MAINTENANCE: "false" # "true" pauses push/schedule/MR pipelines (workflow:rules)
 
   # --- Orphan VM sweep (maintenance stage, ci/pipeline/maintenance.yml).
-  CI_EXEC_VM_SWEEP:
-    value: "false"
-    options: ["true", "false"]
-    description: "maintenance stage: sweep orphaned deployment VMs"
   VM_SWEEP_APPLY:
     value: "false"
     options: ["true", "false"]
@@ -231,6 +231,7 @@ include:
       exec_server_installation: $[[ inputs.exec_server_installation ]]
       exec_redeploy: $[[ inputs.exec_redeploy ]]
       exec_integration_tests: $[[ inputs.exec_integration_tests ]]
+      exec_vm_sweep: $[[ inputs.exec_vm_sweep ]]
   - local: /ci/pipeline/ci-image.yml
     inputs:
       runner_tag: $[[ inputs.build_runner_tag ]]
@@ -257,12 +258,16 @@ include:
       exec_deploy: $[[ inputs.exec_deploy ]]
       exec_server_installation: $[[ inputs.exec_server_installation ]]
       exec_redeploy: $[[ inputs.exec_redeploy ]]
+      exec_destroy_delayed: $[[ inputs.exec_destroy_delayed ]]
   - local: /ci/pipeline/integration-tests.yml
     inputs:
       runner_tag: $[[ inputs.deploy_runner_tag ]]
       exec_integration_tests: $[[ inputs.exec_integration_tests ]]
       exec_integration_test_jobs: $[[ inputs.exec_integration_test_jobs ]]
   - local: /ci/pipeline/maintenance.yml
+    inputs:
+      runner_tag: $[[ inputs.deploy_runner_tag ]]
+      exec_vm_sweep: $[[ inputs.exec_vm_sweep ]]
   - local: /ci/pipeline/clean.yml
     inputs:
       runner_tag: $[[ inputs.deploy_runner_tag ]]

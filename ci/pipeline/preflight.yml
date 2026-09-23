@@ -10,6 +10,8 @@ spec:
       type: boolean
     exec_integration_tests:
       type: boolean
+    exec_vm_sweep:
+      type: boolean
     runner_tag:
       type: string
 ---
@@ -140,7 +142,7 @@ preflight_variables:
       fi
 
       # the sweep reads pipeline status from the API and talks to Harvester
-      if [ "$CI_EXEC_VM_SWEEP" = "true" ]; then
+      if [ "$[[ inputs.exec_vm_sweep ]]" = "true" ]; then
         require GITLAB_READ_API_TOKEN
         require_file HARVESTER_KUBECONFIG
       fi

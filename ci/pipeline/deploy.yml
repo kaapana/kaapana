@@ -6,6 +6,8 @@ spec:
       type: boolean
     exec_redeploy:
       type: boolean
+    exec_destroy_delayed:
+      type: boolean
     runner_tag:
       type: string
 ---
@@ -61,6 +63,7 @@ prepare_deployment:
   variables:
     GIT_STRATEGY: "clone"
     GIT_DEPTH: "0" # full history + tags for git describe — global depth 1 would shallow the clone
+    CI_EXEC_DESTROY_DELAYED: "$[[ inputs.exec_destroy_delayed ]]" # read by provision_harvester_vm.yaml
   script:
     # Resolve the version this pipeline deploys, once, for every later job.
     # Must equal what build_packages pushed — same git describe formula.

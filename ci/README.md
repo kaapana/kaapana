@@ -73,7 +73,7 @@ only publishes the report.
 
 ## Configuration reference
 
-Four groups of knobs. Two are **inputs** and two are **variables**
+Five groups of knobs. Two are **inputs** and three are **variables**
 
 ### 1. `*_runner_tag` inputs — where a stage runs
 
@@ -102,8 +102,9 @@ Every stage toggle. Grouped as `[exec]` in the run form.
 | `exec_redeploy` | `false` | `false` makes an already-deployed platform a fatal check; `true` undeploys it first |
 | `exec_integration_tests` | `true` | test stage: pytest + Playwright against the deployed platform |
 | `exec_integration_test_jobs` | `""` | comma-separated allowlist of integration-test jobs (`scan_ports`, `first_login`, `install_extensions`, `send_data`, `run_workflows`). Empty runs all of them; |
-| `exec_destroy_delayed` | `false` | keep the deployment VM for 4 h after the pipeline |
+| `exec_destroy_delayed` | `false` | keep the deployment VM for 4 h after the pipeline; a failing run leaves it to the sweep |
 | `exec_ci_image_rebuild` | `false` | force `build_ci_image` to run on any pipeline source, bypassing its normal MR/develop-push + changes gate |
+| `exec_vm_sweep` | `false` | maintenance stage: delete deployment VMs whose pipeline has ended ([internals.md](docs/internals.md#maintenance)) |
 
 ### 3. `DEPLOYMENT_INSTANCE_*` variables — the target
 
@@ -127,3 +128,14 @@ Free-form flag strings handed straight to `kaapana-build`. Build arguments like 
 | `CI_EXEC_BUILD_ARGUMENTS` | `"--cache-from -pp 8 --keep-buildx-builder"` | extra `kaapana-build` flags for `build_packages`, e.g. `--build-only`, `--cache-from`. |
 | `CI_EXEC_SECURITY_SCAN_ARGUMENTS` | `--vulnerability-scan --offline-packages-scan --configuration-check --create-sboms` | flags for `security_scan` |
 | `CI_EXEC_DOCKER_PRUNE` | `false` | `true` wipes the build runner's docker cache before the build (cold build) |
+
+### 5. `VM_SWEEP_*` variables: the sweep
+
+Read by `sweep_deployment_vms` ([internals.md](docs/internals.md#maintenance)).
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `VM_SWEEP_APPLY` | `false` | `true` deletes; otherwise the sweep only reports |
+| `VM_SWEEP_KEEP_HOURS` | `4` | how long a VM started with `exec_destroy_delayed` outlives its pipeline |
+| `VM_SWEEP_GRACE_HOURS` | `1` | a VM younger than this is never touched |
+| `VM_SWEEP_MAX_AGE_HOURS` | `12` | age at which a VM with no pipeline to ask is deleted |

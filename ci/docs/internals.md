@@ -21,6 +21,7 @@ Test the code → build the platform images → deploy them on a fresh throwaway
 | `security` | `security_scan` | security runner | hours |
 | `deploy` | `prepare_deployment` → `server_installation` → `platform_deployment` | deploy runner, ansible over SSH | ~1 h |
 | `test` | `setup_integration_tests`, `scan_ports`, `first_login`, `install_extensions`, `send_data`, `run_workflows`, `playwright_ui_tests` | deploy runner, against the live platform | 1–3 h |
+| `maintenance` | `sweep_deployment_vms`, only with `exec_vm_sweep` | deploy runner | minutes |
 | `clean` | `destroy_deployment`, `if_ci_failing` | deploy runner | minutes |
 
 Three properties the design leans on:
@@ -188,6 +189,50 @@ registered), then pytest against `--host $VM_FQDN`.
 turns it off when the input is non-empty and does not name it, so the default
 `""` runs everything. Useful for target deployment where `first_login` should be skipped.
 
+### maintenance
+
+`sweep_deployment_vms` deletes deployment VMs whose pipeline has ended. They
+leak because GitLab never cascades a retry: a retried `prepare_deployment`
+provisions a new VM, and the `destroy_deployment` that already ran stays in its
+old state. Retry `destroy_deployment` by hand to get the capacity back at once;
+otherwise the sweep collects the VM.
+
+Every VM carries the id of the pipeline that created it (label
+`kaapana.io/ci-pipeline-id`). The sweep reads every `ci-*` VM in
+`DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE`, asks GitLab for that pipeline and
+decides, in this order:
+
+1. younger than `VM_SWEEP_GRACE_HOURS`: kept
+2. pipeline ended: deleted, except a VM started with `exec_destroy_delayed`,
+   which is kept until `VM_SWEEP_KEEP_HOURS` after the pipeline's end
+3. pipeline still running, or in a state the sweep does not know: kept
+4. no label, or a pipeline GitLab no longer knows: deleted once older than
+   `VM_SWEEP_MAX_AGE_HOURS`
+
+The grace period outranks the keep window, so `VM_SWEEP_KEEP_HOURS=0` frees a
+kept VM only once it is past the grace period.
+
+The runner VMs share the namespace and are out of reach only because their
+names lack the `ci-` prefix. **A VM meant to stay in the namespace must not be
+named `ci-*`**, or the sweep will collect it.
+
+Without `VM_SWEEP_APPLY=true` the run only reports, in the job log and in the
+`vm_sweep.log` artifact. The pipeline status comes from the API through
+`GITLAB_READ_API_TOKEN` (project access token, scope `read_api`, role
+Reporter), because neither the job token nor `GITLAB_API_TOKEN`, which aliases
+the registry token, may read pipelines. If GitLab does not answer, the run ends
+on one ERROR line and touches nothing. A failed teardown turns the job red, and
+on `develop` `if_ci_failing` attaches `vm_sweep.log` to its issue.
+
+For unattended runs, a schedule on `develop` sets `exec_vm_sweep`,
+`VM_SWEEP_APPLY=true`, and `exec_unit_tests`, `exec_lint`, `exec_build`,
+`exec_deploy` and `exec_integration_tests` to `false`. The run then carries
+`preflight_variables` and `check_readthedocs` as well, because no input
+switches those off. Daily is enough: the grace period and the keep window
+decide what goes, not the frequency. Like every schedule it is paused by
+`MAINTENANCE=true`; a web run with `exec_vm_sweep` clears the backlog without
+lifting the pause.
+
 ### clean
 
 `destroy_deployment`'s `needs:` list **is the teardown barrier**: with
@@ -195,7 +240,8 @@ turns it off when the input is non-empty and does not name it, so the default
 touches the test VM has to appear there, `optional: true` so reduced pipeline
 shapes stay valid. Its rules, in order: never when the target came from
 `DEPLOYMENT_INSTANCE_FQDN`; delayed by 4 hours when `exec_destroy_delayed`;
-otherwise always.
+otherwise always. A failing run skips the delayed job, because a job it needs
+failed, and leaves the VM to [the sweep](#maintenance).
 
 `if_ci_failing` runs on `develop` failures only (never for FQDN targets). It
 needs *every* job in the pipeline, because `when: on_failure` watches only the

@@ -65,6 +65,12 @@ glab ci run -b my-branch -i exec_integration_test_jobs:send_data
 # keep the deployment VM 4 h to debug a failure
 glab ci run -b my-branch -i 'exec_destroy_delayed:bool(true)'
 
+# sweep leaked deployment VMs; drop VM_SWEEP_APPLY to only report
+glab ci run -b develop -i 'exec_vm_sweep:bool(true)' \
+  -i 'exec_unit_tests:bool(false)' -i 'exec_lint:bool(false)' \
+  -i 'exec_build:bool(false)' -i 'exec_deploy:bool(false)' \
+  -i 'exec_integration_tests:bool(false)' --variables VM_SWEEP_APPLY:true
+
 # move stages to another runner — the tag has to exist on a runner
 # registered to this project, see local-ci.md scenario 1
 glab ci run -b my-branch -i tests_runner_tag:my-tag \

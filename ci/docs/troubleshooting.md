@@ -15,8 +15,10 @@ Starting runs and the inputs behind them: [README.md](../README.md).
 | A job hits the 5-minute `.test_template` cap | The suite got slower, or the runner is slower than the cap assumes. Split the suite, or raise `timeout:` on the job |
 | `build_packages` fails immediately | Registry login (`CI_REGISTRY_*`) or the build VM's docker daemon. Full log in the `build.log` artifact |
 | `build_packages` fails on one image | Search the trace for `Build failed!` — the line is prefixed with the image tag, and the docker output follows under `LOG:`. Usually reproducible with `kaapana-build` locally |
+| `prepare_deployment` fails provisioning | The failure names its cause: the VM state and what it implies, an exhausted timeout, a quota rejection, or the scheduler's own message |
 | `prepare_deployment`: `kaapana-admin-chart '<tag>' not found in …` | The commit was never built and pushed. The check runs before any VM is created. Build it first |
 | `preflight_target`: `existing_platform` FATAL | A platform is already deployed there. Undeploy it (`./kaapanactl.sh deploy --undeploy`), or re-run with `exec_redeploy:bool(true)` — that demotes the check to a warning and undeploys first |
 | Integration test failed, deployment VM already gone | Re-run with `exec_destroy_delayed:bool(true)`, then SSH in |
+| `sweep_deployment_vms` red | Either GitLab refused the pipeline lookup, and the log ends on one ERROR line with nothing touched (check `GITLAB_READ_API_TOKEN`), or a teardown failed, and a `failed` line names each VM while the rest was swept |
 | `ui_tests` fails | Download the Playwright HTML report artifact — it has traces and screenshots |
 | `run_workflows` fails | The assertion prints `Workflow <name> failed:` and the kaapana-backend job records. For Airflow logs, keep the platform alive and open `https://<vm-fqdn>/flow`. |

@@ -7,8 +7,11 @@ LABEL BUILD_IGNORE="False"
 WORKDIR /app
 
 # Set versions for cli tools
+# renovate: datasource=github-releases depName=kubernetes/kubernetes
 ENV KUBE_VERSION="v1.36.2"
+# renovate: datasource=github-releases depName=helm/helm
 ENV HELM_VERSION="v3.21.2"
+# renovate: datasource=github-releases depName=containerd/containerd extractVersion=^v(?<version>\d+\.\d+\.\d+)$
 ENV CONTAINERD_VERSION="2.2.6"
 
 # Install kubectl and helm cli tools

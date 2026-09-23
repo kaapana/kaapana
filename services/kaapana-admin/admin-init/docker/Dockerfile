@@ -4,6 +4,7 @@ LABEL IMAGE="cert-init"
 LABEL VERSION="0.0.1"
 LABEL BUILD_IGNORE="False"
 
+# renovate: datasource=github-releases depName=kubernetes/kubernetes
 ENV KUBE_VERSION="v1.36.2"
 # RUN apk add --no-cache kubectl --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing/x86_64
 RUN apk add --no-cache openssl bash jq curl

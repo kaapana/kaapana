@@ -13,7 +13,7 @@ spec:
     exec_lint:
       default: true
       type: boolean
-      description: "[exec] tests stage: lint matrix (ruff, ui): enforced rules + advisory code quality report"
+      description: "[exec] tests stage: lint matrix (ruff, ui, hadolint): enforced rules + advisory code quality report"
     exec_build:
       default: true
       type: boolean

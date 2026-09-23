@@ -13,3 +13,7 @@ repos:
         entry: ci/ci-code/lint/ui_lint.sh
         language: system
         files: \.(ts|mts|tsx|vue)$
+  - repo: https://github.com/AleksaC/hadolint-py
+    rev: v2.15.1
+    hooks:
+      - id: hadolint

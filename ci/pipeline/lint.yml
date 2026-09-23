@@ -28,11 +28,13 @@ lint:
   variables:
     # Bump together with the rev in .pre-commit-config.yaml.
     RUFF_VERSION: "0.16.4"
+    HADOLINT_VERSION: "2.15.1"
   parallel:
     matrix:
       - LINTER:
           - ruff
           - ui
+          - hadolint
   script:
     - |
       case "$LINTER" in
@@ -46,6 +48,14 @@ lint:
           ;;
         ui)
           ci/ci-code/lint/ui_lint.sh
+          ;;
+        hadolint)
+          grep -A1 hadolint-py .pre-commit-config.yaml | grep -q "rev: v$HADOLINT_VERSION"
+          curl -fsSL "https://github.com/hadolint/hadolint/releases/download/v$HADOLINT_VERSION/hadolint-linux-x86_64" -o /usr/local/bin/hadolint
+          chmod +x /usr/local/bin/hadolint
+          mapfile -d '' dockerfiles < <(git ls-files -z -- '*Dockerfile')
+          hadolint --no-fail -f gitlab_codeclimate "${dockerfiles[@]}" > gl-code-quality-report.json
+          hadolint "${dockerfiles[@]}"
           ;;
         *)
           echo "unknown LINTER: $LINTER"

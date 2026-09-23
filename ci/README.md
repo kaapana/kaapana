@@ -68,16 +68,17 @@ The CI-specific parts:
 | [`ci/ruff-quality.toml`](ruff-quality.toml) | advisory: adds `B`, `C4`, `SIM`, `UP`, `RUF`, `W` | the Code Quality report of `lint: [ruff]` |
 | [`eslint.config.mjs`](../eslint.config.mjs), [`.prettierrc.json`](../.prettierrc.json) | enforced: Vue *essential*, a few ESLint bug rules, Prettier style | pre-commit, and `lint: [ui]` |
 | [`ci/eslint-quality.config.mjs`](eslint-quality.config.mjs) | advisory: adds typescript-eslint *recommended*, Vitest, Playwright | the Code Quality report of `lint: [ui]` |
+| [`.hadolint.yaml`](../.hadolint.yaml) | enforced: the *error* rules for a broken Dockerfile; advisory: every other rule, minus `DL3007`, `DL3022`, `DL3048` | pre-commit, and `lint: [hadolint]` with its Code Quality report |
 
 [`ci/pipeline/lint.yml`](pipeline/lint.yml) has one `lint` job, a matrix over
-`LINTER` (`ruff`, `ui`), gated by `exec_lint`; the script picks each entry's
+`LINTER` (`ruff`, `ui`, `hadolint`), gated by `exec_lint`; the script picks each entry's
 commands by `$LINTER`. Each entry publishes its advisory findings as
 `gl-code-quality-report.json` to the MR Code Quality widget, and fails on
 formatting drift or an enforced rule. `lint: [ui]` is
 `allow_failure: true` until the TypeScript/Vue codebase is formatted and
-meets the enforced ruleset. `RUFF_VERSION` must match the `rev` in
-`.pre-commit-config.yaml` (the job checks); ESLint and Prettier come from the
-root `package-lock.json`.
+meets the enforced ruleset. `RUFF_VERSION` and
+`HADOLINT_VERSION` must match their hooks' `rev` in `.pre-commit-config.yaml`
+(the job checks); ESLint and Prettier come from the root `package-lock.json`.
 
 ## Configuration reference
 

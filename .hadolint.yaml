@@ -1,0 +1,28 @@
+# Rules: https://github.com/hadolint/hadolint#rules
+failure-threshold: error
+override:
+  error:
+    - DL1000 # Dockerfile cannot be parsed
+    - DL3000 # WORKDIR must be an absolute path
+    - DL3011 # EXPOSE port out of range
+    - DL3012 # more than one HEALTHCHECK
+    - DL3021 # COPY with several sources needs a destination ending in /
+    - DL3023 # COPY --from refers to its own stage
+    - DL3024 # stage names must be unique
+    - DL3044 # ENV refers to itself in the same statement
+    - DL3061 # instruction before FROM or ARG
+    - DL4003 # more than one CMD
+    - DL4004 # more than one ENTRYPOINT
+  warning:
+    - DL3004 # sudo in RUN
+    - DL3020 # ADD instead of COPY
+    - DL3026 # base image from an untrusted registry
+    - DL3043 # ONBUILD triggering ONBUILD, FROM or MAINTAINER
+    - DL4000 # MAINTAINER is deprecated
+ignored:
+  # FROM local-only/<image>:latest is an image kaapana-build produces in the same build
+  - DL3007
+  # COPY --from=constraints|lib|charts are build contexts kaapana-build passes in
+  - DL3022
+  # LABEL IMAGE/VERSION/BUILD_IGNORE are the uppercase keys kaapana-build reads
+  - DL3048

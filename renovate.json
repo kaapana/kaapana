@@ -1,0 +1,246 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "ignorePresets": ["group:monorepos"],
+  "semanticCommits": "disabled",
+  "timezone": "Europe/Berlin",
+  "minimumReleaseAge": "3 days",
+  "dependencyDashboardApproval": true,
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "labels": ["Dependencies"],
+  "dependencyDashboardTitle": "Dependency Dashboard (Renovate)",
+  "dependencyDashboardLabels": ["Dependencies"],
+  "enabledManagers": [
+    "dockerfile",
+    "gitlabci",
+    "pip_requirements",
+    "pep621",
+    "npm",
+    "maven",
+    "pre-commit",
+    "custom.regex"
+  ],
+  "ignorePaths": [
+    "**/node_modules/**",
+    "ignore/**",
+    "build/**",
+    "templates_and_examples/**",
+    "constraints/**",
+    "services/flow/airflow/docker/files/constraints-*.txt",
+    "docs/Pipfile",
+    "utils/internet-benchmark/**",
+    "services/kaapana-admin/rabbitmq/rabbitmq-3.8/**"
+  ],
+  "gitlabci": {
+    "managerFilePatterns": ["/^ci/pipeline/[^/]+\\.ya?ml$/"]
+  },
+  "pre-commit": {
+    "enabled": true
+  },
+  "osvVulnerabilityAlerts": true,
+  "vulnerabilityAlerts": {
+    "addLabels": ["Security"],
+    "dependencyDashboardApproval": true
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/(^|/)Dockerfile[^/]*$/", "/^ci/pipeline/[^/]+\\.ya?ml$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?(?: extractVersion=(?<extractVersion>\\S+))?\\s+(?:(?:ARG|ENV) [A-Z0-9_]+=\"?|[A-Z0-9_]+: \")(?<currentValue>[^\"\\s]+)"
+      ]
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^services/kaapana-admin/auth-backend/docker/Dockerfile$/",
+        "/^ci/pipeline/unit-tests\\.yml$/"
+      ],
+      "matchStrings": ["openpolicyagent\\.org/downloads/v(?<currentValue>\\d+\\.\\d+\\.\\d+)/opa_"],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "open-policy-agent/opa",
+      "extractVersionTemplate": "^v(?<version>\\d+\\.\\d+\\.\\d+)$"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchPackageNames": [
+        "local-only/**",
+        "local-registry.services.svc.cluster.local:5000/**",
+        "registry.hzdr.de/kaapana/**",
+        "kaapana-client",
+        "kaapana-containers",
+        "task-api"
+      ],
+      "enabled": false
+    },
+    {
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "matchManagers": ["pip_requirements", "pep621"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "Python dependencies"
+    },
+    {
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "other npm dependencies"
+    },
+    {
+      "matchManagers": ["npm"],
+      "matchFileNames": ["services/base/**"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "UI npm dependencies"
+    },
+    {
+      "matchFileNames": ["data-processing/base-images/**"],
+      "matchManagers": ["pip_requirements", "pep621"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "base image Python dependencies"
+    },
+    {
+      "matchManagers": ["dockerfile"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "container base images"
+    },
+    {
+      "matchFileNames": ["ci/**", ".gitlab-ci.yml", ".pre-commit-config.yaml"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "CI tooling"
+    },
+    {
+      "matchPackageNames": ["docker.io/library/docker"],
+      "groupName": "docker engine"
+    },
+    {
+      "matchPackageNames": ["ruff", "astral-sh/ruff-pre-commit"],
+      "groupName": "ruff"
+    },
+    {
+      "matchPackageNames": ["docker.io/openpolicyagent/opa", "open-policy-agent/opa"],
+      "groupName": "opa"
+    },
+    {
+      "matchPackageNames": ["playwright", "@playwright/test"],
+      "groupName": "playwright"
+    },
+    {
+      "matchFileNames": [
+        "ci/images/**",
+        "ci/harvester/tasks/requirements.txt",
+        "ci/ci-code/integration_tests/pyproject.toml"
+      ],
+      "prBodyNotes": [
+        "**CI image:** this MR changes the `ci-base` image. Bump `CI_IMAGES_TAG` in `.gitlab-ci.yml` on this branch before merging. Otherwise the runners keep using the old image."
+      ]
+    },
+    {
+      "matchFileNames": [
+        "lib/task_api/**",
+        "lib/kaapana_containers/**",
+        "lib/kaapana_extensions/**",
+        "lib/kaapana_client/**",
+        "services/base/workflow-api/**",
+        "services/base/portal-api/**",
+        "services/base/kaapana-backend/**",
+        "services/base/extension-manager-service/**",
+        "services/base/notification-service/**",
+        "services/kaapana-admin/auth-backend/**",
+        "services/kaapana-admin/keycloak/keycloak-setup/**",
+        "services/data-separation/dicom-web-filter/**",
+        "services/data-separation/access-information-interface/**",
+        "data-processing/kaapana-plugin/**"
+      ],
+      "addLabels": ["Coverage: unit"],
+      "prBodyNotes": [
+        "**Test coverage of `{{{packageFile}}}`: unit tests.** The MR pipeline runs them in the `tests` stage."
+      ]
+    },
+    {
+      "matchFileNames": [
+        "services/base/base-ui/**",
+        "services/base/portal-ui/**",
+        "services/base/app-ui/**",
+        "services/base/data-upload-ui/**",
+        "services/base/extensions-ui/**",
+        "services/base/data-gallery-ui/**",
+        "services/base/home-ui/**",
+        "services/base/results-ui/**",
+        "services/base/federated-ui/**",
+        "services/base/workflow-execution-ui/**",
+        "services/base/workflow-list-ui/**"
+      ],
+      "addLabels": ["Coverage: e2e"],
+      "prBodyNotes": [
+        "**Test coverage of `{{{packageFile}}}`: UI tests.** The `ui_e2e_tests` job runs its Playwright tests against a mocked backend."
+      ]
+    },
+    {
+      "matchFileNames": [
+        "data-processing/processing-pipelines/advanced-collect-metadata/**",
+        "data-processing/processing-pipelines/body-and-organ-analysis/**",
+        "data-processing/processing-pipelines/bodypartregression/**",
+        "data-processing/processing-pipelines/nnunet/**",
+        "data-processing/processing-pipelines/radiomics/**",
+        "data-processing/processing-pipelines/total-segmentator-v2/**"
+      ],
+      "addLabels": ["Coverage: integration"],
+      "prBodyNotes": [
+        "**Test coverage of `{{{packageFile}}}`: integration tests.** The `run_workflows` job runs this workflow on the deployed platform. The job is allowed to fail, so check its result before merging."
+      ]
+    },
+    {
+      "matchFileNames": ["ci/**", ".gitlab-ci.yml", ".pre-commit-config.yaml", "tests/**"],
+      "addLabels": ["Coverage: pipeline"],
+      "prBodyNotes": [
+        "**Test coverage of `{{{packageFile}}}`: CI pipeline.** The MR pipeline uses this dependency itself, so a green pipeline tests it."
+      ]
+    },
+    {
+      "matchFileNames": [
+        "!lib/task_api/**",
+        "!lib/kaapana_containers/**",
+        "!lib/kaapana_extensions/**",
+        "!lib/kaapana_client/**",
+        "!services/base/workflow-api/**",
+        "!services/base/portal-api/**",
+        "!services/base/kaapana-backend/**",
+        "!services/base/extension-manager-service/**",
+        "!services/base/notification-service/**",
+        "!services/kaapana-admin/auth-backend/**",
+        "!services/kaapana-admin/keycloak/keycloak-setup/**",
+        "!services/data-separation/dicom-web-filter/**",
+        "!services/data-separation/access-information-interface/**",
+        "!data-processing/kaapana-plugin/**",
+        "!services/base/base-ui/**",
+        "!services/base/portal-ui/**",
+        "!services/base/app-ui/**",
+        "!services/base/data-upload-ui/**",
+        "!services/base/extensions-ui/**",
+        "!services/base/data-gallery-ui/**",
+        "!services/base/home-ui/**",
+        "!services/base/results-ui/**",
+        "!services/base/federated-ui/**",
+        "!services/base/workflow-execution-ui/**",
+        "!services/base/workflow-list-ui/**",
+        "!data-processing/processing-pipelines/advanced-collect-metadata/**",
+        "!data-processing/processing-pipelines/body-and-organ-analysis/**",
+        "!data-processing/processing-pipelines/bodypartregression/**",
+        "!data-processing/processing-pipelines/nnunet/**",
+        "!data-processing/processing-pipelines/radiomics/**",
+        "!data-processing/processing-pipelines/total-segmentator-v2/**",
+        "!ci/**",
+        "!.gitlab-ci.yml",
+        "!.pre-commit-config.yaml",
+        "!tests/**"
+      ],
+      "addLabels": ["Coverage: none"],
+      "prBodyNotes": [
+        "**Test coverage of `{{{packageFile}}}`: none.** No automated tests cover this component, apart from the build and the platform deployment. Test it manually before merging, and write the result in the MR."
+      ]
+    }
+  ]
+}

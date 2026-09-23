@@ -360,7 +360,7 @@ Linting
 
 .. code-block:: bash
 
-   ci/ci-code/lint/ui_lint.sh                     # CI: eslint + prettier --check, every committed file
+   ci/ci-code/lint/ui_lint.sh                     # CI: quality report, eslint + prettier --check, every committed file
    ci/ci-code/lint/ui_lint.sh <file> [<file> ...]  # pre-commit: eslint --fix + prettier --write, these files
 
 

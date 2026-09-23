@@ -8,7 +8,7 @@ spec:
 # Stage: tests — one matrix job per linter
 # In:  the job's own checkout
 # Out: each linter fails on formatting drift or an enforced rule, and
-#      publishes its findings to the MR Code Quality widget
+#      publishes its advisory findings to the MR Code Quality widget
 ##############################################
 # Lint: one matrix entry per linter
 ##############################################
@@ -56,6 +56,5 @@ lint:
     when: always
     reports:
       codequality: gl-code-quality-report.json
-    # available in the job's artifacts via API
     paths:
       - gl-code-quality-report.json

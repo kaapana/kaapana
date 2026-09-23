@@ -19,6 +19,7 @@
   "scripts": {
     "lint": "eslint --fix .",
     "lint:check": "eslint .",
+    "lint:quality": "eslint --config ci/eslint-quality.config.mjs .",
     "format": "prettier --write \"**/*.{ts,mts,tsx,vue}\"",
     "format:check": "prettier --check \"**/*.{ts,mts,tsx,vue}\""
   }

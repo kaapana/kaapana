@@ -88,6 +88,7 @@ runs only on scheduled `develop` pipelines.
 
 `lint` is a matrix over `LINTER` (`ruff`, `ui`) on `ci-base`; the script picks
 each entry's commands by `$LINTER`, and each entry publishes its Code Quality report.
+Each entry fails on formatting or its enforced ruleset.
 
 ### build
 

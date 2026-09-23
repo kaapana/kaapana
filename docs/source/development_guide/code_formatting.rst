@@ -38,6 +38,9 @@ fixed by hand.
    * - Configuration
      - :code:`ruff.toml`
      - :code:`.prettierrc.json`, :code:`eslint.config.mjs`
+   * - Code quality report
+     - :code:`ci/ruff-quality.toml`
+     - :code:`ci/eslint-quality.config.mjs`
    * - Pre-commit hook
      - :code:`ruff-check`, :code:`ruff-format`
      - :code:`ui-lint`
@@ -47,6 +50,12 @@ fixed by hand.
 
 The linters leave formatting to the formatters: ESLint's formatting rules are
 switched off, so ESLint and Prettier never disagree.
+
+Every linter has two rulesets. The **enforced** ruleset holds the rules whose
+findings are bugs; the pre-commit hook and CI fail on it. The **advisory**
+ruleset adds the rules the codebase does not meet yet; CI reports its findings
+in the merge request Code Quality widget and never fails on them. Formatting
+is always enforced.
 
 One-time setup
 ---------------
@@ -206,6 +215,7 @@ Format and lint the whole repository from its root:
 
     npm run format:check   # report, change nothing
     npm run lint:check
+    npm run lint:quality   # the advisory ruleset, never enforced
     ci/ci-code/lint/ui_lint.sh   # exactly what CI runs: both checks on the committed files
 
 All are safe to run repeatedly. For one file or directory, call the tools
@@ -223,17 +233,36 @@ directly:
 
 Rules
 ------
-:code:`eslint.config.mjs` combines the recommended presets and adds no rules
-of its own:
+:code:`eslint.config.mjs` enforces the rules whose findings are bugs:
 
 - :code:`eslint-plugin-vue` *essential*: errors that break a Vue component,
-  such as an invalid :code:`v-for` or a mutated prop.
+  such as an invalid :code:`v-for`, a mutated prop or a :code:`ref` used
+  without :code:`.value`. :code:`valid-v-slot` allows Vuetify's
+  :code:`#item.<key>` slot names. Unused components and template variables and
+  single-word component names are left to the advisory ruleset.
+- A few ESLint core rules: :code:`no-debugger`, :code:`no-dupe-else-if`,
+  :code:`no-duplicate-case`, :code:`no-self-assign`,
+  :code:`no-unsafe-finally`, :code:`use-isnan`, :code:`valid-typeof`.
+- Formatting rules are off: Prettier owns formatting.
+
+Code quality report
+--------------------
+The :code:`lint: [ui]` job also runs a wider ruleset,
+:code:`ci/eslint-quality.config.mjs`, that never fails a pipeline, and
+reports it in the merge request Code Quality widget. It adds:
+
 - :code:`typescript-eslint` *recommended*: unused variables, :code:`any`,
   :code:`prefer-const` and similar. No rule needs type information, so ESLint
   never resolves an app's dependencies.
 - :code:`@vitest/eslint-plugin` for :code:`src/**/__tests__` and
   :code:`eslint-plugin-playwright` for :code:`e2e/` and :code:`tests/ui`.
-- Formatting rules are off: Prettier owns formatting.
+
+The same run locally:
+
+.. code-block:: bash
+
+    npm run lint:quality
+    npx eslint --config ci/eslint-quality.config.mjs services/base/portal-ui
 
 Each rule is documented on its own page, linked from the Code Quality widget.
 
@@ -274,9 +303,12 @@ CI
 ---
 The :code:`lint` job in :code:`ci/pipeline/lint.yml` is a matrix with one
 entry per linter, shown as one :code:`lint` group in the pipeline. Each entry
-fails on formatting drift or an enforced rule and publishes its findings to
-the merge request Code Quality widget; GitLab merges the reports of all
-entries into one widget.
+publishes its advisory findings to the merge request Code Quality widget;
+GitLab merges the reports of all entries into one widget. Each entry fails
+the pipeline on formatting drift or an enforced rule.
+
+Until the TypeScript/Vue codebase is formatted and meets the enforced ruleset,
+:code:`lint: [ui]` is allowed to fail and only warns.
 
 .. list-table::
    :header-rows: 1
@@ -291,11 +323,8 @@ entries into one widget.
      - :code:`ruff format --check --diff . && ruff check .`
    * - :code:`lint: [ui]`
      - :code:`prettier --check`, :code:`eslint`
-     - the ESLint findings
+     - the wider :code:`ci/eslint-quality.config.mjs` ruleset, advisory
      - :code:`ci/ci-code/lint/ui_lint.sh`
-
-Until the TypeScript/Vue codebase is reformatted, :code:`lint: [ui]` is
-allowed to fail and only warns; :code:`lint: [ruff]` fails the pipeline.
 
 The versions cannot drift between your machine and CI: the job checks that its
 :code:`RUFF_VERSION` matches the Ruff :code:`rev` in

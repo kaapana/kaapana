@@ -66,16 +66,18 @@ The CI-specific parts:
 |---|---|---|
 | [`ruff.toml`](../ruff.toml) | enforced: `E4`, `E7`, `E9`, `F`, `I`, 120 columns | pre-commit, and `lint: [ruff]` |
 | [`ci/ruff-quality.toml`](ruff-quality.toml) | advisory: adds `B`, `C4`, `SIM`, `UP`, `RUF`, `W` | the Code Quality report of `lint: [ruff]` |
-| [`eslint.config.mjs`](../eslint.config.mjs), [`.prettierrc.json`](../.prettierrc.json) | enforced: Vue *essential*, typescript-eslint *recommended*, Prettier style | pre-commit, and `lint: [ui]` |
+| [`eslint.config.mjs`](../eslint.config.mjs), [`.prettierrc.json`](../.prettierrc.json) | enforced: Vue *essential*, a few ESLint bug rules, Prettier style | pre-commit, and `lint: [ui]` |
+| [`ci/eslint-quality.config.mjs`](eslint-quality.config.mjs) | advisory: adds typescript-eslint *recommended*, Vitest, Playwright | the Code Quality report of `lint: [ui]` |
 
 [`ci/pipeline/lint.yml`](pipeline/lint.yml) has one `lint` job, a matrix over
 `LINTER` (`ruff`, `ui`), gated by `exec_lint`; the script picks each entry's
-commands by `$LINTER`. Each entry fails on an enforced rule or formatting
-drift and publishes `gl-code-quality-report.json` to the MR Code Quality
-widget. `RUFF_VERSION` must match the `rev` in `.pre-commit-config.yaml` (the
-job checks); ESLint and Prettier come from the root `package-lock.json`.
-`lint: [ruff]` blocks the pipeline; `lint: [ui]` is `allow_failure: true` until
-the TypeScript/Vue codebase is reformatted.
+commands by `$LINTER`. Each entry publishes its advisory findings as
+`gl-code-quality-report.json` to the MR Code Quality widget, and fails on
+formatting drift or an enforced rule. `lint: [ui]` is
+`allow_failure: true` until the TypeScript/Vue codebase is formatted and
+meets the enforced ruleset. `RUFF_VERSION` must match the `rev` in
+`.pre-commit-config.yaml` (the job checks); ESLint and Prettier come from the
+root `package-lock.json`.
 
 ## Configuration reference
 

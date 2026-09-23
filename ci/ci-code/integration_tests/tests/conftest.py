@@ -2,6 +2,7 @@
 import logging
 import os
 import shutil
+import socket
 import subprocess
 import tempfile
 from pathlib import Path
@@ -154,8 +155,14 @@ def client_secret(pytestconfig):
 
 
 @pytest.fixture(scope="session")
-def ip_address(pytestconfig):
-    return pytestconfig.getoption("--ip-address") or os.getenv("IP_ADDRESS") or "127.0.0.1"
+def ip_address(pytestconfig, host):
+    address = pytestconfig.getoption("--ip-address") or os.getenv("IP_ADDRESS")
+    if address:
+        return address
+    try:
+        return socket.gethostbyname(host)
+    except OSError as e:
+        pytest.fail(f"Could not resolve {host} to an IP address: {e}")
 
 
 @pytest.fixture(scope="session")

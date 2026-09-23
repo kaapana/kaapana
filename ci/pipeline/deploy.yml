@@ -77,7 +77,7 @@ prepare_deployment:
     # Fail fast if the chart was never pushed — before any VM is created.
     - |
       set +x
-      helm registry login "${REGISTRY_URL%%/*}" -u "$REGISTRY_USER" -p "$REGISTRY_TOKEN" >/dev/null 2>&1
+      echo "$REGISTRY_TOKEN" | helm registry login "${REGISTRY_URL%%/*}" -u "$REGISTRY_USER" --password-stdin >/dev/null 2>&1
       if ! helm show chart "oci://$REGISTRY_URL/kaapana-admin-chart" --version "$VERSION_TAG" >/dev/null; then
         echo "ERROR: kaapana-admin-chart '$VERSION_TAG' not found in $REGISTRY_URL — was this commit built and pushed?"
         exit 1

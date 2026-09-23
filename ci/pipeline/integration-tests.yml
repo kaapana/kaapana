@@ -4,8 +4,6 @@ spec:
       type: boolean
     exec_integration_test_jobs:
       type: string
-    exec_deploy:
-      type: boolean
     runner_tag:
       type: string
 ---
@@ -18,8 +16,16 @@ spec:
 ##############################################
 # INTEGRATION TESTS
 ##############################################
-setup_integration_tests:
+.deployment_target_template:
   extends: .remote_execution_template
+  variables:
+    VM_FQDN: "$DEPLOYMENT_INSTANCE_FQDN"
+    VM_USER: "$DEPLOYMENT_INSTANCE_USER"
+
+##############################################
+
+setup_integration_tests:
+  extends: .deployment_target_template
   stage: test
   tags:
     - $[[ inputs.runner_tag ]]
@@ -30,7 +36,7 @@ setup_integration_tests:
     - job: platform_deployment
       optional: true
   rules:
-    - if: '"$[[ inputs.exec_integration_tests ]]" == "true" && "$[[ inputs.exec_deploy ]]" == "true"'
+    - if: '"$[[ inputs.exec_integration_tests ]]" == "true"'
       when: on_success
     - when: never
   script:
@@ -54,10 +60,10 @@ setup_integration_tests:
 # Local pytest execution template
 ##############################################
 .integration_test_local:
-  extends: .remote_execution_template
+  extends: .deployment_target_template
   stage: test
   rules:
-    - if: '"$[[ inputs.exec_integration_tests ]]" == "true" && "$[[ inputs.exec_deploy ]]" == "true"'
+    - if: '"$[[ inputs.exec_integration_tests ]]" == "true"'
       when: on_success
     - when: never
   needs:
@@ -185,10 +191,10 @@ run_workflows:
     PYTEST_DIST: "loadgroup"
 
 playwright_ui_tests:
-  extends: .remote_execution_template
+  extends: .deployment_target_template
   stage: test
   rules:
-    - if: '"$[[ inputs.exec_integration_tests ]]" == "true" && "$[[ inputs.exec_deploy ]]" == "true"'
+    - if: '"$[[ inputs.exec_integration_tests ]]" == "true"'
       when: on_success
     - when: never
   needs:

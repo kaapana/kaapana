@@ -51,11 +51,12 @@
       - containerd.io
       - docker-buildx-plugin
       - docker-compose-plugin
+  register: docker_packages
 
-- name: Start docker
+- name: Restart docker when the packages changed
   become: yes
   command: systemctl restart docker
-  ignore_errors: no
+  when: docker_packages is changed
 
 - name: Ensure docker group exists
   become: yes
@@ -63,21 +64,25 @@
     name: docker
     state: present
 
-- name: usermod
-  command: usermod -aG docker ubuntu
+- name: Add user to docker group
   become: yes
-  ignore_errors: yes
+  ansible.builtin.user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: yes
+  register: docker_usermod
 
 - name: Create docker directory
   become: yes
   ansible.builtin.file:
-    path: /home/{{ ansible_ssh_user }}/.docker
+    path: /home/{{ ansible_user }}/.docker
     state: directory
-    owner: "{{ ansible_ssh_user }}"
-    group: "{{ ansible_ssh_user }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
     mode: '0755'
 
 - name: Reboot machine to apply docker group membership
   become: yes
   ansible.builtin.reboot:
     reboot_timeout: 120
+  when: docker_usermod is changed

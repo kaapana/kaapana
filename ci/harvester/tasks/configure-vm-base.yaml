@@ -1,7 +1,6 @@
 ---
-# Common VM configuration tasks
-# Usage: include_tasks: configure-vm.yaml
-# Required vars: ansible_user, ssh_private_key, ssh_public_key, harvester_kubeconfig, venv_path
+# Common VM configuration tasks.
+# Required vars: ansible_user, venv_path
 
 - name: Use system Python for initial setup (before venv exists)
   ansible.builtin.set_fact:

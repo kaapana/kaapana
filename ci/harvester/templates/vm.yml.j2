@@ -7,7 +7,6 @@ metadata:
     harvesterhci.io/creator: harvester
     harvesterhci.io/os: ubuntu
   annotations:
-    harvesterhci.io/enableCPUAndMemoryHotplug: 'true'
     harvesterhci.io/volumeClaimTemplates: >-
       [{"metadata":{"name":"{{ vm_name }}-disk-0-{{ pvc_suffix }}","annotations":{"harvesterhci.io/imageId":"{{ harvester_namespace }}/{{ vm_image_id }}"}},"spec":{"accessModes":["ReadWriteMany"],"resources":{"requests":{"storage":"{{ vm_disk_size }}"}},"volumeMode":"Block","storageClassName":"{{ vm_storage_class }}"}}]
     network.harvesterhci.io/ips: '[]'
@@ -30,14 +29,12 @@ spec:
           cores: {{ vm_cpu_cores }}
           sockets: {{ vm_cpu_sockets }}
           threads: {{ vm_cpu_threads }}
-          maxSockets: {{ vm_cpu_max_sockets }}
         memory:
           guest: {{ vm_memory_guest }}
-          maxGuest: {{ vm_memory_max }}
         resources:
           limits:
-            cpu: '{{ vm_cpu_sockets * vm_cpu_cores * vm_cpu_threads }}'
-            memory: {{ vm_memory_max }}
+            cpu: '{{ (vm_cpu_sockets | int) * (vm_cpu_cores | int) * (vm_cpu_threads | int) }}'
+            memory: {{ vm_memory_guest }}
         features:
           acpi:
             enabled: true

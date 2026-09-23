@@ -1,0 +1,35 @@
+---
+## Host and container monitoring agents — node_exporter + cAdvisor, on every
+## fleet VM. node_exporter reads /proc and /sys, cAdvisor reads the docker
+## runtime; neither has any relation to Kubernetes.
+##
+## Only the agents live here. The scrape server that consumes them comes in a
+## separate piece of work, so nothing in this file runs Prometheus or Grafana.
+
+- name: Set monitoring facts
+  ansible.builtin.set_fact:
+    monitoring_dir: "/home/{{ ansible_user }}/monitoring"
+  become: no
+
+- name: Ensure the monitoring directory exists
+  ansible.builtin.file:
+    path: "{{ monitoring_dir }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+  become: yes
+
+- name: Render the agent compose file
+  ansible.builtin.template:
+    src: monitoring-agents.yml.j2
+    dest: "{{ monitoring_dir }}/docker-compose.agents.yml"
+    mode: "0644"
+  become: yes
+
+- name: Start the monitoring agents
+  ansible.builtin.command:
+    cmd: docker compose -p ci-agents -f docker-compose.agents.yml up -d --remove-orphans
+    chdir: "{{ monitoring_dir }}"
+  become: yes
+  changed_when: true

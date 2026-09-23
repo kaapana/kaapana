@@ -1,8 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
-  "ignorePresets": ["group:monorepos"],
-  "semanticCommits": "disabled",
+  "semanticCommits": "enabled",
   "timezone": "Europe/Berlin",
   "minimumReleaseAge": "3 days",
   "dependencyDashboardApproval": true,
@@ -19,6 +18,10 @@
     "npm",
     "maven",
     "pre-commit",
+    "kubernetes",
+    "ansible",
+    "helm-requirements",
+    "helm-values",
     "custom.regex"
   ],
   "ignorePaths": [
@@ -26,22 +29,31 @@
     "ignore/**",
     "build/**",
     "templates_and_examples/**",
-    "constraints/**",
-    "services/flow/airflow/docker/files/constraints-*.txt",
     "docs/Pipfile",
-    "utils/internet-benchmark/**",
+    "utils/**",
     "services/kaapana-admin/rabbitmq/rabbitmq-3.8/**"
   ],
   "gitlabci": {
     "managerFilePatterns": ["/^ci/pipeline/[^/]+\\.ya?ml$/"]
   },
+  "pip_requirements": {
+    "managerFilePatterns": ["/^constraints/[^/]+\\.txt$/", "/(^|/)constraints-[^/]+\\.txt$/"]
+  },
   "pre-commit": {
     "enabled": true
+  },
+  "kubernetes": {
+    "managerFilePatterns": ["/^utils/[^/]+\\.ya?ml$/", "/(^|/)(k8s|manifests)/.+\\.ya?ml$/"]
+  },
+  "ansible": {
+    "managerFilePatterns": ["/^ci/ci-code/deploy/[^/]+\\.ya?ml$/"]
   },
   "osvVulnerabilityAlerts": true,
   "vulnerabilityAlerts": {
     "addLabels": ["Security"],
-    "dependencyDashboardApproval": true
+    "semanticCommitType": "fix",
+    "dependencyDashboardApproval": true,
+    "enabled": true
   },
   "customManagers": [
     {
@@ -64,11 +76,14 @@
     }
   ],
   "packageRules": [
+    // Ignore: turn off tracking for specific packages and files.
     {
       "matchPackageNames": [
+        // Renovate cannot find the "updated" version online as those are built locally.
         "local-only/**",
-        "local-registry.services.svc.cluster.local:5000/**",
+        // Kaapana's own images, rebuilt by hand (e.g. the patched collabora image).
         "registry.hzdr.de/kaapana/**",
+        // Internal Python packages from lib/, installed via file:// or git+; PyPI has no such package of ours.
         "kaapana-client",
         "kaapana-containers",
         "task-api"
@@ -76,9 +91,20 @@
       "enabled": false
     },
     {
+      "matchFileNames": ["services/flow/airflow/docker/files/constraints-*.txt"],
+      "enabled": false
+    },
+    {
+      "matchManagers": ["helm-values"],
+      "matchJsonata": ["$not($exists(currentValue))"],
+      "enabled": false
+    },
+    // Approval: major updates wait for a Dependency Dashboard checkbox.
+    {
       "matchUpdateTypes": ["major"],
       "dependencyDashboardApproval": true
     },
+    // Groups: move the versions in a group together in one MR. Later rules override earlier ones.
     {
       "matchManagers": ["pip_requirements", "pep621"],
       "matchUpdateTypes": ["minor", "patch"],
@@ -102,7 +128,7 @@
       "groupName": "base image Python dependencies"
     },
     {
-      "matchManagers": ["dockerfile"],
+      "matchManagers": ["dockerfile", "docker-compose", "kubernetes", "ansible", "helm-values"],
       "matchUpdateTypes": ["minor", "patch", "digest"],
       "groupName": "container base images"
     },
@@ -127,6 +153,7 @@
       "matchPackageNames": ["playwright", "@playwright/test"],
       "groupName": "playwright"
     },
+    // CI image: remind to bump CI_IMAGES_TAG when the ci-base image changes.
     {
       "matchFileNames": [
         "ci/images/**",
@@ -137,6 +164,8 @@
         "**CI image:** this MR changes the `ci-base` image. Bump `CI_IMAGES_TAG` in `.gitlab-ci.yml` on this branch before merging. Otherwise the runners keep using the old image."
       ]
     },
+    // Coverage: tell the reviewer which tests exercise the changed file (unit, e2e, integration, pipeline).
+    // Files not listed here fall into "Coverage: none" and must be tested manually before merging.
     {
       "matchFileNames": [
         "lib/task_api/**",

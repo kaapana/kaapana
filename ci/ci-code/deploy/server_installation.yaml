@@ -1,7 +1,7 @@
 ---
 - name: Install Kaapana Server
   hosts: all
-  gather_facts: true
+  gather_facts: false
   become: false
 
   environment:
@@ -13,6 +13,13 @@
     kaapana_dir: "{{ lookup('env', 'CI_PROJECT_DIR') }}"
     artifacts_dir: "{{ lookup('env', 'ARTIFACTS_DIR') }}"
   tasks:
+    - name: Wait for SSH on the deployment target
+      ansible.builtin.wait_for_connection:
+        timeout: 600
+
+    - name: Gather facts
+      ansible.builtin.setup:
+
     - name: Increase inotify watchers
       become: yes
       ansible.builtin.command: 

@@ -164,7 +164,7 @@ variables:
 
   # vm_name is truncated in the provisioning playbook so the FQDN
   # (<vm_name>.<domain>) stays within the 57-char dcmsend peerhost limit.
-  DEPLOYMENT_INSTANCE_VM_NAME: "ci-$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHORT_SHA"
+  DEPLOYMENT_INSTANCE_VM_NAME: "ci-$CI_PIPELINE_ID-$CI_COMMIT_REF_SLUG"
   DEPLOYMENT_INSTANCE_DOMAIN: "vms.dkfz.de"
   DEPLOYMENT_INSTANCE_IMAGE_ID: "$[[ inputs.deployment_os_image_id ]]"
   DEPLOYMENT_INSTANCE_CPU: "32"

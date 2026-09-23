@@ -288,7 +288,7 @@ data:
 
         pod.spec.volumes = pod.spec.volumes or []
         pod.spec.volumes.extend(define_volumes_and_mounts())
-        pod = apply_anchor_affinity_to_pod(pod=pod, namespace=ns, logger=log)
+        pod = apply_anchor_affinity_to_pod(pod)
 
         # Schedule log streaming for this pod
         labels = pod.metadata.labels or {}

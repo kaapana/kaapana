@@ -24,7 +24,7 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
             - labelSelector:
                 matchExpressions:
-                  - key: kaapana.io/airflow-rwo-anchor
+                  - key: kaapana.io/rwo-anchor
                     operator: In
                     values:
                       - "true"

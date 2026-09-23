@@ -33,7 +33,7 @@ spec:
         app.kubernetes.io/name: airflow
         app.kubernetes.io/component: scheduler
 {{- if .Values.global.no_read_write_many_support }}
-        kaapana.io/airflow-rwo-anchor: "true"
+        kaapana.io/rwo-anchor: "true"
 {{- end }}
     spec:
 {{- include "kaapana.nodeSelector" . | indent 6 }}

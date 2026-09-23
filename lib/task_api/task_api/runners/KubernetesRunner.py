@@ -4,10 +4,7 @@ import re
 import time
 from enum import Enum
 from kubernetes import client, config, watch
-from task_api.runners.rwo_anchor import (
-    apply_anchor_affinity_to_pod,
-    initialize_project_anchor_if_needed,
-)
+from task_api.runners.rwo_anchor import apply_anchor_affinity_to_pod
 from task_api.processing_container import task_models, pc_models
 from task_api.processing_container.resources import compute_memory_resources
 from task_api.processing_container.common import (
@@ -201,21 +198,12 @@ class KubernetesRunner(BaseRunner):
             )
 
         # push pod to Kubernetes
-        pod = apply_anchor_affinity_to_pod(
-            pod=pod,
-            namespace=task_instance.config.namespace,
-            logger=cls._logger,
-        )
+        pod = apply_anchor_affinity_to_pod(pod)
         cls._logger.info(
             f"Creating pod '{pod_name}' in namespace '{task_instance.config.namespace}'..."
         )
         pod = cls.api.create_namespaced_pod(
             namespace=task_instance.config.namespace, body=pod
-        )
-        initialize_project_anchor_if_needed(
-            pod=pod,
-            namespace=task_instance.config.namespace,
-            logger=cls._logger,
         )
         id = pod.metadata.name
         return task_models.TaskRun(

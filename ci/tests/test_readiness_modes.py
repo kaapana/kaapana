@@ -89,8 +89,7 @@ def test_the_playbook_passes_the_knobs_to_the_check():
         ("--helm-namespace", "helm_namespace"),
     ):
         assert re.search(rf"{flag} \{{\{{ *{variable}\b", command), f"{flag} does not pass {variable}"
-    # --advisory is conditional: it is the flag that turns failures into rows.
-    assert re.search(r"'--advisory' if advisory", command)
+    assert re.search(r"'--advisory' if advisory \| bool\b", command)
 
 
 def test_the_platform_lookup_uses_the_configured_release():

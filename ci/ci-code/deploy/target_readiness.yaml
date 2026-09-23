@@ -51,7 +51,7 @@
           --helm-namespace {{ helm_namespace | quote }}
           --log {{ remote_log | quote }}
           --json {{ remote_json | quote }}
-          {{ '--advisory' if advisory else '' }}
+          {{ '--advisory' if advisory | bool else '' }}
           --color
         executable: /usr/bin/python3
       register: readiness

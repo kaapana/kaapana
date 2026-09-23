@@ -1,3 +1,10 @@
+spec:
+  inputs:
+    exec_vm_sweep:
+      type: boolean
+    runner_tag:
+      type: string
+---
 # Stage: maintenance - housekeeping that belongs to no single pipeline
 # In:  HARVESTER_KUBECONFIG and GITLAB_READ_API_TOKEN (project variables)
 # Out: artifacts/vm_sweep.log, which is what if_ci_failing collects
@@ -7,17 +14,17 @@
 sweep_deployment_vms:
   stage: maintenance
   # Deletes deployment VMs whose pipeline has ended: the leak GitLab's
-  # non-cascading retries leave behind (README section 3).
+  # non-cascading retries leave behind (ci/docs/internals.md#maintenance).
   needs: []
   interruptible: false
   # A large backlog can outlast this; the next run picks up what is left.
   timeout: 1 hour
   rules:
-    - if: '$CI_EXEC_VM_SWEEP == "true"'
+    - if: '"$[[ inputs.exec_vm_sweep ]]" == "true"'
       when: always
     - when: never
   tags:
-    - deploy-runner
+    - $[[ inputs.runner_tag ]]
   image: $CI_BASE_IMAGE
   script:
     - mkdir -p "$ARTIFACTS_DIR"

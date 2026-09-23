@@ -156,3 +156,11 @@ def test_external_target_is_never_destroyed():
     first_rule = jobs(config)["destroy_deployment"]["rules"][0]
     assert first_rule["when"] == "never"
     assert "DEPLOYMENT_INSTANCE_FQDN" in first_rule["if"]
+
+
+def test_preflight_variables_checks_the_registry_scope_the_build_uses(default_config):
+    all_jobs = jobs(default_config)
+    assert all_jobs["build_packages"]["environment"]["name"] == "$REGISTRY_ENV"
+    environment = all_jobs["preflight_variables"]["environment"]
+    assert environment["name"] == "$REGISTRY_ENV"
+    assert environment["action"] == "access"

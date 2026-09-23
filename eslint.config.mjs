@@ -1,11 +1,9 @@
 import { globalIgnores } from 'eslint/config'
 import { defineConfigWithVueTs, vueTsConfigs } from '@vue/eslint-config-typescript'
 import pluginVue from 'eslint-plugin-vue'
-import pluginVitest from '@vitest/eslint-plugin'
-import pluginPlaywright from 'eslint-plugin-playwright'
 import skipFormatting from '@vue/eslint-config-prettier/skip-formatting'
 
-export default defineConfigWithVueTs(
+export const setup = [
   {
     name: 'kaapana/files-to-lint',
     files: ['**/*.{ts,mts,tsx,vue}'],
@@ -27,18 +25,33 @@ export default defineConfigWithVueTs(
     'services/meta/os-dashboards/**',
   ]),
 
+  vueTsConfigs.base,
+]
+
+const enforced = {
+  name: 'kaapana/enforced',
+  linterOptions: {
+    reportUnusedDisableDirectives: 'off',
+  },
+  rules: {
+    'vue/block-lang': 'off',
+    'vue/valid-v-slot': ['error', { allowModifiers: true }],
+    'vue/multi-word-component-names': 'off',
+    'vue/no-unused-components': 'off',
+    'vue/no-unused-vars': 'off',
+    'no-debugger': 'error',
+    'no-dupe-else-if': 'error',
+    'no-duplicate-case': 'error',
+    'no-self-assign': 'error',
+    'no-unsafe-finally': 'error',
+    'use-isnan': 'error',
+    'valid-typeof': 'error',
+  },
+}
+
+export default defineConfigWithVueTs(
+  ...setup,
   pluginVue.configs['flat/essential'],
-  vueTsConfigs.recommended,
-
-  {
-    ...pluginVitest.configs.recommended,
-    files: ['**/src/**/__tests__/*'],
-  },
-
-  {
-    ...pluginPlaywright.configs['flat/recommended'],
-    files: ['**/e2e/**/*.{test,spec}.ts', 'tests/ui/**/*.ts'],
-  },
-
+  enforced,
   skipFormatting,
 )

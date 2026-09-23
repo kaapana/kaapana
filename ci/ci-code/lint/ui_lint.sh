@@ -21,7 +21,9 @@ while IFS= read -r -d '' f; do
 done < <(git ls-files -z -- '*.ts' '*.mts' '*.tsx' '*.vue')
 
 ESLINT_CODE_QUALITY_REPORT=gl-code-quality-report.json \
-    npx eslint --format gitlab --no-warn-ignored "${files[@]}" || status=1
+    npx eslint --config ci/eslint-quality.config.mjs --format gitlab --no-warn-ignored "${files[@]}" >/dev/null ||
+    [[ $? -eq 1 ]] || status=1
+npx eslint --no-warn-ignored "${files[@]}" || status=1
 npx prettier --check "${files[@]}" || status=1
 
 exit $status

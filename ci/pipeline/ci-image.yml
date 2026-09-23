@@ -2,6 +2,8 @@ spec:
   inputs:
     runner_tag:
       type: string
+    exec_ci_image_rebuild:
+      type: boolean
 ---
 # Stage: preflight (build_ci_image) — rebuild of the CI job image
 # In:  ci/images/**, pinned dependency files (rules:changes)
@@ -9,9 +11,10 @@ spec:
 ##############################################
 # CI IMAGE
 ##############################################
-# Rebuilds the CI job image when its inputs change (bootstrap from an empty
-# registry is a manual build+push, see README section 5). Land image changes
-# with a CI_IMAGES_TAG bump — jobs pull the new tag on first use.
+# Rebuilds the CI job image when its inputs change. Land image changes
+# with a CI_IMAGES_TAG bump — jobs pull the new tag on first use. To force a
+# rebuild outside an MR/develop-push pipeline (e.g. bootstrapping an empty
+# registry), run with -i exec_ci_image_rebuild:true.
 build_ci_image:
   stage: preflight
   tags:
@@ -20,8 +23,17 @@ build_ci_image:
     name: $REGISTRY_ENV
   # Not ci-base: the image that builds ci-base must not be ci-base, or a tag
   # bump could never bootstrap itself.
-  image: docker.io/library/docker:28-cli
+  image: docker.io/library/docker:29.8.1-cli-alpine3.24
+  services:
+    - name: docker.io/library/docker:29.8.1-dind-alpine3.24
+      alias: docker
+      variables:
+        DOCKER_TLS_CERTDIR: ""
+  variables:
+    DOCKER_HOST: "tcp://docker:2375"
   rules:
+    - if: '"$[[ inputs.exec_ci_image_rebuild ]]" == "true"'
+      when: on_success
     # changes: only has a diff basis on push/MR pipelines — it evaluates to
     # true on schedule/web/api/trigger and would rebuild every run
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" || ($CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop")
@@ -37,8 +49,11 @@ build_ci_image:
       # # DOCKER_AUTH_CONFIG shadows CLI logins, unset it so build/scan pushes use their logins
       unset DOCKER_AUTH_CONFIG
       echo "$CI_REGISTRY_TOKEN" | docker login "$CI_REGISTRY_URL" -u "$CI_REGISTRY_USER" --password-stdin
-    # context is ci/, not the repo root (no .dockerignore exists)
+    # context is ci/, not the repo root (no .dockerignore exists). Disable
+    # image attestations, as not all registries support them (matches
+    # build_cli's Container.build()).
     - docker build --build-arg http_proxy="$HTTP_PROXY" --build-arg https_proxy="$HTTPS_PROXY"
+        --provenance=false --sbom=false
         -f ci/images/ci-base/Dockerfile -t "$CI_BASE_IMAGE" ci
     - docker push "$CI_BASE_IMAGE"
   after_script:

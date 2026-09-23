@@ -103,6 +103,7 @@ Every stage toggle. Grouped as `[exec]` in the run form.
 | `exec_integration_tests` | `true` | test stage: pytest + Playwright against the deployed platform |
 | `exec_integration_test_jobs` | `""` | comma-separated allowlist of integration-test jobs (`scan_ports`, `first_login`, `install_extensions`, `send_data`, `run_workflows`). Empty runs all of them; |
 | `exec_destroy_delayed` | `false` | keep the deployment VM for 4 h after the pipeline |
+| `exec_ci_image_rebuild` | `false` | force `build_ci_image` to run on any pipeline source, bypassing its normal MR/develop-push + changes gate |
 
 ### 3. `DEPLOYMENT_INSTANCE_*` variables — the target
 

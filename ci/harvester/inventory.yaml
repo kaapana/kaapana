@@ -1,104 +1,125 @@
 all:
+  hosts:
+    localhost:
+      ansible_connection: local
+      ansible_python_interpreter: "{{ ansible_playbook_python }}"
+
   vars:
-    # -----------------------------------------
-    # 🔹 CONSTANTS
-    # -----------------------------------------
-    harvester_namespace: "kaapana-ci"
-    venv_path: "/home/ubuntu/venv"
-    ansible_python_interpreter: "auto_silent"
-    ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
-    
-    # -----------------------------------------
-    # 🔹 REQUIRED ENVIRONMENT VARIABLES
-    # -----------------------------------------
-    # GitLab variables
-    gitlab_api_token: "{{ lookup('env', 'GITLAB_API_TOKEN') }}"
-    gitlab_project_id: "{{ lookup('env', 'GITLAB_PROJECT_ID') }}"
-    gitlab_url: "{{ lookup('env', 'GITLAB_URL') }}"
-    
-    # SSH keys
-    ssh_public_key: "{{ lookup('env', 'SSH_PUBLIC_KEY') }}"
-    ssh_private_key: "{{ lookup('env', 'SSH_PRIVATE_KEY') }}"
-    ansible_ssh_private_key_file: "{{ lookup('env', 'SSH_PRIVATE_KEY') }}"
-    
-    # Harvester connection
-    harvester_kubeconfig: "{{ lookup('env', 'HARVESTER_KUBECONFIG') }}"
-    
-    # -----------------------------------------
-    # 🔹 ENV VARIABLE VALIDATION LIST
-    # -----------------------------------------
-    required_env_vars:
-      - GITLAB_API_TOKEN
-      - GITLAB_PROJECT_ID
-      - GITLAB_URL
-      - SSH_PUBLIC_KEY
-      - SSH_PRIVATE_KEY
-      - HARVESTER_KUBECONFIG
-  
+    ci_env_file: "{{ inventory_dir }}/.env"
+    ci_env_from_file: >-
+      {{
+        dict(
+          lookup('file', ci_env_file, errors='ignore').splitlines()
+          | map('trim')
+          | reject('match', '^(#|$)')
+          | map('regex_replace', '^(?:export[ \t]+)?([A-Za-z_][A-Za-z0-9_]*)[ \t]*=[ \t]*(.*)$', '\1=\2')
+          | map('regex_replace', '=[\x22\x27](.*)[\x22\x27]$', '=\1')
+          | map('split', '=', 1)
+        )
+      }}
+    ci_env: "{{ ci_env_from_file }}"
+
+    harvester_namespace: "{{ lookup('env', 'HARVESTER_NAMESPACE') | default(ci_env.HARVESTER_NAMESPACE | default(''), true) }}"
+    vm_dns_domain: "{{ lookup('env', 'VM_DNS_DOMAIN') | default(ci_env.VM_DNS_DOMAIN | default(''), true) }}"
+    vm_user: "{{ lookup('env', 'VM_USER') | default(ci_env.VM_USER | default(''), true) }}"
+    venv_path: "/home/{{ vm_user }}/venv"
+
+    gitlab_api_token: "{{ lookup('env', 'GITLAB_API_TOKEN') | default(ci_env.GITLAB_API_TOKEN | default(''), true) }}"
+    gitlab_project_id: "{{ lookup('env', 'GITLAB_PROJECT_ID') | default(ci_env.GITLAB_PROJECT_ID | default(''), true) }}"
+    gitlab_url: "{{ lookup('env', 'GITLAB_URL') | default(ci_env.GITLAB_URL | default(''), true) }}"
+    ssh_private_key: "{{ (lookup('env', 'SSH_PRIVATE_KEY') | default(ci_env.SSH_PRIVATE_KEY | default(''), true)) | expanduser }}"
+    harvester_kubeconfig: "{{ (lookup('env', 'HARVESTER_KUBECONFIG') | default(ci_env.HARVESTER_KUBECONFIG | default(''), true)) | expanduser }}"
+    ansible_ssh_private_key_file: "{{ ssh_private_key }}"
+
+    # Lets a new VM be inspected before it takes jobs from the live fleet.
+    runners_paused: "{{ lookup('env', 'RUNNERS_PAUSED') | default('false', true) | bool }}"
+
+    # One metrics server per gitlab-runner process, not per runner entry
+    runner_metrics_port: 9252
+
+    runner_defaults:
+      executor: docker
+      limit: 1
+      request_concurrency: 1
+      docker_image: "registry.hzdr.de/kaapana/ci-base:latest"
+      maximum_timeout: 7200 # 2 hours
+      docker_volumes: ["/cache"]
+      docker_services_privileged: false
+      docker_allowed_privileged_services: []
+
+    runner_roles:
+      build:
+        tags: ["build"]
+        maximum_timeout: 14400 # 4 hours
+        limit: 2
+        request_concurrency: 2
+        docker_volumes: ["/cache", "/builds"]
+        docker_services_privileged: true
+        docker_allowed_privileged_services: ["docker.io/library/docker:*"]
+
+      security:
+        tags: ["security"]
+        maximum_timeout: 14400 # 4 hours
+        docker_volumes: ["/cache", "/builds"]
+        docker_services_privileged: true
+        docker_allowed_privileged_services: ["docker.io/library/docker:*"]
+
+      tests:
+        tags: ["tests"]
+        # preflight, lint and unit-tests all carry this tag: ~35 jobs per
+        # pipeline, each under a 5m timeout, so the queue and not the job is
+        # what the stage waits on.
+        limit: 8
+        request_concurrency: 8
+        docker_volumes: ["/cache", "/builds"]
+        docker_services_privileged: true
+        docker_allowed_privileged_services: ["docker.io/library/docker:*"]
+
+      deploy:
+        tags: ["deploy"]
+        # Integration tests run on this tag and each job holds a deployment VM.
+        limit: 2
+        request_concurrency: 2
+        # --test-data-cache-dir /data in integration-tests.yml; without the
+        # mount every job re-downloads the test data.
+        docker_volumes: ["/cache", "/data:/data"]
+
+      universal:
+        tags:
+          [
+            "universal",
+            "build",
+            "tests",            
+            "deploy",
+            "security",
+          ]
+        maximum_timeout: 14400 # 4 hours
+        limit: 8
+        request_concurrency: 8
+        docker_volumes: ["/cache", "/builds", "/data:/data"]
+        docker_services_privileged: true
+        docker_allowed_privileged_services: ["docker.io/library/docker:*"]
+
   children:
-    tests_instances:
+    ci_instances:
       hosts:
-        tests-01:
-          vm_name: kaapana-tests-01
-          cpu_cores: 8
-          memory_guest: "16Gi"
-          disk_size: "128Gi"
-          runner_description: "tests-runner-{{ vm_name }}"
-          runner_tags: ["tests-runner"]
-          runner_limit: 4
-          runner_concurrency: 4
-          runner_executor: docker
-          # /builds shared with services + privileged allowed for dind only:
-          # task_api_tests runs real task containers against a per-job dind.
-          runner_docker_volumes: ["/cache", "/builds"]
-          runner_docker_services_privileged: true
-          runner_docker_allowed_privileged_services: ["docker.io/library/docker:*"]
-          runner_global_concurrency: 4
-
-    build_instances:
-      hosts:
-        build-01:
-          vm_name: kaapana-build-01
-          cpu_cores: 32
-          memory_guest: "256Gi"
+        kaapana-ci-01:
+          vm_name: kaapana-ci-01
+          cpu_cores: 64
+          memory_guest: "128Gi"
           disk_size: "512Gi"
-          runner_description: "build-runner-{{ vm_name }}"
-          runner_tags: ["build-runner"]
-          runner_limit: 1
-          runner_concurrency: 2
-          runner_executor: docker
-          runner_docker_volumes:
-            ["/var/run/docker.sock:/var/run/docker.sock", "/cache"]
-          runner_global_concurrency: 1
-
-
-    security_instances:
-      hosts:
-        security-01:
-          vm_name: kaapana-security-01
-          cpu_cores: 4
-          memory_guest: "8Gi"
-          disk_size: "60Gi"
-          runner_description: "security-runner-{{ vm_name }}"
-          runner_tags: ["security-runner"]
-          runner_limit: 1
-          runner_concurrency: 1
-          runner_executor: docker
-          runner_docker_image: "registry.hzdr.de/kaapana/ci-base:v3"
-          runner_docker_volumes: ["/cache"]
-          runner_global_concurrency: 1
-
-    deploy_instances:
-      hosts:
-        deploy-01:
-          vm_name: kaapana-deploy-01
-          cpu_cores: 8
-          memory_guest: "16Gi"
-          disk_size: "128Gi"
-          runner_description: "deploy-runner-{{ vm_name }}"
-          runner_tags: ["deploy-runner"]
-          runner_limit: 4
-          runner_concurrency: 4
-          runner_executor: docker
-          runner_docker_volumes: ["/cache", "/data:/data"]
-          runner_global_concurrency: 4
+          runners: [universal]
+        
+        kaapana-ci-02:
+          vm_name: kaapana-ci-02
+          cpu_cores: 64
+          memory_guest: "128Gi"
+          disk_size: "512Gi"
+          runners: [universal]
+        
+        kaapana-ci-03:
+          vm_name: kaapana-ci-03
+          cpu_cores: 64
+          memory_guest: "128Gi"
+          disk_size: "512Gi"
+          runners: [universal]

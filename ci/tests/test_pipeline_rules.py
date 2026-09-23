@@ -111,6 +111,7 @@ def test_readiness_job_publishes_its_table():
         ("exec_deploy", "platform_deployment"),
         ("exec_build", "build_packages"),
         ("exec_unit_tests", "unit_tests"),
+        ("exec_unit_tests", "ci_config_tests"),
         ("exec_lint", "lint"),
     ],
 )
@@ -122,12 +123,32 @@ def test_toggle_off_never_runs_the_job(toggle, job):
     assert all(statically_false(c) or "$" in c for c in conditions), conditions
 
 
-def test_integration_tests_need_a_deployment():
-    """Without a deployment there is no target to test against."""
+def test_integration_tests_run_without_a_fresh_deployment():
+    """exec_integration_tests alone must still enable the test jobs — with
+    exec_deploy off, VM_FQDN falls back to DEPLOYMENT_INSTANCE_FQDN (an
+    already-deployed target) instead of coming from prepare_deployment."""
     config = merged_config(inputs=("exec_integration_tests=true", "exec_deploy=false"))
     for name in ("scan_ports", "first_login", "send_data"):
         conditions = [c for c in rule_ifs(jobs(config)[name]) if c]
+        assert not all(statically_false(c) for c in conditions), name
+
+
+def test_integration_tests_off_never_runs():
+    config = merged_config(inputs=("exec_integration_tests=false", "exec_deploy=true"))
+    for name in ("scan_ports", "first_login", "send_data"):
+        conditions = [c for c in rule_ifs(jobs(config)[name]) if c]
         assert all(statically_false(c) for c in conditions), name
+
+
+def test_failure_notification_fires_on_any_failed_job(default_config):
+    """if_ci_failing runs on develop if any job fails"""
+    config = jobs(default_config)
+    job = config["if_ci_failing"]
+    assert "needs" not in job, "needs: would make if_ci_failing skip itself instead of reporting the failure"
+    stages = default_config["stages"]
+    for name in job["dependencies"]:
+        assert name in config, f"dependencies names a job that does not exist: {name}"
+        assert stages.index(config[name]["stage"]) < stages.index(job["stage"]), name
 
 
 def test_external_target_is_never_destroyed():

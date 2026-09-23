@@ -160,6 +160,53 @@ def test_deploy_variables_are_not_required_when_not_deploying(tmp_path_factory, 
     assert result.returncode == 0, result.stdout
 
 
+def test_tests_only_run_needs_a_deployment_target(tmp_path_factory, env):
+    """exec_integration_tests without exec_deploy has nothing to test against
+    unless DEPLOYMENT_INSTANCE_FQDN points at an already-deployed platform."""
+    config = merged_config(inputs=("exec_deploy=false", "exec_build=false", "exec_integration_tests=true"))
+    path = write_script(config, tmp_path_factory.mktemp("preflight_tests_only"))
+    env["DEPLOYMENT_INSTANCE_FQDN"] = ""
+    result = run(path, env)
+    assert result.returncode == 1
+    assert "DEPLOYMENT_INSTANCE_FQDN" in result.stdout
+
+
+def test_tests_only_run_with_a_target_passes(tmp_path_factory, env):
+    config = merged_config(inputs=("exec_deploy=false", "exec_build=false", "exec_integration_tests=true"))
+    path = write_script(config, tmp_path_factory.mktemp("preflight_tests_only_ok"))
+    result = run(path, env)
+    assert result.returncode == 0, result.stdout
+
+
+def test_skipping_server_installation_needs_a_custom_target(tmp_path_factory, env):
+    """exec_server_installation=false assumes an already-prepared target; a
+    freshly provisioned VM has no OS/microk8s installed yet."""
+    config = merged_config(inputs=DEPLOY_INPUTS + ("exec_server_installation=false",))
+    path = write_script(config, tmp_path_factory.mktemp("preflight_skip_server_install"))
+    env["DEPLOYMENT_INSTANCE_FQDN"] = ""
+    result = run(path, env)
+    assert result.returncode == 1
+    assert "exec_server_installation" in result.stdout
+
+
+def test_redeploy_without_a_target_only_warns(tmp_path_factory, tmp_path, env):
+    """exec_redeploy=true undeploys a platform already on the target; a
+    freshly provisioned VM has nothing to undeploy, but undeploy_platform.yaml
+    already no-ops gracefully in that case, so this should warn, not block
+    the pipeline."""
+    config = merged_config(inputs=DEPLOY_INPUTS + ("exec_redeploy=true",))
+    path = write_script(config, tmp_path_factory.mktemp("preflight_redeploy"))
+    kubeconfig = tmp_path / "kubeconfig"
+    kubeconfig.write_text("not a real kubeconfig\n")
+    env["DEPLOYMENT_INSTANCE_FQDN"] = ""
+    env["HARVESTER_KUBECONFIG"] = str(kubeconfig)
+    env["DEPLOYMENT_INSTANCE_DOMAIN"] = "vms.dkfz.de"
+    env["DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE"] = "kaapana-ci"
+    result = run(path, env)
+    assert result.returncode == 0, result.stdout
+    assert "exec_redeploy" in result.stdout
+
+
 def test_a_release_tag_needs_the_release_registry(script, env):
     env["CI_COMMIT_TAG"] = "0.7.1"
     result = run(script, env)

@@ -12,6 +12,8 @@ RUN printf '#!/bin/sh\nexit 101\n' > /usr/sbin/policy-rc.d && chmod +x /usr/sbin
 # snapd (for the `snap` CLI — `snap download` needs no running daemon) and
 # squashfs-tools (`unsquashfs`): SecurityScanner (build_cli) scans offline
 # snap packages by extracting them and running `trivy rootfs` against that.
+# Must stay in step with the docker:*-dind tag pinned in ci/pipeline/*.yml
+ARG DOCKER_CLI_VERSION=29.8.1
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
         openssh-client \
@@ -25,7 +27,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc \
     && echo "deb [signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian bookworm stable" \
         > /etc/apt/sources.list.d/docker.list \
-    && apt-get update && apt-get install -y --no-install-recommends docker-ce-cli docker-buildx-plugin \
+    && apt-get update \
+    && DOCKER_CLI_PKG_VERSION=$(apt-cache madison docker-ce-cli | awk -v v="5:${DOCKER_CLI_VERSION}-" 'index($3, v) == 1 {print $3; exit}') \
+    && apt-get install -y --no-install-recommends "docker-ce-cli=$DOCKER_CLI_PKG_VERSION" docker-buildx-plugin \
     && rm -rf /var/lib/apt/lists/*
 
 # helm + kubeval plugin: kaapana-build hard-fails without both

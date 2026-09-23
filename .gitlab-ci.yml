@@ -46,22 +46,26 @@ spec:
       default: false
       type: boolean
       description: "[exec] true keeps the deployment VM for 4h after the pipeline"
+    exec_ci_image_rebuild:
+      default: false
+      type: boolean
+      description: "[exec] force build_ci_image to run on any pipeline source, bypassing its normal MR/develop-push + changes gate"
 
     # --- [runner] runner tag per stage group.
     build_runner_tag:
-      default: build-runner
+      default: build
       type: string
       description: "[runner] ci-image and build stages"
     security_runner_tag:
-      default: security-runner
+      default: security
       type: string
       description: "[runner] security stage"
     tests_runner_tag:
-      default: tests-runner
+      default: tests
       type: string
       description: "[runner] preflight and unit-test stages"
     deploy_runner_tag:
-      default: deploy-runner
+      default: deploy
       type: string
       description: "[runner] deploy, integration-test and clean"
 
@@ -123,7 +127,7 @@ variables:
   # CI_IMAGES_TAG in the same MR that changes ci/images/** — re-pushing an
   # existing tag leaves warm runners on the stale image. Always
   # $CI_REGISTRY_URL, never the release registry.
-  CI_IMAGES_TAG: "v7"
+  CI_IMAGES_TAG: "v8"
   CI_BASE_IMAGE: "$CI_REGISTRY_URL/ci-base:$CI_IMAGES_TAG"
 
   # Purpose-specific tokens, currently aliasing the shared CI_REGISTRY_TOKEN.
@@ -177,12 +181,9 @@ variables:
   # --- Documentation (scheduled readthedocs check)
   KAAPANA_READTHEDOCS_TOKEN: $KAAPANA_READTHEDOCS_TOKEN # secret — project variable (masked)
 
-  # --- DKFZ network proxy. NO_PROXY is mandatory alongside: without the
-  # exemptions, requests to localhost and internal targets (deployment VMs, Harvester
-  # API) hairpin through the proxy and time out.
   HTTP_PROXY: "http://www-int2.dkfz-heidelberg.de:80"
   HTTPS_PROXY: "http://www-int2.dkfz-heidelberg.de:80"
-  NO_PROXY: "localhost,127.0.0.1,.dkfz.de,.dkfz-heidelberg.de,10.129.1.5" # Harvester API
+  NO_PROXY: "localhost,127.0.0.1,docker,.dkfz.de,.dkfz-heidelberg.de,10.129.1.5" # Harvester API
   # Lowercase for apt in ui unit tests on servers that need proxy
   http_proxy: "$HTTP_PROXY"
   https_proxy: "$HTTPS_PROXY"
@@ -208,9 +209,11 @@ include:
       exec_deploy: $[[ inputs.exec_deploy ]]
       exec_server_installation: $[[ inputs.exec_server_installation ]]
       exec_redeploy: $[[ inputs.exec_redeploy ]]
+      exec_integration_tests: $[[ inputs.exec_integration_tests ]]
   - local: /ci/pipeline/ci-image.yml
     inputs:
       runner_tag: $[[ inputs.build_runner_tag ]]
+      exec_ci_image_rebuild: $[[ inputs.exec_ci_image_rebuild ]]
   - local: /ci/pipeline/lint.yml
     inputs:
       runner_tag: $[[ inputs.tests_runner_tag ]]
@@ -238,7 +241,6 @@ include:
       runner_tag: $[[ inputs.deploy_runner_tag ]]
       exec_integration_tests: $[[ inputs.exec_integration_tests ]]
       exec_integration_test_jobs: $[[ inputs.exec_integration_test_jobs ]]
-      exec_deploy: $[[ inputs.exec_deploy ]]
   - local: /ci/pipeline/clean.yml
     inputs:
       runner_tag: $[[ inputs.deploy_runner_tag ]]

@@ -23,8 +23,8 @@ spec:
   tags:
     - $[[ inputs.runner_tag ]]
   # Everything these jobs need is baked into the CI image. VM_FQDN / VM_USER /
-  # VERSION_TAG arrive via the deployment.env dotenv from prepare_deployment,
-  # falling back to DEPLOYMENT_INSTANCE_* when that job did not run.
+  # VERSION_TAG arrive via the deployment.env dotenv from prepare_deployment;
+  # jobs that can also run without it carry their own default (integration-tests.yml).
   image: $CI_BASE_IMAGE
   environment:
     name: $REGISTRY_ENV
@@ -100,7 +100,7 @@ prepare_deployment:
     - echo "VERSION_TAG=$VERSION_TAG" >> artifacts/deployment.env
 
   artifacts:
-    expire_in: 2 weeks
+    expire_in: 30 days
     when: always
     paths:
       - artifacts/deployment.env
@@ -128,7 +128,7 @@ server_installation:
         -u "$VM_USER" \
         --private-key "$DEPLOYMENT_INSTANCE_SSH_KEY"
   artifacts:
-    expire_in: 2 weeks
+    expire_in: 30 days
     paths:
       - "artifacts/server_installation.log"
     when: always
@@ -177,7 +177,7 @@ platform_deployment:
       when: on_success
     - when: never
   artifacts:
-    expire_in: 2 weeks
+    expire_in: 30 days
     paths:
       - "artifacts/deployment.log"
       - "artifacts/undeploy.log"

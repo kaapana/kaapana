@@ -225,39 +225,10 @@ then posts to Slack.
 
 ## Runners
 
-Four Harvester VMs in namespace `kaapana-ci`, one runner registration each,
-defined in [`ci/harvester/inventory.yaml`](../harvester/inventory.yaml). All use
-the docker executor.
-
-| VM | Tag | Size | limit | Special configuration |
-|---|---|---|---|---|
-| kaapana-tests-01 | `tests-runner` | 8 CPU / 16 Gi | 4 | privileged **services** matching `docker.io/library/docker:*` (dind for `task_api_tests`); `/builds` shared between job and services |
-| kaapana-build-01 | `build-runner` | 32 CPU / 256 Gi / 512 Gi disk | 1 | host docker socket mounted into jobs → warm layer cache across pipelines |
-| kaapana-security-01 | `security-runner` | 4 CPU / 8 Gi | 1 | small dedicated VM, so a long scan never blocks a build |
-| kaapana-deploy-01 | `deploy-runner` | 8 CPU / 16 Gi | 4 | `/data` mounted for the test-data cache; no other machine state |
-
-Provisioning and re-provisioning, which is also how you add a runner (extend the
-inventory first):
-
-```bash
-export GITLAB_API_TOKEN=...      # api scope
-export GITLAB_PROJECT_ID=...
-export GITLAB_URL=https://codebase.helmholtz.cloud
-export SSH_PUBLIC_KEY=~/.ssh/kaapana.pub
-export SSH_PRIVATE_KEY=~/.ssh/kaapana.pem
-export HARVESTER_KUBECONFIG=~/.kube/harvester.yaml
-
-ansible-playbook -i ci/harvester/inventory.yaml ci/harvester/setup_ci.yaml
-# FORCE_RECREATE=true deletes and recreates ALL existing VMs
-```
-
-On a runner VM the agent is a **user-mode** systemd service running as `ubuntu`:
-
-```bash
-gitlab-runner verify
-systemctl --user status gitlab-runner
-cat ~/.gitlab-runner/config.toml
-```
+The runner fleet and its management are documented in
+[`ci-fleet-setup.md`](ci-fleet-setup.md) — the declared fleet, the `ci_fleet.py`
+commands (list / status / up / down), the required `.env`, and how to add a
+runner.
 
 ## The ci-base image
 

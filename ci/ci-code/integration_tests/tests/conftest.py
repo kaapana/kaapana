@@ -1,6 +1,7 @@
 # conftest.py
 import logging
 import os
+import shlex
 import shutil
 import socket
 import subprocess
@@ -76,7 +77,9 @@ def auto_host():
 
 def auto_client_secret():
     try:
-        cmd = "helm get values kaapana-admin-chart -o json | jq -r .global.oidc_client_secret"
+        chart = shlex.quote(os.getenv("DEPLOYMENT_INSTANCE_ADMIN_CHART", "kaapana-admin-chart"))
+        namespace = shlex.quote(os.getenv("DEPLOYMENT_INSTANCE_HELM_NAMESPACE", "default"))
+        cmd = f"helm -n {namespace} get values {chart} -o json | jq -r .global.oidc_client_secret"
         return subprocess.check_output(["bash", "-lc", cmd], text=True).strip()
     except Exception:
         return None

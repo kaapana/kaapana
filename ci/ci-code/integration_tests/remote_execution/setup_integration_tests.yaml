@@ -9,18 +9,20 @@
 
   vars:
     artifacts_dir: "{{ lookup('env', 'ARTIFACTS_DIR') }}"
+    admin_chart: "{{ lookup('ansible.builtin.env', 'DEPLOYMENT_INSTANCE_ADMIN_CHART') }}"
+    helm_namespace: "{{ lookup('ansible.builtin.env', 'DEPLOYMENT_INSTANCE_HELM_NAMESPACE') }}"
     ansible_python_interpreter: /usr/bin/python3
 
   tasks:
     - name: Fetch client secret from remote VM
       ansible.builtin.shell: |
-        helm get values kaapana-admin-chart -o json 2>/dev/null | jq -r .global.oidc_client_secret 2>/dev/null || true
+        helm -n {{ helm_namespace | quote }} get values {{ admin_chart | quote }} -o json 2>/dev/null | jq -r .global.oidc_client_secret 2>/dev/null || true
       register: client_secret
       changed_when: false
 
     - name: Fail if the client secret could not be read
       ansible.builtin.fail:
-        msg: "Could not read oidc_client_secret from the deployed kaapana-admin-chart — is the platform deployed?"
+        msg: "Could not read oidc_client_secret from release {{ admin_chart }} in namespace {{ helm_namespace }} — is the platform deployed?"
       when: client_secret.stdout | trim in ('', 'null')
 
     - name: Write client_secret to dotenv file

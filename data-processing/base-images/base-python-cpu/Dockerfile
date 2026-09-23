@@ -1,4 +1,4 @@
-FROM ubuntu:24.04
+FROM ubuntu:26.04
 
 LABEL REGISTRY="local-only"
 LABEL IMAGE="base-python-cpu"

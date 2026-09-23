@@ -1,7 +1,7 @@
 # WARNING: THIS DOCKERFILE IS DEPRECATED AND WILL BE REMOVED IN FUTURE RELEASES!
 # PLEASE USE THE MAINTAINED BASE IMAGE INSTEAD: `data-processing/base-images/base-python-cpu/Dockerfile`
 
-FROM ubuntu:22.04
+FROM ubuntu:26.04
 
 LABEL REGISTRY="local-only"
 LABEL IMAGE="base-python-cpu-3.10"

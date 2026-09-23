@@ -31,7 +31,7 @@ RUN cd /src/addons/selkies-web-core && npm install && npm run build \
 # previously copied by digest from the LinuxServer selkies image) keeps the image self-contained.
 # NOTE: after any future pixelflux bump, re-test whether this is still needed — a newer bundled
 # FFmpeg may drop the vaMapBuffer2 dependency and let this whole stage be removed.
-FROM ubuntu:24.04 AS libva-builder
+FROM ubuntu:26.04 AS libva-builder
 ARG LIBVA_VERSION=2.22.0
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl meson ninja-build build-essential pkg-config libdrm-dev \

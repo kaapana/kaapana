@@ -14,7 +14,7 @@ ENV HELM_VERSION="v3.21.2"
 # renovate: datasource=github-releases depName=containerd/containerd extractVersion=^v(?<version>\d+\.\d+\.\d+)$
 ENV CONTAINERD_VERSION="2.2.6"
 
-# Install kubectl and helm cli tools
+# Install kubectl and helm cli tools
 RUN curl -LO https://dl.k8s.io/release/${KUBE_VERSION}/bin/linux/amd64/kubectl && chmod +x kubectl && mv ./kubectl /usr/local/bin/kubectl
 RUN curl https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz | tar -xzO linux-amd64/helm > /usr/local/bin/helm && chmod +x /usr/local/bin/helm
 RUN mkdir /config && chmod g+rwx /config    
@@ -44,7 +44,7 @@ RUN pip3 install .
 RUN /usr/local/bin/helm package /root/collections/update-collections-chart -d /root/collections
 RUN /usr/local/bin/helm package /root/helpers/pull-docker-chart -d /root/helpers
 
-# Set paths and other env vars
+# Set paths and other env vars
 ENV HELM_PATH="/usr/local/bin/helm"
 ENV KUBECTL_PATH="kubectl"
 ENV HELM_EXTENSIONS_CACHE="/kaapana/mounted/extensions"

@@ -17,7 +17,7 @@ Pipeline configuration is [`.gitlab-ci.yml`](../.gitlab-ci.yml) plus stage files
 
 | Trigger | Configuration |
 |---|---|
-| Merge request | Full pipeline on every push to the branch with default configuration. A draft MR (Draft, WIP) runs nothing. Label the MR `Security` for security scan, or `CI` for CI tests |
+| Merge request | Full pipeline on every push to the branch with default configuration. A draft MR (Draft, WIP) runs nothing. Label the MR `Security` for security scan, or `CI` for CI tests. The first pipeline posts an advisory AI review note (`mr_review`); run the manual `mr_review_rerun` job for a new one |
 | Push to `develop` | Full pipeline|
 | Schedule | Full pipeline with the schedule's own configuration ([below](#scheduled-pipelines)) |
 | Protected tag `X.Y.Z` | Release build against the release registry ([internals.md](docs/internals.md#registries)) |

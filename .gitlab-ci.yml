@@ -14,6 +14,10 @@ spec:
       default: true
       type: boolean
       description: "[exec] tests stage: ruff format/lint check + code quality report"
+    exec_mr_review:
+      default: true
+      type: boolean
+      description: "[exec] preflight stage: advisory Blablador review posted as an MR note (MR pipelines only)"
     exec_build:
       default: true
       type: boolean
@@ -134,7 +138,6 @@ variables:
   # To give a purpose its own credential, create a same-named project variable
   # (it outranks these defaults) — no pipeline change needed.
   GITLAB_API_TOKEN: $CI_REGISTRY_TOKEN
-  BLABLADOR_API_TOKEN: $CI_REGISTRY_TOKEN
 
   CI_EXEC_BUILD_ARGUMENTS:
     value: "--cache-from -pp 8 --keep-buildx-builder"
@@ -210,6 +213,10 @@ include:
       exec_server_installation: $[[ inputs.exec_server_installation ]]
       exec_redeploy: $[[ inputs.exec_redeploy ]]
       exec_integration_tests: $[[ inputs.exec_integration_tests ]]
+  - local: /ci/pipeline/review.yml
+    inputs:
+      runner_tag: $[[ inputs.tests_runner_tag ]]
+      exec_mr_review: $[[ inputs.exec_mr_review ]]
   - local: /ci/pipeline/ci-image.yml
     inputs:
       runner_tag: $[[ inputs.build_runner_tag ]]

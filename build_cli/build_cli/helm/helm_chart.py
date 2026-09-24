@@ -263,6 +263,10 @@ class HelmChart:
         version: str,
         build_config: BuildConfig,
     ) -> Set[Container]:
+        # Lint only: no containers were collected, so nothing to look up
+        if build_config.lint_only:
+            return set()
+
         chart_containers = set()
 
         # Collection container

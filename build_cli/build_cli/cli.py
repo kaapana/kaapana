@@ -530,8 +530,9 @@ def run_build(build_config: BuildConfig):
             ContainerHelper.login_cache_registries()
 
     logger.info("-----------------------------------------------------------")
-    ContainerHelper.collect_containers()
-    ContainerHelper.resolve_base_images_into_container()
+    if not build_config.lint_only:
+        ContainerHelper.collect_containers()
+        ContainerHelper.resolve_base_images_into_container()
     HelmChartHelper.collect_charts()
     HelmChartHelper.resolve_chart_dependencies()
     HelmChartHelper.resolve_kaapana_collections()

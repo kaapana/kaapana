@@ -46,15 +46,16 @@ def submit_ai_request(messages: List[Dict[str, str]], model: str, token: str) ->
         "model": model,
         "messages": messages,
         "temperature": 0,
-        "top_p": 0,
         "n": 1,
         "max_tokens": 8000,
         "stream": False,
         "user": "kaapana-ci",
     }
-    url = "https://api.helmholtz-blablador.fz-juelich.de/v1/chat/completions"
+    url = "https://api.blablador.fz-juelich.de/v1/chat/completions"
 
     response = requests.post(url=url, headers=headers, data=json.dumps(payload), timeout=900)
+    if not response.ok:
+        logger.error(f"Blablador answered {response.status_code}: {response.text[:2000]}")
     response.raise_for_status()
     return response
 

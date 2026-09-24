@@ -1,0 +1,37 @@
+spec:
+  inputs:
+    exec_mr_review:
+      type: boolean
+    runner_tag:
+      type: string
+---
+# Stage: preflight — advisory LLM review of the merge request
+# In:  the MR diff and linked issues via the GitLab API; BLABLADOR_API_TOKEN, GITLAB_API_TOKEN
+# Out: one MR note, written once per MR and replaced by mr_review_rerun; never fails the pipeline
+.mr_review_template:
+  stage: preflight
+  needs: []
+  tags:
+    - $[[ inputs.runner_tag ]]
+  image: $CI_BASE_IMAGE
+  timeout: 20 minutes
+  allow_failure: true
+  script:
+    - cd "$CI_PROJECT_DIR/ci/ci-code/review"
+    - python3 review_mr.py
+
+mr_review:
+  extends: .mr_review_template
+  rules:
+    - if: '"$[[ inputs.exec_mr_review ]]" == "true" && $CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: on_success
+    - when: never
+
+mr_review_rerun:
+  extends: .mr_review_template
+  variables:
+    MR_REVIEW_FORCE: "true"
+  rules:
+    - if: '"$[[ inputs.exec_mr_review ]]" == "true" && $CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: manual
+    - when: never

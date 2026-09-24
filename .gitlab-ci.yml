@@ -257,7 +257,6 @@ include:
       exec_vm_sweep: $[[ inputs.exec_vm_sweep ]]
   - local: /ci/pipeline/review.yml
     inputs:
-      runner_tag: $[[ inputs.tests_runner_tag ]]
       exec_mr_review: $[[ inputs.exec_mr_review ]]
   - local: /ci/pipeline/ci-image.yml
     inputs:

@@ -5,11 +5,11 @@ spec:
     runner_tag:
       type: string
 ---
-# Stage: preflight — advisory LLM review of the merge request
+# Stage: .post — advisory LLM review of the merge request
 # In:  the MR diff and linked issues via the GitLab API; BLABLADOR_API_TOKEN, GITLAB_API_TOKEN
-# Out: one MR note, written once per MR and replaced by mr_review_rerun; never fails the pipeline
+# Out: one MR note, written once per MR with the "AI Review" label or by the manual mr_review_rerun; never fails the pipeline
 .mr_review_template:
-  stage: preflight
+  stage: .post
   needs: []
   tags:
     - $[[ inputs.runner_tag ]]
@@ -23,7 +23,7 @@ spec:
 mr_review:
   extends: .mr_review_template
   rules:
-    - if: '"$[[ inputs.exec_mr_review ]]" == "true" && $CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '"$[[ inputs.exec_mr_review ]]" == "true" && $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_LABELS =~ /(^|,)AI Review(,|$)/'
       when: on_success
     - when: never
 

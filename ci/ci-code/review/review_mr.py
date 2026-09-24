@@ -181,7 +181,7 @@ def main():
     gl.auth()
 
     project_kaapana = gl.projects.get(id=project_id)
-    mr = project_kaapana.merge_requests.get(mr_iid)
+    mr = project_kaapana.mergerequests.get(mr_iid)
 
     note = find_review_note(mr, gl.user.id)
     if note and os.getenv("MR_REVIEW_FORCE") != "true":

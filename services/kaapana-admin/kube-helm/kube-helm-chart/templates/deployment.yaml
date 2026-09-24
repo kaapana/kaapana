@@ -66,7 +66,7 @@ spec:
         - name: https_proxy
           value: {{ .Values.global.https_proxy }}
         - name: no_proxy
-          value:  ".svc,.svc.cluster,.svc.cluster.local,{{ .Values.global.hostname }},10.43.0.1,{{ join "," .Values.global.internalCidrs }}"
+          value:  ".svc,.svc.cluster,.svc.cluster.local,{{ .Values.global.hostname }},{{ join "," .Values.global.internalCidrs }}"
 {{- end }}
 {{- if .Values.global.dev_files }}
         - name: DEV_FILES

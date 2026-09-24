@@ -60,9 +60,6 @@ code_quality:
 ##############################################
 # Helm lint: helm lint + kubeval of the platform chart tree — blocks the pipeline
 ##############################################
-# The same check kaapana-build runs while building, hours earlier and on its
-# own; build_packages therefore runs with --no-linting. ci-base has helm and
-# the kubeval plugin. Chart versions come from git describe: full clone + tags.
 helm_lint:
   stage: tests
   tags:

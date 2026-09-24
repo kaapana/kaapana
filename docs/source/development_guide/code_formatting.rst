@@ -55,7 +55,7 @@ Pre-commit hooks
 
 .. important::
   Install the hooks before committing — CI runs the same checks and fails the
-  pipeline on any difference:
+  pipeline on any finding:
 
   .. code-block:: bash
 

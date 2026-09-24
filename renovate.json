@@ -9,7 +9,7 @@
   "prHourlyLimit": 2,
   "labels": ["Dependencies"],
   "dependencyDashboardTitle": "Dependency Dashboard (Renovate)",
-  "dependencyDashboardLabels": ["Dependencies"],
+  "dependencyDashboardLabels": ["Dependencies", "Sprint"],
   "dependencyDashboardOSVVulnerabilitySummary": "unresolved",
   "commitMessageExtra": "from {{{currentValue}}} to {{#if isPinDigest}}{{{newDigestShort}}}{{else}}{{#if isSingleVersion}}{{prettyNewVersion}}{{else}}{{#if newValue}}{{{newValue}}}{{else}}{{{newDigestShort}}}{{/if}}{{/if}}{{/if}}",
   "enabledManagers": [

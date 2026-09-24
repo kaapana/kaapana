@@ -2,8 +2,6 @@ spec:
   inputs:
     exec_lint:
       type: boolean
-    exec_helm_lint:
-      type: boolean
     runner_tag:
       type: string
 ---
@@ -67,7 +65,7 @@ helm_lint:
   image: $CI_BASE_IMAGE
   timeout: 15m
   rules:
-    - if: '"$[[ inputs.exec_helm_lint ]]" == "true"'
+    - if: '"$[[ inputs.exec_lint ]]" == "true"'
       when: on_success
     - when: never
   variables:

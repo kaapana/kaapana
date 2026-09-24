@@ -17,7 +17,7 @@ spec:
     exec_mr_review:
       default: true
       type: boolean
-      description: "[exec] preflight stage: advisory Blablador review posted as an MR note (MR pipelines only)"
+      description: "[exec] .post stage: advisory Blablador review posted as an MR note (MR pipelines with the AI Review label, or the manual mr_review_rerun)"
     exec_build:
       default: true
       type: boolean

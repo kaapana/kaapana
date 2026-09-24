@@ -1,5 +1,5 @@
 ---
-{{- if not .Values.global.dev_mode}}
+{{- if and (not .Values.global.dev_mode) (not .Values.global.restricted_rbac) }}
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicy
 metadata:

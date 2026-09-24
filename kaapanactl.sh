@@ -2271,25 +2271,24 @@ function setup_storage_classes() {
 }
 
 function create_namespaces {
-  for namespace in $EXTENSIONS_NAMESPACE $SERVICES_NAMESPACE $ADMIN_NAMESPACE $HELM_NAMESPACE; do
-    echo "Checking namespace: $namespace"
+  local namespaces="$EXTENSIONS_NAMESPACE $SERVICES_NAMESPACE $ADMIN_NAMESPACE $HELM_NAMESPACE"
 
-    if [ "$RESTRICTED_RBAC" = "true" ]; then
-      # No permission to create namespaces: must already exist and be accessible
+  if [ "$RESTRICTED_RBAC" = "true" ]; then
+    # No permission to create namespaces: all must exist, incl. the admin project namespace kaapana would create later
+    for namespace in $namespaces "${PLATFORM_PREFIX}-project-admin"; do
       if ! $KUBE get namespace "$namespace" >/dev/null 2>&1; then
         echo -e "${RED}Namespace '$namespace' does not exist or is not accessible (RESTRICTED_RBAC=true, namespaces are not created).${NC}"
         echo -e "${RED}Create it beforehand - e.g. in a managed Kubernetes cluster via the platform UI.${NC}"
         exit 1
       fi
       echo -e "${GREEN}Namespace '$namespace' exists and is accessible${NC}"
-
-    else
-      # Non-managed cluster: create if missing, no-op if present
-      echo "Ensuring namespace exists: $namespace"
+    done
+  else
+    for namespace in $namespaces; do
       $KUBE create namespace "$namespace" --dry-run=client -o yaml | $KUBE apply -f -
       echo -e "${GREEN}Namespace '$namespace' ensured${NC}"
-    fi
-  done
+    done
+  fi
 }
 
 function deploy_chart {

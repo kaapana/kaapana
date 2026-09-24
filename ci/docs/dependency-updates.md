@@ -75,13 +75,13 @@ why `**/node_modules/**` is listed again, and why `tests/` is scanned.
   `chore(deps): update dependency ruff from 0.6.4 to v0.6.9`. Grouped MRs are
   titled after the group; their versions are in the table in the MR
   description.
-- **The Dependency Dashboard** is a GitLab issue. It lists pending, open and
-  closed updates, and failed lookups, each under its MR title. Its
-  "Vulnerabilities" section lists the unresolved advisories with their
-  severity. Subscribe to it to get notified.
+- **The Dependency Dashboard** is a GitLab issue labelled `Dependencies` and
+  `Sprint`. It lists pending, open and closed updates, and failed lookups,
+  each under its MR title. Its "Vulnerabilities" section lists the unresolved
+  advisories with their severity. Subscribe to it to get notified.
 - **Security fixes** get the extra label `Security` and the title
-  `fix(deps): … [SECURITY] [HIGH]`, with the severity from the advisory. The label turns on the trivy `security_scan` job
-  in the MR pipeline. Vulnerability data comes from
+  `fix(deps): … [SECURITY] [HIGH]`, with the severity from the advisory. The
+  label turns on the trivy `security_scan` job in the MR pipeline. Vulnerability data comes from
   [osv.dev](https://osv.dev) and covers PyPI, npm and Maven packages. Container
   images and GitHub releases get no security alerts, only normal updates.
 

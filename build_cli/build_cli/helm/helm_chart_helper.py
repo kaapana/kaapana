@@ -1,15 +1,13 @@
 import shutil
-import subprocess
 from collections import Counter
 from importlib.resources import files
-from pathlib import Path
 from typing import Optional
 
 from alive_progress import alive_bar
 
 from build_cli.build import BuildConfig, BuildState, IssueTracker
 from build_cli.helm import HelmChart
-from build_cli.utils import CommandUtils, get_logger, should_ignore_path
+from build_cli.utils import CommandUtils, get_logger, git_ignored, should_ignore_path
 
 logger = get_logger()
 
@@ -119,7 +117,7 @@ class HelmChartHelper:
         chart_files = set(
             f for f in cls._build_config.kaapana_dir.rglob("Chart.yaml") if cls._build_config.build_dir not in f.parents
         )
-        chart_files -= cls.git_ignored(chart_files, repo_dir=cls._build_config.kaapana_dir)
+        chart_files -= git_ignored(chart_files, repo_dir=cls._build_config.kaapana_dir)
 
         logger.info("")
         logger.info(f"Found {len(chart_files)} Charts in kaapana_dir")
@@ -158,21 +156,6 @@ class HelmChartHelper:
                 chart_obj = HelmChart.from_chartfile(chart_file, build_config=cls._build_config)
                 bar.text(chart_obj.name)
                 cls._build_state.add_chart(chart_obj)
-
-    @staticmethod
-    def git_ignored(files: set[Path], repo_dir: Path) -> set[Path]:
-        """The subset of files git ignores in repo_dir: build output and tool
-        caches hold copies of every chart and must not become build inputs."""
-        if not files:
-            return set()
-        result = subprocess.run(
-            ["git", "check-ignore", "--stdin"],
-            input="\n".join(str(f) for f in files),
-            capture_output=True,
-            text=True,
-            cwd=repo_dir,
-        )
-        return {Path(line) for line in result.stdout.splitlines()}
 
     @classmethod
     def resolve_chart_dependencies(cls) -> None:

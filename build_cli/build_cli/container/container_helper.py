@@ -12,7 +12,7 @@ from alive_progress import alive_bar
 
 from build_cli.build import BuildConfig, BuildState, Issue, IssueTracker
 from build_cli.container import BUILDX_BUILDER_NAME, Container
-from build_cli.utils import CommandUtils, get_logger, should_ignore_path
+from build_cli.utils import CommandUtils, get_logger, git_ignored, should_ignore_path
 
 logger = get_logger()
 T = TypeVar("T")  # HelmChart or Container
@@ -302,6 +302,8 @@ class ContainerHelper:
         logger.debug(" collect_containers")
 
         dockerfiles_found = list(cls._build_config.kaapana_dir.rglob("Dockerfile*"))
+        ignored = git_ignored(set(dockerfiles_found), repo_dir=cls._build_config.kaapana_dir)
+        dockerfiles_found = [f for f in dockerfiles_found if f not in ignored]
         logger.info("")
         logger.info(f"-> Found {len(dockerfiles_found)} Dockerfiles @Kaapana")
 

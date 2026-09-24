@@ -2,8 +2,6 @@ spec:
   inputs:
     exec_mr_review:
       type: boolean
-    runner_tag:
-      type: string
 ---
 # Stage: .post — advisory LLM review of the merge request
 # In:  the MR diff and linked issues via the GitLab API; BLABLADOR_API_TOKEN, GITLAB_API_TOKEN
@@ -12,10 +10,19 @@ spec:
   stage: .post
   needs: []
   tags:
-    - $[[ inputs.runner_tag ]]
-  image: $CI_BASE_IMAGE
+    - x86_64
+  image: python:3.12-slim
   timeout: 20 minutes
   allow_failure: true
+  variables:
+    HTTP_PROXY: ""
+    HTTPS_PROXY: ""
+    NO_PROXY: ""
+    http_proxy: ""
+    https_proxy: ""
+    no_proxy: ""
+  before_script:
+    - pip install --no-cache-dir python-gitlab==7.1.0 requests==2.32.5
   script:
     - cd "$CI_PROJECT_DIR/ci/ci-code/review"
     - python3 review_mr.py

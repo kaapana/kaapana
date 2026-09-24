@@ -215,7 +215,6 @@ include:
       exec_integration_tests: $[[ inputs.exec_integration_tests ]]
   - local: /ci/pipeline/review.yml
     inputs:
-      runner_tag: $[[ inputs.tests_runner_tag ]]
       exec_mr_review: $[[ inputs.exec_mr_review ]]
   - local: /ci/pipeline/ci-image.yml
     inputs:

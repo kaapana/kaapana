@@ -52,7 +52,7 @@ def submit_ai_request(messages: List[Dict[str, str]], model: str, token: str) ->
         "stream": False,
         "user": "kaapana-ci",
     }
-    url = "https://helmholtz-blablador.fz-juelich.de:8000/v1/chat/completions"
+    url = "https://api.helmholtz-blablador.fz-juelich.de/v1/chat/completions"
 
     response = requests.post(url=url, headers=headers, data=json.dumps(payload), timeout=900)
     response.raise_for_status()

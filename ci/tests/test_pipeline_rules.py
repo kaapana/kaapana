@@ -112,7 +112,7 @@ def test_readiness_job_publishes_its_table():
         ("exec_build", "build_packages"),
         ("exec_unit_tests", "unit_tests"),
         ("exec_lint", "lint"),
-        ("exec_helm_lint", "helm_lint"),
+        ("exec_lint", "helm_lint"),
     ],
 )
 def test_toggle_off_never_runs_the_job(toggle, job):

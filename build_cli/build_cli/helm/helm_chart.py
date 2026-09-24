@@ -756,7 +756,8 @@ class HelmChart:
 
         if enable_linting:
             self.lint_chart(helm_executable, values)
-            self.lint_kubeval(helm_executable, values)
+            # kubeval disabled: schema host is gone, so it currently validates nothing
+            # self.lint_kubeval(helm_executable, values)
 
         if bar:
             bar()

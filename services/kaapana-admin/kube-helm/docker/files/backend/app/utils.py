@@ -704,53 +704,65 @@ def pull_docker_image(
 
     return success, helm_result_dict
 
+class NamespaceUnavailableError(Exception):
+    def __init__(self, message: str, status_code: int):
+        super().__init__(message)
+        self.status_code = status_code
+
+
 def create_namespace_if_not_exists(namespace: str):
+    """
+    Create the namespace, or - if the ServiceAccount may not create namespaces -
+    check that it already exists and can be used. Raises NamespaceUnavailableError otherwise.
+    """
     ensure_k8s_config()
     v1 = client.CoreV1Api()
-    
-    if settings.managed_kubernetes:
-        try:
-            v1.list_namespaced_pod(namespace, limit=1)
-            logger.info(
-                f"Namespace '{namespace}' exists and is accessible"
-            )
-            return True
 
-        except ApiException as e:
-            if e.status == 404:
-                logger.error(
-                    f"Namespace '{namespace}' does not exist. "
-                    "In managed Kubernetes, namespaces must be "
-                    "pre-created."
-                )
-                return False
-
-            if e.status == 403:
-                logger.error(
-                    f"Namespace '{namespace}' exists but is not accessible "
-                    "with the current ServiceAccount. "
-                    "Check Role/RoleBinding."
-                )
-                return False
-
+    try:
+        v1.create_namespace(
+            client.V1Namespace(metadata=client.V1ObjectMeta(name=namespace))
+        )
+        logger.info(f"Namespace '{namespace}' created")
+        return
+    except ApiException as e:
+        if e.status == 409:
+            logger.info(f"Namespace '{namespace}' already exists")
+            return
+        if e.status != 403:
             raise
 
+    logger.info(
+        f"Not allowed to create namespace '{namespace}', checking whether it exists and is usable"
+    )
+    try:
+        # Listing in a missing namespace returns an empty list; a (dry-run) create fails with 404.
+        v1.create_namespaced_config_map(
+            namespace=namespace,
+            body=client.V1ConfigMap(
+                metadata=client.V1ObjectMeta(name="kaapana-namespace-access-check")
+            ),
+            dry_run="All",
+        )
+    except ApiException as e:
+        if e.status == 404:
+            raise NamespaceUnavailableError(
+                f"Namespace '{namespace}' does not exist and the ServiceAccount is not allowed "
+                "to create namespaces. Create it beforehand - e.g. on a managed Kubernetes "
+                "cluster (Rancher) namespaces are usually created via the platform.",
+                404,
+            ) from e
+        if e.status == 403:
+            # RBAC is checked before existence, so a missing namespace also ends up here.
+            raise NamespaceUnavailableError(
+                f"Namespace '{namespace}' is not usable: it does not exist or the ServiceAccount has "
+                "no permissions in it, and the ServiceAccount is not allowed to create namespaces. "
+                "Create the namespace and its Role/RoleBinding beforehand - e.g. on a managed Kubernetes "
+                "cluster (Rancher) via the platform and utils/apply-managed-project-namespace-rbac.sh.",
+                403,
+            ) from e
+        raise
+    logger.info(f"Namespace '{namespace}' exists and is usable")
 
-    else:
-        try:
-            v1.create_namespace(
-                client.V1Namespace(
-                    metadata=client.V1ObjectMeta(name=namespace)
-                )
-            )
-            logger.info(f"Namespace '{namespace}' created")
-            return True
-
-        except ApiException as e:
-            if e.status == 409:
-                logger.info(f"Namespace '{namespace}' already exists")
-                return True
-            raise
 
 def helm_install(
     payload,

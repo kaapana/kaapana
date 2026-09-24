@@ -20,7 +20,10 @@ def install_project_helm_chart(project: Project):
     """
     payload = {"namespace": project.kubernetes_namespace}
     response = requests.post(f"{kube_helm_api}/create-namespace", json=payload)
-    response.raise_for_status()
+    if not response.ok:
+        raise RuntimeError(
+            f"Namespace {project.kubernetes_namespace} not available ({response.status_code}): {response.text}"
+        )
     kaapana_build_version = os.getenv("KAAPANA_BUILD_VERSION")
     payload = {
         "name": "project-namespace",

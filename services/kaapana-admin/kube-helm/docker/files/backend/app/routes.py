@@ -328,17 +328,17 @@ async def create_namespace(request: Request):
         payload = await request.json()
         logger.info(f"/create-namespace called with {payload=}")
         assert "namespace" in payload, "Required key 'namespace' not found in payload"
-        success = utils.create_namespace_if_not_exists(payload["namespace"])
-        if success:
-            return Response(f"Namespace {payload['namespace']} created successfully or already exits", 200)
-        else:
-            return Response(f"Namespace {payload['namespace']} creation failed, You don't have permission to create namespaces", 403)
+        utils.create_namespace_if_not_exists(payload["namespace"])
+        return Response(f"Namespace {payload['namespace']} is available", 200)
+    except utils.NamespaceUnavailableError as e:
+        logger.error(f"/create-namespace failed: {e}")
+        return Response(str(e), e.status_code)
     except AssertionError as e:
         logger.error(f"/create-namespace failed: {str(e)}", exc_info=True)
-        return Response(f"Namespace creation failed, bad request {str(e)}", 400)
+        return Response(f"Namespace check failed, bad request {str(e)}", 400)
     except Exception as e:
         logger.error(f"/create-namespace failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Namespace creation failed {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Namespace check failed {str(e)}")
 
 
 @router.post("/helm-install-chart")

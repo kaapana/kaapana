@@ -99,8 +99,6 @@ spec:
           value: "{{ .helmReleaseStatusCheckInterval }}"
   {{- end }}
 {{- end }}
-        - name: MANAGED_KUBERNETES
-          value: "{{ .Values.global.managed_kubernetes }}"
         ports: # Port(s) on which your application runs
           - containerPort: 5000
         volumeMounts:

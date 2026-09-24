@@ -48,7 +48,6 @@ class Settings(BaseSettings):
         else False
     )  # TODO: delete
     containerd_sock: str = os.getenv("CONTAINERD_SOCK", None)
-    managed_kubernetes: bool = (os.getenv("MANAGED_KUBERNETES", "False").lower() == "true")
 
 
 class TimeoutConfig(BaseSettings):

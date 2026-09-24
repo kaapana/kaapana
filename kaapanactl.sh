@@ -48,6 +48,11 @@ function main() {
             server_installation "$@"
             ;;
         report)
+            load_kaapana_config
+            QUIET="${QUIET:-false}"
+            HELM_EXECUTABLE="${HELM_EXECUTABLE:-helm}"
+            apply_namespace_config
+            [ -n "${PLATFORM_PREFIX:-}" ] || get_platform_prefix_from_release || true
             create_report
             ;;
         offline-gpu)
@@ -599,6 +604,8 @@ function deploy() {
             ;;
 
             --report)
+                apply_namespace_config
+                [ -n "${PLATFORM_PREFIX:-}" ] || get_platform_prefix_from_release || true
                 create_report
                 exit 0
             ;;
@@ -623,6 +630,8 @@ function deploy() {
         AUTO_NO_HOOKS=false
     fi
 
+    apply_namespace_config
+
     if [ "$DO_UNDEPLOY" = "true" ]; then
         delete_deployment
         exit 0
@@ -630,9 +639,9 @@ function deploy() {
 
     if [ "$DO_CHECK_SYSTEM" = "true" ]; then
         validate_platform_prefix
-        check_system kaapana-admin-chart default
-        check_system kaapana-platform-chart default
-        check_system "${PLATFORM_PREFIX}-project-admin" admin
+        check_system kaapana-admin-chart "$HELM_NAMESPACE"
+        check_system kaapana-platform-chart "$HELM_NAMESPACE"
+        check_system "${PLATFORM_PREFIX}-project-admin" "$ADMIN_NAMESPACE"
         exit 0
     fi
 
@@ -1479,11 +1488,12 @@ function load_kaapana_config {
     OFFLINE_MODE=false
 
     INSTANCE_UID=""
-    SERVICES_NAMESPACE="idai-services"
-    ADMIN_NAMESPACE="idai-admin"
-    EXTENSIONS_NAMESPACE="idai-extensions"
+    SERVICES_NAMESPACE="services"
+    ADMIN_NAMESPACE="admin"
+    EXTENSIONS_NAMESPACE="extensions"
+    PREFIX_ALL_NAMESPACES=false
     EXTRA_MANAGED_NAMESPACES="" # comma-separated, in addition to the admin project namespace (${PLATFORM_PREFIX}-project-admin)
-    HELM_NAMESPACE="$ADMIN_NAMESPACE"
+    HELM_NAMESPACE="default" # with RESTRICTED_RBAC=true the admin namespace is used
 
     OIDC_CLIENT_SECRET=$(echo $RANDOM | md5sum | base64 | head -c 32)
 
@@ -1544,7 +1554,7 @@ function load_kaapana_config {
 
     HTTP_PORT="80"      # -> has to be 80
     HTTPS_PORT="443"    # HTTPS port
-    DICOM_PORT="31112"  # configure DICOM receiver port
+    DICOM_PORT="11112"  # configure DICOM receiver port
 
     SMTP_HOST=""
     SMTP_PORT="0"
@@ -1557,8 +1567,7 @@ function load_kaapana_config {
     MOUNT_POINTS_TO_MONITOR=""
 
     INSTANCE_NAME=""
-    # EXTERNAL_INGRESS=""
-    EXTERNAL_INGRESS="nginx" # "" or "nginx" or "traefik"
+    EXTERNAL_INGRESS="" # "" or "nginx" or "traefik": ingress controller in front of kaapana (traefik then isn't exposed via NodePort)
 
     ######################################################
     # Login page branding (shown on the Keycloak login page)
@@ -1572,14 +1581,37 @@ function load_kaapana_config {
     ######################################################
     # Storage
     ######################################################
-    STORAGE_PROVIDER="default" # e.g. "hostpath" (microk8s) or "longhorn"
+    STORAGE_PROVIDER="hostpath" # "hostpath" (microk8s), "longhorn" or "default" (existing storage class of the cluster)
+    if [ "$STORAGE_PROVIDER" = "default" ]; then
+        STORAGE_CLASS="" # STORAGE_PROVIDER="default" only: storage class to use, defaults to the cluster's default storage class
+    fi
     VOLUME_SLOW_DATA="100Gi" # size of volumes in slow data dir (e.g. 100Gi or 100Ti)
-    RESTRICTED_RBAC=true # no cluster-scoped rights (e.g. managed Rancher): no PriorityClasses/LimitRanges/ClusterRoles/CRDs, namespaces must exist
-    NO_READ_WRITE_MANY_SUPPORT=true
+    RESTRICTED_RBAC=false # no cluster-scoped rights (e.g. managed Rancher): no PriorityClasses/LimitRanges/ClusterRoles/CRDs, namespaces must exist
+    NO_READ_WRITE_MANY_SUPPORT=false # storage only supports ReadWriteOnce: pods sharing volumes are scheduled on the same node
     if [ "$IS_MICROK8S" != true ]; then
     #On a remote cluster, get the API_SERVER e.g. via kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}' | awk -F[/:] '{print $4"/32"}')
     #If it is an FQDN, define a suitable IP-Range 
         API_SERVER_CIDR="10.0.0.0/8"
+    fi
+
+    # Site-specific settings that shouldn't be committed (gitignored), e.g. kaapanactl.local.sh next to this script
+    LOCAL_CONFIG="$(dirname "$(realpath "$0")")/kaapanactl.local.sh"
+    if [ -f "$LOCAL_CONFIG" ]; then
+        echo -e "${YELLOW}Loading local configuration $LOCAL_CONFIG${NC}"
+        source "$LOCAL_CONFIG"
+    fi
+}
+
+function apply_namespace_config {
+    if [ "$PREFIX_ALL_NAMESPACES" = "true" ]; then
+        get_platform_prefix
+        ADMIN_NAMESPACE="${PLATFORM_PREFIX}-admin"
+        SERVICES_NAMESPACE="${PLATFORM_PREFIX}-services"
+        EXTENSIONS_NAMESPACE="${PLATFORM_PREFIX}-extensions"
+    fi
+    # without cluster-scoped rights the release can't go into a namespace outside of kaapana
+    if [ "$RESTRICTED_RBAC" = "true" ]; then
+        HELM_NAMESPACE="$ADMIN_NAMESPACE"
     fi
 }
 
@@ -2002,23 +2034,28 @@ function setup_storage_provider() {
         fi
         STORAGE_PROVIDER="microk8s.io/hostpath"
         ;;
-      "default"|"purestorage")
-        DEFAULTS=$($KUBE get sc -o jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}')  
-        # Prefer px-fa-direct-access if it exists in the list
-        if echo "$DEFAULTS" | grep -q "px-fa-direct-access"; then
-            DEFAULT_SC="px-fa-direct-access"
-            echo "Selected preferred PureStorage default: ${DEFAULT_SC}"
+      "default")
+        if [ -n "${STORAGE_CLASS:-}" ]; then
+            DEFAULT_SC="$STORAGE_CLASS"
+        else
+            DEFAULT_SC=$($KUBE get sc -o jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}')
+            if [ "$(wc -w <<< "$DEFAULT_SC")" -gt 1 ]; then
+                echo "ERROR: Several default storage classes found ($DEFAULT_SC), set STORAGE_CLASS to one of them."
+                exit 1
+            fi
+        fi
+        if [ -n "$DEFAULT_SC" ] && $KUBE get sc "$DEFAULT_SC" &>/dev/null; then
+            echo "Using storage class: ${DEFAULT_SC}"
             is_provider_installed=true
         else
-            echo "ERROR: No supported default storage class found."
-            exit 1
+            echo "ERROR: Storage class '${DEFAULT_SC}' not found (no default storage class and STORAGE_CLASS not set?)."
         fi
         ;;
        
 
       *)
         echo "ERROR: Unknown storage provider '${STORAGE_PROVIDER}'."
-        echo "Supported providers: microk8s.io/hostpath, longhorn"
+        echo "Supported providers: microk8s.io/hostpath, longhorn, default"
         exit 1
         ;;
     esac
@@ -2514,7 +2551,7 @@ function deploy_chart {
 
     ALL_MANAGED_NAMESPACES="$EXTENSIONS_NAMESPACE,$SERVICES_NAMESPACE,$ADMIN_NAMESPACE,${PLATFORM_PREFIX}-project-admin${EXTRA_MANAGED_NAMESPACES:+,$EXTRA_MANAGED_NAMESPACES}"
 
-    $HELM_INSTALL_CMD --debug $CHART_PATH \
+    $HELM_INSTALL_CMD $CHART_PATH \
     --set-string global.base_namespace="base" \
     --set-string global.credentials_registry_username="$CONTAINER_REGISTRY_USERNAME" \
     --set-string global.credentials_registry_password="$CONTAINER_REGISTRY_PASSWORD" \
@@ -2592,7 +2629,7 @@ function deploy_chart {
     --set global.is_microk8s="$IS_MICROK8S" \
     --set global.all_managed_namespaces="{${ALL_MANAGED_NAMESPACES}}" \
     --set-string global.external_ingress="$EXTERNAL_INGRESS" \
-    --name-template "$PLATFORM_NAME" | grep -A10 -B5 rbac.authorization.k8s.io
+    --name-template "$PLATFORM_NAME"
 
     echo -e ""
     echo -e "${YELLOW}══════════════════════════════════════════════════${NC}"
@@ -3219,9 +3256,9 @@ modinfo nvidia | grep ^version
 nvidia-smi
 
 --- "Resource Health"
-check_system kaapana-admin-chart default
-check_system kaapana-platform-chart default
-check_system "${PLATFORM_PREFIX}-project-admin" admin
+check_system kaapana-admin-chart "$HELM_NAMESPACE"
+check_system kaapana-platform-chart "$HELM_NAMESPACE"
+check_system "${PLATFORM_PREFIX}-project-admin" "$ADMIN_NAMESPACE"
 
 --- "END"
 }

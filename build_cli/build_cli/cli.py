@@ -453,7 +453,7 @@ def build(
 
 
 def validate_registry_login_config(build_config: BuildConfig, logger) -> None:
-    if build_config.build_only or build_config.no_login:
+    if build_config.build_only or build_config.lint_only or build_config.no_login:
         return
 
     missing = []
@@ -516,7 +516,7 @@ def run_build(build_config: BuildConfig):
         ContainerHelper.ensure_buildx_builder()
     HelmChartHelper.verify_helm_installed()
 
-    if not build_config.build_only and not build_config.no_login:
+    if not (build_config.build_only or build_config.lint_only) and not build_config.no_login:
         ContainerHelper.container_registry_login(
             registry=build_config.default_registry,
             username=build_config.registry_username,

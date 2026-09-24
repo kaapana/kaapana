@@ -10,6 +10,8 @@
   "labels": ["Dependencies"],
   "dependencyDashboardTitle": "Dependency Dashboard (Renovate)",
   "dependencyDashboardLabels": ["Dependencies"],
+  "dependencyDashboardOSVVulnerabilitySummary": "unresolved",
+  "commitMessageExtra": "from {{{currentValue}}} to {{#if isPinDigest}}{{{newDigestShort}}}{{else}}{{#if isSingleVersion}}{{prettyNewVersion}}{{else}}{{#if newValue}}{{{newValue}}}{{else}}{{{newDigestShort}}}{{/if}}{{/if}}{{/if}}",
   "enabledManagers": [
     "dockerfile",
     "gitlabci",
@@ -52,6 +54,7 @@
   "vulnerabilityAlerts": {
     "addLabels": ["Security"],
     "semanticCommitType": "fix",
+    "commitMessageSuffix": "[SECURITY] [{{vulnerabilitySeverity}}]",
     "dependencyDashboardApproval": true,
     "enabled": true
   },

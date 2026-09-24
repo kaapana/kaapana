@@ -7,7 +7,7 @@ metadata:
 spec:
   selector:
     app.kubernetes.io/name: oauth2-proxy
-{{- if .Values.global.managed_kubernetes }}
+{{- if .Values.global.external_ingress }}
   type: ClusterIP
   {{- else }}
   type: NodePort
@@ -15,7 +15,7 @@ spec:
   ports:
     - protocol: TCP
       port: {{ .Values.global.https_port }}
-      {{- if not .Values.global.managed_kubernetes }}
+      {{- if not .Values.global.external_ingress }}
       nodePort: {{ .Values.global.https_port }}
       {{- end }}
       targetPort: https

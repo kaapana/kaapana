@@ -6,8 +6,10 @@ set -euf -o pipefail
 
 if command -v kubectl >/dev/null 2>&1; then
     KUBE="kubectl"
+    IS_MICROK8S=false
 else
     KUBE="microk8s.kubectl"
+    IS_MICROK8S=true
 fi
 
 function main() {
@@ -691,7 +693,7 @@ function deploy() {
         GPU_SUPPORT=false
     fi
 
-    if [[ "$KUBE" == "microk8s.kubectl" ]]; then
+    if [ "$IS_MICROK8S" = true ]; then
         preflight_checks
     fi
     echo -e "${YELLOW}Get helm deployments...${NC}"
@@ -1572,11 +1574,10 @@ function load_kaapana_config {
     ######################################################
     STORAGE_PROVIDER="default" # e.g. "hostpath" (microk8s) or "longhorn"
     VOLUME_SLOW_DATA="100Gi" # size of volumes in slow data dir (e.g. 100Gi or 100Ti)
-    MANAGED_KUBERNETES=true
+    RESTRICTED_RBAC=true # no cluster-scoped rights (e.g. managed Rancher): no PriorityClasses/LimitRanges/ClusterRoles/CRDs, namespaces must exist
     NO_READ_WRITE_MANY_SUPPORT=true
-    # if managed_Kubernetes
-    if [ "$MANAGED_KUBERNETES" = "true" ]; then
-    #In managed Kuberntes, get the API_SERVER e.g. via kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}' | awk -F[/:] '{print $4"/32"}')
+    if [ "$IS_MICROK8S" != true ]; then
+    #On a remote cluster, get the API_SERVER e.g. via kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}' | awk -F[/:] '{print $4"/32"}')
     #If it is an FQDN, define a suitable IP-Range 
         API_SERVER_CIDR="10.0.0.0/8"
     fi
@@ -2032,7 +2033,7 @@ function setup_storage_provider() {
     echo "✅ Storage provider '${STORAGE_PROVIDER}' found."
     STORAGE_NODE="storage"
     REPLICA_COUNT=1
-    if [[ "$KUBE" == "microk8s.kubectl" ]]; then
+    if [ "$IS_MICROK8S" = true ]; then
         MAIN_NODE_NAME=$($KUBE get pods -n kube-system -o jsonpath='{.items[0].spec.nodeName}')
         echo "Main node is $MAIN_NODE_NAME"
     else
@@ -2236,11 +2237,11 @@ function create_namespaces {
   for namespace in $EXTENSIONS_NAMESPACE $SERVICES_NAMESPACE $ADMIN_NAMESPACE $HELM_NAMESPACE; do
     echo "Checking namespace: $namespace"
 
-    if [ "$MANAGED_KUBERNETES" = "true" ]; then
-      # Managed cluster: must already exist and be accessible
+    if [ "$RESTRICTED_RBAC" = "true" ]; then
+      # No permission to create namespaces: must already exist and be accessible
       if ! $KUBE get namespace "$namespace" >/dev/null 2>&1; then
-        echo -e "${RED}Namespace '$namespace' is not accessible or does not exist.${NC}"
-        echo -e "${RED}In a managed Kubernetes cluster, namespaces must be created beforehand via the platform UI.${NC}"
+        echo -e "${RED}Namespace '$namespace' does not exist or is not accessible (RESTRICTED_RBAC=true, namespaces are not created).${NC}"
+        echo -e "${RED}Create it beforehand - e.g. in a managed Kubernetes cluster via the platform UI.${NC}"
         exit 1
       fi
       echo -e "${GREEN}Namespace '$namespace' exists and is accessible${NC}"
@@ -2335,7 +2336,7 @@ function deploy_chart {
 
     # configmap kube-public/local-registry-hosting is used by EDK if installed inside Kaapana, therefore should not already exist
     
-    if [[ "$KUBE" == "microk8s.kubectl" ]]; then
+    if [ "$IS_MICROK8S" = true ]; then
         echo "${YELLOW}Removing configmap kube-public/local-registry-hosting if exists...${NC}"
         $KUBE delete configmap -n kube-public local-registry-hosting --ignore-not-found=true
     fi
@@ -2387,7 +2388,7 @@ function deploy_chart {
         CHART_PATH="$SCRIPT_PATH/$PLATFORM_NAME-$PLATFORM_VERSION.tgz"
     fi
 
-    if [[ "$KUBE" == "microk8s.kubectl" ]]; then
+    if [ "$IS_MICROK8S" = true ]; then
         # Kubernetes API endpoint
         INTERNAL_CIDR=$($KUBE get endpoints kubernetes -n default -o jsonpath="{.subsets[0].addresses[0].ip}/32")
         # Server IP
@@ -2475,9 +2476,9 @@ function deploy_chart {
     fi
     
     DEFAULT_PROXY="http://squid-proxy-service.${ADMIN_NAMESPACE}.svc.cluster.local:3128"
-        # --- Managed Kubernetes Proxy Logic ---
-    if [ "${MANAGED_KUBERNETES,,}" == "true" ]; then
-        echo -e "${CYAN} -> Managed Kubernetes detected ...${NC}"
+    # --- Remote cluster: the proxy of this host doesn't apply to the cluster ---
+    if [ "$IS_MICROK8S" != true ]; then
+        echo -e "${CYAN} -> Not a local microk8s cluster ...${NC}"
         
         # If not in quiet mode, ask the user
         if [ ! "$QUIET" = "true" ]; then
@@ -2587,7 +2588,8 @@ function deploy_chart {
     --set-string global.volume_slow_data="$VOLUME_SLOW_DATA" \
     --set-string global.storage_node="$STORAGE_NODE" \
     "${kube_helm_timeout_args[@]}" \
-    --set global.managed_kubernetes="$MANAGED_KUBERNETES" \
+    --set global.restricted_rbac="$RESTRICTED_RBAC" \
+    --set global.is_microk8s="$IS_MICROK8S" \
     --set global.all_managed_namespaces="{${ALL_MANAGED_NAMESPACES}}" \
     --set-string global.external_ingress="$EXTERNAL_INGRESS" \
     --name-template "$PLATFORM_NAME" | grep -A10 -B5 rbac.authorization.k8s.io

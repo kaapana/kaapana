@@ -75,7 +75,7 @@ spec:
       - name: ldif
         configMap:
           name: dcm4che-iid-config
-{{- if not .Values.global.managed_kubernetes }}
+{{- if not .Values.global.restricted_rbac }}
       priorityClassName: kaapana-high-priority
 {{- end }}
       imagePullSecrets:

@@ -69,7 +69,7 @@ data:
 
     # Additional flags
     custom_templates_dir = "/usr/share/oauth2-proxy"
-    {{- if .Values.global.managed_kubernetes }}
+    {{- if .Values.global.external_ingress }}
     upstreams = [
       "https://traefik-{{ .Values.global.instance_uid | default 0 }}.{{ .Values.global.helm_namespace }}.svc:9000"
     ]

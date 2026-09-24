@@ -17,7 +17,7 @@ def _bool_env(name: str, default: bool = False) -> bool:
 
 
 def update_airflow_managed_namespaces_if_needed():
-    if not _bool_env("MANAGED_KUBERNETES"):
+    if not _bool_env("RESTRICTED_RBAC"):
         return
 
     project_namespace = os.getenv("PROJECT_NAMESPACE")

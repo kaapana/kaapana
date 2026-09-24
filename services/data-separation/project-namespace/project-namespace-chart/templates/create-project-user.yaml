@@ -12,11 +12,11 @@ spec:
       name: create-project-user
       labels:
         app.kubernetes.io/name: create-project-user
-{{- if .Values.global.managed_kubernetes }}
+{{- if .Values.global.restricted_rbac }}
         network-access-internal-services: "true"
 {{- end }}
     spec:
-{{- if .Values.global.managed_kubernetes }}
+{{- if .Values.global.restricted_rbac }}
         serviceAccountName: create-project-user-sa
 {{- end }}
         initContainers:
@@ -61,8 +61,8 @@ spec:
               value: "{{ .Values.global.project_id }}"
             - name: SERVICES_NAMESPACE
               value: "{{ .Values.global.services_namespace }}"
-{{- if .Values.global.managed_kubernetes }}
-            - name: MANAGED_KUBERNETES
+{{- if .Values.global.restricted_rbac }}
+            - name: RESTRICTED_RBAC
               value: "true"
             - name: PROJECT_NAMESPACE
               value: "{{ .Values.global.project_namespace }}"

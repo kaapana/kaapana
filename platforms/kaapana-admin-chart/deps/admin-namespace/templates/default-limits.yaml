@@ -1,4 +1,4 @@
-{{- if not .Values.global.managed_kubernetes }}
+{{- if not .Values.global.restricted_rbac }}
 apiVersion: v1
 kind: LimitRange
 metadata:

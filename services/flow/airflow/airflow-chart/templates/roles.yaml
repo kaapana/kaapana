@@ -1,4 +1,4 @@
-{{- if .Values.global.managed_kubernetes }}
+{{- if .Values.global.restricted_rbac }}
 ---
 apiVersion: v1
 kind: ConfigMap

@@ -112,7 +112,7 @@ spec:
           - name: helmextensions
             mountPath: "/kaapana/mounted/platforms"
             subPath: platforms
-{{- if not .Values.global.managed_kubernetes }}
+{{- if .Values.global.is_microk8s }}
           - name: containerd-socket
             mountPath: "/kaapana/mounted/containerd.sock"
 {{- end }}
@@ -122,7 +122,7 @@ spec:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
       volumes:
-{{- if not .Values.global.managed_kubernetes }}
+{{- if .Values.global.is_microk8s }}
       - name: containerd-socket
         hostPath:
           path: /var/snap/microk8s/common/run/containerd.sock
@@ -138,7 +138,7 @@ spec:
           claimName: {{ .Chart.Name }}-dev-pv-claim
 {{- end }}
       serviceAccountName: kaapana-kube-admin
-{{- if not .Values.global.managed_kubernetes }}
+{{- if not .Values.global.restricted_rbac }}
       priorityClassName: kaapana-high-priority
 {{- end }}
       imagePullSecrets:

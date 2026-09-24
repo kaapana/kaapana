@@ -175,7 +175,7 @@ spec:
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
-{{- if not .Values.global.managed_kubernetes }}
+{{- if not .Values.global.restricted_rbac }}
       priorityClassName: kaapana-high-priority
 {{- end }}
       imagePullSecrets:

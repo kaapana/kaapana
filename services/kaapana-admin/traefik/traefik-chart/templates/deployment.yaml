@@ -42,10 +42,12 @@ spec:
             - '--entrypoints.web.http.redirections.entryPoint.scheme=https'
 {{- end }}
             - '--entrypoints.websecure.http.middlewares={{  .Values.global.helm_namespace  }}-auth-check@kubernetescrd,{{  .Values.global.admin_namespace  }}-cors-middleware@kubernetescrd'
-{{- if not .Values.global.managed_kubernetes }}
+{{- if not .Values.global.external_ingress }}
             - '--entrypoints.websecure.address=:{{ .Values.global.https_port }}'
-{{- else }} 
+{{- else }}
             - '--entrypoints.websecure.address=:9000'
+{{- end }}
+{{- if .Values.global.restricted_rbac }}
             - --providers.kubernetesingress.namespaces={{ .Values.global.all_managed_namespaces | join "," }}
             - --providers.kubernetescrd.namespaces={{ .Values.global.all_managed_namespaces | join "," }}
             - '--providers.kubernetescrd.disableClusterScopeResources=true'
@@ -72,7 +74,7 @@ spec:
               containerPort: {{ .Values.global.http_port }}
 {{- end }}
             - name: websecure
-{{- if not .Values.global.managed_kubernetes }}
+{{- if not .Values.global.external_ingress }}
               containerPort: {{ .Values.global.https_port }}
 {{- else }} 
               containerPort: 9000
@@ -103,7 +105,7 @@ spec:
         - name: ssl
           secret:
             secretName: certificate
-{{- if not .Values.global.managed_kubernetes }}
+{{- if not .Values.global.restricted_rbac }}
       priorityClassName: kaapana-high-priority
 {{- end }}
       imagePullSecrets:

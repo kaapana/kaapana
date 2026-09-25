@@ -1,5 +1,10 @@
 <template>
-  <v-dialog :model-value="modelValue" max-width="400" @update:model-value="onUpdate">
+  <v-dialog
+    :model-value="modelValue"
+    max-width="400"
+    @update:model-value="onUpdate"
+    @after-leave="restoreFocus"
+  >
     <v-card :elevation="5">
       <v-card-title>{{ title }}</v-card-title>
       <v-card-text>{{ text }}</v-card-text>
@@ -14,10 +19,10 @@
 
 <script setup lang="ts">
 // This is the ConfirmDialog.vue added to base-ui in feature/2336-workflow-ui-check
-// (MR !1126), taken over unchanged so both branches merge cleanly. Note that it
-// does not return focus to the control that opened it on close (the guidelines'
-// accessibility section asks for that); a `model-value`-driven dialog gives
-// Vuetify no activator to restore, so this should be addressed there.
+// (MR !1126), plus the return of focus to the control that opened it, which the
+// guidelines' accessibility section asks for. A `model-value`-driven dialog
+// gives Vuetify no activator to restore, so the dialog remembers the opener
+// itself.
 //
 // Confirmation gate for a destructive or high-impact action, per the "Actions
 // Requiring Confirmation" design guideline. Escape and a backdrop click close
@@ -46,6 +51,10 @@ const props = withDefaults(
 
 const cancelButton = ref<InstanceType<typeof VBtn> | null>(null)
 
+// Capture the control that opened the dialog, to return focus to it on close.
+// Read before Cancel takes the initial focus.
+let opener: HTMLElement | null = null
+
 // Cancel must take the initial focus, so a stray Enter cancels instead of
 // confirming. The `autofocus` attribute does not achieve that here: VDialog
 // mounts its content after the activator is handled and then focuses the
@@ -54,10 +63,16 @@ watch(
   () => props.modelValue,
   async (open) => {
     if (!open) return
+    opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
     await nextTick()
     cancelButton.value?.$el?.focus()
   },
 )
+
+function restoreFocus() {
+  opener?.focus()
+  opener = null
+}
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]

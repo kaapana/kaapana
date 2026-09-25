@@ -56,7 +56,7 @@ preflight_variables:
         echo "WARNING: $1"
       }
 
-      # every job pulls the ci-base image from this registry
+      require REGISTRY_ENV
       require CI_REGISTRY_URL
       require CI_IMAGES_TAG
       require DOCKER_AUTH_CONFIG
@@ -65,8 +65,6 @@ preflight_variables:
       if [ "${CI_REGISTRY_USER:-}" = "gitlab-ci-token" ]; then
         fail "CI_REGISTRY_USER is 'gitlab-ci-token' — the project variable is missing, so pushes will be denied."
       fi
-      # DOCKER_AUTH_CONFIG must contain the registry host, otherwise
-      # image pulls fail (see ci/docs/internals.md#registries)
       if [ -n "${DOCKER_AUTH_CONFIG:-}" ] && [ -n "${CI_REGISTRY_URL:-}" ]; then
         registry_host="${CI_REGISTRY_URL%%/*}"
         case "$DOCKER_AUTH_CONFIG" in
@@ -75,12 +73,10 @@ preflight_variables:
         esac
       fi
 
-      # build and deploy need the registry credentials
       if [ "$[[ inputs.exec_build ]]" = "true" ] || [ "$[[ inputs.exec_deploy ]]" = "true" ]; then
         require REGISTRY_URL
         require REGISTRY_USER
         require REGISTRY_TOKEN
-        require REGISTRY_ENV
       fi
       if [ -n "${DOCKER_IO_USER:-}" ] && [ -z "${DOCKER_IO_PASSWORD:-}" ]; then
         fail "DOCKER_IO_USER is set but DOCKER_IO_PASSWORD is empty — leave both empty to skip the docker.io login."

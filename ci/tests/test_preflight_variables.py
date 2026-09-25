@@ -153,11 +153,25 @@ def test_deploy_variables_are_not_required_when_not_deploying(tmp_path_factory, 
         "DEPLOYMENT_INSTANCE_SSH_KEY",
         "DEPLOYMENT_INSTANCE_USER",
         "REGISTRY_URL",
-        "REGISTRY_ENV",
     ):
         env[variable] = ""
     result = run(path, env)
     assert result.returncode == 0, result.stdout
+
+
+@pytest.mark.parametrize(
+    "variable",
+    ["REGISTRY_ENV", "CI_REGISTRY_URL", "CI_REGISTRY_USER", "CI_REGISTRY_TOKEN", "CI_IMAGES_TAG", "DOCKER_AUTH_CONFIG"],
+)
+def test_registry_variables_are_required_in_every_pipeline(tmp_path_factory, env, variable):
+    """preflight_variables reads the CI_REGISTRY_* rows of the REGISTRY_ENV scope
+    in every pipeline, so these are required even when nothing is built or deployed."""
+    config = merged_config(inputs=("exec_deploy=false", "exec_build=false"))
+    path = write_script(config, tmp_path_factory.mktemp("preflight_registry"))
+    env[variable] = ""
+    result = run(path, env)
+    assert result.returncode == 1
+    assert variable in result.stdout
 
 
 def test_tests_only_run_needs_a_deployment_target(tmp_path_factory, env):

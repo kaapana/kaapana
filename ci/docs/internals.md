@@ -246,6 +246,10 @@ Each registry has its own `CI_REGISTRY_URL` / `CI_REGISTRY_USER` /
 (`DKFZ_CONTAINER_REGISTRY`, `HIFIS_CONTAINER_REGISTRY`). Jobs declare
 `environment: name: $REGISTRY_ENV`, so GitLab hands them the rows of that scope.
 
+`REGISTRY_ENV` is required in every pipeline: `preflight_variables` always runs
+with that environment, so it validates the `CI_REGISTRY_*` rows of that scope,
+and fails when `REGISTRY_ENV` is empty.
+
 Switching registry is two steps:
 
 1. Set `REGISTRY_ENV` to the scope name. Spell it exactly — a typo silently

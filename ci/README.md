@@ -75,6 +75,10 @@ zero and only publishes the report.
 
 Four groups of knobs. Two are **inputs** and two are **variables**
 
+`REGISTRY_ENV` is required in every pipeline. It names the environment scope
+whose `CI_REGISTRY_*` rows the jobs use, and preflight fails when it is empty
+(see [Registries](docs/internals.md#registries)).
+
 ### 1. `*_runner_tag` inputs — where a stage runs
 
 One per stage group. Point a stage at your own machine by giving your runner's

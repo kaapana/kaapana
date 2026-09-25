@@ -32,7 +32,7 @@ test.describe('actions requiring confirmation', () => {
     const confirm = dialog(page)
 
     await expect(confirm).toContainText('Download the latest extensions?')
-    await expect(confirm).toContainText('network bandwidth and disk space')
+    await expect(confirm).toContainText('can take a few minutes')
     const download = confirm.getByRole('button', { name: 'Download', exact: true })
     await expect(download).toHaveClass(/text-primary/)
     await expect(download).not.toHaveClass(/error/)

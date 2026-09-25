@@ -23,6 +23,7 @@ export const setup = [
     '**/typed-router.d.ts',
     '**/auto-imports.d.ts',
     'services/meta/os-dashboards/**',
+    'services/kaapana-admin/maintenance-page/**',
   ]),
 
   vueTsConfigs.base,

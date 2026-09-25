@@ -103,7 +103,7 @@ Every stage toggle. Grouped as `[exec]` in the run form.
 | Input | Default | Meaning |
 |---|---|---|
 | `exec_unit_tests` | `true` | tests stage: unit tests + documentation build |
-| `exec_lint` | `true` | tests stage: `lint` matrix (ruff, ESLint/Prettier) + Code Quality report |
+| `exec_lint` | `true` | tests stage: `lint` matrix (ruff, ESLint/Prettier, hadolint) + Code Quality report |
 | `exec_build` | `true` | build stage: full platform build |
 | `exec_security_scan` | `false` | trivy scan of the images this commit resolves to. A failed scan still publishes what it managed to check |
 | `exec_deploy` | `true` | deploy stage: deployment VM/target + platform installation |

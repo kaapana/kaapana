@@ -4,8 +4,8 @@ pydicom==3.0.2
 minio==7.2.10
 pandas==2.2.3
 pathlib==1.0.1
-plotly==5.24.1
-seaborn==0.13.2
+# No plotting libraries (plotly, seaborn, matplotlib): the few images that plot list them
+# in their own requirements.
 protobuf==5.29.6
 cryptography==48.0.1
 Werkzeug==3.1.3

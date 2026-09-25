@@ -1,2 +1,4 @@
 SimpleITK~=2.3.0
 numpy~=1.26.4
+# boa_output_check.py plots with matplotlib; the base images carry no plotting libraries.
+matplotlib==3.11.2

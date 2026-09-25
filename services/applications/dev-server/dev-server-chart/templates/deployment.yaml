@@ -19,11 +19,23 @@ spec:
     spec:
       securityContext:
         runAsUser: 0
+      initContainers:
+      # The task image carries no code-server (base-python-cpu dropped it); this
+      # container copies the install into two shared volumes, mounted below where
+      # code-server expects them.
+      - name: code-server-init
+        image: "{{ .Values.global.registry_url }}/code-server-init:{{ .Values.global.kaapana_build_version }}"
+        imagePullPolicy: {{ .Values.global.pull_policy_images }}
+        volumeMounts:
+          - name: code-server
+            mountPath: /mnt/code-server
+          - name: code-server-extensions
+            mountPath: /mnt/code-server-extensions
       containers:
       - name: code-server
         image: "{{ tpl .Values.global.complete_image . }}"
         imagePullPolicy: {{ .Values.global.pull_policy_images }}
-        command: ["sh", "-c", "code-server --auth none --bind-addr 0.0.0.0:8080 ${WORKSPACE}"]
+        command: ["sh", "-c", "/usr/lib/code-server/bin/code-server --auth none --bind-addr 0.0.0.0:8080 ${WORKSPACE}"]
         env:
         - name: no_proxy
           value: "traefik-{{ .Values.global.instance_uid | default 0 }}.{{ .Values.global.helm_namespace }}.svc"
@@ -39,6 +51,10 @@ spec:
           limits:
             memory: 5Gi
         volumeMounts:
+          - name: code-server
+            mountPath: /usr/lib/code-server
+          - name: code-server-extensions
+            mountPath: /root/.local/share/code-server/extensions
           - name: configs
             mountPath: /root/.local/share/code-server/User/keybindings.json
             subPath: keybindings.json
@@ -52,6 +68,10 @@ spec:
           - name: dshm
             mountPath: /dev/shm
       volumes:
+      - name: code-server
+        emptyDir: {}
+      - name: code-server-extensions
+        emptyDir: {}
       - name: configs
         configMap:
           name: {{ .Release.Name }}

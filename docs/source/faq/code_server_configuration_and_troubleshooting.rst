@@ -56,8 +56,9 @@ When developing with the **Code Server**, keep the following in mind:
    - Dockerfiles do **not** need modification to use the Code Server.
    - The **DAG file** must define ``dev_server="code-server"`` for any operator you want to debug.  
      Multiple operators in a DAG can each define this parameter.
-   - The Code Server runs inside a container based on the same image as the operator.  
-     The ``dev_server`` parameter only works with images based on **``base-python-cpu``**, where the Code Server dependencies are installed.
+   - The Code Server runs inside a container based on the same image as the operator.
+     The image does not need to contain the Code Server: an init container adds it when the development server starts.
+     Any Linux image with a standard C library (glibc) works; the Python extension needs ``python`` in the image.
    - The Code Server does not automatically execute ``CMD`` or other final commands from the Dockerfile.  
      You must run commands manually after the container starts.
 
@@ -66,7 +67,6 @@ When developing with the **Code Server**, keep the following in mind:
 - Ensure all ``env_vars`` values are strings, as described in the *Common Issues* section.
 - Update paths for files located under ``/app``.
 - Commands must be executed manually inside the Code Server.
-- The ``dev_server`` parameter only works with the ``base-python-cpu`` image.
 
 
 Using the Code Server Extension

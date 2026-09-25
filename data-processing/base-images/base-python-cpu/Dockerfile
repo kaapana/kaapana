@@ -21,6 +21,9 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     nano \
     dcmtk \
     ca-certificates \
+    bzip2 \
+    xz-utils \
+    make \
     wget \
     curl \
     procps \
@@ -44,37 +47,18 @@ ENV PATH="/opt/venv/bin:$PATH"
 ENV PIP_NO_CACHE_DIR=1
 
 # No compilers: every pinned package ships a wheel. An image that has to compile a
-# package installs build-essential itself. torch lives in base-python-gpu; base this
-# image's derivatives on that one when they import torch (also through monai or
-# kaapana_federated).
+# package installs build-essential itself. bzip2, xz-utils and make are listed above
+# because they used to arrive with build-essential and derived images rely on them
+# (tar unpacking .bz2/.xz archives, installers, `make html`). torch lives in
+# base-python-gpu; base this image's derivatives on that one when they import torch
+# (also through monai or kaapana_federated).
 
 # Install requirements
 COPY files/requirements.txt /app/
 RUN python3 -m pip install --upgrade setuptools pip && pip3 install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.7.0/constraints.txt -r /app/requirements.txt
 
-# Install code server and python extension
-RUN wget https://code-server.dev/install.sh
-RUN /bin/bash install.sh --version 4.127.0
-RUN code-server --install-extension ms-python.python
-
-
-# Fix bundled code-server node_module CVEs
-# replace the following in all extension node_modules with patched versions
-#   - undici      7.24.4 -> 7.28.0   (CVE-2026-12151, CVE-2026-6734, CVE-2026-9697)
-#   - ws          8.19.0 -> 8.21.0   (CVE-2026-48779)
-#   - shell-quote 1.8.3  -> 1.8.4    (CVE-2026-9277)
-RUN for pkg_spec in \
-        "undici:7.28.0" \
-        "ws:8.21.0" \
-        "shell-quote:1.8.4"; do \
-        name="${pkg_spec%%:*}"; ver="${pkg_spec##*:}"; \
-        wget -q "https://registry.npmjs.org/${name}/-/${name}-${ver}.tgz" -O /tmp/npmpkg.tgz && \
-        rm -rf /tmp/package && tar -xzf /tmp/npmpkg.tgz -C /tmp && \
-        for dir in $(find /usr/lib/code-server /root/.local/share/code-server -path "*/node_modules/${name}" -type d 2>/dev/null); do \
-            cp -rf /tmp/package/. "$dir/"; \
-        done; \
-        rm -rf /tmp/package /tmp/npmpkg.tgz; \
-    done
+# No code-server here: a development server gets it from the code-server-init
+# container of dev-server-chart (install in base-images/base-code-server).
 
 # Install kaapanapy pip package
 COPY files/kaapanapy-shim /app/kaapanapy-shim

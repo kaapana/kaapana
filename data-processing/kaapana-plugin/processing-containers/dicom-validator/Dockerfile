@@ -4,7 +4,8 @@ LABEL IMAGE="dicom-validator"
 LABEL VERSION="v1.2.4"
 LABEL BUILD_IGNORE="False"
 
-RUN apt-get -y update && apt-get install -y xutils-dev
+# build-essential: dicom3tools below is compiled from source; the base image carries no compilers.
+RUN apt-get -y update && apt-get install -y xutils-dev build-essential
 
 # install dicom3tools for dciodvfy
 # http://www.dclunie.com/dicom3tools

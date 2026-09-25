@@ -99,28 +99,31 @@ def create_diff_report(diffs: List[Dict]) -> Tuple[str, List[str]]:
     return "\n".join(parts), skipped
 
 
-def get_linked_issues(project: gitlab.v4.objects.Project, mr: gitlab.v4.objects.ProjectMergeRequest) -> List[Dict]:
-    issues = {}
-    for source in (mr.closes_issues, mr.related_issues):
+def get_linked_issues(
+    project: gitlab.v4.objects.Project, mr: gitlab.v4.objects.ProjectMergeRequest
+) -> Tuple[List[Dict], List[Dict]]:
+    closing, mentioned = {}, {}
+    for source, found in ((mr.closes_issues, closing), (mr.related_issues, mentioned)):
         try:
             for issue in source():
-                issues.setdefault(issue.web_url, issue.attributes)
+                found.setdefault(issue.web_url, issue.attributes)
         except gitlab.exceptions.GitlabError as e:
             logger.warning(f"Could not list linked issues: {e}")
     match = BRANCH_ISSUE.match(mr.source_branch)
     if match:
         try:
             issue = project.issues.get(match.group(1))
-            issues.setdefault(issue.web_url, issue.attributes)
+            mentioned.setdefault(issue.web_url, issue.attributes)
         except gitlab.exceptions.GitlabGetError:
             logger.info(f"No issue #{match.group(1)} for branch {mr.source_branch}")
-    return list(issues.values())[:MAX_ISSUES]
+    mentioned = {url: issue for url, issue in mentioned.items() if url not in closing}
+    return list(closing.values())[:MAX_ISSUES], list(mentioned.values())[:MAX_ISSUES]
 
 
-def create_issues_report(issues: List[Dict]) -> List[str]:
+def create_issues_report(title: str, issues: List[Dict]) -> List[str]:
     if not issues:
-        return ["Linked issues: none. No issue is linked to this merge request.", ""]
-    lines = ["Linked issues:"]
+        return [f"{title}: none.", ""]
+    lines = [f"{title}:"]
     for issue in issues:
         description = (issue.get("description") or "(empty)")[:ISSUE_BUDGET]
         reference = issue.get("references", {}).get("full") or f"#{issue['iid']}"
@@ -135,7 +138,11 @@ def create_issues_report(issues: List[Dict]) -> List[str]:
 
 
 def create_mr_report(
-    mr: gitlab.v4.objects.ProjectMergeRequest, issues: List[Dict], diff: str, skipped: List[str]
+    mr: gitlab.v4.objects.ProjectMergeRequest,
+    closing: List[Dict],
+    mentioned: List[Dict],
+    diff: str,
+    skipped: List[str],
 ) -> str:
     lines = [
         f"Title: {mr.title}",
@@ -144,7 +151,10 @@ def create_mr_report(
         "Description:",
         mr.description or "(empty)",
         "",
-        *create_issues_report(issues),
+        *create_issues_report("Issues this merge request closes (Closes #N in the description)", closing),
+        *create_issues_report(
+            "Issues only mentioned or named in the branch, not closed by this merge request", mentioned
+        ),
     ]
     if skipped:
         lines += ["Files not included in the diff:", *[f"- {item}" for item in skipped], ""]
@@ -167,7 +177,7 @@ def find_review_note(
 
 
 def main():
-    gitlab_api_token = os.getenv("GITLAB_API_TOKEN")
+    gitlab_api_token = os.getenv("AI_REVIEW_GITLAB_TOKEN")
     blablador_token = os.getenv("BLABLADOR_API_TOKEN")
     project_id = os.getenv("CI_MERGE_REQUEST_PROJECT_ID")
     mr_iid = os.getenv("CI_MERGE_REQUEST_IID")
@@ -195,9 +205,12 @@ def main():
         logger.info("No reviewable changes. Skipping.")
         return
 
-    issues = get_linked_issues(project_kaapana, mr)
-    logger.info(f"Reviewing {len(diffs)} files and {len(issues)} linked issues at {commit_sha[:8]} with {MODEL}")
-    ai_review = create_ai_review(create_mr_report(mr, issues, diff, skipped), blablador_token)
+    closing, mentioned = get_linked_issues(project_kaapana, mr)
+    logger.info(
+        f"Reviewing {len(diffs)} files, {len(closing)} closing and {len(mentioned)} mentioned issues "
+        f"at {commit_sha[:8]} with {MODEL}"
+    )
+    ai_review = create_ai_review(create_mr_report(mr, closing, mentioned, diff, skipped), blablador_token)
     if ai_review is None:
         sys.exit(1)
 

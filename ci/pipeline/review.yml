@@ -4,7 +4,7 @@ spec:
       type: boolean
 ---
 # Stage: .post — advisory LLM review of the merge request
-# In:  the MR diff and linked issues via the GitLab API; BLABLADOR_API_TOKEN, GITLAB_API_TOKEN
+# In:  the MR diff and linked issues via the GitLab API; BLABLADOR_API_TOKEN, AI_REVIEW_GITLAB_TOKEN
 # Out: one MR note, written once per MR with the "AI Review" label or by the manual mr_review_rerun; never fails the pipeline
 .mr_review_template:
   stage: .post

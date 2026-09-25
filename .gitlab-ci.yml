@@ -199,6 +199,19 @@ variables:
   # Not declared here: CLIENT_SECRET is extracted from the deployed platform by
   # setup_integration_tests and passed downstream via a dotenv artifact.
 
+  # --- Set only in Settings > CI/CD > Variables, never in this file:
+  # REGISTRY_ENV                 required in every pipeline; environment scope whose CI_REGISTRY_* rows the jobs get
+  # CI_REGISTRY_URL              scoped by REGISTRY_ENV; registry for builds and the ci-base image
+  # CI_REGISTRY_USER             scoped by REGISTRY_ENV; shadows the GitLab-predefined variable
+  # CI_REGISTRY_TOKEN            scoped by REGISTRY_ENV; secret (masked)
+  # DOCKER_AUTH_CONFIG           runner image-pull credentials; needs an entry for every CI_REGISTRY_URL host
+  # RELEASE_REGISTRY_URL         protected; release tag pipelines only
+  # RELEASE_REGISTRY_USER        protected; release tag pipelines only
+  # RELEASE_REGISTRY_TOKEN       protected, secret (masked); release tag pipelines only
+  # DEPLOYMENT_INSTANCE_SSH_KEY  File-type; SSH private key for the deployment target
+  # HARVESTER_KUBECONFIG         File-type; Harvester access, needed when DEPLOYMENT_INSTANCE_FQDN is empty
+  # CI_TEST_DATA_REPOS           optional; git repos cloned as integration-test data
+
 # Job definitions live in one file per stage — each file's header states what
 # the stage takes in and hands out.
 include:

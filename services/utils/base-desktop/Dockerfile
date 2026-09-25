@@ -151,16 +151,16 @@ RUN ln -sf libva.so.2.2200.0 /usr/lib/x86_64-linux-gnu/libva.so.2 && ldconfig
 
 # Selkies server (pixelflux/websocket mode), installed from the same ${SELKIES_COMMIT} that built
 # the dashboard above. flux versions are pinned separately because selkies' pyproject leaves them
-# unpinned. evdev + xkbcommon are sdist-only, so install the dev headers to build them and purge
-# again in the same layer (build-essential is already in the base).
+# unpinned. evdev + xkbcommon are sdist-only, so install the compilers and dev headers to build
+# them and purge again in the same layer (the base images carry no compilers).
 ARG SELKIES_COMMIT
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends python3-dev libxkbcommon-dev pkg-config \
+    && apt-get install -y --no-install-recommends build-essential python3-dev libxkbcommon-dev pkg-config \
     && python3 -m pip install --no-cache-dir \
         "selkies @ git+https://github.com/selkies-project/selkies.git@${SELKIES_COMMIT}" \
         pixelflux==1.6.2 \
         pcmflux==1.0.8 \
-    && apt-get purge -y python3-dev libxkbcommon-dev pkg-config \
+    && apt-get purge -y build-essential python3-dev libxkbcommon-dev pkg-config \
     && apt-get autoremove -y && apt-get autoclean -y && rm -rf /var/lib/apt/lists/*
 
 # The Selkies web client sends the display DPI as 96 * devicePixelRatio (e.g. 192 on a retina

@@ -116,7 +116,12 @@ below is ignored.
 |---|---|---|
 | `DEPLOYMENT_INSTANCE_FQDN` | *empty* | Deploy onto this host and never destroy it. Empty provisions a fresh VM. Max 57 characters (`dcmsend` peerhost limit) and it must resolve *inside the job container* |
 | `DEPLOYMENT_INSTANCE_USER` | `ubuntu` | SSH user on the target |
-`DEPLOYMENT_INSTANCE_SSH_KEY` | None | SSH private key file-variable
+| `DEPLOYMENT_INSTANCE_SSH_KEY` | None | SSH private key file-variable |
+| `DEPLOYMENT_INSTANCE_PLATFORM_PREFIX` | `ci-dep` | Prefix of the platform's project namespaces (`<prefix>-project-<short_id>`). DNS-1123 label, max 46 characters |
+| `DEPLOYMENT_INSTANCE_ADMIN_CHART` | `kaapana-admin-chart` | Admin chart and Helm release name; deploy, undeploy, readiness check and integration tests look the platform up by it |
+| `DEPLOYMENT_INSTANCE_HELM_NAMESPACE` | `default` | Namespace the admin chart release is installed into |
+| `DEPLOYMENT_INSTANCE_DOMAIN` | `vms.dkfz.de` | DNS domain of a provisioned VM (`<vm_name>.<domain>`) |
+| `DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE` | `kaapana-ci` | Harvester namespace the VM is provisioned in |
 
 ### 4. `CI_EXEC_*` variables — build and scan arguments
 

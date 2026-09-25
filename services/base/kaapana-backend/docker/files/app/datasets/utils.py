@@ -342,10 +342,14 @@ def get_field_mapping(os_client, index) -> Dict:
     import re
 
     try:
-        res = os_client.indices.get_mapping(index=index)[index]["mappings"][
-            "properties"
-        ]
-    except KeyError:
+        # The project index name may be an alias (the 0.6.x -> 0.7.x migration
+        # aliases project_<short_id> onto the old project_<name> index), and
+        # get_mapping keys its reply by the real index name, so read the entry it
+        # returns instead of looking it up by the name that was asked for.
+        res = next(iter(os_client.indices.get_mapping(index=index).values()))[
+            "mappings"
+        ]["properties"]
+    except (KeyError, StopIteration):
         logging.info("Index key error, no properties in mappings")
         # Newly created projects have no "properties" (since no data in opensearch yet)
         return {}

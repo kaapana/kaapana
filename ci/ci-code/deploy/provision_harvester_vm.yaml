@@ -12,7 +12,6 @@
     vm_storage_class: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_STORAGE_CLASS', default=undef()) }}"
     vm_network: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_NETWORK', default=undef()) }}"
     vm_ssh_keypair: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_HARVESTER_KEYPAIR', default=undef()) }}"
-    vm_user: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_USER', default=undef()) }}"
     vm_dns_domain: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_DOMAIN', default=undef()) }}"
     vm_cpu_cores: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_CPU', default=undef()) }}"
     vm_cpu_sockets: 1
@@ -30,7 +29,22 @@
     # Optional behavior
     force_recreate: "{{ force_recreate | default(false) | bool }}"
 
+    deployment_image_users:
+      ubuntu24: ubuntu
+      almalinux10: almalinux
+
   pre_tasks:
+  - name: Fail if the selected image has no known default user
+    ansible.builtin.fail:
+      msg: >
+        No default login user registered for image '{{ vm_image_name }}'.
+        Add it to deployment_image_users in this playbook.
+    when: vm_image_name not in deployment_image_users
+
+  - name: Resolve VM user from the selected image
+    ansible.builtin.set_fact:
+      vm_user: "{{ deployment_image_users[vm_image_name] }}"
+
   - name: Print all resolved VM variables
     ansible.builtin.debug:
       msg:
@@ -113,6 +127,54 @@
   - name: Extract public key from Harvester KeyPair
     ansible.builtin.set_fact:
       ssh_public_key: "{{ keypair_info.resources[0].spec.publicKey }}"
+
+  - name: Check for an existing VM with this name
+    kubernetes.core.k8s_info:
+      api_version: kubevirt.io/v1
+      kind: VirtualMachine
+      name: "{{ vm_name }}"
+      namespace: "{{ harvester_namespace }}"
+      kubeconfig: "{{ harvester_kubeconfig }}"
+    register: existing_vm
+    changed_when: false
+
+  - name: Collect PVCs of the existing VM
+    ansible.builtin.set_fact:
+      existing_vm_pvcs: >-
+        {{
+          existing_vm.resources[0].spec.template.spec.volumes
+          | selectattr('persistentVolumeClaim', 'defined')
+          | map(attribute='persistentVolumeClaim.claimName')
+          | list
+        }}
+    when: existing_vm.resources | length > 0
+
+  - name: Delete the existing VM
+    kubernetes.core.k8s:
+      api_version: kubevirt.io/v1
+      kind: VirtualMachine
+      name: "{{ vm_name }}"
+      namespace: "{{ harvester_namespace }}"
+      kubeconfig: "{{ harvester_kubeconfig }}"
+      state: absent
+      wait: true
+      wait_timeout: 600
+      wait_sleep: 10
+    when: existing_vm.resources | length > 0
+
+  - name: Delete PVCs and cloud-init secret of the existing VM
+    kubernetes.core.k8s:
+      api_version: v1
+      kind: "{{ item.split('/')[0] }}"
+      name: "{{ item.split('/')[1] }}"
+      namespace: "{{ harvester_namespace }}"
+      kubeconfig: "{{ harvester_kubeconfig }}"
+      state: absent
+      wait: true
+      wait_timeout: 600
+      wait_sleep: 10
+    loop: "{{ existing_vm_pvcs | map('regex_replace', '^', 'PersistentVolumeClaim/') | list + ['Secret/' ~ vm_name ~ '-cloudinit'] }}"
+    when: existing_vm.resources | length > 0
 
   - name: Generate unique PVC suffix
     ansible.builtin.set_fact:
@@ -246,6 +308,11 @@
       name: "{{ vm_name }}"
       namespace: "{{ harvester_namespace }}"
       kubeconfig: "{{ harvester_kubeconfig }}"
+    register: vm_status
+    until: vm_status.resources | length > 0 and (vm_status.resources[0].status.ready | default(false))
+    retries: 60
+    delay: 10
+    changed_when: false
 
   - name: Wait for DNS to resolve
     ansible.builtin.command: getent hosts {{ vm_name }}.{{ vm_dns_domain }}

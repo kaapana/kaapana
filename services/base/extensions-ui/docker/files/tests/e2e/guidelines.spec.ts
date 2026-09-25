@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { dialog, openView, row } from './fixtures/helpers'
+import { dialog, dismissWithEscape, openView, row } from './fixtures/helpers'
 
 // Cross-cutting rules of the Kaapana frontend design guidelines that no single
 // feature owns. The feature specs cover what each control does; these cover
@@ -97,5 +97,21 @@ test.describe('accessibility', () => {
     await control.focus()
     await page.keyboard.press('Enter')
     await expect(dialog(page)).toBeVisible()
+  })
+
+  test('a dismissed confirmation returns focus to the control that opened it', async ({ page }) => {
+    const uninstall = row(page, 'MITK Workbench').getByRole('button', { name: 'Uninstall' })
+
+    // Cancelled with its button.
+    await uninstall.focus()
+    await page.keyboard.press('Enter')
+    await dialog(page).getByRole('button', { name: 'Cancel' }).click()
+    await expect(dialog(page)).toBeHidden()
+    await expect(uninstall).toBeFocused()
+
+    // Dismissed with Escape.
+    await page.keyboard.press('Enter')
+    await dismissWithEscape(page)
+    await expect(uninstall).toBeFocused()
   })
 })

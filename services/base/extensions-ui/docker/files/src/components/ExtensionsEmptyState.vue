@@ -69,8 +69,8 @@ defineEmits<{
       title="No extensions available yet"
       :text="
         props.canUpdateExtensions
-          ? 'Download the catalogue from the configured Helm repository to get started.'
-          : 'Nothing has been published to this platform\'s Helm repository yet. An administrator can download the catalogue.'
+          ? 'Download the extension catalogue from the configured container registry to get started.'
+          : 'No extension catalogue has been downloaded to this platform yet. An administrator can download it.'
       "
     >
       <template v-if="props.canUpdateExtensions" #actions>

@@ -777,8 +777,8 @@ function updateExtensions() {
       console.log(response.data)
       notify({
         type: 'success',
-        title: 'Extension list updated',
-        text: 'The latest charts were downloaded from the configured Helm repository.',
+        title: 'Download started',
+        text: 'The extension catalogue is being pulled from the container registry. The list updates as it completes.',
       })
     })
     .catch((err: unknown) => {
@@ -955,9 +955,10 @@ const confirmContent = computed(() => {
       color: 'primary',
       title: 'Download the latest extensions?',
       text:
-        'Kaapana pulls the current chart catalogue from the configured Helm repository. ' +
-        'This can take several minutes and use significant network bandwidth and disk space on the platform. ' +
-        'Extensions that are already installed keep running; only the list of available versions changes.',
+        'Kaapana pulls the current extension catalogue from the configured container registry. ' +
+        'This can take a few minutes. ' +
+        'Extensions that are already installed keep running. ' +
+        'Only the list of available extensions and versions changes.',
       confirmText: 'Download',
     }
   }

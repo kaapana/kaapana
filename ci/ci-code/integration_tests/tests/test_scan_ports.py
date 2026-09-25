@@ -10,7 +10,7 @@ logger = get_logger(__name__, logging.DEBUG)
 def test_scan_ports(ip_address, allowed_ports):
     logger.info(f"Scanning host IP: {ip_address}")
 
-    scanned_ports = scan_ports(ip_address, logger)
+    scanned_ports = scan_ports(ip_address, logger, allowed_ports)
     ok, open_ports = check_ports(scanned_ports, allowed_ports, logger)
 
     if open_ports:

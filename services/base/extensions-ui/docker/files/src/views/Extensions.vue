@@ -973,7 +973,7 @@ const confirmContent = computed(() => {
         color: 'error',
         title: `Force ${verb.toLowerCase()} "${item.uiVisibleName}"?`,
         text:
-          `The release ${item.releaseName} (version ${item.version}) is removed with Helm's hooks skipped. ` +
+          `This ${noun} (version ${item.version}) is removed with Helm's hooks skipped. ` +
           "Because the chart's cleanup hooks do not run, resources it would normally remove may be left behind in the cluster. " +
           'Use this only for an installation that is genuinely stuck in Pending.',
         confirmText: `Force ${verb.toLowerCase()} ${noun}`,
@@ -984,8 +984,8 @@ const confirmContent = computed(() => {
       color: 'error',
       title: `${verb} "${item.uiVisibleName}"?`,
       text:
-        `The release ${item.releaseName} (version ${item.version}) is removed from this project. ` +
-        `Containers running for this ${noun} are stopped, and anything stored only inside them is lost. ` +
+        `This ${noun} (version ${item.version}) is removed from the platform. ` +
+        `Containers running for this ${noun} are stopped. Anything stored only inside them is lost. ` +
         'The extension stays in the catalogue and can be installed again later.',
       confirmText: `${verb} ${noun}`,
     }

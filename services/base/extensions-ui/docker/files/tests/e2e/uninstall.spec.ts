@@ -99,7 +99,7 @@ test('a multi-installable instance is deleted, not uninstalled, and the prompt s
 
   await row(page, 'JupyterLab Instance').getByRole('button', { name: 'Delete' }).click()
   await expect(dialog(page)).toContainText('Delete "JupyterLab Instance"?')
-  await expect(dialog(page)).toContainText('jupyterlab-inst-1')
+  await expect(dialog(page)).toContainText('This instance (version 3.2.0) is removed from the platform')
   await expect(dialog(page)).toContainText('Containers running for this instance are stopped')
 
   const posted = nextPost(page, HELM.uninstall)

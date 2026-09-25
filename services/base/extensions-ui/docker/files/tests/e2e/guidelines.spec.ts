@@ -15,9 +15,9 @@ test.describe('actions requiring confirmation', () => {
     await row(page, 'MITK Workbench').getByRole('button', { name: 'Uninstall' }).click()
     const confirm = dialog(page)
 
-    // What will happen, to which release, and what follows.
+    // What will happen, to which version, where, and what follows.
     await expect(confirm).toContainText('Uninstall "MITK Workbench"?')
-    await expect(confirm).toContainText('mitk-workbench-abc123')
+    await expect(confirm).toContainText('This extension (version 1.0.0) is removed from the platform')
     await expect(confirm).toContainText('can be installed again')
     // "Give initial focus to the safe action" — Enter must never delete.
     await expect(confirm.getByRole('button', { name: 'Cancel' })).toBeFocused()

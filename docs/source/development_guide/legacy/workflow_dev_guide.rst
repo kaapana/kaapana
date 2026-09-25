@@ -178,7 +178,7 @@ It contains a python script :code:`otsus_method.py` where `Otsu's method <https:
 
 .. important::
     | The structure of the processing container should be 1. a :code:`Dockerfile` and 2. a :code:`files` directory where the source code and other files are stored. Read more about the Docker best practices here: :ref:`how_to_dockerfile` 
-    | Although not mandatory, it is strongly recommended to base the container images of processing containers on `local-only/base-python-cpu:latest` or `local-only/base-python-gpu:latest` based on if the algorithm uses GPUs or not. This will allow you to debug inside the containers in Step 9.
+    | Although not mandatory, it is strongly recommended to base the container images of processing containers on `local-only/base-python-cpu:latest` or `local-only/base-python-gpu:latest` based on if the algorithm uses GPUs or not (PyTorch is only in the GPU image, so an algorithm that imports `torch` needs that one even on the CPU). This will allow you to debug inside the containers in Step 9.
 
 .. TODO: when the kaapanapy is documented, also mention above that users can not access kaapanapy without the base image 
 

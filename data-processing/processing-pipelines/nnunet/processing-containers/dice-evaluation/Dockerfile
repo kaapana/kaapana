@@ -1,4 +1,5 @@
-FROM local-only/base-python-cpu:latest
+# base-python-gpu: this image needs torch (kaapana_federated / monai), which the CPU base no longer carries.
+FROM local-only/base-python-gpu:latest
 
 LABEL IMAGE="dice-evaluation"
 LABEL VERSION="0.1.0"

@@ -21,7 +21,6 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     nano \
     dcmtk \
     ca-certificates \
-    build-essential \
     wget \
     curl \
     procps \
@@ -40,9 +39,14 @@ RUN python3 -m venv /opt/venv
 RUN /opt/venv/bin/pip install --upgrade pip
 # Make venv's python and pip accessible in the PATH
 ENV PATH="/opt/venv/bin:$PATH"
+# Keep pip's download cache out of every layer built on this image (the cache of a
+# large package set weighs GBs and is never read again). Inherited by derived images.
+ENV PIP_NO_CACHE_DIR=1
 
-# Install torch for cuda 11.8
-RUN pip install torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 --index-url https://download.pytorch.org/whl/cu118
+# No compilers: every pinned package ships a wheel. An image that has to compile a
+# package installs build-essential itself. torch lives in base-python-gpu; base this
+# image's derivatives on that one when they import torch (also through monai or
+# kaapana_federated).
 
 # Install requirements
 COPY files/requirements.txt /app/
@@ -71,10 +75,6 @@ RUN for pkg_spec in \
         done; \
         rm -rf /tmp/package /tmp/npmpkg.tgz; \
     done
-
-# Copy and install kaapana_federated directly from source
-COPY files/kaapana_federated /app/kaapana_federated
-RUN python3 -m pip install /app/kaapana_federated
 
 # Install kaapanapy pip package
 COPY files/kaapanapy-shim /app/kaapanapy-shim

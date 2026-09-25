@@ -3,8 +3,8 @@ LABEL IMAGE="minio-init"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 
-# dl.min.io and the Docker Hub images are gone; take mc from the same pinned server image
-COPY --from=quay.io/minio/minio:RELEASE.2024-11-07T00-52-20Z@sha256:ac591851803a79aee64bc37f66d77c56b0a4b6e12d9e5356380f4105510f2332 /usr/bin/mc /usr/local/bin/mc
+# MinIO upstream images are gone; take mc from the pinned Silo (community MinIO fork) server image
+COPY --from=docker.io/pgsty/silo:RELEASE.2026-09-16T00-00-00Z@sha256:635197cb9f36d01bee221d34d1c7d7960f6a95c48b0b6c01d99cd13bdae51a46 /usr/bin/mcli /usr/local/bin/mc
 
 RUN adduser --uid 1000 kaapana && chmod -R 777 /home/kaapana
 

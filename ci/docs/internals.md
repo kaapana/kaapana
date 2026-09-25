@@ -177,7 +177,7 @@ registered), then pytest against `--host $VM_FQDN`.
 
 | Job | Notes |
 |---|---|
-| `scan_ports` | nmap top-10 ports on the target VM; `--allowed-ports 22,80,443,11112` |
+| `scan_ports` | nmap top-10 ports plus the allowed ports on the target VM; `--allowed-ports 22,80,443,11112` |
 | `first_login` | Keycloak login; admin password change; the rest of the chain assumes it worked |
 | `install_extensions` | 4 xdist workers, `retry: 2` |
 | `send_data` | DICOM upload, serial (`PYTEST_WORKERS: 0`), `retry: 2`; test data cached in `/data` on the deploy runner |

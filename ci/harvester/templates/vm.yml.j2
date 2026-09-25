@@ -5,7 +5,7 @@ metadata:
   namespace: {{ harvester_namespace }}
   labels:
     harvesterhci.io/creator: harvester
-    harvesterhci.io/os: ubuntu
+    harvesterhci.io/os: {{ 'almalinux' if 'almalinux' in vm_image_name else 'ubuntu' }}
   annotations:
     harvesterhci.io/volumeClaimTemplates: >-
       [{"metadata":{"name":"{{ vm_name }}-disk-0-{{ pvc_suffix }}","annotations":{"harvesterhci.io/imageId":"{{ harvester_namespace }}/{{ vm_image_id }}"}},"spec":{"accessModes":["ReadWriteMany"],"resources":{"requests":{"storage":"{{ vm_disk_size }}"}},"volumeMode":"Block","storageClassName":"{{ vm_storage_class }}"}}]

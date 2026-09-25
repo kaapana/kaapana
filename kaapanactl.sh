@@ -885,7 +885,7 @@ function install_proxy_environment {
             while true; do
                 read -p "Is this correct and you don't need a proxy?" yn
                     case $yn in
-                        [Yy]* ) break;;
+                        [Yy]* ) export http_proxy="" https_proxy=""; break;;
                         [Nn]* ) echo "please configure your system proxy (http_proxy + https_proxy -> /etc/environment)" && exit;;
                         * ) echo "Please answer yes or no.";;
                     esac
@@ -896,6 +896,9 @@ function install_proxy_environment {
         fi
     else
         echo "QUIET = true";
+        if [ ! -v http_proxy ]; then
+            export http_proxy="" https_proxy=""
+        fi
     fi
 }
 
@@ -962,13 +965,27 @@ function install_packages_almalinux {
 	    yum upgrade -y
         set -e
 
-        echo "${YELLOW}Installing snap, nano, jq and curl${NC}"
-        yum install -y snapd nano jq curl
+        echo "${YELLOW}Installing snap, nano, jq, curl and bind-utils${NC}"
+        yum install -y snapd nano jq curl bind-utils
     fi
 
     echo "${YELLOW}Enabling snap${NC}"
     systemctl enable --now snapd.socket
     systemctl start snapd
+
+    if [ ! -e /snap ]; then
+        echo "${YELLOW}Creating /snap symlink required for classic confinement${NC}"
+        ln -s /var/lib/snapd/snap /snap
+    fi
+
+    if [[ ":$PATH:" != *":/snap/bin:"* ]]; then
+        echo "${YELLOW}Adding /snap/bin to PATH${NC}"
+        export PATH="$PATH:/snap/bin"
+    fi
+    if [ ! -f /etc/profile.d/microk8s-snap-path.sh ]; then
+        echo 'export PATH="$PATH:/snap/bin"' | tee /etc/profile.d/microk8s-snap-path.sh > /dev/null
+        chmod 644 /etc/profile.d/microk8s-snap-path.sh
+    fi
 
     echo "${YELLOW}Waiting for snap ...${NC}"
     snap wait system seed.loaded

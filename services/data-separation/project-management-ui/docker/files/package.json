@@ -4,8 +4,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
-    "preview": "vite preview",
-    "lint": "eslint . --fix --ignore-path .gitignore"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@mdi/font": "7.4.47",
@@ -21,14 +20,6 @@
     "@babel/types": "7.24.7",
     "@types/node": "20.14.10",
     "@vitejs/plugin-vue": "5.0.5",
-    "@vue/eslint-config-typescript": "13.0.0",
-    "eslint": "8.57.0",
-    "eslint-config-standard": "17.1.0",
-    "eslint-plugin-import": "2.29.1",
-    "eslint-plugin-n": "16.6.2",
-    "eslint-plugin-node": "11.1.0",
-    "eslint-plugin-promise": "6.4.0",
-    "eslint-plugin-vue": "9.27.0",
     "sass": "1.77.6",
     "typescript": "5.4.2",
     "unplugin-fonts": "1.1.1",

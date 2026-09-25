@@ -133,7 +133,8 @@ platform behind a proxy or the Playwright mock backend (below).
 
 Other scripts: `npm run build` (runs `vue-tsc` over `tsconfig.json` **and**
 `tsconfig.e2e.json`, so a type error in a spec fails the build),
-`npm run preview`, `npm run lint`, `npm run format`.
+`npm run preview`. Formatting and linting run from the repository root, see
+[Code Formatting](../../../docs/source/development_guide/code_formatting.rst).
 
 ## Tests
 

@@ -26,10 +26,7 @@
     vm_ready_interval: 5
     vm_dns_timeout: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_DNS_TIMEOUT', default=300) | int }}"
     vm_dns_interval: 10
-    # The only states that still resolve on their own; everything else ends
-    # the wait, including a state not listed here.
-    vm_transient_states: ['', 'Provisioning', 'Starting', 'WaitingForVolumeBinding']
-    # Explains a status, not the list the wait breaks on.
+    # Explains the status the wait ended on.
     vm_failure_hints:
       '': >-
         The VM could not be read at all. Either it was never created, or the
@@ -357,7 +354,9 @@
         - "Name: {{ vm_name }}"
         - "Namespace: {{ harvester_namespace }}"
 
-  - name: Wait for the VM to reach a settled state
+  # Only a halted VM stays down: Harvester halts it when the quota rejects the
+  # launcher pod. Any status, Stopped included, can pass during the disk import.
+  - name: Wait for the VM to be running
     kubernetes.core.k8s_info:
       api_version: kubevirt.io/v1
       kind: VirtualMachine
@@ -366,8 +365,10 @@
       kubeconfig: "{{ harvester_kubeconfig }}"
     register: vm_info
     vars:
-      _status: "{{ (vm_info.resources | first | default({})).get('status', {}).get('printableStatus', '') }}"
-    until: _status not in vm_transient_states
+      _vm: "{{ vm_info.resources | first | default({}) }}"
+    until: >-
+      _vm.get('status', {}).get('printableStatus', '') == 'Running'
+      or _vm.get('spec', {}).get('runStrategy', '') == 'Halted'
     retries: "{{ ((vm_ready_timeout | int) / (vm_ready_interval | int)) | round(0, 'ceil') | int }}"
     delay: "{{ vm_ready_interval }}"
     changed_when: false
@@ -375,9 +376,10 @@
     # than ansible's retry message.
     failed_when: false
 
-  - name: Remember the settled VM status
+  - name: Remember the last VM status
     ansible.builtin.set_fact:
       vm_printable_status: "{{ (vm_info.resources | first | default({})).get('status', {}).get('printableStatus', '') }}"
+      vm_halted: "{{ (vm_info.resources | first | default({})).get('spec', {}).get('runStrategy', '') == 'Halted' }}"
 
   # ErrorUnschedulable covers both exhausted capacity and an unbindable
   # volume, and only the scheduler's own message tells them apart.
@@ -412,9 +414,7 @@
       msg: >-
         VM {{ vm_name }} did not reach Running in namespace {{ harvester_namespace }}.
         Status: {{ vm_printable_status | default('none reported', true) }}
-        {%- if vm_printable_status in vm_transient_states %}, which is a state the
-        wait tolerates, so this is the {{ vm_ready_timeout }}s budget running out
-        {%- endif %}.
+        {%- if not vm_halted | bool %} after the {{ vm_ready_timeout }}s budget{% endif %}.
         {{ vm_failure_hints.get(vm_printable_status, 'Unexpected state, inspect the VM directly.') }}
         {% if _vm_lookup_error %}Lookup: {{ _vm_lookup_error }}{% endif %}
         {% if _vm_quota %}Quota: {{ _vm_quota }}{% endif %}

@@ -37,8 +37,8 @@ schemas:
   value-discriminated `dependencies`/`oneOf` → `allOf`/`if`/`then`; empty
   `enum`/`oneOf` stripped and marked `readOnly` (so "nothing to pick yet" fields
   show their notice instead of blanking the form); object-const `oneOf` node
-  types reconciled. Field `description`s surface via vjsf's own muted `(i)` help
-  toggle.
+  types reconciled. Field `description`s are drawn by base-ui's `HelpIcon` in the
+  input's append slot (`layout.slots.append`), as on the native fields.
 - **Settings-based defaults + `hideOnUI`** — `localStorage["settings"].workflows`
   (shell-seeded, keyed by `camelCase(dag_id)`) overrides schema defaults per
   field; fields listed under `hideOnUI` are marked `x-display: hidden` (not

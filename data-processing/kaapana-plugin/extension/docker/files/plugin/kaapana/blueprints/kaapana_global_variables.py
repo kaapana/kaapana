@@ -14,7 +14,6 @@ PLATFORM_PREFIX = os.environ["PLATFORM_PREFIX"]  # environ will raise KeyError i
 DEFAULT_PROJECT_NAMESPACE = f"{PLATFORM_PREFIX}-project-admin"
 PULL_POLICY_IMAGES = os.getenv("PULL_POLICY_IMAGES", "IfNotPresent")
 DEFAULT_REGISTRY = os.getenv("DEFAULT_REGISTRY", None)
-KAAPANA_BUILD_VERSION = os.getenv("KAAPANA_BUILD_VERSION", None)
 PLATFORM_VERSION = os.getenv("PLATFORM_VERSION", None)
 GPU_SUPPORT = True if os.getenv("GPU_SUPPORT", "False").lower() == "true" else False
 OIDC_CLIENT_SECRET = os.getenv("OIDC_CLIENT_SECRET", None)

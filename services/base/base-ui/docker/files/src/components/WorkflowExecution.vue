@@ -66,7 +66,8 @@
               <v-alert v-for="field in unavailableFields[name] ?? []" :key="field.key" type="warning"
                 variant="tonal" density="comfortable" class="mb-4" :title="field.title"
                 :text="field.description"></v-alert>
-              <Vjsf v-if="name != 'documentation_form'" v-model="formData[name]" :schema="compatSchemas[name]" :options="vjsfOptions">
+              <Vjsf v-if="name != 'documentation_form'" v-model="formData[name]" :schema="compatSchemas[name]" :options="vjsfOptions"
+                @update:state="onVjsfState(name, $event)">
                 <template #fieldHelp="{ text }"><HelpIcon :text="text" /></template>
               </Vjsf>
             </v-col>
@@ -137,7 +138,8 @@
           <v-row v-if="Object.keys(external_schemas).length">
             <v-col v-for="(schema, name) in external_schemas" cols="12" :key="name">
               <p>{{ name }}</p>
-              <Vjsf v-model="formData['external_schema_' + name]" :schema="compatExternalSchemas[name]" :options="vjsfOptions">
+              <Vjsf v-model="formData['external_schema_' + name]" :schema="compatExternalSchemas[name]" :options="vjsfOptions"
+                @update:state="onVjsfState('external_schema_' + name, $event)">
                 <template #fieldHelp="{ text }"><HelpIcon :text="text" /></template>
               </Vjsf>
             </v-col>
@@ -407,6 +409,19 @@ watch(viewDirty, (dirty) => {
 });
 
 const executeWorkflow = ref<VForm | null>(null);
+
+// Labels of the vjsf fields whose value ajv rejects, per form, refreshed by
+// each <Vjsf> on every state change. vjsf tells the surrounding v-form only
+// valid / invalid, never which field, and keeps an error hidden until the
+// field was touched, so its state tree is the only place that knows.
+const invalidVjsfFields = ref<Record<string, string[]>>({});
+function invalidLabels(node: any): string[] {
+  const own = node.error && node.layout?.label ? [node.layout.label] : [];
+  return own.concat(...(node.children ?? []).map(invalidLabels));
+}
+function onVjsfState(form: string, s: any) {
+  invalidVjsfFields.value[form] = invalidLabels(s.stateTree.root);
+}
 
 // Kaapana DAG schemas use vjsf-2-era conventions that vjsf 3 / ajv either
 // reject (the whole form renders blank) or silently ignore. Normalize in place:
@@ -808,7 +823,12 @@ const submitBlockedReason = computed<string | null>(() => {
   if (missing.length > 0) {
     return `Fill in the required ${missing.length === 1 ? "field" : "fields"}: ${missing.join(", ")}.`;
   }
-  if (!state.valid) return "Some fields still hold an invalid value.";
+  if (!state.valid) {
+    const invalid = Object.values(invalidVjsfFields.value).flat();
+    return invalid.length
+      ? `Fix the invalid ${invalid.length === 1 ? "field" : "fields"}: ${invalid.join(", ")}.`
+      : "Some fields still hold an invalid value.";
+  }
   return null;
 });
 
@@ -1112,6 +1132,7 @@ watch(
   () => state.dag_id,
   (value) => {
     state.formData = {};
+    invalidVjsfFields.value = {};
     // Re-arm the dirty baseline for the new dag's form (defaults repopulate async).
     userTouchedForm.value = false;
     state.selectedDataset = null;
@@ -1200,6 +1221,7 @@ watch(
   () => state.external_dag_id,
   () => {
     state.external_schemas = {};
+    invalidVjsfFields.value = {};
     if (state.external_dag_id != null) {
       getKaapanaInstancesWithExternalDagAvailable();
     } else {

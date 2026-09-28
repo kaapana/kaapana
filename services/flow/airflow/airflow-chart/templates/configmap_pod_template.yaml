@@ -88,8 +88,6 @@ data:
               value: ".svc,.svc.cluster,.svc.cluster.local,{{ .Values.global.hostname }}"
             - name: SERVICES_NAMESPACE
               value: "{{ .Values.global.services_namespace }}"
-            - name: SQL_ALCHEMY_CONN
-              value: postgresql+psycopg2://{{ .Values.kaapana_database.postgres_user }}:{{ .Values.kaapana_database.postgres_password }}@{{ .Values.kaapana_database.appName | default .Chart.Name }}-database-service.{{ .Values.global.services_namespace }}.svc:5432/{{ .Values.kaapana_database.postgres_db }}
             - name: SQLALCHEMY_SILENCE_UBER_WARNING
               value: "1"
             - name: SMTP_HOST

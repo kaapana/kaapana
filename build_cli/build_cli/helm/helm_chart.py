@@ -564,7 +564,7 @@ class HelmChart:
 
         logger.info(f"{self.name}: lint_chart")
 
-        command = [helm_executable, "lint", "."]
+        command = [helm_executable, "lint", ".", "--quiet"]  # --quiet: no [INFO] lines
         if with_subcharts:  # every chart below this one is linted as its own unit too
             command.append("--with-subcharts")
         if values:

@@ -502,12 +502,13 @@ function deleteClientWorkflowAPI(workflow_id: string) {
         title: message,
       })
     })
-    .catch(() => {
+    .catch((err: any) => {
       loading.value = false
       const message = `Error while deleting workflow ${workflow_id}`
       notify({
         type: 'error',
         title: message,
+        text: err?.response?.data?.detail ?? err.message,
       })
     })
 }
@@ -526,12 +527,13 @@ function restartClientWorkflowAPI(workflow_id: string, workflow_status: string) 
         title: message,
       })
     })
-    .catch(() => {
+    .catch((err: any) => {
       loading.value = false
       const message = `Error while restarting workflow ${workflow_id}`
       notify({
         type: 'error',
         title: message,
+        text: err?.response?.data?.detail ?? err.message,
       })
     })
 }
@@ -550,12 +552,13 @@ function abortClientWorkflowAPI(workflow_id: string, workflow_status: string) {
         title: message,
       })
     })
-    .catch(() => {
+    .catch((err: any) => {
       loading.value = false
       const message = `Error while aborting workflow ${workflow_id}`
       notify({
         type: 'error',
         title: message,
+        text: err?.response?.data?.detail ?? err.message,
       })
     })
 }
@@ -574,12 +577,13 @@ function manuallyStartClientWorkflowAPI(workflow_id: string, workflow_status: st
         title: message,
       })
     })
-    .catch(() => {
+    .catch((err: any) => {
       loading.value = false
       const message = `Error while manually starting workflow ${workflow_id}`
       notify({
         type: 'error',
         title: message,
+        text: err?.response?.data?.detail ?? err.message,
       })
     })
 }

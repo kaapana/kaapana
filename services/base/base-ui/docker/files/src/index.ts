@@ -25,4 +25,11 @@ export {
 } from './utils/vuetifyTheme'
 export { createKaapanaVuetify, type KaapanaVuetifyOptions } from './utils/createKaapanaVuetify'
 export { kaapanaIcons, type KaapanaIconName } from './utils/icons'
+export {
+  checkAuthR,
+  checkRoleAuthR,
+  type OpaUser,
+  type PolicyData,
+  type PolicyEndpoint,
+} from './utils/opa'
 export { useShellSettings } from './composables/useShellSettings'

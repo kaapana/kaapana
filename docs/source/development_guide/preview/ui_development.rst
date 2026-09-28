@@ -143,6 +143,9 @@ copy-pasted into every view. It currently exports:
   set and the platform typeface.
 - ``kaapanaIcons`` — the semantic icon map of the
   :ref:`design guidelines <design_guidelines>`.
+- ``checkAuthR()`` / ``checkRoleAuthR()`` — the client-side check against the
+  OPA policy data, for hiding controls the gateway would refuse. It sees role
+  grants only, not claim rules; the gateway enforces the policy.
 - ``ConfirmDialog`` — the confirmation gate for destructive and high-impact
   actions (initial focus on Cancel, Escape and backdrop cancel, focus restored
   to the opener).

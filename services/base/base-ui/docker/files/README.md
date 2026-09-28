@@ -21,6 +21,11 @@ deliberately only small, stable pieces.
 - `createKaapanaVuetify()`, `KaapanaVuetifyOptions` — builds the shared theme,
   icon configuration and platform fonts while allowing consumer extensions.
 - `kaapanaIcons`, `KaapanaIconName` — semantic names for shared action icons.
+- `checkAuthR(policyData, endpoint, user)`, `checkRoleAuthR(...)`, `PolicyData`,
+  `PolicyEndpoint`, `OpaUser` — the client-side check against the OPA policy
+  data (`GET /kaapana-backend/open-policy-data`), for hiding controls the
+  gateway would refuse. It sees role grants only, not claim rules, and it is
+  cosmetic: the gateway enforces the policy.
 - `ConfirmDialog` — the confirmation gate for destructive (`color="error"`)
   and high-impact (`color="primary"`, the default) actions: `title`, `text`,
   `confirmText`/`cancelText`; emits `confirm` / `cancel`. Cancel takes

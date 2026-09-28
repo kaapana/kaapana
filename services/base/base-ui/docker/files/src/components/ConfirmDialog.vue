@@ -1,5 +1,10 @@
 <template>
-  <v-dialog :model-value="modelValue" max-width="400" @update:model-value="onUpdate">
+  <v-dialog
+    :model-value="modelValue"
+    max-width="400"
+    @update:model-value="onUpdate"
+    @after-leave="restoreFocus"
+  >
     <v-card :elevation="5">
       <v-card-title>{{ title }}</v-card-title>
       <v-card-text>{{ text }}</v-card-text>
@@ -13,10 +18,8 @@
 </template>
 
 <script setup lang="ts">
-// Confirmation gate for a destructive or high-impact action, per the "Actions
-// Requiring Confirmation" design guideline. Escape and a backdrop click close
-// the dialog through the same `update:modelValue` path as Cancel, so a
-// dismissed prompt always resolves as "cancelled" rather than as nothing.
+// Escape and a backdrop click close the dialog through update:modelValue, like
+// Cancel, so every dismissal emits `cancel`.
 import { nextTick, ref, watch } from 'vue'
 import { VBtn, VCard, VCardActions, VCardText, VCardTitle, VDialog, VSpacer } from 'vuetify/components'
 
@@ -40,6 +43,11 @@ const props = withDefaults(
 
 const cancelButton = ref<InstanceType<typeof VBtn> | null>(null)
 
+// Capture the control that opened the dialog, to return focus to it on close;
+// a model-value-driven dialog gives Vuetify no activator to restore. Read
+// before Cancel takes the initial focus.
+let opener: HTMLElement | null = null
+
 // Cancel must take the initial focus, so a stray Enter cancels instead of
 // confirming. The `autofocus` attribute does not achieve that here: VDialog
 // mounts its content after the activator is handled and then focuses the
@@ -48,10 +56,16 @@ watch(
   () => props.modelValue,
   async (open) => {
     if (!open) return
+    opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
     await nextTick()
     cancelButton.value?.$el?.focus()
   },
 )
+
+function restoreFocus() {
+  opener?.focus()
+  opener = null
+}
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]

@@ -157,3 +157,26 @@ test('the delete confirmation gives Cancel the initial focus', async ({ page }) 
     )
     .toBe('cancel')
 })
+
+test('a dismissed delete confirmation returns focus to the button that opened it', async ({ page }) => {
+  await expandRunningWorkflow(page)
+  const remove = jobRow(page).getByRole('button', { name: 'Delete job' })
+  const dialog = page.getByRole('dialog')
+
+  // Cancelled with its button.
+  await remove.focus()
+  await page.keyboard.press('Enter')
+  await dialog.getByRole('button', { name: 'Cancel' }).click()
+  await expect(dialog).toBeHidden()
+  await expect(remove).toBeFocused()
+
+  // Dismissed with Escape. Vuetify honours Escape only once its overlay stack
+  // has settled (a setTimeout after the dialog appears), so press until it takes.
+  await page.keyboard.press('Enter')
+  await expect(confirmButton(page, 'Delete job')).toBeVisible()
+  await expect(async () => {
+    await page.keyboard.press('Escape')
+    await expect(dialog).toBeHidden({ timeout: 500 })
+  }).toPass()
+  await expect(remove).toBeFocused()
+})

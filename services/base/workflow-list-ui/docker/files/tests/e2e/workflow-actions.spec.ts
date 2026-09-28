@@ -108,3 +108,21 @@ test('sync failure shows an error notification', async ({ page }) => {
   await expect(page.getByText('remote unreachable')).toBeVisible()
   expect(pageErrors).toEqual([])
 })
+
+test('a rejected workflow deletion shows the backend reason', async ({ page }) => {
+  await installMockBackend(page)
+  await page.route(WORKFLOW, (r) =>
+    r.fulfill({
+      status: 409,
+      contentType: 'application/json',
+      body: '{"detail":"workflow still has running jobs"}',
+    }),
+  )
+  await page.goto(VIEW_PATH)
+
+  await runningRow(page).getByRole('button', { name: 'Delete workflow' }).click()
+  await confirmButton(page, 'Delete workflow').click()
+
+  await expect(page.getByText('Error while deleting workflow wf-running-001')).toBeVisible()
+  await expect(page.getByText('workflow still has running jobs')).toBeVisible()
+})

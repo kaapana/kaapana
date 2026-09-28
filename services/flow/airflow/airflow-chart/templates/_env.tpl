@@ -36,16 +36,24 @@
     secretKeyRef:
       name: system-user-password
       key: system-user-password
+- name: KAAPANA_PROJECT_USER_NAME
+  value: "system"
+{{- /* TODO: duplicates SYSTEM_USER_PASSWORD, unify into one variable */}}
+- name: KAAPANA_PROJECT_USER_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: system-user-password
+      key: system-user-password
 - name: OPENSEARCH_HOST
   value: "opensearch-service.{{ .Values.global.services_namespace }}.svc"
 - name: OPENSEARCH_PORT
   value: "9200"
+- name: OPENSEARCH_URL
+  value: "opensearch-service.{{ .Values.global.services_namespace }}.svc:9200"
 - name: KEYCLOAK_URL
   value: "http://keycloak-external-service.{{ .Values.global.admin_namespace }}.svc:80"
 - name: KUBE_HELM_URL
   value: "http://kube-helm-service.{{ .Values.global.admin_namespace }}.svc:9000"
-- name: OPENSEARCH_URL
-  value: "opensearch-service.{{ .Values.global.services_namespace }}.svc:9200"
 - name: DICOM_WEB_FILTER_URL
   value: "http://dicom-web-filter-service.{{ .Values.global.services_namespace }}.svc:8080"
 - name: NOTIFICATION_URL
@@ -81,6 +89,4 @@
   value: "{{ .Values.global.smtp_username }}"
 - name: SMTP_PASSWORD
   value: "{{ .Values.global.smtp_password }}"
-- name: KAAPANA_PROJECT_USER_NAME
-  value: "system"
 {{- end }}

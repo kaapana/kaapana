@@ -63,3 +63,20 @@ test('failing get-dags toasts instead of an endless spinner', async ({ page }) =
   await expect(page.locator('.v-progress-circular')).toBeVisible()
   expect(pageErrors).toHaveLength(0)
 })
+
+// Toasts take the platform theme's roles instead of the notification library's
+// own palette, so they follow dark mode and get the theme's contrasting text.
+for (const dark of [false, true]) {
+  test(`an error toast uses the ${dark ? 'dark' : 'light'} theme's error colour`, async ({ page }) => {
+    await installMockBackend(page)
+    await page.addInitScript((d) => localStorage.setItem('settings', JSON.stringify({ darkMode: d })), dark)
+    await page.route('**/kaapana-backend/client/get-dags', fail('dags exploded'))
+    await page.goto(VIEW_PATH)
+
+    const toast = page.locator('.vue-notification.error', { hasText: 'Failed to load workflows' })
+    const themeError = await page.locator('.v-application').evaluate(
+      (el) => `rgb(${getComputedStyle(el).getPropertyValue('--v-theme-error').trim().replaceAll(',', ', ')})`,
+    )
+    await expect(toast).toHaveCSS('background-color', themeError)
+  })
+}

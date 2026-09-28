@@ -38,7 +38,9 @@ schemas:
   `enum`/`oneOf` stripped and marked `readOnly` (so "nothing to pick yet" fields
   show their notice instead of blanking the form); object-const `oneOf` node
   types reconciled. Field `description`s are drawn by base-ui's `HelpIcon` in the
-  input's append slot (`layout.slots.append`), as on the native fields.
+  input's append slot (`layout.slots.append`), as on the native fields; a
+  `readOnly` field's description gains "Fixed by this workflow." so the icon
+  also says why the field is disabled.
 - **Settings-based defaults + `hideOnUI`** — `localStorage["settings"].workflows`
   (shell-seeded, keyed by `camelCase(dag_id)`) overrides schema defaults per
   field; fields listed under `hideOnUI` are marked `x-display: hidden` (not

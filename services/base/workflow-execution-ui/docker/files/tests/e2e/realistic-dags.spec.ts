@@ -122,5 +122,8 @@ test('a schema-readOnly field says why it cannot be edited', async ({ page }) =>
   await selectDag(page, 'fixed-field')
 
   await expect(page.getByLabel('Input modality')).toBeDisabled()
-  await expect(page.getByText('Fixed by this workflow.')).toBeVisible()
+  // The reason lives in the field's help icon, like every other description.
+  await expect(page.getByText('Fixed by this workflow.')).toBeHidden()
+  await page.locator('.vjsf .wfe-help-icon').hover()
+  await expect(page.getByText('Expected input modality. Fixed by this workflow.')).toBeVisible()
 })

@@ -18,16 +18,8 @@
 </template>
 
 <script setup lang="ts">
-// This is the ConfirmDialog.vue added to base-ui in feature/2336-workflow-ui-check
-// (MR !1126), plus the return of focus to the control that opened it, which the
-// guidelines' accessibility section asks for. A `model-value`-driven dialog
-// gives Vuetify no activator to restore, so the dialog remembers the opener
-// itself.
-//
-// Confirmation gate for a destructive or high-impact action, per the "Actions
-// Requiring Confirmation" design guideline. Escape and a backdrop click close
-// the dialog through the same `update:modelValue` path as Cancel, so a
-// dismissed prompt always resolves as "cancelled" rather than as nothing.
+// Escape and a backdrop click close the dialog through update:modelValue, like
+// Cancel, so every dismissal emits `cancel`.
 import { nextTick, ref, watch } from 'vue'
 import { VBtn, VCard, VCardActions, VCardText, VCardTitle, VDialog, VSpacer } from 'vuetify/components'
 
@@ -51,8 +43,9 @@ const props = withDefaults(
 
 const cancelButton = ref<InstanceType<typeof VBtn> | null>(null)
 
-// Capture the control that opened the dialog, to return focus to it on close.
-// Read before Cancel takes the initial focus.
+// Capture the control that opened the dialog, to return focus to it on close;
+// a model-value-driven dialog gives Vuetify no activator to restore. Read
+// before Cancel takes the initial focus.
 let opener: HTMLElement | null = null
 
 // Cancel must take the initial focus, so a stray Enter cancels instead of

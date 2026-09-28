@@ -418,17 +418,11 @@ function normalizeV2Schema(fragment: any): any {
     return fragment;
   }
   // A `readOnly` field renders disabled, which on its own only tells the user
-  // that they cannot change it. Say why, through the description channel the
-  // form already shows under the field.
+  // that they cannot change it. Say why, through the field's help icon.
   if (fragment.readOnly === true && typeof fragment.type === "string") {
-    const layout = fragment.layout && typeof fragment.layout === "object" ? fragment.layout : {};
-    fragment.layout = {
-      ...layout,
-      hint: "Fixed by this workflow.",
-      // A disabled field cannot take focus, and Vuetify only reveals a hint on
-      // focus unless it is persistent.
-      props: { ...(layout.props ?? {}), persistentHint: true },
-    };
+    const text = fragment.description?.trim();
+    const sentence = text && !/[.!?]$/.test(text) ? `${text}.` : text;
+    fragment.description = sentence ? `${sentence} Fixed by this workflow.` : "Fixed by this workflow.";
   }
   // ajv rejects empty `enum`/`oneOf` and crashes the whole form; real DAGs emit
   // them for "nothing to pick yet" fields. Drop the constraint, mark readOnly.
@@ -1255,5 +1249,11 @@ onMounted(() => {
    vjsf renders inside its own component, hence :deep(). */
 :deep(.vjsf .v-input__append > div) {
   display: contents;
+}
+
+/* A disabled field blocks pointer events on its whole box, help icon included;
+   that icon is where a fixed field says why, so it must stay hoverable. */
+:deep(.v-input--disabled .wfe-help-icon) {
+  pointer-events: auto;
 }
 </style>

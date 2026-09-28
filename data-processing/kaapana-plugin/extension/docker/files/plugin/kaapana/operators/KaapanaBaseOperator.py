@@ -38,7 +38,11 @@ from kaapana.blueprints.kaapana_global_variables import (
     PULL_POLICY_IMAGES,
     SERVICES_NAMESPACE,
 )
-from kaapana.blueprints.kaapana_utils import cure_invalid_name, get_release_name
+from kaapana.blueprints.kaapana_utils import (
+    get_conf_configmap_name,
+    get_kubernetes_run_id,
+    get_release_name,
+)
 from kaapana.operators import HelperSendEmailService
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperFederated import federated_sharing_decorator
@@ -513,13 +517,12 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         dag_conf = context["dag_run"].conf or {}
         config_json = json.dumps(dag_conf, indent=4, sort_keys=True)
 
-        run_id = cure_invalid_name(context["run_id"], r"(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?")
-        configmap_name = f"{run_id}-config"
+        configmap_name = get_conf_configmap_name(context["run_id"])
 
         metadata = client.V1ObjectMeta(
             name=configmap_name,
             namespace=self.namespace,
-            labels={"app": "kaapana", "run_id": run_id},
+            labels={"app": "kaapana", "run_id": get_kubernetes_run_id(context["run_id"])},
         )
         body = client.V1ConfigMap(
             api_version="v1",
@@ -550,7 +553,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             name="workflowconf",
             mount_path=os.path.join(
                 PROCESSING_WORKFLOW_DIR,
-                run_id,
+                context["run_id"],
                 "conf",
                 "conf.json",
             ),
@@ -1094,7 +1097,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         logging.info(result)
 
     def set_context_variables(self, context: Context):
-        self.labels["run_id"] = cure_invalid_name(context["run_id"], r"(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?")
+        self.labels["run_id"] = get_kubernetes_run_id(context["run_id"])
 
     @staticmethod
     def set_defaults(

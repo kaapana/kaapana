@@ -239,12 +239,14 @@ const workflowHeaders = [
   { title: 'Updated', key: 'time_updated' },
   { title: 'Username', key: 'username' },
   { title: 'Owner Instance', key: 'kaapana_instance.instance_name' },
-  { title: 'Status', key: 'status', align: 'center' },
+  { title: 'Status', key: 'status', align: 'center', minWidth: '220px' },
   {
     title: 'Actions',
     key: 'actions',
     sortable: false,
     align: 'center',
+    minWidth: '180px',
+    nowrap: true,
   },
 ] as const
 

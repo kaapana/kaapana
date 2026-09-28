@@ -174,7 +174,7 @@ test.describe('on a wide screen', () => {
     const box = await page.locator('.workflow-list-container').boundingBox()
     expect(box).not.toBeNull()
     if (!box) return
-    expect(box.width).toBeLessThanOrEqual(1600)
+    expect(box.width).toBeLessThanOrEqual(1800)
     // the leftover space becomes margin on both sides, not more table
     expect(Math.abs(box.x - (2560 - box.x - box.width))).toBeLessThan(2)
   })

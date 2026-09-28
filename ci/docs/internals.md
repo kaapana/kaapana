@@ -219,8 +219,8 @@ named `ci-*`**, or the sweep will collect it.
 Without `VM_SWEEP_APPLY=true` the run only reports, in the job log and in the
 `vm_sweep.log` artifact. The pipeline status comes from the API through
 `GITLAB_READ_API_TOKEN` (project access token, scope `read_api`, role
-Reporter), because neither the job token nor `GITLAB_API_TOKEN`, which aliases
-the registry token, may read pipelines. If GitLab does not answer, the run ends
+Reporter), because the job token may not read pipelines and `read_api` is all
+the sweep needs. If GitLab does not answer, the run ends
 on one ERROR line and touches nothing. A failed teardown turns the job red, and
 on `develop` `if_ci_failing` attaches `vm_sweep.log` to its issue.
 

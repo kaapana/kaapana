@@ -37,7 +37,7 @@ REQUIRED_ENV = [
     "HARVESTER_KUBECONFIG",
     "DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE",
     # Its own credential: a job token may only PUT pipeline metadata, and
-    # GITLAB_API_TOKEN aliases the registry credential, which the API rejects.
+    # read_api is all the sweep needs.
     "GITLAB_READ_API_TOKEN",
     "CI_PROJECT_ID",
     "CI_SERVER_URL",

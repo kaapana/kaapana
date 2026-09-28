@@ -363,10 +363,10 @@ const {
 const form_requiredFields = ref<string[]>([]);
 
 // View-dirty reporting: the shell warns before a project switch reloads this
-// iframe. Dirty must reflect user input only — a single-dag project re-selects
-// its dag on every load (so that choice alone is not dirty), and vjsf fills
-// formData with schema defaults asynchronously, so the baseline tracks formData
-// until the user first interacts, then freezes.
+// iframe. Dirty must reflect user input only: the workflow choice is not input
+// (a reload offers it again, a single-dag project even re-selects it), and
+// vjsf fills formData with schema defaults asynchronously, so the baseline
+// tracks the form until the user first interacts, then freezes.
 const userTouchedForm = ref(false);
 const formBaseline = ref("{}");
 
@@ -387,21 +387,24 @@ function markFormTouched() {
   userTouchedForm.value = true;
 }
 
+// Everything the user can type or pick before Start: vjsf's formData, the
+// native run name, and the backend file tree, which reaches formData only at
+// submit time.
+const formSnapshot = () => stableStringify([state.formData, state.workflow_name, state.selectedItems]);
+
 watch(
-  () => state.formData,
-  () => {
-    if (!userTouchedForm.value) formBaseline.value = stableStringify(state.formData);
+  formSnapshot,
+  (snapshot) => {
+    if (!userTouchedForm.value) formBaseline.value = snapshot;
   },
-  { deep: true }
+  { immediate: true }
 );
 
 const viewDirty = computed(() => {
-  const dagDirty = state.dag_id !== null && state.available_dags.length > 1;
-  const formDirty =
-    userTouchedForm.value && stableStringify(state.formData) !== formBaseline.value;
+  const formDirty = userTouchedForm.value && formSnapshot() !== formBaseline.value;
   // Native (non-vjsf) inputs, both reset on every dag change (see dag watcher).
   const nativeDirty = state.selectedDataset !== null || state.datasetLimitWhole === false;
-  return dagDirty || formDirty || nativeDirty;
+  return formDirty || nativeDirty;
 });
 
 watch(viewDirty, (dirty) => {

@@ -22,16 +22,36 @@ function lastDirty(page: Page) {
   })
 }
 
-test('selecting a dag reports the view dirty; Clear reports clean', async ({ page }) => {
+test('selecting a dag leaves the view clean; editing a field reports dirty; Clear reports clean', async ({
+  page,
+}) => {
   await trackDirty(page)
   await bootView(page) // default: multiple dags -> nothing auto-selected on boot
   expect(await lastDirty(page)).toBeNull()
 
+  // The workflow choice is not unsaved input: a reload offers it again.
   await selectDag(page, 'mock-all-fields')
+  await expect(page.getByLabel('Text Field')).toHaveValue('hello')
+  expect(await lastDirty(page)).toBeNull()
+
+  await page.getByLabel('Text Field').fill('edited')
   await expect.poll(() => lastDirty(page)).toBe(true)
 
   await page.getByRole('button', { name: 'Clear', exact: true }).click()
   await expect.poll(() => lastDirty(page)).toBe(false)
+})
+
+test('typing a workflow name reports the view dirty', async ({ page }) => {
+  await trackDirty(page)
+  await bootView(page)
+  await selectDag(page, 'mock-all-fields')
+  await expect(page.getByLabel('Workflow name')).toHaveValue('mock-all-fields')
+  expect(await lastDirty(page)).toBeNull()
+
+  // The run name is a native field outside vjsf's formData, so it needs its
+  // own place in the dirty baseline.
+  await page.getByLabel('Workflow name').fill('custom-run')
+  await expect.poll(() => lastDirty(page)).toBe(true)
 })
 
 // A single-dag project auto-selects its only dag on boot, so the dag choice is

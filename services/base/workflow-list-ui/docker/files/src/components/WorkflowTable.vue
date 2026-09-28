@@ -476,7 +476,7 @@ function getSingleJobOfWorkflow(workflow_name: string) {
         const message_text = `Workflow just triggered with >50 jobs? -> Jobs are created. \n
                             Workflow triggered >20 seconds ago?    -> Error while creating jobs.`
         notify({
-          type: 'warning',
+          type: 'warn',
           title: message_title,
           text: message_text,
         })

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { bootView, selectDag } from './fixtures/mock-backend'
+import { bootView, selectDag, singleDagData } from './fixtures/mock-backend'
 
 // Validation gating is asserted at the network level (a blocked submit fires
 // NO /workflow request) rather than against vjsf internals.
@@ -282,4 +282,45 @@ test('a disabled Start Workflow says which required field is missing', async ({ 
 
   await page.getByLabel('AE Title').fill('KAAPANA')
   await expect(submit).toBeEnabled()
+})
+
+test('a disabled Start Workflow names the field holding an invalid value', async ({ page }) => {
+  await bootView(
+    page,
+    singleDagData('short-title', {
+      workflow_form: {
+        type: 'object',
+        properties: { aetitle: { type: 'string', title: 'AE Title', default: 'OK', maxLength: 4 } },
+      },
+    }),
+  )
+  await selectDag(page, 'short-title')
+  await page.getByLabel('AE Title').fill('TOOLONG')
+
+  const submit = page.getByRole('button', { name: 'Start Workflow' })
+  await expect(submit).toBeDisabled()
+  await submit.locator('xpath=..').hover()
+  await expect(page.getByText('Fix the invalid field: AE Title.')).toBeVisible()
+})
+
+test('an untouched invalid default is named although its field shows no error yet', async ({
+  page,
+}) => {
+  // vjsf keeps a field's error hidden until the user touches it, while the
+  // button is already disabled; the tooltip must still say which field.
+  await bootView(
+    page,
+    singleDagData('bad-default', {
+      workflow_form: {
+        type: 'object',
+        properties: { aetitle: { type: 'string', title: 'AE Title', default: 'TOOLONG', maxLength: 4 } },
+      },
+    }),
+  )
+  await selectDag(page, 'bad-default')
+
+  const submit = page.getByRole('button', { name: 'Start Workflow' })
+  await expect(submit).toBeDisabled()
+  await submit.locator('xpath=..').hover()
+  await expect(page.getByText('Fix the invalid field: AE Title.')).toBeVisible()
 })

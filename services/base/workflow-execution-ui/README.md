@@ -52,7 +52,9 @@ schemas:
   The dataset object-const is serialized to a scalar for the picker and restored
   into `data_form` on submit; the limit is omitted when "whole dataset" is on.
 - **Validation gating** — required-field checks, and any boolean field literally
-  named `confirmation` must be `true` before submit fires.
+  named `confirmation` must be `true` before submit fires. While Start Workflow
+  is disabled, its tooltip names the missing required fields or, from vjsf's
+  `update:state` tree, the fields whose value is invalid.
 - **Unsaved-changes (view-dirty) reporting** — the view posts
   `kaapana:view-dirty` to the shell (`postViewDirty`) so a project switch (which
   reloads the iframe and discards in-memory form state) can warn first. On by

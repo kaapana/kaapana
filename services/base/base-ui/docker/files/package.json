@@ -17,7 +17,8 @@
       "types": "./dist/workflowExecution.d.ts",
       "import": "./dist/workflowExecution.js"
     },
-    "./workflow-execution.css": "./dist/workflowExecution.css"
+    "./workflow-execution.css": "./dist/workflowExecution.css",
+    "./style.css": "./dist/index.css"
   },
   "files": [
     "dist"

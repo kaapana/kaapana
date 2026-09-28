@@ -139,6 +139,8 @@ copy-pasted into every view. It currently exports:
 - ``kaapanaThemeLight`` / ``kaapanaThemeDark`` (+ their name constants) and
   ``useShellSettings()`` — the Vuetify themes and the
   ``localStorage["settings"]`` sync.
+- ``createKaapanaVuetify()`` — the shared Vuetify setup: the themes, the icon
+  set and the platform typeface.
 - ``kaapanaIcons`` — the semantic icon map of the
   :ref:`design guidelines <design_guidelines>`.
 - ``ConfirmDialog`` — the confirmation gate for destructive and high-impact
@@ -205,12 +207,17 @@ Adding a shared component
 
 1. Add the source under ``src/`` (components in ``src/components/``, plain
    helpers in ``src/utils/``).
-2. Export it from ``src/index.ts``, the main entry — unless it pulls the
-   optional ``@koumoul/vjsf`` peer, in which case it belongs on the
-   ``./workflow-execution`` subpath entry (``src/workflowExecution.ts``)
-   instead, so views that do not need ``vjsf`` never have to install it.
-3. Add a ``*.stories.ts`` next to it so it shows up in Storybook.
-4. ``npm run build``.
+2. Keep a component's own CSS in a scoped ``<style>`` block. The library
+   build collects the main entry's blocks into ``dist/index.css``, exported as
+   ``@kaapana/base-ui/style.css``, which every view imports once (see
+   *Consuming from a view*), so a new styled component needs no further
+   setup.
+3. Export it from ``src/index.ts``, the main entry — unless it pulls an
+   optional peer such as ``@koumoul/vjsf``; then it gets its own subpath
+   entry, like ``./workflow-execution`` (``src/workflowExecution.ts``), so
+   views that do not need that peer never have to install it.
+4. Add a ``*.stories.ts`` next to it so it shows up in Storybook.
+5. ``npm run build``.
 
 Keep every runtime dependency in ``peerDependencies`` (never
 ``dependencies``): the library must always run against the consumer's copies.
@@ -241,6 +248,16 @@ any package:
 .. code-block:: typescript
 
    import { postViewDirty, useShellSettings } from '@kaapana/base-ui'
+
+Every view also imports the library's stylesheet once, next to
+``vuetify/styles``. It holds the styles of ``base-ui``'s own components, and
+nothing loads it automatically:
+
+.. code-block:: typescript
+
+   import 'vuetify/styles'
+   import '@mdi/font/css/materialdesignicons.css'
+   import '@kaapana/base-ui/style.css'
 
 The view's ``vite.config.ts`` **must** dedupe **all** of the peer dependencies —
 ``dist/`` externalizes every one of them, so an omitted name is a build failure,

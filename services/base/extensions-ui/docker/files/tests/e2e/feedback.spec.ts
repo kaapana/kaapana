@@ -151,6 +151,10 @@ test.describe('failed actions', () => {
     await expect(details.getByText(/POST \/project\/admin\/kube-helm-api\/helm-install-chart/)).toBeVisible()
     await expect(details.getByRole('button', { name: 'Copy details' })).toBeVisible()
     await expect(details.getByRole('button', { name: 'Close' })).toBeFocused()
+    // The labels sit beside their values: base-ui's component styles reached the view.
+    const list = details.locator('dl.kaapana-error-details')
+    await expect(list).toHaveCSS('display', 'grid')
+    await expect(list).toHaveCSS('grid-template-columns', /^\S+px \S+px$/)
 
     await dismissWithEscape(page)
   })

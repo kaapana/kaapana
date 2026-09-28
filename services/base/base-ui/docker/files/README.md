@@ -42,9 +42,12 @@ deliberately only small, stable pieces.
 ```ts
 import 'vuetify/styles'
 import '@mdi/font/css/materialdesignicons.css'
+import '@kaapana/base-ui/style.css'
 ```
 
-That is the whole list. In particular there is **no font import**: the platform
+That is the whole list for every view; a view that renders `WorkflowExecution`
+also imports its stylesheet (see below).
+In particular there is **no font import**: the platform
 typeface (Roboto, weights 300/400/500) is injected by `createKaapanaVuetify()`,
 so a view that uses the shared Vuetify configuration cannot ship the theme and
 forget the face.
@@ -66,6 +69,14 @@ injected sheet so the text travels in the same string as the base64 — a file i
 
 Changing the family is not possible through the theme, for the same reason it has
 to be shipped: it takes recompiling Vuetify's Sass through `$body-font-family`.
+
+Component styles do not travel that way. A component keeps its own CSS in a
+scoped `<style>` block, and the library build collects the main entry's blocks
+into `dist/index.css`, exported as `@kaapana/base-ui/style.css`. Every view
+imports it once, like `vuetify/styles` (above), so a new styled component needs
+no further setup. Nothing loads it automatically: a view without the import
+renders base-ui's components unstyled, without any error. The
+`./workflow-execution` entry has its own stylesheet (below).
 
 `vue`, `vuetify`, `axios`, `@kyvg/vue3-notification` and `pinia` are all
 peerDependencies and none of them is ever bundled; the consuming view provides

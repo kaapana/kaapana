@@ -20,6 +20,48 @@
     vm_memory_guest: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_MEMORY', default=undef()) }}"
     vm_memory_max: "{{ vm_memory_guest }}"
     vm_disk_size: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_DISK', default=undef()) }}"
+    # Resolved lazily, so it follows the truncation vm_name may undergo below.
+    vm_manifest_path: "/tmp/{{ vm_name }}-vm.yml"
+    vm_ready_timeout: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_READY_TIMEOUT', default=600) | int }}"
+    vm_ready_interval: 5
+    vm_dns_timeout: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_DNS_TIMEOUT', default=300) | int }}"
+    vm_dns_interval: 10
+    # Explains the status the wait ended on.
+    vm_failure_hints:
+      '': >-
+        The VM could not be read at all. Either it was never created, or the
+        lookup error below says why the cluster did not answer.
+      Provisioning: >-
+        Harvester never finished creating the VM. This is the disk image import
+        or the storage backend, not the requested CPU and memory.
+      Starting: >-
+        The launcher pod exists but the guest never reported Running. Check the
+        pod's events and the VM console.
+      ErrorUnschedulable: >-
+        No node could accept the VM. Either the cluster is out of capacity, or a
+        requested volume cannot be bound.
+      WaitingForVolumeBinding: >-
+        The disk PVC never bound. Check the storage class and its free capacity.
+      ErrorPvcNotFound: >-
+        The disk PVC vanished after the VM started referencing it.
+      DataVolumeError: >-
+        Importing the VM image into the disk failed.
+      ErrImagePull: >-
+        KubeVirt could not pull its own virt-launcher container image. A
+        cluster-side problem, unrelated to the requested VM image.
+      ImagePullBackOff: >-
+        KubeVirt could not pull its own virt-launcher container image. A
+        cluster-side problem, unrelated to the requested VM image.
+      CrashLoopBackOff: >-
+        The VM boots and dies repeatedly.
+      Stopped: >-
+        The VM was created but never started. A resource quota rejecting the
+        launcher pod leaves it here, and Harvester sets runStrategy to Halted,
+        so it will not come up on its own either.
+
+    ci_pipeline_id: "{{ lookup('env', 'CI_PIPELINE_ID', default='') }}"
+    ci_pipeline_url: "{{ lookup('env', 'CI_PIPELINE_URL', default='') }}"
+    ci_keep_after_pipeline: "{{ lookup('env', 'CI_EXEC_DESTROY_DELAYED', default='false') }}"
 
     # Harvester connection
     harvester_namespace: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE', default=undef()) }}"
@@ -61,6 +103,17 @@
         - "harvester_namespace={{ harvester_namespace }}"
         - "harvester_kubeconfig={{ harvester_kubeconfig }}"
         - "artifacts_dir={{ artifacts_dir }}"
+
+  - name: Check that the provisioning timeouts are usable
+    ansible.builtin.assert:
+      that:
+        - vm_ready_timeout | int > 0
+        - vm_dns_timeout | int > 0
+      fail_msg: >-
+        A provisioning timeout is not a positive number of seconds, which
+        leaves the wait with zero retries and samples the VM state once.
+        READY={{ lookup('env', 'DEPLOYMENT_INSTANCE_READY_TIMEOUT') | default('unset', true) }},
+        DNS={{ lookup('env', 'DEPLOYMENT_INSTANCE_DNS_TIMEOUT') | default('unset', true) }}
 
   # dcmsend imposes a 57-character limit on the peerhost (FQDN) field.
   # Truncate vm_name here, before any resources are created, so the
@@ -207,13 +260,13 @@
   - name: Render VM manifest from Jinja template
     ansible.builtin.template:
       src: templates/vm.yml.j2
-      dest: /tmp/{{ vm_name }}-vm.yml
+      dest: "{{ vm_manifest_path }}"
       mode: '0644'
 
   - name: Apply VM manifest
     kubernetes.core.k8s:
       state: present
-      definition: "{{ lookup('file', '/tmp/{{ vm_name }}-vm.yml') | from_yaml }}"
+      definition: "{{ lookup('file', vm_manifest_path) | from_yaml }}"
       kubeconfig: "{{ harvester_kubeconfig }}"
     register: vm_apply_result
 
@@ -301,26 +354,89 @@
         - "Name: {{ vm_name }}"
         - "Namespace: {{ harvester_namespace }}"
 
-  - name: Wait for VM to be running
+  # Only a halted VM stays down: Harvester halts it when the quota rejects the
+  # launcher pod. Any status, Stopped included, can pass during the disk import.
+  - name: Wait for the VM to be running
     kubernetes.core.k8s_info:
       api_version: kubevirt.io/v1
       kind: VirtualMachine
       name: "{{ vm_name }}"
       namespace: "{{ harvester_namespace }}"
       kubeconfig: "{{ harvester_kubeconfig }}"
-    register: vm_status
-    until: vm_status.resources | length > 0 and (vm_status.resources[0].status.ready | default(false))
-    retries: 60
-    delay: 10
+    register: vm_info
+    vars:
+      _vm: "{{ vm_info.resources | first | default({}) }}"
+    until: >-
+      _vm.get('status', {}).get('printableStatus', '') == 'Running'
+      or _vm.get('spec', {}).get('runStrategy', '') == 'Halted'
+    retries: "{{ ((vm_ready_timeout | int) / (vm_ready_interval | int)) | round(0, 'ceil') | int }}"
+    delay: "{{ vm_ready_interval }}"
     changed_when: false
+    # An exhausted budget is a verdict too, and the task below says it better
+    # than ansible's retry message.
+    failed_when: false
+
+  - name: Remember the last VM status
+    ansible.builtin.set_fact:
+      vm_printable_status: "{{ (vm_info.resources | first | default({})).get('status', {}).get('printableStatus', '') }}"
+      vm_halted: "{{ (vm_info.resources | first | default({})).get('spec', {}).get('runStrategy', '') == 'Halted' }}"
+
+  # ErrorUnschedulable covers both exhausted capacity and an unbindable
+  # volume, and only the scheduler's own message tells them apart.
+  - name: Collect the conditions of the VM instance
+    kubernetes.core.k8s_info:
+      api_version: kubevirt.io/v1
+      kind: VirtualMachineInstance
+      name: "{{ vm_name }}"
+      namespace: "{{ harvester_namespace }}"
+      kubeconfig: "{{ harvester_kubeconfig }}"
+    register: vmi_info
+    when: vm_printable_status != 'Running'
+    # May not exist yet; a missing diagnosis must not mask the failure below.
+    failed_when: false
+    changed_when: false
+
+  - name: Fail with the provisioning cause
+    vars:
+      # Only meaningful with no object at all: a status says more than this.
+      _vm_lookup_error: >-
+        {{ vm_info.msg | default('') if (vm_info.resources | default([]) | length) == 0 else '' }}
+      # A quota rejection never creates a VMI, so its cause lives here instead.
+      _vm_quota: >-
+        {{ (vm_info.resources | first | default({})).get('metadata', {}).get('annotations', {})
+           .get('harvesterhci.io/insufficient-resource-quota', '') }}
+      _vmi_conditions: >-
+        {{ (vmi_info.resources | default([]) | first | default({})).get('status', {}).get('conditions', [])
+           | selectattr('status', 'equalto', 'False')
+           | selectattr('message', 'defined')
+           | map(attribute='message') | join(' | ') }}
+    ansible.builtin.fail:
+      msg: >-
+        VM {{ vm_name }} did not reach Running in namespace {{ harvester_namespace }}.
+        Status: {{ vm_printable_status | default('none reported', true) }}
+        {%- if not vm_halted | bool %} after the {{ vm_ready_timeout }}s budget{% endif %}.
+        {{ vm_failure_hints.get(vm_printable_status, 'Unexpected state, inspect the VM directly.') }}
+        {% if _vm_lookup_error %}Lookup: {{ _vm_lookup_error }}{% endif %}
+        {% if _vm_quota %}Quota: {{ _vm_quota }}{% endif %}
+        {% if _vmi_conditions %}Instance conditions: {{ _vmi_conditions }}{% endif %}
+    when: vm_printable_status != 'Running'
 
   - name: Wait for DNS to resolve
     ansible.builtin.command: getent hosts {{ vm_name }}.{{ vm_dns_domain }}
     register: dns_result
     until: dns_result.rc == 0
-    retries: 30
-    delay: 10
+    retries: "{{ ((vm_dns_timeout | int) / (vm_dns_interval | int)) | round(0, 'ceil') | int }}"
+    delay: "{{ vm_dns_interval }}"
     changed_when: false
+    failed_when: false
+
+  - name: Fail if the FQDN never resolved
+    ansible.builtin.fail:
+      msg: >-
+        VM {{ vm_name }} is running, but {{ vm_name }}.{{ vm_dns_domain }} did not
+        resolve within {{ vm_dns_timeout }}s. The VM itself came up, so this is name
+        resolution, not provisioning: check the record in {{ vm_dns_domain }}.
+    when: dns_result.rc != 0
 
   - name: Set VM FQDN fact
     ansible.builtin.set_fact:
@@ -328,7 +444,7 @@
 
   - name: Clean up local manifest
     ansible.builtin.file:
-      path: /tmp/{{ vm_name }}-vm.yml
+      path: "{{ vm_manifest_path }}"
       state: absent
 
   post_tasks:

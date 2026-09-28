@@ -66,7 +66,9 @@
               <v-alert v-for="field in unavailableFields[name] ?? []" :key="field.key" type="warning"
                 variant="tonal" density="comfortable" class="mb-4" :title="field.title"
                 :text="field.description"></v-alert>
-              <Vjsf v-if="name != 'documentation_form'" v-model="formData[name]" :schema="compatSchemas[name]" :options="vjsfOptions"></Vjsf>
+              <Vjsf v-if="name != 'documentation_form'" v-model="formData[name]" :schema="compatSchemas[name]" :options="vjsfOptions">
+                <template #fieldHelp="{ text }"><HelpIcon :text="text" /></template>
+              </Vjsf>
             </v-col>
             <!-- Plain Vuetify autocomplete instead of a vjsf field: vjsf builds
                  one node per oneOf branch, so hundreds of datasets blow the
@@ -135,7 +137,9 @@
           <v-row v-if="Object.keys(external_schemas).length">
             <v-col v-for="(schema, name) in external_schemas" cols="12" :key="name">
               <p>{{ name }}</p>
-              <Vjsf v-model="formData['external_schema_' + name]" :schema="compatExternalSchemas[name]" :options="vjsfOptions"></Vjsf>
+              <Vjsf v-model="formData['external_schema_' + name]" :schema="compatExternalSchemas[name]" :options="vjsfOptions">
+                <template #fieldHelp="{ text }"><HelpIcon :text="text" /></template>
+              </Vjsf>
             </v-col>
           </v-row>
           <!-- Conf data summarizing the configured workflow -->
@@ -509,27 +513,37 @@ function normalizeV2Schema(fragment: any): any {
   return fragment;
 }
 
+// Draw each field's description with the platform's HelpIcon in the input's
+// append slot (the fieldHelp slot on <Vjsf>), like the native fields, instead
+// of vjsf's own toggle.
+function addFieldHelp(fragment: any): any {
+  if (!fragment || typeof fragment !== "object") return fragment;
+  if (typeof fragment.description === "string" && !fragment.properties) {
+    const layout = typeof fragment.layout === "string" ? { comp: fragment.layout } : fragment.layout ?? {};
+    fragment.layout = { ...layout, slots: { ...layout.slots, append: { name: "fieldHelp", props: { text: fragment.description } } } };
+  }
+  for (const [key, value] of Object.entries(fragment))
+    if (!["default", "const", "enum", "examples", "layout"].includes(key)) addFieldHelp(value);
+  return fragment;
+}
+
 // Adapt to vjsf 3 at render time only: the dag_id watcher and
 // processDefaultsFromSettings keep operating on the v2 shape
 // (findRequiredFields relies on the boolean `required` convention).
 function toVjsfSchema(schema: any) {
   try {
-    return v2compat(normalizeV2Schema(JSON.parse(JSON.stringify(schema))));
+    return addFieldHelp(v2compat(normalizeV2Schema(JSON.parse(JSON.stringify(schema)))));
   } catch (e) {
     console.warn("vjsf v2compat conversion failed; using raw schema", e);
     return schema;
   }
 }
 
-// Field descriptions become click-to-reveal help toggles. `hint` is left out
-// deliberately: json-layout resolves description as subtitle -> hint -> help,
-// so listing it would pre-empt the help toggle.
+// Sections keep their description as subtitle. A field's description is drawn
+// by addFieldHelp, so vjsf's own help channel stays empty and it draws no
+// toggle of its own.
 const vjsfOptions = {
-  useDescription: ["subtitle", "help"] as ("hint" | "subtitle" | "help")[],
-  // vjsf draws its own help toggle with an "i" glyph. The form already has the
-  // platform's "?" help affordance next to the native fields, so pin vjsf's to
-  // the same symbol rather than teach two icons for one thing.
-  icons: { infoSymbol: kaapanaIcons.help },
+  useDescription: ["subtitle"] as ("hint" | "subtitle" | "help")[],
 };
 
 const compatSchemas = computed<Record<string, any>>(() => {
@@ -1236,24 +1250,10 @@ onMounted(() => {
   justify-content: 0;
 }
 
-/* HelpIcon renders its button from its own render function, not from this
-   template, so this scoped rule can only reach it through :deep() - the same
-   reason the vjsf rules below need it. */
-:deep(.wfe-help-icon) {
-  color: #bdbdbd;
-}
-
-/* vjsf 3 renders help toggles as a saturated filled circle hanging past the
-   field's right edge; tone them down to this view's muted grey and pull them
-   back inside the field bounds. */
-:deep(.vjsf-help-message-toggle.v-btn) {
-  background-color: transparent !important;
-  color: #bdbdbd !important;
-  box-shadow: none !important;
-}
-/* !important: vjsf's own `right: -30px` rule ties this one on specificity, so
-   without it the winner depends on stylesheet insertion order in the bundle. */
-:deep(.vjsf-help-message .vjsf-help-message-toggle) {
-  right: 0 !important;
+/* vjsf wraps a named slot in a div; let the help button be the append slot's
+   flex item itself, as it is on the native fields, so both align the same.
+   vjsf renders inside its own component, hence :deep(). */
+:deep(.vjsf .v-input__append > div) {
+  display: contents;
 }
 </style>

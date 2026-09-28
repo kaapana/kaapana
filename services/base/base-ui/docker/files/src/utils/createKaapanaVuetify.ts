@@ -1,6 +1,7 @@
 import { createVuetify } from 'vuetify'
 import type { VuetifyOptions } from 'vuetify'
 import { aliases, mdi } from 'vuetify/iconsets/mdi'
+import { injectNotificationStyles } from './notificationStyles'
 import { injectPlatformFonts } from './platformFonts'
 import {
   KAAPANA_THEME_DARK,
@@ -22,9 +23,10 @@ export interface KaapanaVuetifyOptions extends VuetifyOptions {
 }
 
 export function createKaapanaVuetify(options: KaapanaVuetifyOptions = {}) {
-  // The platform typeface travels with the configuration, so a view cannot ship
-  // the theme and forget the font.
+  // The platform typeface and the toast colours travel with the configuration,
+  // so a view cannot ship the theme and forget either.
   injectPlatformFonts()
+  injectNotificationStyles()
 
   const { extraThemeColors, theme, defaults, icons, ...rest } = options
   // `theme` may legitimately be false (theming off); narrow before reading it.

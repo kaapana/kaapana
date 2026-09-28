@@ -3,13 +3,13 @@ import os
 from datetime import timedelta
 
 import jinja2
+import pendulum
 import requests
 from airflow.configuration import conf
 from airflow.decorators import task
 from airflow.models import DAG, Variable
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
 from kaapana.operators.CleanUpExpiredWorkflowDataOperator import (
     CleanUpExpiredWorkflowDataOperator,
@@ -24,7 +24,8 @@ from kaapana.operators.LocalServiceSyncDagsDbOperator import (
 log = LoggingMixin().log
 
 
-START_DATE = days_ago(0)
+# Required in Airflow 2 (optional in 3). days_ago(0) jumps to the new day at 00:00 and can drop that night's run. Static date in the past disables this bug.
+START_DATE = pendulum.datetime(2024, 1, 1, tz="UTC")
 
 args = {
     "ui_visible": False,
@@ -39,6 +40,7 @@ dag = DAG(
     dag_id="service-daily-cleanup-jobs",
     default_args=args,
     schedule_interval="@daily",
+    catchup=False,
     start_date=args["start_date"],
     concurrency=1,
     max_active_runs=1,
@@ -139,8 +141,6 @@ if ENABLE_DELETE_CHILD_LOG.lower() == "true":
 
 if hasattr(dag, "doc_md"):
     dag.doc_md = __doc__
-if hasattr(dag, "catchup"):
-    dag.catchup = False
 
 start = DummyOperator(task_id="start", dag=dag)
 

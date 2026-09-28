@@ -24,9 +24,10 @@ The whole app lives under `docker/files/`; the single view is
 | `src/stores/policy.ts` | The open-policy data that decides which admin-only controls render. |
 | `src/stores/failureDetails.ts` | The one failure-details dialog, opened from a notification, alert or empty state. |
 
-The theme, typeface, icon map and the shared dialogs (`ConfirmDialog`,
-`ErrorDetailsDialog`, `HelpIcon`) come from `@kaapana/base-ui`; icons specific
-to this view live in `src/utils/extensionIcons.ts`.
+The theme, typeface, icon map, the policy check (`checkAuthR`) and the shared
+dialogs (`ConfirmDialog`, `ErrorDetailsDialog`, `HelpIcon`) come from
+`@kaapana/base-ui`; icons specific to this view live in
+`src/utils/extensionIcons.ts`.
 
 ## Features
 
@@ -182,7 +183,7 @@ Specs by concern:
 | Spec | Covers |
 | --- | --- |
 | `boot` | fresh-profile boot, the shell's dark-mode setting |
-| `admin-actions` | admin-only controls, hidden for non-admins and when the policy fails to load |
+| `admin-actions` | admin-only controls, hidden for non-admins and when the policy fails to load; a partial grant shows only the control it covers |
 | `list` | row states, text alternatives, all rows on one page, the three empty states, a malformed row |
 | `filter` | search and the three column filters |
 | `install` | install/launch payloads, version selection (also across a poll), the Launched state, the configuration form |

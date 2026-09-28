@@ -449,6 +449,7 @@ import { useNotification } from '@kyvg/vue3-notification'
 import {
   ConfirmDialog,
   apiErrorInfo,
+  checkAuthR,
   kaapanaApiService,
   postViewDirty,
   refreshShell,
@@ -461,7 +462,6 @@ import ExtensionParamsDialog from '@/components/ExtensionParamsDialog.vue'
 import ExtensionsEmptyState from '@/components/ExtensionsEmptyState.vue'
 import { useFailureDetailsStore } from '@/stores/failureDetails'
 import { usePolicyStore } from '@/stores/policy'
-import { checkAuthR } from '@/utils/opa'
 import { extensionIcons, kaapanaIcons } from '@/utils/extensionIcons'
 import { notifyFailure } from '@/utils/notifyFailure'
 import {

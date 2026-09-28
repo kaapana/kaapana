@@ -46,6 +46,29 @@ test('an admin sees both the update control and the upload drop zone', async ({ 
   await expect(dropZone(page)).toBeVisible()
 })
 
+// The update endpoint is granted, but only one of the two endpoints the upload
+// drop zone needs. Granted for GET, because that is the method the view checks.
+const partialGrant: MockData = {
+  ...claimHolder,
+  policyData: {
+    endpoints_per_role: {
+      user: [
+        ...(claimHolder.policyData.endpoints_per_role.user ?? []),
+        { path: '^/kube-helm-api/update-extensions$', methods: ['GET'] },
+        { path: '^/kube-helm-api/filepond-upload$', methods: ['GET'] },
+      ],
+    },
+  },
+}
+
+test('a partial grant shows only the control it covers', async ({ page }) => {
+  await openView(page, partialGrant)
+
+  await expect(updateControl(page)).toBeVisible()
+  // The drop zone also needs import-container, which is not granted.
+  await expect(dropZone(page)).toHaveCount(0)
+})
+
 test('an unloaded policy hides the admin-only controls (fail closed)', async ({ page }) => {
   // The policy endpoint fails, so the store keeps its empty default.
   await openView(page, defaultMockData, {

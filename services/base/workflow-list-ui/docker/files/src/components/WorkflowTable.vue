@@ -85,7 +85,7 @@
       </template>
       <template v-slot:item.status="{ item }">
         <v-btn
-          v-for="state in getStatesColorMap(item, isDark)"
+          v-for="state in jobStateCounts(item)"
           :key="state.status"
           :color="state.color"
           class="ml-1 my-chip"
@@ -94,7 +94,7 @@
           variant="outlined"
           @click="getJobsOfWorkflow(item.workflow_name, state.status, false)"
         >
-          {{ state.count }}
+          {{ state.count }} {{ state.status }}
         </v-btn>
       </template>
       <template v-slot:item.actions="{ item }">
@@ -209,10 +209,10 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { useTheme } from 'vuetify'
 import { useNotification } from '@kyvg/vue3-notification'
 import { ConfirmDialog, kaapanaApiService, kaapanaIcons } from '@kaapana/base-ui'
 import type { Workflow, Job } from '@/types/workflow'
+import { JOB_STATUSES, isTerminalJobStatus, jobStatusColor } from '@/utils/jobStatus'
 import JobTable from './JobTable.vue'
 
 const props = defineProps<{
@@ -228,8 +228,6 @@ const emit = defineEmits<{
 }>()
 
 const { notify } = useNotification()
-const vTheme = useTheme()
-const isDark = computed(() => vTheme.global.current.value.dark)
 
 const search = ref('')
 const expanded = ref<string[]>([])
@@ -366,21 +364,12 @@ function expandRow(item: Workflow) {
     shouldExpand.value = true
   }
 }
-function getStatesColorMap(item: Workflow, darkTheme: boolean) {
-  const states = item.workflow_jobs
-  const colorMap: Record<string, string> = {
-    queued: 'grey',
-    scheduled: 'blue',
-    pending: 'orange',
-    running: 'green',
-    finished: darkTheme ? '#607D8B' : 'black',
-    failed: 'red',
-  }
-  return Object.entries(colorMap).map(([state, color]) => ({
-    status: state,
-    color: color,
-    count: states.filter((_state) => _state === state).length,
-  }))
+function jobStateCounts(item: Workflow) {
+  return JOB_STATUSES.map((status) => ({
+    status,
+    color: jobStatusColor[status],
+    count: item.workflow_jobs.filter((s) => s === status).length,
+  })).filter((state) => state.count > 0)
 }
 function redirectToAirflow() {
   const airflow_url = window.location.origin + '/flow/home'
@@ -392,9 +381,8 @@ function startWorkflowManually(item: Workflow) {
 }
 // A workflow whose jobs are all in a terminal state is done; aborting it is a
 // silent no-op on the backend, which otherwise still reports success.
-const TERMINAL_JOB_STATUSES = ['finished', 'failed', 'deleted']
 function isWorkflowTerminal(item: Workflow): boolean {
-  return item.workflow_jobs.length > 0 && item.workflow_jobs.every((status) => TERMINAL_JOB_STATUSES.includes(status))
+  return item.workflow_jobs.length > 0 && item.workflow_jobs.every(isTerminalJobStatus)
 }
 function abortWorkflow(item: Workflow) {
   shouldExpand.value = false

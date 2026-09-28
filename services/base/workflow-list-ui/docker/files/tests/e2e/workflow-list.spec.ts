@@ -13,19 +13,28 @@ test('renders the workflow list with a mix of states', async ({ page }) => {
   await expect(page.getByText('ct-scans(public)')).toBeVisible()
 })
 
-test('status column shows per-state job counts', async ({ page }) => {
+test('status column shows named per-state job counts, only for present states', async ({ page }) => {
   await installMockBackend(page)
   await page.goto(VIEW_PATH)
 
-  // running-wf has workflow_jobs ['running','running','finished'] -> a chip '2'
-  // (running) and a chip '1' (finished) in its status cell.
+  // running-wf has workflow_jobs ['running','running','finished']. Each chip
+  // names its state next to the count (meaning must not rest on colour alone)
+  // and draws it in the state's theme role; absent states get no chip.
   const runningRow = page.getByRole('row').filter({ hasText: 'running-wf' })
-  await expect(runningRow.getByRole('button', { name: '2', exact: true })).toBeVisible()
-  await expect(runningRow.getByRole('button', { name: '1', exact: true })).toBeVisible()
+  await expect(runningRow.getByRole('button', { name: '2 running', exact: true })).toHaveClass(/text-info/)
+  await expect(runningRow.getByRole('button', { name: '1 finished', exact: true })).toHaveClass(/text-success/)
+  await expect(runningRow.locator('.my-chip')).toHaveCount(2)
 
-  // failed-wf: ['failed','finished'] -> two chips of '1'
+  // failed-wf: ['failed','finished']
   const failedRow = page.getByRole('row').filter({ hasText: 'failed-wf' })
-  await expect(failedRow.getByRole('button', { name: '1', exact: true }).first()).toBeVisible()
+  await expect(failedRow.getByRole('button', { name: '1 failed', exact: true })).toHaveClass(/text-error/)
+
+  // queued-wf: ['queued','scheduled','pending']. Waiting states are neutral:
+  // they keep the surface's text colour, which no theme role reaches 3:1
+  // against in dark mode.
+  const queuedRow = page.getByRole('row').filter({ hasText: 'queued-wf' })
+  await expect(queuedRow.getByRole('button', { name: '1 queued', exact: true })).not.toHaveClass(/text-(secondary|info|success|warning|error)/)
+  await expect(queuedRow.getByRole('button', { name: '1 pending', exact: true })).toHaveClass(/text-warning/)
 })
 
 // Regression: a stray pa-6 pushed the toolbar icons ~10px below the square
@@ -147,7 +156,7 @@ test('the job table explains an empty row instead of saying "No data available"'
   // Picking a state from the status chips narrows the fetch, so the empty
   // result means something different and has to say so.
   const runningRow = page.getByRole('row').filter({ hasText: 'running-wf' })
-  await runningRow.getByRole('button', { name: '2', exact: true }).click()
+  await runningRow.getByRole('button', { name: '2 running', exact: true }).click()
   await expect(page.getByText('No job of this workflow is in state "running".')).toBeVisible()
 })
 

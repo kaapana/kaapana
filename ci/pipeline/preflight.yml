@@ -10,6 +10,8 @@ spec:
       type: boolean
     exec_integration_tests:
       type: boolean
+    exec_vm_sweep:
+      type: boolean
     runner_tag:
       type: string
 ---
@@ -137,6 +139,12 @@ preflight_variables:
       # check_readthedocs runs on scheduled develop pipelines only
       if [ "$CI_PIPELINE_SOURCE" = "schedule" ] && [ "$CI_COMMIT_BRANCH" = "develop" ]; then
         require KAAPANA_READTHEDOCS_TOKEN
+      fi
+
+      # the sweep reads pipeline status from the API and talks to Harvester
+      if [ "$[[ inputs.exec_vm_sweep ]]" = "true" ]; then
+        require GITLAB_READ_API_TOKEN
+        require_file HARVESTER_KUBECONFIG
       fi
 
       echo "Checked variables (this pipeline):"

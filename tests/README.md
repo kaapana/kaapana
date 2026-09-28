@@ -1,7 +1,7 @@
 # Tests
 
 What lives here, and how to run it. Writing a suite of your own is covered in
-[../ci/README.md](../ci/README.md), section 9.
+[Adding a test suite and its job](../ci/docs/internals.md#adding-a-test-suite-and-its-job).
 
 Two suites live here. Every other suite lives next to the code it covers, most
 under `services/**/docker/**/tests/` or `lib/<package>/tests/`, and the system
@@ -33,14 +33,16 @@ Stay in the repository root, as CI does. `pytest.ini` limits discovery to
 operator tests also write their scratch DICOM relative to the working
 directory.
 
-The whole `tests` stage runs locally through gitlab-ci-local, see "Running the
-pipeline locally" in [../ci/README.md](../ci/README.md).
+The whole `tests` stage runs locally through gitlab-ci-local, see
+[local-ci.md](../ci/docs/local-ci.md#scenario-3-run-jobs-without-gitlab).
 
 ## Where to go next
 
-- [../ci/README.md](../ci/README.md), section 9: where a suite belongs, what
-  its `conftest.py` has to carry, which test level to pick, and how to get it
-  running in the pipeline. Section 11 covers what the pipeline reports back.
+- [Adding a test suite and its job](../ci/docs/internals.md#adding-a-test-suite-and-its-job):
+  where a suite belongs, what its `conftest.py` has to carry, which test level
+  to pick, and how to get it running in the pipeline.
+  [Reports GitLab renders](../ci/docs/internals.md#reports-gitlab-renders)
+  covers what the pipeline reports back.
 - [Writing Tests](../docs/source/development_guide/writing_tests.rst) in the
   development guide: testing a processing-container, a local operator or a
   user interface on a development machine.

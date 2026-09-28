@@ -151,8 +151,9 @@ instead of fixtures.
 Where to go next
 ================
 
-- `ci/README.md <https://github.com/kaapana/kaapana/blob/develop/ci/README.md>`_,
-  section 9: where a suite for a service belongs, what its :file:`conftest.py`
-  has to carry, which test level to pick, and how to give it a CI job.
+- `Adding a test suite and its job <https://github.com/kaapana/kaapana/blob/develop/ci/docs/internals.md#adding-a-test-suite-and-its-job>`_
+  in the CI internals: where a suite for a service belongs, what its
+  :file:`conftest.py` has to carry, which test level to pick, and how to give it
+  a CI job.
 - `tests/README.md <https://github.com/kaapana/kaapana/blob/develop/tests/README.md>`_:
   what the two suites in that directory cover and how to run them.

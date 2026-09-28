@@ -134,7 +134,8 @@ npm run build          # emits dist/ — what consumers import
 Then the usual per-view loop works unchanged from the view's `docker/files`:
 `npm ci && npm run dev`, `npx playwright test`, `npm run build`.
 
-Component development with Storybook (dev-only, not deployed, no CI job):
+Component development with Storybook (not deployed; CI builds it only for the
+Playwright suite):
 
 ```bash
 npm run storybook      # http://localhost:6006

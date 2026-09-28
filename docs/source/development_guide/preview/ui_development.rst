@@ -198,8 +198,8 @@ After that, the usual per-view loop works unchanged from the view's
    importing the stale ``dist/`` — nothing fails, the change is just not
    there.
 
-Components can be developed in isolation with Storybook (dev-only: not
-deployed and not exercised in CI):
+Components can be developed in isolation with Storybook (not deployed; CI
+builds it only for ``base-ui``'s Playwright suite):
 
 .. code-block:: bash
 
@@ -400,7 +400,8 @@ first if the view consumes it). CI runs the same suites in the ``ui_e2e_tests`` 
 ``base-ui`` has a Playwright suite too. It drives the Storybook stories (the
 dev server locally, a static build in CI) and tests plain functions such as
 the OPA policy check without a browser. Run it with ``npx playwright test``
-from ``services/base/base-ui/docker/files``.
+from ``services/base/base-ui/docker/files``; CI runs it as the ``base-ui``
+entry of ``ui_e2e_tests``.
 
 ``portal-ui`` additionally ships vitest unit suites under
 ``src/**/__tests__`` for the pieces that are awkward to reach through the

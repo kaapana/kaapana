@@ -50,8 +50,6 @@ data:
               value: KubernetesExecutor
             - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
               value: postgresql+psycopg2://{{ .Values.kaapana_database.postgres_user }}:{{ .Values.kaapana_database.postgres_password }}@{{ .Values.kaapana_database.appName | default .Chart.Name }}-database-service.{{ .Values.global.services_namespace }}.svc:5432/{{ .Values.kaapana_database.postgres_db }}
-            - name: AIRFLOW_CONN_AIRFLOW_DB
-              value: postgresql+psycopg2://{{ .Values.kaapana_database.postgres_user }}:{{ .Values.kaapana_database.postgres_password }}@{{ .Values.kaapana_database.appName | default .Chart.Name }}-database-service.{{ .Values.global.services_namespace }}.svc:5432/{{ .Values.kaapana_database.postgres_db }}
             - name: ADMIN_NAMESPACE
               value: "{{ .Values.global.admin_namespace }}"
             - name: AIRFLOW__LOGGING__LOGGING_LEVEL
@@ -62,24 +60,18 @@ data:
               value: "{{ .Values.global.registry_url }}"
             - name: EXTENSIONS_NAMESPACE
               value: "{{ .Values.global.extensions_namespace }}"
-            - name: ENABLE_NFS
-              value: "{{ .Values.global.enable_nfs }}"
             - name: GPU_SUPPORT
               value: "{{ .Values.global.gpu_support }}"
             - name: HOSTDOMAIN
               value: "{{ .Values.global.hostname }}"
             - name: HTTPS_PORT
               value: "{{ .Values.global.https_port }}"
-            - name: INSTANCE_ID
-              value: "{{ .Values.global.instance_id }}"
             - name: INSTANCE_NAME
               value: "{{ .Values.global.instance_name }}"
             - name: KAAPANA_BUILD_VERSION
               value: "{{ .Values.global.kaapana_build_version }}"
             - name: PLATFORM_PREFIX
               value: "{{ required `global.platform_prefix is required` .Values.global.platform_prefix }}"
-            - name: MINIODIR
-              value: "{{ .Values.global.slow_data_dir }}/minio"
             - name: MINIOUSER
               value: "{{ .Values.global.credentials_minio_username }}"
             - name: MINIOPASSWORD

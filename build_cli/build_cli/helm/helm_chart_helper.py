@@ -265,18 +265,19 @@ class HelmChartHelper:
             platform_chart: The primary HelmChart representing the platform to build.
 
         Process:
-            1. Build the main platform chart using its build directory and fake-values.yaml.
+            1. Build the main platform chart into its build directory.
             2. Build all charts in the platform's kaapana_collections, respecting dependency order.
-            3. Handle chart_dependencies for each collection, optionally making packages if not build_only.
-            4. Generate final Helm packages for the platform chart.
-            5. Push charts to the configured registry if build_only is False.
+            3. Lint the assembled tree through its roots with fake-values.yaml, unless linting is disabled;
+               stop here with lint_only.
+            4. Handle chart_dependencies for each collection, optionally making packages if not build_only.
+            5. Generate final Helm packages for the platform chart.
+            6. Push charts to the configured registry if build_only is False.
 
         Side Effects:
             Creates build artifacts on disk, updates container build directories where necessary,
             and interacts with the registry to push Helm packages.
         """
         platform_target_dir = cls._build_config.build_dir / platform_chart.name / platform_chart.name
-        fake_values = files("build_cli") / "configs" / "fake-values.yaml"
 
         with alive_bar(
             bar="classic",
@@ -288,8 +289,6 @@ class HelmChartHelper:
                 target_dir=platform_target_dir,
                 platform_build_version=platform_chart.version,
                 bar=bar,
-                values=fake_values,
-                enable_linting=cls._build_config.enable_linting,
             )
 
         # -------------------
@@ -307,13 +306,19 @@ class HelmChartHelper:
                     target_dir=collection_target_dir,
                     platform_build_version=platform_chart.version,
                     bar=bar,
-                    values=fake_values,
-                    enable_linting=cls._build_config.enable_linting,
                 )
                 # TODO This is currently necessary to change default build cwd for docker build command, as kaapana-extension-collection image requires charts/* being present in the directory
                 if len(collection_chart.chart_containers) == 1:
                     collection_container = next(iter(collection_chart.chart_containers))
                     collection_container.container_build_dir = collection_target_dir
+
+        if cls._build_config.enable_linting:
+            # --with-subcharts lints every chart of the tree as its own unit, one helm run per root
+            fake_values = files("build_cli") / "configs" / "fake-values.yaml"
+            for chart in (platform_chart, *platform_chart.kaapana_collections):
+                chart.lint_chart(cls._build_config.helm_executable, fake_values, with_subcharts=True)
+                # kubeval disabled: schema host is gone, so it currently validates nothing
+                # chart.lint_kubeval(cls._build_config.helm_executable, fake_values)
 
         if cls._build_config.lint_only:
             logger.info("Lint-only: chart tree linted, skipping packaging and push")

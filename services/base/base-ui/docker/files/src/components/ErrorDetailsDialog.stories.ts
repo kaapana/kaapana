@@ -70,3 +70,11 @@ export const NoResponse: Story = {
     },
   },
 }
+
+export const NoDetail: Story = {
+  args: {
+    title: 'Download failed',
+    text: 'Could not download the latest extensions.',
+    error: null,
+  },
+}

@@ -25,7 +25,8 @@
   ],
   "scripts": {
     "build": "vite build && vue-tsc -p tsconfig.build.json",
-    "type-check": "vue-tsc --noEmit",
+    "type-check": "vue-tsc --noEmit && vue-tsc --noEmit -p tsconfig.e2e.json",
+    "test:e2e": "playwright test",
     "storybook": "storybook dev -p 6006",
     "build:storybook": "storybook build"
   },
@@ -47,7 +48,9 @@
     "@koumoul/vjsf": "3.26.1",
     "@kyvg/vue3-notification": "^3.4.1",
     "@mdi/font": "^7.4.47",
+    "@playwright/test": "^1.54.0",
     "@storybook/vue3-vite": "^10.5.6",
+    "@types/node": "^22.16.5",
     "@vitejs/plugin-vue": "^6.0.1",
     "axios": "^1.12.2",
     "pinia": "^2.2.6",

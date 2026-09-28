@@ -143,6 +143,10 @@ npm run storybook      # http://localhost:6006
 New components: add under `src/`, export from `src/index.ts`, add a
 `*.stories.ts` beside it, `npm run build`.
 
+Tests: `npx playwright test` runs `tests/e2e` against the stories. The config
+starts Storybook on port 4310; plain functions such as the OPA check are tested
+without a browser. `npm run type-check` also checks the specs.
+
 ## Docker / kaapana-build
 
 `docker/Dockerfile` builds the local-only base image of the FROM-chain

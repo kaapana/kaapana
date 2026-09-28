@@ -10,12 +10,15 @@ const meta: Meta<typeof ConfirmDialog> = {
     components: { ConfirmDialog, VBtn },
     setup() {
       const open = ref(false)
-      return { args, open }
+      // Which event the dialog resolved with, so the outcome is visible.
+      const outcome = ref('')
+      return { args, open, outcome }
     },
     template: `
       <div>
         <VBtn :color="args.color" @click="open = true">Open confirmation</VBtn>
-        <ConfirmDialog v-bind="args" v-model="open" />
+        <span class="ml-4 text-body-2" data-testid="confirm-outcome">{{ outcome ? 'Last outcome: ' + outcome : '' }}</span>
+        <ConfirmDialog v-bind="args" v-model="open" @confirm="outcome = 'confirm'" @cancel="outcome = 'cancel'" />
       </div>
     `,
   }),

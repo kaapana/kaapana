@@ -225,7 +225,7 @@ Adding a shared component
 Keep every runtime dependency in ``peerDependencies`` (never
 ``dependencies``): the library must always run against the consumer's copies.
 A new peer must be added to the ``resolve.dedupe`` list of every consumer at
-the same time — see the warning below.
+the same time — see the note below.
 The package is ``private`` and never published — it is consumed only through
 the ``file:`` link described next, so there is no registry versioning to
 manage.
@@ -288,12 +288,14 @@ authoritative list lives in ``services/base/base-ui/docker/files/README.md``.
 .. warning::
 
    Because every view pulls ``base-ui`` in through this ``file:`` link, a
-   change to ``base-ui``'s ``package.json`` **dependencies** invalidates
-   *every* consumer's ``package-lock.json``. ``npm ci`` then **fails** in all
-   view image builds until each consumer lockfile is regenerated — run
-   ``npm install`` in every consumer's ``docker/files`` with the
-   container-pinned ``npm@11.16.0`` and commit the updated lockfiles alongside
-   the ``base-ui`` change.
+   change to ``base-ui``'s ``package.json`` **dependencies** leaves a stale
+   copy of them in *every* consumer's ``package-lock.json``. ``npm ci`` does
+   not check that copy, so it still passes and no lockfile has to be
+   regenerated. A new **peer** dependency is the exception: ``npm ci`` does
+   not install it for the views, so their image builds **fail** until each
+   consumer has it — run ``npm install <peer>`` in every consumer's
+   ``docker/files`` with the container-pinned ``npm@11.16.0``, add it to the
+   ``dedupe`` list and commit both alongside the ``base-ui`` change.
 
 Docker build chain
 ------------------
@@ -390,10 +392,15 @@ run them.
 
 Each suite starts its app's own Vite server (the dev server locally, a
 ``preview`` of the production build in CI) on a fixed per-app port —
-``portal-ui`` on 4300, the views on 4301–4309 — so all suites can run in
-parallel on one machine. Run a suite from the view's ``docker/files``
-directory with ``npx playwright test`` (build ``base-ui`` first if the view
-consumes it). CI runs the same suites in the ``ui_e2e_tests`` matrix job.
+``portal-ui`` on 4300, the views on 4301–4309, ``base-ui`` on 4310 — so all
+suites can run in parallel on one machine. Run a suite from the view's
+``docker/files`` directory with ``npx playwright test`` (build ``base-ui``
+first if the view consumes it). CI runs the same suites in the ``ui_e2e_tests`` matrix job.
+
+``base-ui`` has a Playwright suite too. It drives the Storybook stories (the
+dev server locally, a static build in CI) and tests plain functions such as
+the OPA policy check without a browser. Run it with ``npx playwright test``
+from ``services/base/base-ui/docker/files``.
 
 ``portal-ui`` additionally ships vitest unit suites under
 ``src/**/__tests__`` for the pieces that are awkward to reach through the

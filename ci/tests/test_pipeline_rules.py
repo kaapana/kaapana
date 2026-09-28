@@ -6,8 +6,10 @@ later job expects and no job writes.
 """
 
 import re
+from pathlib import Path
 
 import pytest
+import yaml
 from conftest import DEPLOY_INPUTS, FQDN, jobs, merged_config
 
 
@@ -156,3 +158,27 @@ def test_external_target_is_never_destroyed():
     first_rule = jobs(config)["destroy_deployment"]["rules"][0]
     assert first_rule["when"] == "never"
     assert "DEPLOYMENT_INSTANCE_FQDN" in first_rule["if"]
+
+
+def test_preflight_variables_checks_the_registry_scope_the_build_uses(default_config):
+    all_jobs = jobs(default_config)
+    assert all_jobs["build_packages"]["environment"]["name"] == "$REGISTRY_ENV"
+    environment = all_jobs["preflight_variables"]["environment"]
+    assert environment["name"] == "$REGISTRY_ENV"
+    assert environment["action"] == "access"
+
+
+CI_DIR = Path(__file__).resolve().parents[1]
+
+
+def test_the_admin_chart_and_namespace_come_from_the_variables():
+    files = [*(CI_DIR / "pipeline").glob("*.yml"), *(CI_DIR / "ci-code").rglob("*.yaml")]
+    offenders = [str(f.relative_to(CI_DIR)) for f in files if "kaapana-admin-chart" in f.read_text()]
+    assert not offenders, f"literal chart name instead of DEPLOYMENT_INSTANCE_ADMIN_CHART in {offenders}"
+
+    setup = CI_DIR / "ci-code" / "integration_tests" / "remote_execution" / "setup_integration_tests.yaml"
+    play = yaml.safe_load(setup.read_text())[0]
+    assert "DEPLOYMENT_INSTANCE_ADMIN_CHART" in play["vars"]["admin_chart"]
+    assert "DEPLOYMENT_INSTANCE_HELM_NAMESPACE" in play["vars"]["helm_namespace"]
+    lookup = next(task for task in play["tasks"] if "ansible.builtin.shell" in task)["ansible.builtin.shell"]
+    assert "-n {{ helm_namespace | quote }} get values {{ admin_chart | quote }}" in lookup

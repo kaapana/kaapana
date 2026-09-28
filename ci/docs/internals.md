@@ -178,7 +178,7 @@ registered), then pytest against `--host $VM_FQDN`.
 
 | Job | Notes |
 |---|---|
-| `scan_ports` | nmap against the target; `--allowed-ports 22,80,443` |
+| `scan_ports` | nmap top-10 ports plus the allowed ports on the target VM; `--allowed-ports 22,80,443,11112` |
 | `first_login` | Keycloak login; admin password change; the rest of the chain assumes it worked |
 | `install_extensions` | 4 xdist workers, `retry: 2` |
 | `send_data` | DICOM upload, serial (`PYTEST_WORKERS: 0`), `retry: 2`; test data cached in `/data` on the deploy runner |
@@ -291,6 +291,10 @@ Each registry has its own `CI_REGISTRY_URL` / `CI_REGISTRY_USER` /
 `CI_REGISTRY_TOKEN` rows, stored under an environment *scope*
 (`DKFZ_CONTAINER_REGISTRY`, `HIFIS_CONTAINER_REGISTRY`). Jobs declare
 `environment: name: $REGISTRY_ENV`, so GitLab hands them the rows of that scope.
+
+`REGISTRY_ENV` is required in every pipeline: `preflight_variables` always runs
+with that environment, so it validates the `CI_REGISTRY_*` rows of that scope,
+and fails when `REGISTRY_ENV` is empty.
 
 Switching registry is two steps:
 

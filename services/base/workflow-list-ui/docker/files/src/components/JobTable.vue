@@ -57,7 +57,7 @@
             <template #activator="{ props }">
               <v-btn
                v-bind="props"
-               :color="getStatusColor(item.status, isDark)"
+               :color="jobStatusColor[item.status]"
                rounded
                variant="outlined"
                size="small"
@@ -156,10 +156,10 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useTheme } from 'vuetify'
 import { useNotification } from '@kyvg/vue3-notification'
 import { ConfirmDialog, kaapanaApiService, kaapanaIcons } from '@kaapana/base-ui'
 import type { Job } from '@/types/workflow'
+import { isTerminalJobStatus, jobStatusColor } from '@/utils/jobStatus'
 
 const props = defineProps<{
   jobs: Job[]
@@ -173,8 +173,6 @@ const emit = defineEmits<{
 }>()
 
 const { notify } = useNotification()
-const vTheme = useTheme()
-const isDark = computed(() => vTheme.global.current.value.dark)
 
 const dialogConfData = ref(false)
 const prettyConfData = ref<any>({})
@@ -226,23 +224,6 @@ function openConfData(conf_data: any) {
 function closeConfData() {
   dialogConfData.value = false
 }
-function getStatusColor(status: string, darkTheme: boolean) {
-  if (status == 'queued') {
-    return 'grey'
-  } else if (status == 'pending') {
-    return 'orange'
-  } else if (status == 'scheduled') {
-    return 'blue'
-  } else if (status == 'running') {
-    return 'green'
-  } else if (status == 'finished') {
-    return darkTheme ? '#607D8B' : 'black'
-  } else if (status == 'deleted') {
-    return 'brown'
-  } else {
-    return 'red'
-  }
-}
 function formatJson(jsonString: string | null | undefined) {
   if (jsonString == null) {
     console.error('Given JSON is NULL')
@@ -278,11 +259,8 @@ function formatJson(jsonString: string | null | undefined) {
     }
   }
 }
-// A job in a terminal state is done; aborting it is a silent no-op on the
-// backend, which otherwise still reports success.
-const TERMINAL_JOB_STATUSES = ['finished', 'failed', 'deleted']
 function isJobTerminal(item: Job): boolean {
-  return TERMINAL_JOB_STATUSES.includes(item.status)
+  return isTerminalJobStatus(item.status)
 }
 function abortJob(item: Job) {
   abortJobAPI(item.id, 'abort', 'The worklow was aborted!')

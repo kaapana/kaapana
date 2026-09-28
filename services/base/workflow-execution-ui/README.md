@@ -58,10 +58,10 @@ schemas:
 - **Unsaved-changes (view-dirty) reporting** — the view posts
   `kaapana:view-dirty` to the shell (`postViewDirty`) so a project switch (which
   reloads the iframe and discards in-memory form state) can warn first. On by
-  default for the standalone view (`!isDialog`). The DAG choice counts as dirty
-  only in a multi-DAG project (a single-DAG project re-selects on reload); form
-  edits are diffed against a baseline that absorbs vjsf's async default
-  population until the user first interacts.
+  default for the standalone view (`!isDialog`). The DAG choice alone is not
+  dirty (a reload offers it again); the form (vjsf data, the run name and the
+  backend file selection) is diffed against a baseline that absorbs vjsf's async
+  default population until the user first interacts.
 - **Success redirect** — on submit the shared component resets and emits
   `successful`; the wrapper calls `navigateShell('/web/workflows/workflows')`.
   Embedded that posts `kaapana:navigate` to the shell and deliberately leaves

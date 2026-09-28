@@ -135,7 +135,9 @@ test('failed-operator logs: a failed job with no failed task warns instead of cr
 
   await failedJobRow(page).getByRole('button', { name: 'Airflow logs of the failed operator' }).click()
 
-  await expect(page.getByText('No failed operator found for job 102')).toBeVisible()
+  await expect(
+    page.locator('.vue-notification.warn', { hasText: 'No failed operator found for job 102' }),
+  ).toBeVisible()
   expect(pageErrors).toEqual([])
   // Match the error NAME - the message wording is engine-version specific.
   expect(consoleErrors.filter((t) => /TypeError/.test(t))).toEqual([])

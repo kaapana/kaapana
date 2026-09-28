@@ -132,7 +132,10 @@ test('a workflow without jobs settles and warns once, not on every refresh', asy
   await page.goto(VIEW_PATH)
   await page.getByText('running-wf', { exact: true }).click()
 
-  await expect(page.getByText('No jobs for workflow running-wf')).toBeVisible()
+  // The library styles `warn`, not `warning`; the wrong type renders as the default blue.
+  await expect(
+    page.locator('.vue-notification.warn', { hasText: 'No jobs for workflow running-wf' }),
+  ).toBeVisible()
   await expect(page.getByText('Request is processed - wait a few seconds.')).toBeHidden()
   expect(probes).toHaveLength(1)
 

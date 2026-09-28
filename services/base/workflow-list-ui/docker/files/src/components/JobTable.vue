@@ -304,7 +304,7 @@ async function direct_airflow_operator_logs(item: Job) {
   }
   if (!failed_operator) {
     notify({
-      type: 'warning',
+      type: 'warn',
       title: `No failed operator found for job ${item.id}`,
       text: 'Airflow reports no task of this job in state failed.',
     })

@@ -207,12 +207,12 @@ def test_build_does_not_lint_charts(default_config):
     assert "--no-linting" in script
 
 
-def test_every_linter_has_its_commands(default_config):
-    """A LINTER added to the lint matrix without a case in the script would fail every pipeline."""
+def test_every_linter_has_its_script(default_config):
+    """A LINTER added to the lint matrix without ci/ci-code/lint/<linter>_lint.sh would fail every pipeline."""
     job = jobs(default_config)["lint"]
     linters = [linter for entry in job["parallel"]["matrix"] for linter in entry["LINTER"]]
-    script = "\n".join(job["script"])
     assert linters
+    assert job["script"] == ["ci/ci-code/lint/${LINTER}_lint.sh"]
     for linter in linters:
-        assert f"{linter})" in script, linter
+        assert (CI_DIR / "ci-code" / "lint" / f"{linter}_lint.sh").is_file(), linter
     assert job["artifacts"]["reports"]["codequality"] == "gl-code-quality-report.json"

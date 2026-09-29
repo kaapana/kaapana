@@ -44,36 +44,7 @@ lint:
           - hadolint
           - helm
   script:
-    - |
-      case "$LINTER" in
-        ruff)
-          grep -q "rev: v$RUFF_VERSION" .pre-commit-config.yaml
-          pip install --no-cache-dir "ruff==$RUFF_VERSION"
-          ruff check --config ci/ci-code/lint/ruff-quality.toml --output-format=gitlab --exit-zero . > gl-code-quality-report.json
-          ruff check --config ci/ci-code/lint/ruff-quality.toml --statistics --exit-zero .
-          ruff format --check --diff .
-          ruff check --output-format=full .
-          ;;
-        ui)
-          ci/ci-code/lint/ui_lint.sh
-          ;;
-        hadolint)
-          grep -A1 hadolint-py .pre-commit-config.yaml | grep -q "rev: v$HADOLINT_VERSION"
-          curl -fsSL "https://github.com/hadolint/hadolint/releases/download/v$HADOLINT_VERSION/hadolint-linux-x86_64" -o /usr/local/bin/hadolint
-          chmod +x /usr/local/bin/hadolint
-          mapfile -d '' dockerfiles < <(git ls-files -z -- '*Dockerfile')
-          hadolint --no-fail -f gitlab_codeclimate "${dockerfiles[@]}" > gl-code-quality-report.json
-          hadolint "${dockerfiles[@]}"
-          ;;
-        helm)
-          git fetch --tags --quiet
-          HELM_LINT_LOG_LEVEL=INFO ci/ci-code/lint/helm_lint.sh
-          ;;
-        *)
-          echo "unknown LINTER: $LINTER"
-          exit 1
-          ;;
-      esac
+    - ci/ci-code/lint/${LINTER}_lint.sh
   artifacts:
     when: always
     reports:

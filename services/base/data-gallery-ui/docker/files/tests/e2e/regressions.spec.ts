@@ -9,6 +9,7 @@ import {
 import {
   collectPageErrors,
   delayRoute,
+  dialog,
   dismissWithEscape,
   failRoute,
   nextRequest,
@@ -142,7 +143,7 @@ test('a dismissed confirmation dialog can be reopened (v-model stays in sync)', 
   await expect(editDialog).toBeVisible()
 
   const confirmOverlay = page.locator('.v-overlay.v-dialog').filter({ hasText: 'Delete dataset' })
-  const confirm = page.getByText('Delete dataset “my-private”?')
+  const confirm = page.getByText('Delete dataset?', { exact: true })
 
   await page.locator('.mdi-delete').first().click()
   await expect(confirm).toBeVisible()
@@ -253,7 +254,7 @@ test('removing series from a private dataset reloads it with access_level=privat
       /access_level=private/.test(req.url()),
   )
   await page.locator('.mdi-folder-minus-outline').locator('xpath=ancestor::button').click()
-  await expect(page.getByText(/Remove \d+ series from .+\?/)).toBeVisible()
+  await expect(dialog(page, 'Remove series from dataset?')).toContainText('“my-private” (private)')
   await page.getByRole('button', { name: 'Remove', exact: true }).click()
 
   const url = (await reloadReq).url()

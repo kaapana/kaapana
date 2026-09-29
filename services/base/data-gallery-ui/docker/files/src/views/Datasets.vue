@@ -11,6 +11,7 @@
                 </v-col>
                 <v-col cols="10">
                   <v-autocomplete
+                    ref="datasetSelector"
                     v-model="selectedDataset"
                     :items="datasets"
                     :item-title="datasetLabel"
@@ -146,7 +147,8 @@
                               variant="text"
                               color="error"
                               :disabled="identifiersOfInterest.length == 0 || !selectedDataset"
-                              @click="removeFromDatasetDialog = true"
+                              :loading="removingFromDataset"
+                              @click="askRemoveFromDataset"
                             />
                           </span>
                         </template>
@@ -190,6 +192,7 @@
                steps (guidelines, "Empty states"). -->
           <GalleryEmptyState
             v-else
+            ref="emptyStateRef"
             :state="emptyState"
             :detail="loadError"
             @retry="updateData(searchQuery, true)"
@@ -218,11 +221,12 @@
            confirmed and coloured `error` (guidelines, "Destructive actions"). -->
       <ConfirmDialog
         v-model="removeFromDatasetDialog"
-        :title="`Remove ${identifiersOfInterest.length} series from “${datasetLabelOfSelected}”?`"
-        :consequences="removeFromDatasetConsequences"
-        confirm-label="Remove"
-        :busy="removingFromDataset"
+        title="Remove series from dataset?"
+        :text="removal?.text ?? ''"
+        confirm-text="Remove"
+        color="error"
         @confirm="removeFromDataset"
+        @after-leave="keepFocusInGallery"
       />
       <SaveDatasetDialog
         v-model="saveAsDatasetDialog"
@@ -365,7 +369,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { notify } from '@kyvg/vue3-notification'
 import { Splitpanes, Pane } from 'splitpanes'
@@ -380,7 +384,6 @@ import Dashboard from '@/components/Dashboard.vue'
 import SaveDatasetDialog from '@/components/SaveDatasetDialog.vue'
 import { WorkflowExecution } from '@kaapana/base-ui/workflow-execution'
 import '@kaapana/base-ui/workflow-execution.css'
-import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import GalleryEmptyState from '@/components/GalleryEmptyState.vue'
 import EditDatasetsDialog from '@/components/EditDatasetsDialog.vue'
 import DownloadDatasetBtn from '@/components/DownloadDatasetBtn.vue'
@@ -398,7 +401,7 @@ import {
 import { kaapanaApiService } from '@kaapana/base-ui'
 import { readSettings, settings as defaultSettings } from '@/static/defaultUIConfig'
 import { debounce } from '@/utils/utils'
-import { getProjectSlug, postViewDirty, useProjectStore } from '@kaapana/base-ui'
+import { ConfirmDialog, getProjectSlug, postViewDirty, useProjectStore } from '@kaapana/base-ui'
 import { useDatasetsStore } from '@/stores/datasets'
 import { kaapanaIcons, galleryIcons } from '@/utils/galleryIcons'
 import { apiErrorText } from '@/utils/errors'
@@ -446,6 +449,9 @@ const allPatients = ref(true)
 const savingDataset = ref(false)
 const addingToDataset = ref(false)
 const removingFromDataset = ref(false)
+const removal = ref<{ dataset: Dataset; identifiers: string[]; text: string } | null>(null)
+const datasetSelector = ref<{ focus: () => void } | null>(null)
+const emptyStateRef = ref<InstanceType<typeof GalleryEmptyState> | null>(null)
 // The shell needs the view's *combined* dirty state, so the parts are collected
 // here rather than each posting over the others (guidelines, "Unsaved changes").
 const searchDirty = ref(false)
@@ -710,21 +716,31 @@ async function addToDataset() {
     addingToDataset.value = false
   }
 }
+function askRemoveFromDataset() {
+  if (removingFromDataset.value || !selectedDataset.value) return
+  const dataset = selectedDataset.value
+  const identifiers = [...identifiersOfInterest.value]
+  removal.value = {
+    dataset,
+    identifiers,
+    text:
+      `${identifiers.length} series are removed from the dataset “${dataset.name}” (${dataset.access_level}). ` +
+      'The series themselves stay in the project; only their membership in this dataset ends. ' +
+      'Adding them back means selecting them again.',
+  }
+  removeFromDatasetDialog.value = true
+}
+
 async function removeFromDataset() {
+  if (removingFromDataset.value || !removal.value) return
+  const { dataset, identifiers } = removal.value
   removingFromDataset.value = true
   let successful = false
   try {
-    successful = await updateDataset(
-      selectedDataset.value!.name,
-      identifiersOfInterest.value,
-      'DELETE',
-      selectedDataset.value!.access_level,
-    )
+    successful = await updateDataset(dataset.name, identifiers, 'DELETE', dataset.access_level)
   } finally {
     removingFromDataset.value = false
   }
-
-  removeFromDatasetDialog.value = false
 
   if (!successful) {
     return
@@ -733,7 +749,7 @@ async function removeFromDataset() {
     Object.keys(patients.value).forEach((patient) => {
       Object.keys(patients.value[patient]).forEach((study) => {
         const filtered_study = patients.value[patient][study].filter(
-          (series) => !identifiersOfInterest.value.includes(series),
+          (series) => !identifiers.includes(series),
         )
         if (filtered_study.length === 0) {
           delete patients.value[patient][study]
@@ -750,7 +766,7 @@ async function removeFromDataset() {
     })
   }
   seriesInstanceUIDs.value = seriesInstanceUIDs.value.filter(
-    (series) => !identifiersOfInterest.value.includes(series),
+    (series) => !identifiers.includes(series),
   )
 
   // Reload manually: only the identifiers changed, not the dataset name, so no
@@ -759,7 +775,16 @@ async function removeFromDataset() {
   searchRef.value?.reloadDataset().catch(() => {})
   selectedSeriesInstanceUIDs.value = []
   datasets_store.setSelectedItems(selectedSeriesInstanceUIDs.value)
+  await keepFocusInGallery()
+}
 
+/** Removing the last series takes the toolbar, and the focused button, with it. */
+async function keepFocusInGallery() {
+  await nextTick()
+  const active = document.activeElement
+  if (active && active !== document.body) return
+  if (emptyStateRef.value) emptyStateRef.value.focus()
+  else datasetSelector.value?.focus()
 }
 async function saveDatasetFromDialog(name: string, access_level: string) {
   savingDataset.value = true
@@ -898,11 +923,6 @@ const emptyState = computed<'empty' | 'no-results' | 'dataset-empty' | 'error'>(
   return 'empty'
 })
 const datasetLabelOfSelected = computed(() => selectedDataset.value?.name ?? '')
-const removeFromDatasetConsequences = computed(() => [
-  `The ${identifiersOfInterest.value.length} selected series are removed from the dataset for everyone who can see it.`,
-  'The series themselves stay in the project; only their membership is removed.',
-  'Adding them back means selecting them again.',
-])
 
 // A disabled action says why it is unavailable when the reason is not obvious
 // (guidelines, "Unavailable actions").

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeMount, onBeforeUnmount, ref } from 'vue'
+import { ConfirmDialog } from '@kaapana/base-ui'
 import { downloadDatasets } from '@/common/api.service'
-import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { galleryIcons } from '@/utils/galleryIcons'
 
 const MAX_DOWNLOADABLE_ITEM = 20
@@ -12,10 +12,20 @@ const props = withDefaults(defineProps<{ selectedSeries?: string[] | null }>(), 
 
 const downloading = ref(false)
 const confirmDialog = ref(false)
+// The series the confirmation describes, copied when it opens: the download
+// then takes exactly what the dialog counted, even if the selection changes
+// meanwhile.
+const pending = ref<string[]>([])
 
 const count = computed(() => props.selectedSeries?.length ?? 0)
 const tooManyItems = computed(() => count.value > MAX_DOWNLOADABLE_ITEM)
-const canDownload = computed(() => count.value > 0 && !tooManyItems.value && !downloading.value)
+const canDownload = computed(() => count.value > 0 && !tooManyItems.value)
+const confirmText = computed(
+  () =>
+    `${pending.value.length} series are packaged into a single zip file before the download starts, which may take several minutes. ` +
+    'The transfer uses network bandwidth and local storage for as long as it runs. ' +
+    'Reloading or closing this view while the download runs cancels it.',
+)
 
 // A disabled action explains why it is unavailable when the reason is not
 // obvious (guidelines, "Unavailable actions").
@@ -28,12 +38,17 @@ const status = computed(() => {
   return `Download ${count.value} series`
 })
 
+function askDownload() {
+  if (downloading.value || !props.selectedSeries?.length) return
+  pending.value = [...props.selectedSeries]
+  confirmDialog.value = true
+}
+
 async function startDownload() {
-  confirmDialog.value = false
-  if (!props.selectedSeries?.length) return
+  if (downloading.value || !pending.value.length) return
   downloading.value = true
   try {
-    await downloadDatasets(props.selectedSeries.join(';'))
+    await downloadDatasets(pending.value.join(';'))
   } catch {
     // downloadDatasets already reported what failed and what it means.
   } finally {
@@ -68,7 +83,7 @@ onBeforeUnmount(() => {
           color="primary"
           :disabled="!canDownload"
           :loading="downloading"
-          @click="confirmDialog = true"
+          @click="askDownload"
         />
       </span>
     </template>
@@ -80,15 +95,10 @@ onBeforeUnmount(() => {
        actions"). -->
   <ConfirmDialog
     v-model="confirmDialog"
-    tone="high-impact"
-    :title="`Download ${count} series?`"
-    :consequences="[
-      'The series are packaged into a single zip file before the download starts, which may take several minutes.',
-      'The transfer uses network bandwidth and local storage for as long as it runs.',
-      'Reloading or closing this view while the download runs cancels it.',
-    ]"
-    confirm-label="Download"
-    :busy="downloading"
+    title="Download series?"
+    :text="confirmText"
+    confirm-text="Download"
+    color="primary"
     @confirm="startDownload"
   />
 </template>

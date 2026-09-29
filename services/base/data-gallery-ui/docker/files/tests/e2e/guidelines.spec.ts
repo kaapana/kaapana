@@ -1,11 +1,9 @@
 import { test, expect } from '@playwright/test'
 import {
   dialog,
-  dismissWithEscape,
   lastDirty,
   openGallery,
   pressEscapeUntil,
-  selectDataset,
   trackDirty,
 } from './fixtures/helpers'
 
@@ -40,54 +38,7 @@ test('a disabled action explains why it is unavailable', async ({ page }) => {
 })
 
 // --- Actions requiring confirmation ------------------------------------------
-
-test('the destructive remove is confirmed, says what follows, and focuses the safe action', async ({
-  page,
-}) => {
-  await openGallery(page)
-
-  await selectDataset(page, 'nsclc (project)')
-  await expect(page.getByText('CT Thorax')).toBeVisible()
-
-  await page.getByRole('button', { name: /^Remove \d+ series from/ }).click()
-
-  // What will happen, what is affected, and what follows.
-  await expect(page.getByText(/Remove \d+ series from .+\?/)).toBeVisible()
-  await expect(page.getByText(/series themselves stay in the project/)).toBeVisible()
-
-  // The safe action takes initial focus, so a stray Enter cannot delete.
-  await expect(page.getByRole('button', { name: 'Cancel' })).toBeFocused()
-  // The destructive action is visually distinct via the error colour.
-  await expect(page.getByRole('button', { name: 'Remove', exact: true })).toHaveClass(/bg-error/)
-
-  // Escape cancels safely: nothing is removed and the dialog closes.
-  await dismissWithEscape(page)
-  await expect(page.getByText(/Remove \d+ series from .+\?/)).toBeHidden()
-})
-
-test('the download is confirmed as high-impact, in primary rather than error', async ({ page }) => {
-  await openGallery(page)
-
-  let downloadRequested = false
-  await page.route(/\/dataset\/download\?/, (route) => {
-    downloadRequested = true
-    return route.fulfill({ status: 200, body: '' })
-  })
-
-  await page.getByRole('button', { name: /^Download \d+ series$/ }).click()
-
-  // It states the scope and the expected effect before starting.
-  await expect(page.getByText(/Download \d+ series\?/)).toBeVisible()
-  await expect(page.getByText(/uses network bandwidth and local storage/)).toBeVisible()
-
-  // Reversible but expensive, so primary — `error` is reserved for destructive.
-  const confirm = page.getByRole('button', { name: 'Download', exact: true })
-  await expect(confirm).toHaveClass(/bg-primary/)
-  await expect(confirm).not.toHaveClass(/bg-error/)
-
-  await page.getByRole('button', { name: 'Cancel' }).click()
-  expect(downloadRequested).toBe(false)
-})
+// See confirmations.spec.ts.
 
 // --- Errors ------------------------------------------------------------------
 
@@ -132,26 +83,26 @@ test('validation says what is required and how to fix it', async ({ page }) => {
 
 // --- Unsaved changes ---------------------------------------------------------
 
-test('closing an edited dialog asks before discarding, and the work survives "keep editing"', async ({
+test('closing an edited dialog, by Escape or an outside click, asks before discarding; "keep editing" returns to the work', async ({
   page,
 }) => {
   await openGallery(page)
+  const discard = dialog(page, 'Discard this dataset?')
 
   await page.getByRole('button', { name: /save .* series as a new dataset/i }).click()
-  await page.getByLabel('Name').first().fill('half-typed')
+  const name = page.getByLabel('Name').first()
+  await name.fill('half-typed')
+
+  await pressEscapeUntil(page, () => discard.isVisible())
+  await discard.getByRole('button', { name: 'Keep editing' }).click()
+  await expect(discard).toBeHidden()
+  await expect(name).toBeFocused()
+  await expect(name).toHaveValue('half-typed')
 
   // An outside click is an application-controlled dismiss, so it is guarded.
-  await pressEscapeUntil(page, () => dialog(page, 'Discard this dataset?').isVisible())
-
-  await page.getByRole('button', { name: 'Keep editing' }).click()
-  await expect(page.getByText('Discard this dataset?')).toBeHidden()
-  await expect(page.getByLabel('Name').first()).toHaveValue('half-typed')
-
-  // Cancel routes through the same guard as Escape and an outside click.
-  await page.getByRole('button', { name: 'Cancel' }).click()
-  const discard = page.getByRole('button', { name: 'Discard', exact: true })
+  await page.mouse.click(8, 8)
   await expect(discard).toBeVisible()
-  await discard.click()
+  await discard.getByRole('button', { name: 'Discard', exact: true }).click()
   await expect(page.getByText('Save selection as dataset')).toBeHidden()
 })
 

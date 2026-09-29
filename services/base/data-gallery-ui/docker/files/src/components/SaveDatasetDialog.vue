@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
-import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import { ConfirmDialog } from '@kaapana/base-ui'
 import { kaapanaIcons } from '@/utils/galleryIcons'
 
 const props = withDefaults(
@@ -77,6 +77,12 @@ function close() {
   emit('update:modelValue', false)
 }
 
+/** "Keep editing" leaves the form open: carry on in the name. Runs once the
+ *  confirmation has gone and handed focus back. */
+function onDiscardLeave() {
+  if (props.modelValue) nameField.value?.focus()
+}
+
 watch(dirty, (value) => emit('update:dirty', value), { immediate: true })
 
 watch(
@@ -147,12 +153,11 @@ watch(
   <ConfirmDialog
     v-model="discardDialog"
     title="Discard this dataset?"
-    :consequences="[
-      'The name and access level you entered will be lost.',
-      'No dataset is created.',
-    ]"
-    cancel-label="Keep editing"
-    confirm-label="Discard"
+    text="The name and access level you entered will be lost. No dataset is created."
+    cancel-text="Keep editing"
+    confirm-text="Discard"
+    color="error"
     @confirm="close"
+    @after-leave="onDiscardLeave"
   />
 </template>

@@ -1,4 +1,5 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Locator, type Page } from '@playwright/test'
+import { makeDefaultMockData } from './fixtures/mock-backend'
 import {
   dialog,
   lastDirty,
@@ -24,6 +25,97 @@ test('every icon-only control in the toolbars has an accessible name', async ({ 
       .map((button) => button.outerHTML.slice(0, 120)),
   )
   expect(unnamed).toEqual([])
+})
+
+// "When closing it, return focus to the control that opened it."
+const dialogOpeners: {
+  dialog: string
+  open: (page: Page) => Promise<Locator>
+}[] = [
+  {
+    dialog: 'Save selection as dataset',
+    open: async (page) => {
+      const opener = page.getByRole('button', { name: /save .* series as a new dataset/i })
+      await opener.click()
+      return opener
+    },
+  },
+  {
+    dialog: 'Add to dataset',
+    open: async (page) => {
+      const opener = page.getByRole('button', { name: /^Add \d+ series to a dataset/ })
+      await opener.click()
+      return opener
+    },
+  },
+  {
+    dialog: 'Search datasets',
+    open: async (page) => {
+      const opener = page.getByRole('button', { name: 'Manage datasets' })
+      await opener.click()
+      return opener
+    },
+  },
+  {
+    dialog: 'Workflow Execution',
+    open: async (page) => {
+      const opener = page.getByRole('button', { name: /^Start a workflow on \d+ series/ })
+      await opener.click()
+      return opener
+    },
+  },
+  {
+    dialog: 'Validation report',
+    open: async (page) => {
+      const opener = page.getByRole('button', { name: '3 validation errors — open report' })
+      await opener.click()
+      return opener
+    },
+  },
+]
+
+for (const { dialog: name, open } of dialogOpeners) {
+  test(`closing "${name}" with Escape returns focus to the control that opened it`, async ({
+    page,
+  }) => {
+    const data = makeDefaultMockData()
+    data.seriesData['1.2.3'].metadata['Validation Results'] = {
+      '00000000 ValidationErrors_integer': 3,
+    }
+    await openGallery(page, data)
+    const opener = await open(page)
+    const opened = dialog(page, name)
+    await expect(opened).toBeVisible()
+    // Focus moves into the dialog once its enter transition ends; an Escape
+    // before that would close it with focus never having left the opener.
+    await expect
+      .poll(() => opened.evaluate((el) => el.contains(document.activeElement)))
+      .toBe(true)
+
+    await pressEscapeUntil(page, () => opened.isHidden())
+    await expect(opener).toBeFocused()
+  })
+}
+
+test('closing a workflow started from the validation report returns focus to the report’s opener', async ({
+  page,
+}) => {
+  const data = makeDefaultMockData()
+  data.seriesData['1.2.3'].metadata['Validation Results'] = {
+    '00000000 ValidationErrors_integer': 3,
+  }
+  await openGallery(page, data)
+  const opener = page.getByRole('button', { name: '3 validation errors — open report' })
+  await opener.click()
+  await dialog(page, 'Validation report').getByRole('button', { name: 'Re-run validation' }).click()
+
+  const workflow = dialog(page, 'Workflow Execution')
+  await expect(workflow).toBeVisible()
+  await expect
+    .poll(() => workflow.evaluate((el) => el.contains(document.activeElement)))
+    .toBe(true)
+  await pressEscapeUntil(page, () => workflow.isHidden())
+  await expect(opener).toBeFocused()
 })
 
 // --- Unavailable actions -----------------------------------------------------

@@ -263,7 +263,7 @@
         :busy="addingToDataset"
         @save="addToDataset"
       />
-      <v-dialog v-model="workflowDialog" max-width="600">
+      <v-dialog v-model="workflowDialog" max-width="600" @after-leave="restoreWorkflowFocus">
         <WorkflowExecution
           :identifiers="identifiersOfInterest"
           :onlyLocal="true"
@@ -323,6 +323,7 @@ import { useFailureDetailsStore } from '@/stores/failureDetails'
 import { kaapanaIcons, galleryIcons } from '@/utils/galleryIcons'
 import { datasetLabel, sameDataset } from '@/utils/datasets'
 import { notifyFailure } from '@/utils/notifyFailure'
+import { hasVisibleFocus, useFocusReturn } from '@/composables/useFocusReturn'
 import type { Dataset, Patients } from '@/types'
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -614,8 +615,7 @@ const emptyState = computed<'empty' | 'no-results' | 'dataset-empty' | 'error'>(
 /** Removing the last series takes the toolbar, and the focused button, with it. */
 async function keepFocusInGallery() {
   await nextTick()
-  const active = document.activeElement
-  if (active && active !== document.body) return
+  if (hasVisibleFocus()) return
   if (emptyStateRef.value) emptyStateRef.value.focus()
   else datasetSelector.value?.focus()
 }
@@ -794,6 +794,8 @@ async function saveDataset(name: string, identifiers: string[], access_level: st
 }
 
 /* ------------------------------------------------------------- workflows -- */
+
+const { restoreFocus: restoreWorkflowFocus } = useFocusReturn(() => workflowDialog.value)
 
 function onWorkflowSubmit() {
   workflowDialog.value = false

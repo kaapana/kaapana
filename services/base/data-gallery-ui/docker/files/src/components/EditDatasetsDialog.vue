@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { notify } from '@kyvg/vue3-notification'
 import { ConfirmDialog, apiErrorInfo, type ApiErrorInfo } from '@kaapana/base-ui'
+import { hasVisibleFocus, useFocusReturn } from '@/composables/useFocusReturn'
 import { useFailureDetailsStore } from '@/stores/failureDetails'
 import { loadDatasets, deleteDataset } from '@/common/api.service'
 import type { Dataset } from '@/types'
@@ -110,8 +111,7 @@ function showLoadFailureDetails() {
  *  so move focus back into the dialog. */
 async function keepFocusInDialog() {
   await nextTick()
-  const active = document.activeElement
-  if (active && active !== document.body) return
+  if (hasVisibleFocus()) return
   searchField.value?.focus()
 }
 
@@ -136,6 +136,9 @@ watch(
 onMounted(() => {
   refreshDatasets()
 })
+
+const { restoreFocus } = useFocusReturn(() => props.modelValue)
+onUnmounted(restoreFocus)
 </script>
 
 <template>

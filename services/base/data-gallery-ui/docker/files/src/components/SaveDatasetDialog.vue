@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { ConfirmDialog } from '@kaapana/base-ui'
+import { useFocusReturn } from '@/composables/useFocusReturn'
 import { kaapanaIcons } from '@/utils/galleryIcons'
 
 const props = withDefaults(
@@ -32,6 +33,7 @@ const accessLevel = ref('private')
 const form = ref<{ validate: () => Promise<{ valid: boolean }> } | null>(null)
 const nameField = ref<{ focus: () => void } | null>(null)
 const discardDialog = ref(false)
+const { restoreFocus } = useFocusReturn(() => props.modelValue)
 
 // A pre-filled form is not dirty until the user changes it; here the form starts
 // empty, so any name at all is unsaved work (guidelines, "Unsaved changes").
@@ -77,10 +79,9 @@ function close() {
   emit('update:modelValue', false)
 }
 
-/** "Keep editing" leaves the form open: carry on in the name. Runs once the
- *  confirmation has gone and handed focus back. */
 function onDiscardLeave() {
   if (props.modelValue) nameField.value?.focus()
+  else restoreFocus()
 }
 
 watch(dirty, (value) => emit('update:dirty', value), { immediate: true })
@@ -104,6 +105,7 @@ watch(
     max-width="600"
     :persistent="props.busy"
     @update:model-value="(value: boolean) => !value && requestClose()"
+    @after-leave="restoreFocus"
   >
     <v-card :elevation="5">
       <v-card-title class="text-h6">Save selection as dataset</v-card-title>

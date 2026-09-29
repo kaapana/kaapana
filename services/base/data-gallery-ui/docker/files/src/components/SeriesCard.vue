@@ -96,7 +96,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 import Chip from './Chip.vue'
 import TagChip from './TagChip.vue'
 import { loadSeriesData, updateTags } from '@/common/api.service'
@@ -259,6 +259,10 @@ function triggerValidationResultDetails() {
 function showDetails() {
   datasets.setDetailViewItem(props.seriesInstanceUID ?? null)
 }
+
+onBeforeUnmount(() => {
+  if (timer) clearTimeout(timer)
+})
 
 watch(() => props.seriesInstanceUID, get_data)
 get_data()

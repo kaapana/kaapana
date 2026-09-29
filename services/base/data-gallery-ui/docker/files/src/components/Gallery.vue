@@ -49,6 +49,14 @@ function containerEl(): HTMLElement | null {
   return (container.value?.$el as HTMLElement) ?? null
 }
 
+// Cards after the first render only when scrolled into view. Until then their
+// placeholder is about as tall as the first card, so the grid keeps its height
+// and does not jump as cards appear.
+const updateMinHeight = debounce(() => {
+  const el = firstCardEl()
+  if (el) minHeight.value = el.clientHeight * 0.85
+}, 50)
+
 function onResize() {
   const _cols = readSettings().datasets.cols
   if (_cols !== 'auto') {
@@ -73,10 +81,7 @@ function onResize() {
       cols.value = 1
     }
   }
-  debounce(() => {
-    const el = firstCardEl()
-    if (el) minHeight.value = el.clientHeight * 0.85
-  }, 50)
+  updateMinHeight()
 }
 
 onMounted(() => {
@@ -90,8 +95,8 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  const el = containerEl()
-  if (ro && el) ro.unobserve(el)
+  ro?.disconnect()
+  ro = null
 })
 </script>
 

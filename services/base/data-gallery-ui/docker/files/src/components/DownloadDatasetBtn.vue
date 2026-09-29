@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeMount, onBeforeUnmount, ref } from 'vue'
-import { ConfirmDialog } from '@kaapana/base-ui'
+import { ConfirmDialog, apiErrorInfo, type ApiErrorInfo } from '@kaapana/base-ui'
 import { downloadDatasets } from '@/common/api.service'
 import { galleryIcons } from '@/utils/galleryIcons'
+import { notifyFailure } from '@/utils/notifyFailure'
 
 const MAX_DOWNLOADABLE_ITEM = 20
+// The backend's cap on one download (MAX_DOWNLOAD_FILE_SIZE_MB); it answers 413 above it.
+const MAX_DOWNLOAD_MB = 256
 
 const props = withDefaults(defineProps<{ selectedSeries?: string[] | null }>(), {
   selectedSeries: () => [],
@@ -49,11 +52,21 @@ async function startDownload() {
   downloading.value = true
   try {
     await downloadDatasets(pending.value.join(';'))
-  } catch {
-    // downloadDatasets already reported what failed and what it means.
+  } catch (error: unknown) {
+    notifyFailure('Download failed', downloadFailureText(apiErrorInfo(error)), error)
   } finally {
     downloading.value = false
   }
+}
+
+function downloadFailureText({ status }: ApiErrorInfo): string {
+  if (status === null) {
+    return 'The download could not be completed: the server could not be reached.'
+  }
+  if (status === 413) {
+    return `The selected series are larger than the ${MAX_DOWNLOAD_MB} MB download limit. Select fewer series, or run the “download-selected-files” workflow.`
+  }
+  return 'The download could not be completed.'
 }
 
 function preventReload(event: BeforeUnloadEvent) {

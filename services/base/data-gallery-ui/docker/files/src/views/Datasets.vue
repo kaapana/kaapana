@@ -305,6 +305,7 @@ import { ConfirmDialog, getProjectSlug, postViewDirty, useProjectStore } from '@
 import { useDatasetsStore } from '@/stores/datasets'
 import { kaapanaIcons, galleryIcons } from '@/utils/galleryIcons'
 import { datasetLabel, sameDataset } from '@/utils/datasets'
+import { notifyFailure } from '@/utils/notifyFailure'
 import type { Dataset, Patients } from '@/types'
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -642,13 +643,8 @@ async function updateDataset(
       type: 'success',
     })
     return true
-  } catch (error: any) {
-    // `text: error` used to render the Error object as "[object Object]".
-    notify({
-      title: 'Dataset not updated',
-      text: apiErrorText(error, `The dataset “${name}” could not be updated.`),
-      type: 'error',
-    })
+  } catch (error: unknown) {
+    notifyFailure('Dataset not updated', `The dataset “${name}” could not be updated.`, error)
     return false
   }
 }
@@ -759,12 +755,8 @@ async function saveDataset(name: string, identifiers: string[], access_level: st
     })
     await updateDatasetNames()
     return true
-  } catch (error: any) {
-    notify({
-      title: 'Dataset not created',
-      text: apiErrorText(error, `The dataset “${name}” could not be created.`),
-      type: 'error',
-    })
+  } catch (error: unknown) {
+    notifyFailure('Dataset not created', `The dataset “${name}” could not be created.`, error)
     return false
   }
 }

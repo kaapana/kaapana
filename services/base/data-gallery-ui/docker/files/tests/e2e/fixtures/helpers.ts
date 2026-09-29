@@ -136,13 +136,13 @@ export async function dismissWithEscape(page: Page, target: Locator = dialog(pag
   await pressEscapeUntil(page, () => target.isHidden())
 }
 
-/** Open the details dialog behind a failure notification. */
 export async function openFailureDetails(page: Page, title: string) {
   const toast = toasts(page).filter({ hasText: title })
   await expect(toast).toBeVisible()
   await toast.click()
-  await expect(dialog(page).getByText(title, { exact: true })).toBeVisible()
-  return dialog(page)
+  const details = dialog(page).filter({ has: page.getByText(title, { exact: true }) })
+  await expect(details).toBeVisible()
+  return details
 }
 
 /* ------------------------------------------------------------- shell ------ */

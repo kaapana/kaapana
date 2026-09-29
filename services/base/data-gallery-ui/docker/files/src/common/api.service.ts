@@ -1,6 +1,7 @@
 import { notify } from '@kyvg/vue3-notification'
 import { apiErrorText, httpClient, httpClientWithoutTimeout, useAuthStore } from '@kaapana/base-ui'
 import type { Dataset } from '@/types'
+import { isAxiosError } from 'axios'
 
 const KAAPANA_BACKEND_ENDPOINT = import.meta.env.VITE_KAAPANA_BACKEND_ENDPOINT
 
@@ -25,15 +26,10 @@ const createDataset = async (body: any) => {
 }
 
 const deleteDataset = async (datasetName: string, accessLevel: string) => {
-  try {
-    const res = await httpClient.delete(KAAPANA_BACKEND_ENDPOINT + 'client/dataset', {
-      params: { name: datasetName, access_level: accessLevel },
-    })
-    return res.data['ok']
-  } catch (error: any) {
-    notifyError(error, 'Dataset not deleted', 'The dataset could not be deleted.')
-    throw error
-  }
+  const res = await httpClient.delete(KAAPANA_BACKEND_ENDPOINT + 'client/dataset', {
+    params: { name: datasetName, access_level: accessLevel },
+  })
+  return res.data['ok']
 }
 
 const loadDatasetByName = async (datasetName: string, access_level = 'project') => {
@@ -177,32 +173,17 @@ const downloadDatasets = async (concatenatedSeriesUIDs: string) => {
 
     URL.revokeObjectURL(link.href)
     document.body.removeChild(link)
-  } catch (error: any) {
-    if (error.response && error.response.data) {
-      // The error body is also a Blob (responseType 'blob'), so read it first.
-      const reader = new FileReader()
-      reader.onload = function () {
-        let errorText = 'The download could not be completed.'
-        try {
-          const detail = JSON.parse(reader.result as string)?.detail
-          if (typeof detail === 'string' && detail.trim() !== '') {
-            errorText = `The download could not be completed. ${detail.trim()}`
-          }
-        } catch {
-          // The body was not the expected JSON problem report; the sentence
-          // above is still the useful thing to show, so keep it.
-        }
-        notify({
-          title: 'Download failed',
-          text: errorText,
-          type: 'error',
-        })
+  } catch (error: unknown) {
+    // With responseType 'blob' the error body is a Blob too.
+    // Parse it so the caller can read the error message.
+    const response = isAxiosError(error) ? error.response : undefined
+    if (response?.data instanceof Blob) {
+      try {
+        response.data = JSON.parse(await response.data.text())
+      } catch {
+        // No valid JSON.
       }
-      reader.readAsText(error.response.data)
-    } else {
-      console.error('Unexpected error:', error)
     }
-
     throw error
   }
 }

@@ -1,0 +1,65 @@
+<script setup lang="ts">
+import { ref } from 'vue'
+import { kaapanaIcons } from '@/utils/galleryIcons'
+import { datasetLabel } from '@/utils/datasets'
+import type { Dataset } from '@/types'
+
+const props = withDefaults(
+  defineProps<{
+    modelValue: boolean
+    datasets?: Dataset[]
+    itemCount?: number
+    busy?: boolean
+  }>(),
+  { datasets: () => [], itemCount: 0, busy: false },
+)
+
+const emit = defineEmits<{
+  'update:modelValue': [value: boolean]
+  save: [dataset: Dataset]
+}>()
+
+const datasetToAddTo = ref<Dataset | null>(null)
+</script>
+
+<template>
+  <v-dialog
+    :model-value="props.modelValue"
+    max-width="600"
+    @update:model-value="(value: boolean) => emit('update:modelValue', value)"
+  >
+    <v-card :elevation="5">
+      <v-card-title class="text-h6">Add to dataset</v-card-title>
+      <v-card-subtitle class="text-body-2 text-medium-emphasis pb-2">
+        {{ props.itemCount }} series will be added.
+      </v-card-subtitle>
+      <v-card-text>
+        <v-select
+          v-model="datasetToAddTo"
+          :items="props.datasets"
+          :item-title="datasetLabel"
+          return-object
+          label="Dataset"
+          no-data-text="No datasets in this project yet — use “Save selection as dataset” first"
+        ></v-select>
+      </v-card-text>
+      <v-divider></v-divider>
+      <v-card-actions>
+        <v-spacer></v-spacer>
+        <v-btn variant="text" :disabled="props.busy" @click.stop="emit('update:modelValue', false)">
+          Cancel
+        </v-btn>
+        <v-btn
+          color="primary"
+          variant="flat"
+          :disabled="!datasetToAddTo"
+          :loading="props.busy"
+          :prepend-icon="kaapanaIcons.save"
+          @click.stop="emit('save', datasetToAddTo!)"
+        >
+          Save
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+</template>

@@ -174,7 +174,7 @@
 </template>
 
 <script setup lang="ts">
-import { watch } from 'vue'
+import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { notify } from '@kyvg/vue3-notification'
 import {
@@ -184,7 +184,6 @@ import {
   loadValues,
   loadSearchFields,
 } from '@/common/api.service'
-import { ref } from 'vue'
 import { apiErrorInfo, useProjectStore, type ApiErrorInfo } from '@kaapana/base-ui'
 import { useFailureDetailsStore } from '@/stores/failureDetails'
 import { kaapanaIcons, galleryIcons } from '@/utils/galleryIcons'

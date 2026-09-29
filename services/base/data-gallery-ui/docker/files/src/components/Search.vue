@@ -244,6 +244,8 @@ interface SearchFailure {
 const searchFailure = ref<SearchFailure | null>(null)
 const userSearching = ref(false)
 
+/* -------------------------------------------------------------- failures -- */
+
 function reportSearchFailure(failure: Omit<SearchFailure, 'error'>, error: unknown) {
   searchFailure.value = { ...failure, error: apiErrorInfo(error) }
 }
@@ -257,6 +259,168 @@ function showSearchFailureDetails() {
   if (!failure) return
   failureDetails.show({ title: failure.title, text: failure.text, error: failure.error })
 }
+
+/* --------------------------------------------------------------- dataset -- */
+
+/** An empty dataset matches nothing, not the whole project. */
+function constructDatasetQuery() {
+  if (!datasetNameLocal.value) return null
+  return { ids: { values: dataset?.identifiers ?? [] } }
+}
+
+// Each call gets a new id. Only the newest call may apply its result.
+let datasetLoad = 0
+
+/** Loads the dataset picked in the selector and makes it the gallery's scope.
+ *  Resolves true when applied, false when a newer pick superseded it. On failure
+ *  the selector returns to the previous dataset and the error is thrown. */
+async function loadSelectedDataset(): Promise<boolean> {
+  const load = ++datasetLoad
+  const name = datasetNameLocal.value
+  const accessLevel = localAccessLevel.value ?? 'project'
+  let loaded: Dataset | null
+  try {
+    loaded = name ? await loadDatasetByName(name, accessLevel) : null
+  } catch (error) {
+    if (load !== datasetLoad) return false
+    datasetNameLocal.value = dataset?.name ?? null
+    localAccessLevel.value = dataset?.access_level ?? null
+    emit('dataset', dataset)
+    throw error
+  }
+  if (load !== datasetLoad) return false
+  dataset = loaded
+  emit('dataset', dataset)
+  return true
+}
+
+async function reloadDataset() {
+  await loadSelectedDataset()
+}
+
+/** Without an access level a link prefers the project dataset over a private one. */
+async function resolveLinkedDataset(name: string, accessLevel?: string) {
+  let datasets: Dataset[]
+  try {
+    datasets = await loadDatasets()
+  } catch (error) {
+    notifyFailure(
+      'Dataset link not applied',
+      `The dataset list could not be loaded, so the link's dataset “${name}” was not applied.`,
+      error,
+    )
+    return
+  }
+  const found = (accessLevel ? [accessLevel] : ['project', 'private'])
+    .map((level) => datasets.find((d) => d.name === name && d.access_level === level))
+    .find((d) => d !== undefined)
+  if (!found) {
+    notify({
+      title: 'Dataset not found',
+      text: `No dataset named “${name}” exists in this project. Pick one from the dataset selector instead.`,
+      type: 'error',
+    })
+    return
+  }
+  datasetNameLocal.value = found.name
+  localAccessLevel.value = found.access_level
+}
+
+/* ---------------------------------------------------------------- fields -- */
+
+async function initializeMapping() {
+  fieldsState.value = 'loading'
+  const res = await loadFieldNames().catch((error: unknown) => {
+    fieldsState.value = 'failed'
+    throw error
+  })
+  fieldNames.value = res!.data
+  mapping.value = Object.assign(
+    {},
+    ...fieldNames.value.map((_name) => ({
+      [_name]: { items: [], key: '' },
+    })),
+  )
+  fieldsState.value = 'loaded'
+}
+
+async function loadFieldNamesReported(): Promise<boolean> {
+  try {
+    await initializeMapping()
+    clearSearchFailure('fields')
+    return true
+  } catch (error) {
+    reportSearchFailure(
+      {
+        kind: 'fields',
+        title: 'Filter fields not loaded',
+        text: 'The fields to filter by could not be loaded.',
+        retry: loadFieldNamesReported,
+      },
+      error,
+    )
+    return false
+  }
+}
+
+async function loadFieldNamesOnce(): Promise<boolean> {
+  return Object.keys(mapping.value).length > 0 || loadFieldNamesReported()
+}
+
+async function updateMapping(filter: Filter) {
+  filter.item_select = []
+  await loadFieldValues(filter.key_select as string)
+}
+
+async function loadFieldValues(key: string) {
+  valuesState.value[key] = 'loading'
+  try {
+    const res = await loadValues(key, constructDatasetQuery() || {})
+    mapping.value[key] = res.data
+    delete valuesState.value[key]
+    clearSearchFailure('values')
+  } catch (error) {
+    valuesState.value[key] = 'failed'
+    reportSearchFailure(
+      {
+        kind: 'values',
+        title: 'Filter values not loaded',
+        text: `The values of “${key}” could not be loaded.`,
+        retry: () => loadFieldValues(key),
+      },
+      error,
+    )
+  }
+}
+
+function isNumericField(key: string): boolean {
+  const fieldKey: string = mapping.value[key]?.key ?? ''
+  return fieldKey.endsWith('_integer') || fieldKey.endsWith('_float')
+}
+
+function fieldNoDataText(filter: Filter) {
+  if (fieldNames.value.length > 0) return `No field matches “${filter.fieldSearch ?? ''}”.`
+  if (fieldsState.value === 'failed') {
+    return searchFailure.value?.kind === 'fields'
+      ? 'The fields could not be loaded; the message above offers to try again.'
+      : 'The fields could not be loaded.'
+  }
+  if (fieldsState.value === 'loading') return 'Loading the fields…'
+  return 'This project has no fields to filter by.'
+}
+
+function valuesNoDataText(filter: Filter) {
+  const key = filter.key_select
+  if (key == null) return 'Choose a field first.'
+  if (valuesState.value[key] === 'failed') return `The values of “${key}” could not be loaded.`
+  if (valuesState.value[key] === 'loading') return `Loading the values of “${key}”…`
+  if ((mapping.value[key]?.items ?? []).length > 0) {
+    return `No value matches “${filter.valueSearch ?? ''}”.`
+  }
+  return `No series in this ${datasetNameLocal.value ? 'dataset' : 'project'} has a value for “${key}”.`
+}
+
+/* --------------------------------------------------------------- filters -- */
 
 async function addFilterItem(key: string, value: any) {
   if (Object.keys(mapping.value).length === 0) {
@@ -327,15 +491,23 @@ function parseFreeInput(filter: Filter) {
   filter.item_select = values.map((val) => (isNumeric ? parseFloat(val) : val))
 }
 
-function isNumericField(key: string): boolean {
-  const fieldKey: string = mapping.value[key]?.key ?? ''
-  return fieldKey.endsWith('_integer') || fieldKey.endsWith('_float')
+function queryFromFilter(filter: Filter) {
+  if (filter.item_select && filter.item_select.length > 0) {
+    return {
+      bool: {
+        should: filter.item_select.map((item) => ({
+          match: {
+            [mapping.value[filter.key_select as string]?.key]: item,
+          },
+        })),
+      },
+    }
+  } else {
+    return null
+  }
 }
 
-function searchFromUser() {
-  userSearching.value = true
-  search()
-}
+/* ---------------------------------------------------------------- search -- */
 
 function composeQuery(fields: string[] | null = null) {
   let inner_query: any = { match_all: {} }
@@ -415,133 +587,42 @@ async function search() {
   }
 }
 
-function queryFromFilter(filter: Filter) {
-  if (filter.item_select && filter.item_select.length > 0) {
-    return {
-      bool: {
-        should: filter.item_select.map((item) => ({
-          match: {
-            [mapping.value[filter.key_select as string]?.key]: item,
-          },
-        })),
-      },
-    }
-  } else {
-    return null
-  }
+function searchFromUser() {
+  userSearching.value = true
+  search()
 }
 
-/** An empty dataset matches nothing, not the whole project. */
-function constructDatasetQuery() {
-  if (!datasetNameLocal.value) return null
-  return { ids: { values: dataset?.identifiers ?? [] } }
-}
-
-// Each call gets a new id. Only the newest call may apply its result.
-let datasetLoad = 0
-
-/** Loads the dataset picked in the selector and makes it the gallery's scope.
- *  Resolves true when applied, false when a newer pick superseded it. On failure
- *  the selector returns to the previous dataset and the error is thrown. */
-async function loadSelectedDataset(): Promise<boolean> {
-  const load = ++datasetLoad
+async function initSearch() {
   const name = datasetNameLocal.value
-  const accessLevel = localAccessLevel.value ?? 'project'
-  let loaded: Dataset | null
   try {
-    loaded = name ? await loadDatasetByName(name, accessLevel) : null
-  } catch (error) {
-    if (load !== datasetLoad) return false
-    datasetNameLocal.value = dataset?.name ?? null
-    localAccessLevel.value = dataset?.access_level ?? null
-    emit('dataset', dataset)
-    throw error
-  }
-  if (load !== datasetLoad) return false
-  dataset = loaded
-  emit('dataset', dataset)
-  return true
-}
-
-/** Without an access level a link prefers the project dataset over a private one. */
-async function resolveLinkedDataset(name: string, accessLevel?: string) {
-  let datasets: Dataset[]
-  try {
-    datasets = await loadDatasets()
+    if (!(await loadSelectedDataset())) return
   } catch (error) {
     notifyFailure(
-      'Dataset link not applied',
-      `The dataset list could not be loaded, so the link's dataset “${name}” was not applied.`,
+      'Dataset not loaded',
+      `The dataset “${name}” could not be loaded, so the gallery stays on the previous selection.`,
       error,
     )
     return
   }
-  const found = (accessLevel ? [accessLevel] : ['project', 'private'])
-    .map((level) => datasets.find((d) => d.name === name && d.access_level === level))
-    .find((d) => d !== undefined)
-  if (!found) {
-    notify({
-      title: 'Dataset not found',
-      text: `No dataset named “${name}” exists in this project. Pick one from the dataset selector instead.`,
-      type: 'error',
-    })
-    return
+  filters.value = []
+  await search()
+  await loadFieldNamesReported()
+}
+
+/** Resets all filters, then searches once. The dataset goes first,
+ *  so the selection watcher does not search again. */
+async function resetSearch() {
+  query_string.value = ''
+  filters.value = []
+  if (datasetNameLocal.value) {
+    datasetNameLocal.value = null
+    localAccessLevel.value = null
+    await loadSelectedDataset()
   }
-  datasetNameLocal.value = found.name
-  localAccessLevel.value = found.access_level
+  await search()
 }
 
-async function updateMapping(filter: Filter) {
-  filter.item_select = []
-  await loadFieldValues(filter.key_select as string)
-}
-
-async function loadFieldValues(key: string) {
-  valuesState.value[key] = 'loading'
-  try {
-    const res = await loadValues(key, constructDatasetQuery() || {})
-    mapping.value[key] = res.data
-    delete valuesState.value[key]
-    clearSearchFailure('values')
-  } catch (error) {
-    valuesState.value[key] = 'failed'
-    reportSearchFailure(
-      {
-        kind: 'values',
-        title: 'Filter values not loaded',
-        text: `The values of “${key}” could not be loaded.`,
-        retry: () => loadFieldValues(key),
-      },
-      error,
-    )
-  }
-}
-
-function fieldNoDataText(filter: Filter) {
-  if (fieldNames.value.length > 0) return `No field matches “${filter.fieldSearch ?? ''}”.`
-  if (fieldsState.value === 'failed') {
-    return searchFailure.value?.kind === 'fields'
-      ? 'The fields could not be loaded; the message above offers to try again.'
-      : 'The fields could not be loaded.'
-  }
-  if (fieldsState.value === 'loading') return 'Loading the fields…'
-  return 'This project has no fields to filter by.'
-}
-
-function valuesNoDataText(filter: Filter) {
-  const key = filter.key_select
-  if (key == null) return 'Choose a field first.'
-  if (valuesState.value[key] === 'failed') return `The values of “${key}” could not be loaded.`
-  if (valuesState.value[key] === 'loading') return `Loading the values of “${key}”…`
-  if ((mapping.value[key]?.items ?? []).length > 0) {
-    return `No value matches “${filter.valueSearch ?? ''}”.`
-  }
-  return `No series in this ${datasetNameLocal.value ? 'dataset' : 'project'} has a value for “${key}”.`
-}
-
-async function reloadDataset() {
-  await loadSelectedDataset()
-}
+/* ------------------------------------------------------------ deep links -- */
 
 const LINK_PARAMS = ['query_string', 'dataset_name', 'access_level', 'project_name']
 
@@ -594,62 +675,6 @@ async function processQueryParams() {
   await loadFieldNamesOnce()
 }
 
-async function initializeMapping() {
-  fieldsState.value = 'loading'
-  const res = await loadFieldNames().catch((error: unknown) => {
-    fieldsState.value = 'failed'
-    throw error
-  })
-  fieldNames.value = res!.data
-  mapping.value = Object.assign(
-    {},
-    ...fieldNames.value.map((_name) => ({
-      [_name]: { items: [], key: '' },
-    })),
-  )
-  fieldsState.value = 'loaded'
-}
-
-async function loadFieldNamesReported(): Promise<boolean> {
-  try {
-    await initializeMapping()
-    clearSearchFailure('fields')
-    return true
-  } catch (error) {
-    reportSearchFailure(
-      {
-        kind: 'fields',
-        title: 'Filter fields not loaded',
-        text: 'The fields to filter by could not be loaded.',
-        retry: loadFieldNamesReported,
-      },
-      error,
-    )
-    return false
-  }
-}
-
-async function loadFieldNamesOnce(): Promise<boolean> {
-  return Object.keys(mapping.value).length > 0 || loadFieldNamesReported()
-}
-
-async function initSearch() {
-  const name = datasetNameLocal.value
-  try {
-    if (!(await loadSelectedDataset())) return
-  } catch (error) {
-    notifyFailure(
-      'Dataset not loaded',
-      `The dataset “${name}” could not be loaded, so the gallery stays on the previous selection.`,
-      error,
-    )
-    return
-  }
-  filters.value = []
-  await search()
-  await loadFieldNamesReported()
-}
-
 function assembleQueryUrl() {
   const baseUrl = window.location.origin + window.location.pathname
 
@@ -693,6 +718,8 @@ async function copyQueryToClipboard() {
   }
 }
 
+/* ------------------------------------------------------------- lifecycle -- */
+
 watch(
   () => props.selectedDataset,
   async (newVal) => {
@@ -725,19 +752,6 @@ processQueryParams().catch((error) => {
   console.error('[Search.vue] Failed to process query params:', error)
   search()
 })
-
-/** Resets all filters, then searches once. The dataset goes first,
- *  so the selection watcher does not search again. */
-async function resetSearch() {
-  query_string.value = ''
-  filters.value = []
-  if (datasetNameLocal.value) {
-    datasetNameLocal.value = null
-    localAccessLevel.value = null
-    await loadSelectedDataset()
-  }
-  await search()
-}
 
 defineExpose({ addFilterItem, reloadDataset, resetSearch })
 </script>

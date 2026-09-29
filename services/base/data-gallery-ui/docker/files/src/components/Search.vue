@@ -386,16 +386,45 @@ function constructDatasetQuery() {
 }
 
 /** Load the selected dataset with its identifiers. A failed reload keeps the
- *  last identifiers of the same dataset; another dataset never inherits them. */
-async function loadSelectedDataset() {
+ *  last identifiers of the same dataset; another dataset never inherits them.
+ *  Resolves false when a newer selection superseded this load. */
+let datasetLoad = 0
+async function loadSelectedDataset(): Promise<boolean> {
+  const load = ++datasetLoad
   const name = datasetNameLocal.value
   const accessLevel = localAccessLevel.value ?? 'project'
   if (!name || dataset?.name !== name || dataset?.access_level !== accessLevel) dataset = null
   try {
-    if (name) dataset = await loadDatasetByName(name, accessLevel)
+    const loaded = name ? await loadDatasetByName(name, accessLevel) : null
+    if (load === datasetLoad) dataset = loaded
   } finally {
-    emit('dataset', dataset)
+    if (load === datasetLoad) emit('dataset', dataset)
   }
+  return load === datasetLoad
+}
+
+/** Without an access level a link prefers the project dataset over a private one. */
+async function resolveLinkedDataset(name: string, accessLevel?: string) {
+  let datasets: Dataset[]
+  try {
+    datasets = await loadDatasets()
+  } catch {
+    // loadDatasets already reported; search unscoped rather than not at all.
+    return
+  }
+  const found = (accessLevel ? [accessLevel] : ['project', 'private'])
+    .map((level) => datasets.find((d) => d.name === name && d.access_level === level))
+    .find((d) => d !== undefined)
+  if (!found) {
+    notify({
+      title: 'Dataset not found',
+      text: `No dataset named “${name}” exists in this project. Pick one from the dataset selector instead.`,
+      type: 'error',
+    })
+    return
+  }
+  datasetNameLocal.value = found.name
+  localAccessLevel.value = found.access_level
 }
 
 async function updateMapping(filter: Filter) {
@@ -409,52 +438,46 @@ async function reloadDataset() {
   await loadSelectedDataset()
 }
 
-/** Apply the deep-link URL params (dataset name, query_string, DICOM filters),
- * run the search, then strip the params from the URL. */
+const LINK_PARAMS = ['query_string', 'dataset_name', 'access_level', 'project_name']
+
 async function processQueryParams() {
   if (queryParams.dataset_name) {
-    let datasets: Dataset[] = []
-    try {
-      datasets = await loadDatasets()
-    } catch {
-      // loadDatasets already reported; search unscoped rather than not at all.
-    }
-    if (datasets.some((d) => d.name === queryParams.dataset_name)) {
-      datasetNameLocal.value = queryParams.dataset_name
-      await initSearch()
-    }
-    // invalid dataset name will be handled in Datasets.vue
-  } else {
-    await initSearch()
+    await resolveLinkedDataset(queryParams.dataset_name, queryParams.access_level)
+  }
+  try {
+    await loadSelectedDataset()
+  } catch {
+    // loadDatasetByName already reported; search unscoped rather than not at all.
+    datasetNameLocal.value = null
+    localAccessLevel.value = null
   }
   if (queryParams.query_string) {
     // route.query is already decoded — decoding again throws on a literal '%'.
     query_string.value = queryParams.query_string
   }
 
-  if (queryParams) {
-    // All params other than these three are DICOM filters.
-    const params = Object.entries(queryParams).filter(
-      ([key]) => key !== 'query_string' && key !== 'dataset_name' && key !== 'project_name',
-    )
-
-    for (const [_key, _value] of params) {
-      try {
-        if (_value.includes(',')) {
-          for (const val of _value.split(',')) {
-            await addFilterItem(_key, val)
-          }
-        } else {
-          await addFilterItem(_key, _value)
+  const filterParams = Object.entries(queryParams).filter(([key]) => !LINK_PARAMS.includes(key))
+  for (const [_key, _value] of filterParams) {
+    try {
+      if (_value.includes(',')) {
+        for (const val of _value.split(',')) {
+          await addFilterItem(_key, val)
         }
-      } catch {
-        // addFilterItem already reported; keep applying the remaining filters.
+      } else {
+        await addFilterItem(_key, _value)
       }
+    } catch {
+      // addFilterItem already reported; keep applying the remaining filters.
     }
   }
+
+  await search()
   if (Object.keys(queryParams).length > 0) {
-    search()
     window.history.replaceState(null, '', window.location.origin + window.location.pathname)
+  }
+  if (Object.keys(mapping.value).length === 0) {
+    // loadFieldNames already reported; the Field list just stays empty.
+    await initializeMapping().catch(() => {})
   }
 }
 
@@ -471,7 +494,7 @@ async function initializeMapping() {
 
 async function initSearch() {
   filters.value = []
-  await loadSelectedDataset()
+  if (!(await loadSelectedDataset())) return
   await search()
   await initializeMapping()
 }
@@ -488,6 +511,7 @@ function assembleQueryUrl() {
   }
   if (datasetNameLocal.value) {
     params.append('dataset_name', datasetNameLocal.value)
+    params.append('access_level', localAccessLevel.value ?? 'project')
   }
   filters.value.forEach((filter) => {
     if (filter.key_select && filter.item_select && filter.item_select.length > 0) {
@@ -511,8 +535,13 @@ function copyQueryToClipboard() {
 watch(
   () => props.selectedDataset,
   async (newVal) => {
-    datasetNameLocal.value = newVal ? newVal.name : null
-    localAccessLevel.value = newVal ? newVal.access_level ?? null : null
+    const name = newVal?.name ?? null
+    const accessLevel = newVal?.access_level ?? null
+    // Skip a selection the search already holds: it set the dataset itself (a deep
+    // link, or a reset). Starting over would drop the link's filters or search twice.
+    if (name === datasetNameLocal.value && accessLevel === localAccessLevel.value) return
+    datasetNameLocal.value = name
+    localAccessLevel.value = accessLevel
     await initSearch()
   },
 )

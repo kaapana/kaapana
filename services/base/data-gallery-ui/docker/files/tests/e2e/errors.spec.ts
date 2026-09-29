@@ -9,6 +9,7 @@ import {
   collectPageErrors,
   confirmAction,
   dialog,
+  expectNoToast,
   failRoute,
   openFailureDetails,
   openGallery,
@@ -37,7 +38,7 @@ test.describe('reported inline', () => {
     const empty = page.getByTestId('gallery-empty-state')
     await expect(empty).toContainText('Could not load the series')
     await settle(page)
-    await expect(toasts(page)).toHaveCount(0)
+    await expectNoToast(page)
     await expect(page.getByText('Boom')).toHaveCount(0)
     await empty.getByRole('button', { name: 'Details' }).click()
     await expect(dialog(page).getByText('Boom')).toBeVisible()
@@ -62,7 +63,7 @@ test.describe('reported inline', () => {
     await expect(stale).toContainText('Could not load the results of this search')
     await expect(page.getByText('CT Thorax')).toBeVisible()
     await settle(page)
-    await expect(toasts(page)).toHaveCount(0)
+    await expectNoToast(page)
     await expect(stale).toHaveCount(1)
 
     await stale.getByRole('button', { name: 'Details' }).click()
@@ -92,7 +93,7 @@ test.describe('reported inline', () => {
     await expect(alert).toContainText('The free text was not applied')
     await expect(alert).toContainText('match the filters only')
     await settle(page)
-    await expect(toasts(page)).toHaveCount(0)
+    await expectNoToast(page)
     await alert.getByRole('button', { name: 'Details' }).click()
     await expect(dialog(page).getByText('OpenSearch down')).toBeVisible()
     await dialog(page).getByRole('button', { name: 'Close' }).click()
@@ -124,7 +125,7 @@ test.describe('reported inline', () => {
     await expect(alert).toContainText('The free text was not applied')
     await settle(page)
     await expect(alert).toHaveCount(1)
-    await expect(toasts(page)).toHaveCount(0)
+    await expectNoToast(page)
   })
 
   test('failed filter fields are reported in the search row', async ({ page }) => {
@@ -135,7 +136,7 @@ test.describe('reported inline', () => {
 
     await expect(page.getByTestId('search-alert')).toContainText('The fields to filter by could not be loaded')
     await settle(page)
-    await expect(toasts(page)).toHaveCount(0)
+    await expectNoToast(page)
   })
 
   test('failed filter values are reported in the search row', async ({ page }) => {
@@ -148,7 +149,7 @@ test.describe('reported inline', () => {
 
     await expect(page.getByTestId('search-alert')).toContainText('The values of “Modality” could not be loaded')
     await settle(page)
-    await expect(toasts(page)).toHaveCount(0)
+    await expectNoToast(page)
   })
 
   test('failed statistics are reported in the dashboard only', async ({ page }) => {
@@ -159,7 +160,7 @@ test.describe('reported inline', () => {
 
     await expect(page.getByText('The statistics for the current selection could not be loaded.')).toHaveCount(1)
     await settle(page)
-    await expect(toasts(page)).toHaveCount(0)
+    await expectNoToast(page)
   })
 
   test('a series whose metadata fails says so on its card, without a toast', async ({ page }) => {
@@ -171,7 +172,7 @@ test.describe('reported inline', () => {
     await expect(card).toContainText('Metadata unavailable')
     await expect(card.locator('.v-progress-circular')).toHaveCount(0)
     await settle(page)
-    await expect(toasts(page)).toHaveCount(0)
+    await expectNoToast(page)
   })
 
   test('failed dataset lists are reported in their lists only', async ({ page }) => {
@@ -186,7 +187,7 @@ test.describe('reported inline', () => {
     await page.getByRole('button', { name: 'Manage datasets' }).click()
     await expect(dialog(page, 'Search datasets')).toContainText('Could not load the datasets')
     await settle(page)
-    await expect(toasts(page)).toHaveCount(0)
+    await expectNoToast(page)
   })
 })
 
@@ -198,10 +199,12 @@ test.describe('reported once as a notification', () => {
     await page.goto(`${VIEW_PATH}?project_name=admin`)
 
     await expect(page.getByText('CT Thorax')).toBeVisible()
+    // One lookup, one notification: counted once, before selecting it closes it.
+    await settle(page)
+    expect(await toasts(page).count()).toBe(1)
     const details = await openFailureDetails(page, 'Project unavailable')
     await expect(details.getByText('Projects unavailable')).toBeVisible()
     await details.getByRole('button', { name: 'Close' }).click()
-    await expect(toasts(page)).toHaveCount(0)
     expect(pageErrors).toEqual([])
   })
 

@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import { makeDefaultMockData, viewPathFor } from './fixtures/mock-backend'
-import { delayRoute, dialog, openGallery, serverError, toasts } from './fixtures/helpers'
+import { delayRoute, dialog, expectNoToast, openGallery, serverError } from './fixtures/helpers'
 
 test('opening a series detail shows the OHIF viewer and its metadata table', async ({ page }) => {
   await openGallery(page)
@@ -48,7 +48,7 @@ test('a failed metadata load is one inline message with Retry and Details, not a
   const alert = pane(page).getByTestId('metadata-alert')
   await expect(alert).toContainText('The metadata of this series could not be loaded.')
   await page.waitForTimeout(700)
-  await expect(toasts(page)).toHaveCount(0)
+  await expectNoToast(page)
   await expect(pane(page).getByText('No metadata was returned')).toHaveCount(0)
   await alert.getByRole('button', { name: 'Details' }).click()
   await expect(dialog(page).getByText('Boom')).toBeVisible()

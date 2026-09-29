@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import { makeDefaultMockData } from './fixtures/mock-backend'
-import { collectPageErrors, dialog, openGallery, serverError, toasts } from './fixtures/helpers'
+import { collectPageErrors, dialog, expectNoToast, openGallery, serverError } from './fixtures/helpers'
 
 const LOOKUP = /\/kaapana-backend\/get-static-website-result-reports\?/
 const REPORT = '**/reports/1.2.3.html'
@@ -59,7 +59,7 @@ test('a series without a report says so, and Download report says why it is unav
   const download = await downloadEntry(page)
   await expect(download).toHaveClass(/v-list-item--disabled/)
   await expect(download).toContainText('No report exists for this series')
-  await expect(toasts(page)).toHaveCount(0)
+  await expectNoToast(page)
 })
 
 test('a failed lookup is a failure with Retry and Details, not "no report"', async ({ page }) => {
@@ -73,7 +73,7 @@ test('a failed lookup is a failure with Retry and Details, not "no report"', asy
   await expect(alert).toContainText('The validation report could not be looked up.')
   await expect(report.getByText('No validation report for this series')).toHaveCount(0)
   await page.waitForTimeout(700)
-  await expect(toasts(page)).toHaveCount(0)
+  await expectNoToast(page)
 
   await alert.getByRole('button', { name: 'Details' }).click()
   await expect(dialog(page, 'MinIO down')).toBeVisible()
@@ -98,7 +98,7 @@ test('a report that cannot be fetched says so inline, with a retry', async ({ pa
   await expect(alert).toContainText('The report could not be loaded.')
   await expect(report.getByText('Network response was not ok')).toHaveCount(0)
   await page.waitForTimeout(700)
-  await expect(toasts(page)).toHaveCount(0)
+  await expectNoToast(page)
 
   failing = false
   await alert.getByRole('button', { name: 'Try again' }).click()

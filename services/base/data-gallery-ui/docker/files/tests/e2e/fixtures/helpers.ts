@@ -98,6 +98,12 @@ export function toasts(page: Page) {
   return page.locator('.vue-notification-wrapper')
 }
 
+/** Read once: a retrying toHaveCount(0) would pass as soon as a stray
+ *  notification timed out. */
+export async function expectNoToast(page: Page) {
+  expect(await toasts(page).count(), 'a notification is on screen').toBe(0)
+}
+
 /** Vuetify keeps tooltip content in the DOM, so a text query cannot tell open from closed. */
 export function visibleTooltips(page: Page): Promise<string[]> {
   return page.evaluate(() =>

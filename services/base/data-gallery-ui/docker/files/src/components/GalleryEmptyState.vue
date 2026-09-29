@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { navigateShell } from '@kaapana/base-ui'
 import { kaapanaIcons, galleryIcons } from '@/utils/galleryIcons'
 
@@ -23,6 +23,15 @@ const emit = defineEmits<{
 // Menu address of the Data Upload view for navigateShell, taken from
 // data-upload-ui's Kubernetes service annotations.
 const DATA_UPLOAD_ROUTE = '/web/workflows/data-upload'
+
+const heading = ref<HTMLElement | null>(null)
+
+/** Focus the heading when the element that had focus was removed. */
+function focus() {
+  heading.value?.focus()
+}
+
+defineExpose({ focus })
 
 const presentation = computed(() => {
   switch (props.state) {
@@ -66,7 +75,7 @@ const presentation = computed(() => {
   <v-card :elevation="0" border class="ma-4">
     <v-card-text class="text-center py-8">
       <v-icon :icon="presentation.icon" :color="presentation.color" size="48" class="mb-4" />
-      <div class="text-h6 mb-2">{{ presentation.title }}</div>
+      <div ref="heading" class="text-h6 mb-2" tabindex="-1">{{ presentation.title }}</div>
       <div class="text-body-2 text-medium-emphasis mx-auto" style="max-width: 52ch">
         {{ presentation.body }}
       </div>

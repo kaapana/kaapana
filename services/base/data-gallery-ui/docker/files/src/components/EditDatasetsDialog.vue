@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { notify } from '@kyvg/vue3-notification'
+import { ConfirmDialog } from '@kaapana/base-ui'
 import { loadDatasets, deleteDataset } from '@/common/api.service'
-import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import type { Dataset } from '@/types'
 import { kaapanaIcons } from '@/utils/galleryIcons'
 
 const props = defineProps<{ modelValue: boolean }>()
@@ -24,16 +25,26 @@ const headers = [
   { title: 'Actions', key: 'actions', sortable: false },
 ]
 const editedDatasets = ref(false)
-let editedIndex = -1
-const editedItem = ref<any>({})
+type DatasetRow = Dataset & { size: number }
+// editedItem: copy of the row the delete confirmation is about.
+// deletingItem: the row whose delete request is running (its button spins).
+const editedItem = ref<DatasetRow | null>(null)
+const deletingItem = ref<DatasetRow | null>(null)
+const searchField = ref<{ focus: () => void } | null>(null)
 
-// The confirmation says what will happen, what is affected, and what follows
-// (guidelines, "Actions requiring confirmation").
-const deleteConsequences = computed(() => [
-  `The dataset “${editedItem.value.name}” and its membership list are removed for everyone who can see it.`,
-  `The ${editedItem.value.size ?? 0} series it references stay in the project; only the grouping is deleted.`,
-  'This cannot be undone.',
-])
+const deleteText = computed(() => {
+  const item = editedItem.value
+  if (!item) return ''
+  return (
+    `The dataset “${item.name}” (${item.access_level}) is deleted for everyone who can see it. ` +
+    `The ${item.size ?? 0} series it references stay in the project; only the grouping is deleted. ` +
+    'This cannot be undone.'
+  )
+})
+
+function sameDataset(a: any, b: any) {
+  return !!a && !!b && a.name === b.name && a.access_level === b.access_level
+}
 
 async function loadDatasetsRows() {
   return (await loadDatasets(false)).map((dataset) => ({
@@ -54,38 +65,43 @@ async function refreshDatasets() {
 }
 
 function deleteItem(item: any) {
-  editedIndex = datasets.value.indexOf(item)
-  editedItem.value = Object.assign({}, item)
+  if (deleting.value) return
+  editedItem.value = { ...item }
   dialogDelete.value = true
 }
 
 async function deleteItemConfirm() {
+  if (deleting.value || !editedItem.value) return
+  const item = editedItem.value
   deleting.value = true
+  deletingItem.value = item
   try {
-    const successful = await deleteDataset(editedItem.value.name, editedItem.value.access_level)
+    const successful = await deleteDataset(item.name, item.access_level)
     if (successful) {
       notify({
         title: 'Dataset deleted',
-        text: `The dataset “${editedItem.value.name}” was deleted.`,
+        text: `The dataset “${item.name}” was deleted.`,
         type: 'success',
       })
-      datasets.value.splice(editedIndex, 1)
-      closeDelete()
+      datasets.value = datasets.value.filter((d) => !sameDataset(d, item))
       editedDatasets.value = true
     }
   } catch {
-    // deleteDataset already reported; keep the dialog open so it can be retried.
+    // deleteDataset already reported; the row stays, so it can be retried.
   } finally {
     deleting.value = false
+    deletingItem.value = null
   }
+  await keepFocusInDialog()
 }
 
-function closeDelete() {
-  dialogDelete.value = false
-  nextTick(() => {
-    editedItem.value = {}
-    editedIndex = -1
-  })
+/** After the confirmation: a deleted row takes its focused button with it,
+ *  so move focus back into the dialog. */
+async function keepFocusInDialog() {
+  await nextTick()
+  const active = document.activeElement
+  if (active && active !== document.body) return
+  searchField.value?.focus()
 }
 
 const show = computed({
@@ -93,6 +109,8 @@ const show = computed({
     return props.modelValue
   },
   set() {
+    // Closing reports the deletions upward: Refuse to close while a delete runs.
+    if (deleting.value) return
     emit('close', editedDatasets.value)
   },
 })
@@ -112,11 +130,13 @@ onMounted(() => {
 <template>
   <!-- Large (900px): a table. Content that would not fit belongs in a full view,
        not a wider dialog (guidelines, "Dialogs"). -->
-  <v-dialog v-model="show" max-width="900">
+  <!-- Persistent while a delete runs: closing reports the deletions upward. -->
+  <v-dialog v-model="show" max-width="900" :persistent="deleting">
     <v-card :elevation="5">
       <v-card-title class="text-h6">Datasets</v-card-title>
       <v-card-text>
         <v-text-field
+          ref="searchField"
           v-model="search"
           :append-inner-icon="kaapanaIcons.search"
           label="Search datasets"
@@ -147,6 +167,7 @@ onMounted(() => {
               variant="text"
               size="small"
               density="comfortable"
+              :loading="sameDataset(deletingItem, item)"
               @click="deleteItem(item)"
             />
           </template>
@@ -161,17 +182,18 @@ onMounted(() => {
       <v-divider></v-divider>
       <v-card-actions>
         <v-spacer></v-spacer>
-        <v-btn variant="text" @click="show = false">Close</v-btn>
+        <v-btn variant="text" :disabled="deleting" @click="show = false">Close</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
 
   <ConfirmDialog
     v-model="dialogDelete"
-    :title="`Delete dataset “${editedItem.name}”?`"
-    :consequences="deleteConsequences"
-    confirm-label="Delete"
-    :busy="deleting"
+    title="Delete dataset?"
+    :text="deleteText"
+    confirm-text="Delete"
+    color="error"
     @confirm="deleteItemConfirm"
+    @after-leave="keepFocusInDialog"
   />
 </template>

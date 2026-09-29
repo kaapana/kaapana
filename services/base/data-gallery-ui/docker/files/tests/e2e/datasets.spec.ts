@@ -198,9 +198,10 @@ test('Edit Datasets dialog lists datasets and deletes one', async ({ page }) => 
   await expect(page.getByRole('cell', { name: 'my-private', exact: true })).toBeVisible()
 
   const deleteReq = nextRequest(page, /\/client\/dataset\?.*name=nsclc/, 'DELETE')
-  await page.getByRole('button', { name: 'Delete dataset nsclc' }).click()
-  await expect(page.getByText('Delete dataset “nsclc”?')).toBeVisible()
-  await expect(page.getByText(/series it references stay in the project/)).toBeVisible()
+  await page.getByRole('button', { name: 'Delete dataset nsclc (project)' }).click()
+  const confirmation = dialog(page, 'Delete dataset?')
+  await expect(confirmation).toContainText('“nsclc” (project)')
+  await expect(confirmation).toContainText('series it references stay in the project')
   await confirmAction(page, 'Delete')
 
   await deleteReq

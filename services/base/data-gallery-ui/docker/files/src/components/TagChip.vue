@@ -3,11 +3,13 @@
     <v-chip
       v-for="item in sortedItems"
       :key="item"
+      :model-value="true"
       size="x-small"
       variant="flat"
       closable
       :style="chipStyle(item)"
       :close-label="`Remove tag ${item}`"
+      @update:model-value="() => {}"
       @click:close="emit('deleteTag', item)"
     >
       {{ item }}

@@ -96,11 +96,10 @@ import { ref, watch } from 'vue'
 import Chip from './Chip.vue'
 import TagChip from './TagChip.vue'
 import { loadSeriesData, updateTags } from '@/common/api.service'
-import { notify } from '@kyvg/vue3-notification'
 import { readSettings, settings as defaultSettings } from '@/static/defaultUIConfig'
 import { useDatasetsStore } from '@/stores/datasets'
 import { kaapanaIcons, galleryIcons } from '@/utils/galleryIcons'
-import { apiErrorText } from '@kaapana/base-ui'
+import { notifyFailure } from '@/utils/notifyFailure'
 
 const props = defineProps<{ seriesInstanceUID?: string }>()
 
@@ -152,13 +151,8 @@ async function deleteTag(tag: string) {
   ]
   updateTags(request_body)
     .then(() => (tags.value = tags.value.filter((_tag) => _tag !== tag)))
-    // updateTags does not report; the chip stays until the server confirms.
-    .catch((error: any) =>
-      notify({
-        title: 'Tag not removed',
-        text: apiErrorText(error, `The tag “${tag}” could not be removed from this series.`),
-        type: 'error',
-      }),
+    .catch((error: unknown) =>
+      notifyFailure('Tag not removed', `The tag “${tag}” could not be removed from this series.`, error),
     )
 }
 
@@ -218,13 +212,8 @@ function modifyTags() {
         ? tags.value.filter((tag) => !activeTags.includes(tag))
         : Array.from(new Set([...tags.value, ...activeTags]))
     })
-    // updateTags does not report; the chips stay until the server confirms.
-    .catch((error: any) =>
-      notify({
-        title: 'Tags not updated',
-        text: apiErrorText(error, 'The tags on this series could not be updated.'),
-        type: 'error',
-      }),
+    .catch((error: unknown) =>
+      notifyFailure('Tags not updated', 'The tags on this series could not be updated.', error),
     )
 }
 

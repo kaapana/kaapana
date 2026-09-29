@@ -16,4 +16,5 @@ test('deleting a tag chip on a series posts a tags2delete update', async ({ page
   const asText = JSON.stringify(await tagReq)
   expect(asText).toContain('tags2delete')
   expect(asText).toContain('review')
+  await expect(card.getByText('review')).toHaveCount(0)
 })

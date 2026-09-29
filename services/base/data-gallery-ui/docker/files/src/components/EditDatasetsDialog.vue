@@ -6,6 +6,7 @@ import { loadDatasets, deleteDataset } from '@/common/api.service'
 import type { Dataset } from '@/types'
 import { kaapanaIcons } from '@/utils/galleryIcons'
 import { sameDataset } from '@/utils/datasets'
+import { notifyFailure } from '@/utils/notifyFailure'
 
 const props = defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{ close: [editedDatasets: boolean] }>()
@@ -86,8 +87,8 @@ async function deleteItemConfirm() {
       datasets.value = datasets.value.filter((d) => !sameDataset(d, item))
       editedDatasets.value = true
     }
-  } catch {
-    // deleteDataset already reported; the row stays, so it can be retried.
+  } catch (error: unknown) {
+    notifyFailure('Dataset not deleted', `The dataset “${item.name}” could not be deleted.`, error)
   } finally {
     deleting.value = false
     deletingItem.value = null

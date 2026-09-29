@@ -4,6 +4,7 @@
     max-width="900"
     scrollable
     @update:model-value="(value: boolean) => !value && onValidationResultClose()"
+    @after-leave="onAfterLeave"
   >
     <v-card :elevation="5">
       <v-toolbar flat color="transparent">
@@ -95,6 +96,7 @@
 import { computed, ref, watch } from 'vue'
 import { apiErrorInfo, kaapanaApiService, type ApiErrorInfo } from '@kaapana/base-ui'
 import ElementsFromHTML from '@/components/ElementsFromHTML.vue'
+import { useFocusReturn } from '@/composables/useFocusReturn'
 import { useDatasetsStore } from '@/stores/datasets'
 import { useFailureDetailsStore } from '@/stores/failureDetails'
 import { kaapanaIcons, galleryIcons } from '@/utils/galleryIcons'
@@ -105,6 +107,7 @@ const emit = defineEmits<{
 
 const datasets_store = useDatasetsStore()
 const failureDetails = useFailureDetailsStore()
+const { restoreFocus } = useFocusReturn(() => datasets_store.showValidationResults)
 
 const resultPaths = ref<Record<string, any>>({})
 const resultLookupState = ref<Record<string, any>>({})
@@ -202,13 +205,25 @@ function invalidateValidationResultCache(resultItemID: string | null) {
 }
 function runValidationWorkflow(resultItemID: string | null) {
   invalidateValidationResultCache(resultItemID)
-  onValidationResultClose()
-  emit('runWorkflow', 'validate-dicoms', resultItemID)
+  runWorkflowInstead('validate-dicoms', resultItemID)
 }
 function deleteValidationResult(resultItemID: string | null) {
   invalidateValidationResultCache(resultItemID)
+  runWorkflowInstead('clear-validation-results', resultItemID)
+}
+
+let pendingWorkflow: [dag: string, seriesInstanceUID: string | null] | null = null
+
+function runWorkflowInstead(dag: string, seriesInstanceUID: string | null) {
+  pendingWorkflow = [dag, seriesInstanceUID]
   onValidationResultClose()
-  emit('runWorkflow', 'clear-validation-results', resultItemID)
+}
+
+function onAfterLeave() {
+  restoreFocus()
+  const workflow = pendingWorkflow
+  pendingWorkflow = null
+  if (workflow) emit('runWorkflow', ...workflow)
 }
 function downloadValidationResult(resultItemID: string | null) {
   const resultUri = validationResultUrl.value

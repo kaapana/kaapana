@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useFocusReturn } from '@/composables/useFocusReturn'
 import { kaapanaIcons } from '@/utils/galleryIcons'
 import { datasetLabel } from '@/utils/datasets'
 import type { Dataset } from '@/types'
@@ -20,6 +21,7 @@ const emit = defineEmits<{
 }>()
 
 const datasetToAddTo = ref<Dataset | null>(null)
+const { restoreFocus } = useFocusReturn(() => props.modelValue)
 </script>
 
 <template>
@@ -28,6 +30,7 @@ const datasetToAddTo = ref<Dataset | null>(null)
     max-width="600"
     :persistent="props.busy"
     @update:model-value="(value: boolean) => emit('update:modelValue', value)"
+    @after-leave="restoreFocus"
   >
     <v-card :elevation="5">
       <v-card-title class="text-h6">Add to dataset</v-card-title>

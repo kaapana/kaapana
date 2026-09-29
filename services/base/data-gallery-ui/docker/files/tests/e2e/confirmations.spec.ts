@@ -101,7 +101,9 @@ test('removing series from a dataset updates it and empties the gallery', async 
   })
   await expect(toasts(page).filter({ hasText: 'Dataset updated' })).toBeVisible()
   await expect(page.locator('.seriesCard')).toHaveCount(0)
-  await expect(page.getByText('This dataset contains no series yet')).toBeVisible()
+  // The toolbar went with the series before the confirmation had closed, so
+  // focus goes to what replaced them rather than to <body>.
+  await expect(page.getByText('This dataset contains no series yet')).toBeFocused()
 })
 
 /** Read once, while the action runs: a retrying check could wait until a

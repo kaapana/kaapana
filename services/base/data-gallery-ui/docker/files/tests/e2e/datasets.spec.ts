@@ -226,6 +226,69 @@ test('deleting a private dataset sends its access level', async ({ page }) => {
   await expect(page.getByText('Dataset deleted')).toBeVisible()
 })
 
+/* ---------------------------------------------------------------- saving -- */
+
+// Enter on a Vuetify button fires it even while it shows its loader, so a
+// running save should also disable its button and its handler should ignore a second call.
+
+const DATASET = /\/kaapana-backend\/client\/dataset(\?.*)?$/
+
+test('saving a new dataset runs once, shows progress, and cannot be dismissed meanwhile', async ({
+  page,
+}) => {
+  await openGallery(page)
+  await delayRoute(page, DATASET, 1_500, 'POST')
+  const creates = countRequests(page, DATASET, 'POST')
+
+  await page.getByRole('button', { name: /save .* series as a new dataset/i }).click()
+  const saveDialog = dialog(page, 'Save selection as dataset')
+  await page.getByLabel('Name').first().fill('cohort-x')
+  // Located by place: while loading, the label is hidden from the accessible name.
+  const save = saveDialog.locator('.v-card-actions .v-btn').last()
+  await expect(save).toHaveText('Save')
+  await save.click()
+
+  await expect(save).toHaveClass(/v-btn--loading/)
+  await expect(save).toBeDisabled()
+  // Whatever holds focus now, Enter must not submit again.
+  await page.keyboard.press('Enter')
+  await page.keyboard.press('Enter')
+  await page.keyboard.press('Escape')
+  await expect(saveDialog).toBeVisible()
+  await expect(dialog(page, 'Discard this dataset?')).toHaveCount(0)
+
+  await expect(toasts(page).filter({ hasText: 'Dataset created' })).toBeVisible()
+  await expect(saveDialog).toHaveCount(0)
+  expect(creates()).toBe(1)
+})
+
+test('adding to a dataset runs once, shows progress, and cannot be dismissed meanwhile', async ({
+  page,
+}) => {
+  await openGallery(page)
+  await delayRoute(page, DATASET, 1_500, 'PUT')
+  const updates = countRequests(page, DATASET, 'PUT')
+
+  await page.getByRole('button', { name: /^Add \d+ series to a dataset/ }).click()
+  const addTo = dialog(page, 'Add to dataset')
+  await addTo.locator('.v-field').click()
+  await page.getByRole('option', { name: 'nsclc (project)' }).click()
+  const save = addTo.locator('.v-card-actions .v-btn').last()
+  await expect(save).toHaveText('Save')
+  await save.click()
+
+  await expect(save).toHaveClass(/v-btn--loading/)
+  await expect(save).toBeDisabled()
+  await page.keyboard.press('Enter')
+  await page.keyboard.press('Enter')
+  await page.keyboard.press('Escape')
+  await expect(addTo).toBeVisible()
+
+  await expect(toasts(page).filter({ hasText: 'Dataset updated' })).toBeVisible()
+  await expect(addTo).toHaveCount(0)
+  expect(updates()).toBe(1)
+})
+
 /* --------------------------------------------------------- dataset lists -- */
 
 // "Empty states": a list that is loading, empty, filtered to nothing or failed

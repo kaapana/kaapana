@@ -673,6 +673,7 @@ async function updateDataset(
 }
 
 async function addToDataset(dataset: Dataset) {
+  if (addingToDataset.value) return
   addingToDataset.value = true
   try {
     const successful = await updateDataset(
@@ -759,6 +760,7 @@ async function removeFromDataset() {
 }
 
 async function saveDatasetFromDialog(name: string, access_level: string) {
+  if (savingDataset.value) return
   savingDataset.value = true
   try {
     const successful = await saveDataset(name, identifiersOfInterest.value, access_level)

@@ -118,12 +118,16 @@ server_installation:
   # The only job needing sudo on the target. exec_server_installation:false
   # skips it for already-prepared targets (e.g. local workstations).
   rules:
-    - if: '"$[[ inputs.exec_deploy ]]" == "true" && "$[[ inputs.exec_server_installation ]]" == "true"'
+    - if: '"$[[ inputs.exec_server_installation ]]" == "true"'
       when: on_success
     - when: never
   needs:
     - job: prepare_deployment
       artifacts: true
+      optional: true
+  variables:
+    VM_FQDN: "$DEPLOYMENT_INSTANCE_FQDN"
+    VM_USER: "$DEPLOYMENT_INSTANCE_USER"
   script:
     - |
       ansible-playbook "$CI_PROJECT_DIR/ci/ci-code/deploy/server_installation.yaml" \

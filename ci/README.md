@@ -71,6 +71,11 @@ Both jobs are in [`ci/pipeline/lint.yml`](pipeline/lint.yml). `lint` fails the
 pipeline on formatting drift or an enforced rule; `code_quality` always exits
 zero and only publishes the report.
 
+Helm charts: the `helm_lint` job (same file) and the `helm-lint` pre-commit hook
+both run `kaapana-build --lint-only`, helm lint + kubeval of the platform chart
+tree. `helm_lint` blocks the pipeline; `build_packages` runs with `--no-linting`
+so the build does not repeat it.
+
 ## Configuration reference
 
 Five groups of knobs. Two are **inputs** and three are **variables**
@@ -98,7 +103,7 @@ Every stage toggle. Grouped as `[exec]` in the run form.
 | Input | Default | Meaning |
 |---|---|---|
 | `exec_unit_tests` | `true` | tests stage: unit tests + documentation build |
-| `exec_lint` | `true` | tests stage: ruff check + code quality report |
+| `exec_lint` | `true` | tests stage: ruff check + code quality report + helm chart lint |
 | `exec_build` | `true` | build stage: full platform build |
 | `exec_security_scan` | `false` | trivy scan of the images this commit resolves to. A failed scan still publishes what it managed to check |
 | `exec_deploy` | `true` | deploy stage: deployment VM/target + platform installation |

@@ -311,7 +311,6 @@ const route = useRoute()
 const projectStore = useProjectStore()
 const datasets_store = useDatasetsStore()
 
-
 const searchRef = ref<InstanceType<typeof Search> | null>(null)
 const paginateRef = ref<InstanceType<typeof Paginate> | null>(null)
 
@@ -355,6 +354,8 @@ const queryParams: Record<string, any> = { ...route.query }
 // once applied, so a redirect to another project needs the copy.
 const linkSearch = window.location.search
 
+/* -------------------------------------------------------------- datasets -- */
+
 /** Search reports the dataset it scoped the search to. A deep link resolves
  *  one before anything is selected; selecting it makes the selector and the
  *  dataset actions agree with what the gallery shows. */
@@ -365,52 +366,36 @@ function onScopeDataset(dataset: Dataset | null) {
   }
 }
 
-function keyDownEventListener(event: KeyboardEvent) {
-  if (
-    (event.metaKey && navigator.platform === 'MacIntel') ||
-    (event.ctrlKey && navigator.platform !== 'MacIntel')
-  ) {
-    datasets_store.setMultiSelectKeyPressed(true)
-  }
-}
-function keyUpEventListener(event: KeyboardEvent) {
-  if (
-    (event.key === 'Meta' && navigator.platform === 'MacIntel') ||
-    (event.key === 'Control' && navigator.platform !== 'MacIntel')
-  ) {
-    datasets_store.setMultiSelectKeyPressed(false)
-  }
+async function updateDatasetNames() {
+  const _datasets = await loadDatasets()
+  datasets.value = _datasets
+  datasetNames.value = _datasets.map((dataset) => dataset.name)
+  // A dataset a deep link selected before the list arrived becomes the list's
+  // own entry, so the selector marks it.
+  const selected = selectedDataset.value
+  if (selected) selectedDataset.value = _datasets.find((d) => sameDataset(d, selected)) ?? selected
 }
 
-function onDragStart(e: any) {
-  // Don't start selecting if the user is clicking on a button
-  if (['BUTTON', 'I'].includes(e.inputEvent.target.nodeName)) {
-    e.stop()
-    return
+function editedDatasets(reloadDatasets: boolean) {
+  if (reloadDatasets) {
+    loadDatasets()
+      .then((_datasets) => {
+        datasets.value = _datasets
+        datasetNames.value = _datasets.map((d) => d.name)
+        if (selectedDataset.value && !_datasets.some((d) => sameDataset(d, selectedDataset.value))) {
+          selectedDataset.value = null
+        }
+      })
+      // loadDatasets already reported; keep the list from the last good load.
+      .catch(() => {})
   }
-  return true
+  editDatasetsDialog.value = false
 }
-function onSelect(e: any) {
-  e.added.forEach((el: HTMLElement) => {
-    el.classList.add('selected')
-  })
-  e.removed.forEach((el: HTMLElement) => {
-    el.classList.remove('selected')
-  })
-  debouncedIdentifiers.value = e.selected.map((el: HTMLElement) => el.id)
-}
-function onWorkflowSubmit() {
-  workflowDialog.value = false
-  if (filteredDags.value.length > 0) {
-    filteredDags.value = []
-  }
-}
-function addFilterToSearch(selectedFilterItem: { key: string; value: string }) {
-  // addFilterItem reports its own failures; the filter is simply not added.
-  searchRef.value
-    ?.addFilterItem(selectedFilterItem['key'], selectedFilterItem['value'])
-    .catch(() => {})
-}
+
+const datasetLabelOfSelected = computed(() => selectedDataset.value?.name ?? '')
+
+/* ---------------------------------------------------------------- search -- */
+
 // Monotonic id so out-of-order responses can't clobber a newer search: each
 // call captures an id and a resolving chain discards its results if a newer
 // call has since started.
@@ -473,15 +458,144 @@ async function updateData(query: any = {}, useLastquery = false) {
       isLoading.value = false
     })
 }
-async function updateDatasetNames() {
-  const _datasets = await loadDatasets()
-  datasets.value = _datasets
-  datasetNames.value = _datasets.map((dataset) => dataset.name)
-  // A dataset a deep link selected before the list arrived becomes the list's
-  // own entry, so the selector marks it.
-  const selected = selectedDataset.value
-  if (selected) selectedDataset.value = _datasets.find((d) => sameDataset(d, selected)) ?? selected
+
+function onPageIndexChange(newPageIndex: number) {
+  pageIndex.value = newPageIndex
 }
+
+function addFilterToSearch(selectedFilterItem: { key: string; value: string }) {
+  // addFilterItem reports its own failures; the filter is simply not added.
+  searchRef.value
+    ?.addFilterItem(selectedFilterItem['key'], selectedFilterItem['value'])
+    .catch(() => {})
+}
+
+function clearSearch() {
+  selectedDataset.value = null
+  searchRef.value?.clearSearch()
+}
+
+const dashboardFields = computed(() =>
+  settings.value.datasets.props.filter((i: any) => i.dashboard).map((i: any) => i.name),
+)
+
+/* ------------------------------------------------------------- selection -- */
+
+function keyDownEventListener(event: KeyboardEvent) {
+  if (
+    (event.metaKey && navigator.platform === 'MacIntel') ||
+    (event.ctrlKey && navigator.platform !== 'MacIntel')
+  ) {
+    datasets_store.setMultiSelectKeyPressed(true)
+  }
+}
+function keyUpEventListener(event: KeyboardEvent) {
+  if (
+    (event.key === 'Meta' && navigator.platform === 'MacIntel') ||
+    (event.key === 'Control' && navigator.platform !== 'MacIntel')
+  ) {
+    datasets_store.setMultiSelectKeyPressed(false)
+  }
+}
+
+function onDragStart(e: any) {
+  // Don't start selecting if the user is clicking on a button
+  if (['BUTTON', 'I'].includes(e.inputEvent.target.nodeName)) {
+    e.stop()
+    return
+  }
+  return true
+}
+function onSelect(e: any) {
+  e.added.forEach((el: HTMLElement) => {
+    el.classList.add('selected')
+  })
+  e.removed.forEach((el: HTMLElement) => {
+    el.classList.remove('selected')
+  })
+  debouncedIdentifiers.value = e.selected.map((el: HTMLElement) => el.id)
+}
+
+watch(
+  debouncedIdentifiers,
+  debounce((val: string[]) => {
+    selectedSeriesInstanceUIDs.value = val
+    datasets_store.setSelectedItems(selectedSeriesInstanceUIDs.value)
+  }, 200),
+)
+
+const identifiersOfInterest = computed(() => {
+  if (selectedSeriesInstanceUIDs.value.length > 0) {
+    allPatients.value = false
+    return selectedSeriesInstanceUIDs.value
+  }
+  return seriesInstanceUIDs.value
+})
+
+const continueSelectKey = computed(() =>
+  window.navigator.userAgent.indexOf('Mac') !== -1 ? ['meta'] : ['ctrl'],
+)
+
+const displaySelectedItems = computed(() => {
+  if (aggregatedSeriesNum.value > 0 && aggregatedSeriesNum.value > identifiersOfInterest.value.length) {
+    return `${identifiersOfInterest.value.length} selected of ${aggregatedSeriesNum.value}`
+  } else {
+    return `${identifiersOfInterest.value.length} selected`
+  }
+})
+
+/* --------------------------------------------------------------- results -- */
+
+const hasResults = computed(() =>
+  settings.value.datasets.structured
+    ? Object.keys(patients.value).length > 0
+    : seriesInstanceUIDs.value.length > 0,
+)
+
+/** Which of the guidelines' three empty states applies. A search or a selected
+ *  dataset means the collection was filtered, not that nothing exists. */
+const emptyState = computed<'empty' | 'no-results' | 'dataset-empty' | 'error'>(() => {
+  if (loadError.value) return 'error'
+  if (selectedDataset.value && scopeDataset.value?.identifiers.length === 0) return 'dataset-empty'
+  if (searchDirty.value || selectedDataset.value) return 'no-results'
+  return 'empty'
+})
+
+/** Removing the last series takes the toolbar, and the focused button, with it. */
+async function keepFocusInGallery() {
+  await nextTick()
+  const active = document.activeElement
+  if (active && active !== document.body) return
+  if (emptyStateRef.value) emptyStateRef.value.focus()
+  else datasetSelector.value?.focus()
+}
+
+/* ------------------------------------------------------- dataset actions -- */
+
+// A disabled action says why it is unavailable when the reason is not obvious
+// (guidelines, "Unavailable actions").
+const nothingSelected = computed(() => identifiersOfInterest.value.length === 0)
+const saveAsHint = computed(() =>
+  nothingSelected.value
+    ? 'Select at least one series to save as a dataset'
+    : `Save ${identifiersOfInterest.value.length} series as a new dataset`,
+)
+const addToHint = computed(() =>
+  nothingSelected.value
+    ? 'Select at least one series to add to a dataset'
+    : `Add ${identifiersOfInterest.value.length} series to a dataset`,
+)
+const removeFromHint = computed(() => {
+  if (!selectedDataset.value) return 'Select a dataset first to remove series from it'
+  if (nothingSelected.value) return 'Select at least one series to remove from the dataset'
+  return `Remove ${identifiersOfInterest.value.length} series from “${datasetLabelOfSelected.value}”`
+})
+const startWorkflowHint = computed(() =>
+  nothingSelected.value
+    ? 'Select at least one series to run a workflow on'
+    : `Start a workflow on ${identifiersOfInterest.value.length} series`,
+)
+
 async function updateDataset(
   name: string,
   identifiers: string[],
@@ -512,6 +626,7 @@ async function updateDataset(
     return false
   }
 }
+
 async function addToDataset(dataset: Dataset) {
   addingToDataset.value = true
   try {
@@ -528,6 +643,7 @@ async function addToDataset(dataset: Dataset) {
     addingToDataset.value = false
   }
 }
+
 function askRemoveFromDataset() {
   if (removingFromDataset.value || !selectedDataset.value) return
   const dataset = selectedDataset.value
@@ -590,14 +706,6 @@ async function removeFromDataset() {
   await keepFocusInGallery()
 }
 
-/** Removing the last series takes the toolbar, and the focused button, with it. */
-async function keepFocusInGallery() {
-  await nextTick()
-  const active = document.activeElement
-  if (active && active !== document.body) return
-  if (emptyStateRef.value) emptyStateRef.value.focus()
-  else datasetSelector.value?.focus()
-}
 async function saveDatasetFromDialog(name: string, access_level: string) {
   savingDataset.value = true
   try {
@@ -609,6 +717,7 @@ async function saveDatasetFromDialog(name: string, access_level: string) {
     savingDataset.value = false
   }
 }
+
 async function saveDataset(name: string, identifiers: string[], access_level: string) {
   try {
     const body = {
@@ -633,24 +742,16 @@ async function saveDataset(name: string, identifiers: string[], access_level: st
     return false
   }
 }
-function onPageIndexChange(newPageIndex: number) {
-  pageIndex.value = newPageIndex
-}
-function editedDatasets(reloadDatasets: boolean) {
-  if (reloadDatasets) {
-    loadDatasets()
-      .then((_datasets) => {
-        datasets.value = _datasets
-        datasetNames.value = _datasets.map((d) => d.name)
-        if (selectedDataset.value && !_datasets.some((d) => sameDataset(d, selectedDataset.value))) {
-          selectedDataset.value = null
-        }
-      })
-      // loadDatasets already reported; keep the list from the last good load.
-      .catch(() => {})
+
+/* ------------------------------------------------------------- workflows -- */
+
+function onWorkflowSubmit() {
+  workflowDialog.value = false
+  if (filteredDags.value.length > 0) {
+    filteredDags.value = []
   }
-  editDatasetsDialog.value = false
 }
+
 function runWorkflowOnSeries(dag: string, seriesInstanceUID: string | null) {
   selectedSeriesInstanceUIDs.value = seriesInstanceUID ? [seriesInstanceUID] : []
   datasets_store.setSelectedItems(selectedSeriesInstanceUIDs.value)
@@ -658,77 +759,7 @@ function runWorkflowOnSeries(dag: string, seriesInstanceUID: string | null) {
   workflowDialog.value = true
 }
 
-const identifiersOfInterest = computed(() => {
-  if (selectedSeriesInstanceUIDs.value.length > 0) {
-    allPatients.value = false
-    return selectedSeriesInstanceUIDs.value
-  }
-  return seriesInstanceUIDs.value
-})
-const continueSelectKey = computed(() =>
-  window.navigator.userAgent.indexOf('Mac') !== -1 ? ['meta'] : ['ctrl'],
-)
-const dashboardFields = computed(() =>
-  settings.value.datasets.props.filter((i: any) => i.dashboard).map((i: any) => i.name),
-)
-const hasResults = computed(() =>
-  settings.value.datasets.structured
-    ? Object.keys(patients.value).length > 0
-    : seriesInstanceUIDs.value.length > 0,
-)
-/** Which of the guidelines' three empty states applies. A search or a selected
- *  dataset means the collection was filtered, not that nothing exists. */
-const emptyState = computed<'empty' | 'no-results' | 'dataset-empty' | 'error'>(() => {
-  if (loadError.value) return 'error'
-  if (selectedDataset.value && scopeDataset.value?.identifiers.length === 0) return 'dataset-empty'
-  if (searchDirty.value || selectedDataset.value) return 'no-results'
-  return 'empty'
-})
-const datasetLabelOfSelected = computed(() => selectedDataset.value?.name ?? '')
-
-// A disabled action says why it is unavailable when the reason is not obvious
-// (guidelines, "Unavailable actions").
-const nothingSelected = computed(() => identifiersOfInterest.value.length === 0)
-const saveAsHint = computed(() =>
-  nothingSelected.value
-    ? 'Select at least one series to save as a dataset'
-    : `Save ${identifiersOfInterest.value.length} series as a new dataset`,
-)
-const addToHint = computed(() =>
-  nothingSelected.value
-    ? 'Select at least one series to add to a dataset'
-    : `Add ${identifiersOfInterest.value.length} series to a dataset`,
-)
-const removeFromHint = computed(() => {
-  if (!selectedDataset.value) return 'Select a dataset first to remove series from it'
-  if (nothingSelected.value) return 'Select at least one series to remove from the dataset'
-  return `Remove ${identifiersOfInterest.value.length} series from “${datasetLabelOfSelected.value}”`
-})
-const startWorkflowHint = computed(() =>
-  nothingSelected.value
-    ? 'Select at least one series to run a workflow on'
-    : `Start a workflow on ${identifiersOfInterest.value.length} series`,
-)
-
-const displaySelectedItems = computed(() => {
-  if (aggregatedSeriesNum.value > 0 && aggregatedSeriesNum.value > identifiersOfInterest.value.length) {
-    return `${identifiersOfInterest.value.length} selected of ${aggregatedSeriesNum.value}`
-  } else {
-    return `${identifiersOfInterest.value.length} selected`
-  }
-})
-
-watch(
-  debouncedIdentifiers,
-  debounce((val: string[]) => {
-    selectedSeriesInstanceUIDs.value = val
-    datasets_store.setSelectedItems(selectedSeriesInstanceUIDs.value)
-  }, 200),
-)
-function clearSearch() {
-  selectedDataset.value = null
-  searchRef.value?.clearSearch()
-}
+/* ------------------------------------------------------------- lifecycle -- */
 
 watch(
   () => searchDirty.value || saveDialogDirty.value,

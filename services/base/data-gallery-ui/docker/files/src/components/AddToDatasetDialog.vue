@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useFocusReturn } from '@/composables/useFocusReturn'
 import { kaapanaIcons } from '@/utils/galleryIcons'
 import { datasetLabel, datasetListNoDataText } from '@/utils/datasets'
@@ -44,6 +44,15 @@ const noDataText = computed(() =>
   ),
 )
 const { restoreFocus } = useFocusReturn(() => props.modelValue)
+
+watch(
+  () => props.modelValue,
+  (open) => {
+    if (!open) return
+    datasetToAddTo.value = null
+    search.value = undefined
+  },
+)
 </script>
 
 <template>

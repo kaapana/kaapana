@@ -343,14 +343,15 @@ test('Enter in the name saves once, shows progress, and cannot be dismissed mean
   expect(creates()).toBe(1)
 })
 
-test('adding to a dataset runs once, shows progress, and cannot be dismissed meanwhile', async ({
+test('adding to a dataset runs once, shows progress, cannot be dismissed meanwhile, and reopens empty', async ({
   page,
 }) => {
   await openGallery(page)
   await delayRoute(page, DATASET, 1_500, 'PUT')
   const updates = countRequests(page, DATASET, 'PUT')
 
-  await page.getByRole('button', { name: /^Add \d+ series to a dataset/ }).click()
+  const opener = page.getByRole('button', { name: /^Add \d+ series to a dataset/ })
+  await opener.click()
   const addTo = dialog(page, 'Add to dataset')
   await addTo.locator('.v-field').click()
   await page.getByRole('option', { name: 'nsclc (project)' }).click()
@@ -368,6 +369,11 @@ test('adding to a dataset runs once, shows progress, and cannot be dismissed mea
   await expect(toasts(page).filter({ hasText: 'Dataset updated' })).toBeVisible()
   await expect(addTo).toHaveCount(0)
   expect(updates()).toBe(1)
+
+  await opener.click()
+  await expect(addTo).toBeVisible()
+  await expect(addTo.locator('.v-autocomplete__selection')).toHaveCount(0)
+  await expect(save).toBeDisabled()
 })
 
 /* --------------------------------------------------------- dataset lists -- */

@@ -17,6 +17,7 @@ import {
   openGallery,
   selectDataset,
 } from './fixtures/helpers'
+import { tagColor } from '../../src/utils/tagColors'
 
 // query_values returns {text, value, count} objects; v3 autocompletes need
 // item-title="text" or every entry renders as "[object Object]".
@@ -39,21 +40,25 @@ test('tag bar chips are colored and action buttons show tooltips', async ({ page
   data.settings.datasets.tagBar.tags = ['review', 'favorite']
   await openGallery(page, data)
 
-  const chip = page.locator('.v-chip-group .v-chip').first()
-  await expect(chip).toBeVisible()
-  // tagColor('favorite') — hashed into a hue at a fixed saturation/lightness so
-  // every chip lands in one readable band, with a foreground picked by
-  // luminance rather than inherited from the surroundings.
-  const { bg, fg } = await chip.evaluate((el) => {
-    const style = getComputedStyle(el)
-    return { bg: style.backgroundColor, fg: style.color }
-  })
-  expect(bg).not.toBe('rgba(0, 0, 0, 0)')
-  expect(fg).toBe('rgb(255, 255, 255)')
+  // Each chip takes tagColor(): a hue hashed from the name at a fixed
+  // saturation and lightness, so every chip lands in one readable band, with a
+  // foreground picked by luminance rather than inherited from the surroundings.
+  for (const tag of ['review', 'favorite']) {
+    const chip = page.locator('.v-chip-group .v-chip').filter({ hasText: tag })
+    const { background, text } = tagColor(tag)
+    await expect(chip).toHaveCSS('background-color', rgb(background))
+    await expect(chip).toHaveCSS('color', rgb(text))
+  }
 
   await page.locator('.mdi-plus').first().hover()
   await expect(page.getByText(/save .* series as a new dataset/i)).toBeVisible()
 })
+
+/** `#rrggbb` as the browser reports a computed colour. */
+function rgb(hex: string) {
+  const [r, g, b] = [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16))
+  return `rgb(${r}, ${g}, ${b})`
+}
 
 // V3 v-btn defaults to the "elevated" variant, so the icon buttons rendered a
 // raised grey box when disabled; they must use variant="text".

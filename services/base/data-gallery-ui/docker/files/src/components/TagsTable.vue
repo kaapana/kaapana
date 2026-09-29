@@ -18,6 +18,8 @@
         :headers="headers"
         :items="tagsData"
         :search="search"
+        :loading="props.loading"
+        loading-text="Loading metadata…"
         :hide-default-footer="true"
         height="60vh"
         :items-per-page="-1"
@@ -40,45 +42,32 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import { loadSeriesData } from '@/common/api.service'
-import { notifyFailure } from '@/utils/notifyFailure'
+import { computed, ref } from 'vue'
 import { kaapanaIcons } from '@/utils/galleryIcons'
 
-const props = defineProps<{ seriesInstanceUID?: string }>()
+const props = withDefaults(
+  defineProps<{
+    metadata?: Record<string, unknown> | null
+    loading?: boolean
+  }>(),
+  { metadata: null, loading: false },
+)
 
 interface TagRow {
   name: string
   value: unknown
 }
 
-const tagsData = ref<TagRow[]>([])
 const headers = [
   { title: 'Tag', key: 'name' },
   { title: 'Value', key: 'value' },
 ]
 const search = ref<string>('')
 
-function getDicomData() {
-  if (props.seriesInstanceUID) {
-    loadSeriesData(props.seriesInstanceUID)
-      .then(
-        (data) =>
-          (tagsData.value = Object.entries(data['metadata']).map((i) => ({
-            name: i[0],
-            value: typeof i[1] === 'object' ? JSON.stringify(i[1]) : i[1],
-          }))),
-      )
-      .catch((error: unknown) =>
-        notifyFailure(
-          'Series metadata not loaded',
-          'The metadata for this series could not be loaded.',
-          error,
-        ),
-      )
-  }
-}
-
-watch(() => props.seriesInstanceUID, getDicomData)
-getDicomData()
+const tagsData = computed<TagRow[]>(() =>
+  Object.entries(props.metadata ?? {}).map(([name, value]) => ({
+    name,
+    value: typeof value === 'object' ? JSON.stringify(value) : value,
+  })),
+)
 </script>

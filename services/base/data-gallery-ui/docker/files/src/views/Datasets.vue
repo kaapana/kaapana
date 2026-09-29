@@ -22,7 +22,7 @@
                     return-object
                     single-line
                     density="compact"
-                    :loading="datasetsLoading"
+                    :loading="datasetsLoading || datasetPending"
                     :no-data-text="datasetNoDataText"
                     @click:clear="selectedDataset = null"
                     @update:menu="onDatasetMenu"
@@ -370,6 +370,12 @@ function onScopeDataset(dataset: Dataset | null) {
     : null
 }
 
+/** Picked in the selector but not yet loaded by Search: the gallery still shows
+ *  the earlier results. Used so actions on the dataset can wait until it has loaded. */
+const datasetPending = computed(
+  () => !!selectedDataset.value && !sameDataset(scopeDataset.value, selectedDataset.value),
+)
+
 async function updateDatasetNames() {
   datasetsLoading.value = true
   try {
@@ -601,7 +607,9 @@ async function keepFocusInGallery() {
 /* ------------------------------------------------------- dataset actions -- */
 
 const nothingSelected = computed(() => identifiersOfInterest.value.length === 0)
-const removeUnavailable = computed(() => nothingSelected.value || !selectedDataset.value)
+const removeUnavailable = computed(
+  () => nothingSelected.value || !selectedDataset.value || datasetPending.value,
+)
 const saveAsHint = computed(() =>
   nothingSelected.value
     ? 'Select at least one series to save as a dataset'
@@ -614,6 +622,7 @@ const addToHint = computed(() =>
 )
 const removeFromHint = computed(() => {
   if (!selectedDataset.value) return 'Select a dataset first to remove series from it'
+  if (datasetPending.value) return 'Loading the dataset…'
   if (nothingSelected.value) return 'Select at least one series to remove from the dataset'
   return `Remove ${identifiersOfInterest.value.length} series from “${datasetLabelOfSelected.value}”`
 })

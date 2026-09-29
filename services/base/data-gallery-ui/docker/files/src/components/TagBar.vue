@@ -116,6 +116,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { loadValues } from '@/common/api.service'
 import { tagColor } from '@/utils/tagColors'
+import { notifyFailure } from '@/utils/notifyFailure'
 import { kaapanaIcons, galleryIcons } from '@/utils/galleryIcons'
 import { readSettings, settings as defaultSettings } from '@/static/defaultUIConfig'
 import { useDatasetsStore } from '@/stores/datasets'
@@ -215,8 +216,13 @@ onMounted(() => {
         (availableTags.value =
           'items' in res.data ? res.data['items'].map((i: any) => i['value']) : []),
     )
-    // loadValues already reported; the tag suggestions just stay empty.
-    .catch(() => {})
+    .catch((error: unknown) =>
+      notifyFailure(
+        'Tag suggestions not loaded',
+        'The tags already in use could not be loaded, so the tag list offers no suggestions.',
+        error,
+      ),
+    )
 
   window.addEventListener('keypress', keypressListener)
 })

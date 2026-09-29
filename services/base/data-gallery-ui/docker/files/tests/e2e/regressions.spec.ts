@@ -10,6 +10,7 @@ import {
   collectPageErrors,
   delayRoute,
   dialog,
+  toasts,
   dismissWithEscape,
   failRoute,
   nextRequest,
@@ -296,8 +297,7 @@ test('a ?project_name deep link still renders when the project lookup fails', as
 
   await page.goto(`${VIEW_PATH}?project_name=admin`)
 
-  // Both fetchProjects and the project-store consumer now report the failure.
-  await expect(page.getByText('Projects unavailable').first()).toBeVisible()
+  await expect(toasts(page).filter({ hasText: 'Project unavailable' })).toHaveCount(1)
   await expect(page.getByLabel('Select Dataset').first()).toBeVisible()
   await page.getByLabel('Select Dataset').first().click()
   await expect(page.getByRole('option', { name: 'nsclc (project)' })).toBeVisible()

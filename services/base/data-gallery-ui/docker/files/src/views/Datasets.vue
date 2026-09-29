@@ -89,6 +89,22 @@
 
           <!-- Data available -->
           <v-container fluid class="pa-0" v-else-if="hasResults">
+            <v-alert
+              v-if="loadFailure"
+              type="warning"
+              variant="tonal"
+              density="compact"
+              class="ma-2"
+              data-testid="stale-results-alert"
+            >
+              Could not load the results of this search — showing the previous results.
+              <template #append>
+                <v-btn variant="text" size="small" @click="updateData(searchQuery, true)">
+                  Try again
+                </v-btn>
+                <v-btn variant="text" size="small" @click="showLoadFailureDetails">Details</v-btn>
+              </template>
+            </v-alert>
             <VueSelecto
               dragContainer=".elements"
               :selectableTargets="['.selecto-area .seriesCard']"
@@ -197,8 +213,8 @@
             v-else
             ref="emptyStateRef"
             :state="emptyState"
-            :detail="loadError"
             @retry="updateData(searchQuery, true)"
+            @show-details="showLoadFailureDetails"
             @clear="clearSearch"
             @show-all="selectedDataset = null"
           />
@@ -296,13 +312,13 @@ import {
   loadDatasets,
   loadPatients,
   getAggregatedSeriesNum,
-  fetchProjects,
 } from '@/common/api.service'
-import { apiErrorText } from '@kaapana/base-ui'
+import { apiErrorInfo, type ApiErrorInfo } from '@kaapana/base-ui'
 import { readSettings, settings as defaultSettings } from '@/static/defaultUIConfig'
 import { debounce } from '@/utils/utils'
 import { ConfirmDialog, getProjectSlug, postViewDirty, useProjectStore } from '@kaapana/base-ui'
 import { useDatasetsStore } from '@/stores/datasets'
+import { useFailureDetailsStore } from '@/stores/failureDetails'
 import { kaapanaIcons, galleryIcons } from '@/utils/galleryIcons'
 import { datasetLabel, sameDataset } from '@/utils/datasets'
 import { notifyFailure } from '@/utils/notifyFailure'
@@ -313,6 +329,7 @@ const keycon = new KeyController()
 
 const route = useRoute()
 const projectStore = useProjectStore()
+const failureDetails = useFailureDetailsStore()
 const datasets_store = useDatasetsStore()
 
 const searchRef = ref<InstanceType<typeof Search> | null>(null)
@@ -324,7 +341,7 @@ const selectedSeriesInstanceUIDs = ref<string[]>([])
 const isLoading = ref(true)
 // Why the gallery is empty, kept apart from "there is nothing": a failed load
 // must never be presented as an empty collection (guidelines, "Empty states").
-const loadError = ref<string | null>(null)
+const loadFailure = ref<ApiErrorInfo | null>(null)
 const settings = ref<any>(defaultSettings)
 const datasetNames = ref<string[]>([])
 const datasets = ref<Dataset[]>([])
@@ -363,14 +380,15 @@ const linkSearch = window.location.search
 
 /* -------------------------------------------------------------- datasets -- */
 
-/** Search reports the dataset it scoped the search to. A deep link resolves
- *  one before anything is selected; selecting it makes the selector and the
- *  dataset actions agree with what the gallery shows. */
+/** The search reports the dataset it actually uses. It can differ from the one
+ *  shown in the selector (a deep link's, or the previous one after a failed
+ *  load). Then the selector is set to match, so it shows what the gallery shows. */
 function onScopeDataset(dataset: Dataset | null) {
   scopeDataset.value = dataset
-  if (dataset && !sameDataset(selectedDataset.value, dataset)) {
-    selectedDataset.value = datasets.value.find((d) => sameDataset(d, dataset)) ?? dataset
-  }
+  if (sameDataset(selectedDataset.value, dataset) || (!dataset && !selectedDataset.value)) return
+  selectedDataset.value = dataset
+    ? (datasets.value.find((d) => sameDataset(d, dataset)) ?? dataset)
+    : null
 }
 
 async function updateDatasetNames() {
@@ -390,10 +408,8 @@ async function updateDatasetNames() {
   }
 }
 
-/** Opening the selector after a failed load tries again. */
 function onDatasetMenu(open: boolean) {
   if (open && datasetsLoadFailed.value && !datasetsLoading.value) {
-    // loadDatasets reports its own failure; the list says so.
     updateDatasetNames().catch(() => {})
   }
 }
@@ -406,7 +422,6 @@ function editedDatasets(reloadDatasets: boolean) {
           selectedDataset.value = null
         }
       })
-      // loadDatasets already reported; keep the list from the last good load.
       .catch(() => {})
   }
   editDatasetsDialog.value = false
@@ -433,7 +448,7 @@ async function updateData(query: any = {}, useLastquery = false) {
     searchQuery.value = { ...query }
   }
   isLoading.value = true
-  loadError.value = null
+  loadFailure.value = null
   selectedSeriesInstanceUIDs.value = []
   datasets_store.setSelectedItems(selectedSeriesInstanceUIDs.value)
   datasets_store.resetDetailViewItem()
@@ -466,24 +481,29 @@ async function updateData(query: any = {}, useLastquery = false) {
           } else {
             seriesInstanceUIDs.value = data
           }
-          loadError.value = null
+          loadFailure.value = null
           isLoading.value = false
         })
         .catch((error) => {
           if (requestId !== updateDataRequestId) return
-          // loadPatients already reported; this is what the gallery itself shows
-          // in place of the results.
-          loadError.value = apiErrorText(error, 'The series could not be loaded.')
+          loadFailure.value = apiErrorInfo(error)
           isLoading.value = false
         })
     })
-    // api.service already notifies on error; without this catch isLoading
-    // stays true and the skeleton loader never clears.
     .catch((error) => {
       if (requestId !== updateDataRequestId) return
-      loadError.value = apiErrorText(error, 'The series could not be loaded.')
+      loadFailure.value = apiErrorInfo(error)
       isLoading.value = false
     })
+}
+
+function showLoadFailureDetails() {
+  if (!loadFailure.value) return
+  failureDetails.show({
+    title: 'Could not load the series',
+    text: 'The series matching the search could not be loaded.',
+    error: loadFailure.value,
+  })
 }
 
 function onPageIndexChange(newPageIndex: number) {
@@ -491,10 +511,12 @@ function onPageIndexChange(newPageIndex: number) {
 }
 
 function addFilterToSearch(selectedFilterItem: { key: string; value: string }) {
-  // addFilterItem reports its own failures; the filter is simply not added.
+  const { key, value } = selectedFilterItem
   searchRef.value
-    ?.addFilterItem(selectedFilterItem['key'], selectedFilterItem['value'])
-    .catch(() => {})
+    ?.addFilterItem(key, value)
+    .catch((error: unknown) =>
+      notifyFailure('Filter not added', `The filter “${key}: ${value}” could not be added.`, error),
+    )
 }
 
 function clearSearch() {
@@ -582,7 +604,7 @@ const hasResults = computed(() =>
 /** Which of the guidelines' three empty states applies. A search or a selected
  *  dataset means the collection was filtered, not that nothing exists. */
 const emptyState = computed<'empty' | 'no-results' | 'dataset-empty' | 'error'>(() => {
-  if (loadError.value) return 'error'
+  if (loadFailure.value) return 'error'
   if (selectedDataset.value && scopeDataset.value?.identifiers.length === 0) return 'dataset-empty'
   if (searchDirty.value || selectedDataset.value) return 'no-results'
   return 'empty'
@@ -721,8 +743,15 @@ async function removeFromDataset() {
 
   // Reload manually: only the identifiers changed, not the dataset name, so no
   // watcher in Search.vue fires.
-  // loadDatasetByName already reported; the search stays on the previous scope.
-  searchRef.value?.reloadDataset().catch(() => {})
+  searchRef.value
+    ?.reloadDataset()
+    .catch((error: unknown) =>
+      notifyFailure(
+        'Dataset not reloaded',
+        `The dataset “${dataset.name}” could not be reloaded; its list of series may be out of date.`,
+        error,
+      ),
+    )
   selectedSeriesInstanceUIDs.value = []
   datasets_store.setSelectedItems(selectedSeriesInstanceUIDs.value)
   await keepFocusInGallery()
@@ -753,7 +782,7 @@ async function saveDataset(name: string, identifiers: string[], access_level: st
       text: `The dataset “${name}” now holds ${identifiers.length} series.`,
       type: 'success',
     })
-    await updateDatasetNames()
+    updateDatasetNames().catch(() => {})
     return true
   } catch (error: unknown) {
     notifyFailure('Dataset not created', `The dataset “${name}” could not be created.`, error)
@@ -784,17 +813,13 @@ watch(
   (dirty) => postViewDirty(dirty),
 )
 
-// Search.vue scopes queries by selectedProject, so resolve it before the first search.
-// Requests are scoped by the document URL prefix, so the view stays usable.
-projectStore.getSelectedProject().catch((error: any) => {
-  notify({
-    title: 'Project not resolved',
-    text: apiErrorText(
-      error,
-      'The current project could not be resolved. Searches still use the project in the address bar.',
-    ),
-    type: 'error',
-  })
+const projectLookup = projectStore.getSelectedProject()
+projectLookup.catch((error: unknown) => {
+  notifyFailure(
+    'Project unavailable',
+    'The current project could not be resolved. Searches still use the project in the address bar.',
+    error,
+  )
 })
 settings.value = readSettings()
 
@@ -804,9 +829,10 @@ onMounted(async () => {
 
   if (queryParams.project_name) {
     let project: any
-    try {
-      const projects = await fetchProjects()
-      project = projects.find((p: any) => p.name === queryParams.project_name)
+    // On a failed lookup the view stays in the URL's project.
+    const resolved = await projectLookup.catch(() => false)
+    if (resolved) {
+      project = projectStore.availableProjects.find((p) => p.name === queryParams.project_name)
       if (!project) {
         notify({
           title: 'Project not found',
@@ -814,8 +840,6 @@ onMounted(async () => {
           type: 'error',
         })
       }
-    } catch {
-      // fetchProjects already reported the failure; stay on the URL's project.
     }
 
     // Deep links may target another project: the selection lives in the
@@ -830,7 +854,6 @@ onMounted(async () => {
   }
 
   // Depends on the selected project, so it must run after the resolution above.
-  // loadDatasets already reported a failure; the selector then stays empty.
   await updateDatasetNames().catch(() => {})
 })
 

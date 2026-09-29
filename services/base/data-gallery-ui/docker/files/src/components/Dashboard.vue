@@ -17,17 +17,22 @@
         <span class="text-body-2 text-medium-emphasis">Loading statistics…</span>
       </div>
 
+      <div v-else-if="failure" class="text-center py-8" data-testid="dashboard-failure">
+        <div class="text-body-2 text-medium-emphasis mb-2">
+          The statistics for the current selection could not be loaded.
+        </div>
+        <v-btn variant="text" color="primary" @click="updateDashboard">Try again</v-btn>
+        <v-btn variant="text" @click="showFailureDetails">Details</v-btn>
+      </div>
+
       <!-- An empty chart area says why it is empty rather than rendering
            nothing (guidelines, "Empty states"). -->
       <div
         v-else-if="Object.keys(histograms).length === 0"
         class="text-body-2 text-medium-emphasis text-center py-8"
       >
-        {{
-          failed
-            ? 'The statistics for the current selection could not be loaded.'
-            : 'No statistics for the current selection. Select series, or widen the search, to see their distribution here.'
-        }}
+        No statistics for the current selection. Select series, or widen the search, to see their
+        distribution here.
       </div>
 
       <VueApexCharts
@@ -52,9 +57,9 @@
 import { onMounted, ref, watch } from 'vue'
 import { useTheme } from 'vuetify'
 import VueApexCharts from 'vue3-apexcharts'
-import { notify } from '@kyvg/vue3-notification'
+import { apiErrorInfo, type ApiErrorInfo } from '@kaapana/base-ui'
 import { loadDashboard } from '@/common/api.service'
-import { apiErrorText } from '@kaapana/base-ui'
+import { useFailureDetailsStore } from '@/stores/failureDetails'
 
 const props = withDefaults(
   defineProps<{
@@ -73,6 +78,7 @@ const props = withDefaults(
 const emit = defineEmits<{ dataPointSelection: [payload: { key: string; value: string }] }>()
 
 const theme = useTheme()
+const failureDetails = useFailureDetailsStore()
 
 const METRICS = ['Patients', 'Studies', 'Series'] as const
 
@@ -81,7 +87,7 @@ const metrics = ref<Record<string, any>>({})
 const loading = ref(false)
 // Kept apart from "nothing to show": a failed load must not be presented as an
 // empty collection (guidelines, "Empty states").
-const failed = ref(false)
+const failure = ref<ApiErrorInfo | null>(null)
 
 function getApexChartsOptions(key: string, values: any): any {
   const isDark = theme.global.current.value.dark
@@ -185,7 +191,7 @@ function updateDashboard() {
   if (props.seriesInstanceUIDs.length === 0 && !props.allPatients) {
     histograms.value = {}
     metrics.value = {}
-    failed.value = false
+    failure.value = null
     return
   }
   let series = props.seriesInstanceUIDs
@@ -195,24 +201,27 @@ function updateDashboard() {
     query = props.searchQuery
   }
   loading.value = true
-  failed.value = false
+  failure.value = null
   loadDashboard(series, props.fields, query)
     .then((data) => {
       histograms.value = data['histograms'] || {}
       metrics.value = data['metrics'] || {}
     })
-    // loadDashboard does not report; keep the charts from the last good load.
-    .catch((error: any) => {
-      failed.value = true
-      notify({
-        title: 'Statistics not loaded',
-        text: apiErrorText(error, 'The statistics for the current selection could not be loaded.'),
-        type: 'error',
-      })
+    .catch((error: unknown) => {
+      failure.value = apiErrorInfo(error)
     })
     .finally(() => {
       loading.value = false
     })
+}
+
+function showFailureDetails() {
+  if (!failure.value) return
+  failureDetails.show({
+    title: 'Statistics not loaded',
+    text: 'The statistics for the current selection could not be loaded.',
+    error: failure.value,
+  })
 }
 
 function dataPointSelection(config: any, key: string, value: any) {

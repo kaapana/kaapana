@@ -85,7 +85,7 @@ function getDicomData() {
         seriesDescription.value = data['metadata']['Series Description'] || ''
         modality.value = data['metadata']['Modality'] || ''
       })
-      // loadSeriesData already reported; keep the previous metadata.
+      // The metadata table below reports the failure; keep the title.
       .catch(() => {})
   }
 }

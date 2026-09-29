@@ -7,12 +7,16 @@
             class="fill-height ma-0"
             align="center"
             justify="center"
-            :class="img_loading_error ? 'bg-surface-light' : ''"
+            :class="img_loading_error || metadataFailed ? 'bg-surface-light' : ''"
           >
-            <v-progress-circular v-if="!img_loading_error" indeterminate color="primary" />
+            <v-progress-circular
+              v-if="!img_loading_error && !metadataFailed"
+              indeterminate
+              color="primary"
+            />
             <div v-else class="text-center text-caption text-medium-emphasis">
               <v-icon :icon="kaapanaIcons.error" class="d-block mx-auto mb-1" />
-              Thumbnail unavailable
+              {{ metadataFailed ? 'Metadata unavailable' : 'Thumbnail unavailable' }}
             </div>
           </v-row>
         </template>
@@ -113,6 +117,7 @@ const tags = ref<string[]>([])
 const settings = ref<any>(defaultSettings)
 const isSeriesComplete = ref(true)
 const img_loading_error = ref(false)
+const metadataFailed = ref(false)
 
 // only required for double-click-event
 let clicks = 0
@@ -122,6 +127,7 @@ settings.value = readSettings()
 
 function get_data() {
   if (props.seriesInstanceUID !== '') {
+    metadataFailed.value = false
     loadSeriesData(props.seriesInstanceUID as string)
       .then((data) => {
         if (data !== undefined) {
@@ -135,8 +141,9 @@ function get_data() {
           }
         }
       })
-      // loadSeriesData already reported; the card keeps its placeholder.
-      .catch(() => {})
+      .catch(() => {
+        metadataFailed.value = true
+      })
   }
 }
 

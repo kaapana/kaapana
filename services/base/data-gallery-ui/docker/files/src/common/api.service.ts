@@ -1,21 +1,8 @@
-import { notify } from '@kyvg/vue3-notification'
-import { apiErrorText, httpClient, httpClientWithoutTimeout, useAuthStore } from '@kaapana/base-ui'
+import { httpClient, httpClientWithoutTimeout } from '@kaapana/base-ui'
 import type { Dataset } from '@/types'
 import { isAxiosError } from 'axios'
 
 const KAAPANA_BACKEND_ENDPOINT = import.meta.env.VITE_KAAPANA_BACKEND_ENDPOINT
-
-// Every failure is reported as "what failed" plus, when the backend supplied
-// one, the actionable detail — never the bare Error, which used to be
-// interpolated straight into the notification as "[object Object]" whenever the
-// response carried no `detail` (design guidelines, "Errors").
-const notifyError = (error: any, title: string, fallback: string) => {
-  notify({
-    title,
-    text: apiErrorText(error, fallback),
-    type: 'error',
-  })
-}
 
 const updateDataset = async (body: any) => {
   return await httpClient.put(KAAPANA_BACKEND_ENDPOINT + 'client/dataset', body)
@@ -33,96 +20,52 @@ const deleteDataset = async (datasetName: string, accessLevel: string) => {
 }
 
 const loadDatasetByName = async (datasetName: string, access_level = 'project') => {
-  try {
-    const dataset = (
-      await httpClient.get(
-        KAAPANA_BACKEND_ENDPOINT +
-          `client/dataset?name=${encodeURIComponent(datasetName)}&access_level=${encodeURIComponent(access_level)}`,
-      )
-    ).data
-    return dataset
-  } catch (error: any) {
-    notifyError(error, 'Dataset not loaded', 'The dataset could not be loaded; the search is not scoped to it.')
-    throw error
-  }
+  return (
+    await httpClient.get(
+      KAAPANA_BACKEND_ENDPOINT +
+        `client/dataset?name=${encodeURIComponent(datasetName)}&access_level=${encodeURIComponent(access_level)}`,
+    )
+  ).data
 }
 
 const loadDatasets = async (skipIdentifiers = true): Promise<Dataset[]> => {
-  try {
-    const datasets = await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'client/datasets', {
-      params: skipIdentifiers ? { skip_identifiers: true } : {},
-    })
-    return datasets.data
-  } catch (error: any) {
-    notifyError(error, 'Datasets not loaded', 'The list of datasets could not be loaded.')
-    throw error
-  }
+  const datasets = await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'client/datasets', {
+    params: skipIdentifiers ? { skip_identifiers: true } : {},
+  })
+  return datasets.data
 }
 
 const loadSeriesData = async (seriesInstanceUID: string) => {
-  try {
-    const response = await httpClient.get(
-      KAAPANA_BACKEND_ENDPOINT + `dataset/series/${seriesInstanceUID}`,
-    )
-    return response.data
-  } catch (error: any) {
-    notifyError(error, 'Series metadata not loaded', 'The metadata for this series could not be loaded.')
-    throw error
-  }
+  const response = await httpClient.get(
+    KAAPANA_BACKEND_ENDPOINT + `dataset/series/${seriesInstanceUID}`,
+  )
+  return response.data
 }
 
 const loadPatients = async (data: any) => {
-  try {
-    const res = await httpClient.post(KAAPANA_BACKEND_ENDPOINT + 'dataset/series', data)
-    return res.data
-  } catch (error: any) {
-    notifyError(error, 'Series not loaded', 'The series matching this search could not be loaded.')
-    throw error
-  }
+  const res = await httpClient.post(KAAPANA_BACKEND_ENDPOINT + 'dataset/series', data)
+  return res.data
 }
 
 const getAggregatedSeriesNum = async (data: any) => {
-  try {
-    const res = await httpClient.post(
-      KAAPANA_BACKEND_ENDPOINT + 'dataset/aggregatedSeriesNum',
-      data,
-    )
-    return res.data
-  } catch (error: any) {
-    notifyError(error, 'Series count unavailable', 'The number of matching series could not be determined, so paging may be wrong.')
-    throw error
-  }
+  const res = await httpClient.post(KAAPANA_BACKEND_ENDPOINT + 'dataset/aggregatedSeriesNum', data)
+  return res.data
 }
 
 const loadFieldNames = async () => {
-  try {
-    return await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'dataset/field_names')
-  } catch (error: any) {
-    notifyError(error, 'Filter fields not loaded', 'The fields available for filtering could not be loaded.')
-    throw error
-  }
+  return await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'dataset/field_names')
 }
 
 const loadValues = async (key: string, query: any = {}) => {
-  try {
-    return await httpClient.post(
-      KAAPANA_BACKEND_ENDPOINT + `dataset/query_values/${encodeURIComponent(key)}`,
-      query,
-    )
-  } catch (error: any) {
-    notifyError(error, 'Filter values not loaded', 'The selectable values for this filter could not be loaded.')
-    throw error
-  }
+  return await httpClient.post(
+    KAAPANA_BACKEND_ENDPOINT + `dataset/query_values/${encodeURIComponent(key)}`,
+    query,
+  )
 }
 
 const loadSearchFields = async () => {
-  try {
-    const response = await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'dataset/search_fields')
-    return response.data
-  } catch (error: any) {
-    notifyError(error, 'Search fields not loaded', 'The searchable fields could not be loaded, so free-text search is unavailable.')
-    throw error
-  }
+  const response = await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'dataset/search_fields')
+  return response.data
 }
 
 const updateTags = async (data: any) => {
@@ -188,20 +131,6 @@ const downloadDatasets = async (concatenatedSeriesUIDs: string) => {
   }
 }
 
-const fetchProjects = async () => {
-  const currentUser = useAuthStore().currentUser
-  try {
-    if (currentUser.roles.includes('admin')) {
-      return (await httpClient.get('/aii/projects')).data
-    } else {
-      return (await httpClient.get('/aii/users/' + currentUser.id + '/projects')).data
-    }
-  } catch (error: any) {
-    notifyError(error, 'Projects not loaded', 'Your projects could not be loaded.')
-    throw error
-  }
-}
-
 export {
   updateTags,
   loadPatients,
@@ -217,6 +146,5 @@ export {
   loadValues,
   loadSearchFields,
   getAggregatedSeriesNum,
-  fetchProjects,
   downloadDatasets,
 }

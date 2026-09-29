@@ -42,6 +42,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { loadSeriesData } from '@/common/api.service'
+import { notifyFailure } from '@/utils/notifyFailure'
 import { kaapanaIcons } from '@/utils/galleryIcons'
 
 const props = defineProps<{ seriesInstanceUID?: string }>()
@@ -68,8 +69,13 @@ function getDicomData() {
             value: typeof i[1] === 'object' ? JSON.stringify(i[1]) : i[1],
           }))),
       )
-      // loadSeriesData already reported; keep the previous rows.
-      .catch(() => {})
+      .catch((error: unknown) =>
+        notifyFailure(
+          'Series metadata not loaded',
+          'The metadata for this series could not be loaded.',
+          error,
+        ),
+      )
   }
 }
 

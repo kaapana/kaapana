@@ -38,8 +38,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ARG HELM_VERSION=3.19.0
 RUN curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" \
         | tar -xzO linux-amd64/helm > /usr/local/bin/helm \
-    && chmod +x /usr/local/bin/helm \
-    && helm plugin install https://github.com/instrumenta/helm-kubeval
+    && chmod +x /usr/local/bin/helm
 
 # trivy: kaapana-build runs it as a plain process
 # renovate: datasource=github-releases depName=aquasecurity/trivy extractVersion=^v(?<version>\d+\.\d+\.\d+)$

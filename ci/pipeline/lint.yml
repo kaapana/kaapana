@@ -22,6 +22,12 @@ lint:
     - if: '"$[[ inputs.exec_lint ]]" == "true" && $LINTER == "ui"'
       when: on_success
       allow_failure: true
+    - if: '"$[[ inputs.exec_lint ]]" == "true" && $LINTER == "helm"'
+      when: on_success
+      allow_failure: true
+      variables:
+        GIT_STRATEGY: clone
+        GIT_DEPTH: "0"
     - if: '"$[[ inputs.exec_lint ]]" == "true"'
       when: on_success
     - when: never
@@ -36,9 +42,7 @@ lint:
           - ruff
           - ui
           - hadolint
-      - LINTER: helm
-        GIT_STRATEGY: clone
-        GIT_DEPTH: "0"
+          - helm
   script:
     - |
       case "$LINTER" in
@@ -74,6 +78,7 @@ lint:
     when: always
     reports:
       codequality: gl-code-quality-report.json
+      junit: helm-reports/*.xml
     paths:
       - gl-code-quality-report.json
       - build/helm-lint/build.log

@@ -188,6 +188,11 @@ You should also have the following packages installed on your build-system.
 
    :code:`sudo snap install helm --classic --channel=latest/stable`
 
+#. kubeconform
+
+   | :code:`curl -fsSL https://github.com/yannh/kubeconform/releases/download/v0.7.0/kubeconform-linux-amd64.tar.gz | tar -xz -C ~/.local/bin kubeconform`
+   | -> validates the Helm charts on every build; skip with :code:`--no-linting`
+
 #. Reboot
 
    :code:`sudo reboot`
@@ -196,10 +201,6 @@ You should also have the following packages installed on your build-system.
 
    | :code:`docker run hello-world`
    | -> this should work now without root privileges
-
-#. Helm plugin
-
-   | :code:`helm plugin install --verify=false https://github.com/instrumenta/helm-kubeval`
 
 
 Start Build

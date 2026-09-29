@@ -282,7 +282,7 @@ runner.
 
 One tool image for every job that needs more than plain Python:
 [`ci/images/ci-base/Dockerfile`](../images/ci-base/Dockerfile). Contents: git,
-docker CLI + buildx, helm (with the kubeval plugin, which `kaapana-build`
+docker CLI + buildx, helm (which `kaapana-build`
 requires), trivy, dcmtk, nmap, jq, ansible, node 22 + npm, chromium for
 playwright, snapd + squashfs-tools for the offline-package scan, and the pinned
 Python test dependencies.

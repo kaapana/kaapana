@@ -4,12 +4,16 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from subprocess import PIPE, run
-from typing import Any, Dict, Optional, Set
+from types import SimpleNamespace
+from typing import Any, Dict, List, Optional, Set
 
 import yaml
 
 from build_cli.build import BuildConfig, IssueTracker
 from build_cli.container import Container, ContainerHelper
+from build_cli.helm.kubeconform import failures as kubeconform_failures
+from build_cli.helm.kubeconform import summarize, validate_manifests
+from build_cli.helm.lint_report import parse_helm_lint, write_junit_report
 from build_cli.utils import GitUtils, get_logger
 
 logger = get_logger()
@@ -65,7 +69,6 @@ class HelmChart:
 
         self.build_chart_dir: Path
         self.linted: bool = False
-        self.kubeval_done: bool = False
 
     def __repr__(self) -> str:
         return f"HelmChart({self.name=!r}, {self.version=!r}, {self.kaapana_type=})"
@@ -553,7 +556,14 @@ class HelmChart:
                 else:
                     f.write(line)
 
-    def lint_chart(self, helm_executable: str, values: Optional[Path] = None, with_subcharts: bool = False):
+    def lint_chart(
+        self,
+        helm_executable: str,
+        values: Optional[Path] = None,
+        with_subcharts: bool = False,
+        findings: Optional[List[Dict[str, str]]] = None,
+        strict: bool = False,
+    ):
         if self.ignore_linting:
             logger.debug(f"{self.name} has ignore_linting: true - skipping")
             return
@@ -577,7 +587,15 @@ class HelmChart:
             timeout=300 if with_subcharts else 20,
             cwd=self.build_chart_dir,
         )
-        if output.returncode != 0:
+        chart_findings = parse_helm_lint(output.stdout)
+        for finding in chart_findings:
+            finding["chart"] = self.name
+            if finding["level"] == "WARNING":
+                logger.warning(f"{self.name}: helm lint {finding['unit']}/{finding['file']}: {finding['message']}")
+        if findings is not None:
+            findings.extend(chart_findings)
+
+        if output.returncode != 0 or (strict and chart_findings):
             logger.error(f"{self.name}: lint_chart failed!")
             IssueTracker.generate_issue(
                 component=self.__class__.__name__,
@@ -591,46 +609,58 @@ class HelmChart:
             logger.debug(f"{self.name}: lint_chart ok")
             self.linted = True
 
-    def lint_kubeval(self, helm_executable: str, values: Optional[Path] = None):
+    def validate_chart(self, helm_executable: str, values: Path, report_file: Path):
         if self.ignore_linting:
             logger.debug(f"{self.name} has ignore_linting: true - skipping")
             return
 
-        if self.kubeval_done:
-            logger.debug(f"{self.name}: lint_kubeval already done -> skip")
+        logger.info(f"{self.name}: validate_chart (helm template | kubeconform)")
+        rendered = self._render(helm_executable, values)
+        if rendered.returncode != 0:
+            self._report_failed_render(rendered, report_file)
             return
 
-        if self.kaapana_type == KaapanaType.LIBRARY_HELPER:
-            logger.debug(f"{self.name}: charts with type: library are ignored for lint_kubeval -> skip")
-            return
-
-        logger.info(f"{self.name}: lint_kubeval")
-        command = [helm_executable, "kubeval", "--ignore-missing-schemas", "."]
-        if values:
-            command.insert(-1, "--values")
-            command.insert(-1, str(values))
-
-        output = run(
-            command,
-            stdout=PIPE,
-            stderr=PIPE,
-            universal_newlines=True,
-            timeout=20,
-            cwd=self.build_chart_dir,
-        )
-        if output.returncode != 0 and "A valid hostname" not in output.stderr:
-            logger.error(f"{self.name}: lint_kubeval failed")
+        validated = validate_manifests(rendered.stdout)
+        report_file.parent.mkdir(parents=True, exist_ok=True)
+        report_file.write_text(validated.stdout)
+        logger.info(f"{self.name}: kubeconform: {summarize(validated.stdout)}")
+        if validated.returncode != 0:
             IssueTracker.generate_issue(
                 component=self.__class__.__name__,
                 name=f"{self.name}",
-                msg="chart kubeval failed!",
-                level="WARNING",
-                output=output,
+                msg="chart manifests are invalid!",
+                level="ERROR",
+                output=SimpleNamespace(
+                    stdout="\n".join(kubeconform_failures(validated.stdout)), stderr=validated.stderr
+                ),
                 path=self.chartfile.parent,
             )
-        else:
-            logger.debug(f"{self.name}: lint_kubeval ok")
-            self.kubeval_done = True
+
+    def _render(self, helm_executable: str, values: Path):
+        return run(
+            [helm_executable, "template", self.name, ".", "--values", str(values)],
+            stdout=PIPE,
+            stderr=PIPE,
+            universal_newlines=True,
+            timeout=300,
+            cwd=self.build_chart_dir,
+        )
+
+    def _report_failed_render(self, rendered, report_file: Path):
+        message = rendered.stderr.strip() or "helm template failed"
+        write_junit_report(
+            "kubeconform",
+            [{"classname": self.name, "name": "helm template", "failure": message}],
+            report_file,
+        )
+        IssueTracker.generate_issue(
+            component=self.__class__.__name__,
+            name=f"{self.name}",
+            msg="chart render failed!",
+            level="ERROR",
+            output=rendered,
+            path=self.chartfile.parent,
+        )
 
     def make_package(self, helm_executable: str, plain_http: bool):
         logger.info(f"{self.name}: make_package")

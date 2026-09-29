@@ -118,14 +118,14 @@ def build(
         "-el/--no-linting",
         "--enable-linting/--no-linting",
         envvar="ENABLE_LINTING",
-        help="Enable Helm chart linting and kubeval validation.",
+        help="Enable Helm chart checks (helm lint and kubeconform validation).",
     ),
     lint_only: bool = typer.Option(
         False,
         "-lo",
         "--lint-only",
         envvar="LINT_ONLY",
-        help="Only lint the Helm chart tree (helm lint + kubeval); no container engine, registry, packages or images.",
+        help="Only check the Helm chart tree (helm lint and kubeconform validation); no container engine, registry, packages or images.",
     ),
     exit_on_error: bool = typer.Option(
         True,

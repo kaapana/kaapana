@@ -878,6 +878,7 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', keyDownEventListener)
   window.removeEventListener('keyup', keyUpEventListener)
+  postViewDirty(false)
 })
 </script>
 <style scoped>

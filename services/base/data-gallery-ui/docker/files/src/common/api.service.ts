@@ -1,6 +1,5 @@
 import { notify } from '@kyvg/vue3-notification'
-import { httpClient, httpClientWithoutTimeout, useAuthStore } from '@kaapana/base-ui'
-import { apiErrorText } from '@/utils/errors'
+import { apiErrorText, httpClient, httpClientWithoutTimeout, useAuthStore } from '@kaapana/base-ui'
 import type { Dataset } from '@/types'
 
 const KAAPANA_BACKEND_ENDPOINT = import.meta.env.VITE_KAAPANA_BACKEND_ENDPOINT

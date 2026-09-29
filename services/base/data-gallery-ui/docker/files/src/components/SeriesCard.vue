@@ -100,7 +100,7 @@ import { notify } from '@kyvg/vue3-notification'
 import { readSettings, settings as defaultSettings } from '@/static/defaultUIConfig'
 import { useDatasetsStore } from '@/stores/datasets'
 import { kaapanaIcons, galleryIcons } from '@/utils/galleryIcons'
-import { apiErrorText } from '@/utils/errors'
+import { apiErrorText } from '@kaapana/base-ui'
 
 const props = defineProps<{ seriesInstanceUID?: string }>()
 

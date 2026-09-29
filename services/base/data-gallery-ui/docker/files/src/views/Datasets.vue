@@ -398,13 +398,12 @@ import {
   getAggregatedSeriesNum,
   fetchProjects,
 } from '@/common/api.service'
-import { kaapanaApiService } from '@kaapana/base-ui'
+import { apiErrorText, kaapanaApiService } from '@kaapana/base-ui'
 import { readSettings, settings as defaultSettings } from '@/static/defaultUIConfig'
 import { debounce } from '@/utils/utils'
 import { ConfirmDialog, getProjectSlug, postViewDirty, useProjectStore } from '@kaapana/base-ui'
 import { useDatasetsStore } from '@/stores/datasets'
 import { kaapanaIcons, galleryIcons } from '@/utils/galleryIcons'
-import { apiErrorText } from '@/utils/errors'
 import type { Dataset, Patients } from '@/types'
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars

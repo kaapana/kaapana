@@ -54,7 +54,7 @@ import { useTheme } from 'vuetify'
 import VueApexCharts from 'vue3-apexcharts'
 import { notify } from '@kyvg/vue3-notification'
 import { loadDashboard } from '@/common/api.service'
-import { apiErrorText } from '@/utils/errors'
+import { apiErrorText } from '@kaapana/base-ui'
 
 const props = withDefaults(
   defineProps<{

@@ -180,9 +180,6 @@ const disabledTagBar = computed(
     datasets.selectedItems.length > 1,
 )
 
-// A disabled control explains why it is unavailable when the reason is not
-// obvious (guidelines, "Unavailable actions"). Tagging acts on one card at a
-// time, so it is off while a multi-selection is active.
 const editToggleHint = computed(() => {
   if (!settings.value.datasets.cardText) return 'Tagging needs card text enabled in the settings'
   if (datasets.multiSelectKeyPressed || datasets.selectedItems.length > 1) {

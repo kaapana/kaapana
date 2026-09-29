@@ -25,8 +25,6 @@
         :items-per-page="-1"
         density="compact"
       >
-        <!-- An empty table says which of the two cases it is, rather than
-             "No data available" (guidelines, "Empty states"). -->
         <template v-slot:no-data>
           <div class="text-body-2 text-medium-emphasis py-6">
             {{

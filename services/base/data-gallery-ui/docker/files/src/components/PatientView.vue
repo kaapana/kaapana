@@ -1,7 +1,4 @@
 <template>
-  <!-- Elevation 2 is the resting level for raised content; a page of nested
-       cards must not read as a stack of floating boxes (guidelines, "Spacing
-       and shape"). -->
   <v-card :elevation="2" class="ma-1">
     <v-card-title class="pa-3">
       <v-row no-gutters>

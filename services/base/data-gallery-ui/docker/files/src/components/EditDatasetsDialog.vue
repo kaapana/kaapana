@@ -142,9 +142,6 @@ onUnmounted(restoreFocus)
 </script>
 
 <template>
-  <!-- Large (900px): a table. Content that would not fit belongs in a full view,
-       not a wider dialog (guidelines, "Dialogs"). -->
-  <!-- Persistent while a delete runs: closing reports the deletions upward. -->
   <v-dialog v-model="show" max-width="900" :persistent="deleting">
     <v-card :elevation="5">
       <v-card-title class="text-h6">Datasets</v-card-title>

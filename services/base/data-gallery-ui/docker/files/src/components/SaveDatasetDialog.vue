@@ -41,9 +41,6 @@ const dirty = computed(
     props.modelValue && (name.value.trim() !== '' || accessLevel.value !== DEFAULT_ACCESS_LEVEL),
 )
 
-// Validation says what is required and how to fix it, rather than "Invalid
-// input" — and it is bound to the field, so Vuetify marks the control required
-// instead of relying on an asterisk in the label (guidelines, "Validation").
 const nameRules = [
   (value: string) =>
     !!value?.trim() || 'Enter a name for the dataset, for example: lung-segmentation.',

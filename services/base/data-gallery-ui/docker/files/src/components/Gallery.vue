@@ -102,7 +102,6 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .v-col {
-  /* 4px step of the spacing scale (guidelines, "Spacing and shape"). */
   padding: 4px;
 }
 </style>

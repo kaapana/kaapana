@@ -30,8 +30,6 @@
                   </v-autocomplete>
                 </v-col>
                 <v-col cols="1" align="center">
-                  <!-- Was a bare click handler on the column: not focusable, not
-                       keyboard-operable and with no accessible name. -->
                   <v-tooltip location="bottom" text="Manage datasets">
                     <template v-slot:activator="{ props: activator }">
                       <v-btn
@@ -75,8 +73,6 @@
         </v-container>
         <!-- Gallery View -->
         <v-container fluid class="pa-0">
-          <!-- The skeleton mirrors the card grid it replaces, so the layout does
-               not shift when the results arrive (guidelines, "Loading"). -->
           <v-container v-if="isLoading" fluid class="pa-2">
             <v-row>
               <v-col v-for="n in 8" :key="n" cols="3">
@@ -124,17 +120,8 @@
                       <span class="text-body-2 text-medium-emphasis mr-2">
                         {{ displaySelectedItems }}
                       </span>
-                      <!-- Contextual utilities, so tertiary by default. The one
-                           destructive action takes the `error` colour and the
-                           main action of the selection takes `primary`; making
-                           all five primary would mean none of them is
-                           (guidelines, "Action hierarchy"). -->
-                      <!-- A disabled button cannot take focus, so while it is
-                           disabled its wrapper does: keyboard users reach the
-                           reason too, and the toolbar keeps one stop per action.
-                           Only Remove's wrapper needs it: the other actions are
-                           unavailable only without series, and the toolbar
-                           shows only with results. -->
+                      <!-- A disabled button cannot take focus, so Remove's wrapper does. The
+                           others are unavailable only without series, which hides this toolbar. -->
                       <v-tooltip location="bottom" :text="saveAsHint">
                         <template v-slot:activator="{ props: activator }">
                           <span v-bind="activator">
@@ -210,9 +197,6 @@
             </v-container>
           </v-container>
 
-          <!-- Nothing to show: "nothing yet", "nothing matches" and "could not
-               load" are three different situations with three different next
-               steps (guidelines, "Empty states"). -->
           <GalleryEmptyState
             v-else
             ref="emptyStateRef"
@@ -241,8 +225,6 @@
       </pane>
     </splitpanes>
     <div>
-      <!-- Removing series from a dataset is hard to undo from the UI, so it is
-           confirmed and coloured `error` (guidelines, "Destructive actions"). -->
       <ConfirmDialog
         v-model="removeFromDatasetDialog"
         title="Remove series from dataset?"
@@ -343,8 +325,6 @@ const seriesInstanceUIDs = ref<string[]>([])
 const patients = ref<Patients>({})
 const selectedSeriesInstanceUIDs = ref<string[]>([])
 const isLoading = ref(true)
-// Why the gallery is empty, kept apart from "there is nothing": a failed load
-// must never be presented as an empty collection (guidelines, "Empty states").
 const loadFailure = ref<ApiErrorInfo | null>(null)
 const settings = ref<any>(defaultSettings)
 const datasets = ref<Dataset[]>([])
@@ -364,16 +344,12 @@ const aggregatedSeriesNum = ref<number>(100)
 const pageIndex = ref(1)
 const searchQuery = ref<any>({})
 const allPatients = ref(true)
-// Mutation progress belongs on the control that started it, and the same
-// mutation must not be submitted twice while it runs (guidelines, "Loading").
 const savingDataset = ref(false)
 const addingToDataset = ref(false)
 const removingFromDataset = ref(false)
 const removal = ref<{ dataset: Dataset; identifiers: string[]; text: string } | null>(null)
 const datasetSelector = ref<{ focus: () => void } | null>(null)
 const emptyStateRef = ref<InstanceType<typeof GalleryEmptyState> | null>(null)
-// The shell needs the view's *combined* dirty state, so the parts are collected
-// here rather than each posting over the others (guidelines, "Unsaved changes").
 const searchDirty = ref(false)
 const saveDialogDirty = ref(false)
 const queryParams: Record<string, any> = { ...route.query }
@@ -607,8 +583,6 @@ const hasResults = computed(() =>
     : seriesInstanceUIDs.value.length > 0,
 )
 
-/** Which of the guidelines' three empty states applies. A search or a selected
- *  dataset means the collection was filtered, not that nothing exists. */
 const emptyState = computed<'empty' | 'no-results' | 'dataset-empty' | 'error'>(() => {
   if (loadFailure.value) return 'error'
   if (selectedDataset.value && scopeDataset.value?.identifiers.length === 0) return 'dataset-empty'
@@ -626,8 +600,6 @@ async function keepFocusInGallery() {
 
 /* ------------------------------------------------------- dataset actions -- */
 
-// A disabled action says why it is unavailable when the reason is not obvious
-// (guidelines, "Unavailable actions").
 const nothingSelected = computed(() => identifiersOfInterest.value.length === 0)
 const removeUnavailable = computed(() => nothingSelected.value || !selectedDataset.value)
 const saveAsHint = computed(() =>

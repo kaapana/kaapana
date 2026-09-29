@@ -5,7 +5,7 @@ import {
   makeDefaultMockData,
   VIEW_PATH,
 } from './fixtures/mock-backend'
-import { collectPageErrors, failRoute, openGallery, toasts } from './fixtures/helpers'
+import { collectPageErrors, expectNoToast, failRoute, openGallery } from './fixtures/helpers'
 
 // Every other spec seeds localStorage["settings"], so only this one sees a fresh
 // profile — where the view's bare JSON.parse(undefined) at setup blanked the
@@ -92,5 +92,5 @@ test('a failed series count is reported once, as a failure', async ({ page }) =>
   // used to spin forever because the promise chain had no catch.
   await expect(page.locator('.v-skeleton-loader')).toHaveCount(0)
   await expect(page.getByText('Boom')).toHaveCount(0)
-  await expect(toasts(page)).toHaveCount(0)
+  await expectNoToast(page)
 })

@@ -36,6 +36,9 @@ lint:
           - ruff
           - ui
           - hadolint
+      - LINTER: helm
+        GIT_STRATEGY: clone
+        GIT_DEPTH: "0"
   script:
     - |
       case "$LINTER" in
@@ -58,6 +61,10 @@ lint:
           hadolint --no-fail -f gitlab_codeclimate "${dockerfiles[@]}" > gl-code-quality-report.json
           hadolint "${dockerfiles[@]}"
           ;;
+        helm)
+          git fetch --tags --quiet
+          HELM_LINT_LOG_LEVEL=INFO ci/ci-code/lint/helm_lint.sh
+          ;;
         *)
           echo "unknown LINTER: $LINTER"
           exit 1
@@ -69,29 +76,5 @@ lint:
       codequality: gl-code-quality-report.json
     paths:
       - gl-code-quality-report.json
+      - build/helm-lint/build.log
 
-##############################################
-# Helm lint: helm lint + kubeval of the platform chart tree — blocks the pipeline
-##############################################
-helm_lint:
-  stage: tests
-  tags:
-    - $[[ inputs.runner_tag ]]
-  image: $CI_BASE_IMAGE
-  timeout: 15m
-  rules:
-    - if: '"$[[ inputs.exec_lint ]]" == "true"'
-      when: on_success
-    - when: never
-  variables:
-    GIT_STRATEGY: clone
-    GIT_DEPTH: "0"
-  before_script:
-    - git fetch --tags
-    - pip install -e build_cli/
-  script:
-    - kaapana-build --lint-only --kaapana-dir "$CI_PROJECT_DIR"
-  artifacts:
-    when: always
-    paths:
-      - build/build.log

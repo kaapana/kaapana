@@ -5,6 +5,7 @@ import { ConfirmDialog } from '@kaapana/base-ui'
 import { loadDatasets, deleteDataset } from '@/common/api.service'
 import type { Dataset } from '@/types'
 import { kaapanaIcons } from '@/utils/galleryIcons'
+import { sameDataset } from '@/utils/datasets'
 
 const props = defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{ close: [editedDatasets: boolean] }>()
@@ -41,10 +42,6 @@ const deleteText = computed(() => {
     'This cannot be undone.'
   )
 })
-
-function sameDataset(a: any, b: any) {
-  return !!a && !!b && a.name === b.name && a.access_level === b.access_level
-}
 
 async function loadDatasetsRows() {
   return (await loadDatasets(false)).map((dataset) => ({

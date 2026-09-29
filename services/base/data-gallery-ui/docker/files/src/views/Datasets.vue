@@ -236,42 +236,13 @@
         @save="(name, access_level) => saveDatasetFromDialog(name, access_level)"
         @update:dirty="(dirty) => (saveDialogDirty = dirty)"
       />
-      <!-- Medium (600px): a form. -->
-      <v-dialog v-model="addToDatasetDialog" max-width="600">
-        <v-card :elevation="5">
-          <v-card-title class="text-h6">Add to dataset</v-card-title>
-          <v-card-subtitle class="text-body-2 text-medium-emphasis pb-2">
-            {{ identifiersOfInterest.length }} series will be added.
-          </v-card-subtitle>
-          <v-card-text>
-            <v-select
-              v-model="datasetToAddTo"
-              :items="datasets"
-              :item-title="datasetLabel"
-              return-object
-              label="Dataset"
-              no-data-text="No datasets in this project yet — use “Save selection as dataset” first"
-            ></v-select>
-          </v-card-text>
-          <v-divider></v-divider>
-          <v-card-actions>
-            <v-spacer></v-spacer>
-            <v-btn variant="text" :disabled="addingToDataset" @click.stop="addToDatasetDialog = false">
-              Cancel
-            </v-btn>
-            <v-btn
-              color="primary"
-              variant="flat"
-              :disabled="!datasetToAddTo"
-              :loading="addingToDataset"
-              :prepend-icon="kaapanaIcons.save"
-              @click.stop="addToDataset"
-            >
-              Save
-            </v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-dialog>
+      <AddToDatasetDialog
+        v-model="addToDatasetDialog"
+        :datasets="datasets"
+        :item-count="identifiersOfInterest.length"
+        :busy="addingToDataset"
+        @save="addToDataset"
+      />
       <v-dialog v-model="workflowDialog" max-width="600">
         <WorkflowExecution
           :identifiers="identifiersOfInterest"
@@ -288,82 +259,7 @@
         v-model="editDatasetsDialog"
         @close="(reloadDatasets) => editedDatasets(reloadDatasets)"
       />
-      <!-- Large (900px): a report preview. -->
-      <v-dialog
-        :model-value="datasets_store.showValidationResults"
-        max-width="900"
-        scrollable
-        @update:model-value="(value: boolean) => !value && onValidationResultClose()"
-      >
-        <v-card :elevation="5">
-          <v-toolbar flat color="transparent">
-            <v-toolbar-title class="text-h6">Validation report</v-toolbar-title>
-            <v-spacer></v-spacer>
-            <v-menu location="bottom end">
-              <template v-slot:activator="{ props: activator }">
-                <v-btn
-                  v-bind="activator"
-                  :icon="galleryIcons.more"
-                  aria-label="Report actions"
-                  variant="text"
-                />
-              </template>
-              <v-list>
-                <v-list-item
-                  :prepend-icon="kaapanaIcons.start"
-                  title="Re-run validation"
-                  @click="runValidationWorkflow(validationResultItem)"
-                />
-                <v-list-item
-                  :prepend-icon="kaapanaIcons.delete"
-                  title="Delete report"
-                  @click="deleteValidationResult(validationResultItem)"
-                />
-                <v-list-item
-                  :prepend-icon="galleryIcons.downloadFile"
-                  title="Download report"
-                  @click="downloadValidationResult(validationResultItem)"
-                />
-              </v-list>
-            </v-menu>
-          </v-toolbar>
-          <v-divider />
-          <v-card-text v-if="validationResultItem != null">
-            <div
-              v-if="validationResultLookup.loading"
-              class="d-flex flex-column align-center ga-3 py-8"
-            >
-              <v-progress-circular indeterminate color="primary" />
-              <span class="text-body-2 text-medium-emphasis">Loading the report…</span>
-            </div>
-            <ElementsFromHTML v-else-if="validationResultUrl" :rawHtmlURL="validationResultUrl" />
-            <!-- Information tied to this dialog's content stays inline, next to
-                 what it is about (guidelines, "Notifications and alerts"). -->
-            <div v-else class="py-4">
-              <v-alert
-                type="info"
-                variant="tonal"
-                title="No validation report for this series"
-                text="Either the series has never been validated, or an earlier report was removed with its workflow results. Re-run the validation workflow to produce an up-to-date report."
-              />
-              <v-btn
-                class="mt-4"
-                color="primary"
-                variant="flat"
-                :prepend-icon="kaapanaIcons.start"
-                @click="runValidationWorkflow(validationResultItem)"
-              >
-                Re-run validation
-              </v-btn>
-            </div>
-          </v-card-text>
-          <v-divider />
-          <v-card-actions>
-            <v-spacer></v-spacer>
-            <v-btn variant="text" @click="onValidationResultClose">Close</v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-dialog>
+      <ValidationReportDialog @run-workflow="runWorkflowOnSeries" />
     </div>
   </div>
 </template>
@@ -382,13 +278,14 @@ import Search from '@/components/Search.vue'
 import TagBar from '@/components/TagBar.vue'
 import Dashboard from '@/components/Dashboard.vue'
 import SaveDatasetDialog from '@/components/SaveDatasetDialog.vue'
+import AddToDatasetDialog from '@/components/AddToDatasetDialog.vue'
+import ValidationReportDialog from '@/components/ValidationReportDialog.vue'
 import { WorkflowExecution } from '@kaapana/base-ui/workflow-execution'
 import '@kaapana/base-ui/workflow-execution.css'
 import GalleryEmptyState from '@/components/GalleryEmptyState.vue'
 import EditDatasetsDialog from '@/components/EditDatasetsDialog.vue'
 import DownloadDatasetBtn from '@/components/DownloadDatasetBtn.vue'
 import VueSelecto from '@/components/VueSelecto.vue'
-import ElementsFromHTML from '@/components/ElementsFromHTML.vue'
 import Paginate from '@/components/Paginate.vue'
 import {
   createDataset,
@@ -398,12 +295,13 @@ import {
   getAggregatedSeriesNum,
   fetchProjects,
 } from '@/common/api.service'
-import { apiErrorText, kaapanaApiService } from '@kaapana/base-ui'
+import { apiErrorText } from '@kaapana/base-ui'
 import { readSettings, settings as defaultSettings } from '@/static/defaultUIConfig'
 import { debounce } from '@/utils/utils'
 import { ConfirmDialog, getProjectSlug, postViewDirty, useProjectStore } from '@kaapana/base-ui'
 import { useDatasetsStore } from '@/stores/datasets'
 import { kaapanaIcons, galleryIcons } from '@/utils/galleryIcons'
+import { datasetLabel, sameDataset } from '@/utils/datasets'
 import type { Dataset, Patients } from '@/types'
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -434,10 +332,7 @@ const addToDatasetDialog = ref(false)
 const workflowDialog = ref(false)
 const removeFromDatasetDialog = ref(false)
 const editDatasetsDialog = ref(false)
-const datasetToAddTo = ref<Dataset | null>(null)
 const debouncedIdentifiers = ref<string[]>([])
-const resultPaths = ref<Record<string, any>>({})
-const resultLookupState = ref<Record<string, any>>({})
 const filteredDags = ref<string[]>([])
 const aggregatedSeriesNum = ref<number>(100)
 const pageIndex = ref(1)
@@ -459,15 +354,6 @@ const queryParams: Record<string, any> = { ...route.query }
 // The deeplink's parameters as they arrived. Search removes them from the address
 // once applied, so a redirect to another project needs the copy.
 const linkSearch = window.location.search
-
-function datasetLabel(item: Dataset) {
-  return `${item.name} (${item.access_level})`
-}
-
-/** A dataset is identified by its name and access level together. */
-function sameDataset(a: Dataset | null, b: Dataset | null) {
-  return !!a && !!b && a.name === b.name && a.access_level === b.access_level
-}
 
 /** Search reports the dataset it scoped the search to. A deep link resolves
  *  one before anything is selected; selecting it makes the selector and the
@@ -512,10 +398,6 @@ function onSelect(e: any) {
     el.classList.remove('selected')
   })
   debouncedIdentifiers.value = e.selected.map((el: HTMLElement) => el.id)
-}
-function onValidationResultClose() {
-  datasets_store.setShowValidationResults(false)
-  datasets_store.setValidationResultItem(null)
 }
 function onWorkflowSubmit() {
   workflowDialog.value = false
@@ -600,75 +482,6 @@ async function updateDatasetNames() {
   const selected = selectedDataset.value
   if (selected) selectedDataset.value = _datasets.find((d) => sameDataset(d, selected)) ?? selected
 }
-async function ensureValidationResultLoaded(resultItemID: string | null) {
-  if (!resultItemID) {
-    return null
-  }
-
-  const cachedResult = resultLookupState.value[resultItemID]
-  if (cachedResult && (cachedResult.loading || cachedResult.loaded)) {
-    return cachedResult.url
-  }
-
-  resultLookupState.value[resultItemID] = {
-    loading: true,
-    loaded: false,
-    found: false,
-    url: null,
-    object_name: null,
-  }
-
-  try {
-    const response: any = await kaapanaApiService.kaapanaApiGet(
-      '/get-static-website-result-reports',
-      { series_id: resultItemID },
-    )
-    const lookupResult =
-      response && response.data && response.data.results && response.data.results[resultItemID]
-        ? response.data.results[resultItemID]
-        : { found: false, url: null, object_name: null }
-
-    resultLookupState.value[resultItemID] = {
-      loading: false,
-      loaded: true,
-      found: lookupResult.found,
-      url: lookupResult.url,
-      object_name: lookupResult.object_name,
-    }
-
-    if (lookupResult.found && lookupResult.url) {
-      resultPaths.value[resultItemID] = lookupResult.url
-    } else if (resultItemID in resultPaths.value) {
-      delete resultPaths.value[resultItemID]
-    }
-
-    return lookupResult.url
-  } catch (error: any) {
-    notify({
-      title: 'Validation report not loaded',
-      text: apiErrorText(error, 'The validation report for this series could not be loaded.'),
-      type: 'error',
-    })
-    // Don't cache the failure as "loaded, not found" — a retry must refetch.
-    delete resultLookupState.value[resultItemID]
-    if (resultItemID in resultPaths.value) {
-      delete resultPaths.value[resultItemID]
-    }
-    return null
-  }
-}
-function invalidateValidationResultCache(resultItemID: string | null) {
-  if (!resultItemID) {
-    return
-  }
-
-  if (resultItemID in resultLookupState.value) {
-    delete resultLookupState.value[resultItemID]
-  }
-  if (resultItemID in resultPaths.value) {
-    delete resultPaths.value[resultItemID]
-  }
-}
 async function updateDataset(
   name: string,
   identifiers: string[],
@@ -699,14 +512,14 @@ async function updateDataset(
     return false
   }
 }
-async function addToDataset() {
+async function addToDataset(dataset: Dataset) {
   addingToDataset.value = true
   try {
     const successful = await updateDataset(
-      datasetToAddTo.value!.name,
+      dataset.name,
       identifiersOfInterest.value,
       'ADD',
-      datasetToAddTo.value!.access_level,
+      dataset.access_level,
     )
     if (successful) {
       addToDatasetDialog.value = false
@@ -838,38 +651,11 @@ function editedDatasets(reloadDatasets: boolean) {
   }
   editDatasetsDialog.value = false
 }
-function runValidationWorkflow(resultItemID: string | null) {
-  invalidateValidationResultCache(resultItemID)
-  selectedSeriesInstanceUIDs.value = resultItemID ? [resultItemID] : []
+function runWorkflowOnSeries(dag: string, seriesInstanceUID: string | null) {
+  selectedSeriesInstanceUIDs.value = seriesInstanceUID ? [seriesInstanceUID] : []
   datasets_store.setSelectedItems(selectedSeriesInstanceUIDs.value)
-  filteredDags.value = ['validate-dicoms']
-  onValidationResultClose()
+  filteredDags.value = [dag]
   workflowDialog.value = true
-}
-function deleteValidationResult(resultItemID: string | null) {
-  invalidateValidationResultCache(resultItemID)
-  selectedSeriesInstanceUIDs.value = resultItemID ? [resultItemID] : []
-  datasets_store.setSelectedItems(selectedSeriesInstanceUIDs.value)
-  filteredDags.value = ['clear-validation-results']
-  onValidationResultClose()
-  workflowDialog.value = true
-}
-async function downloadValidationResult(resultItemID: string | null) {
-  const resultUri = await ensureValidationResultLoaded(resultItemID)
-  if (!resultUri) {
-    notify({
-      title: 'Nothing to download',
-      text: 'No validation report exists for this series. Re-run the validation workflow to produce one.',
-      type: 'warn',
-    })
-    return
-  }
-  const link: HTMLAnchorElement | null = document.createElement('a')
-  link.download = resultItemID + '.html'
-  link.href = resultUri
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
 }
 
 const identifiersOfInterest = computed(() => {
@@ -885,29 +671,6 @@ const continueSelectKey = computed(() =>
 const dashboardFields = computed(() =>
   settings.value.datasets.props.filter((i: any) => i.dashboard).map((i: any) => i.name),
 )
-const validationResultItem = computed(() => datasets_store.validationResultItem)
-const validationResultLookup = computed(() => {
-  if (!validationResultItem.value) {
-    return {
-      loading: false,
-      loaded: false,
-      found: false,
-      url: null,
-      object_name: null,
-    }
-  }
-
-  return (
-    resultLookupState.value[validationResultItem.value] || {
-      loading: false,
-      loaded: false,
-      found: false,
-      url: null,
-      object_name: null,
-    }
-  )
-})
-const validationResultUrl = computed(() => validationResultLookup.value.url)
 const hasResults = computed(() =>
   settings.value.datasets.structured
     ? Object.keys(patients.value).length > 0
@@ -971,12 +734,6 @@ watch(
   () => searchDirty.value || saveDialogDirty.value,
   (dirty) => postViewDirty(dirty),
 )
-
-watch(validationResultItem, (value) => {
-  if (value) {
-    ensureValidationResultLoaded(value)
-  }
-})
 
 // Search.vue scopes queries by selectedProject, so resolve it before the first search.
 // Requests are scoped by the document URL prefix, so the view stays usable.
@@ -1049,80 +806,6 @@ onBeforeUnmount(() => {
 
 .gallery-side-navigation {
   height: calc(100vh - 180px);
-}
-
-/* The validation report ships its CSS in <head>, which ElementsFromHTML
-   strips, and otherwise relies on Vuetify 2 global classes (.row/.col-*,
-   .error/.warning) that no longer exist in Vuetify 3 — mirror them here. */
-:deep(.container h1) {
-  font-size: 24px;
-  margin-bottom: 20px;
-}
-
-:deep(.container .attribute) {
-  font-size: 18px;
-  margin-bottom: 8px;
-}
-
-:deep(.validation-item.row) {
-  display: flex;
-  flex-wrap: wrap;
-  margin: -12px;
-}
-
-:deep(.validation-item .col) {
-  padding: 12px;
-}
-
-:deep(.validation-item .col-2) {
-  flex: 0 0 15%;
-  max-width: 15%;
-}
-
-:deep(.validation-item .col-10) {
-  flex: 0 0 78%;
-  max-width: 78%;
-}
-
-:deep(.item-label.error),
-:deep(.item-count-label.error) {
-  color: rgb(var(--v-theme-on-error));
-  background: rgb(var(--v-theme-error));
-}
-
-:deep(.item-label.warning),
-:deep(.item-count-label.warning) {
-  color: rgb(var(--v-theme-on-warning));
-  background: rgb(var(--v-theme-warning));
-}
-
-:deep(.item-label) {
-  line-height: 20px;
-  max-width: 100%;
-  outline: none;
-  overflow: hidden;
-  padding: 2px 12px;
-  position: relative;
-  border-radius: 12px;
-  margin-right: 4px;
-  text-align: center;
-}
-
-:deep(.item-count-label) {
-  padding: 2px 16px;
-  border-radius: 15px;
-  margin-left: 8px;
-}
-
-:deep(.incomplete-alert) {
-  padding: 16px;
-  background-color: rgb(var(--v-theme-error));
-  color: rgb(var(--v-theme-on-error));
-  margin-bottom: 8px;
-  border-radius: 8px;
-}
-:deep(.hidden) {
-  display: none;
 }
 </style>
 

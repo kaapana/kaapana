@@ -11,13 +11,15 @@
 
     <v-divider />
 
-    <v-card-text>
-      <div v-if="loading" class="d-flex flex-column align-center ga-3 py-8">
-        <v-progress-circular indeterminate color="primary" />
-        <span class="text-body-2 text-medium-emphasis">Loading statistics…</span>
-      </div>
+    <v-progress-linear
+      v-if="loading"
+      indeterminate
+      color="primary"
+      data-testid="dashboard-progress"
+    />
 
-      <div v-else-if="failure" class="text-center py-8" data-testid="dashboard-failure">
+    <v-card-text>
+      <div v-if="failure" class="text-center py-8" data-testid="dashboard-failure">
         <div class="text-body-2 text-medium-emphasis mb-2">
           The statistics for the current selection could not be loaded.
         </div>
@@ -31,8 +33,11 @@
         v-else-if="Object.keys(histograms).length === 0"
         class="text-body-2 text-medium-emphasis text-center py-8"
       >
-        No statistics for the current selection. Select series, or widen the search, to see their
-        distribution here.
+        {{
+          loading
+            ? 'Loading statistics…'
+            : 'No statistics for the current selection. Select series, or widen the search, to see their distribution here.'
+        }}
       </div>
 
       <VueApexCharts
@@ -67,11 +72,13 @@ const props = withDefaults(
     fields?: string[]
     allPatients?: boolean
     searchQuery?: Record<string, unknown>
+    seriesLoading?: boolean
   }>(),
   {
     seriesInstanceUIDs: () => [],
     fields: () => [],
     allPatients: false,
+    seriesLoading: false,
   },
 )
 
@@ -90,7 +97,7 @@ const loading = ref(false)
 const failure = ref<ApiErrorInfo | null>(null)
 
 function getApexChartsOptions(key: string, values: any): any {
-  const isDark = theme.global.current.value.dark
+  const current = theme.global.current.value
   return {
     chart: {
       id: key,
@@ -143,7 +150,7 @@ function getApexChartsOptions(key: string, values: any): any {
       },
     },
     theme: {
-      mode: isDark ? 'dark' : 'light',
+      mode: current.dark ? 'dark' : 'light',
     },
     title: {
       text: key,
@@ -159,7 +166,7 @@ function getApexChartsOptions(key: string, values: any): any {
     dataLabels: {
       enabled: true,
       style: {
-        colors: ['#fff'],
+        colors: [current.colors['on-primary']],
       },
     },
     grid: {
@@ -179,19 +186,21 @@ function getApexChartsOptions(key: string, values: any): any {
       categories: Object.keys(values['items']),
       tickPlacement: 'on',
     },
-    colors: [
-      isDark
-        ? theme.themes.value.kaapanaThemeDark.colors.primary
-        : theme.themes.value.kaapanaThemeLight.colors.primary,
-    ],
+    colors: [current.colors.primary],
   }
 }
 
+// Each call gets a new id. A response is applied only if its id is still the
+// newest, so a slow answer for an earlier selection cannot overwrite the
+// current one or end its loading state.
+let dashboardRequest = 0
 function updateDashboard() {
+  const request = ++dashboardRequest
   if (props.seriesInstanceUIDs.length === 0 && !props.allPatients) {
     histograms.value = {}
     metrics.value = {}
     failure.value = null
+    loading.value = false
     return
   }
   let series = props.seriesInstanceUIDs
@@ -204,14 +213,20 @@ function updateDashboard() {
   failure.value = null
   loadDashboard(series, props.fields, query)
     .then((data) => {
+      if (request !== dashboardRequest) return
       histograms.value = data['histograms'] || {}
       metrics.value = data['metrics'] || {}
     })
     .catch((error: unknown) => {
+      if (request !== dashboardRequest) return
+      // On failure, clear leftovers of the previous selection so they don't
+      // read as this one's result.
+      histograms.value = {}
+      metrics.value = {}
       failure.value = apiErrorInfo(error)
     })
     .finally(() => {
-      loading.value = false
+      if (request === dashboardRequest) loading.value = false
     })
 }
 
@@ -231,8 +246,17 @@ function dataPointSelection(config: any, key: string, value: any) {
   })
 }
 
-watch(() => props.seriesInstanceUIDs, updateDashboard)
-onMounted(updateDashboard)
+// Load statistics only once the gallery's series have arrived. Until then the
+// selection is still changing, and each change would trigger a load.
+watch(
+  () => [props.seriesInstanceUIDs, props.allPatients, props.searchQuery, props.seriesLoading],
+  () => {
+    if (!props.seriesLoading) updateDashboard()
+  },
+)
+onMounted(() => {
+  if (!props.seriesLoading) updateDashboard()
+})
 </script>
 
 <style>

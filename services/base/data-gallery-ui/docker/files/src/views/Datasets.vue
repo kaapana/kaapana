@@ -231,6 +231,7 @@
           :allPatients="allPatients"
           :fields="dashboardFields"
           :searchQuery="searchQuery"
+          :series-loading="isLoading"
           @dataPointSelection="(d) => addFilterToSearch(d)"
         />
       </pane>

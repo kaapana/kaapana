@@ -728,6 +728,7 @@ async function removeFromDataset() {
   seriesInstanceUIDs.value = seriesInstanceUIDs.value.filter(
     (series) => !identifiers.includes(series),
   )
+  aggregatedSeriesNum.value = Math.max(0, aggregatedSeriesNum.value - identifiers.length)
 
   // Reload manually: only the identifiers changed, not the dataset name, so no
   // watcher in Search.vue fires.

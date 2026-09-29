@@ -86,6 +86,19 @@ test('a selected dataset shows its progress, and Remove waits until it has loade
   await expect(selectorProgress).toHaveCount(0)
 })
 
+test('removing some series from a dataset lowers the result count', async ({ page }) => {
+  await openGallery(page)
+  await selectDataset(page, 'nsclc (project)')
+  await expect(page.getByText('MR Brain')).toBeVisible()
+  await page.locator('.seriesCard').first().click()
+  await expect(page.getByText('1 selected of 2')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Remove 1 series from “nsclc”' }).click()
+  await confirmAction(page, 'Remove')
+  await expect(page.locator('.seriesCard')).toHaveCount(1)
+  await expect(page.getByText('1 selected', { exact: true })).toBeVisible()
+})
+
 /* ------------------------------------------------------------ deep links -- */
 
 const selector = (page: Page) => page.locator('.v-autocomplete').first()

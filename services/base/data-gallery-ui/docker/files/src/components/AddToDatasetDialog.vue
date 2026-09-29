@@ -1,26 +1,48 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useFocusReturn } from '@/composables/useFocusReturn'
 import { kaapanaIcons } from '@/utils/galleryIcons'
-import { datasetLabel } from '@/utils/datasets'
+import { datasetLabel, datasetListNoDataText } from '@/utils/datasets'
 import type { Dataset } from '@/types'
 
 const props = withDefaults(
   defineProps<{
     modelValue: boolean
     datasets?: Dataset[]
+    datasetsLoading?: boolean
+    datasetsLoadFailed?: boolean
     itemCount?: number
     busy?: boolean
   }>(),
-  { datasets: () => [], itemCount: 0, busy: false },
+  {
+    datasets: () => [],
+    datasetsLoading: false,
+    datasetsLoadFailed: false,
+    itemCount: 0,
+    busy: false,
+  },
 )
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   save: [dataset: Dataset]
+  /** The view retries a failed dataset load when the list opens. */
+  menu: [open: boolean]
 }>()
 
 const datasetToAddTo = ref<Dataset | null>(null)
+const search = ref<string>()
+const noDataText = computed(() =>
+  datasetListNoDataText(
+    {
+      loading: props.datasetsLoading,
+      failed: props.datasetsLoadFailed,
+      count: props.datasets.length,
+      search: search.value,
+    },
+    'No datasets in this project yet — use “Save selection as dataset” first.',
+  ),
+)
 const { restoreFocus } = useFocusReturn(() => props.modelValue)
 </script>
 
@@ -38,14 +60,17 @@ const { restoreFocus } = useFocusReturn(() => props.modelValue)
         {{ props.itemCount }} series will be added.
       </v-card-subtitle>
       <v-card-text>
-        <v-select
+        <v-autocomplete
           v-model="datasetToAddTo"
+          v-model:search="search"
           :items="props.datasets"
           :item-title="datasetLabel"
           return-object
           label="Dataset"
-          no-data-text="No datasets in this project yet — use “Save selection as dataset” first"
-        ></v-select>
+          :loading="props.datasetsLoading"
+          :no-data-text="noDataText"
+          @update:menu="(open: boolean) => emit('menu', open)"
+        ></v-autocomplete>
       </v-card-text>
       <v-divider></v-divider>
       <v-card-actions>

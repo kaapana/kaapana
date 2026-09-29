@@ -265,9 +265,12 @@
       <AddToDatasetDialog
         v-model="addToDatasetDialog"
         :datasets="datasets"
+        :datasets-loading="datasetsLoading"
+        :datasets-load-failed="datasetsLoadFailed"
         :item-count="identifiersOfInterest.length"
         :busy="addingToDataset"
         @save="addToDataset"
+        @menu="onDatasetMenu"
       />
       <v-dialog v-model="workflowDialog" max-width="600" @after-leave="restoreWorkflowFocus">
         <WorkflowExecution
@@ -327,7 +330,7 @@ import { ConfirmDialog, getProjectSlug, postViewDirty, useProjectStore } from '@
 import { useDatasetsStore } from '@/stores/datasets'
 import { useFailureDetailsStore } from '@/stores/failureDetails'
 import { kaapanaIcons, galleryIcons } from '@/utils/galleryIcons'
-import { datasetLabel, sameDataset } from '@/utils/datasets'
+import { datasetLabel, datasetListNoDataText, sameDataset } from '@/utils/datasets'
 import { notifyFailure } from '@/utils/notifyFailure'
 import { hasVisibleFocus, useFocusReturn } from '@/composables/useFocusReturn'
 import type { Dataset, Patients } from '@/types'
@@ -435,12 +438,17 @@ function editedDatasets(reloadDatasets: boolean) {
 
 const datasetLabelOfSelected = computed(() => selectedDataset.value?.name ?? '')
 
-const datasetNoDataText = computed(() => {
-  if (datasetsLoading.value && datasets.value.length === 0) return 'Loading datasets…'
-  if (datasetsLoadFailed.value) return 'The datasets could not be loaded. Reopen this list to try again.'
-  if (datasets.value.length > 0) return `No dataset matches “${datasetSearch.value ?? ''}”.`
-  return 'No datasets in this project yet. Save a selection as a dataset to create one.'
-})
+const datasetNoDataText = computed(() =>
+  datasetListNoDataText(
+    {
+      loading: datasetsLoading.value,
+      failed: datasetsLoadFailed.value,
+      count: datasets.value.length,
+      search: datasetSearch.value,
+    },
+    'No datasets in this project yet. Save a selection as a dataset to create one.',
+  ),
+)
 
 /* ---------------------------------------------------------------- search -- */
 

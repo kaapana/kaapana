@@ -25,11 +25,11 @@ const createDataset = async (body: any) => {
   return await httpClient.post(KAAPANA_BACKEND_ENDPOINT + 'client/dataset', body)
 }
 
-const deleteDataset = async (datasetName: string) => {
+const deleteDataset = async (datasetName: string, accessLevel: string) => {
   try {
-    const res = await httpClient.delete(
-      KAAPANA_BACKEND_ENDPOINT + `client/dataset?name=${encodeURIComponent(datasetName)}`,
-    )
+    const res = await httpClient.delete(KAAPANA_BACKEND_ENDPOINT + 'client/dataset', {
+      params: { name: datasetName, access_level: accessLevel },
+    })
     return res.data['ok']
   } catch (error: any) {
     notifyError(error, 'Dataset not deleted', 'The dataset could not be deleted.')

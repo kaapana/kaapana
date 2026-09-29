@@ -79,6 +79,22 @@ test('Edit Datasets dialog lists datasets and deletes one', async ({ page }) => 
   await expect(page.getByRole('cell', { name: 'nsclc', exact: true })).toHaveCount(0)
 })
 
+// The backend addresses a dataset by name AND access level, defaulting to
+// "project": a delete without the level 404s for a private dataset.
+test('deleting a private dataset sends its access level', async ({ page }) => {
+  await openGallery(page)
+  await page.getByRole('button', { name: 'Manage datasets' }).click()
+
+  const deleteReq = nextRequest(page, /\/client\/dataset\?/, 'DELETE')
+  await page.getByRole('button', { name: /^Delete dataset my-private/ }).click()
+  await confirmAction(page, 'Delete')
+
+  const params = new URL((await deleteReq).url()).searchParams
+  expect(params.get('name')).toBe('my-private')
+  expect(params.get('access_level')).toBe('private')
+  await expect(page.getByText('Dataset deleted')).toBeVisible()
+})
+
 test('Edit Datasets dialog shows a loading indicator while datasets load', async ({ page }) => {
   await openGallery(page)
 

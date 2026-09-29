@@ -16,6 +16,7 @@ const dialogDelete = ref(false)
 const sortBy = [{ key: 'name', order: 'asc' as const }]
 const headers = [
   { title: 'Name', align: 'start' as const, key: 'name' },
+  { title: 'Access', key: 'access_level' },
   { title: 'Size', key: 'size' },
   { title: 'User', key: 'username' },
   { title: 'Created', key: 'time_created' },
@@ -61,7 +62,7 @@ function deleteItem(item: any) {
 async function deleteItemConfirm() {
   deleting.value = true
   try {
-    const successful = await deleteDataset(editedItem.value.name)
+    const successful = await deleteDataset(editedItem.value.name, editedItem.value.access_level)
     if (successful) {
       notify({
         title: 'Dataset deleted',
@@ -142,7 +143,7 @@ onMounted(() => {
           <template v-slot:[`item.actions`]="{ item }">
             <v-btn
               :icon="kaapanaIcons.delete"
-              :aria-label="`Delete dataset ${item.name}`"
+              :aria-label="`Delete dataset ${item.name} (${item.access_level})`"
               variant="text"
               size="small"
               density="comfortable"

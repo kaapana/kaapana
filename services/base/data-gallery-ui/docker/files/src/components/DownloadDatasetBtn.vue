@@ -31,8 +31,6 @@ const confirmText = computed(
     'Reloading or closing this view while the download runs cancels it.',
 )
 
-// A disabled action explains why it is unavailable when the reason is not
-// obvious (guidelines, "Unavailable actions").
 const status = computed(() => {
   if (downloading.value) return `Downloading ${count.value} series…`
   if (count.value === 0) return 'Select at least one series to download'
@@ -105,10 +103,6 @@ onBeforeUnmount(() => {
     </template>
   </v-tooltip>
 
-  <!-- Reversible, but it can take a long time and a lot of bandwidth and disk,
-       so it states the scope before it starts. Not destructive, so the
-       confirmation is `primary`, not `error` (guidelines, "High-impact
-       actions"). -->
   <ConfirmDialog
     v-model="confirmDialog"
     title="Download series?"

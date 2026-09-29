@@ -1,13 +1,9 @@
 // Tag chips are coloured by name so the same tag looks the same everywhere.
-// That is identity, not meaning — the chip always carries its label too, so no
-// information depends on colour perception (design guidelines, "Color").
+// That is identity, not meaning: the chip always carries its label too.
 //
-// The previous hash folded straight into RGB, which produced anything from
-// near-black to near-white behind text that kept the surrounding foreground
-// colour: unreadable on a fair share of tags, in both themes. Hashing into a
-// hue at a fixed saturation and lightness keeps every chip inside one readable
-// band, and the foreground is then chosen by luminance the same way the shared
-// theme picks its `on-*` colours.
+// The name is hashed into a hue at a fixed saturation and lightness, which keeps
+// every chip inside one readable band in both themes, and the foreground is
+// chosen by luminance the same way the shared theme picks its `on-*` colours.
 
 const CHIP_SATURATION = 0.55
 const CHIP_LIGHTNESS = 0.45

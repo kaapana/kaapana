@@ -16,9 +16,6 @@
           @keydown.enter="searchFromUser"
         />
       </v-col>
-      <!-- Every icon-only control carries an accessible name; the tooltip is a
-           sighted affordance, not a substitute for one (guidelines,
-           "Accessibility"). -->
       <v-col cols="1" align="center">
         <v-tooltip location="bottom" text="Add filter">
           <template v-slot:activator="{ props: activator }">
@@ -103,9 +100,6 @@
           ></v-autocomplete>
         </v-col>
         <v-col cols="5">
-          <!-- A long, closed list is a searchable selection; free-form entry is
-               offered only where values outside the list are legitimate
-               (guidelines, "Choosing inputs"). -->
           <v-autocomplete
             v-if="!filter.freeInput"
             :disabled="filter.key_select == null"
@@ -680,10 +674,6 @@ watch(
   },
 )
 
-// Unsaved search state: query_string and filters live only in memory, so a
-// reload discards them. Reported upward rather than posted straight to the
-// shell, because the shell must be told the view's *combined* dirty state —
-// open dialogs included (guidelines, "Unsaved changes").
 watch(
   () => !!(query_string.value && query_string.value.trim()) || filters.value.length > 0,
   (dirty) => emit('update:dirty', dirty),
@@ -697,8 +687,7 @@ processQueryParams().catch((error) => {
 })
 
 /** Drop the free text and every filter, then re-run the search. Backs the
- *  "nothing matches" empty state's recovery action (guidelines,
- *  "Empty states"). */
+ *  "nothing matches" empty state's action. */
 async function clearSearch() {
   query_string.value = ''
   filters.value = []

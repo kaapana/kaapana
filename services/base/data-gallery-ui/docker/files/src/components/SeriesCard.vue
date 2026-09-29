@@ -37,8 +37,6 @@
             />
           </v-toolbar>
           <div v-if="Object.keys(validationResults).length > 0" class="result-container">
-            <!-- The count and the accessible name carry the meaning; colour only
-                 reinforces it (guidelines, "Color"). -->
             <v-btn
               size="small"
               variant="text"
@@ -81,9 +79,6 @@
           :key="prop.name"
           class="mb-1"
         >
-          <!-- Supporting label, then the value at full emphasis: hierarchy comes
-               from the platform type scale, not one-off font sizes (guidelines,
-               "Typography"). -->
           <div class="text-caption text-medium-emphasis">{{ prop['name'] }}</div>
           <div class="text-body-2" :class="prop['truncate'] ? 'text-truncate' : ''">
             {{ seriesData[prop['name']] || 'N/A' }}
@@ -283,9 +278,7 @@ get_data()
 .validation-badge {
   min-width: 50px !important;
 }
-/* V2 used a `dense` v-app-bar whose content carried side padding, seating the
-   modality chip and eye button symmetrically in the corners. V3's v-toolbar
-   content has no side padding; 8px restores the symmetric inset. */
+/* v-toolbar__content has no side padding of its own. */
 .card-toolbar :deep(.v-toolbar__content) {
   padding: 0 8px;
 }

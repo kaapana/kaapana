@@ -63,8 +63,6 @@
           </template>
         </v-alert>
         <ElementsFromHTML v-else-if="validationResultUrl" :rawHtmlURL="validationResultUrl" />
-        <!-- Information tied to this dialog's content stays inline, next to
-             what it is about (guidelines, "Notifications and alerts"). -->
         <div v-else class="py-4">
           <v-alert
             type="info"

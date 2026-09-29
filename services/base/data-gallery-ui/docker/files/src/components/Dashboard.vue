@@ -27,8 +27,6 @@
         <v-btn variant="text" @click="showFailureDetails">Details</v-btn>
       </div>
 
-      <!-- An empty chart area says why it is empty rather than rendering
-           nothing (guidelines, "Empty states"). -->
       <div
         v-else-if="Object.keys(histograms).length === 0"
         class="text-body-2 text-medium-emphasis text-center py-8"
@@ -92,8 +90,6 @@ const METRICS = ['Patients', 'Studies', 'Series'] as const
 const histograms = ref<Record<string, any>>({})
 const metrics = ref<Record<string, any>>({})
 const loading = ref(false)
-// Kept apart from "nothing to show": a failed load must not be presented as an
-// empty collection (guidelines, "Empty states").
 const failure = ref<ApiErrorInfo | null>(null)
 
 function getApexChartsOptions(key: string, values: any): any {
@@ -113,8 +109,6 @@ function getApexChartsOptions(key: string, values: any): any {
         show: true,
         offsetX: 0,
         offsetY: 0,
-        // apexcharts 3 never rendered zoom/pan tools on category bar charts;
-        // apexcharts 6 does, so switch them off to keep the old look.
         tools: {
           download: true,
           selection: false,

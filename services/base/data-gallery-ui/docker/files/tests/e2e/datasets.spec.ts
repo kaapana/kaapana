@@ -145,6 +145,32 @@ test('a name-only deep link prefers the project dataset, then the private one', 
   await expect(selector(page)).toContainText('my-private (private)')
 })
 
+// Changing a gallery setting in the shell remounts the view. The remounted view
+// must not apply the original deep link again over what the user changed since.
+test('a deep link is applied once, not again when the view remounts', async ({ page }) => {
+  await bootGallery(page, makeDefaultMockData(), `${VIEW_PATH}?dataset_name=nsclc&Modality=CT`)
+  await expect(page.getByText(/CT\s+\(2\)/)).toBeVisible()
+  await expect(selector(page)).toContainText('nsclc (project)')
+  await expect(page).toHaveURL(new RegExp(`${VIEW_PATH}$`))
+  await page.getByRole('button', { name: 'Remove filter' }).click()
+  await expect(page.getByText(/CT\s+\(2\)/)).toHaveCount(0)
+
+  // Replay the shell's settings write. The browser fires "storage" only in other
+  // documents, so the event is dispatched by hand.
+  await page.evaluate(() => {
+    const oldValue = localStorage.getItem('settings')
+    const settings = JSON.parse(oldValue ?? '{}')
+    settings.datasets.cols = 4
+    const newValue = JSON.stringify(settings)
+    localStorage.setItem('settings', newValue)
+    window.dispatchEvent(new StorageEvent('storage', { key: 'settings', oldValue, newValue }))
+  })
+
+  await expect(page.getByText('CT Abdomen')).toBeVisible()
+  await expect(selector(page)).not.toContainText('nsclc')
+  await expect(page.getByText(/CT\s+\(2\)/)).toHaveCount(0)
+})
+
 test('the copied query link names the dataset with its access level', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await openGallery(page)

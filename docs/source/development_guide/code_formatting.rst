@@ -44,8 +44,8 @@ fixed by hand.
      - :code:`.prettierrc.json`, :code:`eslint.config.mjs`
      - :code:`.hadolint.yaml`
    * - Code quality report
-     - :code:`ci/ruff-quality.toml`
-     - :code:`ci/eslint-quality.config.mjs`
+     - :code:`ci/ci-code/lint/ruff-quality.toml`
+     - :code:`ci/ci-code/lint/eslint-quality.config.mjs`
      - :code:`.hadolint.yaml`
    * - Pre-commit hook
      - :code:`ruff-check`, :code:`ruff-format`
@@ -126,6 +126,20 @@ Format and lint the whole repository from its root:
 All are safe to run repeatedly. Pass a path to limit them to one file or
 directory.
 
+Helm charts
+------------
+Check the chart tree the way the :code:`lint: [helm]` job does: :code:`helm lint`,
+then a render with fake values validated by kubeconform. Both always run and any
+lint warning or invalid manifest fails:
+
+.. code-block:: bash
+
+    kaapana-build --lint-only
+
+:code:`ci/ci-code/lint/helm_lint.sh` runs the same and downloads
+`kubeconform <https://github.com/yannh/kubeconform/releases>`_ when it is
+missing, so it also works from the pre-commit hook.
+
 Pre-commit hooks
 -----------------
 
@@ -146,8 +160,7 @@ after the other:
 
 2. **helm-lint** runs :code:`kaapana-build --lint-only` when the commit
    changes a chart. It lints and validates the platform chart tree, exactly
-   what the :code:`helm_lint` CI job does. It needs :code:`helm` and its
-   kubeval plugin, the same as a local build; :code:`build_cli` is installed
+   what the :code:`lint: [helm]` CI job does. It needs :code:`helm`, the same as a local build; :code:`build_cli` is installed
    into the hook's own environment the first time it runs.
 
 The commits that migrated the codebase to Ruff are listed in
@@ -166,14 +179,14 @@ variables, undefined names) and import order.
 Code quality report
 --------------------
 The :code:`lint: [ruff]` job also runs a wider ruleset,
-:code:`ci/ruff-quality.toml`, that never fails a pipeline, and reports it in
+:code:`ci/ci-code/lint/ruff-quality.toml`, that never fails a pipeline, and reports it in
 the merge request Code Quality widget. The same run locally:
 
 .. code-block:: bash
 
-    ruff check --config ci/ruff-quality.toml --statistics .   # counts per rule
-    ruff check --config ci/ruff-quality.toml .                # the findings
-    ruff check --config ci/ruff-quality.toml --select UP006 --fix .   # one rule
+    ruff check --config ci/ci-code/lint/ruff-quality.toml --statistics .   # counts per rule
+    ruff check --config ci/ci-code/lint/ruff-quality.toml .                # the findings
+    ruff check --config ci/ci-code/lint/ruff-quality.toml --select UP006 --fix .   # one rule
 
 ESLint / Prettier
 ---------------------
@@ -280,7 +293,7 @@ Rules
 Code quality report
 --------------------
 The :code:`lint: [ui]` job also runs a wider ruleset,
-:code:`ci/eslint-quality.config.mjs`, that never fails a pipeline, and
+:code:`ci/ci-code/lint/eslint-quality.config.mjs`, that never fails a pipeline, and
 reports it in the merge request Code Quality widget. It adds:
 
 - :code:`typescript-eslint` *recommended*: unused variables, :code:`any`,
@@ -294,7 +307,7 @@ The same run locally:
 .. code-block:: bash
 
     npm run lint:quality
-    npx eslint --config ci/eslint-quality.config.mjs services/base/portal-ui
+    npx eslint --config ci/ci-code/lint/eslint-quality.config.mjs services/base/portal-ui
 
 Each rule is documented on its own page, linked from the Code Quality widget.
 
@@ -432,22 +445,25 @@ Until the TypeScript/Vue codebase is formatted and meets the enforced ruleset,
      - Run it locally
    * - :code:`lint: [ruff]`
      - :code:`ruff format --check`, :code:`ruff check`
-     - the wider :code:`ci/ruff-quality.toml` ruleset, advisory
+     - the wider :code:`ci/ci-code/lint/ruff-quality.toml` ruleset, advisory
      - :code:`ruff format --check --diff . && ruff check .`
    * - :code:`lint: [ui]`
      - :code:`prettier --check`, :code:`eslint`
-     - the wider :code:`ci/eslint-quality.config.mjs` ruleset, advisory
+     - the wider :code:`ci/ci-code/lint/eslint-quality.config.mjs` ruleset, advisory
      - :code:`ci/ci-code/lint/ui_lint.sh`
    * - :code:`lint: [hadolint]`
      - :code:`hadolint`, *error* level only
      - the hadolint findings, all levels, advisory
      - :code:`pre-commit run hadolint --all-files`
 
-The versions cannot drift between your machine and CI: the job checks that its
-:code:`RUFF_VERSION` and :code:`HADOLINT_VERSION` match the :code:`rev` of
+Every entry runs :code:`ci/ci-code/lint/<linter>_lint.sh`, which installs its own
+tool (into :code:`~/.cache/kaapana-ci`, or as a pip or npm package) and runs the
+same checks locally and in CI. The versions cannot drift between your machine
+and CI: the ruff and hadolint scripts check that their :code:`RUFF_VERSION` and
+:code:`HADOLINT_VERSION` match the :code:`rev` of
 their hooks in :code:`.pre-commit-config.yaml`, and ESLint and Prettier come from the root
 :code:`package-lock.json` everywhere.
 
 To add a linter, add its name to the :code:`LINTER` matrix and a matching
-case to the job's script; if the tool can produce a Code Quality report,
-write it to :code:`gl-code-quality-report.json`.
+:code:`ci/ci-code/lint/<linter>_lint.sh`; if the tool can produce a Code Quality
+report, write it to :code:`gl-code-quality-report.json`.

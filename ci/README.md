@@ -66,20 +66,32 @@ The CI-specific parts:
 | Config | Ruleset | Used by |
 |---|---|---|
 | [`ruff.toml`](../ruff.toml) | enforced: `E4`, `E7`, `E9`, `F`, `I`, 120 columns | pre-commit, and `lint: [ruff]` |
-| [`ci/ruff-quality.toml`](ruff-quality.toml) | advisory: adds `B`, `C4`, `SIM`, `UP`, `RUF`, `W` | the Code Quality report of `lint: [ruff]` |
+| [`ci/ci-code/lint/ruff-quality.toml`](ci-code/lint/ruff-quality.toml) | advisory: adds `B`, `C4`, `SIM`, `UP`, `RUF`, `W` | the Code Quality report of `lint: [ruff]` |
 | [`eslint.config.mjs`](../eslint.config.mjs), [`.prettierrc.json`](../.prettierrc.json) | enforced: Vue *essential*, a few ESLint bug rules, Prettier style | pre-commit, and `lint: [ui]` |
-| [`ci/eslint-quality.config.mjs`](eslint-quality.config.mjs) | advisory: adds typescript-eslint *recommended*, Vitest, Playwright | the Code Quality report of `lint: [ui]` |
+| [`ci/ci-code/lint/eslint-quality.config.mjs`](ci-code/lint/eslint-quality.config.mjs) | advisory: adds typescript-eslint *recommended*, Vitest, Playwright | the Code Quality report of `lint: [ui]` |
 | [`.hadolint.yaml`](../.hadolint.yaml) | enforced: the *error* rules for a broken Dockerfile; advisory: every other rule, minus `DL3007`, `DL3022`, `DL3048` | pre-commit, and `lint: [hadolint]` with its Code Quality report |
 
 [`ci/pipeline/lint.yml`](pipeline/lint.yml) has one `lint` job, a matrix over
-`LINTER` (`ruff`, `ui`, `hadolint`), gated by `exec_lint`; the script picks each entry's
-commands by `$LINTER`. Each entry publishes its advisory findings as
+`LINTER` (`ruff`, `ui`, `hadolint`, `helm`), gated by `exec_lint`; each entry runs
+`ci/ci-code/lint/<linter>_lint.sh`, which installs its own tool. Each entry publishes its advisory findings as
 `gl-code-quality-report.json` to the MR Code Quality widget, and fails on
 formatting drift or an enforced rule. `lint: [ui]` is
 `allow_failure: true` until the TypeScript/Vue codebase is formatted and
 meets the enforced ruleset. `RUFF_VERSION` and
-`HADOLINT_VERSION` must match their hooks' `rev` in `.pre-commit-config.yaml`
-(the job checks); ESLint and Prettier come from the root `package-lock.json`.
+`HADOLINT_VERSION` (in their scripts) must match their hooks' `rev` in
+`.pre-commit-config.yaml` (the scripts check); ESLint and Prettier come from the root `package-lock.json`.
+`lint: [helm]` runs `kaapana-build --lint-only`: `helm lint` on the chart tree,
+then `helm template` with fake values piped through kubeconform. Both always
+run, so one pipeline shows every problem. Any lint error or warning and any
+invalid manifest fails the job. Results are JUnit files, one for `helm lint` and
+one per root chart for kubeconform, shown in the MR test tab. This entry has no
+Code Quality report. kubeconform checks Kubernetes resources against the
+upstream schemas plus the community CRD catalog
+([datreeio/CRDs-catalog](https://github.com/datreeio/CRDs-catalog)); a kind with
+no schema fails, and `KUBECONFORM_SKIP_KINDS` (comma-separated kinds) excludes
+it. kubeconform is not part of the CI image;
+[`helm_lint.sh`](ci-code/lint/helm_lint.sh) downloads the pinned
+`KUBECONFORM_VERSION` into `~/.cache/kaapana-ci/bin` when it is not on the `PATH`.
 
 ## Configuration reference
 
@@ -108,7 +120,7 @@ Every stage toggle. Grouped as `[exec]` in the run form.
 | Input | Default | Meaning |
 |---|---|---|
 | `exec_unit_tests` | `true` | tests stage: unit tests + documentation build |
-| `exec_lint` | `true` | tests stage: `lint` matrix (ruff, ESLint/Prettier, hadolint, helm lint) |
+| `exec_lint` | `true` | tests stage: `lint` matrix (ruff, ESLint/Prettier, hadolint, helm lint + kubeconform) |
 | `exec_build` | `true` | build stage: full platform build |
 | `exec_security_scan` | `false` | trivy scan of the images this commit resolves to. A failed scan still publishes what it managed to check |
 | `exec_deploy` | `true` | deploy stage: deployment VM/target + platform installation |

@@ -257,7 +257,7 @@
       <SaveDatasetDialog
         v-model="saveAsDatasetDialog"
         :item-count="identifiersOfInterest.length"
-        :existing-names="datasetNames"
+        :existing-datasets="datasets"
         :busy="savingDataset"
         @save="(name, access_level) => saveDatasetFromDialog(name, access_level)"
         @update:dirty="(dirty) => (saveDialogDirty = dirty)"
@@ -351,7 +351,6 @@ const isLoading = ref(true)
 // must never be presented as an empty collection (guidelines, "Empty states").
 const loadFailure = ref<ApiErrorInfo | null>(null)
 const settings = ref<any>(defaultSettings)
-const datasetNames = ref<string[]>([])
 const datasets = ref<Dataset[]>([])
 const datasetsLoading = ref(true)
 const datasetsLoadFailed = ref(false)
@@ -405,7 +404,6 @@ async function updateDatasetNames() {
     const _datasets = await loadDatasets()
     datasetsLoadFailed.value = false
     datasets.value = _datasets
-    datasetNames.value = _datasets.map((dataset) => dataset.name)
     const selected = selectedDataset.value
     if (selected) selectedDataset.value = _datasets.find((d) => sameDataset(d, selected)) ?? selected
   } catch (error) {

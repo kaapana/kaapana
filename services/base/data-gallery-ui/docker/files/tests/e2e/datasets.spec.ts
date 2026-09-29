@@ -233,7 +233,7 @@ test('deleting a private dataset sends its access level', async ({ page }) => {
 
 const DATASET = /\/kaapana-backend\/client\/dataset(\?.*)?$/
 
-test('saving a new dataset runs once, shows progress, and cannot be dismissed meanwhile', async ({
+test('Enter in the name saves once, shows progress, and cannot be dismissed meanwhile', async ({
   page,
 }) => {
   await openGallery(page)
@@ -242,11 +242,12 @@ test('saving a new dataset runs once, shows progress, and cannot be dismissed me
 
   await page.getByRole('button', { name: /save .* series as a new dataset/i }).click()
   const saveDialog = dialog(page, 'Save selection as dataset')
-  await page.getByLabel('Name').first().fill('cohort-x')
+  const name = page.getByLabel('Name').first()
+  await name.fill('cohort-x')
   // Located by place: while loading, the label is hidden from the accessible name.
   const save = saveDialog.locator('.v-card-actions .v-btn').last()
   await expect(save).toHaveText('Save')
-  await save.click()
+  await name.press('Enter')
 
   await expect(save).toHaveClass(/v-btn--loading/)
   await expect(save).toBeDisabled()

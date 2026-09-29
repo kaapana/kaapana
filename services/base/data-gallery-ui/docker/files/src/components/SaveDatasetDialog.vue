@@ -3,18 +3,17 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { ConfirmDialog } from '@kaapana/base-ui'
 import { useFocusReturn } from '@/composables/useFocusReturn'
 import { kaapanaIcons } from '@/utils/galleryIcons'
+import type { Dataset } from '@/types'
 
 const props = withDefaults(
   defineProps<{
     modelValue: boolean
-    /** How many series the new dataset will contain, so the dialog can say what
-     *  is actually being saved. */
     itemCount?: number
-    /** Names already taken, so a collision is caught before the round trip. */
-    existingNames?: string[]
+    /** Names are unique per access level. The list holds the user's own private datasets. */
+    existingDatasets?: Pick<Dataset, 'name' | 'access_level'>[]
     busy?: boolean
   }>(),
-  { itemCount: 0, existingNames: () => [], busy: false },
+  { itemCount: 0, existingDatasets: () => [], busy: false },
 )
 
 const emit = defineEmits<{
@@ -28,16 +27,19 @@ const ACCESS_LEVELS = [
   { value: 'project', title: 'Project', subtitle: 'Everyone in this project can see it' },
 ]
 
+const DEFAULT_ACCESS_LEVEL = 'private'
+
 const name = ref('')
-const accessLevel = ref('private')
+const accessLevel = ref(DEFAULT_ACCESS_LEVEL)
 const form = ref<{ validate: () => Promise<{ valid: boolean }> } | null>(null)
-const nameField = ref<{ focus: () => void } | null>(null)
+const nameField = ref<{ focus: () => void; validate: () => Promise<string[]> } | null>(null)
 const discardDialog = ref(false)
 const { restoreFocus } = useFocusReturn(() => props.modelValue)
 
-// A pre-filled form is not dirty until the user changes it; here the form starts
-// empty, so any name at all is unsaved work (guidelines, "Unsaved changes").
-const dirty = computed(() => props.modelValue && name.value.trim() !== '')
+const dirty = computed(
+  () =>
+    props.modelValue && (name.value.trim() !== '' || accessLevel.value !== DEFAULT_ACCESS_LEVEL),
+)
 
 // Validation says what is required and how to fix it, rather than "Invalid
 // input" — and it is bound to the field, so Vuetify marks the control required
@@ -48,13 +50,14 @@ const nameRules = [
   (value: string) =>
     (value?.trim().length ?? 0) <= 64 || 'Use at most 64 characters.',
   (value: string) =>
-    !props.existingNames.includes(value?.trim()) ||
-    'A dataset with this name already exists. Choose a different name.',
+    !props.existingDatasets.some(
+      (dataset) => dataset.name === value?.trim() && dataset.access_level === accessLevel.value,
+    ) || `A ${accessLevel.value} dataset with this name already exists. Choose a different name.`,
 ]
 
 function reset() {
   name.value = ''
-  accessLevel.value = 'private'
+  accessLevel.value = DEFAULT_ACCESS_LEVEL
 }
 
 async function submit() {
@@ -85,6 +88,11 @@ function onDiscardLeave() {
 }
 
 watch(dirty, (value) => emit('update:dirty', value), { immediate: true })
+
+// On an access-level change, recheck whether the name is taken at that level.
+watch(accessLevel, () => {
+  if (name.value.trim()) nameField.value?.validate()
+})
 
 watch(
   () => props.modelValue,
@@ -122,6 +130,7 @@ watch(
             required
             clearable
             autofocus
+            @keydown.enter.prevent="submit"
           ></v-text-field>
           <v-select
             v-model="accessLevel"

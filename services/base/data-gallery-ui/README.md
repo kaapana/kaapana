@@ -70,7 +70,8 @@ specific to this view live in `src/utils/galleryIcons.ts`.
 - **Deep links** via `?project_name=`, `?dataset_name=` (with `access_level=`),
   `?query_string=` and field filters, e.g. `?dataset_name=nsclc&Modality=CT`;
   the copy-link button writes one. A link to another project moves the
-  document under that project's prefix.
+  document under that project's prefix. A link is applied once and then
+  leaves the address, so a remount does not apply it again.
 
 ## Design guidelines
 

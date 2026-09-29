@@ -171,7 +171,7 @@
 
 <script setup lang="ts">
 import { watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { notify } from '@kyvg/vue3-notification'
 import {
   loadDatasets,
@@ -211,6 +211,7 @@ const emit = defineEmits<{
 const projectStore = useProjectStore()
 const failureDetails = useFailureDetailsStore()
 const route = useRoute()
+const router = useRouter()
 const queryParams: Record<string, any> = { ...route.query }
 
 const datasetNameLocal = ref<string | null>(props.selectedDataset ? props.selectedDataset.name : null)
@@ -554,7 +555,9 @@ async function processQueryParams() {
 
   await search()
   if (Object.keys(queryParams).length > 0) {
-    window.history.replaceState(null, '', window.location.origin + window.location.pathname)
+    // Clear the applied link's query via the router, which keeps its own copy.
+    // Otherwise a remount would apply the link again.
+    await router.replace({ query: {} })
   }
   await loadFieldNamesOnce()
 }

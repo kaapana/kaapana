@@ -68,14 +68,15 @@ test('Edit Datasets dialog lists datasets and deletes one', async ({ page }) => 
   await expect(page.getByRole('cell', { name: 'nsclc', exact: true })).toBeVisible()
   await expect(page.getByRole('cell', { name: 'my-private', exact: true })).toBeVisible()
 
-  const deleteReq = nextRequest(page, /\/client\/dataset\?.*name=/, 'DELETE')
-  await page.locator('.mdi-delete').first().click()
-  await expect(page.getByText('Delete dataset “my-private”?')).toBeVisible()
+  const deleteReq = nextRequest(page, /\/client\/dataset\?.*name=nsclc/, 'DELETE')
+  await page.getByRole('button', { name: 'Delete dataset nsclc' }).click()
+  await expect(page.getByText('Delete dataset “nsclc”?')).toBeVisible()
   await expect(page.getByText(/series it references stay in the project/)).toBeVisible()
   await confirmAction(page, 'Delete')
 
   await deleteReq
   await expect(page.getByText('Dataset deleted')).toBeVisible()
+  await expect(page.getByRole('cell', { name: 'nsclc', exact: true })).toHaveCount(0)
 })
 
 test('Edit Datasets dialog shows a loading indicator while datasets load', async ({ page }) => {

@@ -184,29 +184,97 @@ export async function installMockBackend(page: Page, data: MockData = defaultMoc
   await page.route('**/aii/projects', (r) => r.fulfill(json(data.projects)))
   await page.route(`**/aii/users/${data.aiiUser.id}/projects`, (r) => r.fulfill(json(data.projects)))
 
-  // Dataset CRUD (client/*).
-  await page.route(/\/kaapana-backend\/client\/datasets(\?.*)?$/, (r) =>
-    r.fulfill(json(data.datasets)),
-  )
+  // A copy, so a test's writes never leak into the defaults. Like kaapana-backend,
+  // a dataset is addressed by name AND access level, which defaults to "project".
+  const datasets: Dataset[] = JSON.parse(JSON.stringify(data.datasets))
+  const findDataset = (name: string, accessLevel: string) =>
+    datasets.find((d) => d.name === name && d.access_level === accessLevel)
+  const now = () => new Date().toISOString()
+
+  await page.route(/\/kaapana-backend\/client\/datasets(\?.*)?$/, (r) => {
+    // skip_identifiers=true lists every dataset with `identifiers: []`.
+    const skip = new URL(r.request().url()).searchParams.get('skip_identifiers') === 'true'
+    return r.fulfill(json(datasets.map((d) => (skip ? { ...d, identifiers: [] } : d))))
+  })
   await page.route(/\/kaapana-backend\/client\/dataset(\?.*)?$/, (r) => {
     const method = r.request().method()
-    if (method === 'GET') {
-      const name = new URL(r.request().url()).searchParams.get('name') ?? ''
-      const found = data.datasets.find((d) => d.name === name) ?? null
-      return r.fulfill(json(found))
+    if (method === 'GET' || method === 'DELETE') {
+      const params = new URL(r.request().url()).searchParams
+      const found = findDataset(params.get('name') ?? '', params.get('access_level') ?? 'project')
+      if (!found) return r.fulfill(json({ detail: 'Dataset not found' }, 404))
+      if (method === 'GET') return r.fulfill(json(found))
+      datasets.splice(datasets.indexOf(found), 1)
+      return r.fulfill(json({ ok: true }))
     }
-    if (method === 'DELETE') return r.fulfill(json({ ok: true }))
-    // POST (create) / PUT (update)
-    return r.fulfill(json({ ok: true }))
+    const body = postBody(r) ?? {}
+    const accessLevel: string = body.access_level ?? 'project'
+    if (method === 'POST') {
+      if (findDataset(body.name, accessLevel)) {
+        const detail =
+          accessLevel === 'private'
+            ? 'Private project dataset already exists!'
+            : 'Project dataset already exists!'
+        return r.fulfill(json({ detail }, 409))
+      }
+      const created: Dataset = {
+        name: body.name,
+        access_level: accessLevel,
+        identifiers: [...(body.identifiers ?? [])],
+        username: data.userinfo.preferredUsername,
+        time_created: now(),
+        time_updated: now(),
+      }
+      datasets.push(created)
+      return r.fulfill(json(created))
+    }
+    // PUT: ADD, DELETE or UPDATE the members; an unknown dataset is created first.
+    let target = findDataset(body.name, accessLevel)
+    if (!target) {
+      target = {
+        name: body.name,
+        access_level: accessLevel,
+        identifiers: [],
+        username: data.userinfo.preferredUsername,
+        time_created: now(),
+        time_updated: now(),
+      }
+      datasets.push(target)
+    }
+    const identifiers: string[] = body.identifiers ?? []
+    if (body.action === 'ADD') {
+      target.identifiers = [...new Set([...target.identifiers, ...identifiers])]
+    } else if (body.action === 'DELETE') {
+      target.identifiers = target.identifiers.filter((id) => !identifiers.includes(id))
+    } else {
+      target.identifiers = [...identifiers]
+    }
+    target.time_updated = now()
+    return r.fulfill(json(target))
   })
 
-  // Dataset queries (dataset/*).
-  await page.route(/\/kaapana-backend\/dataset\/aggregatedSeriesNum$/, (r) =>
-    r.fulfill(json(data.aggregatedSeriesNum)),
-  )
+  // Dataset routes (dataset/*). The mock only understands the `ids` clause of
+  // the OpenSearch query: with one it answers just those series, without one
+  // (ids === null) it returns every seeded series. All other clauses are ignored.
+  const matching = (ids: string[] | null) =>
+    ids === null ? data.seriesUids : data.seriesUids.filter((uid) => ids.includes(uid))
+
+  await page.route(/\/kaapana-backend\/dataset\/aggregatedSeriesNum$/, (r) => {
+    const ids = idsIn(postBody(r)?.query)
+    return r.fulfill(json(ids === null ? data.aggregatedSeriesNum : matching(ids).length))
+  })
   await page.route(/\/kaapana-backend\/dataset\/series$/, (r) => {
-    const structured = safeBool(r, 'structured')
-    return r.fulfill(json(structured ? data.patients : data.seriesUids))
+    const body = postBody(r)
+    const ids = idsIn(body?.query)
+    if (!body?.structured) return r.fulfill(json(matching(ids)))
+    const keep = (uid: string) => ids === null || ids.includes(uid)
+    const patients: Patients = {}
+    for (const [patient, studies] of Object.entries(data.patients)) {
+      for (const [study, series] of Object.entries(studies)) {
+        const kept = series.filter(keep)
+        if (kept.length) (patients[patient] ??= {})[study] = kept
+      }
+    }
+    return r.fulfill(json(patients))
   })
   await page.route(/\/kaapana-backend\/dataset\/series\/[^/]+$/, (r) => {
     const uid = decodeURIComponent(r.request().url().split('/dataset/series/')[1])
@@ -221,11 +289,25 @@ export async function installMockBackend(page: Page, data: MockData = defaultMoc
   )
   await page.route(/\/kaapana-backend\/dataset\/query_values\/[^/]+$/, (r) => {
     const key = decodeURIComponent(r.request().url().split('/query_values/')[1])
+    // The body is the query itself. With no buckets, and for a field the index
+    // does not know, the backend answers {}.
+    const ids = idsIn(postBody(r))
+    if (ids !== null && matching(ids).length === 0) return r.fulfill(json({}))
     if (key === 'Tags') return r.fulfill(json(data.tagValues))
-    return r.fulfill(json(data.queryValues[key] ?? { items: [], key: '' }))
+    return r.fulfill(json(data.queryValues[key] ?? {}))
   })
   await page.route(/\/kaapana-backend\/dataset\/tag$/, (r) => r.fulfill(json({})))
-  await page.route(/\/kaapana-backend\/dataset\/dashboard$/, (r) => r.fulfill(json(data.dashboard)))
+  await page.route(/\/kaapana-backend\/dataset\/dashboard$/, (r) => {
+    // Explicit series win over the query, as in the backend. A set that matches
+    // no series has no buckets and zero counts.
+    const body = postBody(r) ?? {}
+    const uids: string[] = body.series_instance_uids ?? []
+    const ids = uids.length ? uids : idsIn(body.query)
+    if (ids !== null && matching(ids).length === 0) {
+      return r.fulfill(json({ histograms: {}, metrics: { Patients: 0, Studies: 0, Series: 0 } }))
+    }
+    return r.fulfill(json(data.dashboard))
+  })
   await page.route(/\/kaapana-backend\/dataset\/download(\?.*)?$/, (r) =>
     r.fulfill({ status: 200, contentType: 'application/zip', body: 'PK' }),
   )
@@ -245,11 +327,25 @@ export async function bootGallery(
   await page.goto(url)
 }
 
-function safeBool(route: Route, key: string): boolean {
+function postBody(route: Route): any {
   try {
-    const body = route.request().postDataJSON()
-    return Boolean(body?.[key])
+    return route.request().postDataJSON()
   } catch {
-    return false
+    return null
   }
+}
+
+/** query_values receives the dataset's `ids` clause bare; the search nests it in
+ *  `bool.must`. Null when the query has none. */
+function idsIn(query: any): string[] | null {
+  if (!query || typeof query !== 'object') return null
+  if (Array.isArray(query.ids?.values)) return query.ids.values.map(String)
+  const must = query.bool?.must
+  if (!Array.isArray(must)) return null
+  let ids: string[] | null = null
+  for (const clause of must) {
+    const inner = idsIn(clause)
+    if (inner) ids = ids === null ? inner : ids.filter((id) => inner.includes(id))
+  }
+  return ids
 }

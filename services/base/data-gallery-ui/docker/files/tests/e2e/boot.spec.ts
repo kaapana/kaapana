@@ -5,7 +5,7 @@ import {
   makeDefaultMockData,
   VIEW_PATH,
 } from './fixtures/mock-backend'
-import { collectPageErrors, failRoute, openGallery } from './fixtures/helpers'
+import { collectPageErrors, failRoute, openGallery, toasts } from './fixtures/helpers'
 
 // Every other spec seeds localStorage["settings"], so only this one sees a fresh
 // profile — where the view's bare JSON.parse(undefined) at setup blanked the
@@ -79,18 +79,18 @@ test('shows the "nothing yet" empty state when the project has no series', async
   await expect(page.locator('.seriesCard')).toHaveCount(0)
 })
 
-test('surfaces a backend error as a notification', async ({ page }) => {
+test('a failed series count is reported once, as a failure', async ({ page }) => {
   await bootGallery(page, makeDefaultMockData())
   // Later route wins: fail the aggregated-count call the view issues on load.
   await failRoute(page, /\/dataset\/aggregatedSeriesNum$/, 'Boom')
   // Re-trigger a load by reloading with the failing route in place.
   await page.reload()
 
-  await expect(page.getByText('Boom').first()).toBeVisible()
+  await expect(page.getByText('Could not load the series')).toHaveCount(1)
+  await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible()
   // The failed load must also clear the loading state — the skeleton loader
   // used to spin forever because the promise chain had no catch.
   await expect(page.locator('.v-skeleton-loader')).toHaveCount(0)
-  // A failure is shown as a failure, never as an empty collection.
-  await expect(page.getByText('Could not load the series')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible()
+  await expect(page.getByText('Boom')).toHaveCount(0)
+  await expect(toasts(page)).toHaveCount(0)
 })

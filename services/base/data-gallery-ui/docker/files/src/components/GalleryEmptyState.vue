@@ -5,14 +5,13 @@ import { kaapanaIcons } from '@/utils/galleryIcons'
 
 const props = defineProps<{
   state: 'empty' | 'no-results' | 'dataset-empty' | 'error'
-  /** For `error`: the actionable sentence already normalised by apiErrorText. */
-  detail?: string | null
 }>()
 
 const emit = defineEmits<{
-  (event: 'retry'): void
-  (event: 'clear'): void
-  (event: 'showAll'): void
+  retry: []
+  showDetails: []
+  clear: []
+  showAll: []
 }>()
 
 // Menu address of the Data Upload view for navigateShell, taken from
@@ -53,9 +52,7 @@ const presentation = computed(() => {
         icon: kaapanaIcons.error,
         color: 'error',
         title: 'Could not load the series',
-        text:
-          props.detail ??
-          'The series list could not be loaded. Check that the platform is reachable, then try again.',
+        text: 'The series list could not be loaded. Check that the platform is reachable, then try again.',
         action: 'Try again',
         onAction: () => emit('retry'),
       }
@@ -91,6 +88,13 @@ const presentation = computed(() => {
           @click="presentation.onAction"
         >
           {{ presentation.action }}
+        </v-btn>
+        <v-btn
+          v-if="props.state === 'error'"
+          variant="text"
+          @click="emit('showDetails')"
+        >
+          Details
         </v-btn>
       </template>
     </v-empty-state>

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { notify } from '@kyvg/vue3-notification'
-import { ConfirmDialog } from '@kaapana/base-ui'
+import { ConfirmDialog, apiErrorInfo, type ApiErrorInfo } from '@kaapana/base-ui'
+import { useFailureDetailsStore } from '@/stores/failureDetails'
 import { loadDatasets, deleteDataset } from '@/common/api.service'
 import type { Dataset } from '@/types'
 import { kaapanaIcons } from '@/utils/galleryIcons'
@@ -13,7 +14,8 @@ const emit = defineEmits<{ close: [editedDatasets: boolean] }>()
 
 const datasets = ref<any[]>([])
 const loading = ref(false)
-const loadFailed = ref(false)
+const loadFailure = ref<ApiErrorInfo | null>(null)
+const failureDetails = useFailureDetailsStore()
 const deleting = ref(false)
 const search = ref<string>('')
 const dialogDelete = ref(false)
@@ -54,12 +56,11 @@ async function loadDatasetsRows() {
 
 async function refreshDatasets() {
   loading.value = true
-  loadFailed.value = false
+  loadFailure.value = null
   try {
     datasets.value = await loadDatasetsRows()
-  } catch {
-    // loadDatasets already reported; the table says so and offers a retry.
-    loadFailed.value = true
+  } catch (error: unknown) {
+    loadFailure.value = apiErrorInfo(error)
   } finally {
     loading.value = false
   }
@@ -94,6 +95,15 @@ async function deleteItemConfirm() {
     deletingItem.value = null
   }
   await keepFocusInDialog()
+}
+
+function showLoadFailureDetails() {
+  if (!loadFailure.value) return
+  failureDetails.show({
+    title: 'Could not load the datasets',
+    text: 'The dataset service could not be reached or reported an error.',
+    error: loadFailure.value,
+  })
 }
 
 /** After the confirmation: a deleted row takes its focused button with it,
@@ -175,7 +185,7 @@ onMounted(() => {
           </template>
           <template v-slot:no-data>
             <v-alert
-              v-if="loadFailed"
+              v-if="loadFailure"
               type="error"
               variant="tonal"
               density="compact"
@@ -185,6 +195,7 @@ onMounted(() => {
             >
               <template #append>
                 <v-btn variant="text" @click="refreshDatasets">Try again</v-btn>
+                <v-btn variant="text" @click="showLoadFailureDetails">Details</v-btn>
               </template>
             </v-alert>
             <div v-else-if="search" class="text-body-2 text-medium-emphasis py-6">

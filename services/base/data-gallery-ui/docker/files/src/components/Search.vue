@@ -75,6 +75,20 @@
         </v-btn>
       </v-col>
     </v-row>
+    <v-alert
+      v-if="searchFailure"
+      type="error"
+      variant="tonal"
+      density="compact"
+      class="mt-2"
+      data-testid="search-alert"
+    >
+      {{ searchFailure.text }}
+      <template #append>
+        <v-btn variant="text" size="small" @click="searchFailure.retry">Try again</v-btn>
+        <v-btn variant="text" size="small" @click="showSearchFailureDetails">Details</v-btn>
+      </template>
+    </v-alert>
     <div v-show="display_filters" v-for="filter in filters" :key="filter.id">
       <v-row dense align="center" justify="center">
         <v-col cols="1" />
@@ -175,8 +189,10 @@ import {
   loadSearchFields,
 } from '@/common/api.service'
 import { ref } from 'vue'
-import { useProjectStore } from '@kaapana/base-ui'
+import { apiErrorInfo, useProjectStore, type ApiErrorInfo } from '@kaapana/base-ui'
+import { useFailureDetailsStore } from '@/stores/failureDetails'
 import { kaapanaIcons, galleryIcons } from '@/utils/galleryIcons'
+import { notifyFailure } from '@/utils/notifyFailure'
 import type { Dataset } from '@/types'
 
 interface Filter {
@@ -203,6 +219,7 @@ const emit = defineEmits<{
 }>()
 
 const projectStore = useProjectStore()
+const failureDetails = useFailureDetailsStore()
 const route = useRoute()
 const queryParams: Record<string, any> = { ...route.query }
 
@@ -218,6 +235,30 @@ const fieldNames = ref<string[]>([])
 const mapping = ref<Record<string, any>>({})
 let dataset: Dataset | null = null
 
+/** Which load failed, so that load's next success clears only its own message. */
+interface SearchFailure {
+  kind: 'fields' | 'values' | 'search'
+  title: string
+  text: string
+  error: ApiErrorInfo
+  retry: () => void
+}
+const searchFailure = ref<SearchFailure | null>(null)
+
+function reportSearchFailure(failure: Omit<SearchFailure, 'error'>, error: unknown) {
+  searchFailure.value = { ...failure, error: apiErrorInfo(error) }
+}
+
+function clearSearchFailure(kind: SearchFailure['kind']) {
+  if (searchFailure.value?.kind === kind) searchFailure.value = null
+}
+
+function showSearchFailureDetails() {
+  const failure = searchFailure.value
+  if (!failure) return
+  failureDetails.show({ title: failure.title, text: failure.text, error: failure.error })
+}
+
 async function addFilterItem(key: string, value: any) {
   if (Object.keys(mapping.value).length === 0) {
     await initializeMapping()
@@ -225,9 +266,9 @@ async function addFilterItem(key: string, value: any) {
 
   if (!mapping.value[key]) {
     notify({
-      title: 'Error',
-      text: `Key ${key} does not exist.`,
-      type: 'error',
+      title: 'Filter not applied',
+      text: `This project has no field “${key}” to filter by.`,
+      type: 'warn',
     })
     return
   }
@@ -318,11 +359,17 @@ function composeQuery(fields: string[] | null = null) {
   return query
 }
 
+/** Sends the search and clears a previous search failure. */
+function runSearch(query: ReturnType<typeof composeQuery>) {
+  clearSearchFailure('search')
+  emit('search', query)
+}
+
 async function search() {
   const hasQueryString = query_string.value && query_string.value.trim().length > 0
 
   if (!hasQueryString) {
-    emit('search', composeQuery(null))
+    runSearch(composeQuery(null))
     return
   }
 
@@ -335,7 +382,7 @@ async function search() {
         text: 'This project has no searchable text fields, so only the filters were applied. Add or change filters to narrow the results.',
         type: 'warn',
       })
-      emit('search', composeQuery(null))
+      runSearch(composeQuery(null))
       return
     }
 
@@ -345,20 +392,22 @@ async function search() {
         text: `Free text is searched across ${field_count} fields, more than the ${max_clause_count} this index allows. Add a filter to narrow the scope, or search using filters only — the filters were applied without the free text.`,
         type: 'error',
       })
-      emit('search', composeQuery(null))
+      runSearch(composeQuery(null))
       return
     }
 
-    emit('search', composeQuery(fields))
+    runSearch(composeQuery(fields))
   } catch (error) {
-    // loadSearchFields already reported why it failed; this says what that
-    // means for the search just run, which is the part the user can act on.
-    console.error('[Search.vue] Failed to load search fields:', error)
-    notify({
-      title: 'Searched with filters only',
-      text: 'The searchable fields could not be loaded, so the free text was ignored. Try again once the platform responds.',
-      type: 'warn',
-    })
+    // The results stay those of the last search that ran.
+    reportSearchFailure(
+      {
+        kind: 'search',
+        title: 'Free text not applied',
+        text: 'The free text was not applied: the searchable fields could not be loaded. The results below match the filters only.',
+        retry: search,
+      },
+      error,
+    )
     emit('search', composeQuery(null))
   }
 }
@@ -385,22 +434,30 @@ function constructDatasetQuery() {
   return { ids: { values: dataset?.identifiers ?? [] } }
 }
 
-/** Load the selected dataset with its identifiers. A failed reload keeps the
- *  last identifiers of the same dataset; another dataset never inherits them.
- *  Resolves false when a newer selection superseded this load. */
+// Each call gets a new id. Only the newest call may apply its result.
 let datasetLoad = 0
+
+/** Loads the dataset picked in the selector and makes it the gallery's scope.
+ *  Resolves true when applied, false when a newer pick superseded it. On failure
+ *  the selector returns to the previous dataset and the error is thrown. */
 async function loadSelectedDataset(): Promise<boolean> {
   const load = ++datasetLoad
   const name = datasetNameLocal.value
   const accessLevel = localAccessLevel.value ?? 'project'
-  if (!name || dataset?.name !== name || dataset?.access_level !== accessLevel) dataset = null
+  let loaded: Dataset | null
   try {
-    const loaded = name ? await loadDatasetByName(name, accessLevel) : null
-    if (load === datasetLoad) dataset = loaded
-  } finally {
-    if (load === datasetLoad) emit('dataset', dataset)
+    loaded = name ? await loadDatasetByName(name, accessLevel) : null
+  } catch (error) {
+    if (load !== datasetLoad) return false
+    datasetNameLocal.value = dataset?.name ?? null
+    localAccessLevel.value = dataset?.access_level ?? null
+    emit('dataset', dataset)
+    throw error
   }
-  return load === datasetLoad
+  if (load !== datasetLoad) return false
+  dataset = loaded
+  emit('dataset', dataset)
+  return true
 }
 
 /** Without an access level a link prefers the project dataset over a private one. */
@@ -408,8 +465,12 @@ async function resolveLinkedDataset(name: string, accessLevel?: string) {
   let datasets: Dataset[]
   try {
     datasets = await loadDatasets()
-  } catch {
-    // loadDatasets already reported; search unscoped rather than not at all.
+  } catch (error) {
+    notifyFailure(
+      'Dataset link not applied',
+      `The dataset list could not be loaded, so the link's dataset “${name}” was not applied.`,
+      error,
+    )
     return
   }
   const found = (accessLevel ? [accessLevel] : ['project', 'private'])
@@ -429,9 +490,25 @@ async function resolveLinkedDataset(name: string, accessLevel?: string) {
 
 async function updateMapping(filter: Filter) {
   filter.item_select = []
-  const key = filter.key_select as string
-  const res = await loadValues(key, constructDatasetQuery() || {})
-  mapping.value[key] = res.data
+  await loadFieldValues(filter.key_select as string)
+}
+
+async function loadFieldValues(key: string) {
+  try {
+    const res = await loadValues(key, constructDatasetQuery() || {})
+    mapping.value[key] = res.data
+    clearSearchFailure('values')
+  } catch (error) {
+    reportSearchFailure(
+      {
+        kind: 'values',
+        title: 'Filter values not loaded',
+        text: `The values of “${key}” could not be loaded.`,
+        retry: () => loadFieldValues(key),
+      },
+      error,
+    )
+  }
 }
 
 async function reloadDataset() {
@@ -444,12 +521,15 @@ async function processQueryParams() {
   if (queryParams.dataset_name) {
     await resolveLinkedDataset(queryParams.dataset_name, queryParams.access_level)
   }
+  const linkedName = datasetNameLocal.value
   try {
     await loadSelectedDataset()
-  } catch {
-    // loadDatasetByName already reported; search unscoped rather than not at all.
-    datasetNameLocal.value = null
-    localAccessLevel.value = null
+  } catch (error) {
+    notifyFailure(
+      'Dataset link not applied',
+      `The dataset “${linkedName}” could not be loaded, so the link’s dataset was not applied.`,
+      error,
+    )
   }
   if (queryParams.query_string) {
     // route.query is already decoded — decoding again throws on a literal '%'.
@@ -457,17 +537,23 @@ async function processQueryParams() {
   }
 
   const filterParams = Object.entries(queryParams).filter(([key]) => !LINK_PARAMS.includes(key))
-  for (const [_key, _value] of filterParams) {
-    try {
-      if (_value.includes(',')) {
-        for (const val of _value.split(',')) {
-          await addFilterItem(_key, val)
+  if (filterParams.length > 0 && (await loadFieldNamesOnce())) {
+    for (const [_key, _value] of filterParams) {
+      try {
+        if (_value.includes(',')) {
+          for (const val of _value.split(',')) {
+            await addFilterItem(_key, val)
+          }
+        } else {
+          await addFilterItem(_key, _value)
         }
-      } else {
-        await addFilterItem(_key, _value)
+      } catch (error) {
+        notifyFailure(
+          'Link filter not applied',
+          `The filter “${_key}” from the link could not be applied.`,
+          error,
+        )
       }
-    } catch {
-      // addFilterItem already reported; keep applying the remaining filters.
     }
   }
 
@@ -475,10 +561,7 @@ async function processQueryParams() {
   if (Object.keys(queryParams).length > 0) {
     window.history.replaceState(null, '', window.location.origin + window.location.pathname)
   }
-  if (Object.keys(mapping.value).length === 0) {
-    // loadFieldNames already reported; the Field list just stays empty.
-    await initializeMapping().catch(() => {})
-  }
+  await loadFieldNamesOnce()
 }
 
 async function initializeMapping() {
@@ -492,11 +575,44 @@ async function initializeMapping() {
   )
 }
 
+async function loadFieldNamesReported(): Promise<boolean> {
+  try {
+    await initializeMapping()
+    clearSearchFailure('fields')
+    return true
+  } catch (error) {
+    reportSearchFailure(
+      {
+        kind: 'fields',
+        title: 'Filter fields not loaded',
+        text: 'The fields to filter by could not be loaded.',
+        retry: loadFieldNamesReported,
+      },
+      error,
+    )
+    return false
+  }
+}
+
+async function loadFieldNamesOnce(): Promise<boolean> {
+  return Object.keys(mapping.value).length > 0 || loadFieldNamesReported()
+}
+
 async function initSearch() {
+  const name = datasetNameLocal.value
+  try {
+    if (!(await loadSelectedDataset())) return
+  } catch (error) {
+    notifyFailure(
+      'Dataset not loaded',
+      `The dataset “${name}” could not be loaded, so the gallery stays on the previous selection.`,
+      error,
+    )
+    return
+  }
   filters.value = []
-  if (!(await loadSelectedDataset())) return
   await search()
-  await initializeMapping()
+  await loadFieldNamesReported()
 }
 
 function assembleQueryUrl() {

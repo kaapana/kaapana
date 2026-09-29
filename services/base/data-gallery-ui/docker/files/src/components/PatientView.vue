@@ -39,6 +39,7 @@ const props = withDefaults(defineProps<{ studies?: Studies }>(), {
 const settings = ref<any>(defaultSettings)
 const patientProps = ref<string[]>([])
 const patientMetaData = ref<Record<string, string[]>>({})
+const failed = ref(false)
 
 settings.value = readSettings()
 patientProps.value = settings.value.datasets.props
@@ -46,20 +47,25 @@ patientProps.value = settings.value.datasets.props
   .map((prop: any) => prop.name)
 
 function getMetaData(prop: string): string[] {
+  if (failed.value) return ['Unavailable']
   return (patientMetaData.value && patientMetaData.value[prop]) || ['N/A']
 }
 
 function loadMetaDataForPatient() {
   const patientSeriesInstanceUIDs = Object.values(props.studies).flat(Infinity) as string[]
 
-  loadDashboard(patientSeriesInstanceUIDs, patientProps.value).then((res) => {
-    patientMetaData.value = Object.fromEntries(
-      Object.entries(res.histograms).map(([key, value]: [string, any]) => [
-        key,
-        Object.keys(value.items),
-      ]),
-    )
-  })
+  loadDashboard(patientSeriesInstanceUIDs, patientProps.value)
+    .then((res) => {
+      patientMetaData.value = Object.fromEntries(
+        Object.entries(res.histograms).map(([key, value]: [string, any]) => [
+          key,
+          Object.keys(value.items),
+        ]),
+      )
+    })
+    .catch(() => {
+      failed.value = true
+    })
 }
 
 onMounted(loadMetaDataForPatient)

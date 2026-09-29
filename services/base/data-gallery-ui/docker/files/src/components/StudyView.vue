@@ -30,6 +30,7 @@ const props = withDefaults(defineProps<{ seriesInstanceUIDs?: string[] }>(), {
 const settings = ref<any>(defaultSettings)
 const studyProps = ref<string[]>([])
 const studyMetaData = ref<Record<string, string[]>>({})
+const failed = ref(false)
 
 settings.value = readSettings()
 studyProps.value = settings.value.datasets.props
@@ -37,18 +38,23 @@ studyProps.value = settings.value.datasets.props
   .map((prop: any) => prop.name)
 
 function getMetaData(prop: string): string[] {
+  if (failed.value) return ['Unavailable']
   return (studyMetaData.value && studyMetaData.value[prop]) || ['N/A']
 }
 
 function loadMetaDataForStudy() {
-  loadDashboard(props.seriesInstanceUIDs, studyProps.value).then((res) => {
-    studyMetaData.value = Object.fromEntries(
-      Object.entries(res.histograms).map(([key, value]: [string, any]) => [
-        key,
-        Object.keys(value.items),
-      ]),
-    )
-  })
+  loadDashboard(props.seriesInstanceUIDs, studyProps.value)
+    .then((res) => {
+      studyMetaData.value = Object.fromEntries(
+        Object.entries(res.histograms).map(([key, value]: [string, any]) => [
+          key,
+          Object.keys(value.items),
+        ]),
+      )
+    })
+    .catch(() => {
+      failed.value = true
+    })
 }
 
 onMounted(loadMetaDataForStudy)

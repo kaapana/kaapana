@@ -7,10 +7,22 @@ if [[ ! -f node_modules/.package-lock.json || package-lock.json -nt node_modules
     npm ci --no-audit --no-fund
 fi
 
+eslint_config=()
+if [[ "${1:-}" == "--strict" ]]; then
+    shift
+    eslint_config=(--config ci/ci-code/lint/eslint-quality.config.mjs)
+fi
+
+if [[ "${1:-}" == "--warn" ]]; then
+    shift
+    npx eslint --config ci/ci-code/lint/eslint-quality.config.mjs --no-warn-ignored "$@" || true
+    exit 0
+fi
+
 status=0
 
 if [[ $# -gt 0 ]]; then
-    npx eslint --fix --no-warn-ignored "$@" || status=1
+    npx eslint ${eslint_config[@]+"${eslint_config[@]}"} --fix --no-warn-ignored "$@" || status=1
     npx prettier --write --ignore-unknown "$@" || status=1
     exit $status
 fi

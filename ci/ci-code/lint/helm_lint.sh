@@ -25,7 +25,7 @@ if [[ -n "${CI:-}" ]]; then
 fi
 
 set +e
-kaapana-build --lint-only --enable-linting --kaapana-dir "$PWD" --build-dir build/helm-lint \
+kaapana-build --lint-only --enable-linting "$@" --kaapana-dir "$PWD" --build-dir build/helm-lint \
     --log-level "$log_level"
 status=$?
 mkdir -p helm-reports

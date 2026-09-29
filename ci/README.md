@@ -75,7 +75,11 @@ The CI-specific parts:
 `LINTER` (`ruff`, `ui`, `hadolint`, `helm`), gated by `exec_lint`; each entry runs
 `ci/ci-code/lint/<linter>_lint.sh`, which installs its own tool. Each entry publishes its advisory findings as
 `gl-code-quality-report.json` to the MR Code Quality widget, and fails on
-formatting drift or an enforced rule. `lint: [ui]` is
+formatting drift or an enforced rule. The default pre-commit hooks are loose:
+the `ui-quality` hook only prints the advisory ESLint findings, and the
+`helm-lint` hook prints the helm lint warnings without failing (`--warnings-ok`).
+`.pre-commit-config.strict.yaml` enforces the advisory rules everywhere
+(`pre-commit install -c .pre-commit-config.strict.yaml`). `lint: [ui]` is
 `allow_failure: true` until the TypeScript/Vue codebase is formatted and
 meets the enforced ruleset. `RUFF_VERSION` and
 `HADOLINT_VERSION` (in their scripts) must match their hooks' `rev` in

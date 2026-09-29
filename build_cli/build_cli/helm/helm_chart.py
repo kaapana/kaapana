@@ -1,11 +1,11 @@
 import re
 import shutil
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
-from subprocess import PIPE, run
+from subprocess import run
 from types import SimpleNamespace
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 import yaml
 
@@ -23,7 +23,7 @@ IMAGE_PATTERN = re.compile(
 )
 
 
-class KaapanaType(str, Enum):
+class KaapanaType(StrEnum):
     PLATFORM = "platform"  # kaapana-admin-chart, kaapana-platform-chart
     RUNTIME_ONLY = "runtime-only"  # pull-docker-images, update-collections
 
@@ -63,9 +63,9 @@ class HelmChart:
 
         self.deployment_config = deployment_config
 
-        self.chart_dependencies: set["HelmChart"] = set()
-        self.kaapana_collections: set["HelmChart"] = set()
-        self.preinstall_extensions: list["HelmChart"] = []
+        self.chart_dependencies: set[HelmChart] = set()
+        self.kaapana_collections: set[HelmChart] = set()
+        self.preinstall_extensions: list[HelmChart] = []
 
         self.build_chart_dir: Path
         self.linted: bool = False
@@ -73,7 +73,7 @@ class HelmChart:
     def __repr__(self) -> str:
         return f"HelmChart({self.name=!r}, {self.version=!r}, {self.kaapana_type=})"
 
-    def to_dict(self) -> Dict[str, str]:
+    def to_dict(self) -> dict[str, str]:
         chart_dict = {
             "name": self.name,
             "version": self.version,
@@ -132,7 +132,7 @@ class HelmChart:
     # ────────────────────────────────
 
     @staticmethod
-    def _load_yaml(path: Path) -> Optional[dict]:
+    def _load_yaml(path: Path) -> dict | None:
         if not path.exists():
             return None
         with path.open("r", encoding="utf-8") as f:
@@ -155,7 +155,7 @@ class HelmChart:
         return GitUtils.get_repo_info(chartfile.parent)[0]
 
     @staticmethod
-    def _has_dag_dependency(requirements: Optional[dict]) -> bool:
+    def _has_dag_dependency(requirements: dict | None) -> bool:
         deps = requirements.get("dependencies", []) if requirements else []
         return bool(deps) and deps[0].get("name") == "dag-installer-chart"
 
@@ -189,12 +189,12 @@ class HelmChart:
     def _collect_chart_dependencies(
         chartfile: Path,
         repo_version: str,
-    ) -> Set[tuple[str, str]]:
+    ) -> set[tuple[str, str]]:
         """
         Collect all dependencies for a Helm chart defined in Chart.yaml or requirements.yaml.
         Returns a set of tuples (name, version) for each dependency.
         """
-        dependencies: Set[tuple[str, str]] = set()
+        dependencies: set[tuple[str, str]] = set()
 
         # First check Chart.yaml for Helm 3 style dependencies
         chart_yaml = HelmChart._load_yaml(chartfile)
@@ -265,7 +265,7 @@ class HelmChart:
         name: str,
         version: str,
         build_config: BuildConfig,
-    ) -> Set[Container]:
+    ) -> set[Container]:
         # Lint only: no containers were collected, so nothing to look up
         if build_config.lint_only:
             return set()
@@ -324,8 +324,8 @@ class HelmChart:
         return chart_containers
 
     @classmethod
-    def collect_operator_containers(cls, chartfile: Path, version: str, default_registry: str) -> Set[Container]:
-        operator_containers: Set[Container] = set()
+    def collect_operator_containers(cls, chartfile: Path, version: str, default_registry: str) -> set[Container]:
+        operator_containers: set[Container] = set()
         python_files = (f for f in chartfile.parent.parent.glob("**/*.py") if "operator" in f.name.lower())
         default_version = "{KAAPANA_BUILD_VERSION}"
         for python_file in python_files:
@@ -339,10 +339,7 @@ class HelmChart:
                     image_version = match.group("version")  # could be {KAAPANA_BUILD_VERSION} or fixed version
 
                     # Only process version if it's different from default
-                    if image_version != default_version:
-                        actual_version = image_version
-                    else:
-                        actual_version = version  # your default
+                    actual_version = image_version if image_version != default_version else version
 
                     operator_container = ContainerHelper.get_container(
                         registry=default_registry,
@@ -400,8 +397,8 @@ class HelmChart:
         default_registry: str,
         version: str,
         name: str,
-    ) -> Set["Container"]:
-        containers: Set["Container"] = set()
+    ) -> set["Container"]:
+        containers: set[Container] = set()
 
         template_dirs = [
             chartfile.parent / "templates",
@@ -464,9 +461,9 @@ class HelmChart:
         default_registry: str,
         version: str,
         name: str,
-    ) -> Set[Container]:
+    ) -> set[Container]:
         """Scan values.yaml for 'complete_image:' entries."""
-        containers: Set[Container] = set()
+        containers: set[Container] = set()
         values_file = chartfile.parent / "values.yaml"
         COMPLETE_IMAGE_RE = re.compile(r"^\s*complete_image:\s*(.+)$")
         if not values_file.exists():
@@ -522,7 +519,7 @@ class HelmChart:
         global_vals["preinstall_extensions"] = [
             {"name": e.name, "version": version} for e in self.preinstall_extensions
         ]
-        _, branch, commit, timestamp = GitUtils.get_repo_info(self.chartfile.parent)
+        _, branch, _commit, timestamp = GitUtils.get_repo_info(self.chartfile.parent)
         # Add build metadata
         global_vals.update(
             {
@@ -538,7 +535,7 @@ class HelmChart:
     def _update_requirements(self, target_dir: Path):
         build_requirements = target_dir / "requirements.yaml"
         if build_requirements.exists():
-            with open(build_requirements, "r") as f:
+            with open(build_requirements) as f:
                 build_requirements_lines = f.readlines()
             with open(build_requirements, "w") as f:
                 for build_requirements_line in build_requirements_lines:
@@ -547,7 +544,7 @@ class HelmChart:
 
     def _update_chart_version(self, target_dir: Path, version: str):
         chart_file = target_dir / "Chart.yaml"
-        with open(chart_file, "r") as f:
+        with open(chart_file) as f:
             lines = f.readlines()
         with open(chart_file, "w") as f:
             for line in lines:
@@ -559,9 +556,9 @@ class HelmChart:
     def lint_chart(
         self,
         helm_executable: str,
-        values: Optional[Path] = None,
+        values: Path | None = None,
         with_subcharts: bool = False,
-        findings: Optional[List[Dict[str, str]]] = None,
+        findings: list[dict[str, str]] | None = None,
         strict: bool = False,
     ):
         if self.ignore_linting:
@@ -581,28 +578,31 @@ class HelmChart:
             command += ["--values", str(values)]
         output = run(
             command,
-            stdout=PIPE,
-            stderr=PIPE,
-            universal_newlines=True,
+            capture_output=True,
+            text=True,
             timeout=300 if with_subcharts else 20,
             cwd=self.build_chart_dir,
         )
         chart_findings = parse_helm_lint(output.stdout)
         for finding in chart_findings:
             finding["chart"] = self.name
-            if finding["level"] == "WARNING":
+            if strict and finding["level"] == "WARNING":
                 logger.warning(f"{self.name}: helm lint {finding['unit']}/{finding['file']}: {finding['message']}")
+        warning_count = sum(finding["level"] == "WARNING" for finding in chart_findings)
+        if warning_count and not strict:
+            logger.warning(f"{self.name}: helm lint reported {warning_count} warnings, not failing (see helm-lint.xml)")
         if findings is not None:
             findings.extend(chart_findings)
 
         if output.returncode != 0 or (strict and chart_findings):
             logger.error(f"{self.name}: lint_chart failed!")
+            helm_failed = output.returncode != 0
             IssueTracker.generate_issue(
                 component=self.__class__.__name__,
                 name=f"{self.name}",
-                msg="chart lint failed!",
+                msg="chart lint failed!" if helm_failed else f"helm lint reported {len(chart_findings)} findings",
                 level="WARNING",
-                output=output,
+                output=output if helm_failed else None,
                 path=self.chartfile.parent,
             )
         else:
@@ -639,9 +639,8 @@ class HelmChart:
     def _render(self, helm_executable: str, values: Path):
         return run(
             [helm_executable, "template", self.name, ".", "--values", str(values)],
-            stdout=PIPE,
-            stderr=PIPE,
-            universal_newlines=True,
+            capture_output=True,
+            text=True,
             timeout=300,
             cwd=self.build_chart_dir,
         )
@@ -670,9 +669,8 @@ class HelmChart:
 
         output = run(
             command,
-            stdout=PIPE,
-            stderr=PIPE,
-            universal_newlines=True,
+            capture_output=True,
+            text=True,
             timeout=60,
             cwd=self.build_chart_dir.parent,
         )
@@ -709,9 +707,8 @@ class HelmChart:
 
         output = run(
             command,
-            stdout=PIPE,
-            stderr=PIPE,
-            universal_newlines=True,
+            capture_output=True,
+            text=True,
             cwd=self.build_chart_dir.parent,
             timeout=60,
         )
@@ -719,9 +716,8 @@ class HelmChart:
             logger.warning(f"chart push failed -> try: {try_count}")
             output = run(
                 command,
-                stdout=PIPE,
-                stderr=PIPE,
-                universal_newlines=True,
+                capture_output=True,
+                text=True,
                 cwd=self.build_chart_dir,
                 timeout=60,
             )
@@ -741,7 +737,7 @@ class HelmChart:
             logger.debug(f"{self.name}: push ok")
 
     @staticmethod
-    def _count_all_dependencies(chart: "HelmChart", seen: Optional[set[str]] = None) -> int:
+    def _count_all_dependencies(chart: "HelmChart", seen: set[str] | None = None) -> int:
         """Count all recursive dependencies for a chart (no duplicates)."""
         if seen is None:
             seen = set()

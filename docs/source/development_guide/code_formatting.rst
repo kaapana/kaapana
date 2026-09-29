@@ -31,30 +31,37 @@ fixed by hand.
      - Python
      - TypeScript / Vue
      - Dockerfile
+     - Helm chart
    * - Formatter
      - :code:`ruff format`
      - Prettier
+     - none
      - none
    * - Linter
      - :code:`ruff check`
      - ESLint
      - hadolint
+     - :code:`helm lint`, kubeconform
    * - Configuration
      - :code:`ruff.toml`
      - :code:`.prettierrc.json`, :code:`eslint.config.mjs`
      - :code:`.hadolint.yaml`
+     - :code:`build_cli/build_cli/configs/fake-values.yaml`
    * - Code quality report
      - :code:`ci/ci-code/lint/ruff-quality.toml`
      - :code:`ci/ci-code/lint/eslint-quality.config.mjs`
      - :code:`.hadolint.yaml`
+     - none, JUnit test report instead
    * - Pre-commit hook
      - :code:`ruff-check`, :code:`ruff-format`
      - :code:`ui-lint`
      - :code:`hadolint`
+     - :code:`helm-lint`
    * - CI job
      - :code:`lint: [ruff]`
      - :code:`lint: [ui]`
      - :code:`lint: [hadolint]`
+     - :code:`lint: [helm]`
 
 The linters leave formatting to the formatters: ESLint's formatting rules are
 switched off, so ESLint and Prettier never disagree.
@@ -129,8 +136,8 @@ directory.
 Helm charts
 ------------
 Check the chart tree the way the :code:`lint: [helm]` job does: :code:`helm lint`,
-then a render with fake values validated by kubeconform. Both always run and any
-lint warning or invalid manifest fails:
+then a render with fake values validated by kubeconform. Both always run, and any
+lint warning or invalid manifest fails the CI job:
 
 .. code-block:: bash
 
@@ -405,13 +412,36 @@ The hooks live in :code:`.pre-commit-config.yaml` and run on the staged files
 only:
 
 - **ruff-check** and **ruff-format** lint and format Python files.
+  :code:`ruff-check` applies the safe fixes of the enforced ruleset.
   pre-commit installs the pinned Ruff version into its own environment.
 - **ui-lint** runs :code:`ci/ci-code/lint/ui_lint.sh` on staged TypeScript
   and Vue files: :code:`eslint --fix`, then :code:`prettier --write`. It
   needs :code:`node` and :code:`npm` on your :code:`PATH`; the script
   installs the root toolchain on first use.
-- **hadolint** lints staged Dockerfiles. pre-commit installs the pinned
-  hadolint version into its own environment.
+- **ui-quality** runs the advisory ESLint ruleset on the staged files and
+  prints the findings without failing the commit.
+- **helm-lint** runs :code:`ci/ci-code/lint/helm_lint.sh --warnings-ok` when a
+  chart file is staged: :code:`helm lint` and kubeconform on the whole chart
+  tree. It fails on errors and invalid manifests and prints only the number of
+  warnings. It needs :code:`helm`; the script downloads kubeconform.
+- **hadolint** lints staged Dockerfiles and fails on the enforced (error) rules.
+  pre-commit installs the pinned hadolint version into its own environment.
+
+Loose and strict hooks
+^^^^^^^^^^^^^^^^^^^^^^
+
+Formatting and automatic fixes come first; the advanced rulesets are enforced
+only after that. The default hooks above are the loose set. The strict set is
+:code:`.pre-commit-config.strict.yaml`: ruff and ESLint with their advisory
+rulesets (with fixes applied), hadolint failing on every finding, and helm lint
+failing on warnings. Both files pin the same tool versions.
+
+.. code-block:: bash
+
+    pre-commit run --all-files                                    # fix and list the essential issues
+    pre-commit run --all-files -c .pre-commit-config.strict.yaml  # list everything, strict
+    pre-commit install -c .pre-commit-config.strict.yaml          # enforce strict on every commit
+    pre-commit install                                            # back to the loose hooks
 
 When a hook changes a file, the commit stops: review the change, stage it and
 commit again. When a hook reports a linter finding it cannot fix, fix it by
@@ -425,6 +455,17 @@ Run the hooks without committing:
     pre-commit run --all-files         # on the whole repository
     pre-commit run ui-lint --all-files # one hook only
 
+Skip hooks for a single commit with :code:`SKIP`, a comma-separated list of hook
+ids. The :code:`ui-quality` hook only prints warnings, so the usual reason is to
+silence it:
+
+.. code-block:: bash
+
+    SKIP=ui-quality git commit -m "..."
+
+:code:`SKIP` applies to :code:`pre-commit run` too. :code:`git commit --no-verify`
+skips every hook, but CI still runs the enforced checks.
+
 CI
 ---
 The :code:`lint` job in :code:`ci/pipeline/lint.yml` is a matrix with one
@@ -434,7 +475,8 @@ GitLab merges the reports of all entries into one widget. Each entry fails
 the pipeline on formatting drift or an enforced rule.
 
 Until the TypeScript/Vue codebase is formatted and meets the enforced ruleset,
-:code:`lint: [ui]` is allowed to fail and only warns.
+:code:`lint: [ui]` is allowed to fail and only warns. :code:`lint: [helm]` is
+allowed to fail until the existing chart warnings are fixed.
 
 .. list-table::
    :header-rows: 1
@@ -455,6 +497,10 @@ Until the TypeScript/Vue codebase is formatted and meets the enforced ruleset,
      - :code:`hadolint`, *error* level only
      - the hadolint findings, all levels, advisory
      - :code:`pre-commit run hadolint --all-files`
+   * - :code:`lint: [helm]`
+     - :code:`helm lint` (warnings fail), kubeconform
+     - none; JUnit reports in the merge request test tab
+     - :code:`ci/ci-code/lint/helm_lint.sh`
 
 Every entry runs :code:`ci/ci-code/lint/<linter>_lint.sh`, which installs its own
 tool (into :code:`~/.cache/kaapana-ci`, or as a pip or npm package) and runs the

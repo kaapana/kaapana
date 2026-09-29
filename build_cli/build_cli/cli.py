@@ -3,7 +3,6 @@ import sys
 from pathlib import Path
 from shutil import rmtree
 from time import time
-from typing import List, Optional
 
 import typer
 from dotenv import load_dotenv
@@ -22,7 +21,7 @@ from build_cli.helm import HelmChartHelper
 from build_cli.utils.logger import get_logger, init_logger, set_console_level
 
 
-def _find_kaapana_root(start: Optional[Path] = None) -> Optional[Path]:
+def _find_kaapana_root(start: Path | None = None) -> Path | None:
     """Walk up from ``start`` (default: cwd) to the nearest Kaapana repo root.
 
     A Kaapana checkout is identified by a top-level ``platforms/`` directory — the
@@ -69,7 +68,7 @@ def build(
         envvar="PLATFORM_FILTER",
         help="Platform chart names to build.",
     ),
-    external_source_dirs: List[str] = typer.Option(
+    external_source_dirs: list[str] = typer.Option(
         [],
         "-es",
         "--external-source-dirs",
@@ -127,6 +126,12 @@ def build(
         envvar="LINT_ONLY",
         help="Only check the Helm chart tree (helm lint and kubeconform validation); no container engine, registry, packages or images.",
     ),
+    lint_warnings_fail: bool = typer.Option(
+        True,
+        "--warnings-fail/--warnings-ok",
+        envvar="LINT_WARNINGS_FAIL",
+        help="With --lint-only, fail on helm lint warnings too; --warnings-ok only fails on errors and invalid manifests.",
+    ),
     exit_on_error: bool = typer.Option(
         True,
         "-ee/--no-exit-on-error",
@@ -160,13 +165,13 @@ def build(
         envvar="SKIP_PLATFORM_IMAGES_TARBALL",
         help="Skip the (large) platform images tarball. Use when targets pull these images from the registry instead of a true air-gap import.",
     ),
-    offline_image_platform: Optional[str] = typer.Option(
+    offline_image_platform: str | None = typer.Option(
         None,
         "--offline-image-platform",
         envvar="OFFLINE_IMAGE_PLATFORM",
         help="Container image platform for offline installer tarballs, e.g. linux/amd64 or linux/arm64. Defaults to the build host platform.",
     ),
-    offline_extra_files: List[str] = typer.Option(
+    offline_extra_files: list[str] = typer.Option(
         [],
         "--offline-extra-file",
         envvar="OFFLINE_EXTRA_FILES",
@@ -234,14 +239,14 @@ def build(
         envvar="USE_LATEST_TAG",
         help="Force version tag to 'latest'.",
     ),
-    kaapana_dir: Optional[Path] = typer.Option(
+    kaapana_dir: Path | None = typer.Option(
         None,
         "-kd",
         "--kaapana-dir",
         envvar="KAAPANA_DIR",
         help="Path to Kaapana repository. Defaults to the worktree containing the current directory.",
     ),
-    build_dir: Optional[Path] = typer.Option(
+    build_dir: Path | None = typer.Option(
         None,
         "-bd",
         "--build-dir",
@@ -262,14 +267,14 @@ def build(
         envvar="INTERACTIVE",
         help="Launch interactive selector.",
     ),
-    containers_to_build_by_charts: List[str] = typer.Option(
+    containers_to_build_by_charts: list[str] = typer.Option(
         [],
         "-cbc",
         "--containers-to-build-by-charts",
         envvar="CONTAINERS_TO_BUILD_BY_CHARTS",
         help="Charts whose containers should be built.",
     ),
-    containers_to_build: List[str] = typer.Option(
+    containers_to_build: list[str] = typer.Option(
         [],
         "-cb",
         "--containers-to-build",
@@ -289,7 +294,7 @@ def build(
         envvar="INCLUDE_MODEL_WEIGHTS",
         help="Download pretrained model weights during build.",
     ),
-    http_proxy: Optional[str] = typer.Option(
+    http_proxy: str | None = typer.Option(
         "",
         "--http-proxy",
         envvar="http_proxy",
@@ -328,45 +333,45 @@ def build(
         envvar="CACHE_TO",
         help="Push build cache to registry.",
     ),
-    cache_to_registry: Optional[str] = typer.Option(
+    cache_to_registry: str | None = typer.Option(
         None,
         "-ctreg",
         "--cache-to-registry",
         envvar="CACHE_TO_REGISTRY",
         help="Registry and namespace to push the build cache to. Defaults to --default-registry.",
     ),
-    cache_to_username: Optional[str] = typer.Option(
+    cache_to_username: str | None = typer.Option(
         None,
         "--cache-to-username",
         envvar="CACHE_TO_USER",
         help="Username for the cache-to registry. Defaults to --username.",
     ),
-    cache_to_password: Optional[str] = typer.Option(
+    cache_to_password: str | None = typer.Option(
         None,
         "--cache-to-password",
         envvar="CACHE_TO_PW",
         help="Password for the cache-to registry. Defaults to --registry-password.",
     ),
-    cache_from_registry: Optional[str] = typer.Option(
+    cache_from_registry: str | None = typer.Option(
         None,
         "-cfreg",
         "--cache-from-registry",
         envvar="CACHE_FROM_REGISTRY",
         help="Registry and namespace to pull the build cache from. Defaults to --default-registry.",
     ),
-    cache_from_username: Optional[str] = typer.Option(
+    cache_from_username: str | None = typer.Option(
         None,
         "--cache-from-username",
         envvar="CACHE_FROM_USER",
         help="Username for the cache-from registry. Defaults to --username.",
     ),
-    cache_from_password: Optional[str] = typer.Option(
+    cache_from_password: str | None = typer.Option(
         None,
         "--cache-from-password",
         envvar="CACHE_FROM_PW",
         help="Password for the cache-from registry. Defaults to --registry-password.",
     ),
-    cache_tag: Optional[str] = typer.Option(
+    cache_tag: str | None = typer.Option(
         "cache",
         "-ctag",
         "--cache-tag",
@@ -409,6 +414,7 @@ def build(
         scan_only=scan_only,
         enable_linting=enable_linting,
         lint_only=lint_only,
+        lint_warnings_fail=lint_warnings_fail,
         exit_on_error=exit_on_error,
         log_level=log_level,
         push_to_microk8s=push_to_microk8s,
@@ -484,6 +490,7 @@ def run_build(build_config: BuildConfig):
 
     build_config.build_dir.mkdir(parents=True, exist_ok=True)
     init_logger(build_config.build_dir, log_level="DEBUG")
+    set_console_level(build_config.log_level)
     logger = get_logger()
     logger.info("-----------------------------------------------------------")
     logger.info("--------------- loading build-configuration ---------------")
@@ -492,8 +499,6 @@ def run_build(build_config: BuildConfig):
     if not (build_config.kaapana_dir / "platforms").is_dir():
         logger.error(f"The directory `platforms` was not found in {build_config.kaapana_dir}.")
         exit(1)
-
-    set_console_level(build_config.log_level)
 
     logger.info("")
     logger.info("-----------------------------------------------------------")
@@ -588,9 +593,7 @@ def run_build(build_config: BuildConfig):
         logger.info("")
         logger.info("-----------------------------------------------------------")
         logger.info(
-            "------------------ TIME NEEDED: {:0>2}:{:0>2}:{:0>2} -----------------".format(
-                int(hours), int(minutes), int(seconds)
-            )
+            f"------------------ TIME NEEDED: {int(hours):0>2}:{int(minutes):0>2}:{int(seconds):0>2} -----------------"
         )
 
     if not build_config.scan_only:

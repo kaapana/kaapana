@@ -26,6 +26,7 @@ const datasetToAddTo = ref<Dataset | null>(null)
   <v-dialog
     :model-value="props.modelValue"
     max-width="600"
+    :persistent="props.busy"
     @update:model-value="(value: boolean) => emit('update:modelValue', value)"
   >
     <v-card :elevation="5">
@@ -52,7 +53,7 @@ const datasetToAddTo = ref<Dataset | null>(null)
         <v-btn
           color="primary"
           variant="flat"
-          :disabled="!datasetToAddTo"
+          :disabled="!datasetToAddTo || props.busy"
           :loading="props.busy"
           :prepend-icon="kaapanaIcons.save"
           @click.stop="emit('save', datasetToAddTo!)"

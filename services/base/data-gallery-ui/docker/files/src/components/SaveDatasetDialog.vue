@@ -102,6 +102,7 @@ watch(
   <v-dialog
     :model-value="props.modelValue"
     max-width="600"
+    :persistent="props.busy"
     @update:model-value="(value: boolean) => !value && requestClose()"
   >
     <v-card :elevation="5">
@@ -141,6 +142,7 @@ watch(
           color="primary"
           variant="flat"
           :loading="props.busy"
+          :disabled="props.busy"
           :prepend-icon="kaapanaIcons.save"
           @click="submit"
         >

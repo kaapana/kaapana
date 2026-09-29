@@ -46,7 +46,7 @@
               @click="display_filters = !display_filters"
             >
               <v-icon
-                :icon="display_filters ? galleryIcons.filtersHidden : galleryIcons.filtersShown"
+                :icon="display_filters ? galleryIcons.hideFilters : galleryIcons.showFilters"
               />
               ({{ filters.length }})
             </v-btn>

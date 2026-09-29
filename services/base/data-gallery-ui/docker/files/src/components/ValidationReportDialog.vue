@@ -21,7 +21,7 @@
           </template>
           <v-list>
             <v-list-item
-              :prepend-icon="kaapanaIcons.start"
+              :prepend-icon="kaapanaIcons.restart"
               title="Re-run validation"
               @click="runValidationWorkflow(validationResultItem)"
             />
@@ -76,7 +76,7 @@
             class="mt-4"
             color="primary"
             variant="flat"
-            :prepend-icon="kaapanaIcons.start"
+            :prepend-icon="kaapanaIcons.restart"
             @click="runValidationWorkflow(validationResultItem)"
           >
             Re-run validation

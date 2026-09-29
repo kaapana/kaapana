@@ -436,12 +436,16 @@ only after that. The default hooks above are the loose set. The strict set is
 rulesets (with fixes applied), hadolint failing on every finding, and helm lint
 failing on warnings. Both files pin the same tool versions.
 
+The strict hooks are meant for commits: they run on the staged files only and keep
+new code-quality findings out of the repository, so the backlog shrinks file by file
+as files are touched. Do not run them over the whole repository; clean the backlog
+with the loose hooks and the fixes they apply.
+
 .. code-block:: bash
 
-    pre-commit run --all-files                                    # fix and list the essential issues
-    pre-commit run --all-files -c .pre-commit-config.strict.yaml  # list everything, strict
-    pre-commit install -c .pre-commit-config.strict.yaml          # enforce strict on every commit
-    pre-commit install                                            # back to the loose hooks
+    pre-commit run --all-files                            # loose: fix and list the essential issues
+    pre-commit install -c .pre-commit-config.strict.yaml  # strict hooks on every commit
+    pre-commit install                                    # back to the loose hooks
 
 When a hook changes a file, the commit stops: review the change, stage it and
 commit again. When a hook reports a linter finding it cannot fix, fix it by

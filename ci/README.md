@@ -78,8 +78,9 @@ The CI-specific parts:
 formatting drift or an enforced rule. The default pre-commit hooks are loose:
 the `ui-quality` hook only prints the advisory ESLint findings, and the
 `helm-lint` hook prints the helm lint warnings without failing (`--warnings-ok`).
-`.pre-commit-config.strict.yaml` enforces the advisory rules everywhere
-(`pre-commit install -c .pre-commit-config.strict.yaml`). `lint: [ui]` is
+`.pre-commit-config.strict.yaml` enforces the advisory rules on the staged files
+(`pre-commit install -c .pre-commit-config.strict.yaml`); it is meant for commits,
+not for whole-repository runs. `lint: [ui]` is
 `allow_failure: true` until the TypeScript/Vue codebase is formatted and
 meets the enforced ruleset. `RUFF_VERSION` and
 `HADOLINT_VERSION` (in their scripts) must match their hooks' `rev` in

@@ -65,6 +65,27 @@ test('clicking a bar adds its value to the search as a filter', async ({ page })
   )
 })
 
+test('after a reload, clicking a bar filters by the value it now shows', async ({ page }) => {
+  await openGallery(page, withCharts())
+  await expect(charts(page)).toHaveCount(1)
+  await page.route(DASHBOARD, (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        histograms: { Modality: { items: { SEG: 1 }, key: '00080060 Modality_keyword' } },
+        metrics: { Patients: 1, Studies: 1, Series: 1 },
+      }),
+    }),
+  )
+  await search(page)
+  await expect(page.locator('.apexcharts-xaxis-label').filter({ hasText: 'SEG' })).toBeVisible()
+
+  await page.locator('.apexcharts-bar-area').first().click()
+  await expect(page.getByText(/SEG\s+\(1\)/)).toBeVisible()
+  await expect(page.getByText(/CT\s+\(2\)/)).toHaveCount(0)
+})
+
 test('a failed reload clears the numbers of the previous one', async ({ page }) => {
   await openGallery(page, withCharts())
   const patients = page.locator('.text-h5').first()

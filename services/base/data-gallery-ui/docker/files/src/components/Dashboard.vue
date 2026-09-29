@@ -41,7 +41,7 @@
       <VueApexCharts
         v-else
         v-for="[key, values] in Object.entries(histograms)"
-        :key="JSON.stringify({ key: values })"
+        :key="JSON.stringify({ [key]: values })"
         :options="getApexChartsOptions(key, values)"
         :series="[
           {

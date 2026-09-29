@@ -59,7 +59,7 @@ code_quality:
 # Helm lint: helm lint + kubeval of the platform chart tree — blocks the pipeline
 ##############################################
 helm_lint:
-  stage: tests
+  stage: unittest
   tags:
     - $[[ inputs.runner_tag ]]
   image: $CI_BASE_IMAGE

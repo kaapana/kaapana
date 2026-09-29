@@ -59,5 +59,3 @@ function loadMetaDataForStudy() {
 
 onMounted(loadMetaDataForStudy)
 </script>
-
-<style></style>

@@ -242,5 +242,3 @@ onBeforeUnmount(() => {
   datasets.setActiveTags([])
 })
 </script>
-
-<style scoped></style>

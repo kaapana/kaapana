@@ -18,7 +18,7 @@
       </template>
     </v-alert>
     <!-- eslint-disable-next-line vue/no-v-html -->
-    <div v-else :style="customStyle" v-html="rawHtmlContent" />
+    <div v-else v-html="rawHtmlContent" />
   </div>
 </template>
 
@@ -27,15 +27,7 @@ import { ref, watch } from 'vue'
 import { apiErrorInfo, type ApiErrorInfo } from '@kaapana/base-ui'
 import { useFailureDetailsStore } from '@/stores/failureDetails'
 
-const props = withDefaults(
-  defineProps<{
-    rawHtmlURL: string
-    customStyle?: string
-  }>(),
-  {
-    customStyle: '',
-  },
-)
+const props = defineProps<{ rawHtmlURL: string }>()
 
 const rawHtmlContent = ref('')
 const loading = ref(false)
@@ -99,9 +91,3 @@ watch(
   { immediate: true },
 )
 </script>
-
-<style scoped lang="scss">
-.no-border {
-  border: none;
-}
-</style>

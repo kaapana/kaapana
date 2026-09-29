@@ -109,7 +109,6 @@ const datasets_store = useDatasetsStore()
 const failureDetails = useFailureDetailsStore()
 const { restoreFocus } = useFocusReturn(() => datasets_store.showValidationResults)
 
-const resultPaths = ref<Record<string, any>>({})
 const resultLookupState = ref<Record<string, any>>({})
 
 function onValidationResultClose() {
@@ -152,12 +151,6 @@ async function ensureValidationResultLoaded(resultItemID: string | null) {
       object_name: lookupResult.object_name,
     }
 
-    if (lookupResult.found && lookupResult.url) {
-      resultPaths.value[resultItemID] = lookupResult.url
-    } else if (resultItemID in resultPaths.value) {
-      delete resultPaths.value[resultItemID]
-    }
-
     return lookupResult.url
   } catch (error: unknown) {
     // Not cached as loaded, so reopening the report or Try again looks it up anew.
@@ -168,9 +161,6 @@ async function ensureValidationResultLoaded(resultItemID: string | null) {
       url: null,
       object_name: null,
       failure: apiErrorInfo(error),
-    }
-    if (resultItemID in resultPaths.value) {
-      delete resultPaths.value[resultItemID]
     }
     return null
   }
@@ -198,9 +188,6 @@ function invalidateValidationResultCache(resultItemID: string | null) {
 
   if (resultItemID in resultLookupState.value) {
     delete resultLookupState.value[resultItemID]
-  }
-  if (resultItemID in resultPaths.value) {
-    delete resultPaths.value[resultItemID]
   }
 }
 function runValidationWorkflow(resultItemID: string | null) {

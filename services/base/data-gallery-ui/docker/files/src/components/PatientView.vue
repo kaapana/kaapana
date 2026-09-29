@@ -70,5 +70,3 @@ function loadMetaDataForPatient() {
 
 onMounted(loadMetaDataForPatient)
 </script>
-
-<style></style>

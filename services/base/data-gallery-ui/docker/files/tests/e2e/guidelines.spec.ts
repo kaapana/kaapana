@@ -3,6 +3,7 @@ import { makeDefaultMockData } from './fixtures/mock-backend'
 import {
   dialog,
   lastDirty,
+  nextPost,
   openGallery,
   pressEscapeUntil,
   selectDataset,
@@ -191,14 +192,27 @@ test('validation says what is required and how to fix it', async ({ page }) => {
   await page.getByRole('button', { name: /save .* series as a new dataset/i }).click()
   await page.getByRole('button', { name: 'Save', exact: true }).click()
 
-  // Not "Invalid input": it states what to enter and gives an example.
   await expect(page.getByText(/Enter a name for the dataset, for example/)).toBeVisible()
 
-  // A name already in use is caught before the round trip, with a way forward.
+  // "nsclc" exists as a project dataset; names are unique per access level.
   await page.getByLabel('Name').first().fill('nsclc')
+  await chooseAccessLevel(page, 'Project')
   await page.getByRole('button', { name: 'Save', exact: true }).click()
-  await expect(page.getByText(/already exists\. Choose a different name/)).toBeVisible()
+  await expect(
+    page.getByText(/A project dataset with this name already exists\. Choose a different name/),
+  ).toBeVisible()
+
+  await chooseAccessLevel(page, 'Private')
+  await expect(page.getByText(/already exists/)).toHaveCount(0)
+  const create = nextPost(page, /\/client\/dataset$/)
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  expect(await create).toMatchObject({ name: 'nsclc', access_level: 'private' })
 })
+
+async function chooseAccessLevel(page: Page, level: 'Private' | 'Project') {
+  await dialog(page, 'Save selection as dataset').locator('.v-select .v-field').click()
+  await page.getByRole('option', { name: new RegExp(`^${level}`) }).click()
+}
 
 // --- Unsaved changes ---------------------------------------------------------
 

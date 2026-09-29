@@ -9,12 +9,16 @@ import { kaapanaIcons, galleryIcons } from '@/utils/galleryIcons'
 // collection. The view used to render all three as one `<h3>{{ message }}</h3>`,
 // which is exactly the generic "No data available" the guidelines warn about.
 const props = defineProps<{
-  state: 'empty' | 'no-results' | 'error'
+  state: 'empty' | 'no-results' | 'dataset-empty' | 'error'
   /** For `error`: the actionable sentence already normalised by apiErrorText. */
   detail?: string | null
 }>()
 
-const emit = defineEmits<{ (event: 'retry'): void; (event: 'clear'): void }>()
+const emit = defineEmits<{
+  (event: 'retry'): void
+  (event: 'clear'): void
+  (event: 'showAll'): void
+}>()
 
 // Menu address of the Data Upload view for navigateShell, taken from
 // data-upload-ui's Kubernetes service annotations.
@@ -28,6 +32,13 @@ const presentation = computed(() => {
         color: undefined,
         title: 'No series match the current search',
         body: 'The search text and filters together exclude every series in this scope. Widen or remove them to see results.',
+      }
+    case 'dataset-empty':
+      return {
+        icon: galleryIcons.dataset,
+        color: undefined,
+        title: 'This dataset contains no series yet',
+        body: 'Series you add to it with “Add to dataset” appear here. Show all series to pick some.',
       }
     case 'error':
       return {
@@ -78,6 +89,14 @@ const presentation = computed(() => {
           @click="emit('clear')"
         >
           Clear search and filters
+        </v-btn>
+        <v-btn
+          v-else-if="props.state === 'dataset-empty'"
+          color="primary"
+          variant="text"
+          @click="emit('showAll')"
+        >
+          Show all series
         </v-btn>
         <v-btn
           v-else

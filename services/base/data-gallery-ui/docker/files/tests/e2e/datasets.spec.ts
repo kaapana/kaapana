@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { makeDefaultMockData } from './fixtures/mock-backend'
 import {
   confirmAction,
   delayRoute,
@@ -25,6 +26,44 @@ test('selecting a dataset scopes the query to its identifiers', async ({ page })
   const asText = JSON.stringify(body.query)
   expect(asText).toContain('1.2.3')
   expect(asText).toContain('4.5.6')
+})
+
+test('an empty dataset shows no series and says the dataset is empty', async ({ page }) => {
+  const data = makeDefaultMockData()
+  data.datasets.push({ ...data.datasets[0], name: 'empty-ds', identifiers: [] })
+  await openGallery(page, data)
+
+  const scopedSeries = page.waitForRequest(
+    (req) => isSeriesListRequest(req) && (req.postData() ?? '').includes('"ids"'),
+  )
+  await selectDataset(page, 'empty-ds (project)')
+  expect((await scopedSeries).postDataJSON().query.bool.must).toContainEqual({ ids: { values: [] } })
+
+  await expect(page.getByText('This dataset contains no series yet')).toBeVisible()
+  await expect(page.locator('.seriesCard')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /^Remove \d+ series/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /^Download \d+ series/ })).toHaveCount(0)
+
+  await page.getByRole('button', { name: 'Show all series' }).click()
+  await expect(page.getByText('CT Thorax')).toBeVisible()
+  await expect(page.getByLabel('Select Dataset').first()).toHaveValue('')
+})
+
+test('a search that matches nothing inside a dataset is not "dataset empty"', async ({ page }) => {
+  await openGallery(page)
+  await selectDataset(page, 'nsclc (project)')
+  await expect(page.getByText('CT Thorax')).toBeVisible()
+
+  await page.route(/\/kaapana-backend\/dataset\/series$/, (route) =>
+    (route.request().postData() ?? '').includes('nothing-matches-this')
+      ? route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
+      : route.fallback(),
+  )
+  await page.getByLabel('Search').first().fill('nothing-matches-this')
+  await page.getByRole('button', { name: 'Search', exact: true }).click()
+
+  await expect(page.getByText('No series match the current search')).toBeVisible()
+  await expect(page.getByText('This dataset contains no series yet')).toHaveCount(0)
 })
 
 test('Save as Dataset dialog posts the loaded series as a new dataset', async ({ page }) => {

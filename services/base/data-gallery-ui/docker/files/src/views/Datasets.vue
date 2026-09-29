@@ -16,13 +16,16 @@
                     :items="datasets"
                     :item-title="datasetLabel"
                     label="Select Dataset"
+                    v-model:search="datasetSearch"
                     clearable
                     hide-details
                     return-object
                     single-line
                     density="compact"
-                    no-data-text="No datasets in this project yet"
+                    :loading="datasetsLoading"
+                    :no-data-text="datasetNoDataText"
                     @click:clear="selectedDataset = null"
+                    @update:menu="onDatasetMenu"
                   >
                   </v-autocomplete>
                 </v-col>
@@ -324,6 +327,9 @@ const loadError = ref<string | null>(null)
 const settings = ref<any>(defaultSettings)
 const datasetNames = ref<string[]>([])
 const datasets = ref<Dataset[]>([])
+const datasetsLoading = ref(true)
+const datasetsLoadFailed = ref(false)
+const datasetSearch = ref<string>()
 const selectedDataset = ref<Dataset | null>(null)
 const scopeDataset = ref<Dataset | null>(null)
 const saveAsDatasetDialog = ref(false)
@@ -367,22 +373,35 @@ function onScopeDataset(dataset: Dataset | null) {
 }
 
 async function updateDatasetNames() {
-  const _datasets = await loadDatasets()
-  datasets.value = _datasets
-  datasetNames.value = _datasets.map((dataset) => dataset.name)
-  // A dataset a deep link selected before the list arrived becomes the list's
-  // own entry, so the selector marks it.
-  const selected = selectedDataset.value
-  if (selected) selectedDataset.value = _datasets.find((d) => sameDataset(d, selected)) ?? selected
+  datasetsLoading.value = true
+  try {
+    const _datasets = await loadDatasets()
+    datasetsLoadFailed.value = false
+    datasets.value = _datasets
+    datasetNames.value = _datasets.map((dataset) => dataset.name)
+    const selected = selectedDataset.value
+    if (selected) selectedDataset.value = _datasets.find((d) => sameDataset(d, selected)) ?? selected
+  } catch (error) {
+    datasetsLoadFailed.value = true
+    throw error
+  } finally {
+    datasetsLoading.value = false
+  }
+}
+
+/** Opening the selector after a failed load tries again. */
+function onDatasetMenu(open: boolean) {
+  if (open && datasetsLoadFailed.value && !datasetsLoading.value) {
+    // loadDatasets reports its own failure; the list says so.
+    updateDatasetNames().catch(() => {})
+  }
 }
 
 function editedDatasets(reloadDatasets: boolean) {
   if (reloadDatasets) {
-    loadDatasets()
-      .then((_datasets) => {
-        datasets.value = _datasets
-        datasetNames.value = _datasets.map((d) => d.name)
-        if (selectedDataset.value && !_datasets.some((d) => sameDataset(d, selectedDataset.value))) {
+    updateDatasetNames()
+      .then(() => {
+        if (selectedDataset.value && !datasets.value.some((d) => sameDataset(d, selectedDataset.value))) {
           selectedDataset.value = null
         }
       })
@@ -393,6 +412,13 @@ function editedDatasets(reloadDatasets: boolean) {
 }
 
 const datasetLabelOfSelected = computed(() => selectedDataset.value?.name ?? '')
+
+const datasetNoDataText = computed(() => {
+  if (datasetsLoading.value && datasets.value.length === 0) return 'Loading datasets…'
+  if (datasetsLoadFailed.value) return 'The datasets could not be loaded. Reopen this list to try again.'
+  if (datasets.value.length > 0) return `No dataset matches “${datasetSearch.value ?? ''}”.`
+  return 'No datasets in this project yet. Save a selection as a dataset to create one.'
+})
 
 /* ---------------------------------------------------------------- search -- */
 

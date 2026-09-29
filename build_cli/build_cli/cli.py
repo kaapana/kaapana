@@ -120,6 +120,13 @@ def build(
         envvar="ENABLE_LINTING",
         help="Enable Helm chart linting and kubeval validation.",
     ),
+    lint_only: bool = typer.Option(
+        False,
+        "-lo",
+        "--lint-only",
+        envvar="LINT_ONLY",
+        help="Only lint the Helm chart tree (helm lint + kubeval); no container engine, registry, packages or images.",
+    ),
     exit_on_error: bool = typer.Option(
         True,
         "-ee/--no-exit-on-error",
@@ -401,6 +408,7 @@ def build(
         build_only=build_only,
         scan_only=scan_only,
         enable_linting=enable_linting,
+        lint_only=lint_only,
         exit_on_error=exit_on_error,
         log_level=log_level,
         push_to_microk8s=push_to_microk8s,
@@ -445,7 +453,7 @@ def build(
 
 
 def validate_registry_login_config(build_config: BuildConfig, logger) -> None:
-    if build_config.build_only or build_config.no_login:
+    if build_config.build_only or build_config.lint_only or build_config.no_login:
         return
 
     missing = []
@@ -503,11 +511,12 @@ def run_build(build_config: BuildConfig):
     ContainerHelper.init(build_config=build_config, build_state=build_state)
     HelmChartHelper.init(build_config=build_config, build_state=build_state)
     BuildHelper.init(build_config=build_config, build_state=build_state)
-    ContainerHelper.verify_container_engine_installed()
-    ContainerHelper.ensure_buildx_builder()
+    if not build_config.lint_only:
+        ContainerHelper.verify_container_engine_installed()
+        ContainerHelper.ensure_buildx_builder()
     HelmChartHelper.verify_helm_installed()
 
-    if not build_config.build_only and not build_config.no_login:
+    if not (build_config.build_only or build_config.lint_only) and not build_config.no_login:
         ContainerHelper.container_registry_login(
             registry=build_config.default_registry,
             username=build_config.registry_username,
@@ -521,8 +530,9 @@ def run_build(build_config: BuildConfig):
             ContainerHelper.login_cache_registries()
 
     logger.info("-----------------------------------------------------------")
-    ContainerHelper.collect_containers()
-    ContainerHelper.resolve_base_images_into_container()
+    if not build_config.lint_only:
+        ContainerHelper.collect_containers()
+        ContainerHelper.resolve_base_images_into_container()
     HelmChartHelper.collect_charts()
     HelmChartHelper.resolve_chart_dependencies()
     HelmChartHelper.resolve_kaapana_collections()
@@ -540,7 +550,7 @@ def run_build(build_config: BuildConfig):
         logger.info("")
         HelmChartHelper.build_and_push_charts(platform_chart=platform_chart)
 
-    if not build_config.only_charts:
+    if not build_config.only_charts and not build_config.lint_only:
         BuildHelper.select_containers_to_build()
         if build_config.scan_only:
             logger.info("Scan-only: skipping chart and container builds")

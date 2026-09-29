@@ -1,5 +1,6 @@
 node_modules
 /build/
+.gitlab-ci-local/
 /docs/build/
 venv
 security-reports/*.json

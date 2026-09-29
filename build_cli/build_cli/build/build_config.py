@@ -55,6 +55,7 @@ class BuildConfig(BaseModel):
     containers_to_build_by_charts: List[str] = Field(default_factory=list)
     containers_to_build: List[str] = Field(default_factory=list)
     only_charts: bool = False
+    lint_only: bool = False  # helm lint + kubeval of the chart tree, nothing else
 
     # Others
     http_proxy: Optional[str]
@@ -108,8 +109,8 @@ class BuildConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_all(self) -> "BuildConfig":
-        # Validate default_registry format if build_only is False
-        if self.default_registry and not self.build_only:
+        # Validate default_registry format unless the run never pushes
+        if self.default_registry and not (self.build_only or self.lint_only):
             validate_registry_name(self.default_registry)
 
         # Validate log_level

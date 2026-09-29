@@ -263,6 +263,10 @@ class HelmChart:
         version: str,
         build_config: BuildConfig,
     ) -> Set[Container]:
+        # Lint only: no containers were collected, so nothing to look up
+        if build_config.lint_only:
+            return set()
+
         chart_containers = set()
 
         # Collection container
@@ -549,7 +553,7 @@ class HelmChart:
                 else:
                     f.write(line)
 
-    def lint_chart(self, helm_executable: str, values: Optional[Path] = None):
+    def lint_chart(self, helm_executable: str, values: Optional[Path] = None, with_subcharts: bool = False):
         if self.ignore_linting:
             logger.debug(f"{self.name} has ignore_linting: true - skipping")
             return
@@ -560,15 +564,17 @@ class HelmChart:
 
         logger.info(f"{self.name}: lint_chart")
 
-        command = [helm_executable, "lint", "."]
+        command = [helm_executable, "lint", ".", "--quiet"]  # --quiet: no [INFO] lines
+        if with_subcharts:  # every chart below this one is linted as its own unit too
+            command.append("--with-subcharts")
         if values:
-            command = [helm_executable, "lint", ".", "--values", str(values)]
+            command += ["--values", str(values)]
         output = run(
             command,
             stdout=PIPE,
             stderr=PIPE,
             universal_newlines=True,
-            timeout=20,
+            timeout=300 if with_subcharts else 20,
             cwd=self.build_chart_dir,
         )
         if output.returncode != 0:
@@ -725,9 +731,6 @@ class HelmChart:
         target_dir: Path,
         platform_build_version: str,
         bar=None,
-        enable_linting=True,
-        helm_executable: str = "helm",
-        values=None,
     ) -> None:
         """
         Build only this chart into target_dir.
@@ -750,13 +753,7 @@ class HelmChart:
                 target_dir=target_dir / "charts" / dep_chart.name,
                 platform_build_version=platform_build_version,
                 bar=bar,
-                enable_linting=enable_linting,
-                values=values,
             )
-
-        if enable_linting:
-            self.lint_chart(helm_executable, values)
-            self.lint_kubeval(helm_executable, values)
 
         if bar:
             bar()

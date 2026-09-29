@@ -4,4 +4,3 @@ name: kaapana-extension-collection
 version: "0.0.0"
 description: kaapana-extension-collection
 kaapana_type: extension-collection
-ignore_linting: true

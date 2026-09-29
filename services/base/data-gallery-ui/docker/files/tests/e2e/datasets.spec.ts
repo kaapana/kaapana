@@ -11,6 +11,7 @@ import {
   nextRequest,
   openGallery,
   selectDataset,
+  serverError,
   toasts,
 } from './fixtures/helpers'
 
@@ -225,13 +226,56 @@ test('deleting a private dataset sends its access level', async ({ page }) => {
   await expect(page.getByText('Dataset deleted')).toBeVisible()
 })
 
+/* --------------------------------------------------------- dataset lists -- */
+
+// "Empty states": a list that is loading, empty, filtered to nothing or failed
+// should say which.
+
+const DATASET_LIST = /\/kaapana-backend\/client\/datasets(\?.*)?$/
+const SELECTOR_LIST = /\/kaapana-backend\/client\/datasets\?skip_identifiers=true$/
+const NONE_YET = /No datasets have been created in this project yet/
+
 test('Edit Datasets dialog shows a loading indicator while datasets load', async ({ page }) => {
   await openGallery(page)
 
   // Delay only the dialog's datasets fetch so the loading state is observable.
-  await delayRoute(page, /\/kaapana-backend\/client\/datasets(\?.*)?$/, 3000)
+  await delayRoute(page, DATASET_LIST, 3000)
 
   await page.locator('.mdi-folder-edit-outline').click()
   await expect(page.locator('.v-data-table-progress .v-progress-linear')).toBeVisible()
+  await expect(page.getByText('Loading datasets…')).toBeVisible()
+  await expect(page.getByText(NONE_YET)).toHaveCount(0)
   await expect(page.getByRole('cell', { name: 'nsclc', exact: true })).toBeVisible()
+})
+
+test('Manage datasets tells a failed load apart from an empty list, and retries', async ({ page }) => {
+  await openGallery(page)
+  let failing = true
+  await page.route(DATASET_LIST, (r) => (failing ? r.fulfill(serverError('Boom')) : r.fallback()))
+
+  await page.getByRole('button', { name: 'Manage datasets' }).click()
+  const manage = dialog(page, 'Search datasets')
+  await expect(manage).toContainText('Could not load the datasets')
+  await expect(manage.getByText(NONE_YET)).toHaveCount(0)
+
+  failing = false
+  await manage.getByRole('button', { name: 'Try again' }).click()
+  await expect(page.getByRole('cell', { name: 'nsclc', exact: true })).toBeVisible()
+})
+
+test('the dataset selector tells a failed load apart from an empty list, and retries', async ({ page }) => {
+  let failing = true
+  await bootGallery(page, makeDefaultMockData())
+  await page.route(SELECTOR_LIST, (r) => (failing ? r.fulfill(serverError('Boom')) : r.fallback()))
+  await page.reload()
+  await expect(page.getByText('CT Thorax')).toBeVisible()
+
+  await page.getByLabel('Select Dataset').first().click()
+  await expect(page.getByText('The datasets could not be loaded. Reopen this list to try again.')).toBeVisible()
+  await expect(page.getByText('No datasets in this project yet')).toHaveCount(0)
+
+  failing = false
+  await page.keyboard.press('Escape')
+  await page.getByLabel('Select Dataset').first().click()
+  await expect(page.getByRole('option', { name: 'nsclc (project)' })).toBeVisible()
 })

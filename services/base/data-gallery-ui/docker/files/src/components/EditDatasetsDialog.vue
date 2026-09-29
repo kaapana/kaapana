@@ -12,6 +12,7 @@ const emit = defineEmits<{ close: [editedDatasets: boolean] }>()
 
 const datasets = ref<any[]>([])
 const loading = ref(false)
+const loadFailed = ref(false)
 const deleting = ref(false)
 const search = ref<string>('')
 const dialogDelete = ref(false)
@@ -52,10 +53,12 @@ async function loadDatasetsRows() {
 
 async function refreshDatasets() {
   loading.value = true
+  loadFailed.value = false
   try {
     datasets.value = await loadDatasetsRows()
   } catch {
-    // loadDatasets already reported; keep the rows from the last good load.
+    // loadDatasets already reported; the table says so and offers a retry.
+    loadFailed.value = true
   } finally {
     loading.value = false
   }
@@ -150,6 +153,7 @@ onMounted(() => {
           :sort-by="sortBy"
           :search="search"
           :loading="loading"
+          loading-text="Loading datasets…"
         >
           <template v-slot:[`item.time_created`]="{ item }">
             {{ new Date(item.time_created).toLocaleString() }}
@@ -169,7 +173,23 @@ onMounted(() => {
             />
           </template>
           <template v-slot:no-data>
-            <div class="text-body-2 text-medium-emphasis py-6">
+            <v-alert
+              v-if="loadFailed"
+              type="error"
+              variant="tonal"
+              density="compact"
+              class="my-4 text-start"
+              title="Could not load the datasets"
+              text="The dataset service could not be reached or reported an error."
+            >
+              <template #append>
+                <v-btn variant="text" @click="refreshDatasets">Try again</v-btn>
+              </template>
+            </v-alert>
+            <div v-else-if="search" class="text-body-2 text-medium-emphasis py-6">
+              No dataset matches “{{ search }}”. Clear or change the search text.
+            </div>
+            <div v-else class="text-body-2 text-medium-emphasis py-6">
               No datasets have been created in this project yet. Select series in the gallery and
               use “Save selection as dataset” to create one.
             </div>

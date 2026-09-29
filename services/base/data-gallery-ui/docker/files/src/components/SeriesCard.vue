@@ -1,5 +1,5 @@
 <template>
-  <v-container class="pa-0 fill-height" fluid>
+  <v-container class="pa-0 h-100" fluid>
     <v-card @click="onClick" height="100%" :id="seriesInstanceUID" class="seriesCard">
       <v-img :src="src" aspect-ratio="1" @error="img_loading_error = true">
         <template v-slot:placeholder>

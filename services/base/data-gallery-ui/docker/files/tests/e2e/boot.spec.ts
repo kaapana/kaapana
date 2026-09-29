@@ -52,6 +52,22 @@ test('renders the series gallery from typical data', async ({ page }) => {
   await expect(page.getByText('3 selected')).toBeVisible()
 })
 
+test('series cards fill their grid column', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 1000 })
+  await openGallery(page)
+  const cards = page.locator('.seriesCard')
+  await expect(cards).toHaveCount(3)
+
+  const ratios = () =>
+    cards.evaluateAll((els) =>
+      els.map((card) => {
+        const column = card.closest('.v-col')!
+        return card.getBoundingClientRect().width / column.getBoundingClientRect().width
+      }),
+    )
+  await expect.poll(async () => Math.min(...(await ratios()))).toBeGreaterThanOrEqual(0.9)
+})
+
 test('shows the "nothing yet" empty state when the project has no series', async ({ page }) => {
   const data = makeDefaultMockData()
   data.seriesUids = []

@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test'
-import { bootGallery, makeDefaultMockData, viewPathFor } from './fixtures/mock-backend'
+import { makeDefaultMockData, viewPathFor } from './fixtures/mock-backend'
+import { openGallery } from './fixtures/helpers'
 
 test('opening a series detail shows the OHIF viewer and its metadata table', async ({ page }) => {
-  await bootGallery(page, makeDefaultMockData())
-  await expect(page.getByText('CT Thorax')).toBeVisible()
+  await openGallery(page)
 
   await page.locator('.seriesCard').first().locator('.mdi-eye').click()
 
@@ -19,8 +19,7 @@ test('opening a series detail shows the OHIF viewer and its metadata table', asy
 test('the OHIF viewer is embedded under the document project prefix', async ({ page }) => {
   const data = makeDefaultMockData()
   const project = data.projects[1]
-  await bootGallery(page, data, viewPathFor(project))
-  await expect(page.getByText('CT Thorax')).toBeVisible()
+  await openGallery(page, data, viewPathFor(project))
 
   await page.locator('.seriesCard').first().locator('.mdi-eye').click()
 
@@ -35,8 +34,7 @@ test('the OHIF viewer is embedded under the document project prefix', async ({ p
 // the 48px icon buttons into ovals. Guards the cols="auto" layout.
 test('detail pane close and open-in-new buttons stay round in the narrow pane', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
-  await bootGallery(page, makeDefaultMockData())
-  await expect(page.getByText('CT Thorax')).toBeVisible()
+  await openGallery(page)
   await page.locator('.seriesCard').first().locator('.mdi-eye').click()
   await expect(page.getByText('Metadata')).toBeVisible()
 

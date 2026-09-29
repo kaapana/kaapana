@@ -1,14 +1,7 @@
 // Failure paths: a failed fetch must be reported once and leave the view usable.
 import { test, expect } from '@playwright/test'
 import { installMockBackend, seedShellState, makeDefaultMockData, VIEW_PATH } from './fixtures/mock-backend'
-
-function serverError(detail: string) {
-  return {
-    status: 500,
-    contentType: 'application/json',
-    body: JSON.stringify({ detail }),
-  }
-}
+import { collectPageErrors, failRoute } from './fixtures/helpers'
 
 test('a ?dataset_name deep link reports a failing dataset list instead of "not found"', async ({
   page,
@@ -17,12 +10,9 @@ test('a ?dataset_name deep link reports a failing dataset list instead of "not f
   await installMockBackend(page, data)
   await seedShellState(page, data)
 
-  const pageErrors: string[] = []
-  page.on('pageerror', (e) => pageErrors.push(String(e)))
+  const pageErrors = collectPageErrors(page)
 
-  await page.route(/\/kaapana-backend\/client\/datasets(\?.*)?$/, (r) =>
-    r.fulfill(serverError('Datasets unavailable')),
-  )
+  await failRoute(page, /\/kaapana-backend\/client\/datasets(\?.*)?$/, 'Datasets unavailable')
 
   await page.goto(`${VIEW_PATH}?dataset_name=nsclc`)
 
@@ -38,12 +28,9 @@ test('a failing values lookup skips only its own deep-link filter', async ({ pag
   await installMockBackend(page, data)
   await seedShellState(page, data)
 
-  const pageErrors: string[] = []
-  page.on('pageerror', (e) => pageErrors.push(String(e)))
+  const pageErrors = collectPageErrors(page)
 
-  await page.route(/\/dataset\/query_values\/Modality$/, (r) =>
-    r.fulfill(serverError('Values unavailable')),
-  )
+  await failRoute(page, /\/dataset\/query_values\/Modality$/, 'Values unavailable')
 
   await page.goto(`${VIEW_PATH}?Modality=CT&Patient%20Sex=M`)
 
@@ -59,12 +46,9 @@ test('a failing project lookup is reported and the gallery still renders', async
   await installMockBackend(page, data)
   await seedShellState(page, data)
 
-  const pageErrors: string[] = []
-  page.on('pageerror', (e) => pageErrors.push(String(e)))
+  const pageErrors = collectPageErrors(page)
 
-  await page.route(/\/aii\/(projects|users\/[^/]+\/projects)$/, (r) =>
-    r.fulfill(serverError('Projects unavailable')),
-  )
+  await failRoute(page, /\/aii\/(projects|users\/[^/]+\/projects)$/, 'Projects unavailable')
 
   await page.goto(VIEW_PATH)
 

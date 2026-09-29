@@ -1,9 +1,6 @@
-import { test, expect, type Request } from '@playwright/test'
+import { test, expect } from '@playwright/test'
 import { bootGallery, makeDefaultMockData } from './fixtures/mock-backend'
-
-function isSeriesListRequest(req: Request): boolean {
-  return req.method() === 'POST' && /\/dataset\/series$/.test(req.url())
-}
+import { isSeriesListRequest, openGallery } from './fixtures/helpers'
 
 test('structured mode requests structured series and renders grouped cards', async ({ page }) => {
   const data = makeDefaultMockData()
@@ -24,8 +21,7 @@ test('pagination appears when results exceed the page size and drives the page i
   data.settings.datasets.itemsPerPagePagination = 2
   data.aggregatedSeriesNum = 5
   data.seriesUids = ['1.2.3', '4.5.6', '7.8.9', '10.11', '12.13']
-  await bootGallery(page, data)
-  await expect(page.getByText('CT Thorax')).toBeVisible()
+  await openGallery(page, data)
 
   // ceil(5 / 2) = 3 pages -> pagination visible.
   const pagination = page.locator('.v-pagination')

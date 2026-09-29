@@ -5,13 +5,13 @@ import {
   makeDefaultMockData,
   VIEW_PATH,
 } from './fixtures/mock-backend'
+import { collectPageErrors, failRoute, openGallery } from './fixtures/helpers'
 
 // Every other spec seeds localStorage["settings"], so only this one sees a fresh
 // profile — where the view's bare JSON.parse(undefined) at setup blanked the
 // whole document.
 test('renders on a fresh profile, with no shell-seeded settings', async ({ page }) => {
-  const pageErrors: string[] = []
-  page.on('pageerror', (error) => pageErrors.push(error.message))
+  const pageErrors = collectPageErrors(page)
 
   await installMockBackend(page, makeDefaultMockData())
   await page.goto(VIEW_PATH)
@@ -29,8 +29,7 @@ test('renders on a fresh profile, with no shell-seeded settings', async ({ page 
 // The tag bar re-reads localStorage["settings"] to persist its controls —
 // reachable only by interacting, so the boot test above does not cover it.
 test('the tag bar persists its settings on a fresh profile', async ({ page }) => {
-  const pageErrors: string[] = []
-  page.on('pageerror', (error) => pageErrors.push(error.message))
+  const pageErrors = collectPageErrors(page)
 
   await installMockBackend(page, makeDefaultMockData())
   await page.goto(VIEW_PATH)
@@ -45,10 +44,9 @@ test('the tag bar persists its settings on a fresh profile', async ({ page }) =>
 })
 
 test('renders the series gallery from typical data', async ({ page }) => {
-  await bootGallery(page, makeDefaultMockData())
+  await openGallery(page)
 
   // First card renders eagerly with its DICOM metadata (later cards are v-lazy).
-  await expect(page.getByText('CT Thorax')).toBeVisible()
   await expect(page.locator('.seriesCard').first()).toBeVisible()
   // Toolbar reflects the loaded series count (all loaded series are "of interest").
   await expect(page.getByText('3 selected')).toBeVisible()
@@ -66,16 +64,9 @@ test('shows the "nothing yet" empty state when the project has no series', async
 })
 
 test('surfaces a backend error as a notification', async ({ page }) => {
-  const data = makeDefaultMockData()
-  await bootGallery(page, data)
+  await bootGallery(page, makeDefaultMockData())
   // Later route wins: fail the aggregated-count call the view issues on load.
-  await page.route(/\/dataset\/aggregatedSeriesNum$/, (r) =>
-    r.fulfill({
-      status: 500,
-      contentType: 'application/json',
-      body: JSON.stringify({ detail: 'Boom' }),
-    }),
-  )
+  await failRoute(page, /\/dataset\/aggregatedSeriesNum$/, 'Boom')
   // Re-trigger a load by reloading with the failing route in place.
   await page.reload()
 

@@ -3,7 +3,7 @@ import pluginVue from 'eslint-plugin-vue'
 import pluginVitest from '@vitest/eslint-plugin'
 import pluginPlaywright from 'eslint-plugin-playwright'
 import skipFormatting from '@vue/eslint-config-prettier/skip-formatting'
-import { setup } from '../eslint.config.mjs'
+import { setup } from '../../../eslint.config.mjs'
 
 export default defineConfigWithVueTs(
   ...setup,

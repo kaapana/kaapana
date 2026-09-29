@@ -13,7 +13,7 @@
           single-line
           clearable
           hide-details
-          @keydown.enter="search"
+          @keydown.enter="searchFromUser"
         />
       </v-col>
       <!-- Every icon-only control carries an accessible name; the tooltip is a
@@ -68,9 +68,7 @@
         </v-tooltip>
       </v-col>
       <v-col cols="2" align="center">
-        <!-- The one primary action of the search area; progress shows on the
-             control that started it (guidelines, "Loading"). -->
-        <v-btn color="primary" variant="flat" block :loading="props.loading" @click="search">
+        <v-btn color="primary" variant="flat" block :loading="userSearching" @click="searchFromUser">
           Search
         </v-btn>
       </v-col>
@@ -206,8 +204,6 @@ interface Filter {
 const props = withDefaults(
   defineProps<{
     selectedDataset?: Dataset | null
-    /** The gallery's load state, so progress shows on the control that started
-     *  it rather than only far away in the results area. */
     loading?: boolean
   }>(),
   { selectedDataset: null, loading: false },
@@ -244,6 +240,7 @@ interface SearchFailure {
   retry: () => void
 }
 const searchFailure = ref<SearchFailure | null>(null)
+const userSearching = ref(false)
 
 function reportSearchFailure(failure: Omit<SearchFailure, 'error'>, error: unknown) {
   searchFailure.value = { ...failure, error: apiErrorInfo(error) }
@@ -333,6 +330,11 @@ function isNumericField(key: string): boolean {
   return fieldKey.endsWith('_integer') || fieldKey.endsWith('_float')
 }
 
+function searchFromUser() {
+  userSearching.value = true
+  search()
+}
+
 function composeQuery(fields: string[] | null = null) {
   let inner_query: any = { match_all: {} }
   const hasQueryString = query_string.value && query_string.value.trim().length > 0
@@ -398,7 +400,6 @@ async function search() {
 
     runSearch(composeQuery(fields))
   } catch (error) {
-    // The results stay those of the last search that ran.
     reportSearchFailure(
       {
         kind: 'search',
@@ -659,6 +660,13 @@ watch(
     datasetNameLocal.value = name
     localAccessLevel.value = accessLevel
     await initSearch()
+  },
+)
+
+watch(
+  () => props.loading,
+  (loading) => {
+    if (!loading) userSearching.value = false
   },
 )
 

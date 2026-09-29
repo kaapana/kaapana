@@ -26,6 +26,7 @@ const canDownload = computed(() => count.value > 0 && !tooManyItems.value)
 const confirmText = computed(
   () =>
     `${pending.value.length} series are packaged into a single zip file before the download starts, which may take several minutes. ` +
+    `A download is limited to ${MAX_DOWNLOAD_MB} MB; a larger selection fails. ` +
     'The transfer uses network bandwidth and local storage for as long as it runs. ' +
     'Reloading or closing this view while the download runs cancels it.',
 )

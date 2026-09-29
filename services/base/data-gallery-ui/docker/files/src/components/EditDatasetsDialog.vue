@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { notify } from '@kyvg/vue3-notification'
 import { ConfirmDialog, apiErrorInfo, type ApiErrorInfo } from '@kaapana/base-ui'
 import { hasVisibleFocus, useFocusReturn } from '@/composables/useFocusReturn'
@@ -125,13 +125,6 @@ const show = computed({
     emit('close', editedDatasets.value)
   },
 })
-
-watch(
-  () => props.modelValue,
-  () => {
-    refreshDatasets()
-  },
-)
 
 onMounted(() => {
   refreshDatasets()

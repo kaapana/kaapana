@@ -47,6 +47,7 @@
                 :selectedDataset="selectedDataset"
                 :loading="isLoading"
                 @search="(query) => updateData(query)"
+                @dataset="(dataset) => (scopeDataset = dataset)"
                 @update:dirty="(dirty) => (searchDirty = dirty)"
               />
             </div>
@@ -193,6 +194,7 @@
             :detail="loadError"
             @retry="updateData(searchQuery, true)"
             @clear="clearSearch"
+            @show-all="selectedDataset = null"
           />
         </v-container>
       </pane>
@@ -424,6 +426,7 @@ const settings = ref<any>(defaultSettings)
 const datasetNames = ref<string[]>([])
 const datasets = ref<Dataset[]>([])
 const selectedDataset = ref<Dataset | null>(null)
+const scopeDataset = ref<Dataset | null>(null)
 const datasetName = ref<string | null>(null)
 const saveAsDatasetDialog = ref(false)
 const addToDatasetDialog = ref(false)
@@ -867,8 +870,9 @@ const hasResults = computed(() =>
 )
 /** Which of the guidelines' three empty states applies. A search or a selected
  *  dataset means the collection was filtered, not that nothing exists. */
-const emptyState = computed<'empty' | 'no-results' | 'error'>(() => {
+const emptyState = computed<'empty' | 'no-results' | 'dataset-empty' | 'error'>(() => {
   if (loadError.value) return 'error'
+  if (selectedDataset.value && scopeDataset.value?.identifiers.length === 0) return 'dataset-empty'
   if (searchDirty.value || selectedDataset.value) return 'no-results'
   return 'empty'
 })

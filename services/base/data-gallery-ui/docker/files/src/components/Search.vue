@@ -99,9 +99,7 @@
             :disabled="filter.key_select == null"
             v-model="filter.item_select"
             :items="
-              filter.key_select != null && mapping[filter.key_select] != null
-                ? mapping[filter.key_select]['items']
-                : []
+              filter.key_select != null ? (mapping[filter.key_select]?.items ?? []) : []
             "
             label="Values"
             auto-select-first
@@ -200,8 +198,7 @@ const props = withDefaults(
 )
 const emit = defineEmits<{
   search: [query: any]
-  /** Unsaved search state. The view combines this with the dialogs' state and
-   *  reports the total to the shell, so the two cannot overwrite each other. */
+  dataset: [dataset: Dataset | null]
   'update:dirty': [dirty: boolean]
 }>()
 
@@ -219,7 +216,7 @@ const filters = ref<Filter[]>([])
 let counter = 0
 const fieldNames = ref<string[]>([])
 const mapping = ref<Record<string, any>>({})
-let dataset: any = null
+let dataset: Dataset | null = null
 
 async function addFilterItem(key: string, value: any) {
   if (Object.keys(mapping.value).length === 0) {
@@ -239,23 +236,14 @@ async function addFilterItem(key: string, value: any) {
     existing.length > 0 &&
     existing[0].item_select!.filter((item) => String(item) === String(value)).length === 0
   ) {
-    existing[0].item_select!.push(
-      mapping.value[key]['key'].endsWith('_integer') ||
-        mapping.value[key]['key'].endsWith('_float')
-        ? parseFloat(value)
-        : value,
-    )
+    existing[0].item_select!.push(isNumericField(key) ? parseFloat(value) : value)
   } else if (existing.length === 0) {
     const res = await loadValues(key, constructDatasetQuery() || {})
     mapping.value[key] = res.data
     filters.value.push({
       id: counter++,
       key_select: key,
-      item_select:
-        mapping.value[key]['key'].endsWith('_integer') ||
-        mapping.value[key]['key'].endsWith('_float')
-          ? [parseFloat(value)]
-          : [value],
+      item_select: [isNumericField(key) ? parseFloat(value) : value],
     })
   }
   display_filters.value = true
@@ -295,11 +283,13 @@ function parseFreeInput(filter: Filter) {
     .map((v) => v.trim())
     .filter((v) => v.length > 0)
 
-  const key = filter.key_select as string
-  const isNumeric =
-    mapping.value[key]?.key?.endsWith('_integer') || mapping.value[key]?.key?.endsWith('_float')
-
+  const isNumeric = isNumericField(filter.key_select as string)
   filter.item_select = values.map((val) => (isNumeric ? parseFloat(val) : val))
+}
+
+function isNumericField(key: string): boolean {
+  const fieldKey: string = mapping.value[key]?.key ?? ''
+  return fieldKey.endsWith('_integer') || fieldKey.endsWith('_float')
 }
 
 function composeQuery(fields: string[] | null = null) {
@@ -379,7 +369,7 @@ function queryFromFilter(filter: Filter) {
       bool: {
         should: filter.item_select.map((item) => ({
           match: {
-            [mapping.value[filter.key_select as string]['key']]: item,
+            [mapping.value[filter.key_select as string]?.key]: item,
           },
         })),
       },
@@ -389,16 +379,23 @@ function queryFromFilter(filter: Filter) {
   }
 }
 
+/** An empty dataset matches nothing, not the whole project. */
 function constructDatasetQuery() {
-  const hasIdentifiers = dataset && dataset.identifiers && dataset.identifiers.length > 0
-  if (hasIdentifiers) {
-    return {
-      ids: {
-        values: dataset.identifiers,
-      },
-    }
+  if (!datasetNameLocal.value) return null
+  return { ids: { values: dataset?.identifiers ?? [] } }
+}
+
+/** Load the selected dataset with its identifiers. A failed reload keeps the
+ *  last identifiers of the same dataset; another dataset never inherits them. */
+async function loadSelectedDataset() {
+  const name = datasetNameLocal.value
+  const accessLevel = localAccessLevel.value ?? 'project'
+  if (!name || dataset?.name !== name || dataset?.access_level !== accessLevel) dataset = null
+  try {
+    if (name) dataset = await loadDatasetByName(name, accessLevel)
+  } finally {
+    emit('dataset', dataset)
   }
-  return null
 }
 
 async function updateMapping(filter: Filter) {
@@ -409,9 +406,7 @@ async function updateMapping(filter: Filter) {
 }
 
 async function reloadDataset() {
-  dataset =
-    datasetNameLocal.value &&
-    (await loadDatasetByName(datasetNameLocal.value, localAccessLevel.value ?? 'project'))
+  await loadSelectedDataset()
 }
 
 /** Apply the deep-link URL params (dataset name, query_string, DICOM filters),
@@ -476,9 +471,7 @@ async function initializeMapping() {
 
 async function initSearch() {
   filters.value = []
-  dataset =
-    datasetNameLocal.value &&
-    (await loadDatasetByName(datasetNameLocal.value, localAccessLevel.value ?? 'project'))
+  await loadSelectedDataset()
   await search()
   await initializeMapping()
 }

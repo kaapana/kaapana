@@ -124,8 +124,6 @@ test('closing a workflow started from the validation report returns focus to the
 
 // --- Unavailable actions -----------------------------------------------------
 
-// "Explain why when the reason is not obvious", to keyboard users too: a
-// disabled button is not focusable, so its wrapper takes the focus instead.
 test('an unavailable action says why, to the pointer and to the keyboard, and stays one tab stop', async ({
   page,
 }) => {
@@ -162,6 +160,7 @@ test('an unavailable action says why, to the pointer and to the keyboard, and st
 
 // --- Errors ------------------------------------------------------------------
 
+// "Explain what failed and, when possible, what the user can do next."
 test('a failed mutation is reported in words, not as a status code or [object Object]', async ({
   page,
 }) => {
@@ -232,7 +231,6 @@ test('closing an edited dialog, by Escape or an outside click, asks before disca
   await expect(name).toBeFocused()
   await expect(name).toHaveValue('half-typed')
 
-  // An outside click is an application-controlled dismiss, so it is guarded.
   await page.mouse.click(8, 8)
   await expect(discard).toBeVisible()
   await discard.getByRole('button', { name: 'Discard', exact: true }).click()

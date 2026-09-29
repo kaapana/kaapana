@@ -1,31 +1,14 @@
-import { test, expect, type Page } from '@playwright/test'
-import { bootGallery, makeDefaultMockData } from './fixtures/mock-backend'
+import { test, expect } from '@playwright/test'
+import { lastDirty, openGallery, trackDirty } from './fixtures/helpers'
 
-// The view posts kaapana:view-dirty to its parent so the shell can warn before a
-// project switch reloads the iframe. Standalone (parent === window), so the
-// messages land on this window — capture them via an injected listener.
-async function trackDirty(page: Page) {
-  await page.addInitScript(() => {
-    ;(window as unknown as { __dirty: boolean[] }).__dirty = []
-    window.addEventListener('message', (e: MessageEvent) => {
-      if (e.data?.type === 'kaapana:view-dirty') {
-        ;(window as unknown as { __dirty: boolean[] }).__dirty.push(e.data.dirty)
-      }
-    })
-  })
-}
-
-function lastDirty(page: Page) {
-  return page.evaluate(() => {
-    const d = (window as unknown as { __dirty: boolean[] }).__dirty
-    return d.length ? d[d.length - 1] : null
-  })
-}
+// The view posts kaapana:view-dirty to its parent, so the shell can ask before
+// leaving or reloading the view. Standalone, the window is its own parent
+// (window.parent === window), so the messages land here, where trackDirty
+// captures them.
 
 test('adding a filter reports the view dirty; removing it reports clean', async ({ page }) => {
   await trackDirty(page)
-  await bootGallery(page, makeDefaultMockData())
-  await expect(page.getByText('CT Thorax')).toBeVisible()
+  await openGallery(page)
 
   // Clean on boot: an empty search posts nothing.
   expect(await lastDirty(page)).toBeNull()
@@ -39,8 +22,7 @@ test('adding a filter reports the view dirty; removing it reports clean', async 
 
 test('a free-text query reports the view dirty; clearing it reports clean', async ({ page }) => {
   await trackDirty(page)
-  await bootGallery(page, makeDefaultMockData())
-  await expect(page.getByText('CT Thorax')).toBeVisible()
+  await openGallery(page)
 
   await page.getByLabel('Search').first().fill('Thorax')
   await expect.poll(() => lastDirty(page)).toBe(true)

@@ -1,11 +1,18 @@
-import { test, expect, type Page } from '@playwright/test'
-import { bootGallery, makeDefaultMockData } from './fixtures/mock-backend'
+import { test, expect } from '@playwright/test'
+import {
+  dialog,
+  dismissWithEscape,
+  lastDirty,
+  openGallery,
+  pressEscapeUntil,
+  selectDataset,
+  trackDirty,
+} from './fixtures/helpers'
 
 // --- Accessibility -----------------------------------------------------------
 
 test('every icon-only control in the toolbars has an accessible name', async ({ page }) => {
-  await bootGallery(page, makeDefaultMockData())
-  await expect(page.getByText('CT Thorax')).toBeVisible()
+  await openGallery(page)
 
   // An icon-only button renders no text, so without an accessible name it
   // reaches assistive technology as an unlabelled control.
@@ -24,8 +31,7 @@ test('every icon-only control in the toolbars has an accessible name', async ({ 
 // --- Unavailable actions -----------------------------------------------------
 
 test('a disabled action explains why it is unavailable', async ({ page }) => {
-  await bootGallery(page, makeDefaultMockData())
-  await expect(page.getByText('CT Thorax')).toBeVisible()
+  await openGallery(page)
 
   const remove = page.getByRole('button', { name: /remove series from it/i })
   await expect(remove).toBeDisabled()
@@ -38,11 +44,9 @@ test('a disabled action explains why it is unavailable', async ({ page }) => {
 test('the destructive remove is confirmed, says what follows, and focuses the safe action', async ({
   page,
 }) => {
-  await bootGallery(page, makeDefaultMockData())
-  await expect(page.getByText('CT Thorax')).toBeVisible()
+  await openGallery(page)
 
-  await page.getByLabel('Select Dataset').first().click()
-  await page.getByRole('option', { name: 'nsclc (project)' }).click()
+  await selectDataset(page, 'nsclc (project)')
   await expect(page.getByText('CT Thorax')).toBeVisible()
 
   await page.getByRole('button', { name: /^Remove \d+ series from/ }).click()
@@ -57,13 +61,12 @@ test('the destructive remove is confirmed, says what follows, and focuses the sa
   await expect(page.getByRole('button', { name: 'Remove', exact: true })).toHaveClass(/bg-error/)
 
   // Escape cancels safely: nothing is removed and the dialog closes.
-  await page.keyboard.press('Escape')
+  await dismissWithEscape(page)
   await expect(page.getByText(/Remove \d+ series from .+\?/)).toBeHidden()
 })
 
 test('the download is confirmed as high-impact, in primary rather than error', async ({ page }) => {
-  await bootGallery(page, makeDefaultMockData())
-  await expect(page.getByText('CT Thorax')).toBeVisible()
+  await openGallery(page)
 
   let downloadRequested = false
   await page.route(/\/dataset\/download\?/, (route) => {
@@ -91,8 +94,7 @@ test('the download is confirmed as high-impact, in primary rather than error', a
 test('a failed mutation is reported in words, not as a status code or [object Object]', async ({
   page,
 }) => {
-  await bootGallery(page, makeDefaultMockData())
-  await expect(page.getByText('CT Thorax')).toBeVisible()
+  await openGallery(page)
 
   // If the error body has no `detail`, the message must still be readable, not
   // the error object ("[object Object]" or "…status code 500").
@@ -114,8 +116,7 @@ test('a failed mutation is reported in words, not as a status code or [object Ob
 // --- Validation --------------------------------------------------------------
 
 test('validation says what is required and how to fix it', async ({ page }) => {
-  await bootGallery(page, makeDefaultMockData())
-  await expect(page.getByText('CT Thorax')).toBeVisible()
+  await openGallery(page)
 
   await page.getByRole('button', { name: /save .* series as a new dataset/i }).click()
   await page.getByRole('button', { name: 'Save', exact: true }).click()
@@ -131,36 +132,16 @@ test('validation says what is required and how to fix it', async ({ page }) => {
 
 // --- Unsaved changes ---------------------------------------------------------
 
-async function trackDirty(page: Page) {
-  await page.addInitScript(() => {
-    ;(window as unknown as { __dirty: boolean[] }).__dirty = []
-    window.addEventListener('message', (e: MessageEvent) => {
-      if (e.data?.type === 'kaapana:view-dirty') {
-        ;(window as unknown as { __dirty: boolean[] }).__dirty.push(e.data.dirty)
-      }
-    })
-  })
-}
-
-function lastDirty(page: Page) {
-  return page.evaluate(() => {
-    const d = (window as unknown as { __dirty: boolean[] }).__dirty
-    return d.length ? d[d.length - 1] : null
-  })
-}
-
 test('closing an edited dialog asks before discarding, and the work survives "keep editing"', async ({
   page,
 }) => {
-  await bootGallery(page, makeDefaultMockData())
-  await expect(page.getByText('CT Thorax')).toBeVisible()
+  await openGallery(page)
 
   await page.getByRole('button', { name: /save .* series as a new dataset/i }).click()
   await page.getByLabel('Name').first().fill('half-typed')
 
   // An outside click is an application-controlled dismiss, so it is guarded.
-  await page.keyboard.press('Escape')
-  await expect(page.getByText('Discard this dataset?')).toBeVisible()
+  await pressEscapeUntil(page, () => dialog(page, 'Discard this dataset?').isVisible())
 
   await page.getByRole('button', { name: 'Keep editing' }).click()
   await expect(page.getByText('Discard this dataset?')).toBeHidden()
@@ -176,8 +157,7 @@ test('closing an edited dialog asks before discarding, and the work survives "ke
 
 test('unsaved work in a dialog is part of the dirty state reported to the shell', async ({ page }) => {
   await trackDirty(page)
-  await bootGallery(page, makeDefaultMockData())
-  await expect(page.getByText('CT Thorax')).toBeVisible()
+  await openGallery(page)
   expect(await lastDirty(page)).toBeNull()
 
   await page.getByRole('button', { name: /save .* series as a new dataset/i }).click()

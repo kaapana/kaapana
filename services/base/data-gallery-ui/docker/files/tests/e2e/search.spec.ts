@@ -1,15 +1,9 @@
-import { test, expect, type Request } from '@playwright/test'
+import { test, expect } from '@playwright/test'
 import { bootGallery, makeDefaultMockData, VIEW_PATH } from './fixtures/mock-backend'
-
-// POST that fetches the series list (loadPatients), as opposed to the GET
-// single-series metadata calls.
-function isSeriesListRequest(req: Request): boolean {
-  return req.method() === 'POST' && /\/dataset\/series$/.test(req.url())
-}
+import { isSeriesListRequest, nextRequest, openGallery } from './fixtures/helpers'
 
 test('free-text search puts the query string into the outgoing series query', async ({ page }) => {
-  await bootGallery(page, makeDefaultMockData())
-  await expect(page.getByText('CT Thorax')).toBeVisible()
+  await openGallery(page)
 
   const seriesReq = page.waitForRequest(isSeriesListRequest)
   await page.getByLabel('Search').first().fill('Thorax')
@@ -27,9 +21,7 @@ test('a query-param filter is composed into a match clause and its values are fe
       isSeriesListRequest(req) &&
       (req.postData() ?? '').includes('00080060 Modality_keyword'),
   )
-  const valuesReq = page.waitForRequest(
-    (req) => req.method() === 'POST' && /\/dataset\/query_values\/Modality$/.test(req.url()),
-  )
+  const valuesReq = nextRequest(page, /\/dataset\/query_values\/Modality$/, 'POST')
 
   await bootGallery(page, data, VIEW_PATH + '?Modality=CT')
 

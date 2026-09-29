@@ -1,18 +1,25 @@
 // Pins Vuetify 2→3 migration regressions reported from platform QA.
 import { test, expect } from '@playwright/test'
 import {
-  bootGallery,
   installMockBackend,
   seedShellState,
   makeDefaultMockData,
   VIEW_PATH,
 } from './fixtures/mock-backend'
+import {
+  collectPageErrors,
+  delayRoute,
+  dismissWithEscape,
+  failRoute,
+  nextRequest,
+  openGallery,
+  selectDataset,
+} from './fixtures/helpers'
 
 // query_values returns {text, value, count} objects; v3 autocompletes need
 // item-title="text" or every entry renders as "[object Object]".
 test('filter value dropdown shows readable labels, not [object Object]', async ({ page }) => {
-  await bootGallery(page, makeDefaultMockData())
-  await expect(page.getByText('CT Thorax')).toBeVisible()
+  await openGallery(page)
 
   await page.locator('.mdi-filter-plus-outline').click()
   // pick the Modality key (index 0 is the Select Dataset autocomplete)
@@ -28,8 +35,7 @@ test('filter value dropdown shows readable labels, not [object Object]', async (
 test('tag bar chips are colored and action buttons show tooltips', async ({ page }) => {
   const data = makeDefaultMockData()
   data.settings.datasets.tagBar.tags = ['review', 'favorite']
-  await bootGallery(page, data)
-  await expect(page.getByText('CT Thorax')).toBeVisible()
+  await openGallery(page, data)
 
   const chip = page.locator('.v-chip-group .v-chip').first()
   await expect(chip).toBeVisible()
@@ -50,8 +56,7 @@ test('tag bar chips are colored and action buttons show tooltips', async ({ page
 // V3 v-btn defaults to the "elevated" variant, so the icon buttons rendered a
 // raised grey box when disabled; they must use variant="text".
 test('dataset action icon buttons are flat, not elevated', async ({ page }) => {
-  await bootGallery(page, makeDefaultMockData())
-  await expect(page.getByText('CT Thorax')).toBeVisible()
+  await openGallery(page)
 
   // Disabled by default (no dataset selected) — the case that showed the grey box.
   const removeBtn = page.locator('.mdi-folder-minus-outline').locator('xpath=ancestor::button')
@@ -100,8 +105,7 @@ test('workflow dialog: a workflow_form with an empty oneOf renders instead of bl
   page.on('console', (m) => {
     if (m.type() === 'error') consoleErrors.push(m.text())
   })
-  const pageErrors: string[] = []
-  page.on('pageerror', (e) => pageErrors.push(String(e)))
+  const pageErrors = collectPageErrors(page)
 
   await page.goto(VIEW_PATH)
   await expect(page.getByText('CT Thorax')).toBeVisible()
@@ -120,14 +124,7 @@ test('series loading shows the skeleton animation', async ({ page }) => {
   await installMockBackend(page, data)
   await seedShellState(page, data)
   // Delay the series query so the loading state is observable.
-  await page.route(/\/kaapana-backend\/dataset\/series$/, async (r) => {
-    await new Promise((res) => setTimeout(res, 3000))
-    return r.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(data.seriesUids),
-    })
-  })
+  await delayRoute(page, /\/kaapana-backend\/dataset\/series$/, 3000)
   await page.goto(VIEW_PATH)
   await expect(page.locator('.v-skeleton-loader').first()).toBeVisible()
   await expect(page.getByText('CT Thorax')).toBeVisible()
@@ -136,8 +133,7 @@ test('series loading shows the skeleton animation', async ({ page }) => {
 // ConfirmationDialog took `:show` one-way, so an ESC/outside-click dismiss left
 // the parent flag stuck at true and the dialog could never reopen.
 test('a dismissed confirmation dialog can be reopened (v-model stays in sync)', async ({ page }) => {
-  await bootGallery(page, makeDefaultMockData())
-  await expect(page.getByText('CT Thorax')).toBeVisible()
+  await openGallery(page)
 
   await page.locator('.mdi-folder-edit-outline').click()
   const editDialog = page
@@ -154,8 +150,7 @@ test('a dismissed confirmation dialog can be reopened (v-model stays in sync)', 
   // that window closes BOTH dialogs (flake). scroll-blocked lands on the confirm
   // in the same tick, so waiting for it means the stack has settled.
   await expect(confirmOverlay).toHaveClass(/v-overlay--scroll-blocked/)
-  await page.keyboard.press('Escape')
-  await expect(confirm).toBeHidden()
+  await dismissWithEscape(page, confirm)
   // Asserting only that the confirm closed can't tell "child closed" from "both did".
   await expect(editDialog).toBeVisible()
 
@@ -171,8 +166,7 @@ test('a deep-link query string with a literal % is applied, not double-decoded',
   await installMockBackend(page, data)
   await seedShellState(page, data)
 
-  const pageErrors: string[] = []
-  page.on('pageerror', (e) => pageErrors.push(String(e)))
+  const pageErrors = collectPageErrors(page)
 
   const queryReq = page.waitForRequest(
     (req) =>
@@ -245,15 +239,11 @@ test('a slow earlier search does not overwrite a newer one (request sequencing)'
 // reloadDataset() dropped the access-level argument, so a PRIVATE dataset
 // re-looked-up as 'project' returned undefined and later searches showed ALL series.
 test('removing series from a private dataset reloads it with access_level=private', async ({ page }) => {
-  await bootGallery(page, makeDefaultMockData())
-  await expect(page.getByText('CT Thorax')).toBeVisible()
+  await openGallery(page)
 
   // Select the private dataset; wait for its scoped lookup to fire.
-  const selectReload = page.waitForRequest(
-    (req) => req.method() === 'GET' && /\/client\/dataset\?.*name=my-private/.test(req.url()),
-  )
-  await page.getByLabel('Select Dataset').first().click()
-  await page.getByRole('option', { name: 'my-private (private)' }).click()
+  const selectReload = nextRequest(page, /\/client\/dataset\?.*name=my-private/, 'GET')
+  await selectDataset(page, 'my-private (private)')
   await selectReload
 
   const reloadReq = page.waitForRequest(
@@ -298,17 +288,10 @@ test('a ?project_name deep link still renders when the project lookup fails', as
   await installMockBackend(page, data)
   await seedShellState(page, data)
 
-  const pageErrors: string[] = []
-  page.on('pageerror', (e) => pageErrors.push(String(e)))
+  const pageErrors = collectPageErrors(page)
 
   // Fail both branches of the admin/non-admin project lookup.
-  await page.route(/\/aii\/(projects|users\/[^/]+\/projects)$/, (r) =>
-    r.fulfill({
-      status: 500,
-      contentType: 'application/json',
-      body: JSON.stringify({ detail: 'Projects unavailable' }),
-    }),
-  )
+  await failRoute(page, /\/aii\/(projects|users\/[^/]+\/projects)$/, 'Projects unavailable')
 
   await page.goto(`${VIEW_PATH}?project_name=admin`)
 

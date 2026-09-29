@@ -90,9 +90,11 @@
         <v-col cols="2">
           <v-autocomplete
             v-model="filter.key_select"
+            v-model:search="filter.fieldSearch"
             :items="fieldNames"
             :key="filter.key_select ?? ''"
             label="Field"
+            :no-data-text="fieldNoDataText(filter)"
             density="compact"
             variant="underlined"
             hide-details
@@ -104,10 +106,12 @@
             v-if="!filter.freeInput"
             :disabled="filter.key_select == null"
             v-model="filter.item_select"
+            v-model:search="filter.valueSearch"
             :items="
               filter.key_select != null ? (mapping[filter.key_select]?.items ?? []) : []
             "
             label="Values"
+            :no-data-text="valuesNoDataText(filter)"
             auto-select-first
             chips
             clearable
@@ -193,6 +197,8 @@ interface Filter {
   item_select?: any[]
   freeInput?: boolean
   freeInputText?: string
+  fieldSearch?: string
+  valueSearch?: string
 }
 
 const props = withDefaults(
@@ -224,6 +230,8 @@ const filters = ref<Filter[]>([])
 let counter = 0
 const fieldNames = ref<string[]>([])
 const mapping = ref<Record<string, any>>({})
+const fieldsState = ref<'loading' | 'loaded' | 'failed'>('loading')
+const valuesState = ref<Record<string, 'loading' | 'failed'>>({})
 let dataset: Dataset | null = null
 
 /** Which load failed, so that load's next success clears only its own message. */
@@ -490,11 +498,14 @@ async function updateMapping(filter: Filter) {
 }
 
 async function loadFieldValues(key: string) {
+  valuesState.value[key] = 'loading'
   try {
     const res = await loadValues(key, constructDatasetQuery() || {})
     mapping.value[key] = res.data
+    delete valuesState.value[key]
     clearSearchFailure('values')
   } catch (error) {
+    valuesState.value[key] = 'failed'
     reportSearchFailure(
       {
         kind: 'values',
@@ -505,6 +516,28 @@ async function loadFieldValues(key: string) {
       error,
     )
   }
+}
+
+function fieldNoDataText(filter: Filter) {
+  if (fieldNames.value.length > 0) return `No field matches “${filter.fieldSearch ?? ''}”.`
+  if (fieldsState.value === 'failed') {
+    return searchFailure.value?.kind === 'fields'
+      ? 'The fields could not be loaded; the message above offers to try again.'
+      : 'The fields could not be loaded.'
+  }
+  if (fieldsState.value === 'loading') return 'Loading the fields…'
+  return 'This project has no fields to filter by.'
+}
+
+function valuesNoDataText(filter: Filter) {
+  const key = filter.key_select
+  if (key == null) return 'Choose a field first.'
+  if (valuesState.value[key] === 'failed') return `The values of “${key}” could not be loaded.`
+  if (valuesState.value[key] === 'loading') return `Loading the values of “${key}”…`
+  if ((mapping.value[key]?.items ?? []).length > 0) {
+    return `No value matches “${filter.valueSearch ?? ''}”.`
+  }
+  return `No series in this ${datasetNameLocal.value ? 'dataset' : 'project'} has a value for “${key}”.`
 }
 
 async function reloadDataset() {
@@ -563,7 +596,11 @@ async function processQueryParams() {
 }
 
 async function initializeMapping() {
-  const res = await loadFieldNames()
+  fieldsState.value = 'loading'
+  const res = await loadFieldNames().catch((error: unknown) => {
+    fieldsState.value = 'failed'
+    throw error
+  })
   fieldNames.value = res!.data
   mapping.value = Object.assign(
     {},
@@ -571,6 +608,7 @@ async function initializeMapping() {
       [_name]: { items: [], key: '' },
     })),
   )
+  fieldsState.value = 'loaded'
 }
 
 async function loadFieldNamesReported(): Promise<boolean> {

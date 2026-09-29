@@ -129,7 +129,7 @@ test.describe('reported inline', () => {
     await expectNoToast(page)
   })
 
-  test('failed filter fields are reported in the search row', async ({ page }) => {
+  test('failed filter fields are reported in the search row, and the Field list says so', async ({ page }) => {
     await installMockBackend(page)
     await failRoute(page, /\/dataset\/field_names$/, 'mapping unavailable')
     await page.goto(VIEW_PATH)
@@ -138,6 +138,11 @@ test.describe('reported inline', () => {
     await expect(page.getByTestId('search-alert')).toContainText('The fields to filter by could not be loaded')
     await settle(page)
     await expectNoToast(page)
+
+    await page.getByRole('button', { name: 'Add filter' }).click()
+    await page.getByLabel('Field').first().click()
+    await expect(page.getByText('The fields could not be loaded; the message above offers to try again.')).toBeVisible()
+    await expect(page.getByText('No data available')).toHaveCount(0)
   })
 
   test('failed filter values are reported in the search row', async ({ page }) => {

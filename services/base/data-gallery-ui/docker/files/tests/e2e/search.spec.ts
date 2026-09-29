@@ -90,6 +90,23 @@ for (const c of clipboardCases) {
   })
 }
 
+// "Avoid generic “No data available” text when the application knows more."
+test('the Values list says when no series in the dataset has a value for the field', async ({ page }) => {
+  const data = makeDefaultMockData()
+  data.datasets.push({ ...data.datasets[0], name: 'empty-ds', identifiers: [] })
+  await openGallery(page, data)
+  await page.getByLabel('Select Dataset').first().click()
+  await page.getByRole('option', { name: 'empty-ds (project)' }).click()
+  await expect(page.getByText('This dataset contains no series yet')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Add filter' }).click()
+  await page.getByLabel('Field').first().click()
+  await page.getByRole('option', { name: 'Modality', exact: true }).click()
+  await page.getByLabel('Values').first().click()
+  await expect(page.getByText('No series in this dataset has a value for “Modality”.')).toBeVisible()
+  await expect(page.getByText('No data available')).toHaveCount(0)
+})
+
 test('a query-param filter is composed into a match clause and its values are fetched', async ({ page }) => {
   const data = makeDefaultMockData()
   // The series query that carries the Modality filter (mapping key from query_values).

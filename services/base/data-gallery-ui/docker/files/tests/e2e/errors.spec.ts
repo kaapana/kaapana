@@ -9,6 +9,7 @@ import {
   collectPageErrors,
   confirmAction,
   dialog,
+  dismissWithEscape,
   expectNoToast,
   failRoute,
   openFailureDetails,
@@ -180,10 +181,19 @@ test.describe('reported inline', () => {
     await failRoute(page, /\/kaapana-backend\/client\/datasets(\?.*)?$/, 'Datasets unavailable')
     await page.goto(VIEW_PATH)
     await expect(page.getByText('CT Thorax')).toBeVisible()
+    const notLoaded = page
+      .getByText('The datasets could not be loaded. Reopen this list to try again.')
+      .filter({ visible: true })
 
     await page.getByLabel('Select Dataset').first().click()
-    await expect(page.getByText('The datasets could not be loaded.', { exact: false })).toBeVisible()
+    await expect(notLoaded).toHaveCount(1)
+    await expect(page.getByText('No datasets in this project yet')).toHaveCount(0)
     await page.keyboard.press('Escape')
+    await page.getByRole('button', { name: /^Add \d+ series to a dataset/ }).click()
+    const addTo = dialog(page, 'Add to dataset')
+    await addTo.locator('.v-field').click()
+    await expect(notLoaded).toHaveCount(1)
+    await dismissWithEscape(page, addTo)
     await page.getByRole('button', { name: 'Manage datasets' }).click()
     await expect(dialog(page, 'Search datasets')).toContainText('Could not load the datasets')
     await settle(page)

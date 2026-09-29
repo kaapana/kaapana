@@ -67,18 +67,18 @@
         @update:model-value="onChangeSelection"
         :disabled="disabledTagBar"
       >
-        <!-- base-color: inside a group, VChip only applies `color` while
-             selected. The foreground is set alongside it, because Vuetify
-             derives a contrasting one only for theme tokens, not a literal
-             hex. -->
+        <!-- base-color: inside a group, VChip only applies `color` while selected.
+             The chip renders a span, so aria-pressed needs the button role. -->
         <v-chip
-          v-for="tag in tags"
+          v-for="(tag, index) in tags"
           :key="tag"
           size="small"
           variant="flat"
           :base-color="tagColor(tag).background"
           :style="{ color: tagColor(tag).text }"
           :disabled="disabledTagBar"
+          role="button"
+          :aria-pressed="String(isSelected(index))"
         >
           {{ tag }}
         </v-chip>
@@ -166,6 +166,11 @@ function keypressListener(e: KeyboardEvent) {
       )
     }
   }
+}
+
+function isSelected(index: number): boolean {
+  const current = selection.value
+  return multiple.value ? Array.isArray(current) && current.includes(index) : current === index
 }
 
 const disabledTagBar = computed(

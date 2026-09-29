@@ -70,6 +70,31 @@ test('a search that matches nothing inside a dataset is not "dataset empty"', as
   await expect(page.getByText('This dataset contains no series yet')).toHaveCount(0)
 })
 
+test('clearing the search inside a dataset searches once, without the dataset', async ({ page }) => {
+  await openGallery(page)
+  await selectDataset(page, 'nsclc (project)')
+  await expect(page.getByText('CT Thorax')).toBeVisible()
+  await page.route(/\/kaapana-backend\/dataset\/series$/, (route) =>
+    (route.request().postData() ?? '').includes('nothing-matches-this')
+      ? route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
+      : route.fallback(),
+  )
+  await page.getByLabel('Search').first().fill('nothing-matches-this')
+  await page.getByRole('button', { name: 'Search', exact: true }).click()
+  await expect(page.getByText('No series match the current search')).toBeVisible()
+
+  const counts = countRequests(page, /\/dataset\/aggregatedSeriesNum$/, 'POST')
+  const unscoped = page.waitForRequest(
+    (req) => isSeriesListRequest(req) && !(req.postData() ?? '').includes('"ids"'),
+  )
+  await page.getByRole('button', { name: 'Clear search and filters' }).click()
+  await unscoped
+  await expect(page.getByText('CT Abdomen')).toBeVisible()
+  await expect(page.getByLabel('Select Dataset').first()).toHaveValue('')
+  await page.waitForTimeout(700)
+  expect(counts()).toBe(1)
+})
+
 // Until the dataset has loaded the gallery shows the previous results, so Remove waits.
 test('a selected dataset shows its progress, and Remove waits until it has loaded', async ({ page }) => {
   await openGallery(page)

@@ -727,13 +727,18 @@ processQueryParams().catch((error) => {
   search()
 })
 
-/** Drop the free text and every filter, then re-run the search. Backs the
- *  "nothing matches" empty state's action. */
-async function clearSearch() {
+/** Resets all filters, then searches once. The dataset goes first,
+ *  so the selection watcher does not search again. */
+async function resetSearch() {
   query_string.value = ''
   filters.value = []
+  if (datasetNameLocal.value) {
+    datasetNameLocal.value = null
+    localAccessLevel.value = null
+    await loadSelectedDataset()
+  }
   await search()
 }
 
-defineExpose({ addFilterItem, reloadDataset, clearSearch })
+defineExpose({ addFilterItem, reloadDataset, resetSearch })
 </script>

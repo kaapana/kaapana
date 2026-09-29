@@ -203,7 +203,7 @@
             :state="emptyState"
             @retry="updateData(searchQuery, true)"
             @show-details="showLoadFailureDetails"
-            @clear="clearSearch"
+            @clear="resetSearch"
             @show-all="selectedDataset = null"
           />
         </v-container>
@@ -507,9 +507,9 @@ function addFilterToSearch(selectedFilterItem: { key: string; value: string }) {
     )
 }
 
-function clearSearch() {
+function resetSearch() {
   selectedDataset.value = null
-  searchRef.value?.clearSearch()
+  searchRef.value?.resetSearch()
 }
 
 const dashboardFields = computed(() =>

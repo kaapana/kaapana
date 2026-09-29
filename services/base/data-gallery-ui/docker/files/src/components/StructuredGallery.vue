@@ -23,5 +23,3 @@ withDefaults(defineProps<{ patients?: Patients }>(), {
   patients: () => ({}),
 })
 </script>
-
-<style></style>

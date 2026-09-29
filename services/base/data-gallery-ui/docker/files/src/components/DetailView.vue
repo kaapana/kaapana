@@ -56,7 +56,6 @@
           v-if="studyInstanceUID"
           v-show="viewerLoaded"
           :iFrameUrl="iFrameURL"
-          :fullSize="false"
           customStyle="aspect-ratio: 1 / 1; max-height: 80vh;"
           @ready="viewerLoaded = true"
         />
@@ -168,11 +167,3 @@ watch(iFrameURL, () => (viewerLoaded.value = false))
 watch(() => props.seriesInstanceUID, getDicomData)
 getDicomData()
 </script>
-
-<style scoped>
-.card-text {
-  height: 30.5vh;
-  float: left;
-  overflow-y: scroll;
-}
-</style>

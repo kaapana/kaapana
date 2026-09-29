@@ -707,5 +707,3 @@ async function clearSearch() {
 
 defineExpose({ addFilterItem, reloadDataset, clearSearch })
 </script>
-
-<style scoped></style>

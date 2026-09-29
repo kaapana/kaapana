@@ -32,15 +32,3 @@ function onNotificationClick(item: { data?: unknown }) {
   if (failure) failureDetails.show(failure as never)
 }
 </script>
-
-<style lang="scss">
-/* No font-family, font-size or text colour is set here on purpose: the platform
-   typeface and the theme's foreground roles come from createKaapanaVuetify, and
-   a local override here would apply the wrong type scale and a fixed grey that
-   ignores the dark theme (design guidelines, "Typography" and "Color"). */
-@media (min-width: 2100px) {
-  .container--fluid {
-    max-width: 2100px !important;
-  }
-}
-</style>

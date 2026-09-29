@@ -87,10 +87,6 @@ const loadDashboard = async (
   ).data
 }
 
-const loadDicomTagMapping = async () => {
-  return (await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'dataset/fields')).data
-}
-
 const downloadDatasets = async (concatenatedSeriesUIDs: string) => {
   try {
     const encodedSeriesUIDs = encodeURIComponent(concatenatedSeriesUIDs)
@@ -141,7 +137,6 @@ export {
   loadDatasets,
   loadDatasetByName,
   loadDashboard,
-  loadDicomTagMapping,
   loadFieldNames,
   loadValues,
   loadSearchFields,

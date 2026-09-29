@@ -65,8 +65,6 @@
           </v-card>
           <div class="d-flex flex-column pa-0" style="height: 100%">
             <Paginate
-              align="right"
-              ref="paginateRef"
               :pageLength="settings.datasets.itemsPerPagePagination"
               :aggregatedSeriesNum="aggregatedSeriesNum"
               :executeSlicedSearch="settings.datasets.executeSlicedSearch"
@@ -299,7 +297,6 @@ import { useRoute } from 'vue-router'
 import { notify } from '@kyvg/vue3-notification'
 import { Splitpanes, Pane } from 'splitpanes'
 import 'splitpanes/dist/splitpanes.css'
-import KeyController from 'keycon'
 import DetailView from '@/components/DetailView.vue'
 import StructuredGallery from '@/components/StructuredGallery.vue'
 import Gallery from '@/components/Gallery.vue'
@@ -335,16 +332,12 @@ import { notifyFailure } from '@/utils/notifyFailure'
 import { hasVisibleFocus, useFocusReturn } from '@/composables/useFocusReturn'
 import type { Dataset, Patients } from '@/types'
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const keycon = new KeyController()
-
 const route = useRoute()
 const projectStore = useProjectStore()
 const failureDetails = useFailureDetailsStore()
 const datasets_store = useDatasetsStore()
 
 const searchRef = ref<InstanceType<typeof Search> | null>(null)
-const paginateRef = ref<InstanceType<typeof Paginate> | null>(null)
 
 const seriesInstanceUIDs = ref<string[]>([])
 const patients = ref<Patients>({})
@@ -486,7 +479,6 @@ async function updateData(query: any = {}, useLastquery = false) {
       })
         .then((data) => {
           if (requestId !== updateDataRequestId) return
-          // TODO: this is not ideal...
           if (settings.value.datasets.structured) {
             patients.value = data
             seriesInstanceUIDs.value = Object.values(patients.value)

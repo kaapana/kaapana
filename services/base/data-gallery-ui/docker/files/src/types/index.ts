@@ -1,10 +1,3 @@
-export interface User {
-  username: string
-  roles: string[]
-  groups: string[]
-  id: string
-}
-
 export interface Project {
   id: string | number
   name: string

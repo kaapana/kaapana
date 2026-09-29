@@ -70,6 +70,22 @@ test('a search that matches nothing inside a dataset is not "dataset empty"', as
   await expect(page.getByText('This dataset contains no series yet')).toHaveCount(0)
 })
 
+// Until the dataset has loaded the gallery shows the previous results, so Remove waits.
+test('a selected dataset shows its progress, and Remove waits until it has loaded', async ({ page }) => {
+  await openGallery(page)
+  await delayRoute(page, /\/client\/dataset\?/, 2_000, 'GET')
+  await selectDataset(page, 'nsclc (project)')
+  const selectorProgress = page.locator('.v-autocomplete').first().locator('.v-progress-linear--active')
+
+  await expect(page.getByText('CT Abdomen')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Loading the dataset…' })).toBeDisabled()
+  await expect(selectorProgress).toBeVisible()
+
+  await expect(page.getByRole('button', { name: 'Remove 2 series from “nsclc”' })).toBeEnabled()
+  await expect(page.getByText('CT Abdomen')).toHaveCount(0)
+  await expect(selectorProgress).toHaveCount(0)
+})
+
 /* ------------------------------------------------------------ deep links -- */
 
 const selector = (page: Page) => page.locator('.v-autocomplete').first()

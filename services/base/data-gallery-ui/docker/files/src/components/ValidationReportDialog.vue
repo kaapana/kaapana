@@ -32,6 +32,8 @@
             <v-list-item
               :prepend-icon="galleryIcons.downloadFile"
               title="Download report"
+              :subtitle="downloadUnavailableReason"
+              :disabled="!validationResultUrl"
               @click="downloadValidationResult(validationResultItem)"
             />
           </v-list>
@@ -46,6 +48,19 @@
           <v-progress-circular indeterminate color="primary" />
           <span class="text-body-2 text-medium-emphasis">Loading the report…</span>
         </div>
+        <v-alert
+          v-else-if="validationResultLookup.failure"
+          type="error"
+          variant="tonal"
+          density="compact"
+          data-testid="report-lookup-alert"
+        >
+          The validation report could not be looked up.
+          <template #append>
+            <v-btn variant="text" size="small" @click="retryLookup">Try again</v-btn>
+            <v-btn variant="text" size="small" @click="showLookupFailureDetails">Details</v-btn>
+          </template>
+        </v-alert>
         <ElementsFromHTML v-else-if="validationResultUrl" :rawHtmlURL="validationResultUrl" />
         <!-- Information tied to this dialog's content stays inline, next to
              what it is about (guidelines, "Notifications and alerts"). -->
@@ -78,10 +93,10 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { notify } from '@kyvg/vue3-notification'
-import { apiErrorText, kaapanaApiService } from '@kaapana/base-ui'
+import { apiErrorInfo, kaapanaApiService, type ApiErrorInfo } from '@kaapana/base-ui'
 import ElementsFromHTML from '@/components/ElementsFromHTML.vue'
 import { useDatasetsStore } from '@/stores/datasets'
+import { useFailureDetailsStore } from '@/stores/failureDetails'
 import { kaapanaIcons, galleryIcons } from '@/utils/galleryIcons'
 
 const emit = defineEmits<{
@@ -89,6 +104,7 @@ const emit = defineEmits<{
 }>()
 
 const datasets_store = useDatasetsStore()
+const failureDetails = useFailureDetailsStore()
 
 const resultPaths = ref<Record<string, any>>({})
 const resultLookupState = ref<Record<string, any>>({})
@@ -140,19 +156,37 @@ async function ensureValidationResultLoaded(resultItemID: string | null) {
     }
 
     return lookupResult.url
-  } catch (error: any) {
-    notify({
-      title: 'Validation report not loaded',
-      text: apiErrorText(error, 'The validation report for this series could not be loaded.'),
-      type: 'error',
-    })
-    // Don't cache the failure as "loaded, not found" — a retry must refetch.
-    delete resultLookupState.value[resultItemID]
+  } catch (error: unknown) {
+    // Not cached as loaded, so reopening the report or Try again looks it up anew.
+    resultLookupState.value[resultItemID] = {
+      loading: false,
+      loaded: false,
+      found: false,
+      url: null,
+      object_name: null,
+      failure: apiErrorInfo(error),
+    }
     if (resultItemID in resultPaths.value) {
       delete resultPaths.value[resultItemID]
     }
     return null
   }
+}
+
+function retryLookup() {
+  const item = validationResultItem.value
+  invalidateValidationResultCache(item)
+  ensureValidationResultLoaded(item)
+}
+
+function showLookupFailureDetails() {
+  const failure: ApiErrorInfo | null = validationResultLookup.value.failure ?? null
+  if (!failure) return
+  failureDetails.show({
+    title: 'Validation report not looked up',
+    text: 'The validation report could not be looked up.',
+    error: failure,
+  })
 }
 function invalidateValidationResultCache(resultItemID: string | null) {
   if (!resultItemID) {
@@ -176,16 +210,9 @@ function deleteValidationResult(resultItemID: string | null) {
   onValidationResultClose()
   emit('runWorkflow', 'clear-validation-results', resultItemID)
 }
-async function downloadValidationResult(resultItemID: string | null) {
-  const resultUri = await ensureValidationResultLoaded(resultItemID)
-  if (!resultUri) {
-    notify({
-      title: 'Nothing to download',
-      text: 'No validation report exists for this series. Re-run the validation workflow to produce one.',
-      type: 'warn',
-    })
-    return
-  }
+function downloadValidationResult(resultItemID: string | null) {
+  const resultUri = validationResultUrl.value
+  if (!resultUri) return
   const link: HTMLAnchorElement | null = document.createElement('a')
   link.download = resultItemID + '.html'
   link.href = resultUri
@@ -217,6 +244,12 @@ const validationResultLookup = computed(() => {
   )
 })
 const validationResultUrl = computed(() => validationResultLookup.value.url)
+const downloadUnavailableReason = computed(() => {
+  if (validationResultUrl.value) return undefined
+  if (validationResultLookup.value.loading) return 'Looking up the report…'
+  if (validationResultLookup.value.failure) return 'The report could not be looked up'
+  return 'No report exists for this series'
+})
 
 watch(validationResultItem, (value) => {
   if (value) {

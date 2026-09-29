@@ -7,10 +7,12 @@ import {
   VIEW_PATH,
 } from './fixtures/mock-backend'
 import {
+  collectPageErrors,
   delayRoute,
   isSeriesListRequest,
   nextRequest,
   openGallery,
+  toasts,
 } from './fixtures/helpers'
 
 test('free-text search puts the query string into the outgoing series query', async ({ page }) => {
@@ -56,6 +58,37 @@ test('a search the user starts spins the Search button until its results arrive'
   await expect(page.getByText('CT Thorax')).toBeVisible()
   await expect(searchButton(page)).not.toHaveClass(/v-btn--loading/)
 })
+
+// "Make every failed operation visible": the link is in the message, to copy by hand.
+const clipboardCases: { name: string; stub: () => void }[] = [
+  {
+    name: 'there is no Clipboard API',
+    stub: () => Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true }),
+  },
+  {
+    name: 'the clipboard refuses the write',
+    stub: () => {
+      navigator.clipboard.writeText = () =>
+        Promise.reject(new DOMException('Write permission denied.', 'NotAllowedError'))
+    },
+  },
+]
+
+for (const c of clipboardCases) {
+  test(`copying the query link says so when ${c.name}`, async ({ page }) => {
+    const pageErrors = collectPageErrors(page)
+    await page.addInitScript(c.stub)
+    await openGallery(page)
+    await page.getByLabel('Search').first().fill('Thorax')
+
+    await page.getByRole('button', { name: 'Copy query URL to clipboard' }).click()
+    const toast = toasts(page).filter({ hasText: 'Link not copied' })
+    await expect(toast).toHaveCount(1)
+    await expect(toast).toContainText(/http:\/\/localhost:\d+\/project\/admin\/data-gallery-ui\/\?query_string=Thorax/)
+    expect(await toasts(page).filter({ hasText: 'Search URL copied' }).count()).toBe(0)
+    expect(pageErrors).toEqual([])
+  })
+}
 
 test('a query-param filter is composed into a match clause and its values are fetched', async ({ page }) => {
   const data = makeDefaultMockData()

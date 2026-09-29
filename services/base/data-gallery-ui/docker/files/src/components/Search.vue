@@ -638,15 +638,25 @@ function assembleQueryUrl() {
   return `${baseUrl}?${params.toString()}`
 }
 
-function copyQueryToClipboard() {
+// The clipboard fails on plain HTTP (no Clipboard API) and in an iframe
+// without permission. In that case, show the link to copy by hand.
+async function copyQueryToClipboard() {
   const queryUrl = assembleQueryUrl()
-  navigator.clipboard.writeText(queryUrl).then(() => {
+  try {
+    await navigator.clipboard.writeText(queryUrl)
     notify({
       title: 'Copied',
       text: 'Search URL copied to clipboard!',
       type: 'success',
     })
-  })
+  } catch {
+    notify({
+      title: 'Link not copied',
+      text: `The clipboard is not available here. Copy the link by hand: ${queryUrl}`,
+      type: 'error',
+      duration: 15_000,
+    })
+  }
 }
 
 watch(

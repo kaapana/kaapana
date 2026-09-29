@@ -122,7 +122,7 @@
               <v-card class="rounded-0" :elevation="0">
                 <v-card-title class="px-6">
                   <v-row class="pa-0" align="center">
-                    <v-col class="pa-0 text-right">
+                    <v-col class="pa-0 text-right" data-testid="selection-toolbar">
                       <span class="text-body-2 text-medium-emphasis mr-2">
                         {{ displaySelectedItems }}
                       </span>
@@ -131,6 +131,12 @@
                            main action of the selection takes `primary`; making
                            all five primary would mean none of them is
                            (guidelines, "Action hierarchy"). -->
+                      <!-- A disabled button cannot take focus, so while it is
+                           disabled its wrapper does: keyboard users reach the
+                           reason too, and the toolbar keeps one stop per action.
+                           Only Remove's wrapper needs it: the other actions are
+                           unavailable only without series, and the toolbar
+                           shows only with results. -->
                       <v-tooltip location="bottom" :text="saveAsHint">
                         <template v-slot:activator="{ props: activator }">
                           <span v-bind="activator">
@@ -138,7 +144,7 @@
                               :icon="kaapanaIcons.add"
                               :aria-label="saveAsHint"
                               variant="text"
-                              :disabled="identifiersOfInterest.length == 0"
+                              :disabled="nothingSelected"
                               @click="saveAsDatasetDialog = true"
                             />
                           </span>
@@ -151,7 +157,7 @@
                               :icon="galleryIcons.datasetAdd"
                               :aria-label="addToHint"
                               variant="text"
-                              :disabled="identifiersOfInterest.length == 0"
+                              :disabled="nothingSelected"
                               @click="addToDatasetDialog = true"
                             />
                           </span>
@@ -159,13 +165,13 @@
                       </v-tooltip>
                       <v-tooltip location="bottom" :text="removeFromHint">
                         <template v-slot:activator="{ props: activator }">
-                          <span v-bind="activator">
+                          <span v-bind="activator" :tabindex="removeUnavailable ? 0 : undefined">
                             <v-btn
                               :icon="galleryIcons.datasetRemove"
                               :aria-label="removeFromHint"
                               variant="text"
                               color="error"
-                              :disabled="identifiersOfInterest.length == 0 || !selectedDataset"
+                              :disabled="removeUnavailable"
                               :loading="removingFromDataset"
                               @click="askRemoveFromDataset"
                             />
@@ -180,7 +186,7 @@
                               :aria-label="startWorkflowHint"
                               variant="text"
                               color="primary"
-                              :disabled="identifiersOfInterest.length == 0"
+                              :disabled="nothingSelected"
                               @click="workflowDialog = true"
                             />
                           </span>
@@ -625,6 +631,7 @@ async function keepFocusInGallery() {
 // A disabled action says why it is unavailable when the reason is not obvious
 // (guidelines, "Unavailable actions").
 const nothingSelected = computed(() => identifiersOfInterest.value.length === 0)
+const removeUnavailable = computed(() => nothingSelected.value || !selectedDataset.value)
 const saveAsHint = computed(() =>
   nothingSelected.value
     ? 'Select at least one series to save as a dataset'

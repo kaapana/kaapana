@@ -88,7 +88,9 @@ onBeforeUnmount(() => {
 <template>
   <v-tooltip location="bottom" :text="status">
     <template v-slot:activator="{ props: activator }">
-      <span v-bind="activator">
+      <!-- While the button is disabled its wrapper takes the focus, so the
+           reason is reachable by keyboard. -->
+      <span v-bind="activator" :tabindex="canDownload ? undefined : 0">
         <v-btn
           :icon="galleryIcons.download"
           :aria-label="status"

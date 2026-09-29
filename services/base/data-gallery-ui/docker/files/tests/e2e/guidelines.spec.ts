@@ -5,7 +5,9 @@ import {
   lastDirty,
   openGallery,
   pressEscapeUntil,
+  selectDataset,
   trackDirty,
+  visibleTooltips,
 } from './fixtures/helpers'
 
 // --- Accessibility -----------------------------------------------------------
@@ -13,9 +15,10 @@ import {
 test('every icon-only control in the toolbars has an accessible name', async ({ page }) => {
   await openGallery(page)
 
-  // An icon-only button renders no text, so without an accessible name it
-  // reaches assistive technology as an unlabelled control.
-  const unnamed = await page.locator('button.v-btn--icon').evaluateAll((buttons) =>
+  // "Provide an accessible name, such as an aria-label, for icon-only controls."
+  const iconButtons = page.locator('button.v-btn--icon')
+  expect(await iconButtons.count()).toBeGreaterThan(10)
+  const unnamed = await iconButtons.evaluateAll((buttons) =>
     buttons
       .filter((button) => {
         const label = button.getAttribute('aria-label')?.trim()
@@ -120,13 +123,37 @@ test('closing a workflow started from the validation report returns focus to the
 
 // --- Unavailable actions -----------------------------------------------------
 
-test('a disabled action explains why it is unavailable', async ({ page }) => {
+// "Explain why when the reason is not obvious", to keyboard users too: a
+// disabled button is not focusable, so its wrapper takes the focus instead.
+test('an unavailable action says why, to the pointer and to the keyboard, and stays one tab stop', async ({
+  page,
+}) => {
   await openGallery(page)
-
-  const remove = page.getByRole('button', { name: /remove series from it/i })
+  const why = 'Select a dataset first to remove series from it'
+  const remove = page.getByRole('button', { name: why })
   await expect(remove).toBeDisabled()
-  // The name states the precondition rather than only naming the action.
-  await expect(remove).toHaveAttribute('aria-label', /select a dataset first/i)
+
+  const toolbar = page.getByTestId('selection-toolbar')
+  const tabStops = () =>
+    toolbar.evaluate(
+      (el) =>
+        [...el.querySelectorAll<HTMLElement>('button, [tabindex]')].filter(
+          (node) => node.tabIndex >= 0 && !(node as HTMLButtonElement).disabled,
+        ).length,
+    )
+  const unavailable = await tabStops()
+  expect(unavailable).toBe(5)
+
+  await page.getByRole('button', { name: /^Add \d+ series to a dataset/ }).focus()
+  await page.keyboard.press('Tab')
+  const focusedLabel = () =>
+    page.evaluate(() => document.activeElement?.querySelector('button')?.getAttribute('aria-label'))
+  await expect.poll(focusedLabel).toBe(why)
+  await expect.poll(() => visibleTooltips(page)).toContain(why)
+
+  await selectDataset(page, 'nsclc (project)')
+  await expect(page.getByRole('button', { name: /^Remove \d+ series from/ })).toBeEnabled()
+  expect(await tabStops()).toBe(unavailable)
 })
 
 // --- Actions requiring confirmation ------------------------------------------

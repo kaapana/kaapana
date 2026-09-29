@@ -28,13 +28,15 @@
     <v-col cols="1" align="center">
       <v-tooltip location="bottom" :text="editToggleHint">
         <template v-slot:activator="{ props: activator }">
-          <span v-bind="activator">
+          <!-- While the button is disabled its wrapper takes the focus, so the
+               reason is reachable by keyboard. -->
+          <span v-bind="activator" :tabindex="saveUnavailable ? 0 : undefined">
             <v-btn
               size="small"
               variant="text"
               :icon="kaapanaIcons.save"
-              aria-label="Save tag list"
-              :disabled="tags.length === 0 || disabledTagBar"
+              :aria-label="editToggleHint"
+              :disabled="saveUnavailable"
               @click="editMode = !editMode"
             />
           </span>
@@ -85,12 +87,12 @@
     <v-col cols="1" align="center">
       <v-tooltip location="bottom" :text="editToggleHint">
         <template v-slot:activator="{ props: activator }">
-          <span v-bind="activator">
+          <span v-bind="activator" :tabindex="disabledTagBar ? 0 : undefined">
             <v-btn
               size="small"
               variant="text"
               :icon="kaapanaIcons.edit"
-              aria-label="Edit tag list"
+              :aria-label="editToggleHint"
               :disabled="disabledTagBar"
               @click="editMode = !editMode"
             />
@@ -181,8 +183,11 @@ const editToggleHint = computed(() => {
   if (datasets.multiSelectKeyPressed || datasets.selectedItems.length > 1) {
     return 'Tagging applies to a single series — clear the multi-selection first'
   }
+  if (editMode.value && tags.value.length === 0) return 'Add at least one tag to save the tag list'
   return editMode.value ? 'Save tag list' : 'Edit tag list'
 })
+
+const saveUnavailable = computed(() => tags.value.length === 0 || disabledTagBar.value)
 
 function chipStyle(tag: string) {
   const { background, text } = tagColor(tag)

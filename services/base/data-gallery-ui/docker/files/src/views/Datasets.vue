@@ -47,7 +47,7 @@
                 :selectedDataset="selectedDataset"
                 :loading="isLoading"
                 @search="(query) => updateData(query)"
-                @dataset="(dataset) => (scopeDataset = dataset)"
+                @dataset="onScopeDataset"
                 @update:dirty="(dirty) => (searchDirty = dirty)"
               />
             </div>
@@ -427,7 +427,6 @@ const datasetNames = ref<string[]>([])
 const datasets = ref<Dataset[]>([])
 const selectedDataset = ref<Dataset | null>(null)
 const scopeDataset = ref<Dataset | null>(null)
-const datasetName = ref<string | null>(null)
 const saveAsDatasetDialog = ref(false)
 const addToDatasetDialog = ref(false)
 const workflowDialog = ref(false)
@@ -452,9 +451,27 @@ const removingFromDataset = ref(false)
 const searchDirty = ref(false)
 const saveDialogDirty = ref(false)
 const queryParams: Record<string, any> = { ...route.query }
+// The deeplink's parameters as they arrived. Search removes them from the address
+// once applied, so a redirect to another project needs the copy.
+const linkSearch = window.location.search
 
 function datasetLabel(item: Dataset) {
   return `${item.name} (${item.access_level})`
+}
+
+/** A dataset is identified by its name and access level together. */
+function sameDataset(a: Dataset | null, b: Dataset | null) {
+  return !!a && !!b && a.name === b.name && a.access_level === b.access_level
+}
+
+/** Search reports the dataset it scoped the search to. A deep link resolves
+ *  one before anything is selected; selecting it makes the selector and the
+ *  dataset actions agree with what the gallery shows. */
+function onScopeDataset(dataset: Dataset | null) {
+  scopeDataset.value = dataset
+  if (dataset && !sameDataset(selectedDataset.value, dataset)) {
+    selectedDataset.value = datasets.value.find((d) => sameDataset(d, dataset)) ?? dataset
+  }
 }
 
 function keyDownEventListener(event: KeyboardEvent) {
@@ -573,6 +590,10 @@ async function updateDatasetNames() {
   const _datasets = await loadDatasets()
   datasets.value = _datasets
   datasetNames.value = _datasets.map((dataset) => dataset.name)
+  // A dataset a deep link selected before the list arrived becomes the list's
+  // own entry, so the selector marks it.
+  const selected = selectedDataset.value
+  if (selected) selectedDataset.value = _datasets.find((d) => sameDataset(d, selected)) ?? selected
 }
 async function ensureValidationResultLoaded(resultItemID: string | null) {
   if (!resultItemID) {
@@ -784,8 +805,8 @@ function editedDatasets(reloadDatasets: boolean) {
       .then((_datasets) => {
         datasets.value = _datasets
         datasetNames.value = _datasets.map((d) => d.name)
-        if (datasetName.value && !datasetNames.value.includes(datasetName.value)) {
-          datasetName.value = null
+        if (selectedDataset.value && !_datasets.some((d) => sameDataset(d, selectedDataset.value))) {
+          selectedDataset.value = null
         }
       })
       // loadDatasets already reported; keep the list from the last good load.
@@ -978,31 +999,14 @@ onMounted(async () => {
     const slug = project?.short_id ?? project?.id
     if (project && String(slug) !== getProjectSlug()) {
       const rest = window.location.pathname.replace(/^\/project\/[^/]+/, '')
-      window.location.replace(`/project/${slug}${rest}${window.location.search}${window.location.hash}`)
+      window.location.replace(`/project/${slug}${rest}${linkSearch}${window.location.hash}`)
       return
     }
   }
 
   // Depends on the selected project, so it must run after the resolution above.
-  try {
-    await updateDatasetNames()
-  } catch {
-    // loadDatasets already reported; without the names the check below would
-    // report a misleading "not found" for a dataset that may well exist.
-    return
-  }
-  if (queryParams.dataset_name) {
-    if (!datasetNames.value.includes(queryParams.dataset_name)) {
-      notify({
-        title: 'Dataset not found',
-        text: `No dataset named “${queryParams.dataset_name}” exists in this project. Pick one from the dataset selector instead.`,
-        type: 'error',
-      })
-    } else {
-      // TODO: We somehow have to ensure that the dataset update is finished before we add the other queryParameters
-      datasetName.value = queryParams.dataset_name
-    }
-  }
+  // loadDatasets already reported a failure; the selector then stays empty.
+  await updateDatasetNames().catch(() => {})
 })
 
 onBeforeUnmount(() => {

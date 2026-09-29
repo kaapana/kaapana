@@ -1,14 +1,17 @@
-import { test, expect } from '@playwright/test'
-import { makeDefaultMockData } from './fixtures/mock-backend'
+import { test, expect, type Page } from '@playwright/test'
+import { bootGallery, makeDefaultMockData, VIEW_PATH } from './fixtures/mock-backend'
 import {
   confirmAction,
+  countRequests,
   delayRoute,
   dialog,
+  dismissWithEscape,
   isSeriesListRequest,
   nextPost,
   nextRequest,
   openGallery,
   selectDataset,
+  toasts,
 } from './fixtures/helpers'
 
 test('selecting a dataset scopes the query to its identifiers', async ({ page }) => {
@@ -64,6 +67,93 @@ test('a search that matches nothing inside a dataset is not "dataset empty"', as
 
   await expect(page.getByText('No series match the current search')).toBeVisible()
   await expect(page.getByText('This dataset contains no series yet')).toHaveCount(0)
+})
+
+/* ------------------------------------------------------------ deep links -- */
+
+const selector = (page: Page) => page.locator('.v-autocomplete').first()
+
+// A deep link sets the dataset and its filters together, then reports the
+// dataset to the view. The view selecting that dataset must not start the
+// search over, which would send a second, unfiltered search and drop the
+// link's filters. The dataset load is slowed so that, if it does, the second
+// search can be measured reliably.
+test('a ?dataset_name deep link selects the dataset and keeps its filters', async ({ page }) => {
+  // Boot once so the mock backend's routes exist; routes added later win.
+  await openGallery(page)
+  // A slow dataset load, as on a platform.
+  await delayRoute(page, /\/client\/dataset\?/, 800, 'GET')
+  const seriesRequests = countRequests(page, /\/dataset\/series$/, 'POST')
+  const scopedAndFiltered = page.waitForRequest((req) => {
+    const body = req.postData() ?? ''
+    return isSeriesListRequest(req) && body.includes('"ids"') && body.includes('Modality_keyword')
+  })
+  await page.goto(`${VIEW_PATH}?dataset_name=nsclc&Modality=CT`)
+
+  const query = JSON.stringify((await scopedAndFiltered).postDataJSON().query)
+  expect(query).toContain('"ids":{"values":["1.2.3","4.5.6"]}')
+  expect(query).toContain('"00080060 Modality_keyword":"CT"')
+  await expect(page.getByText('CT Thorax')).toBeVisible()
+  await expect(selector(page)).toContainText('nsclc (project)')
+  await expect(page.getByText(/CT\s+\(2\)/)).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Remove \d+ series from “nsclc”/ })).toBeEnabled()
+
+  await page.waitForTimeout(2_000)
+  expect(seriesRequests()).toBe(1)
+  await expect(page.getByText(/CT\s+\(2\)/)).toBeVisible()
+})
+
+test('a deep link with access_level=private selects the private dataset', async ({ page }) => {
+  const scoped = page.waitForRequest(
+    (req) => isSeriesListRequest(req) && (req.postData() ?? '').includes('"ids"'),
+  )
+  await bootGallery(
+    page,
+    makeDefaultMockData(),
+    `${VIEW_PATH}?dataset_name=my-private&access_level=private`,
+  )
+
+  expect(JSON.stringify((await scoped).postDataJSON().query)).toContain('["7.8.9"]')
+  await expect(selector(page)).toContainText('my-private (private)')
+  await expect(page.getByText('CT Abdomen')).toBeVisible()
+})
+
+test('a name-only deep link prefers the project dataset, then the private one', async ({ page }) => {
+  const data = makeDefaultMockData()
+  data.datasets.push({ ...data.datasets[1], name: 'nsclc' })
+  await bootGallery(page, data, `${VIEW_PATH}?dataset_name=nsclc`)
+  await expect(selector(page)).toContainText('nsclc (project)')
+
+  await page.goto(`${VIEW_PATH}?dataset_name=my-private`)
+  await expect(selector(page)).toContainText('my-private (private)')
+})
+
+test('the copied query link names the dataset with its access level', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  await openGallery(page)
+  await selectDataset(page, 'my-private (private)')
+  await expect(page.getByText('CT Abdomen')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Copy query URL to clipboard' }).click()
+  await expect(toasts(page).filter({ hasText: 'Copied' })).toBeVisible()
+  const link = new URL(await page.evaluate(() => navigator.clipboard.readText()))
+  expect(link.searchParams.get('dataset_name')).toBe('my-private')
+  expect(link.searchParams.get('access_level')).toBe('private')
+})
+
+test('deleting the selected dataset clears the selection', async ({ page }) => {
+  await openGallery(page)
+  await selectDataset(page, 'nsclc (project)')
+  await expect(page.getByText('MR Brain')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Manage datasets' }).click()
+  await page.getByRole('button', { name: 'Delete dataset nsclc (project)' }).click()
+  await confirmAction(page, 'Delete')
+  await expect(page.getByText('Dataset deleted')).toBeVisible()
+  await dismissWithEscape(page, dialog(page, 'Search datasets'))
+
+  await expect(selector(page)).not.toContainText('nsclc')
+  await expect(page.getByText('CT Abdomen')).toBeVisible()
 })
 
 test('Save as Dataset dialog posts the loaded series as a new dataset', async ({ page }) => {

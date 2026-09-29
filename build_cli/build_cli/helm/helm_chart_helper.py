@@ -2,6 +2,7 @@ import shutil
 from collections import Counter
 from importlib.resources import files
 
+import yaml
 from alive_progress import alive_bar
 
 from build_cli.build import BuildConfig, BuildState, IssueTracker
@@ -243,12 +244,29 @@ class HelmChartHelper:
         return candidate
 
     @classmethod
+    def _changed_chart_names(cls) -> set[str] | None:
+        if not cls._build_config.changed_files:
+            return None
+        names = set()
+        kaapana_dir = cls._build_config.kaapana_dir.resolve()
+        for changed in cls._build_config.changed_files:
+            path = (kaapana_dir / changed).resolve()
+            for directory in (path, *path.parents):
+                if (directory / "Chart.yaml").is_file():
+                    names.add(yaml.safe_load((directory / "Chart.yaml").read_text())["name"])
+                    break
+                if directory == kaapana_dir:
+                    break
+        return names
+
+    @classmethod
     def _check_charts(cls, platform_chart: HelmChart) -> None:
         """
         Run helm lint, then helm template + kubeconform, on every root chart without stopping at the first problem.
 
         Problems are collected in the IssueTracker and written as JUnit reports. Lint-only runs treat helm lint
-        warnings as failures unless --warnings-ok is given; regular builds only fail on errors and invalid manifests.
+        warnings as failures, for the charts containing --changed-file paths if given; regular builds only fail
+        on errors and invalid manifests.
         """
         if not kubeconform_installed():
             IssueTracker.generate_issue(
@@ -260,7 +278,8 @@ class HelmChartHelper:
             return
 
         IssueTracker.configure(exit_on_error=False)
-        strict = cls._build_config.lint_only and cls._build_config.lint_warnings_fail
+        strict = cls._build_config.lint_only
+        only_charts = cls._changed_chart_names()
         root_charts = (platform_chart, *platform_chart.kaapana_collections)
         fake_values = files("build_cli") / "configs" / "fake-values.yaml"
         report_dir = cls._build_config.build_dir / "junit"
@@ -269,7 +288,12 @@ class HelmChartHelper:
         findings: list[dict[str, str]] = []
         for chart in root_charts:
             chart.lint_chart(
-                cls._build_config.helm_executable, fake_values, with_subcharts=True, findings=findings, strict=strict
+                cls._build_config.helm_executable,
+                fake_values,
+                with_subcharts=True,
+                findings=findings,
+                strict=strict,
+                only_charts=only_charts,
             )
         cases = lint_cases(findings, [chart.name for chart in root_charts])
         write_junit_report("helm lint", cases, report_dir / "helm-lint.xml")

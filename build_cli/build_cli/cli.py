@@ -126,11 +126,10 @@ def build(
         envvar="LINT_ONLY",
         help="Only check the Helm chart tree (helm lint and kubeconform validation); no container engine, registry, packages or images.",
     ),
-    lint_warnings_fail: bool = typer.Option(
-        True,
-        "--warnings-fail/--warnings-ok",
-        envvar="LINT_WARNINGS_FAIL",
-        help="With --lint-only, fail on helm lint warnings too; --warnings-ok only fails on errors and invalid manifests.",
+    changed_files: list[str] = typer.Option(
+        [],
+        "--changed-file",
+        help="With --lint-only, helm lint findings only fail for the charts that contain these files.",
     ),
     exit_on_error: bool = typer.Option(
         True,
@@ -414,7 +413,7 @@ def build(
         scan_only=scan_only,
         enable_linting=enable_linting,
         lint_only=lint_only,
-        lint_warnings_fail=lint_warnings_fail,
+        changed_files=[Path(f) for f in changed_files],
         exit_on_error=exit_on_error,
         log_level=log_level,
         push_to_microk8s=push_to_microk8s,

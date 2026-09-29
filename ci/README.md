@@ -76,8 +76,8 @@ The CI-specific parts:
 `ci/ci-code/lint/<linter>_lint.sh`, which installs its own tool. Each entry publishes its advisory findings as
 `gl-code-quality-report.json` to the MR Code Quality widget, and fails on
 formatting drift or an enforced rule. The default pre-commit hooks are loose:
-the `ui-quality` hook only prints the advisory ESLint findings, and the
-`helm-lint` hook prints the helm lint warnings without failing (`--warnings-ok`).
+the `helm-lint` hook only fails on helm lint findings in the charts being committed
+(it always lints the whole tree; other charts' warnings are counted, not failing).
 `.pre-commit-config.strict.yaml` enforces the advisory rules on the staged files
 (`pre-commit install -c .pre-commit-config.strict.yaml`); it is meant for commits,
 not for whole-repository runs. `lint: [ui]` is

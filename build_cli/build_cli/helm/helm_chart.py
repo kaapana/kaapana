@@ -13,7 +13,7 @@ from build_cli.build import BuildConfig, IssueTracker
 from build_cli.container import Container, ContainerHelper
 from build_cli.helm.kubeconform import failures as kubeconform_failures
 from build_cli.helm.kubeconform import summarize, validate_manifests
-from build_cli.helm.lint_report import parse_helm_lint, write_junit_report
+from build_cli.helm.lint_report import finding_lines, finding_owner, parse_helm_lint, write_junit_report
 from build_cli.utils import GitUtils, get_logger
 
 logger = get_logger()
@@ -560,6 +560,7 @@ class HelmChart:
         with_subcharts: bool = False,
         findings: list[dict[str, str]] | None = None,
         strict: bool = False,
+        only_charts: set[str] | None = None,
     ):
         if self.ignore_linting:
             logger.debug(f"{self.name} has ignore_linting: true - skipping")
@@ -586,24 +587,30 @@ class HelmChart:
         chart_findings = parse_helm_lint(output.stdout)
         for finding in chart_findings:
             finding["chart"] = self.name
-            if strict and finding["level"] == "WARNING":
-                logger.warning(f"{self.name}: helm lint {finding['unit']}/{finding['file']}: {finding['message']}")
-        warning_count = sum(finding["level"] == "WARNING" for finding in chart_findings)
-        if warning_count and not strict:
-            logger.warning(f"{self.name}: helm lint reported {warning_count} warnings, not failing (see helm-lint.xml)")
         if findings is not None:
             findings.extend(chart_findings)
 
-        if output.returncode != 0 or (strict and chart_findings):
-            logger.error(f"{self.name}: lint_chart failed!")
-            helm_failed = output.returncode != 0
+        blocking = [
+            finding
+            for finding in chart_findings
+            if strict and (only_charts is None or finding_owner(finding) in only_charts)
+        ]
+        ignored = len(chart_findings) - len(blocking)
+        if ignored:
+            logger.warning(f"{self.name}: {ignored} helm lint warnings not failing (see helm-lint.xml)")
+
+        helm_failed = output.returncode != 0
+        if helm_failed or blocking:
+            lines = finding_lines(blocking)
+            stderr = "\n".join(line for line in output.stderr.splitlines() if "level=INFO" not in line)
             IssueTracker.generate_issue(
                 component=self.__class__.__name__,
                 name=f"{self.name}",
-                msg="chart lint failed!" if helm_failed else f"helm lint reported {len(chart_findings)} findings",
+                msg="helm lint failed" if helm_failed else "helm lint findings",
                 level="WARNING",
-                output=output if helm_failed else None,
+                output=SimpleNamespace(stdout="\n".join(lines) if lines else output.stdout, stderr=stderr),
                 path=self.chartfile.parent,
+                quiet=True,
             )
         else:
             logger.debug(f"{self.name}: lint_chart ok")
@@ -628,8 +635,9 @@ class HelmChart:
             IssueTracker.generate_issue(
                 component=self.__class__.__name__,
                 name=f"{self.name}",
-                msg="chart manifests are invalid!",
+                msg="chart manifests are invalid",
                 level="ERROR",
+                quiet=True,
                 output=SimpleNamespace(
                     stdout="\n".join(kubeconform_failures(validated.stdout)), stderr=validated.stderr
                 ),
@@ -659,6 +667,7 @@ class HelmChart:
             level="ERROR",
             output=rendered,
             path=self.chartfile.parent,
+            quiet=True,
         )
 
     def make_package(self, helm_executable: str, plain_http: bool):

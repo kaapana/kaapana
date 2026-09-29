@@ -11,9 +11,9 @@ repos:
     hooks:
       - id: helm-lint
         name: helm lint
-        entry: ci/ci-code/lint/helm_lint.sh --warnings-ok
+        entry: ci/ci-code/lint/helm_lint.sh
         language: python
-        pass_filenames: false
+        require_serial: true
         files: (^|/)(Chart\.yaml|requirements\.yaml|values\.yaml|templates/.*)$
   - repo: local
     hooks:

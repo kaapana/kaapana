@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import xml.etree.ElementTree as ET
 from subprocess import PIPE, CompletedProcess, run
@@ -38,10 +39,18 @@ def summarize(junit_xml: str) -> str:
     return f"{totals.get('tests')} resources, {totals.get('failures')} invalid, {totals.get('disabled')} skipped"
 
 
+def clean_message(message: str) -> str:
+    details = re.split(r"jsonschema validation failed with '[^']*' - ", message, maxsplit=1)
+    if len(details) == 2:
+        return "; ".join(part.strip() for part in details[1].split(" - "))
+    return message
+
+
 def failures(junit_xml: str) -> List[str]:
     root = ET.fromstring(junit_xml)
     return [
-        f"{case.get('classname')} {case.get('name')}: {problem.get('message') or problem.text}"
+        f"{case.get('classname').split('@')[0]} {case.get('name')}: "
+        f"{clean_message(problem.get('message') or problem.text or '')}"
         for case in root.iter("testcase")
         for problem in (*case.findall("failure"), *case.findall("error"))
     ]

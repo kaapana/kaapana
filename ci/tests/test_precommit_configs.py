@@ -21,8 +21,5 @@ def test_strict_config_pins_the_same_tool_versions():
     assert revs(load(".pre-commit-config.strict.yaml")) == revs(load(".pre-commit-config.yaml"))
 
 
-def test_strict_config_has_a_strict_variant_of_every_enforcing_hook():
-    default = hook_ids(load(".pre-commit-config.yaml"))
-    strict = hook_ids(load(".pre-commit-config.strict.yaml"))
-    assert strict <= default
-    assert default - strict == {"ui-quality"}
+def test_strict_config_has_the_same_hooks_as_the_default():
+    assert hook_ids(load(".pre-commit-config.strict.yaml")) == hook_ids(load(".pre-commit-config.yaml"))

@@ -24,8 +24,13 @@ if [[ -n "${CI:-}" ]]; then
     log_level="${HELM_LINT_LOG_LEVEL:-INFO}"
 fi
 
+changed=()
+for file in "$@"; do
+    changed+=(--changed-file "$file")
+done
+
 set +e
-kaapana-build --lint-only --enable-linting "$@" --kaapana-dir "$PWD" --build-dir build/helm-lint \
+kaapana-build --lint-only --enable-linting ${changed[@]+"${changed[@]}"} --kaapana-dir "$PWD" --build-dir build/helm-lint \
     --log-level "$log_level"
 status=$?
 mkdir -p helm-reports

@@ -13,12 +13,6 @@ if [[ "${1:-}" == "--strict" ]]; then
     eslint_config=(--config ci/ci-code/lint/eslint-quality.config.mjs)
 fi
 
-if [[ "${1:-}" == "--warn" ]]; then
-    shift
-    npx eslint --config ci/ci-code/lint/eslint-quality.config.mjs --no-warn-ignored "$@" || true
-    exit 0
-fi
-
 status=0
 
 if [[ $# -gt 0 ]]; then

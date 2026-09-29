@@ -418,12 +418,12 @@ only:
   and Vue files: :code:`eslint --fix`, then :code:`prettier --write`. It
   needs :code:`node` and :code:`npm` on your :code:`PATH`; the script
   installs the root toolchain on first use.
-- **ui-quality** runs the advisory ESLint ruleset on the staged files and
-  prints the findings without failing the commit.
-- **helm-lint** runs :code:`ci/ci-code/lint/helm_lint.sh --warnings-ok` when a
-  chart file is staged: :code:`helm lint` and kubeconform on the whole chart
-  tree. It fails on errors and invalid manifests and prints only the number of
-  warnings. It needs :code:`helm`; the script downloads kubeconform.
+- **helm-lint** runs :code:`ci/ci-code/lint/helm_lint.sh` on the staged chart
+  files. It always lints and validates the whole chart tree, but only findings
+  in the charts you changed fail the commit; warnings in other charts are only
+  counted (the full list is in :code:`helm-reports/helm-lint.xml`). Invalid
+  manifests fail wherever they are. It needs :code:`helm`; the script downloads
+  kubeconform.
 - **hadolint** lints staged Dockerfiles and fails on the enforced (error) rules.
   pre-commit installs the pinned hadolint version into its own environment.
 
@@ -460,12 +460,11 @@ Run the hooks without committing:
     pre-commit run ui-lint --all-files # one hook only
 
 Skip hooks for a single commit with :code:`SKIP`, a comma-separated list of hook
-ids. The :code:`ui-quality` hook only prints warnings, so the usual reason is to
-silence it:
+ids:
 
 .. code-block:: bash
 
-    SKIP=ui-quality git commit -m "..."
+    SKIP=hadolint,helm-lint git commit -m "..."
 
 :code:`SKIP` applies to :code:`pre-commit run` too. :code:`git commit --no-verify`
 skips every hook, but CI still runs the enforced checks.

@@ -7,6 +7,7 @@ import App from './App.vue'
 
 import 'vuetify/styles'
 import '@mdi/font/css/materialdesignicons.css'
+import '@kaapana/base-ui/style.css'
 
 const app = createApp(App)
 app.use(createPinia())

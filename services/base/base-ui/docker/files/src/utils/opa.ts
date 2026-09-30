@@ -1,5 +1,5 @@
-// Typed port of the shell's src/utils/opa.ts, kept byte-compatible so a control
-// this view hides is one the shell would also refuse.
+// Client-side check against the OPA policy data (GET /kaapana-backend/open-policy-data).
+// portal-ui keeps an identical copy in src/utils/opa.ts; change both together.
 
 export interface PolicyEndpoint {
   path: string

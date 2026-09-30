@@ -2,6 +2,7 @@
 **/dist
 **/test-results
 **/playwright-report
+**/storybook-static
 .git
 .gitignore
 Dockerfile

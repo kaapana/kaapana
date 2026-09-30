@@ -82,7 +82,6 @@ export interface PolicyData {
 
 export interface MockData {
   userinfo: UserinfoJwt
-  commonData: unknown
   policyData: PolicyData
   extensions: ExtensionMock[]
   currentUser: AiiCurrentUser
@@ -144,7 +143,12 @@ export const defaultExtensions: ExtensionMock[] = [
     annotations: { documentation: 'nnunet' },
     latest_version: '2.1.0',
     extension_params: {
-      workflow_name: { type: 'string', default: 'nnunet-run', definition: 'Workflow name' },
+      workflow_name: {
+        type: 'string',
+        default: 'nnunet-run',
+        definition: 'Workflow name',
+        help: 'Shown in the workflow list once the training starts.',
+      },
       enable_gpu: { type: 'bool', default: true, definition: 'Enable GPU' },
       model_type: {
         type: 'list_single',
@@ -220,7 +224,6 @@ export const defaultMockData: MockData = {
     groups: ['role:admin', '/kaapana_admin'],
     user: '00000000-0000-0000-0000-000000000001',
   },
-  commonData: {},
   policyData: {
     endpoints_per_role: {
       admin: [{ path: '.*', methods: ['GET', 'POST', 'PUT', 'DELETE'] }],
@@ -277,7 +280,6 @@ export async function installMockBackend(
   await page.route('**/jsons/testingAuthenticationToken.json', (r) =>
     r.fulfill(json(data.userinfo)),
   )
-  await page.route('**/jsons/commonData.json', (r) => r.fulfill(json(data.commonData)))
   await page.route('**/kaapana-backend/open-policy-data', (r) => r.fulfill(json(data.policyData)))
 
   // Project store (admin path hits /aii/projects; non-admin the per-user list).

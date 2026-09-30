@@ -1,3 +1,13 @@
+export { default as ConfirmDialog } from './components/ConfirmDialog.vue'
+export { default as ErrorDetailsDialog } from './components/ErrorDetailsDialog.vue'
+export { HelpIcon } from './components/HelpIcon'
+export {
+  apiErrorDetail,
+  apiErrorInfo,
+  apiErrorText,
+  formatApiErrorInfo,
+  type ApiErrorInfo,
+} from './utils/apiErrors'
 export { postViewDirty } from './utils/viewDirty'
 export { getProjectBase, getProjectSlug, switchProject } from './utils/selectedProject'
 export { navigateShell } from './utils/shellNavigation'
@@ -15,4 +25,11 @@ export {
 } from './utils/vuetifyTheme'
 export { createKaapanaVuetify, type KaapanaVuetifyOptions } from './utils/createKaapanaVuetify'
 export { kaapanaIcons, type KaapanaIconName } from './utils/icons'
+export {
+  checkAuthR,
+  checkRoleAuthR,
+  type OpaUser,
+  type PolicyData,
+  type PolicyEndpoint,
+} from './utils/opa'
 export { useShellSettings } from './composables/useShellSettings'

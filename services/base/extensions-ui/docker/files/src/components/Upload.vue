@@ -63,3 +63,36 @@ onMounted(() => {
     :accepted-file-types="acceptedFileTypes"
   />
 </template>
+
+<style scoped>
+/* FilePond ships its own light palette; its surfaces are mapped onto the
+   theme roles so the drop zone follows dark mode. */
+:deep(.filepond--root) {
+  font-family: inherit;
+  margin-bottom: 0;
+}
+
+:deep(.filepond--panel-root) {
+  background-color: rgb(var(--v-theme-surface-light));
+  border: 1px dashed rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 8px;
+}
+
+:deep(.filepond--drop-label),
+:deep(.filepond--drop-label label) {
+  color: rgb(var(--v-theme-on-surface));
+  font-size: inherit;
+}
+
+:deep(.filepond--label-action) {
+  text-decoration-color: rgb(var(--v-theme-primary));
+}
+
+:deep(.filepond--item-panel) {
+  background-color: rgb(var(--v-theme-surface-variant));
+}
+
+:deep(.filepond--file) {
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+</style>

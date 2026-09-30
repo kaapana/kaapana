@@ -1,25 +1,17 @@
 import { defineStore } from 'pinia'
 import { kaapanaApiService } from '@kaapana/base-ui'
-import CommonDataService from '@/common/commonData.service'
 
-export const useCommonDataStore = defineStore('commonData', {
+// The open-policy data decides which admin-only controls the view renders.
+// Loaded by the router before the view mounts; a failed load leaves it empty,
+// which hides those controls (fail closed).
+export const usePolicyStore = defineStore('policy', {
   state: () => ({
-    commonData: {} as any,
     policyData: {} as any,
   }),
   actions: {
     async getPolicyData(): Promise<boolean> {
       try {
         this.policyData = await kaapanaApiService.getPolicyData()
-        return true
-      } catch (err) {
-        console.log(err)
-        return false
-      }
-    },
-    async loadCommonData(): Promise<boolean> {
-      try {
-        this.commonData = await CommonDataService.getCommonData()
         return true
       } catch (err) {
         console.log(err)

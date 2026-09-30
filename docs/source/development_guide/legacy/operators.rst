@@ -11,6 +11,7 @@ Base operators
 
 Base operators serve as foundational classes for task-specific operators.
 When developing your own customized operator leverage these operators as base classes.
+The base class also decides how the operator can be tested, see :ref:`writing_tests`.
 
 KaapanaBaseOperator
 ^^^^^^^^^^^^^^^^^^^^^^^

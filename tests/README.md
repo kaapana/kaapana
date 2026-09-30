@@ -1,12 +1,48 @@
-# Additional Unit tests
+# Tests
 
-These tests are additional local tests.
-There is also a CI/CD pipeline that tests building, deploying, running dags, etc. that is not included here.
+What lives here, and how to run it. Writing a suite of your own is covered in
+[Adding a test suite and its job](../ci/docs/internals.md#adding-a-test-suite-and-its-job).
 
-## Pytest
+Two suites live here. Every other suite lives next to the code it covers, most
+under `services/**/docker/**/tests/` or `lib/<package>/tests/`, and the system
+tests that build, deploy and exercise a platform under
+`ci/ci-code/integration_tests/`.
 
-Install requirements and run pytest in the root of the project directory.
-Pytest automatically finds all the files in test_*.py pattern.
+| Path | Covers | CI job |
+|---|---|---|
+| `operators/` | Airflow operators from `data-processing/kaapana-plugin`, called directly, without a scheduler or a platform | `unit_tests` |
+| `ui/` | Playwright against a running instance, needs its URL and the default credentials, see [ui/README.md](ui/README.md) | `playwright_ui_tests` (stage `test`) |
 
-- `pip install -r requirements.txt`
-- `pytest`
+## Running a suite
+
+From the repository root:
+
+```bash
+pip install -r tests/requirements.txt
+pytest tests/operators
+```
+
+A service suite runs the same way, by its path and with the `requirements.txt`
+that belongs to it. A library suite under `lib/` has none. Its dependencies sit
+in the package's `pyproject.toml` and the extras differ per package, so take the
+install line from the suite's job in
+[../ci/pipeline/unit-tests.yml](../ci/pipeline/unit-tests.yml).
+
+Stay in the repository root, as CI does. `pytest.ini` limits discovery to
+`tests/`, so a bare `pytest` finds the operator tests and nothing else. The
+operator tests also write their scratch DICOM relative to the working
+directory.
+
+The whole `tests` stage runs locally through gitlab-ci-local, see
+[local-ci.md](../ci/docs/local-ci.md#scenario-3-run-jobs-without-gitlab).
+
+## Where to go next
+
+- [Adding a test suite and its job](../ci/docs/internals.md#adding-a-test-suite-and-its-job):
+  where a suite belongs, what its `conftest.py` has to carry, which test level
+  to pick, and how to get it running in the pipeline.
+  [Reports GitLab renders](../ci/docs/internals.md#reports-gitlab-renders)
+  covers what the pipeline reports back.
+- [Writing Tests](../docs/source/development_guide/writing_tests.rst) in the
+  development guide: testing a processing-container, a local operator or a
+  user interface on a development machine.

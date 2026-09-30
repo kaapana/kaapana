@@ -418,12 +418,89 @@ Four report types are wired up. Only GitLab reads them; no job does.
 | Report | Produced by | Where it shows |
 |---|---|---|
 | JUnit | every pytest job, `ui_e2e_tests`, `ui_unit_tests`, `playwright_ui_tests` | pipeline **Tests** tab, failed-test summary in the MR |
-| Coverage (cobertura) | every job extending `.pytest_template` | coverage badge, line markers in the MR diff |
+| Coverage (cobertura) | the pytest jobs that pass `--cov` | coverage badge, line markers in the MR diff |
 | Code Quality | `code_quality` | MR **Code Quality** widget |
 | Container scanning | `security_scan` | MR security widget, vulnerability report |
 
 Coverage is per suite — each job measures the one directory it exercises, and
 GitLab merges the reports for the diff view.
+
+A job reports coverage when it extends `.pytest_template` and its `pytest` call
+passes the [`--cov`](https://pytest-cov.readthedocs.io/en/latest/) flags. With
+one of the two missing, the job passes and reports nothing. What the measurement
+leaves out is set once in [`.coveragerc`](../../.coveragerc).
+
+## Adding a test suite and its job
+
+### The suite
+
+Put the suite in a `tests/` directory inside the import root, the directory
+that holds the `app/` package. That is `docker/files/tests/` for most services
+and `docker/tests/` for a few. Name the files `test_*.py`, which is what pytest
+[discovers](https://docs.pytest.org/en/stable/explanation/goodpractices.html#conventions-for-python-test-discovery)
+by default.
+
+The job is a `python:3.12` container with the repository checked out. It
+installs the suite's `requirements.txt` and nothing else: no base image, no
+database, no deployed platform. The suite supplies the rest itself, with the
+imports below and a stand-in for every service a route talks to. The three
+suites in the table below show how.
+
+A `conftest.py` beside the tests adds what that runner is missing. Three lines
+at most, below the imports they need:
+
+```python
+# Every suite: the app code is not an installable package.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+# Only if settings are read at import time. Dummy values do, as long as nothing connects.
+os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost/test")
+
+# Only if the app imports modules that ship in the base image alone.
+sys.modules.setdefault("kaapanapy", types.ModuleType("kaapanapy"))
+```
+
+[notification-service's](../../services/base/notification-service/docker/files/tests/conftest.py)
+conftest carries all three, [portal-api's](../../services/base/portal-api/docker/tests/conftest.py)
+only the path line.
+
+Pin the suite's test dependencies with `==` in its own `requirements.txt`. The
+job installs that one file and nothing else, in particular not the
+`constraints/` files that the image build applies.
+
+Take the cheapest level that reaches the behaviour under test, and start from
+the suite that already works that way:
+
+| Level | Use when | Start from |
+|---|---|---|
+| plain pytest | the logic is reachable without a request | [dicom-web-filter](../../services/data-separation/dicom-web-filter/docker/files/tests/test_scope.py) |
+| [`TestClient`](https://fastapi.tiangolo.com/tutorial/testing/) | a route whose database dependency can be faked | [notification-service](../../services/base/notification-service/docker/files/tests/test_read_all.py) |
+| [`AsyncClient`](https://fastapi.tiangolo.com/advanced/async-tests/) on SQLite in memory | a route that needs real database behaviour | [workflow-api](../../services/base/workflow-api/docker/files/tests/unit/conftest.py) |
+
+### The job
+
+To add a test suite to the CI, create a new job in
+[`ci/pipeline/unit-tests.yml`](../pipeline/unit-tests.yml) that points pytest at
+the suite's directory, not at a single file. The following yaml snippet can be
+used as a starting point:
+
+```yaml
+<name>_tests:
+  extends: .pytest_template
+  script:
+    - pip install -r $KAAPANA_DIR/<suite>/requirements.txt
+    - pytest $KAAPANA_DIR/<suite> --junitxml=<name>_report.xml
+        --cov=<the app directory this suite exercises>
+        --cov-report=term --cov-report=xml:coverage.xml
+  artifacts:
+    reports:
+      junit:
+        - <name>_report.xml
+```
+
+`kaapana_backend_tests` is this snippet filled in.
+[Reports GitLab renders](#reports-gitlab-renders) covers what the `--cov` flags
+report, and the steps under [Adding a job](#adding-a-job) apply as well.
 
 ## Adding a job
 
@@ -449,3 +526,8 @@ GitLab merges the reports for the diff view.
   `first_login` → `install_extensions` → `send_data` → `run_workflows` pass
   platform state along.
 - `install_extensions` and `send_data` carry `retry: 2` — known flakiness.
+- Several pytest jobs still extend `.test_template` and pass no `--cov` flags,
+  so they report no coverage, `dicom_web_filter_tests` and
+  `notification_service_tests` among them.
+  [Reports GitLab renders](#reports-gitlab-renders) has the two conditions a
+  job has to meet.

@@ -20,13 +20,6 @@ spec:
         image: "{{ .Values.global.registry_url }}/squid:{{ .Values.global.kaapana_build_version  }}"
         ports:
         - containerPort: 3128
-        env:
-        - name: SQUID_CACHE_LOG
-          value: "/dev/stdout"
-        - name: SQUID_ACCESS_LOG
-          value: "/dev/stdout"
-        - name: SQUID_HTTP_PORT
-          value: "3128"
         volumeMounts:
         - name: squid-config
           mountPath: /etc/squid/squid.conf

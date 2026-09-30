@@ -61,8 +61,6 @@ spec:
             value: Europe/Paris
           - name: WILDFLY_CRON_ENABLED
             value: "true"
-          - name: WILDFLY_LOG_RETENTION_DAYS
-            value: "7"
           - name: http_proxy
             value: "{{ .Values.global.http_proxy }}"
           - name: https_proxy

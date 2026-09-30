@@ -139,6 +139,20 @@ copy-pasted into every view. It currently exports:
 - ``kaapanaThemeLight`` / ``kaapanaThemeDark`` (+ their name constants) and
   ``useShellSettings()`` — the Vuetify themes and the
   ``localStorage["settings"]`` sync.
+- ``createKaapanaVuetify()`` — the shared Vuetify setup: the themes, the icon
+  set and the platform typeface.
+- ``kaapanaIcons`` — the semantic icon map of the
+  :ref:`design guidelines <design_guidelines>`.
+- ``checkAuthR()`` / ``checkRoleAuthR()`` — the client-side check against the
+  OPA policy data, for hiding controls the gateway would refuse. It sees role
+  grants only, not claim rules; the gateway enforces the policy.
+- ``ConfirmDialog`` — the confirmation gate for destructive and high-impact
+  actions (initial focus on Cancel, Escape and backdrop cancel, focus restored
+  to the opener).
+- ``ErrorDetailsDialog`` with ``apiErrorInfo()`` / ``apiErrorText()`` — the
+  user-facing sentence for a failed request, and the disclosure holding its
+  status, request, backend message and request id.
+- ``HelpIcon`` — a focusable help button with a tooltip for field help.
 
 The shared workflow-execution form is a **subpath** export,
 ``@kaapana/base-ui/workflow-execution``, deliberately kept off the main entry so
@@ -184,8 +198,8 @@ After that, the usual per-view loop works unchanged from the view's
    importing the stale ``dist/`` — nothing fails, the change is just not
    there.
 
-Components can be developed in isolation with Storybook (dev-only: not
-deployed and not exercised in CI):
+Components can be developed in isolation with Storybook (not deployed; CI
+builds it only for ``base-ui``'s Playwright suite):
 
 .. code-block:: bash
 
@@ -196,17 +210,22 @@ Adding a shared component
 
 1. Add the source under ``src/`` (components in ``src/components/``, plain
    helpers in ``src/utils/``).
-2. Export it from ``src/index.ts``, the main entry — unless it pulls the
-   optional ``@koumoul/vjsf`` peer, in which case it belongs on the
-   ``./workflow-execution`` subpath entry (``src/workflowExecution.ts``)
-   instead, so views that do not need ``vjsf`` never have to install it.
-3. Add a ``*.stories.ts`` next to it so it shows up in Storybook.
-4. ``npm run build``.
+2. Keep a component's own CSS in a scoped ``<style>`` block. The library
+   build collects the main entry's blocks into ``dist/index.css``, exported as
+   ``@kaapana/base-ui/style.css``, which every view imports once (see
+   *Consuming from a view*), so a new styled component needs no further
+   setup.
+3. Export it from ``src/index.ts``, the main entry — unless it pulls an
+   optional peer such as ``@koumoul/vjsf``; then it gets its own subpath
+   entry, like ``./workflow-execution`` (``src/workflowExecution.ts``), so
+   views that do not need that peer never have to install it.
+4. Add a ``*.stories.ts`` next to it so it shows up in Storybook.
+5. ``npm run build``.
 
 Keep every runtime dependency in ``peerDependencies`` (never
 ``dependencies``): the library must always run against the consumer's copies.
 A new peer must be added to the ``resolve.dedupe`` list of every consumer at
-the same time — see the warning below.
+the same time — see the note below.
 The package is ``private`` and never published — it is consumed only through
 the ``file:`` link described next, so there is no registry versioning to
 manage.
@@ -232,6 +251,16 @@ any package:
 .. code-block:: typescript
 
    import { postViewDirty, useShellSettings } from '@kaapana/base-ui'
+
+Every view also imports the library's stylesheet once, next to
+``vuetify/styles``. It holds the styles of ``base-ui``'s own components, and
+nothing loads it automatically:
+
+.. code-block:: typescript
+
+   import 'vuetify/styles'
+   import '@mdi/font/css/materialdesignicons.css'
+   import '@kaapana/base-ui/style.css'
 
 The view's ``vite.config.ts`` **must** dedupe **all** of the peer dependencies —
 ``dist/`` externalizes every one of them, so an omitted name is a build failure,
@@ -259,12 +288,14 @@ authoritative list lives in ``services/base/base-ui/docker/files/README.md``.
 .. warning::
 
    Because every view pulls ``base-ui`` in through this ``file:`` link, a
-   change to ``base-ui``'s ``package.json`` **dependencies** invalidates
-   *every* consumer's ``package-lock.json``. ``npm ci`` then **fails** in all
-   view image builds until each consumer lockfile is regenerated — run
-   ``npm install`` in every consumer's ``docker/files`` with the
-   container-pinned ``npm@11.16.0`` and commit the updated lockfiles alongside
-   the ``base-ui`` change.
+   change to ``base-ui``'s ``package.json`` **dependencies** leaves a stale
+   copy of them in *every* consumer's ``package-lock.json``. ``npm ci`` does
+   not check that copy, so it still passes and no lockfile has to be
+   regenerated. A new **peer** dependency is the exception: ``npm ci`` does
+   not install it for the views, so their image builds **fail** until each
+   consumer has it — run ``npm install <peer>`` in every consumer's
+   ``docker/files`` with the container-pinned ``npm@11.16.0``, add it to the
+   ``dedupe`` list and commit both alongside the ``base-ui`` change.
 
 Docker build chain
 ------------------
@@ -361,10 +392,16 @@ run them.
 
 Each suite starts its app's own Vite server (the dev server locally, a
 ``preview`` of the production build in CI) on a fixed per-app port —
-``portal-ui`` on 4300, the views on 4301–4309 — so all suites can run in
-parallel on one machine. Run a suite from the view's ``docker/files``
-directory with ``npx playwright test`` (build ``base-ui`` first if the view
-consumes it). CI runs the same suites in the ``ui_e2e_tests`` matrix job.
+``portal-ui`` on 4300, the views on 4301–4309, ``base-ui`` on 4310 — so all
+suites can run in parallel on one machine. Run a suite from the view's
+``docker/files`` directory with ``npx playwright test`` (build ``base-ui``
+first if the view consumes it). CI runs the same suites in the ``ui_e2e_tests`` matrix job.
+
+``base-ui`` has a Playwright suite too. It drives the Storybook stories (the
+dev server locally, a static build in CI) and tests plain functions such as
+the OPA policy check without a browser. Run it with ``npx playwright test``
+from ``services/base/base-ui/docker/files``; CI runs it as the ``base-ui``
+entry of ``ui_e2e_tests``.
 
 ``portal-ui`` additionally ships vitest unit suites under
 ``src/**/__tests__`` for the pieces that are awkward to reach through the

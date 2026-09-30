@@ -1,0 +1,203 @@
+import { expect, type Page } from '@playwright/test'
+import {
+  defaultMockData,
+  installMockBackend,
+  VIEW_PATH,
+  type AvailableVersionMock,
+  type ExtensionMock,
+  type MockData,
+} from './mock-backend'
+
+// Shared vocabulary for the specs: how to boot the view, how to build a
+// catalogue row, and how to observe the kube-helm calls. Everything here is
+// behaviour-neutral; the specs own the assertions.
+
+/* ------------------------------------------------------------- backend --- */
+
+export const HELM = {
+  extensions: /\/kube-helm-api\/extensions(\?.*)?$/,
+  install: '/kube-helm-api/helm-install-chart',
+  uninstall: '/kube-helm-api/helm-delete-chart',
+  update: '/kube-helm-api/update-extensions',
+  importContainer: '/kube-helm-api/import-container',
+  upload: '/kube-helm-api/filepond-upload',
+} as const
+
+/** A FastAPI-style failure body, as kube-helm and aii raise them. */
+export function serverError(detail: string, status = 500) {
+  return { status, contentType: 'application/json', body: JSON.stringify({ detail }) }
+}
+
+/** Make every call matching `url` fail from now on. */
+export function failRoute(page: Page, url: string | RegExp, detail: string, status = 500) {
+  const pattern = typeof url === 'string' ? `**${url}*` : url
+  return page.route(pattern, (r) => r.fulfill(serverError(detail, status)))
+}
+
+/** Resolves with the JSON body of the next POST to `url`. */
+export function nextPost(page: Page, url: string): Promise<any> {
+  return page
+    .waitForRequest((r) => r.url().includes(url) && r.method() === 'POST')
+    .then((r) => r.postDataJSON())
+}
+
+/** Counts requests to `url` from now on; call the returned function to read. */
+export function countRequests(page: Page, url: string): () => number {
+  let count = 0
+  page.on('request', (r) => {
+    if (r.url().includes(url)) count++
+  })
+  return () => count
+}
+
+/** Collects uncaught page errors from now on. */
+export function collectPageErrors(page: Page): string[] {
+  const errors: string[] = []
+  page.on('pageerror', (e) => errors.push(String(e)))
+  return errors
+}
+
+/* --------------------------------------------------------------- data ---- */
+
+const readyDeployment = (releaseName: string) => ({
+  deployment_id: releaseName,
+  helm_status: 'deployed',
+  kube_status: 'Running',
+  links: [],
+  ready: true,
+})
+
+/** A version with one healthy deployment. */
+export function deployed(releaseName: string): AvailableVersionMock {
+  return { deployments: [readyDeployment(releaseName)] }
+}
+
+/**
+ * A catalogue row with sensible defaults: single-install, stable, CPU,
+ * not installed, one version. Override what the test is about.
+ */
+export function extension(
+  overrides: Partial<ExtensionMock> & { releaseName: string },
+): ExtensionMock {
+  const version = overrides.version ?? '1.0.0'
+  const name = overrides.name ?? overrides.releaseName
+  return {
+    name,
+    chart_name: name,
+    version,
+    versions: [version],
+    available_versions: { [version]: { deployments: [] } },
+    multiinstallable: 'no',
+    kind: 'application',
+    experimental: 'no',
+    resourceRequirement: 'cpu',
+    successful: null,
+    installed: 'no',
+    description: '',
+    display_name: overrides.releaseName,
+    keywords: ['kaapana-application'],
+    ...overrides,
+  }
+}
+
+/** The default catalogue with its extension list replaced. */
+export function catalogue(extensions: ExtensionMock[]): MockData {
+  return { ...defaultMockData, extensions }
+}
+
+/* --------------------------------------------------------------- view ----- */
+
+/**
+ * Boot the view against the mock backend and wait until the first load has
+ * landed: the first row when there is one, the table otherwise.
+ * `routes` runs after the mock backend is installed and before navigation,
+ * for overrides that must win over the defaults (later routes win).
+ */
+export async function openView(
+  page: Page,
+  data: MockData = defaultMockData,
+  options: { seedSettings?: boolean; routes?: (page: Page) => Promise<unknown> } = {},
+) {
+  await installMockBackend(page, data, { seedSettings: options.seedSettings })
+  await options.routes?.(page)
+  await page.goto(VIEW_PATH)
+  const first = data.extensions[0]
+  if (first) {
+    await expect(row(page, first.display_name)).toBeVisible()
+  } else {
+    await expect(page.getByRole('table')).toBeVisible()
+  }
+}
+
+/** The table row for an extension, by display name. */
+export function row(page: Page, displayName: string) {
+  return page.getByRole('row', { name: displayName })
+}
+
+/** The dialog that is currently open. */
+export function dialog(page: Page) {
+  return page.getByRole('dialog')
+}
+
+/** The transient notifications currently on screen. */
+export function toasts(page: Page) {
+  return page.locator('.vue-notification-wrapper')
+}
+
+/**
+ * Pass a confirmation by its confirming button, which always names the action
+ * ("Uninstall extension", "Download"), never "OK".
+ */
+export async function confirmAction(page: Page, name: string) {
+  const button = dialog(page).getByRole('button', { name, exact: true })
+  await expect(button, `no confirm button labelled "${name}"`).toBeVisible({ timeout: 5_000 })
+  await button.click()
+  await dialog(page).waitFor({ state: 'hidden' })
+}
+
+/**
+ * Press Escape until `settled` holds. Vuetify honours Escape only once its
+ * overlay stack has settled, which happens in a setTimeout after the dialog
+ * appears; under load a first Escape can be swallowed. Escape is idempotent
+ * here, so pressing again is safe and the outcome is what the test asserts.
+ */
+export async function pressEscapeUntil(page: Page, settled: () => Promise<boolean>) {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    await page.keyboard.press('Escape')
+    const deadline = Date.now() + 1_000
+    while (Date.now() < deadline) {
+      if (await settled()) return
+      await page.waitForTimeout(50)
+    }
+  }
+  throw new Error('Escape never took effect')
+}
+
+/** Dismiss the open dialog with Escape. */
+export async function dismissWithEscape(page: Page) {
+  await expect(dialog(page)).toBeVisible()
+  await pressEscapeUntil(page, () => dialog(page).isHidden())
+}
+
+/** Open the details dialog behind a failure notification. */
+export async function openFailureDetails(page: Page, title: string) {
+  const toast = toasts(page).filter({ hasText: title })
+  await expect(toast).toBeVisible()
+  await toast.click()
+  await expect(dialog(page).getByText(title, { exact: true })).toBeVisible()
+  return dialog(page)
+}
+
+/**
+ * Record every postMessage the view sends to its shell. Standalone, the
+ * shell is the page itself, so the messages land on the same window.
+ */
+export async function recordShellMessages(page: Page) {
+  await page.addInitScript(() => {
+    ;(window as any).__shellMessages = []
+    window.addEventListener('message', (event: MessageEvent) => {
+      ;(window as any).__shellMessages.push(event.data)
+    })
+  })
+  return () => page.evaluate(() => (window as any).__shellMessages as { type: string }[])
+}

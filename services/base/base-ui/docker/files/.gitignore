@@ -5,6 +5,10 @@ node_modules
 *.tsbuildinfo
 *storybook.log
 
+# Playwright e2e outputs
+/test-results
+/playwright-report
+
 # local env files
 .env.local
 .env.*.local

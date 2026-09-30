@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { getProjectBase, useAuthStore } from '@kaapana/base-ui'
-import { useCommonDataStore } from '@/stores/commonData'
+import { usePolicyStore } from '@/stores/policy'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -32,7 +32,7 @@ router.beforeEach(async (to) => {
   // The policy decides which admin-only controls the view renders, so load it
   // before the view mounts or they flash in and out. The store swallows its own
   // failures, and an unloaded policy hides them (fail closed).
-  await useCommonDataStore().getPolicyData()
+  await usePolicyStore().getPolicyData()
   return true
 })
 

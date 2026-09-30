@@ -21,6 +21,22 @@ deliberately only small, stable pieces.
 - `createKaapanaVuetify()`, `KaapanaVuetifyOptions` — builds the shared theme,
   icon configuration and platform fonts while allowing consumer extensions.
 - `kaapanaIcons`, `KaapanaIconName` — semantic names for shared action icons.
+- `checkAuthR(policyData, endpoint, user)`, `checkRoleAuthR(...)`, `PolicyData`,
+  `PolicyEndpoint`, `OpaUser` — the client-side check against the OPA policy
+  data (`GET /kaapana-backend/open-policy-data`), for hiding controls the
+  gateway would refuse. It sees role grants only, not claim rules, and it is
+  cosmetic: the gateway enforces the policy.
+- `ConfirmDialog` — the confirmation gate for destructive (`color="error"`)
+  and high-impact (`color="primary"`, the default) actions: `title`, `text`,
+  `confirmText`/`cancelText`; emits `confirm` / `cancel`. Cancel takes
+  initial focus; Escape and the backdrop cancel.
+- `ErrorDetailsDialog`, `apiErrorInfo(err)`, `formatApiErrorInfo(info)` — the
+  "technical detail behind a disclosure" half of the Errors guideline: the
+  status, request, backend message and request id of a failed call, in a
+  dialog that stays until closed and can be copied.
+- `apiErrorDetail(err)`, `apiErrorText(err, fallback)` — the backend's own
+  `detail` message, and a user-facing sentence built from it.
+- `HelpIcon` — a keyboard-focusable help button with a tooltip, for field help.
 - `useAuthStore`, `User` / `useProjectStore`, `Project` — the two Pinia stores
   every view registers.
 - `useShellSettings()` — follows the shell's UI settings (dark mode live, other
@@ -31,9 +47,12 @@ deliberately only small, stable pieces.
 ```ts
 import 'vuetify/styles'
 import '@mdi/font/css/materialdesignicons.css'
+import '@kaapana/base-ui/style.css'
 ```
 
-That is the whole list. In particular there is **no font import**: the platform
+That is the whole list for every view; a view that renders `WorkflowExecution`
+also imports its stylesheet (see below).
+In particular there is **no font import**: the platform
 typeface (Roboto, weights 300/400/500) is injected by `createKaapanaVuetify()`,
 so a view that uses the shared Vuetify configuration cannot ship the theme and
 forget the face.
@@ -55,6 +74,14 @@ injected sheet so the text travels in the same string as the base64 — a file i
 
 Changing the family is not possible through the theme, for the same reason it has
 to be shipped: it takes recompiling Vuetify's Sass through `$body-font-family`.
+
+Component styles do not travel that way. A component keeps its own CSS in a
+scoped `<style>` block, and the library build collects the main entry's blocks
+into `dist/index.css`, exported as `@kaapana/base-ui/style.css`. Every view
+imports it once, like `vuetify/styles` (above), so a new styled component needs
+no further setup. Nothing loads it automatically: a view without the import
+renders base-ui's components unstyled, without any error. The
+`./workflow-execution` entry has its own stylesheet (below).
 
 `vue`, `vuetify`, `axios`, `@kyvg/vue3-notification` and `pinia` are all
 peerDependencies and none of them is ever bundled; the consuming view provides
@@ -107,7 +134,8 @@ npm run build          # emits dist/ — what consumers import
 Then the usual per-view loop works unchanged from the view's `docker/files`:
 `npm ci && npm run dev`, `npx playwright test`, `npm run build`.
 
-Component development with Storybook (dev-only, not deployed, no CI job):
+Component development with Storybook (not deployed; CI builds it only for the
+Playwright suite):
 
 ```bash
 npm run storybook      # http://localhost:6006
@@ -115,6 +143,10 @@ npm run storybook      # http://localhost:6006
 
 New components: add under `src/`, export from `src/index.ts`, add a
 `*.stories.ts` beside it, `npm run build`.
+
+Tests: `npx playwright test` runs `tests/e2e` against the stories. The config
+starts Storybook on port 4310; plain functions such as the OPA check are tested
+without a browser. `npm run type-check` also checks the specs.
 
 ## Docker / kaapana-build
 

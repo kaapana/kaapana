@@ -264,6 +264,9 @@ accessible name.
     * - :code:`refresh`
       - :code:`mdi-refresh`
       - Reload or refresh current data
+    * - :code:`restart`
+      - :code:`mdi-restart`
+      - Run a finished or failed operation again
     * - :code:`save`
       - :code:`mdi-content-save`
       - Save changes
@@ -273,6 +276,9 @@ accessible name.
     * - :code:`start`
       - :code:`mdi-play`
       - Start or run an operation
+    * - :code:`stop`
+      - :code:`mdi-stop-circle-outline`
+      - Stop or abort a running operation
     * - :code:`success`
       - :code:`mdi-check-circle`
       - Indicate successful completion

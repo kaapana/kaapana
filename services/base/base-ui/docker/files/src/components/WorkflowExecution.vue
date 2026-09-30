@@ -776,7 +776,7 @@ function liftUnavailableFields(schemas: any): Record<string, UnavailableField[]>
 // are never part of the submitted form data itself.
 const SCHEMA_STRUCTURE_KEYS = new Set(["properties", "items", "allOf", "anyOf", "then", "else", "dependencies"]);
 
-// A required-field path looks like "<form>.properties.<prop>.properties.<nested>.required"
+// A required-field path looks like "form.properties.prop.properties.nested.required"
 // (schema keywords interleaved with the actual property names). Drop the
 // trailing "required" marker and every schema keyword, keeping only the form
 // name and the real, nested property path within it.

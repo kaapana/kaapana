@@ -104,6 +104,7 @@ Every stage toggle. Grouped as `[exec]` in the run form.
 |---|---|---|
 | `exec_unit_tests` | `true` | tests stage: unit tests + documentation build |
 | `exec_lint` | `true` | tests stage: ruff check + code quality report + helm chart lint |
+| `exec_mr_review` | `true` | .post stage: advisory AI review note on MRs with the `AI Review` label, or via the manual `mr_review_rerun`. The model is `MR_REVIEW_MODEL` (default `alias-code`), overridable by a project variable or in the manual run |
 | `exec_build` | `true` | build stage: full platform build |
 | `exec_security_scan` | `false` | trivy scan of the images this commit resolves to. A failed scan still publishes what it managed to check |
 | `exec_deploy` | `true` | deploy stage: deployment VM/target + platform installation |

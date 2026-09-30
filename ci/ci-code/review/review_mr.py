@@ -14,7 +14,7 @@ import requests
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger("mr_review")
 
-MODEL = "alias-fast"
+MODEL = os.getenv("MR_REVIEW_MODEL", "alias-code")
 MARKER = "<!-- kaapana-mr-review -->"
 INSTRUCTIONS = Path(__file__).with_name("instructions.md")
 DIFF_BUDGET = 200000

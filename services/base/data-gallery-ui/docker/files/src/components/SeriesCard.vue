@@ -1,7 +1,7 @@
 <template>
   <v-container class="pa-0 h-100" fluid>
     <v-card @click="onClick" height="100%" :id="seriesInstanceUID" class="seriesCard">
-      <v-img :src="src" aspect-ratio="1" @error="img_loading_error = true">
+      <v-img :src="src" aspect-ratio="1" class="thumbnail" @error="img_loading_error = true">
         <template v-slot:placeholder>
           <v-row
             class="fill-height ma-0"
@@ -264,9 +264,22 @@ get_data()
 </script>
 
 <style lang="scss" scoped>
+/* Thumbnails differ in shape, so the background behind them can show. Adjusting it to black, the thumbnails own background color, hides this. */
+.thumbnail {
+  background: #000;
+}
 .selected {
   background: rgb(var(--v-theme-primary)) !important;
   color: rgb(var(--v-theme-on-primary)) !important;
+}
+.selected::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 3px solid rgb(var(--v-theme-primary));
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 2;
 }
 /* The details button sits on the thumbnail, whose colours can be anything.
    A white icon on its own dark backdrop stays readable on every image, which

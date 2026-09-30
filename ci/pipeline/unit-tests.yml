@@ -325,7 +325,7 @@ ui_e2e_tests:
     # Apps consuming @kaapana/base-ui (an npm file: link) import its built
     # dist/ — build the library once before the app's own install/build.
     - |
-      if grep -q '"@kaapana/base-ui"' "$KAAPANA_DIR/$APP_DIR/package.json"; then
+      if [ "$APP" != "base-ui" ] && grep -q '"@kaapana/base-ui"' "$KAAPANA_DIR/$APP_DIR/package.json"; then
         (cd "$KAAPANA_DIR/services/base/base-ui/docker/files" && npm ci && npm run build)
       fi
     - cd "$KAAPANA_DIR/$APP_DIR"

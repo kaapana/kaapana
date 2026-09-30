@@ -24,7 +24,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "vite build && vue-tsc -p tsconfig.build.json",
+    "build": "npm run type-check && vite build && vue-tsc -p tsconfig.build.json",
     "type-check": "vue-tsc --noEmit && vue-tsc --noEmit -p tsconfig.e2e.json",
     "test:e2e": "playwright test",
     "storybook": "storybook dev -p 6006",

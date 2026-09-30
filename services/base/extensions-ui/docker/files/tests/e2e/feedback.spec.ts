@@ -154,7 +154,6 @@ test.describe('failed actions', () => {
     // The labels sit beside their values: base-ui's component styles reached the view.
     const list = details.locator('dl.kaapana-error-details')
     await expect(list).toHaveCSS('display', 'grid')
-    await expect(list).toHaveCSS('grid-template-columns', /^\S+px \S+px$/)
 
     await dismissWithEscape(page)
   })

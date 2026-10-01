@@ -4,6 +4,7 @@
   "semanticCommits": "enabled",
   "timezone": "Europe/Berlin",
   "minimumReleaseAge": "3 days",
+  "minimumReleaseAgeBehaviour": "timestamp-optional",
   "dependencyDashboardApproval": true,
   "prConcurrentLimit": 5,
   "prHourlyLimit": 2,
@@ -168,7 +169,7 @@
       ]
     },
     // Coverage: tell the reviewer which tests exercise the changed file (unit, e2e, integration, pipeline).
-    // Files not listed here fall into "Coverage: none" and must be tested manually before merging.
+    // Updates without a Coverage label have no automated tests and must be tested manually before merging.
     {
       "matchFileNames": [
         "lib/task_api/**",
@@ -186,6 +187,7 @@
         "services/data-separation/access-information-interface/**",
         "data-processing/kaapana-plugin/**"
       ],
+      "matchManagers": ["pip_requirements", "pep621"],
       "addLabels": ["Coverage: unit"],
       "prBodyNotes": [
         "**Test coverage of `{{{packageFile}}}`: unit tests.** The MR pipeline runs them in the `tests` stage."
@@ -205,6 +207,7 @@
         "services/base/workflow-execution-ui/**",
         "services/base/workflow-list-ui/**"
       ],
+      "matchManagers": ["npm"],
       "addLabels": ["Coverage: e2e"],
       "prBodyNotes": [
         "**Test coverage of `{{{packageFile}}}`: UI tests.** The `ui_e2e_tests` job runs its Playwright tests against a mocked backend."
@@ -229,49 +232,6 @@
       "addLabels": ["Coverage: pipeline"],
       "prBodyNotes": [
         "**Test coverage of `{{{packageFile}}}`: CI pipeline.** The MR pipeline uses this dependency itself, so a green pipeline tests it."
-      ]
-    },
-    {
-      "matchFileNames": [
-        "!lib/task_api/**",
-        "!lib/kaapana_containers/**",
-        "!lib/kaapana_extensions/**",
-        "!lib/kaapana_client/**",
-        "!services/base/workflow-api/**",
-        "!services/base/portal-api/**",
-        "!services/base/kaapana-backend/**",
-        "!services/base/extension-manager-service/**",
-        "!services/base/notification-service/**",
-        "!services/kaapana-admin/auth-backend/**",
-        "!services/kaapana-admin/keycloak/keycloak-setup/**",
-        "!services/data-separation/dicom-web-filter/**",
-        "!services/data-separation/access-information-interface/**",
-        "!data-processing/kaapana-plugin/**",
-        "!services/base/base-ui/**",
-        "!services/base/portal-ui/**",
-        "!services/base/app-ui/**",
-        "!services/base/data-upload-ui/**",
-        "!services/base/extensions-ui/**",
-        "!services/base/data-gallery-ui/**",
-        "!services/base/home-ui/**",
-        "!services/base/results-ui/**",
-        "!services/base/federated-ui/**",
-        "!services/base/workflow-execution-ui/**",
-        "!services/base/workflow-list-ui/**",
-        "!data-processing/processing-pipelines/advanced-collect-metadata/**",
-        "!data-processing/processing-pipelines/body-and-organ-analysis/**",
-        "!data-processing/processing-pipelines/bodypartregression/**",
-        "!data-processing/processing-pipelines/nnunet/**",
-        "!data-processing/processing-pipelines/radiomics/**",
-        "!data-processing/processing-pipelines/total-segmentator-v2/**",
-        "!ci/**",
-        "!.gitlab-ci.yml",
-        "!.pre-commit-config.yaml",
-        "!tests/**"
-      ],
-      "addLabels": ["Coverage: none"],
-      "prBodyNotes": [
-        "**Test coverage of `{{{packageFile}}}`: none.** No automated tests cover this component, apart from the build and the platform deployment. Test it manually before merging, and write the result in the MR."
       ]
     }
   ]

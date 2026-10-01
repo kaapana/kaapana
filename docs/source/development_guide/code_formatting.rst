@@ -2,6 +2,71 @@
 
 Code Formatting
 **********************************
+
+Kaapana checks every Python, TypeScript and Vue file with two kinds of tools.
+Every one of them follows the same pattern: one configuration at the
+repository root, one pinned tool version, a pre-commit hook that fixes what it
+can on commit, and a CI job that checks the whole repository with the same
+tool and configuration.
+
+Formatter and linter
+---------------------
+
+A **formatter** decides how code looks: indentation, line breaks, quotes,
+semicolons, trailing commas. It rewrites the file and never changes what the
+code does, so everything it reports is fixed automatically. There is nothing
+to discuss in review: the formatter's output is the style.
+
+A **linter** decides whether code is likely wrong or hard to maintain: an
+unused variable or import, an undefined name, :code:`any` where a type belongs,
+a Vue template that cannot work. Some findings are fixed automatically (for
+example sorting imports or :code:`let` → :code:`const`); the rest must be
+fixed by hand.
+
+.. list-table::
+   :header-rows: 1
+
+   * -
+     - Python
+     - TypeScript / Vue
+   * - Formatter
+     - :code:`ruff format`
+     - Prettier
+   * - Linter
+     - :code:`ruff check`
+     - ESLint
+   * - Configuration
+     - :code:`ruff.toml`
+     - :code:`.prettierrc.json`, :code:`eslint.config.mjs`
+   * - Code quality report
+     - :code:`ci/ci-code/lint/ruff-quality.toml`
+     - :code:`ci/ci-code/lint/eslint-quality.config.mjs`
+   * - Pre-commit hook
+     - :code:`ruff-check`, :code:`ruff-format`
+     - :code:`ui-lint`
+   * - CI job
+     - :code:`lint: [ruff]`
+     - :code:`lint: [ui]`
+
+The linters leave formatting to the formatters: ESLint's formatting rules are
+switched off, so ESLint and Prettier never disagree.
+
+Every linter has two rulesets. The **enforced** ruleset holds the rules whose
+findings are bugs; the pre-commit hook and CI fail on it. The **advisory**
+ruleset adds the rules the codebase does not meet yet; CI reports its findings
+in the merge request Code Quality widget and never fails on them. Formatting
+is always enforced.
+
+One-time setup
+---------------
+From the repository root:
+
+.. code-block:: bash
+
+    pip install ruff pre-commit
+    npm ci                  # ESLint and Prettier, into the root node_modules
+    pre-commit install      # run the hooks on every commit
+
 Ruff
 ---------------------
 
@@ -38,18 +103,19 @@ Install the `Ruff extension <https://marketplace.visualstudio.com/items?itemName
 The extension reads :code:`ruff.toml` from the repository root, so the editor
 formats exactly the way the pre-commit hook and the :code:`lint: [ruff]` job do.
 
-Usage
-------
+The whole codebase
+-------------------
 Format and lint the whole repository from its root:
 
 .. code-block:: bash
 
-    ruff format .          # rewrite files
-    ruff check --fix .     # sort imports, drop unused ones, report the rest
+    ruff format .          # formatter: rewrite files
+    ruff check --fix .     # linter: sort imports, drop unused ones, report the rest
 
-    ci/ci-code/lint/ruff_lint.sh   # exactly what lint: [ruff] runs: report, change nothing
+    ruff format --check --diff .   # what CI runs: report, change nothing
+    ruff check .
 
-Both are safe to run repeatedly. Pass a path to limit them to one file or
+All are safe to run repeatedly. Pass a path to limit them to one file or
 directory.
 
 Pre-commit hooks
@@ -84,6 +150,11 @@ local git use that list:
 
     git config blame.ignoreRevsFile .git-blame-ignore-revs
 
+Rules
+------
+:code:`ruff check` enforces pycodestyle errors, pyflakes (unused imports and
+variables, undefined names) and import order.
+
 Code quality report
 --------------------
 The :code:`lint: [ruff]` job also runs a wider ruleset,
@@ -96,22 +167,210 @@ the merge request Code Quality widget. The same run locally:
     ruff check --config ci/ci-code/lint/ruff-quality.toml .                # the findings
     ruff check --config ci/ci-code/lint/ruff-quality.toml --select UP006 --fix .   # one rule
 
+ESLint / Prettier
+---------------------
+
+All TypeScript and Vue code in Kaapana is formatted with
+`Prettier <https://prettier.io/>`_ and linted with
+`ESLint <https://eslint.org/>`_. The repository root holds the whole
+toolchain, the same way :code:`ruff.toml` does for Python:
+
+- :code:`package.json` and :code:`package-lock.json` pin Prettier, ESLint and
+  the ESLint plugins. They hold nothing else; no app depends on them.
+- :code:`.prettierrc.json` is the one Prettier style: no semicolons, single
+  quotes, 100 character lines.
+- :code:`eslint.config.mjs` is the one ESLint configuration for every app.
+- :code:`.prettierignore` and the ignores in :code:`eslint.config.mjs` keep
+  build output and third-party code out.
+
+The apps carry no lint configuration or lint dependencies of their own, so a
+new app is covered as soon as its files are committed.
+
+Installation
+--------------
+From the repository root, once and again after every change to
+:code:`package-lock.json`:
+
+.. code-block:: bash
+
+    npm ci
+
+This needs Node.js 20.19 or newer. The pre-commit hook and
+:code:`ci/ci-code/lint/ui_lint.sh` run :code:`npm ci` themselves when
+:code:`node_modules` is missing or older than the lockfile.
+
+VS Code
+--------
+
+Install the `Prettier <https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode>`_
+(:code:`esbenp.prettier-vscode`),
+`ESLint <https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint>`_
+(:code:`dbaeumer.vscode-eslint`) and
+`Vue (Official) <https://marketplace.visualstudio.com/items?itemName=Vue.volar>`_
+(:code:`Vue.volar`) extensions, then in your :code:`.vscode/settings.json`:
+
+.. code-block:: json
+
+    {
+      "[typescript][vue]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+          "source.fixAll.eslint": "explicit"
+        }
+      }
+    }
+
+On save, Prettier formats the file and ESLint applies its automatic fixes; the
+remaining ESLint findings are underlined in the editor. Open the repository
+root as the workspace folder and run :code:`npm ci` there first: both
+extensions take their configuration and their tool version from the root, so
+the editor formats and lints exactly the way the pre-commit hook and the
+:code:`lint: [ui]` job do.
+
+The whole codebase
+-------------------
+Format and lint the whole repository from its root:
+
+.. code-block:: bash
+
+    npm run format         # formatter: prettier --write on every .ts/.mts/.tsx/.vue file
+    npm run lint           # linter: eslint --fix, fixes what it safely can, reports the rest
+
+    npm run format:check   # report, change nothing
+    npm run lint:check
+    npm run lint:quality   # the advisory ruleset, never enforced
+    ci/ci-code/lint/ui_lint.sh   # exactly what CI runs: both checks on the committed files
+
+All are safe to run repeatedly. For one file or directory, call the tools
+directly:
+
+.. code-block:: bash
+
+    npx prettier --write "services/base/portal-ui/**/*.{ts,mts,tsx,vue}"
+    npx eslint --fix services/base/portal-ui
+
+.. note::
+  Do not run :code:`npx prettier --write .`: without a file pattern Prettier
+  also rewrites every YAML, JSON and Markdown file in the repository.
+  :code:`npm run format` limits it to TypeScript and Vue.
+
 Rules
 ------
-:code:`ruff check` enforces pycodestyle errors, pyflakes (unused imports and
-variables, undefined names) and import order.
+:code:`eslint.config.mjs` enforces the rules whose findings are bugs:
+
+- :code:`eslint-plugin-vue` *essential*: errors that break a Vue component,
+  such as an invalid :code:`v-for`, a mutated prop or a :code:`ref` used
+  without :code:`.value`. :code:`valid-v-slot` allows Vuetify's
+  :code:`#item.<key>` slot names. Unused components and template variables and
+  single-word component names are left to the advisory ruleset.
+- A few ESLint core rules: :code:`no-debugger`, :code:`no-dupe-else-if`,
+  :code:`no-duplicate-case`, :code:`no-self-assign`,
+  :code:`no-unsafe-finally`, :code:`use-isnan`, :code:`valid-typeof`.
+- Formatting rules are off: Prettier owns formatting.
+
+Code quality report
+--------------------
+The :code:`lint: [ui]` job also runs a wider ruleset,
+:code:`ci/ci-code/lint/eslint-quality.config.mjs`, that never fails a pipeline, and
+reports it in the merge request Code Quality widget. It adds:
+
+- :code:`typescript-eslint` *recommended*: unused variables, :code:`any`,
+  :code:`prefer-const` and similar. No rule needs type information, so ESLint
+  never resolves an app's dependencies.
+- :code:`@vitest/eslint-plugin` for :code:`src/**/__tests__` and
+  :code:`eslint-plugin-playwright` for :code:`e2e/` and :code:`tests/ui`.
+
+The same run locally:
+
+.. code-block:: bash
+
+    npm run lint:quality
+    npx eslint --config ci/ci-code/lint/eslint-quality.config.mjs services/base/portal-ui
+
+Each rule is documented on its own page, linked from the Code Quality widget.
+
+Pre-commit hooks
+-----------------
+
+.. important::
+  Install the hooks before committing — CI runs the same checks and the
+  :code:`lint` job fails on any difference:
+
+  .. code-block:: bash
+
+      pip install pre-commit && pre-commit install
+
+The hooks live in :code:`.pre-commit-config.yaml` and run on the staged files
+only:
+
+- **ruff-check** and **ruff-format** lint and format Python files.
+  :code:`ruff-check` applies the safe fixes of the enforced ruleset.
+  pre-commit installs the pinned Ruff version into its own environment.
+- **ui-lint** runs :code:`ci/ci-code/lint/ui_lint.sh` on staged TypeScript
+  and Vue files: :code:`eslint --fix`, then :code:`prettier --write`. It
+  needs :code:`node` and :code:`npm` on your :code:`PATH`; the script
+  installs the root toolchain on first use.
+- **helm-lint** runs :code:`kaapana-build --lint-only` when a commit changes a
+  chart, the same as the :code:`helm_lint` CI job. It needs :code:`helm` and
+  its kubeval plugin.
+
+When a hook changes a file, the commit stops: review the change, stage it and
+commit again. When a hook reports a linter finding it cannot fix, fix it by
+hand and commit again.
+
+Run the hooks without committing:
+
+.. code-block:: bash
+
+    pre-commit run                     # on the staged files
+    pre-commit run --all-files         # on the whole repository
+    pre-commit run ui-lint --all-files # one hook only
+
+Skip hooks for a single commit with :code:`SKIP`, a comma-separated list of hook
+ids:
+
+.. code-block:: bash
+
+    SKIP=ui-lint,helm-lint git commit -m "..."
+
+:code:`SKIP` applies to :code:`pre-commit run` too. :code:`git commit --no-verify`
+skips every hook, but CI still runs the enforced checks.
 
 CI
 ---
 The :code:`lint` job in :code:`ci/pipeline/lint.yml` is a matrix with one
-entry per linter, shown as one :code:`lint` group in the pipeline. Every entry
-runs :code:`ci/ci-code/lint/<linter>_lint.sh`, which installs its own tool and
-runs the same checks locally and in CI. Each entry publishes its advisory
-findings to the merge request Code Quality widget and fails the pipeline on
-formatting drift or an enforced rule. :code:`ruff_lint.sh` checks that its
-:code:`RUFF_VERSION` matches the :code:`rev` of the ruff hook in
-:code:`.pre-commit-config.yaml`, so the versions cannot drift. Helm charts are
-checked by the separate :code:`helm_lint` job.
+entry per linter, shown as one :code:`lint` group in the pipeline. Each entry
+publishes its advisory findings to the merge request Code Quality widget;
+GitLab merges the reports of all entries into one widget. Each entry fails
+the pipeline on formatting drift or an enforced rule.
+
+Until the TypeScript/Vue codebase is formatted and meets the enforced ruleset,
+:code:`lint: [ui]` is allowed to fail and only warns. Helm charts are checked
+by the separate :code:`helm_lint` job.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Job
+     - Checks
+     - Code Quality report
+     - Run it locally
+   * - :code:`lint: [ruff]`
+     - :code:`ruff format --check`, :code:`ruff check`
+     - the wider :code:`ci/ci-code/lint/ruff-quality.toml` ruleset, advisory
+     - :code:`ruff format --check --diff . && ruff check .`
+   * - :code:`lint: [ui]`
+     - :code:`prettier --check`, :code:`eslint`
+     - the wider :code:`ci/ci-code/lint/eslint-quality.config.mjs` ruleset, advisory
+     - :code:`ci/ci-code/lint/ui_lint.sh`
+
+Every entry runs :code:`ci/ci-code/lint/<linter>_lint.sh`, which installs its own
+tool (into :code:`~/.cache/kaapana-ci`, or as a pip or npm package) and runs the
+same checks locally and in CI. The versions cannot drift between your machine
+and CI: the ruff script checks that its :code:`RUFF_VERSION` matches the
+:code:`rev` of its hook in :code:`.pre-commit-config.yaml`, and ESLint and Prettier come from the root
+:code:`package-lock.json` everywhere.
 
 To add a linter, add its name to the :code:`LINTER` matrix and a matching
 :code:`ci/ci-code/lint/<linter>_lint.sh`; if the tool can produce a Code Quality

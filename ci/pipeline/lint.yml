@@ -19,6 +19,9 @@ lint:
     - $[[ inputs.runner_tag ]]
   image: $CI_BASE_IMAGE
   rules:
+    - if: '"$[[ inputs.exec_lint ]]" == "true" && $LINTER == "ui"'
+      when: on_success
+      allow_failure: true
     - if: '"$[[ inputs.exec_lint ]]" == "true"'
       when: on_success
     - when: never
@@ -26,6 +29,7 @@ lint:
     matrix:
       - LINTER:
           - ruff
+          - ui
   script:
     - ci/ci-code/lint/${LINTER}_lint.sh
   artifacts:

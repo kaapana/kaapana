@@ -70,15 +70,18 @@ The CI-specific parts:
 | [`ci/ci-code/lint/eslint-quality.config.mjs`](ci-code/lint/eslint-quality.config.mjs) | advisory: adds typescript-eslint *recommended*, Vitest, Playwright | the Code Quality report of `lint: [ui]` |
 | [`.hadolint.yaml`](../.hadolint.yaml) | enforced: the *error* rules for a broken Dockerfile; advisory: every other rule, minus `DL3007`, `DL3022`, `DL3048` | pre-commit, and `lint: [hadolint]` with its Code Quality report |
 | [`.kube-linter.yaml`](../.kube-linter.yaml) | enforced: `duplicate-env-var`, `dangling-service`, `readiness-port` | pre-commit, on the changed charts |
-| [`ci/ci-code/lint/kube-linter-quality.yaml`](ci-code/lint/kube-linter-quality.yaml) | advisory: kube-linter's default checks plus the enforced ones | the Code Quality report of `lint: [helm]`, and pre-commit with `helm_lint.sh --strict` |
+| [`ci/ci-code/lint/kube-linter-quality.yaml`](ci-code/lint/kube-linter-quality.yaml) | advisory: kube-linter's default checks plus the enforced ones | pre-commit on the changed charts, and the Code Quality report of `lint: [helm]` |
 
 [`ci/pipeline/lint.yml`](pipeline/lint.yml) has one `lint` job, a matrix over
 `LINTER` (`ruff`, `ui`, `hadolint`, `helm`), gated by `exec_lint`; each entry runs
 `ci/ci-code/lint/<linter>_lint.sh`, which installs its own tool. Each entry publishes its advisory findings as
 `gl-code-quality-report.json` to the MR Code Quality widget, and fails on
-formatting drift or an enforced rule. The `helm-lint` pre-commit hook always checks the whole
-tree but only fails on findings in the charts being committed; other charts'
-findings are counted, not failing. `lint: [ui]` is
+formatting drift or an enforced rule. The default pre-commit hooks are strict:
+they also enforce the advisory rules, on the staged files only. The `helm-lint`
+hook always checks the whole tree but only fails on findings in the charts being
+committed; other charts' findings are counted, not failing. The hooks are not
+meant for `--all-files` runs; the `ci/ci-code/lint/<linter>_lint.sh` scripts check
+the whole repository the way CI does. `lint: [ui]` is
 `allow_failure: true` until the TypeScript/Vue codebase is formatted and
 meets the enforced ruleset. `RUFF_VERSION` and
 `HADOLINT_VERSION` (in their scripts) must match their hooks' `rev` in

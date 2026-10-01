@@ -68,9 +68,10 @@ switched off, so ESLint and Prettier never disagree.
 
 Every linter has two rulesets. The **enforced** ruleset holds the rules whose
 findings are bugs; the pre-commit hook and CI fail on it. The **advisory**
-ruleset adds the rules the codebase does not meet yet; CI reports its findings
-in the merge request Code Quality widget and never fails on them. Formatting
-is always enforced.
+ruleset adds the rules the codebase does not meet yet. The pre-commit hook
+enforces it on the files you change, so the backlog shrinks file by file. CI
+reports its findings in the merge request Code Quality widget and never fails
+on them. Formatting is always enforced.
 
 One-time setup
 ---------------
@@ -197,12 +198,12 @@ What fails depends on where the check runs:
      - every invalid manifest
    * - kube-linter
      - never, Code Quality report only
-     - the enforced ruleset, in the changed charts
+     - both rulesets, in the changed charts
      - never
 
 To run the hook's check by hand, pass the changed files:
-:code:`ci/ci-code/lint/helm_lint.sh <files>`. With :code:`--strict`, the advisory
-kube-linter ruleset fails too. To silence one kube-linter finding
+:code:`ci/ci-code/lint/helm_lint.sh --strict <files>`. Without :code:`--strict`,
+only the enforced kube-linter ruleset fails. To silence one kube-linter finding
 where it is intended, annotate the object with
 :code:`ignore-check.kube-linter.io/<check>: "<reason>"`.
 
@@ -221,8 +222,8 @@ The hooks live in :code:`.pre-commit-config.yaml`. On commit they run one
 after the other:
 
 1. **ruff** pins the same Ruff version the CI job uses. On commit it formats
-   the staged files and applies the safe lint fixes. When it changes
-   something, review the result and commit again.
+   the staged files, applies the safe lint fixes and fails on the advisory
+   ruleset. When it changes something, review the result and commit again.
 
 2. **helm-lint** runs :code:`kaapana-build --lint-only` when the commit
    changes a chart. It runs the same checks as the :code:`lint: [helm]` CI
@@ -434,8 +435,9 @@ trigger on every image; :code:`.hadolint.yaml` ignores them:
   :code:`BUILD_IGNORE` are the uppercase keys :code:`kaapana-build` reads.
 
 :code:`.hadolint.yaml` sets :code:`failure-threshold: error` and raises the
-rules that catch a broken Dockerfile to *error*; only these fail the
-pre-commit hook and :code:`lint: [hadolint]`:
+rules that catch a broken Dockerfile to *error*; only these fail
+:code:`lint: [hadolint]` (the pre-commit hook fails on every finding in the
+staged Dockerfiles):
 
 - :code:`DL1000`: the Dockerfile cannot be parsed.
 - :code:`DL3000`: :code:`WORKDIR` is not an absolute path.
@@ -473,21 +475,42 @@ The hooks live in :code:`.pre-commit-config.yaml` and run on the staged files
 only:
 
 - **ruff-check** and **ruff-format** lint and format Python files.
-  :code:`ruff-check` applies the safe fixes of the enforced ruleset.
+  :code:`ruff-check` uses the advisory ruleset
+  :code:`ci/ci-code/lint/ruff-quality.toml` and applies its safe fixes.
   pre-commit installs the pinned Ruff version into its own environment.
-- **ui-lint** runs :code:`ci/ci-code/lint/ui_lint.sh` on staged TypeScript
-  and Vue files: :code:`eslint --fix`, then :code:`prettier --write`. It
-  needs :code:`node` and :code:`npm` on your :code:`PATH`; the script
-  installs the root toolchain on first use.
-- **helm-lint** runs :code:`ci/ci-code/lint/helm_lint.sh` on the staged chart
-  files. It always checks the whole chart tree, but only findings in the
+- **ui-lint** runs :code:`ci/ci-code/lint/ui_lint.sh --strict` on staged
+  TypeScript and Vue files: :code:`eslint --fix` with the advisory ruleset,
+  then :code:`prettier --write`. It needs :code:`node` and :code:`npm` on your
+  :code:`PATH`; the script installs the root toolchain on first use.
+- **helm-lint** runs :code:`ci/ci-code/lint/helm_lint.sh --strict` on the staged
+  chart files. It always checks the whole chart tree, but only findings in the
   charts you changed fail the commit: helm lint warnings, invalid manifests and
-  the findings of the enforced kube-linter ruleset. Findings in other charts are only
+  the findings of both kube-linter rulesets. Findings in other charts are only
   counted; the full lists are in :code:`helm-reports/` and
   :code:`gl-code-quality-report.json`. It needs :code:`helm`; the script
   downloads kubeconform and kube-linter.
-- **hadolint** lints staged Dockerfiles and fails on the enforced (error) rules.
+- **hadolint** lints staged Dockerfiles and fails on every finding
+  (:code:`--failure-threshold style`).
   pre-commit installs the pinned hadolint version into its own environment.
+
+Strict hooks
+^^^^^^^^^^^^
+
+The hooks are strict: they enforce the advisory rulesets on the staged files,
+which keeps new code-quality findings out of the repository and shrinks the
+backlog file by file as files are touched. CI only reports the advisory
+findings.
+
+Do not run the hooks over the whole repository with :code:`--all-files`; the
+backlog would fail them. To check or clean up the whole repository, use the
+commands of each linter's *The whole codebase* section, or the CI scripts,
+which enforce only what CI enforces:
+
+.. code-block:: bash
+
+    ruff check --fix . && ruff format .   # Python: fix what can be fixed
+    npm run lint && npm run format        # TypeScript/Vue: fix what can be fixed
+    ci/ci-code/lint/ruff_lint.sh          # exactly what a CI entry checks, here lint: [ruff]
 
 When a hook changes a file, the commit stops: review the change, stage it and
 commit again. When a hook reports a linter finding it cannot fix, fix it by
@@ -498,8 +521,7 @@ Run the hooks without committing:
 .. code-block:: bash
 
     pre-commit run                     # on the staged files
-    pre-commit run --all-files         # on the whole repository
-    pre-commit run ui-lint --all-files # one hook only
+    pre-commit run ui-lint             # one hook only
 
 Skip hooks for a single commit with :code:`SKIP`, a comma-separated list of hook
 ids:

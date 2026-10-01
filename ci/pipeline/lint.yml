@@ -30,6 +30,7 @@ lint:
       - LINTER:
           - ruff
           - ui
+          - hadolint
   script:
     - ci/ci-code/lint/${LINTER}_lint.sh
   artifacts:

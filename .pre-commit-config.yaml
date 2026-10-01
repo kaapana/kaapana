@@ -30,3 +30,7 @@ repos:
         language: system
         files: \.(ts|mts|tsx|vue)$
         require_serial: true
+  - repo: https://github.com/AleksaC/hadolint-py
+    rev: v2.15.1
+    hooks:
+      - id: hadolint

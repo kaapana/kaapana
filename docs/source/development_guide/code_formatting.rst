@@ -3,7 +3,8 @@
 Code Formatting
 **********************************
 
-Kaapana checks every Python, TypeScript and Vue file with two kinds of tools.
+Kaapana checks every Python, TypeScript and Vue file and every Dockerfile
+with two kinds of tools.
 Every one of them follows the same pattern: one configuration at the
 repository root, one pinned tool version, a pre-commit hook that fixes what it
 can on commit, and a CI job that checks the whole repository with the same
@@ -29,24 +30,31 @@ fixed by hand.
    * -
      - Python
      - TypeScript / Vue
+     - Dockerfile
    * - Formatter
      - :code:`ruff format`
      - Prettier
+     - none
    * - Linter
      - :code:`ruff check`
      - ESLint
+     - hadolint
    * - Configuration
      - :code:`ruff.toml`
      - :code:`.prettierrc.json`, :code:`eslint.config.mjs`
+     - :code:`.hadolint.yaml`
    * - Code quality report
      - :code:`ci/ci-code/lint/ruff-quality.toml`
      - :code:`ci/ci-code/lint/eslint-quality.config.mjs`
+     - :code:`.hadolint.yaml`
    * - Pre-commit hook
      - :code:`ruff-check`, :code:`ruff-format`
      - :code:`ui-lint`
+     - :code:`hadolint`
    * - CI job
      - :code:`lint: [ruff]`
      - :code:`lint: [ui]`
+     - :code:`lint: [hadolint]`
 
 The linters leave formatting to the formatters: ESLint's formatting rules are
 switched off, so ESLint and Prettier never disagree.
@@ -290,6 +298,85 @@ The same run locally:
 
 Each rule is documented on its own page, linked from the Code Quality widget.
 
+Hadolint
+---------------------
+
+Every Dockerfile in Kaapana is linted with
+`hadolint <https://github.com/hadolint/hadolint>`_. It checks Dockerfile best
+practice (pinned package versions, :code:`WORKDIR` instead of :code:`cd`,
+:code:`--no-install-recommends`, :code:`COPY` instead of :code:`ADD`) and runs
+`ShellCheck <https://www.shellcheck.net/>`_ over the shell in every
+:code:`RUN`. There is no established Dockerfile formatter, so there is no
+formatting check. One file at the repository root, :code:`.hadolint.yaml`,
+holds the whole configuration.
+
+Installation
+--------------
+The pre-commit hook installs hadolint itself. For the editor and for running
+it by hand:
+
+.. code-block:: bash
+
+    pip install hadolint-py     # or download the binary from the hadolint releases page
+
+VS Code
+--------
+
+Install the `hadolint extension <https://marketplace.visualstudio.com/items?itemName=exiasr.hadolint>`_
+(:code:`exiasr.hadolint`). It runs the :code:`hadolint` on your :code:`PATH`
+and reads :code:`.hadolint.yaml` from the repository root, so findings are
+underlined in the editor exactly as the pre-commit hook and the
+:code:`lint: [hadolint]` job report them.
+
+The whole codebase
+-------------------
+From the repository root:
+
+.. code-block:: bash
+
+    ci/ci-code/lint/hadolint_lint.sh                   # installs the pinned hadolint
+    git ls-files -z -- '*Dockerfile' | xargs -0 hadolint   # with hadolint on your PATH
+
+Pass a path to check one Dockerfile: :code:`hadolint services/base/portal-ui/docker/Dockerfile`.
+
+Rules
+------
+All of hadolint's rules apply, except three that Kaapana's build conventions
+trigger on every image; :code:`.hadolint.yaml` ignores them:
+
+- :code:`DL3007`: :code:`FROM local-only/<image>:latest` is an image
+  :code:`kaapana-build` produces in the same build, not a floating upstream tag.
+- :code:`DL3022`: :code:`COPY --from=constraints` (and :code:`lib`,
+  :code:`charts`) are build contexts :code:`kaapana-build` passes in, not
+  stages.
+- :code:`DL3048`: :code:`LABEL IMAGE`, :code:`VERSION` and
+  :code:`BUILD_IGNORE` are the uppercase keys :code:`kaapana-build` reads.
+
+:code:`.hadolint.yaml` sets :code:`failure-threshold: error` and raises the
+rules that catch a broken Dockerfile to *error*; only these fail the
+pre-commit hook and :code:`lint: [hadolint]`:
+
+- :code:`DL1000`: the Dockerfile cannot be parsed.
+- :code:`DL3000`: :code:`WORKDIR` is not an absolute path.
+- :code:`DL3011`: an :code:`EXPOSE` port is out of range.
+- :code:`DL3012`, :code:`DL4003`, :code:`DL4004`: more than one
+  :code:`HEALTHCHECK`, :code:`CMD` or :code:`ENTRYPOINT`; only the last one
+  takes effect.
+- :code:`DL3021`: :code:`COPY` with several sources to a destination not
+  ending in :code:`/`.
+- :code:`DL3023`: :code:`COPY --from` refers to its own stage.
+- :code:`DL3024`: two stages share a name.
+- :code:`DL3044`: an :code:`ENV` refers to itself.
+- :code:`DL3061`: an instruction comes before :code:`FROM` or :code:`ARG`.
+
+ShellCheck findings of level *error* (shell in a :code:`RUN` that cannot be
+parsed) fail as well. Every other rule is advisory: hadolint's own *error*
+rules that are not in this list (:code:`DL3004`, :code:`DL3020`,
+:code:`DL3026`, :code:`DL3043`, :code:`DL4000`) are lowered to *warning*, and
+all findings are published to the merge request Code Quality widget. To
+silence one finding where it is intended, put :code:`# hadolint ignore=DL3008`
+on the line above the instruction.
+
 Pre-commit hooks
 -----------------
 
@@ -314,6 +401,8 @@ only:
 - **helm-lint** runs :code:`kaapana-build --lint-only` when a commit changes a
   chart, the same as the :code:`helm_lint` CI job. It needs :code:`helm` and
   its kubeval plugin.
+- **hadolint** lints staged Dockerfiles and fails on the enforced (error) rules.
+  pre-commit installs the pinned hadolint version into its own environment.
 
 When a hook changes a file, the commit stops: review the change, stage it and
 commit again. When a hook reports a linter finding it cannot fix, fix it by
@@ -332,7 +421,7 @@ ids:
 
 .. code-block:: bash
 
-    SKIP=ui-lint,helm-lint git commit -m "..."
+    SKIP=hadolint,helm-lint git commit -m "..."
 
 :code:`SKIP` applies to :code:`pre-commit run` too. :code:`git commit --no-verify`
 skips every hook, but CI still runs the enforced checks.
@@ -364,12 +453,17 @@ by the separate :code:`helm_lint` job.
      - :code:`prettier --check`, :code:`eslint`
      - the wider :code:`ci/ci-code/lint/eslint-quality.config.mjs` ruleset, advisory
      - :code:`ci/ci-code/lint/ui_lint.sh`
+   * - :code:`lint: [hadolint]`
+     - :code:`hadolint`, *error* level only
+     - the hadolint findings, all levels, advisory
+     - :code:`ci/ci-code/lint/hadolint_lint.sh`
 
 Every entry runs :code:`ci/ci-code/lint/<linter>_lint.sh`, which installs its own
 tool (into :code:`~/.cache/kaapana-ci`, or as a pip or npm package) and runs the
 same checks locally and in CI. The versions cannot drift between your machine
-and CI: the ruff script checks that its :code:`RUFF_VERSION` matches the
-:code:`rev` of its hook in :code:`.pre-commit-config.yaml`, and ESLint and Prettier come from the root
+and CI: the ruff and hadolint scripts check that their :code:`RUFF_VERSION` and
+:code:`HADOLINT_VERSION` match the :code:`rev` of
+their hooks in :code:`.pre-commit-config.yaml`, and ESLint and Prettier come from the root
 :code:`package-lock.json` everywhere.
 
 To add a linter, add its name to the :code:`LINTER` matrix and a matching

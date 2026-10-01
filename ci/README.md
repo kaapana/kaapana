@@ -68,15 +68,17 @@ The CI-specific parts:
 | [`ci/ci-code/lint/ruff-quality.toml`](ci-code/lint/ruff-quality.toml) | advisory: adds `B`, `C4`, `SIM`, `UP`, `RUF`, `W` | the Code Quality report of `lint: [ruff]` |
 | [`eslint.config.mjs`](../eslint.config.mjs), [`.prettierrc.json`](../.prettierrc.json) | enforced: Vue *essential*, a few ESLint bug rules, Prettier style | pre-commit, and `lint: [ui]` |
 | [`ci/ci-code/lint/eslint-quality.config.mjs`](ci-code/lint/eslint-quality.config.mjs) | advisory: adds typescript-eslint *recommended*, Vitest, Playwright | the Code Quality report of `lint: [ui]` |
+| [`.hadolint.yaml`](../.hadolint.yaml) | enforced: the *error* rules for a broken Dockerfile; advisory: every other rule, minus `DL3007`, `DL3022`, `DL3048` | pre-commit, and `lint: [hadolint]` with its Code Quality report |
 
 [`ci/pipeline/lint.yml`](pipeline/lint.yml) has one `lint` job, a matrix over
-`LINTER` (`ruff`, `ui`), gated by `exec_lint`; each entry runs
+`LINTER` (`ruff`, `ui`, `hadolint`), gated by `exec_lint`; each entry runs
 `ci/ci-code/lint/<linter>_lint.sh`, which installs its own tool. Each entry publishes its advisory findings as
 `gl-code-quality-report.json` to the MR Code Quality widget, and fails on
 formatting drift or an enforced rule. `lint: [ui]` is
 `allow_failure: true` until the TypeScript/Vue codebase is formatted and
-meets the enforced ruleset. `RUFF_VERSION` (in its script) must match the hook's
-`rev` in `.pre-commit-config.yaml` (the script checks); ESLint and Prettier come from the root `package-lock.json`.
+meets the enforced ruleset. `RUFF_VERSION` and
+`HADOLINT_VERSION` (in their scripts) must match their hooks' `rev` in
+`.pre-commit-config.yaml` (the scripts check); ESLint and Prettier come from the root `package-lock.json`.
 
 Helm charts: the `helm_lint` job (same file) and the `helm-lint` pre-commit hook
 both run `kaapana-build --lint-only`, helm lint + kubeval of the platform chart
@@ -110,7 +112,7 @@ Every stage toggle. Grouped as `[exec]` in the run form.
 | Input | Default | Meaning |
 |---|---|---|
 | `exec_unit_tests` | `true` | tests stage: unit tests + documentation build |
-| `exec_lint` | `true` | tests stage: `lint` matrix (ruff, ESLint/Prettier) + helm chart lint |
+| `exec_lint` | `true` | tests stage: `lint` matrix (ruff, ESLint/Prettier, hadolint) + helm chart lint |
 | `exec_build` | `true` | build stage: full platform build |
 | `exec_security_scan` | `false` | trivy scan of the images this commit resolves to. A failed scan still publishes what it managed to check |
 | `exec_deploy` | `true` | deploy stage: deployment VM/target + platform installation |

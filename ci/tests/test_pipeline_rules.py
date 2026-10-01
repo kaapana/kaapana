@@ -126,7 +126,6 @@ TOGGLED_JOBS = [
     ("exec_unit_tests", "ci_config_tests"),
     ("exec_unit_tests", "build_documentation"),
     ("exec_lint", "lint"),
-    ("exec_lint", "helm_lint"),
     ("exec_build", "build_packages"),
     ("exec_deploy", "prepare_deployment"),
     ("exec_deploy", "platform_deployment"),
@@ -203,7 +202,7 @@ def test_the_admin_chart_and_namespace_come_from_the_variables():
 
 
 def test_build_does_not_lint_charts(default_config):
-    """Charts are linted by helm_lint in the tests stage; the build must not repeat it."""
+    """Charts are linted by lint: [helm] in the tests stage; the build must not repeat it."""
     script = "\n".join(jobs(default_config)["build_packages"]["script"])
     assert "--no-linting" in script
 

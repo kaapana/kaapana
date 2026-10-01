@@ -90,7 +90,6 @@ runs only on scheduled `develop` pipelines.
 `lint` is a matrix over `LINTER` (`ruff`, `ui`, `hadolint`) on `ci-base`; the script picks
 each entry's commands by `$LINTER`, and each entry publishes its Code Quality report.
 Each entry fails on formatting or its enforced ruleset.
-`helm_lint` runs `kaapana-build --lint-only` on `ci-base` and needs a full clone with tags.
 
 ### build
 
@@ -283,7 +282,7 @@ runner.
 
 One tool image for every job that needs more than plain Python:
 [`ci/images/ci-base/Dockerfile`](../images/ci-base/Dockerfile). Contents: git,
-docker CLI + buildx, helm (with the kubeval plugin, which `kaapana-build`
+docker CLI + buildx, helm (which `kaapana-build`
 requires), trivy, dcmtk, nmap, jq, ansible, node 22 + npm, chromium for
 playwright, snapd + squashfs-tools for the offline-package scan, and the pinned
 Python test dependencies.

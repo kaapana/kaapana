@@ -31,30 +31,37 @@ fixed by hand.
      - Python
      - TypeScript / Vue
      - Dockerfile
+     - Helm chart
    * - Formatter
      - :code:`ruff format`
      - Prettier
+     - none
      - none
    * - Linter
      - :code:`ruff check`
      - ESLint
      - hadolint
+     - :code:`helm lint`, kubeconform
    * - Configuration
      - :code:`ruff.toml`
      - :code:`.prettierrc.json`, :code:`eslint.config.mjs`
      - :code:`.hadolint.yaml`
+     - :code:`build_cli/build_cli/configs/fake-values.yaml`
    * - Code quality report
      - :code:`ci/ci-code/lint/ruff-quality.toml`
      - :code:`ci/ci-code/lint/eslint-quality.config.mjs`
      - :code:`.hadolint.yaml`
+     - none, JUnit test report instead
    * - Pre-commit hook
      - :code:`ruff-check`, :code:`ruff-format`
      - :code:`ui-lint`
      - :code:`hadolint`
+     - :code:`helm-lint`
    * - CI job
      - :code:`lint: [ruff]`
      - :code:`lint: [ui]`
      - :code:`lint: [hadolint]`
+     - :code:`lint: [helm]`
 
 The linters leave formatting to the formatters: ESLint's formatting rules are
 switched off, so ESLint and Prettier never disagree.
@@ -126,6 +133,54 @@ Format and lint the whole repository from its root:
 All are safe to run repeatedly. Pass a path to limit them to one file or
 directory.
 
+Helm charts
+------------
+Check the chart tree the way the :code:`lint: [helm]` job does. Both checks
+always run, so one run shows every problem:
+
+1. :code:`helm lint --strict` checks the charts: :code:`Chart.yaml`, template
+   syntax, values. Warnings fail.
+2. :code:`helm template` renders every root chart with fake values into
+   :code:`<build-dir>/rendered/`, and :code:`kubeconform -strict` validates the
+   manifests against the Kubernetes schemas: unknown fields, wrong types, the
+   same key twice in one mapping.
+
+.. code-block:: bash
+
+    kaapana-build --lint-only
+
+:code:`ci/ci-code/lint/helm_lint.sh` runs the same and downloads
+`kubeconform <https://github.com/yannh/kubeconform/releases>`_ when it is
+missing, so it also works from the pre-commit hook. A regular
+:code:`kaapana-build` runs both checks as well, unless you pass
+:code:`--no-linting`.
+
+The results are JUnit reports in :code:`<build-dir>/junit/`, which
+:code:`helm_lint.sh` copies to :code:`helm-reports/`: :code:`helm-lint.xml` and one
+:code:`kubeconform-<chart>.xml` per root chart. CI shows them in the merge
+request Test summary. The log prints the blocking findings and counts the rest.
+
+What fails depends on where the check runs:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Check
+     - CI (:code:`lint: [helm]`)
+     - Pre-commit hook
+     - Regular :code:`kaapana-build`
+   * - :code:`helm lint`
+     - every warning and error
+     - warnings and errors in the changed charts
+     - errors
+   * - kubeconform
+     - every invalid manifest
+     - invalid manifests in the changed charts
+     - every invalid manifest
+
+To run the hook's check by hand, pass the changed files:
+:code:`ci/ci-code/lint/helm_lint.sh <files>`.
+
 Pre-commit hooks
 -----------------
 
@@ -145,10 +200,11 @@ after the other:
    something, review the result and commit again.
 
 2. **helm-lint** runs :code:`kaapana-build --lint-only` when the commit
-   changes a chart. It lints and validates the platform chart tree, exactly
-   what the :code:`helm_lint` CI job does. It needs :code:`helm` and its
-   kubeval plugin, the same as a local build; :code:`build_cli` is installed
-   into the hook's own environment the first time it runs.
+   changes a chart. It runs the same checks as the :code:`lint: [helm]` CI
+   job, but only findings in the changed charts fail the commit (see
+   `Helm charts`_). It needs :code:`helm`, the same as a local build;
+   :code:`build_cli` is installed into the hook's own environment the first
+   time it runs.
 
 The commits that migrated the codebase to Ruff are listed in
 :code:`.git-blame-ignore-revs`, so :code:`git blame` skips them. To make your
@@ -398,9 +454,12 @@ only:
   and Vue files: :code:`eslint --fix`, then :code:`prettier --write`. It
   needs :code:`node` and :code:`npm` on your :code:`PATH`; the script
   installs the root toolchain on first use.
-- **helm-lint** runs :code:`kaapana-build --lint-only` when a commit changes a
-  chart, the same as the :code:`helm_lint` CI job. It needs :code:`helm` and
-  its kubeval plugin.
+- **helm-lint** runs :code:`ci/ci-code/lint/helm_lint.sh` on the staged chart
+  files. It always checks the whole chart tree, but only findings in the
+  charts you changed fail the commit: helm lint warnings and invalid manifests.
+  Findings in other charts are only counted; the full lists are in
+  :code:`helm-reports/`. It needs :code:`helm`; the script downloads
+  kubeconform.
 - **hadolint** lints staged Dockerfiles and fails on the enforced (error) rules.
   pre-commit installs the pinned hadolint version into its own environment.
 
@@ -435,8 +494,8 @@ GitLab merges the reports of all entries into one widget. Each entry fails
 the pipeline on formatting drift or an enforced rule.
 
 Until the TypeScript/Vue codebase is formatted and meets the enforced ruleset,
-:code:`lint: [ui]` is allowed to fail and only warns. Helm charts are checked
-by the separate :code:`helm_lint` job.
+:code:`lint: [ui]` is allowed to fail and only warns. :code:`lint: [helm]` is
+allowed to fail until the existing chart warnings are fixed.
 
 .. list-table::
    :header-rows: 1
@@ -457,6 +516,10 @@ by the separate :code:`helm_lint` job.
      - :code:`hadolint`, *error* level only
      - the hadolint findings, all levels, advisory
      - :code:`ci/ci-code/lint/hadolint_lint.sh`
+   * - :code:`lint: [helm]`
+     - :code:`helm lint --strict`, kubeconform
+     - none; JUnit reports in the merge request test tab
+     - :code:`ci/ci-code/lint/helm_lint.sh`
 
 Every entry runs :code:`ci/ci-code/lint/<linter>_lint.sh`, which installs its own
 tool (into :code:`~/.cache/kaapana-ci`, or as a pip or npm package) and runs the

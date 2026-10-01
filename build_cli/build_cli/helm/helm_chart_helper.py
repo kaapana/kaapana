@@ -1,12 +1,22 @@
 import shutil
 from collections import Counter
 from importlib.resources import files
-from typing import Optional
+from pathlib import Path
 
+import yaml
 from alive_progress import alive_bar
 
 from build_cli.build import BuildConfig, BuildState, IssueTracker
 from build_cli.helm import HelmChart
+from build_cli.helm.kubeconform import is_installed as kubeconform_installed
+from build_cli.helm.lint_report import (
+    case_key,
+    in_changed_charts,
+    is_blocking,
+    lint_cases,
+    log_junit_report,
+    write_junit_report,
+)
 from build_cli.utils import CommandUtils, get_logger, git_ignored, should_ignore_path
 
 logger = get_logger()
@@ -79,27 +89,12 @@ class HelmChartHelper:
 
     @classmethod
     def verify_helm_installed(cls) -> None:
-        """Ensure Helm and Helm kubeval plugin are installed and functional."""
+        """Ensure Helm is installed."""
         if shutil.which(cls._build_config.helm_executable) is None:
             logger.error("Helm is not installed!")
             logger.error("-> install curl 'sudo apt install curl'")
             logger.error("-> install helm 'sudo snap install helm --classic'!")
-            logger.error("-> install the kubeval 'helm plugin install https://github.com/instrumenta/helm-kubeval'")
             exit(1)
-
-        helm_kubeval_cmd = [cls._build_config.helm_executable, "kubeval", "--help"]
-        CommandUtils.run(
-            helm_kubeval_cmd,
-            logger=logger,
-            exit_on_error=cls._build_config.exit_on_error,
-            timeout=5,
-            context="helm-kubeval",
-            hints=[
-                "Helm kubeval is not installed correctly!",
-                "Make sure Helm kubeval-plugin is installed!",
-                "hint: helm plugin install https://github.com/instrumenta/helm-kubeval",
-            ],
-        )
 
     @classmethod
     def collect_charts(cls) -> None:
@@ -114,9 +109,9 @@ class HelmChartHelper:
             Updates cls._build_state by adding collected HelmChart objects.
             Logs progress and duplicate chart warnings.
         """
-        chart_files = set(
+        chart_files = {
             f for f in cls._build_config.kaapana_dir.rglob("Chart.yaml") if cls._build_config.build_dir not in f.parents
-        )
+        }
         chart_files -= git_ignored(chart_files, repo_dir=cls._build_config.kaapana_dir)
 
         logger.info("")
@@ -218,7 +213,7 @@ class HelmChartHelper:
     def get_chart(
         cls,
         name: str,
-        version: Optional[str] = None,
+        version: str | None = None,
     ) -> HelmChart | None:
         """
         Retrieve a HelmChart by its name and optionally its version from the build state.
@@ -255,6 +250,86 @@ class HelmChartHelper:
                 return None
 
         return candidate
+
+    @classmethod
+    def _changed_chart_names(cls) -> set[str] | None:
+        if not cls._build_config.changed_files:
+            return None
+        names = set()
+        kaapana_dir = cls._build_config.kaapana_dir.resolve()
+        for changed in cls._build_config.changed_files:
+            path = (kaapana_dir / changed).resolve()
+            for directory in (path, *path.parents):
+                if (directory / "Chart.yaml").is_file():
+                    names.add(yaml.safe_load((directory / "Chart.yaml").read_text())["name"])
+                    break
+                if directory == kaapana_dir:
+                    break
+        return names
+
+    @classmethod
+    def _check_charts(cls, platform_chart: HelmChart) -> None:
+        """
+        Run helm lint, then helm template + kubeconform, on every root chart without stopping at the first problem.
+
+        Problems are collected in the IssueTracker and written as JUnit reports. Lint-only runs treat helm lint
+        warnings as failures, for the charts containing --changed-file paths if given; regular builds only fail
+        on errors and invalid manifests.
+        """
+        if not kubeconform_installed():
+            IssueTracker.generate_issue(
+                component=cls.__name__,
+                name="kubeconform",
+                msg="kubeconform is not installed: get it from https://github.com/yannh/kubeconform/releases or use --no-linting",
+                level="ERROR",
+            )
+            return
+
+        IssueTracker.configure(exit_on_error=False)
+        strict = cls._build_config.lint_only
+        only_charts = cls._changed_chart_names()
+        root_charts = (platform_chart, *platform_chart.kaapana_collections)
+        fake_values = files("build_cli") / "configs" / "fake-values.yaml"
+        report_dir = cls._build_config.build_dir / "junit"
+
+        # --with-subcharts lints every chart of the tree as its own unit, one helm run per root
+        findings: list[dict[str, str]] = []
+        crashes: dict[str, str] = {}
+        for chart in root_charts:
+            crash = chart.lint_chart(
+                cls._build_config.helm_executable,
+                fake_values,
+                with_subcharts=True,
+                findings=findings,
+                strict=strict,
+                only_charts=only_charts,
+            )
+            if crash:
+                crashes[chart.name] = crash
+        ignored = [chart.name for chart in root_charts if chart.ignore_linting]
+        cases = lint_cases(findings, [chart.name for chart in root_charts], crashes, ignored)
+        lint_report = report_dir / "helm-lint.xml"
+        write_junit_report("helm lint", cases, lint_report)
+
+        render_dir = (cls._build_config.build_dir / "rendered").resolve()
+        kubeconform_reports = [report_dir / f"kubeconform-{chart.name}.xml" for chart in root_charts]
+        invalid: list[dict[str, str]] = []
+        for chart, report_file in zip(root_charts, kubeconform_reports, strict=True):
+            invalid += chart.validate_chart(
+                cls._build_config.helm_executable, fake_values, render_dir, report_file, only_charts
+            )
+
+        hidden = (
+            {case_key(finding) for finding in findings if not is_blocking(finding, strict, only_charts)}
+            if strict and only_charts is not None
+            else set()
+        )
+        log_junit_report(lint_report, hidden=hidden, note="" if strict else "helm lint warnings do not fail a build")
+        not_changed = {case_key(failure) for failure in invalid if not in_changed_charts(failure, only_charts)}
+        for report_file in kubeconform_reports:
+            log_junit_report(report_file, hidden=not_changed)
+
+        IssueTracker.configure(exit_on_error=cls._build_config.exit_on_error)
 
     @classmethod
     def build_and_push_charts(cls, platform_chart: HelmChart):
@@ -313,16 +388,15 @@ class HelmChartHelper:
                     collection_container.container_build_dir = collection_target_dir
 
         if cls._build_config.enable_linting:
-            # --with-subcharts lints every chart of the tree as its own unit, one helm run per root
-            fake_values = files("build_cli") / "configs" / "fake-values.yaml"
-            for chart in (platform_chart, *platform_chart.kaapana_collections):
-                chart.lint_chart(cls._build_config.helm_executable, fake_values, with_subcharts=True)
-                # kubeval disabled: schema host is gone, so it currently validates nothing
-                # chart.lint_kubeval(cls._build_config.helm_executable, fake_values)
+            cls._check_charts(platform_chart)
 
         if cls._build_config.lint_only:
-            logger.info("Lint-only: chart tree linted, skipping packaging and push")
+            logger.info("Lint-only: chart tree checked, skipping packaging and push")
             return
+
+        if IssueTracker.issues and cls._build_config.exit_on_error:
+            logger.error("Chart checks failed, stopping before packaging and container builds")
+            exit(1)
 
         # -------------------
         # 3. Package collection dependencies

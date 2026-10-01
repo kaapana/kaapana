@@ -32,12 +32,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get install -y --no-install-recommends "docker-ce-cli=$DOCKER_CLI_PKG_VERSION" docker-buildx-plugin \
     && rm -rf /var/lib/apt/lists/*
 
-# helm + kubeval plugin: kaapana-build hard-fails without both
 ARG HELM_VERSION=3.19.0
 RUN curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" \
         | tar -xzO linux-amd64/helm > /usr/local/bin/helm \
-    && chmod +x /usr/local/bin/helm \
-    && helm plugin install https://github.com/instrumenta/helm-kubeval
+    && chmod +x /usr/local/bin/helm
 
 # trivy: kaapana-build runs it as a plain process
 ARG TRIVY_VERSION=0.73.0

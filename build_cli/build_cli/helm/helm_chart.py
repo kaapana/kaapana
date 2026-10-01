@@ -1,15 +1,17 @@
 import re
 import shutil
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
-from subprocess import PIPE, run
-from typing import Any, Dict, Optional, Set
+from subprocess import run
+from typing import Any
 
 import yaml
 
 from build_cli.build import BuildConfig, IssueTracker
 from build_cli.container import Container, ContainerHelper
+from build_cli.helm.kubeconform import FAILED_STATUSES, parse_resources, validate_directory
+from build_cli.helm.lint_report import case_key, in_changed_charts, parse_helm_lint, write_junit_report
 from build_cli.utils import GitUtils, get_logger
 
 logger = get_logger()
@@ -19,7 +21,7 @@ IMAGE_PATTERN = re.compile(
 )
 
 
-class KaapanaType(str, Enum):
+class KaapanaType(StrEnum):
     PLATFORM = "platform"  # kaapana-admin-chart, kaapana-platform-chart
     RUNTIME_ONLY = "runtime-only"  # pull-docker-images, update-collections
 
@@ -59,18 +61,17 @@ class HelmChart:
 
         self.deployment_config = deployment_config
 
-        self.chart_dependencies: set["HelmChart"] = set()
-        self.kaapana_collections: set["HelmChart"] = set()
-        self.preinstall_extensions: list["HelmChart"] = []
+        self.chart_dependencies: set[HelmChart] = set()
+        self.kaapana_collections: set[HelmChart] = set()
+        self.preinstall_extensions: list[HelmChart] = []
 
         self.build_chart_dir: Path
         self.linted: bool = False
-        self.kubeval_done: bool = False
 
     def __repr__(self) -> str:
         return f"HelmChart({self.name=!r}, {self.version=!r}, {self.kaapana_type=})"
 
-    def to_dict(self) -> Dict[str, str]:
+    def to_dict(self) -> dict[str, str]:
         chart_dict = {
             "name": self.name,
             "version": self.version,
@@ -129,7 +130,7 @@ class HelmChart:
     # ────────────────────────────────
 
     @staticmethod
-    def _load_yaml(path: Path) -> Optional[dict]:
+    def _load_yaml(path: Path) -> dict | None:
         if not path.exists():
             return None
         with path.open("r", encoding="utf-8") as f:
@@ -152,7 +153,7 @@ class HelmChart:
         return GitUtils.get_repo_info(chartfile.parent)[0]
 
     @staticmethod
-    def _has_dag_dependency(requirements: Optional[dict]) -> bool:
+    def _has_dag_dependency(requirements: dict | None) -> bool:
         deps = requirements.get("dependencies", []) if requirements else []
         return bool(deps) and deps[0].get("name") == "dag-installer-chart"
 
@@ -186,12 +187,12 @@ class HelmChart:
     def _collect_chart_dependencies(
         chartfile: Path,
         repo_version: str,
-    ) -> Set[tuple[str, str]]:
+    ) -> set[tuple[str, str]]:
         """
         Collect all dependencies for a Helm chart defined in Chart.yaml or requirements.yaml.
         Returns a set of tuples (name, version) for each dependency.
         """
-        dependencies: Set[tuple[str, str]] = set()
+        dependencies: set[tuple[str, str]] = set()
 
         # First check Chart.yaml for Helm 3 style dependencies
         chart_yaml = HelmChart._load_yaml(chartfile)
@@ -262,7 +263,7 @@ class HelmChart:
         name: str,
         version: str,
         build_config: BuildConfig,
-    ) -> Set[Container]:
+    ) -> set[Container]:
         # Lint only: no containers were collected, so nothing to look up
         if build_config.lint_only:
             return set()
@@ -321,8 +322,8 @@ class HelmChart:
         return chart_containers
 
     @classmethod
-    def collect_operator_containers(cls, chartfile: Path, version: str, default_registry: str) -> Set[Container]:
-        operator_containers: Set[Container] = set()
+    def collect_operator_containers(cls, chartfile: Path, version: str, default_registry: str) -> set[Container]:
+        operator_containers: set[Container] = set()
         python_files = (f for f in chartfile.parent.parent.glob("**/*.py") if "operator" in f.name.lower())
         default_version = "{KAAPANA_BUILD_VERSION}"
         for python_file in python_files:
@@ -336,10 +337,7 @@ class HelmChart:
                     image_version = match.group("version")  # could be {KAAPANA_BUILD_VERSION} or fixed version
 
                     # Only process version if it's different from default
-                    if image_version != default_version:
-                        actual_version = image_version
-                    else:
-                        actual_version = version  # your default
+                    actual_version = image_version if image_version != default_version else version
 
                     operator_container = ContainerHelper.get_container(
                         registry=default_registry,
@@ -397,8 +395,8 @@ class HelmChart:
         default_registry: str,
         version: str,
         name: str,
-    ) -> Set["Container"]:
-        containers: Set["Container"] = set()
+    ) -> set["Container"]:
+        containers: set[Container] = set()
 
         template_dirs = [
             chartfile.parent / "templates",
@@ -461,9 +459,9 @@ class HelmChart:
         default_registry: str,
         version: str,
         name: str,
-    ) -> Set[Container]:
+    ) -> set[Container]:
         """Scan values.yaml for 'complete_image:' entries."""
-        containers: Set[Container] = set()
+        containers: set[Container] = set()
         values_file = chartfile.parent / "values.yaml"
         COMPLETE_IMAGE_RE = re.compile(r"^\s*complete_image:\s*(.+)$")
         if not values_file.exists():
@@ -519,7 +517,7 @@ class HelmChart:
         global_vals["preinstall_extensions"] = [
             {"name": e.name, "version": version} for e in self.preinstall_extensions
         ]
-        _, branch, commit, timestamp = GitUtils.get_repo_info(self.chartfile.parent)
+        _, branch, _commit, timestamp = GitUtils.get_repo_info(self.chartfile.parent)
         # Add build metadata
         global_vals.update(
             {
@@ -535,7 +533,7 @@ class HelmChart:
     def _update_requirements(self, target_dir: Path):
         build_requirements = target_dir / "requirements.yaml"
         if build_requirements.exists():
-            with open(build_requirements, "r") as f:
+            with open(build_requirements) as f:
                 build_requirements_lines = f.readlines()
             with open(build_requirements, "w") as f:
                 for build_requirements_line in build_requirements_lines:
@@ -544,7 +542,7 @@ class HelmChart:
 
     def _update_chart_version(self, target_dir: Path, version: str):
         chart_file = target_dir / "Chart.yaml"
-        with open(chart_file, "r") as f:
+        with open(chart_file) as f:
             lines = f.readlines()
         with open(chart_file, "w") as f:
             for line in lines:
@@ -553,84 +551,145 @@ class HelmChart:
                 else:
                     f.write(line)
 
-    def lint_chart(self, helm_executable: str, values: Optional[Path] = None, with_subcharts: bool = False):
+    def lint_chart(
+        self,
+        helm_executable: str,
+        values: Path | None = None,
+        with_subcharts: bool = False,
+        findings: list[dict[str, str]] | None = None,
+        strict: bool = False,
+        only_charts: set[str] | None = None,
+    ) -> str | None:
         if self.ignore_linting:
             logger.debug(f"{self.name} has ignore_linting: true - skipping")
-            return
+            return None
 
         if self.linted:
             logger.debug(f"{self.name}: lint_chart already done - skip")
-            return
+            return None
 
         logger.info(f"{self.name}: lint_chart")
 
         command = [helm_executable, "lint", ".", "--quiet"]  # --quiet: no [INFO] lines
         if with_subcharts:  # every chart below this one is linted as its own unit too
             command.append("--with-subcharts")
+        if strict:
+            command.append("--strict")
         if values:
             command += ["--values", str(values)]
         output = run(
             command,
-            stdout=PIPE,
-            stderr=PIPE,
-            universal_newlines=True,
+            capture_output=True,
+            text=True,
             timeout=300 if with_subcharts else 20,
             cwd=self.build_chart_dir,
         )
-        if output.returncode != 0:
-            logger.error(f"{self.name}: lint_chart failed!")
+        chart_findings = parse_helm_lint(output.stdout)
+        for finding in chart_findings:
+            finding["chart"] = self.name
+        if findings is not None:
+            findings.extend(chart_findings)
+
+        blocking = [
+            finding
+            for finding in chart_findings
+            if (strict or finding["level"] == "ERROR") and in_changed_charts(finding, only_charts)
+        ]
+        crash = None
+        if output.returncode != 0 and not any(strict or finding["level"] == "ERROR" for finding in chart_findings):
+            stderr = [line for line in output.stderr.splitlines() if line.strip() and "level=INFO" not in line]
+            crash = "\n".join(stderr) or f"helm lint exited with code {output.returncode}"
+
+        if crash or blocking:
             IssueTracker.generate_issue(
                 component=self.__class__.__name__,
                 name=f"{self.name}",
-                msg="chart lint failed!",
+                msg=f"{'helm lint failed' if crash else 'helm lint findings'}, see helm-lint.xml",
                 level="WARNING",
-                output=output,
                 path=self.chartfile.parent,
+                quiet=True,
             )
         else:
             logger.debug(f"{self.name}: lint_chart ok")
             self.linted = True
+        return crash
 
-    def lint_kubeval(self, helm_executable: str, values: Optional[Path] = None):
+    def validate_chart(
+        self,
+        helm_executable: str,
+        values: Path,
+        render_dir: Path,
+        report_file: Path,
+        only_charts: set[str] | None = None,
+    ) -> list[dict[str, str]]:
         if self.ignore_linting:
             logger.debug(f"{self.name} has ignore_linting: true - skipping")
-            return
+            write_junit_report(
+                "kubeconform",
+                [{"classname": self.name, "name": "helm template", "skipped": "ignore_linting: true"}],
+                report_file,
+            )
+            return []
 
-        if self.kubeval_done:
-            logger.debug(f"{self.name}: lint_kubeval already done -> skip")
-            return
+        logger.info(f"{self.name}: validate_chart (helm template | kubeconform)")
+        shutil.rmtree(render_dir / self.name, ignore_errors=True)
+        rendered = self._render(helm_executable, values, render_dir)
+        if rendered.returncode != 0:
+            self._report_check_failure("helm template", rendered.stderr, "chart render failed", report_file)
+            return []
 
-        if self.kaapana_type == KaapanaType.LIBRARY_HELPER:
-            logger.debug(f"{self.name}: charts with type: library are ignored for lint_kubeval -> skip")
-            return
+        validated = validate_directory(render_dir / self.name)
+        results = parse_resources(validated.stdout, render_dir, self.name)
+        if results is None:
+            self._report_check_failure("kubeconform", validated.stderr, "kubeconform failed", report_file)
+            return []
 
-        logger.info(f"{self.name}: lint_kubeval")
-        command = [helm_executable, "kubeval", "--ignore-missing-schemas", "."]
-        if values:
-            command.insert(-1, "--values")
-            command.insert(-1, str(values))
+        cases: list[dict[str, str | None]] = []
+        for result in results:
+            classname, name = case_key(result)
+            case: dict[str, str | None] = {"classname": classname, "name": name}
+            if result["status"] in FAILED_STATUSES:
+                case["failure"] = result["message"]
+            elif result["status"] == "statusSkipped":
+                case["skipped"] = result["message"] or "skipped"
+            cases.append(case)
+        write_junit_report("kubeconform", cases, report_file, validated.stderr)
 
-        output = run(
-            command,
-            stdout=PIPE,
-            stderr=PIPE,
-            universal_newlines=True,
-            timeout=20,
-            cwd=self.build_chart_dir,
-        )
-        if output.returncode != 0 and "A valid hostname" not in output.stderr:
-            logger.error(f"{self.name}: lint_kubeval failed")
+        failures = [result for result in results if result["status"] in FAILED_STATUSES]
+        if any(in_changed_charts(failure, only_charts) for failure in failures):
             IssueTracker.generate_issue(
                 component=self.__class__.__name__,
                 name=f"{self.name}",
-                msg="chart kubeval failed!",
-                level="WARNING",
-                output=output,
+                msg=f"chart manifests are invalid, see {report_file.name}",
+                level="ERROR",
+                quiet=True,
                 path=self.chartfile.parent,
             )
-        else:
-            logger.debug(f"{self.name}: lint_kubeval ok")
-            self.kubeval_done = True
+        return failures
+
+    def _render(self, helm_executable: str, values: Path, output_dir: Path):
+        return run(
+            [helm_executable, "template", self.name, ".", "--values", str(values), "--output-dir", str(output_dir)],
+            capture_output=True,
+            text=True,
+            timeout=300,
+            cwd=self.build_chart_dir,
+        )
+
+    def _report_check_failure(self, step: str, stderr: str, msg: str, report_file: Path):
+        write_junit_report(
+            "kubeconform",
+            [{"classname": self.name, "name": step, "failure": stderr.strip() or f"{step} failed"}],
+            report_file,
+        )
+        IssueTracker.generate_issue(
+            component=self.__class__.__name__,
+            name=f"{self.name}",
+            msg=f"{msg}, see {report_file.name}",
+            level="ERROR",
+            path=self.chartfile.parent,
+            quiet=True,
+        )
 
     def make_package(self, helm_executable: str, plain_http: bool):
         logger.info(f"{self.name}: make_package")
@@ -640,9 +699,8 @@ class HelmChart:
 
         output = run(
             command,
-            stdout=PIPE,
-            stderr=PIPE,
-            universal_newlines=True,
+            capture_output=True,
+            text=True,
             timeout=60,
             cwd=self.build_chart_dir.parent,
         )
@@ -679,9 +737,8 @@ class HelmChart:
 
         output = run(
             command,
-            stdout=PIPE,
-            stderr=PIPE,
-            universal_newlines=True,
+            capture_output=True,
+            text=True,
             cwd=self.build_chart_dir.parent,
             timeout=60,
         )
@@ -689,9 +746,8 @@ class HelmChart:
             logger.warning(f"chart push failed -> try: {try_count}")
             output = run(
                 command,
-                stdout=PIPE,
-                stderr=PIPE,
-                universal_newlines=True,
+                capture_output=True,
+                text=True,
                 cwd=self.build_chart_dir,
                 timeout=60,
             )
@@ -711,7 +767,7 @@ class HelmChart:
             logger.debug(f"{self.name}: push ok")
 
     @staticmethod
-    def _count_all_dependencies(chart: "HelmChart", seen: Optional[set[str]] = None) -> int:
+    def _count_all_dependencies(chart: "HelmChart", seen: set[str] | None = None) -> int:
         """Count all recursive dependencies for a chart (no duplicates)."""
         if seen is None:
             seen = set()

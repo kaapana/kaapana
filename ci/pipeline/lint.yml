@@ -5,7 +5,7 @@ spec:
     runner_tag:
       type: string
 ---
-# Stage: tests — one matrix job per linter + helm lint
+# Stage: tests — one matrix job per linter
 # In:  the job's own checkout
 # Out: each linter fails on formatting drift or an enforced rule, and
 #      publishes its advisory findings to the MR Code Quality widget
@@ -22,6 +22,12 @@ lint:
     - if: '"$[[ inputs.exec_lint ]]" == "true" && $LINTER == "ui"'
       when: on_success
       allow_failure: true
+    - if: '"$[[ inputs.exec_lint ]]" == "true" && $LINTER == "helm"'
+      when: on_success
+      allow_failure: true
+      variables:
+        GIT_STRATEGY: clone
+        GIT_DEPTH: "0"
     - if: '"$[[ inputs.exec_lint ]]" == "true"'
       when: on_success
     - when: never
@@ -31,37 +37,15 @@ lint:
           - ruff
           - ui
           - hadolint
+          - helm
   script:
     - ci/ci-code/lint/${LINTER}_lint.sh
   artifacts:
     when: always
     reports:
       codequality: gl-code-quality-report.json
+      junit: helm-reports/*.xml
     paths:
       - gl-code-quality-report.json
+      - build/helm-lint/build.log
 
-##############################################
-# Helm lint: helm lint + kubeval of the platform chart tree — blocks the pipeline
-##############################################
-helm_lint:
-  stage: tests
-  tags:
-    - $[[ inputs.runner_tag ]]
-  image: $CI_BASE_IMAGE
-  timeout: 15m
-  rules:
-    - if: '"$[[ inputs.exec_lint ]]" == "true"'
-      when: on_success
-    - when: never
-  variables:
-    GIT_STRATEGY: clone
-    GIT_DEPTH: "0"
-  before_script:
-    - git fetch --tags
-    - pip install -e build_cli/
-  script:
-    - kaapana-build --lint-only --kaapana-dir "$CI_PROJECT_DIR"
-  artifacts:
-    when: always
-    paths:
-      - build/build.log

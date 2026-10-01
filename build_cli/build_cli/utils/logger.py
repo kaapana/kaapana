@@ -54,7 +54,7 @@ def set_console_level(level_name: str):
         raise ValueError(f"Invalid console log level: {level_name}")
     logger = logging.getLogger(LOGGER_NAME)
     for h in logger.handlers:
-        if isinstance(h, logging.StreamHandler):
+        if isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler):
             h.setLevel(level)
 
 

@@ -146,7 +146,7 @@ Pure singleton class -> classes that are never initialized and have only class a
 #### helm_chart.py
 - HelmChart parsed from chartfile and adjacent .yaml files
 - Resolved HelmChart contains its dependencies (HelmChart), collections (HelmChart), and directly used containers (for recursive dependencies traverse through dependencies and collections)
-- Containes build, lint, kubeval functionality
+- Containes build, lint, kubeconform validation functionality
 
 #### helm_chart_helper.py
 - Pure singleton class
@@ -194,7 +194,7 @@ Pure singleton class -> classes that are never initialized and have only class a
    2. Building a chart means:
       1. Copy chart directory to the build directory where it belongs
          1. In case of collection-extension chart, it needs its container, that copies ready chart to be build in specific cwd. So for the chart.chart_containers[0].build_dir we set to the directory where charts/*.tgz of collection charts could be find.
-      2. Lint & Kubeval chart if enabled
+      2. Lint chart if enabled
       3. Create .tgz file
          1. Only kaapana-admin-chart and dependencies of collection-extension chart are build (make_package)
       4. pushed to the registry - Only kaapana-admin-chart
@@ -243,7 +243,7 @@ Pure singleton class -> classes that are never initialized and have only class a
 - Linted code
   - Type Hinting and fixing all the issue now allows to use IDE to see where the issues with the code are properly.
 
-- Chart Linting and kubeval: With the help of fake_values.yaml, it is possible to lint and kubeval all charts now. That discovered some issues with the charts that were fixed
+- Chart Linting: With the help of fake_values.yaml, it is possible to lint all charts now. That discovered some issues with the charts that were fixed
 
 - Build Order
   - Removed build rounds from build scripts

@@ -386,13 +386,13 @@ build_documentation:
       - "$KAAPANA_DIR/docs/build_documentation_html.log"
 
 ##############################################
-# ReadTheDocs Build Check (scheduled pipelines on develop only)
+# ReadTheDocs Build Check (scheduled pipelines on develop with exec_unit_tests only)
 ##############################################
 check_readthedocs:
   extends: .test_template
   image: $CI_BASE_IMAGE # needs curl + jq
   rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == "develop"
+    - if: '"$[[ inputs.exec_unit_tests ]]" == "true" && $CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == "develop"'
       when: always
     - when: never
   script:

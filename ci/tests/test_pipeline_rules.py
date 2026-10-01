@@ -64,7 +64,7 @@ def test_a_readiness_job_guards_every_given_target(server_installation):
     """A fresh VM is checked by server_installation itself; a target given by
     FQDN is only ever checked by preflight_target."""
     config = merged_config(
-        inputs=DEPLOY_INPUTS + (f"exec_server_installation={server_installation}",),
+        inputs=(*DEPLOY_INPUTS, f"exec_server_installation={server_installation}"),
         variables=(FQDN,),
     )
     condition = rule_ifs(jobs(config)["preflight_target"])[0]
@@ -92,7 +92,7 @@ def test_preflight_target_uses_the_configured_target_and_credentials():
 def test_both_mode_knobs_reach_the_job(redeploy):
     """The two inputs that decide what is fatal (see test_readiness_modes)."""
     config = merged_config(
-        inputs=DEPLOY_INPUTS + (f"exec_redeploy={redeploy}", "exec_server_installation=false"),
+        inputs=(*DEPLOY_INPUTS, f"exec_redeploy={redeploy}", "exec_server_installation=false"),
         variables=(FQDN,),
     )
     variables = jobs(config)["preflight_target"]["variables"]
@@ -102,7 +102,7 @@ def test_both_mode_knobs_reach_the_job(redeploy):
 
 def test_readiness_job_publishes_its_table():
     """The table is the whole point of the job; it must survive the run."""
-    inputs = DEPLOY_INPUTS + ("exec_server_installation=false",)
+    inputs = (*DEPLOY_INPUTS, "exec_server_installation=false")
     artifacts = jobs(merged_config(inputs=inputs, variables=(FQDN,)))["preflight_target"]["artifacts"]
     assert artifacts["when"] == "always"
     assert any("target_readiness.log" in path for path in artifacts["paths"])
@@ -216,3 +216,13 @@ def test_every_linter_has_its_script(default_config):
     for linter in linters:
         assert (CI_DIR / "ci-code" / "lint" / f"{linter}_lint.sh").is_file(), linter
     assert job["artifacts"]["reports"]["codequality"] == "gl-code-quality-report.json"
+
+
+@pytest.mark.parametrize("unit_tests", ["false", "true"])
+def test_check_readthedocs_follows_exec_unit_tests(unit_tests):
+    """Only the nightly schedule that runs unit tests checks ReadTheDocs; the
+    build-only and alternative-OS schedules on develop must not."""
+    config = merged_config(inputs=(f"exec_unit_tests={unit_tests}",))
+    condition = rule_ifs(jobs(config)["check_readthedocs"])[0]
+    assert statically_false(condition) == (unit_tests == "false"), condition
+    assert "CI_PIPELINE_SOURCE" in condition and "CI_COMMIT_BRANCH" in condition, condition

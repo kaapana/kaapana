@@ -250,6 +250,7 @@ include:
       exec_redeploy: $[[ inputs.exec_redeploy ]]
       exec_integration_tests: $[[ inputs.exec_integration_tests ]]
       exec_vm_sweep: $[[ inputs.exec_vm_sweep ]]
+      exec_unit_tests: $[[ inputs.exec_unit_tests ]]
   - local: /ci/pipeline/ci-image.yml
     inputs:
       runner_tag: $[[ inputs.build_runner_tag ]]

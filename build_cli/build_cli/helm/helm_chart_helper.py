@@ -8,13 +8,18 @@ from alive_progress import alive_bar
 
 from build_cli.build import BuildConfig, BuildState, IssueTracker
 from build_cli.helm import HelmChart
+from build_cli.helm.kube_linter import ADVISORY_CONFIG, ENFORCED_CONFIG
+from build_cli.helm.kube_linter import is_installed as kube_linter_installed
 from build_cli.helm.kubeconform import is_installed as kubeconform_installed
 from build_cli.helm.lint_report import (
     case_key,
+    finding_owner,
     in_changed_charts,
     is_blocking,
     lint_cases,
     log_junit_report,
+    log_problems,
+    write_code_quality_report,
     write_junit_report,
 )
 from build_cli.utils import CommandUtils, get_logger, git_ignored, should_ignore_path
@@ -329,7 +334,93 @@ class HelmChartHelper:
         for report_file in kubeconform_reports:
             log_junit_report(report_file, hidden=not_changed)
 
+        cls._kube_lint(root_charts, render_dir, only_charts)
+
         IssueTracker.configure(exit_on_error=cls._build_config.exit_on_error)
+
+    @classmethod
+    def _kube_lint(cls, root_charts: tuple[HelmChart, ...], render_dir: Path, only_charts: set[str] | None) -> None:
+        """
+        Run kube-linter on the rendered manifests and write its findings as a Code Quality report.
+
+        Only lint-only runs with --changed-file block, on the enforced checks in the changed charts, or on
+        every check with --enforce-advisory. CI and regular builds only report.
+        """
+        lint_only = cls._build_config.lint_only
+        if not kube_linter_installed():
+            message = "kube-linter is not installed: get it from https://github.com/stackrox/kube-linter/releases"
+            if lint_only:
+                IssueTracker.generate_issue(component=cls.__name__, name="kube-linter", msg=message, level="ERROR")
+            else:
+                logger.warning(f"{message}, skipping")
+            return
+
+        kaapana_dir = cls._build_config.kaapana_dir
+        advisory_config = kaapana_dir / ADVISORY_CONFIG
+        enforced_config = advisory_config if cls._build_config.enforce_advisory else kaapana_dir / ENFORCED_CONFIG
+        blocks = lint_only and only_charts is not None
+        advisory: list[dict[str, str]] = []
+        enforced_keys: set[tuple[str, str, str]] = set()
+        for chart in root_charts:
+            if chart.ignore_linting or not (render_dir / chart.name).is_dir():
+                continue
+            chart_advisory = chart.kube_lint(render_dir, advisory_config)
+            chart_enforced = (
+                chart_advisory if enforced_config == advisory_config else chart.kube_lint(render_dir, enforced_config)
+            )
+            if chart_advisory is None or chart_enforced is None:
+                if lint_only:
+                    IssueTracker.generate_issue(
+                        component=cls.__name__, name=chart.name, msg="kube-linter failed", level="ERROR"
+                    )
+                continue
+            advisory += chart_advisory
+            enforced_keys |= {(*case_key(finding), finding["check"]) for finding in chart_enforced}
+
+        def is_enforced(finding: dict[str, str]) -> bool:
+            return (*case_key(finding), finding["check"]) in enforced_keys
+
+        blocking = [
+            finding
+            for finding in advisory
+            if blocks and is_enforced(finding) and in_changed_charts(finding, only_charts)
+        ]
+        for chart_name in sorted({finding["chart"] for finding in blocking}):
+            IssueTracker.generate_issue(
+                component=cls.__name__,
+                name=chart_name,
+                msg="kube-linter findings in the changed charts",
+                level="WARNING",
+                quiet=True,
+            )
+
+        report_file = cls._build_config.build_dir / "code-quality" / "kube-linter.json"
+        write_code_quality_report(
+            [cls._code_quality_entry(finding, is_enforced(finding)) for finding in advisory], report_file
+        )
+        log_problems(
+            f"kube-linter: {len(advisory)} findings, {len(blocking)} blocking, report in {report_file}",
+            [(*case_key(finding), finding["message"]) for finding in blocking],
+            hidden_count=len(advisory) - len(blocking),
+            note="" if blocks else "kube-linter findings do not fail this run",
+        )
+
+    @classmethod
+    def _code_quality_entry(cls, finding: dict[str, str], enforced: bool) -> dict[str, str]:
+        owner = cls._build_state.charts_available_by_name.get(finding_owner(finding))
+        path = Path(finding["file"])
+        if owner:
+            source = owner.chartfile.parent / finding["file"]
+            path = source if source.is_file() else owner.chartfile
+        kaapana_dir = cls._build_config.kaapana_dir.resolve()
+        if path.resolve().is_relative_to(kaapana_dir):
+            path = path.resolve().relative_to(kaapana_dir)
+        return {
+            "description": f"[helm] kube-linter: {finding['resource']}: {finding['message']}",
+            "check_name": f"kube-linter/{finding['check']}",
+            "severity": "major" if enforced else "minor",
+            "path": str(path),
+        }
 
     @classmethod
     def build_and_push_charts(cls, platform_chart: HelmChart):

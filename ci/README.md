@@ -69,6 +69,8 @@ The CI-specific parts:
 | [`eslint.config.mjs`](../eslint.config.mjs), [`.prettierrc.json`](../.prettierrc.json) | enforced: Vue *essential*, a few ESLint bug rules, Prettier style | pre-commit, and `lint: [ui]` |
 | [`ci/ci-code/lint/eslint-quality.config.mjs`](ci-code/lint/eslint-quality.config.mjs) | advisory: adds typescript-eslint *recommended*, Vitest, Playwright | the Code Quality report of `lint: [ui]` |
 | [`.hadolint.yaml`](../.hadolint.yaml) | enforced: the *error* rules for a broken Dockerfile; advisory: every other rule, minus `DL3007`, `DL3022`, `DL3048` | pre-commit, and `lint: [hadolint]` with its Code Quality report |
+| [`.kube-linter.yaml`](../.kube-linter.yaml) | enforced: `duplicate-env-var`, `dangling-service`, `readiness-port` | pre-commit, on the changed charts |
+| [`ci/ci-code/lint/kube-linter-quality.yaml`](ci-code/lint/kube-linter-quality.yaml) | advisory: kube-linter's default checks plus the enforced ones | the Code Quality report of `lint: [helm]`, and pre-commit with `helm_lint.sh --strict` |
 
 [`ci/pipeline/lint.yml`](pipeline/lint.yml) has one `lint` job, a matrix over
 `LINTER` (`ruff`, `ui`, `hadolint`, `helm`), gated by `exec_lint`; each entry runs
@@ -83,17 +85,20 @@ meets the enforced ruleset. `RUFF_VERSION` and
 `.pre-commit-config.yaml` (the scripts check); ESLint and Prettier come from the root `package-lock.json`.
 `lint: [helm]` runs `kaapana-build --lint-only`: `helm lint --strict` on the chart
 tree, then `helm template` with fake values into `build/helm-lint/rendered/`,
-validated by kubeconform. Both always run, so one pipeline shows every problem.
-Any lint error or warning and any invalid manifest fails the job; the entry stays
-`allow_failure: true` until the existing chart warnings are fixed. Results are
-JUnit files, one for `helm lint` and one per root chart for kubeconform, shown in
-the MR test tab. This entry has no Code Quality report. kubeconform checks Kubernetes resources against the
+validated by kubeconform and checked by kube-linter. All three always run, so
+one pipeline shows every problem. Any lint error or warning and any invalid
+manifest fails the job; the entry stays `allow_failure: true` until the existing
+chart warnings are fixed. Results are JUnit files, one for `helm lint` and one
+per root chart for kubeconform, shown in the MR test tab. kube-linter never fails
+the job: its advisory findings are the entry's Code Quality report, each one
+pointing to the source template with a `[helm]` prefix. kubeconform checks Kubernetes resources against the
 upstream schemas plus the community CRD catalog
 ([datreeio/CRDs-catalog](https://github.com/datreeio/CRDs-catalog)); a kind with
 no schema fails, and `KUBECONFORM_SKIP_KINDS` (comma-separated kinds) excludes
 it. kubeconform is not part of the CI image;
 [`helm_lint.sh`](ci-code/lint/helm_lint.sh) downloads the pinned
-`KUBECONFORM_VERSION` into `~/.cache/kaapana-ci/bin` when it is not on the `PATH`.
+`KUBECONFORM_VERSION` into `~/.cache/kaapana-ci/bin` when it is not on the `PATH`,
+and the pinned `KUBE_LINTER_VERSION` when another version is on the `PATH`.
 
 ## Configuration reference
 

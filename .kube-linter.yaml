@@ -1,0 +1,6 @@
+checks:
+  doNotAutoAddDefaults: true
+  include:
+    - dangling-service
+    - duplicate-env-var
+    - readiness-port

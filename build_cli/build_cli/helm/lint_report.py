@@ -1,3 +1,5 @@
+import hashlib
+import json
 import re
 import xml.etree.ElementTree as ET
 from collections.abc import Sequence
@@ -163,3 +165,22 @@ def log_problems(
     lines += [f"  {line}" for line in extra_lines]
     (logger.warning if shown else logger.info)("\n".join(lines))
 
+
+def write_code_quality_report(entries: list[dict[str, str]], report_file: Path) -> None:
+    issues: dict[str, dict] = {}
+    for entry in entries:
+        fingerprint = hashlib.sha256(
+            "|".join((entry["check_name"], entry["path"], entry["description"])).encode()
+        ).hexdigest()
+        issues.setdefault(
+            fingerprint,
+            {
+                "description": entry["description"],
+                "check_name": entry["check_name"],
+                "fingerprint": fingerprint,
+                "severity": entry["severity"],
+                "location": {"path": entry["path"], "lines": {"begin": 1}},
+            },
+        )
+    report_file.parent.mkdir(parents=True, exist_ok=True)
+    report_file.write_text(json.dumps(list(issues.values()), indent=2))

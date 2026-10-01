@@ -10,6 +10,7 @@ import yaml
 
 from build_cli.build import BuildConfig, IssueTracker
 from build_cli.container import Container, ContainerHelper
+from build_cli.helm.kube_linter import lint_directory, parse_reports
 from build_cli.helm.kubeconform import FAILED_STATUSES, parse_resources, validate_directory
 from build_cli.helm.lint_report import case_key, in_changed_charts, parse_helm_lint, write_junit_report
 from build_cli.utils import GitUtils, get_logger
@@ -666,6 +667,13 @@ class HelmChart:
                 path=self.chartfile.parent,
             )
         return failures
+
+    def kube_lint(self, render_dir: Path, config: Path) -> list[dict[str, str]] | None:
+        linted = lint_directory(render_dir / self.name, config)
+        findings = parse_reports(linted.stdout, render_dir, self.name)
+        if findings is None:
+            logger.error(f"{self.name}: kube-linter failed: {linted.stderr.strip() or linted.returncode}")
+        return findings
 
     def _render(self, helm_executable: str, values: Path, output_dir: Path):
         return run(

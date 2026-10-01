@@ -14,7 +14,7 @@ repos:
   - repo: local
     hooks:
       - id: helm-lint
-        name: helm lint, kubeconform
+        name: helm lint, kubeconform, kube-linter
         entry: ci/ci-code/lint/helm_lint.sh
         language: python
         require_serial: true

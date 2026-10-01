@@ -56,7 +56,8 @@ class BuildConfig(BaseModel):
     containers_to_build: list[str] = Field(default_factory=list)
     only_charts: bool = False
     changed_files: list[Path] = Field(default_factory=list)
-    lint_only: bool = False  # helm lint + kubeconform validation of the chart tree, nothing else
+    lint_only: bool = False  # helm lint, kubeconform and kube-linter on the chart tree, nothing else
+    enforce_advisory: bool = False
 
     # Others
     http_proxy: str | None

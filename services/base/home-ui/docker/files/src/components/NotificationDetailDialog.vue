@@ -1,12 +1,12 @@
 <template>
-  <v-dialog :model-value="modelValue" max-width="700" @update:model-value="emit('update:modelValue', $event)">
+  <v-dialog :model-value="modelValue" max-width="600" @update:model-value="emit('update:modelValue', $event)">
     <v-card v-if="notification">
       <v-card-title class="d-flex align-start">
-        <v-icon class="mr-2">{{ notification.icon || 'mdi-information' }}</v-icon>
+        <v-icon class="mr-2">{{ notification.icon || kaapanaIcons.info }}</v-icon>
         <span class="detail-title">{{ notification.title }}</span>
         <v-spacer />
-        <v-btn icon variant="text" @click="emit('update:modelValue', false)">
-          <v-icon>mdi-close</v-icon>
+        <v-btn icon variant="text" aria-label="Close" @click="emit('update:modelValue', false)">
+          <v-icon>{{ kaapanaIcons.close }}</v-icon>
         </v-btn>
       </v-card-title>
       <v-card-subtitle>{{ new Date(notification.timestamp).toLocaleString() }}</v-card-subtitle>
@@ -20,7 +20,7 @@
           v-if="notification.link"
           color="primary"
           variant="text"
-          prepend-icon="mdi-open-in-new"
+          :prepend-icon="kaapanaIcons.externalLink"
           :href="notification.link"
           target="_top"
         >
@@ -31,6 +31,8 @@
           color="primary"
           variant="text"
           prepend-icon="mdi-check-circle-outline"
+          :loading="submitting"
+          :disabled="submitting"
           @click="markRead"
         >
           Mark as read
@@ -41,7 +43,9 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import { notify } from '@kyvg/vue3-notification'
+import { kaapanaIcons } from '@kaapana/base-ui'
 import { useNotificationsStore } from '@/stores/notifications'
 import type { KaapanaNotification } from '@/api/notifications'
 
@@ -50,9 +54,14 @@ const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
 
 const notifications = useNotificationsStore()
 
+// Marks the button busy, which also keeps a second click from sending the
+// request again while the first one is still running.
+const submitting = ref(false)
+
 // read() drops the notification from the store, so the dialog would be left
 // showing an entry that no longer exists anywhere else.
 async function markRead() {
+  submitting.value = true
   try {
     await notifications.read(props.notification!.id)
   } catch (err: any) {
@@ -63,6 +72,10 @@ async function markRead() {
       title: 'Failed to mark as read',
       text: err?.response?.data?.detail ?? err?.message,
     })
+  } finally {
+    // The dialog is reused for the next notification, so the flag must not
+    // stay set once this request is done.
+    submitting.value = false
   }
   emit('update:modelValue', false)
 }

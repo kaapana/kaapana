@@ -75,6 +75,20 @@ test('clicking a notification row opens its detail dialog with the full body', a
   await expect(dialog.locator('a[href="/web/workflows/workflows"]')).toHaveAttribute('target', '_top')
 })
 
+// The close button carries no text, and for a keyboard or screen-reader user it
+// is the way out of the dialog.
+test('both detail dialogs name their close button', async ({ page }) => {
+  await page.goto(VIEW_PATH)
+  await page.getByRole('button', { name: 'Details' }).click()
+  const dialog = page.locator('.v-dialog')
+  await dialog.getByRole('button', { name: 'Close' }).click()
+  await expect(dialog).toBeHidden()
+
+  await notificationsCard(page).getByText('Workflow finished').click()
+  await dialog.getByRole('button', { name: 'Close' }).click()
+  await expect(dialog).toBeHidden()
+})
+
 test('marking as read from the dialog calls the read endpoint and clears the list', async ({ page }) => {
   await page.goto(VIEW_PATH)
   const card = notificationsCard(page)
@@ -94,6 +108,33 @@ test('marking as read from the dialog calls the read endpoint and clears the lis
   // the second half of "the unread count reached zero".
   await expect(card.locator('.v-badge__badge')).toBeHidden()
   await expect(card.locator('.mdi-bell-outline')).toBeVisible()
+})
+
+// Reading the same notification twice fails on the second request, which would
+// report an error for an action that actually succeeded.
+test('the read action is unavailable while its request is running', async ({ page }) => {
+  await page.goto(VIEW_PATH)
+  let puts = 0
+  let release = () => {}
+  const firstPut = new Promise<void>((resolve) => (release = resolve))
+  await page.route('**/notifications/v2/**', async (r) => {
+    if (r.request().method() !== 'PUT') return r.fallback()
+    puts += 1
+    await firstPut
+    return r.fallback()
+  })
+
+  await notificationsCard(page).getByText('Workflow finished').click()
+  const button = page.locator('.v-dialog').getByRole('button', { name: 'Mark as read' })
+  await button.click()
+  await expect(button).toBeDisabled()
+  // Forced, because being unclickable is the whole point: an impatient second
+  // click must not reach the endpoint.
+  await button.click({ force: true })
+
+  release()
+  await expect(page.locator('.v-dialog')).toBeHidden()
+  expect(puts).toBe(1)
 })
 
 // Embedded, the view must ASK the shell to switch, not navigate the top window:

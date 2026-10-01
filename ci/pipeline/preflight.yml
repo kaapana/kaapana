@@ -102,29 +102,27 @@ preflight_variables:
             fail "DEPLOYMENT_INSTANCE_PLATFORM_PREFIX is ${#DEPLOYMENT_INSTANCE_PLATFORM_PREFIX} characters, over the 46 that keep project namespaces within the 63-character k8s limit."
           fi
         fi
-      fi
-
-      if [ -z "${DEPLOYMENT_INSTANCE_FQDN:-}" ]; then
-        # no target given: exec_deploy provisions a fresh VM instead
-        if [ "$[[ inputs.exec_redeploy ]]" = "true" ]; then
-          warn "exec_redeploy=true has no effect on a freshly provisioned VM — there's nothing to undeploy yet. Set DEPLOYMENT_INSTANCE_FQDN to redeploy onto an existing target instead."
-        fi
-        if [ "$[[ inputs.exec_deploy ]]" = "true" ]; then
+        if [ -n "${DEPLOYMENT_INSTANCE_FQDN:-}" ]; then
+          if [ "${#DEPLOYMENT_INSTANCE_FQDN}" -gt 57 ]; then
+            fail "DEPLOYMENT_INSTANCE_FQDN is ${#DEPLOYMENT_INSTANCE_FQDN} characters, over the 57-character dcmsend peerhost limit."
+          fi
+        else
           require_file HARVESTER_KUBECONFIG
           require DEPLOYMENT_INSTANCE_DOMAIN
           require DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE
-        fi
-        if [ "$[[ inputs.exec_deploy ]]" = "true" ] && [ "$[[ inputs.exec_server_installation ]]" = "false" ]; then
-            fail "exec_deploy cannot be run on the freshly provisioned VM with exec_server_installation=false"
+          if [ "$[[ inputs.exec_server_installation ]]" = "false" ]; then
+            fail "exec_deploy=true provisions a fresh VM, which needs exec_server_installation=true."
           fi
-        if [ "$[[ inputs.exec_integration_tests ]]" = "true" ] && [ "$[[ inputs.exec_deploy ]]" = "false" ]; then
-          fail "exec_integration_tests=true cannot be run on the freshly provisioned VM with exec_deploy=false; set DEPLOYMENT_INSTANCE_FQDN to test against an existing target instead."
+          if [ "$[[ inputs.exec_redeploy ]]" = "true" ]; then
+            warn "exec_redeploy=true has no effect on a fresh VM; there is nothing to undeploy yet."
+          fi
         fi
-      else
-        # custom target: an already-reachable instance, reused across runs
-        if [ "$[[ inputs.exec_deploy ]]" = "true" ] && [ "${#DEPLOYMENT_INSTANCE_FQDN}" -gt 57 ]; then
-          # dcmsend rejects peerhosts over 57 chars
-          fail "DEPLOYMENT_INSTANCE_FQDN is ${#DEPLOYMENT_INSTANCE_FQDN} characters, over the 57-character dcmsend peerhost limit."
+      elif [ -z "${DEPLOYMENT_INSTANCE_FQDN:-}" ]; then
+        if [ "$[[ inputs.exec_server_installation ]]" = "true" ]; then
+          fail "exec_server_installation=true needs a target: set DEPLOYMENT_INSTANCE_FQDN, or exec_deploy=true for a fresh VM."
+        fi
+        if [ "$[[ inputs.exec_integration_tests ]]" = "true" ]; then
+          fail "exec_integration_tests=true needs a target: set DEPLOYMENT_INSTANCE_FQDN, or exec_deploy=true for a fresh VM."
         fi
       fi
 

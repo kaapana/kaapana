@@ -36,7 +36,7 @@ Install the `Ruff extension <https://marketplace.visualstudio.com/items?itemName
     }
 
 The extension reads :code:`ruff.toml` from the repository root, so the editor
-formats exactly the way the pre-commit hook and the :code:`lint` job do.
+formats exactly the way the pre-commit hook and the :code:`lint: [ruff]` job do.
 
 Usage
 ------
@@ -46,6 +46,8 @@ Format and lint the whole repository from its root:
 
     ruff format .          # rewrite files
     ruff check --fix .     # sort imports, drop unused ones, report the rest
+
+    ci/ci-code/lint/ruff_lint.sh   # exactly what lint: [ruff] runs: report, change nothing
 
 Both are safe to run repeatedly. Pass a path to limit them to one file or
 directory.
@@ -84,17 +86,33 @@ local git use that list:
 
 Code quality report
 --------------------
-The pipeline's :code:`code_quality` job runs a wider ruleset that never fails a
-pipeline, and reports it in the merge request Code Quality widget. The same run
-locally:
+The :code:`lint: [ruff]` job also runs a wider ruleset,
+:code:`ci/ci-code/lint/ruff-quality.toml`, that never fails a pipeline, and reports it in
+the merge request Code Quality widget. The same run locally:
 
 .. code-block:: bash
 
-    ruff check --config ci/ruff-quality.toml --statistics .   # counts per rule
-    ruff check --config ci/ruff-quality.toml .                # the findings
-    ruff check --config ci/ruff-quality.toml --select UP006 --fix .   # one rule
+    ruff check --config ci/ci-code/lint/ruff-quality.toml --statistics .   # counts per rule
+    ruff check --config ci/ci-code/lint/ruff-quality.toml .                # the findings
+    ruff check --config ci/ci-code/lint/ruff-quality.toml --select UP006 --fix .   # one rule
 
 Rules
 ------
 :code:`ruff check` enforces pycodestyle errors, pyflakes (unused imports and
-variables, undefined names) and import order. The pipeline's :code:`code_quality` job reports them in the merge request Code Quality widget.
+variables, undefined names) and import order.
+
+CI
+---
+The :code:`lint` job in :code:`ci/pipeline/lint.yml` is a matrix with one
+entry per linter, shown as one :code:`lint` group in the pipeline. Every entry
+runs :code:`ci/ci-code/lint/<linter>_lint.sh`, which installs its own tool and
+runs the same checks locally and in CI. Each entry publishes its advisory
+findings to the merge request Code Quality widget and fails the pipeline on
+formatting drift or an enforced rule. :code:`ruff_lint.sh` checks that its
+:code:`RUFF_VERSION` matches the :code:`rev` of the ruff hook in
+:code:`.pre-commit-config.yaml`, so the versions cannot drift. Helm charts are
+checked by the separate :code:`helm_lint` job.
+
+To add a linter, add its name to the :code:`LINTER` matrix and a matching
+:code:`ci/ci-code/lint/<linter>_lint.sh`; if the tool can produce a Code Quality
+report, write it to :code:`gl-code-quality-report.json`.

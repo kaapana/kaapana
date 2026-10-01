@@ -1,6 +1,6 @@
 # Install with:
 #   pip install pre-commit && pre-commit install
-# Keep rev in sync with RUFF_VERSION in ci/pipeline/lint.yml.
+# Keep rev in sync with RUFF_VERSION in ci/ci-code/lint/ruff_lint.sh.
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.4

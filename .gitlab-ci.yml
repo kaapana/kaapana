@@ -13,7 +13,7 @@ spec:
     exec_lint:
       default: true
       type: boolean
-      description: "[exec] tests stage: ruff format/lint check + code quality report + helm chart lint"
+      description: "[exec] tests stage: lint matrix (ruff): enforced rules + advisory code quality report, and helm chart lint"
     exec_build:
       default: true
       type: boolean

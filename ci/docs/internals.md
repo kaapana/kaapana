@@ -87,8 +87,10 @@ timeout**, and a shared pip cache (`key: pip-test-jobs`).
 `build_documentation` uploads the built HTML and its log. `check_readthedocs`
 runs only on scheduled `develop` pipelines. 
 
-`lint`, `code_quality` and `helm_lint` are in `ci/pipeline/lint.yml`; `helm_lint`
-runs `kaapana-build --lint-only` on `ci-base` and needs a full clone with tags.
+`lint` is a matrix over `LINTER` (`ruff`) on `ci-base`; the script picks
+each entry's commands by `$LINTER`, and each entry publishes its Code Quality report.
+Each entry fails on formatting or its enforced ruleset.
+`helm_lint` runs `kaapana-build --lint-only` on `ci-base` and needs a full clone with tags.
 
 ### build
 

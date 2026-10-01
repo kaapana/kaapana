@@ -57,8 +57,7 @@ npm run test:e2e -- tests/example.spec.ts
 npm run test:e2e -- --debug
 ```
 
-### Lint with [ESLint](https://eslint.org/)
+### Format and lint
 
-```sh
-npm run lint
-```
+Prettier and ESLint run from the repository root, see
+[Code Formatting](../../../../../docs/source/development_guide/code_formatting.rst).

@@ -17,6 +17,7 @@ export const useNotificationsStore = defineStore('notifications', {
     hasMore: true,
     total: 0,
     loading: false,
+    loadedOnce: false,
     refreshId: 0,
     ws: null as NotificationWebsocket | null,
   }),
@@ -71,6 +72,7 @@ export const useNotificationsStore = defineStore('notifications', {
           text: err?.response?.data?.detail ?? err?.message,
         })
       } finally {
+        this.loadedOnce = true
         // Only release the guard if we still own it; a superseding refresh's
         // load owns it now and must stay protected from concurrent scrolls.
         if (refreshId === this.refreshId) this.loading = false

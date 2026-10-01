@@ -7,8 +7,9 @@
       <span class="ml-3">Notifications</span>
     </v-card-title>
     <v-card-text class="pa-0">
+      <v-skeleton-loader v-if="!notifications.loadedOnce" type="list-item-two-line@3" />
       <div
-        v-if="notifications.notifications.length === 0"
+        v-else-if="notifications.notifications.length === 0 && !notifications.loading"
         class="text-center text-medium-emphasis pa-4"
       >
         No notifications — you're all caught up
@@ -21,7 +22,7 @@
           @click="openDetail(notif)"
         >
           <template #prepend>
-            <v-icon>{{ notif.icon || 'mdi-information' }}</v-icon>
+            <v-icon>{{ notif.icon || kaapanaIcons.info }}</v-icon>
           </template>
           <v-list-item-title>{{ notif.title }}</v-list-item-title>
           <v-list-item-subtitle>
@@ -40,6 +41,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import NotificationDetailDialog from '@/components/NotificationDetailDialog.vue'
+import { kaapanaIcons } from '@kaapana/base-ui'
 import { useNotificationsStore } from '@/stores/notifications'
 import type { KaapanaNotification } from '@/api/notifications'
 

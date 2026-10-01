@@ -194,6 +194,32 @@ test('a user without policy authorization sees dimmed intro steps but keeps the 
   await expect(page.locator('.branding-hero').getByRole('link')).toHaveCount(4)
 })
 
+// A list that has not loaded yet is not an empty list.
+test('notifications show a loading state before the first page arrives', async ({ page }) => {
+  await installMockBackend(page)
+  let release = () => {}
+  const firstPage = new Promise<void>((resolve) => (release = resolve))
+  await page.route('**/notifications/v2/**', async (r) => {
+    if (r.request().method() !== 'GET') return r.fallback()
+    await firstPage
+    return r.fallback()
+  })
+  await seedShellState(page)
+  await page.goto(VIEW_PATH)
+
+  // Wait for the page itself first. The gate holds the first page open for as
+  // long as the test wants, so a slow boot must not be read as a missing
+  // loading state.
+  await expect(page.getByRole('heading', { name: /kaapana!$/ })).toBeVisible()
+  const card = page.locator('.v-card').filter({ hasText: 'Notifications' })
+  await expect(card.locator('.v-skeleton-loader')).toBeVisible()
+  await expect(page.getByText("No notifications — you're all caught up")).toHaveCount(0)
+
+  release()
+  await expect(card.getByText('Workflow finished')).toBeVisible()
+  await expect(card.locator('.v-skeleton-loader')).toHaveCount(0)
+})
+
 test('an empty notification list shows the empty state', async ({ page }) => {
   await installMockBackend(page, mockData({ notifications: [] }))
   await seedShellState(page)

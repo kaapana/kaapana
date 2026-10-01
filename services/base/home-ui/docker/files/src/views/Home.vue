@@ -31,7 +31,7 @@
         <v-col cols="12">
           <v-card>
             <v-card-text class="text-left">
-              <h1>Thank you for visiting us. We hope to see you again!</h1>
+              <h1 class="text-h4">Thank you for visiting us. We hope to see you again!</h1>
               <p>
                 In order to log in again, please reload the page or
                 <a @click="reloadPage()">click here</a>

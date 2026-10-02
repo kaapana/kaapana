@@ -84,6 +84,8 @@ Five groups of knobs. Two are **inputs** and three are **variables**
 whose `CI_REGISTRY_*` rows the jobs use, and preflight fails when it is empty
 (see [Registries](docs/internals.md#registries)).
 
+Every token and secret the CI uses, and what it is for: [Tokens & secrets](docs/internals.md#tokens--secrets).
+
 ### 1. `*_runner_tag` inputs — where a stage runs
 
 One per stage group. Point a stage at your own machine by giving your runner's

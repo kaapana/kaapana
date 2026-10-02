@@ -1,12 +1,13 @@
-// Tag chips are coloured by name so the same tag looks the same everywhere.
-// That is identity, not meaning: the chip always carries its label too.
-//
-// The name is hashed into a hue at a fixed saturation and lightness, which keeps
-// every chip inside one readable band in both themes, and the foreground is
-// chosen by luminance the same way the shared theme picks its `on-*` colours.
+import { contrastingColor } from '@kaapana/base-ui'
 
-const CHIP_SATURATION = 0.55
-const CHIP_LIGHTNESS = 0.45
+// Hues every 15° at one saturation and lightness (55 %, 45 %): no tag is
+// near-white or near-black, so each stands apart from both themes' backgrounds.
+const TAG_BACKGROUNDS = [
+  '#B23434', '#B25334', '#B27334', '#B29234', '#B2B234', '#92B234',
+  '#73B234', '#53B234', '#34B234', '#34B253', '#34B273', '#34B292',
+  '#34B2B2', '#3492B2', '#3473B2', '#3453B2', '#3434B2', '#5334B2',
+  '#7334B2', '#9234B2', '#B234B2', '#B23492', '#B23473', '#B23453',
+]
 
 function hashString(str: string): number {
   let hash = 0
@@ -17,41 +18,6 @@ function hashString(str: string): number {
   return Math.abs(hash)
 }
 
-function toHex(value: number): string {
-  return Math.round(value * 255)
-    .toString(16)
-    .padStart(2, '0')
-}
-
-function hslToHex(h: number, s: number, l: number): string {
-  const chroma = (1 - Math.abs(2 * l - 1)) * s
-  const secondary = chroma * (1 - Math.abs(((h / 60) % 2) - 1))
-  const match = l - chroma / 2
-  const [r, g, b] = (
-    h < 60
-      ? [chroma, secondary, 0]
-      : h < 120
-        ? [secondary, chroma, 0]
-        : h < 180
-          ? [0, chroma, secondary]
-          : h < 240
-            ? [0, secondary, chroma]
-            : h < 300
-              ? [secondary, 0, chroma]
-              : [chroma, 0, secondary]
-  ).map((channel) => channel + match)
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`
-}
-
-/** WCAG relative luminance of an `#rrggbb` colour. */
-function relativeLuminance(hex: string): number {
-  const channels = [1, 3, 5].map((offset) => {
-    const value = parseInt(hex.slice(offset, offset + 2), 16) / 255
-    return value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4)
-  })
-  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
-}
-
 export interface TagColor {
   background: string
   text: string
@@ -59,9 +25,7 @@ export interface TagColor {
 
 export function tagColor(tag: string): TagColor {
   if (!tag) return { background: 'transparent', text: 'inherit' }
-  const background = hslToHex(hashString(tag) % 360, CHIP_SATURATION, CHIP_LIGHTNESS)
-  // Same rule as the shared theme's `on-*` colours: whichever of black or white
-  // contrasts more with the background.
-  const text = relativeLuminance(background) > 0.179 ? '#000000' : '#FFFFFF'
+  const background = TAG_BACKGROUNDS[hashString(tag) % TAG_BACKGROUNDS.length]
+  const text = contrastingColor(background)
   return { background, text }
 }

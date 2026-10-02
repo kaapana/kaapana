@@ -18,6 +18,10 @@ deliberately only small, stable pieces.
   embedded view has unsaved in-memory state.
 - `kaapanaThemeLight`, `kaapanaThemeDark`, `KAAPANA_THEME_LIGHT`,
   `KAAPANA_THEME_DARK` — the shared Vuetify theme definitions and their names.
+- `contrastingColor(background, choices?)` — the colour from `choices` (black
+  or white by default) with the highest WCAG contrast against `background`,
+  the rule behind the theme's `on-*` colours; for colours outside the theme.
+  Colours are `#rrggbb`.
 - `createKaapanaVuetify()`, `KaapanaVuetifyOptions` — builds the shared theme,
   icon configuration and platform fonts while allowing consumer extensions.
 - `kaapanaIcons`, `KaapanaIconName` — semantic names for shared action icons.

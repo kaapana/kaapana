@@ -39,15 +39,25 @@ export function themeContrastRatio(background: string, foreground: string): numb
   )
 }
 
+/**
+ * The colour from `choices` with the highest WCAG contrast against `background`.
+ * Defaults to black or white, the rule behind the theme's on-* colours.
+ * Colours are #rrggbb; on a tie the earlier choice wins.
+ */
+export function contrastingColor(
+  background: string,
+  choices: readonly [string, ...string[]] = ['#000000', '#FFFFFF'],
+): string {
+  return choices.reduce((best, choice) =>
+    themeContrastRatio(background, choice) > themeContrastRatio(background, best) ? choice : best,
+  )
+}
+
 function withForegrounds(theme: ThemeDefinition): ThemeDefinition {
   const colours = { ...theme.colors } as Record<string, string>
   for (const [key, value] of Object.entries(theme.colors ?? {})) {
     if (key.startsWith('on-')) continue
-    colours[`on-${key}`] =
-      themeContrastRatio(value as string, '#FFFFFF') >
-      themeContrastRatio(value as string, '#000000')
-        ? '#FFFFFF'
-        : '#000000'
+    colours[`on-${key}`] = contrastingColor(value as string)
   }
   return { ...theme, colors: colours }
 }

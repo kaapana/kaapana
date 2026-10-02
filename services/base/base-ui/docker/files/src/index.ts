@@ -22,6 +22,7 @@ export {
   kaapanaThemeDark,
   KAAPANA_THEME_LIGHT,
   KAAPANA_THEME_DARK,
+  contrastingColor,
 } from './utils/vuetifyTheme'
 export { createKaapanaVuetify, type KaapanaVuetifyOptions } from './utils/createKaapanaVuetify'
 export { kaapanaIcons, type KaapanaIconName } from './utils/icons'

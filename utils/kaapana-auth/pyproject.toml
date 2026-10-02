@@ -1,0 +1,15 @@
+[project]
+name = "kaapana-auth"
+version = "0.1.0"
+description = "Authenticated requests against a running Kaapana instance"
+requires-python = ">=3.9"
+dependencies = [
+    "requests",
+]
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["kaapana_auth"]

@@ -79,6 +79,7 @@ setup_integration_tests:
   script:
     # deps are baked into the job image; this only registers the repo's
     # current test code
+    - pip install --no-deps -e "$CI_PROJECT_DIR/utils/kaapana-auth"
     - pip install --no-deps -e "$CI_PROJECT_DIR/ci/ci-code/integration_tests"
     - |
       python3 -m pytest -n "${PYTEST_WORKERS:-auto}" --dist "${PYTEST_DIST:-load}" \

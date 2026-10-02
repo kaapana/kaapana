@@ -17,7 +17,6 @@ import {
   openGallery,
   selectDataset,
 } from './fixtures/helpers'
-import { tagColor } from '../../src/utils/tagColors'
 
 // query_values returns {text, value, count} objects; v3 autocompletes need
 // item-title="text" or every entry renders as "[object Object]".
@@ -34,31 +33,29 @@ test('filter value dropdown shows readable labels, not [object Object]', async (
 })
 
 // Inside a v-chip-group, VChip only applies `color` while selected — the tag
-// bar must use base-color to keep unselected tags colored.
+// bar must use base-color to keep unselected tags colored; without it every tag
+// gets the same default chip background. The text check only rules out anything
+// but black or white, so it misses a lost `:style`: Vuetify's own fallback is
+// black or white too. base-ui's contrastingColor picks which, tested there.
 test('tag bar chips are colored and action buttons show tooltips', async ({ page }) => {
   const data = makeDefaultMockData()
   data.settings.datasets.tagBar.tags = ['review', 'favorite']
   await openGallery(page, data)
 
-  // Each chip takes tagColor(): a hue hashed from the name at a fixed
-  // saturation and lightness, so every chip lands in one readable band, with a
-  // foreground picked by luminance rather than inherited from the surroundings.
+  const chip = (tag: string) => page.locator('.v-chip-group .v-chip').filter({ hasText: tag })
   for (const tag of ['review', 'favorite']) {
-    const chip = page.locator('.v-chip-group .v-chip').filter({ hasText: tag })
-    const { background, text } = tagColor(tag)
-    await expect(chip).toHaveCSS('background-color', rgb(background))
-    await expect(chip).toHaveCSS('color', rgb(text))
+    await expect(chip(tag)).toHaveCSS('color', /^rgb\((0, 0, 0|255, 255, 255)\)$/)
   }
+  const background = (tag: string) => chip(tag).evaluate((el) => getComputedStyle(el).backgroundColor)
+  await expect
+    .poll(async () => new Set([await background('review'), await background('favorite')]).size, {
+      message: 'the two tags share one background',
+    })
+    .toBe(2)
 
   await page.locator('.mdi-plus').first().hover()
   await expect(page.getByText(/save .* series as a new dataset/i)).toBeVisible()
 })
-
-/** `#rrggbb` as the browser reports a computed colour. */
-function rgb(hex: string) {
-  const [r, g, b] = [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16))
-  return `rgb(${r}, ${g}, ${b})`
-}
 
 // V3 v-btn defaults to the "elevated" variant, so the icon buttons rendered a
 // raised grey box when disabled; they must use variant="text".

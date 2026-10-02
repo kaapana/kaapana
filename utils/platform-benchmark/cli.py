@@ -56,7 +56,7 @@ def run(
     suite: List[str] = typer.Option(["ingest"], help=f"suites to run: {', '.join(SUITES)}"),
     runs: int = typer.Option(1, help="repetitions of every selected suite"),
     out: Optional[Path] = typer.Option(None, help="write results.json and metrics.txt here"),
-    host: str = typer.Option("https://e230-pc11.inet.dkfz-heidelberg.de", help="platform URL (ingest)"),
+    host: Optional[str] = typer.Option(None, envvar="BENCHMARK_HOST", help="platform URL (required for ingest)"),
     username: str = typer.Option("kaapana"),
     password: str = typer.Option("", help="platform password (ingest)"),
     data_dir: Optional[Path] = typer.Option(
@@ -86,6 +86,8 @@ def run(
     config: dict[str, list[str]] = {}
     names: list[str] = []
     if "ingest" in suite:
+        if not host:
+            raise typer.BadParameter("--host is required for the ingest suite")
         if not data_dir:
             raise typer.BadParameter("--data-dir is required for the ingest suite")
         if not scenario_file:

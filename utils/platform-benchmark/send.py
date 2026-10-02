@@ -69,7 +69,7 @@ def wait_for_runs(
     dag_id: str,
     uids: set[str],
     since: str,
-    timeout: int = 4 * 3600,
+    timeout: int = 2 * 3600,
     dropped_grace: int = 300,
 ) -> list[dict]:
     """Poll until one finished run per sent series shows up; return those runs.
@@ -135,7 +135,7 @@ def send_and_wait(
     dataset: str,
     project: str,
     reset: bool = True,
-    timeout: int = 4 * 3600,
+    timeout: int = 2 * 3600,
 ) -> tuple[list[dict], set[str]]:
     """Returns (runs, sent series UIDs); the UIDs are the denominator for
     dropped-series accounting (a patient dir may hold several series)."""

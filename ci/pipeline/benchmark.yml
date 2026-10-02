@@ -18,7 +18,7 @@ benchmark_platform:
   tags:
     - $[[ inputs.runner_tag ]]
   allow_failure: true
-  timeout: 8 hours
+  timeout: 2 hours
   dependencies:
     - prepare_deployment
   rules:

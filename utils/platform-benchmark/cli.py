@@ -66,7 +66,7 @@ def run(
         None, "--scenario-file", help="scenario definitions, JSON (required for the ingest suite)"
     ),
     scenario: List[str] = typer.Option([], help="scenarios to run (default: all in the file)"),
-    timeout_h: float = typer.Option(4.0, help="how long to wait for a scenario's runs to finish"),
+    timeout_h: float = typer.Option(2.0, help="how long to wait for a scenario's runs to finish"),
     dag_id: str = typer.Option("service-process-incoming-dcm"),
     reset: bool = typer.Option(True, "--reset/--no-reset", help="delete each scenario's series before upload"),
     kubectl: str = typer.Option("kubectl", help='kubectl entrypoint, e.g. "ssh host microk8s kubectl"'),

@@ -84,7 +84,7 @@ relative to `--data-dir/root_path`:
 - `split_runs` > 0 means the receiver cut a series apart mid-transfer (settle
   timer fired early); `dropped_series` counts series accepted but never
   triggering a run.
-- `--timeout-h` (default 4) bounds the wait per scenario. TLS verification is
+- `--timeout-h` (default 2) bounds the wait per scenario. TLS verification is
   disabled (self-signed platform certs).
 
 ### internet / gpu

@@ -58,7 +58,7 @@ def run(
     config: dict[str, list[str]],
     names: list[str],
     reset: bool = True,
-    timeout_s: int = 4 * 3600,
+    timeout_s: int = 2 * 3600,
 ) -> dict:
     client = KaapanaClient(host, username, password)
     results = {}

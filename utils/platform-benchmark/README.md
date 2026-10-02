@@ -6,7 +6,7 @@ OpenMetrics. Four suites:
 | suite | what it measures | needs |
 |---|---|---|
 | `ingest` | timing of the ingestion DAG for the scenarios of the dataset | platform HTTPS APIs + dcmtk (`dcmsend`, `dcmdump`) |
-| `internet` | ping / download / upload from inside the cluster (speedtest pod, `klakadkfz/speedtest` image) | kubectl access |
+| `internet` | ping / download / upload from inside the cluster (speedtest pod: `speedtest-cli` on the official `python` image) | kubectl access |
 | `gpu` | gpu_burn throughput + per-GPU health (`chrstnhntschl/gpu_burn` image) | kubectl access |
 | `helm` | how fast the machine deploys increasingly big helm charts (the kaapana-platform-chart timeout problem) | helm + kubectl access |
 

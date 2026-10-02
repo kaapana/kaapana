@@ -6,7 +6,6 @@ extend-exclude = [
     "services/flow/airflow/docker/files/scheduler_job_runner_2.10.3_adapted.py",
     "services/flow/airflow/docker/files/task_command_2.10.3.py",
     "services/flow/airflow/docker/files/task_command_2.10.3_adapted.py",
-    "utils/internet-benchmark/docker/files/speedtest.py",
 ]
 # Honour the excludes for explicitly passed paths too (editor and LSP invocations).
 force-exclude = true

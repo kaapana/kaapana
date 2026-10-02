@@ -1,5 +1,5 @@
-# WARNING: THIS DOCKERFILE IS DEPRECATED AND WILL BE REMOVED IN FUTURE RELEASES!
-# PLEASE USE THE MAINTAINED BASE IMAGE INSTEAD: `data-processing/base-images/base-python-gpu/Dockerfile`
+# WARNING: THIS DOCKERFILE IS DEPRECATED AND WILL BE REMOVED IN FUTURE RELEASES!
+# PLEASE USE THE MAINTAINED BASE IMAGE INSTEAD: `data-processing/base-images/base-python-gpu/Dockerfile`
 
 FROM local-only/base-python-cpu-3.10:latest
 

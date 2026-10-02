@@ -234,6 +234,13 @@ decide what goes, not the frequency. Like every schedule it is paused by
 `MAINTENANCE=true`; a web run with `exec_vm_sweep` clears the backlog without
 lifting the pause.
 
+### review
+
+`mr_review` and `mr_review_rerun` ([review.yml](../pipeline/review.yml)) post
+one advisory note on the MR. The model gets the MR title, description and diff,
+and the description of up to five linked issues: closed, mentioned, or named
+by the branch. **Confidential issues and comments are left out**.
+
 ### clean
 
 `destroy_deployment`'s `needs:` list **is the teardown barrier**: with

@@ -138,7 +138,7 @@ Validation reports — `src/components/ValidationReportDialog.vue` via `kaapanaA
 | Method + path | Purpose |
 | --- | --- |
 | `GET get-static-website-result-reports?series_id=` | resolve a series' validation-report HTML URL |
-| `GET <that URL>` | the report HTML (`ElementsFromHTML`, plain `fetch`) |
+| `GET <that URL>` | the report HTML (`ElementsFromHTML`, `httpClient`) |
 
 Auth — `@kaapana/base-ui` `authService` (**not** scoped):
 

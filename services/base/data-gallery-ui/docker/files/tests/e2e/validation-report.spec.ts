@@ -84,7 +84,7 @@ test('a failed lookup is a failure with Retry and Details, not "no report"', asy
   await expect(report.getByText('Report of 1.2.3')).toBeVisible()
 })
 
-test('a report that cannot be fetched says so inline, with a retry', async ({ page }) => {
+test('a report that cannot be fetched says so inline, with Retry and Details', async ({ page }) => {
   const pageErrors = collectPageErrors(page)
   let failing = true
   const report = await openReport(page, async () => {
@@ -99,6 +99,16 @@ test('a report that cannot be fetched says so inline, with a retry', async ({ pa
   await expect(report.getByText('Network response was not ok')).toHaveCount(0)
   await page.waitForTimeout(700)
   await expectNoToast(page)
+
+  await alert.getByRole('button', { name: 'Details' }).click()
+  const details = dialog(page, 'Report not loaded')
+  await expect(details.locator('dd')).toHaveText([
+    '404 Not Found',
+    'GET /reports/1.2.3.html',
+    'Request failed with status code 404',
+  ])
+  await details.getByRole('button', { name: 'Close' }).click()
+  await expect(details).toBeHidden()
 
   failing = false
   await alert.getByRole('button', { name: 'Try again' }).click()

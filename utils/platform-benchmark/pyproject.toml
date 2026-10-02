@@ -6,7 +6,6 @@ requires-python = ">=3.9"
 dependencies = [
     "typer",
     "requests",
-    "urllib3",
 ]
 
 [project.scripts]

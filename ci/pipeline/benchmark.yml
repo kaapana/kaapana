@@ -46,7 +46,12 @@ benchmark_platform:
         git clone "$BENCHMARK_CLONE_URL" "$BENCHMARK_REPO_DIR"
       fi
     - git -C "$BENCHMARK_REPO_DIR" lfs pull
+    - pip install -e "$CI_PROJECT_DIR/utils/kaapana-auth"
     - pip install -e "$CI_PROJECT_DIR/utils/platform-benchmark"
+    - |
+      CLIENT_SECRET="$(ssh -i "$DEPLOYMENT_INSTANCE_SSH_KEY" -o StrictHostKeyChecking=no "$VM_USER@$VM_FQDN" \
+        microk8s helm get values kaapana-admin-chart -o json | jq -r .global.oidc_client_secret)"
+      export CLIENT_SECRET
     - mkdir -p "$ARTIFACTS_DIR/benchmark"
     - jq '{root_path, scenarios}' "$BENCHMARK_DATA_CONFIG" > "$ARTIFACTS_DIR/benchmark/scenarios.json"
     - |

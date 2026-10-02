@@ -59,8 +59,9 @@ def run(
     names: list[str],
     reset: bool = True,
     timeout_s: int = 2 * 3600,
+    client_secret: str | None = None,
 ) -> dict:
-    client = KaapanaClient(host, username, password)
+    client = KaapanaClient(host, username, password, client_secret)
     results = {}
     for name in names:
         paths = scenario_paths(Path(data_dir), root_path, config[name])

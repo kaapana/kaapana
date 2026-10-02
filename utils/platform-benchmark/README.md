@@ -13,13 +13,15 @@ OpenMetrics. Four suites:
 ## Install
 
 ```bash
-pip install -e .        # provides the `benchmark` command
+pip install -e ../kaapana-auth   # shared KaapanaAuth login client
+pip install -e .                 # provides the `benchmark` command
 ```
 
 ## Usage
 
 ```bash
 export BENCHMARK_DATA_DIR=~/data   # dataset repo root; or pass --data-dir each time
+export CLIENT_SECRET=$(ssh <instance> microk8s helm get values kaapana-admin-chart -o json | jq -r .global.oidc_client_secret)
 
 benchmark run --suite ingest --host https://<instance> --password <pw> --scenario-file scenarios.json
 benchmark run --suite ingest --scenario-file scenarios.json --scenario minimal --scenario max --runs 3

@@ -144,5 +144,5 @@ def send_and_wait(
         delete_and_wait(client, uids)
     print(f"sending {len(uids)} series")
     since = datetime.now(timezone.utc).isoformat()
-    dcmsend(client.host.split("//")[-1], paths, dataset, project)
+    dcmsend(client.host, paths, dataset, project)
     return wait_for_runs(client, dag_id, uids, since, timeout), uids

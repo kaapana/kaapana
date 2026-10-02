@@ -59,6 +59,9 @@ def run(
     host: Optional[str] = typer.Option(None, envvar="BENCHMARK_HOST", help="platform URL (required for ingest)"),
     username: str = typer.Option("kaapana"),
     password: str = typer.Option("", help="platform password (ingest)"),
+    client_secret: Optional[str] = typer.Option(
+        None, envvar="CLIENT_SECRET", help="Keycloak secret of the kaapana OIDC client (ingest)"
+    ),
     data_dir: Optional[Path] = typer.Option(
         None, envvar="BENCHMARK_DATA_DIR", help="dataset repo root; scenario root_path is relative to this (ingest)"
     ),
@@ -119,6 +122,7 @@ def run(
                     names,
                     reset=reset,
                     timeout_s=int(timeout_h * 3600),
+                    client_secret=client_secret,
                 )
             elif name == "internet":
                 metrics = internet_suite.run(kubectl, namespace, proxy or None)

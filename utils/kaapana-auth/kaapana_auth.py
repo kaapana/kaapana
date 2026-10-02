@@ -20,9 +20,13 @@ class KaapanaAuth:
         client_secret=None,
         verify: bool = False,
         wait_for_platform: bool = True,
+        username: str = "kaapana",
+        password: str = "admin",
     ):
         """Initialize KaapanaAuth."""
         self.host = host
+        self.username = username
+        self.password = password
         self.client_secret = client_secret or os.environ.get("CLIENT_SECRET")
         if not self.client_secret:
             raise RuntimeError("CLIENT_SECRET not provided to KaapanaAuth (argument or CLIENT_SECRET env)")
@@ -40,7 +44,7 @@ class KaapanaAuth:
             self.wait_for_ready()
 
         # obtain tokens and project info
-        self.access_token = self.get_access_token()
+        self.access_token = self.get_access_token(username, password)
         self.admin_project = self.get_admin_project()
 
     def _scoped(self, endpoint):
@@ -120,7 +124,9 @@ class KaapanaAuth:
             try:
                 r = self.session.post(url, verify=ssl_check, data=payload)
                 r.raise_for_status()
-                access_token = r.json()["access_token"]
+                body = r.json()
+                access_token = body["access_token"]
+                self.token_expires_at = time.time() + body.get("expires_in", 300) - 30
                 logger.info(f"Access token acquired on attempt {attempt}")
                 return access_token
             except requests.exceptions.RequestException as e:
@@ -129,6 +135,11 @@ class KaapanaAuth:
                     raise
                 logger.warning(f"Attempt {attempt} failed: {e}. Retrying in {delay}s...")
                 time.sleep(delay)
+
+    def fresh_token(self):
+        if time.time() >= self.token_expires_at:
+            self.access_token = self.get_access_token(self.username, self.password)
+        return self.access_token
 
     def request(
         self,
@@ -142,7 +153,7 @@ class KaapanaAuth:
         retries=5,
         headers={},
     ):
-        headers.update({"Authorization": f"Bearer {self.access_token}"})
+        headers.update({"Authorization": f"Bearer {self.fresh_token()}"})
 
         method_name = getattr(request_type, "__name__", "get").lower()
         func = getattr(self.session, method_name, None)

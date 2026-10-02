@@ -18,7 +18,7 @@ Pipeline configuration is [`.gitlab-ci.yml`](../.gitlab-ci.yml) plus stage files
 
 | Trigger | Configuration |
 |---|---|
-| Merge request | Full pipeline on every push to the branch with default configuration. A draft MR (Draft, WIP) runs nothing. Label the MR `Security` for security scan, or `CI` for CI tests. Label the MR `AI Review` for an advisory AI review note (`mr_review`, once per MR), or run the manual `mr_review_rerun` job for a new one |
+| Merge request | Full pipeline on every push to the branch with default configuration. A draft MR (Draft, WIP) runs nothing. Label the MR `Security` for security scan, or `CI` for CI tests. Label the MR `AI Review` for an advisory AI review note (`mr_review`, once per MR), or run the manual `mr_review_rerun` job for a new one. Confidential issues are not sent to the model ([internals.md](docs/internals.md#review)) |
 | Push to `develop` | Full pipeline|
 | Schedule | Full pipeline with the schedule's own configuration ([below](#scheduled-pipelines)) |
 | Protected tag `X.Y.Z` | Release build against the release registry ([internals.md](docs/internals.md#registries)) |
@@ -126,7 +126,7 @@ Every stage toggle. Grouped as `[exec]` in the run form.
 |---|---|---|
 | `exec_unit_tests` | `true` | tests stage: unit tests + documentation build |
 | `exec_lint` | `true` | tests stage: `lint` matrix (ruff, ESLint/Prettier, hadolint, helm lint + kubeconform) |
-| `exec_mr_review` | `true` | .post stage: advisory AI review note on MRs with the `AI Review` label, or via the manual `mr_review_rerun`. The model is `MR_REVIEW_MODEL` (default `alias-code`), overridable by a project variable or in the manual run |
+| `exec_mr_review` | `true` | .post stage: advisory AI review note on MRs with the `AI Review` label, or via the manual `mr_review_rerun`. The model is `MR_REVIEW_MODEL` (default `alias-code`), overridable by a project variable or in the manual run. Tokens: [internals.md](docs/internals.md#review) |
 | `exec_build` | `true` | build stage: full platform build |
 | `exec_security_scan` | `false` | trivy scan of the images this commit resolves to. A failed scan still publishes what it managed to check |
 | `exec_deploy` | `true` | deploy stage: deployment VM/target + platform installation |

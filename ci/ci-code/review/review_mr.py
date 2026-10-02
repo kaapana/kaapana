@@ -103,17 +103,23 @@ def get_linked_issues(
     project: gitlab.v4.objects.Project, mr: gitlab.v4.objects.ProjectMergeRequest
 ) -> Tuple[List[Dict], List[Dict]]:
     closing, mentioned = {}, {}
+
+    def add(found: Dict, issue) -> None:
+        if issue.attributes.get("confidential"):
+            logger.info(f"Leaving out confidential issue {issue.web_url}")
+            return
+        found.setdefault(issue.web_url, issue.attributes)
+
     for source, found in ((mr.closes_issues, closing), (mr.related_issues, mentioned)):
         try:
             for issue in source():
-                found.setdefault(issue.web_url, issue.attributes)
+                add(found, issue)
         except gitlab.exceptions.GitlabError as e:
             logger.warning(f"Could not list linked issues: {e}")
     match = BRANCH_ISSUE.match(mr.source_branch)
     if match:
         try:
-            issue = project.issues.get(match.group(1))
-            mentioned.setdefault(issue.web_url, issue.attributes)
+            add(mentioned, project.issues.get(match.group(1)))
         except gitlab.exceptions.GitlabGetError:
             logger.info(f"No issue #{match.group(1)} for branch {mr.source_branch}")
     mentioned = {url: issue for url, issue in mentioned.items() if url not in closing}
@@ -171,6 +177,8 @@ def find_review_note(
     mr: gitlab.v4.objects.ProjectMergeRequest, user_id: int
 ) -> Optional[gitlab.v4.objects.ProjectMergeRequestNote]:
     for note in mr.notes.list(iterator=True):
+        if note.attributes.get("internal") or note.attributes.get("confidential"):
+            continue
         if note.author["id"] == user_id and MARKER in note.body:
             return note
     return None

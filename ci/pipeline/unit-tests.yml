@@ -135,13 +135,8 @@ kaapana_client_tests:
         - kaapana_client_report.xml
 
 ##############################################
-# Service Tests (one matrix entry per service)
+# Service Tests
 ##############################################
-# Each entry is a service root holding the import root `app/` and `tests/` side
-# by side, with the test requirements in `tests/requirements.txt`. That layout
-# is all this job knows: the whole suite runs, coverage measures `app/`.
-# Services below keep their own job because their layout differs; each names
-# what differs, and moving them here is a matter of aligning the layout.
 service_tests:
   extends: .pytest_template
   parallel:
@@ -153,20 +148,12 @@ service_tests:
           - services/base/kaapana-backend/docker/files
   script:
     - pip install -r $KAAPANA_DIR/$SERVICE/tests/requirements.txt
-    # report paths resolve against $CI_PROJECT_DIR, so matrix instances write
-    # the same file name without colliding: each instance has its own artifacts
     - pytest $KAAPANA_DIR/$SERVICE/tests --junitxml=service_report.xml
         --cov=$SERVICE/app --cov-report=term --cov-report=xml:coverage.xml
   artifacts:
     reports:
       junit:
         - service_report.xml
-
-##############################################
-# Service suites the matrix cannot take yet
-##############################################
-# Each differs from the layout above in one way, named at the job itself.
-# Aligning that one way is all it takes to make the job a matrix entry.
 
 # Own job: tests/ also holds integration and rest-http suites, so only
 # tests/unit runs on an empty runner.

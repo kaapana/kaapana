@@ -1,289 +1,345 @@
 <template>
-  <div class="workflow-applications" style="max-width: 1000px; margin: 0 auto">
-    <v-container fluid class="text-left">
-      <div class="mb-2">
-        <div class="text-subtitle-1 font-weight-medium">{{ isTasks ? 'Applications requesting your input' : 'Applications' }}</div>
-        <div class="text-caption text-grey">
-          <template v-if="isTasks">If a workflow has started an application, you will find a link to it here. Use the 'Finish Interaction' button to continue the workflow.</template>
-          <template v-else>These are applications which are installed project wide for project {{ selectedProject.name }}.</template>
-        </div>
+  <v-container class="text-left active-applications">
+    <div class="d-flex flex-wrap align-end justify-space-between ga-4 mb-4">
+      <div>
+        <h1 class="text-h4">
+          {{ isTasks ? 'Applications waiting for your input' : 'Project applications' }}
+        </h1>
+        <p class="text-body-2 text-medium-emphasis mt-1">
+          <template v-if="isTasks">
+            Applications started by a workflow appear here. Finish the interaction to continue the
+            workflow.
+          </template>
+          <template v-else>Applications installed for project {{ selectedProject.name }}.</template>
+        </p>
       </div>
-      <div class="d-flex align-center justify-end mb-2">
-        <span class="text-caption mr-2">Sort by:</span>
+      <div class="d-flex align-center">
+        <span class="text-caption text-medium-emphasis mr-2">Sort by:</span>
         <v-btn-toggle v-model="sortKey" mandatory density="compact">
           <v-btn value="name" size="small">Name</v-btn>
           <v-btn value="startedAt" size="small">Started</v-btn>
         </v-btn-toggle>
-        <v-btn class="ml-2" icon variant="text" size="small" @click="sortDesc = !sortDesc">
-          <v-icon>{{ sortDesc ? 'mdi-sort-descending' : 'mdi-sort-ascending' }}</v-icon>
-        </v-btn>
+        <v-tooltip :text="sortDirectionLabel" location="bottom">
+          <template #activator="{ props: tooltipProps }">
+            <v-btn
+              v-bind="tooltipProps"
+              class="ml-2"
+              icon
+              variant="text"
+              size="small"
+              :aria-label="sortDirectionLabel"
+              @click="sortDesc = !sortDesc"
+            >
+              <v-icon>{{ sortDesc ? 'mdi-sort-descending' : 'mdi-sort-ascending' }}</v-icon>
+            </v-btn>
+          </template>
+        </v-tooltip>
       </div>
-      <v-progress-linear v-if="loading" indeterminate />
-      <v-list v-else lines="two">
-        <template v-if="sortedApps(displayedApps).length">
-          <v-list-item v-for="item in sortedApps(displayedApps)" :key="item.releaseName">
-            <template #prepend>
-              <v-icon class="align-self-center">mdi-application</v-icon>
-            </template>
-            <v-list-item-title class="font-weight-bold">{{ item.name }}</v-list-item-title>
-            <v-list-item-subtitle>Started {{ item.createdAt }}</v-list-item-subtitle>
-            <template #append>
-              <div class="d-flex align-center flex-wrap">
-                <v-tooltip location="right">
-                  <template #activator="{ props }">
-                    <span v-bind="props">
-                      <v-btn v-for="path in item.paths" :key="path" variant="outlined" :color="isFinishing(item) ? 'grey' : linkColor(item)" class="ma-1" @click="onLinkClick(item, path)">
-                        <v-progress-circular v-if="podStatus(item) === 'pending'" indeterminate size="16" width="2" color="grey" class="mr-2" />
-                        <v-icon v-else-if="podStatus(item) === 'error'" start size="small">mdi-alert-circle</v-icon>
-                        <v-icon v-else start size="small">mdi-open-in-new</v-icon>
-                        {{ linkLabel(item) }}
-                      </v-btn>
-                    </span>
-                  </template>
-                  <span v-if="item.pods && item.pods.length">
-                    <div v-for="pod in item.pods" :key="pod.name">{{ pod.name }}: {{ pod.status }} ({{ pod.ready }}, restarts: {{ pod.restarts }})</div>
-                  </span>
-                  <span v-else>No pods found</span>
-                </v-tooltip>
-                <v-btn v-if="isTasks" color="green" variant="outlined" class="ma-1" :loading="isFinishing(item)" @click="openFinishDialog(item)">
-                  <v-icon start size="small">mdi-check-circle-outline</v-icon>
-                  Finish Interaction
-                </v-btn>
-              </div>
-            </template>
-          </v-list-item>
+    </div>
+
+    <v-alert
+      v-if="loadFailure && loaded"
+      type="warning"
+      variant="tonal"
+      density="compact"
+      class="mb-4"
+      data-testid="stale-list-alert"
+    >
+      Could not refresh the applications. Showing the last list that loaded.
+      <template #append>
+        <v-btn variant="text" size="small" @click="failureDetails.show(loadFailure)">Details</v-btn>
+      </template>
+    </v-alert>
+
+    <v-card :elevation="2">
+      <v-skeleton-loader v-if="!loaded && !loadFailure" type="list-item-avatar-two-line@3" />
+
+      <v-empty-state
+        v-else-if="!loaded && loadFailure"
+        :icon="kaapanaIcons.error"
+        color="error"
+        size="56"
+        :title="loadFailure.title"
+        :text="`${loadFailure.text} Try again, or contact your administrator if it persists.`"
+      >
+        <template #actions>
+          <v-btn
+            color="primary"
+            variant="text"
+            :prepend-icon="kaapanaIcons.refresh"
+            :loading="retrying"
+            :disabled="retrying"
+            @click="retry"
+          >
+            Try again
+          </v-btn>
+          <v-btn variant="text" @click="failureDetails.show(loadFailure)">Details</v-btn>
         </template>
-        <v-list-item v-else>
-          <v-list-item-title class="text-grey">{{ isTasks ? 'No applications requesting your input.' : 'No applications installed.' }}</v-list-item-title>
+      </v-empty-state>
+
+      <v-empty-state
+        v-else-if="sortedApps.length === 0"
+        size="56"
+        :title="
+          isTasks ? 'No applications are waiting for your input' : 'No applications in this project'
+        "
+        :text="
+          isTasks
+            ? 'When a workflow starts an application that needs your input, it appears here.'
+            : `No application is installed for project ${selectedProject.name}. Applications are installed from the Extensions view.`
+        "
+      />
+
+      <v-list v-else lines="two">
+        <v-list-item v-for="item in sortedApps" :key="item.releaseName">
+          <template #prepend>
+            <v-icon class="align-self-center">mdi-application</v-icon>
+          </template>
+          <v-list-item-title class="font-weight-medium">{{ item.name }}</v-list-item-title>
+          <v-list-item-subtitle>Started {{ item.createdAt }}</v-list-item-subtitle>
+          <template #append>
+            <div class="d-flex align-center flex-wrap">
+              <v-tooltip location="bottom">
+                <template #activator="{ props: tooltipProps }">
+                  <span v-bind="tooltipProps">
+                    <v-btn
+                      v-for="path in item.paths"
+                      :key="path"
+                      variant="outlined"
+                      :color="linkColor(item)"
+                      class="ma-1"
+                      :disabled="isFinishing(item)"
+                      :aria-label="
+                        statusOf(item) === 'ready' ? `Open ${item.name} in a new tab` : undefined
+                      "
+                      @click="onLinkClick(item, path)"
+                    >
+                      <v-progress-circular
+                        v-if="statusOf(item) === 'pending'"
+                        indeterminate
+                        size="16"
+                        width="2"
+                        class="mr-2"
+                      />
+                      <v-icon v-else start size="small">
+                        {{
+                          statusOf(item) === 'error'
+                            ? kaapanaIcons.error
+                            : kaapanaIcons.externalLink
+                        }}
+                      </v-icon>
+                      {{ linkLabel(item) }}
+                    </v-btn>
+                  </span>
+                </template>
+                <span v-if="isFinishing(item)">The interaction is being finished.</span>
+                <span v-else-if="item.pods.length">
+                  <div v-for="pod in item.pods" :key="pod.name">{{ describePod(pod) }}</div>
+                </span>
+                <span v-else>No pods found</span>
+              </v-tooltip>
+              <v-btn
+                v-if="isTasks"
+                variant="outlined"
+                class="ma-1"
+                :prepend-icon="kaapanaIcons.confirm"
+                :loading="isFinishing(item)"
+                :disabled="isFinishing(item)"
+                @click="openFinishDialog(item)"
+              >
+                Finish Interaction
+              </v-btn>
+            </div>
+          </template>
         </v-list-item>
       </v-list>
+    </v-card>
 
-      <v-dialog v-model="dialog" max-width="480">
-        <v-card v-if="dialogItem">
-          <v-card-title>
-            <v-progress-circular v-if="dialogStatus === 'pending'" indeterminate size="24" width="3" color="primary" />
-            <v-icon v-else-if="dialogStatus === 'error'" color="red">mdi-alert-circle</v-icon>
-            <v-icon v-else color="green">mdi-check-circle</v-icon>
-            <span class="ml-3">{{ dialogStatus === 'error' ? 'Problem starting the application' : (dialogStatus === 'ready' ? 'Application is ready' : 'Application is starting') }}</span>
-          </v-card-title>
-          <v-card-text>
-            <template v-if="dialogStatus === 'pending'">
-              <p>The application "{{ dialogItem.name }}" is still starting and may take some more time. Visiting it now is possible but might show errors until it is ready.</p>
-            </template>
-            <template v-else-if="dialogStatus === 'error'">
-              <p>Unfortunately there is an issue starting the application "{{ dialogItem.name }}".</p>
-              <div class="mb-3" v-if="problemPods(dialogItem).length">
-                <div v-for="pod in problemPods(dialogItem)" :key="pod.name">{{ pod.name }}: {{ pod.status }} ({{ pod.ready }}, restarts: {{ pod.restarts }})</div>
+    <v-dialog v-model="statusDialog" max-width="400" @after-enter="focusStatusCancel">
+      <v-card v-if="dialogItem" :elevation="5">
+        <v-card-title class="d-flex align-center text-wrap">
+          <v-progress-circular
+            v-if="dialogStatus === 'pending'"
+            indeterminate
+            size="24"
+            width="3"
+            color="primary"
+          />
+          <v-icon v-else-if="dialogStatus === 'error'" color="error">{{
+            kaapanaIcons.error
+          }}</v-icon>
+          <v-icon v-else color="success">{{ kaapanaIcons.success }}</v-icon>
+          <span class="ml-3">{{ dialogTitle }}</span>
+        </v-card-title>
+        <v-card-text>
+          <p v-if="dialogStatus === 'pending'">
+            "{{ dialogItem.name }}" is still starting. It may show errors until it is ready.
+          </p>
+          <template v-else-if="dialogStatus === 'error'">
+            <p class="mb-3">
+              "{{ dialogItem.name }}" could not be started. Contact your administrator.
+            </p>
+            <div class="text-body-2 text-medium-emphasis">
+              <div v-for="pod in problemPods(dialogItem.pods)" :key="pod.name">
+                {{ describePod(pod) }}
               </div>
-              <p>Please reach out to the operator of this instance. Visiting the application anyway could show errors.</p>
-            </template>
-            <template v-else>
-              <p>The application "{{ dialogItem.name }}" is now ready.</p>
-            </template>
-          </v-card-text>
-          <v-card-actions>
-            <v-spacer />
-            <v-btn variant="text" @click="dialog = false">{{ dialogStatus === 'error' ? 'Ok' : (dialogStatus === 'pending' ? 'Back' : 'Cancel') }}</v-btn>
-            <v-btn color="primary" @click="visitDialogPath">{{ dialogStatus === 'ready' ? 'Visit' : 'Visit anyway' }}</v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-dialog>
+            </div>
+          </template>
+          <p v-else>"{{ dialogItem.name }}" is ready.</p>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn ref="statusCancelButton" @click="statusDialog = false">Cancel</v-btn>
+          <v-btn color="primary" @click="visitDialogPath">{{
+            dialogStatus === 'ready' ? 'Open' : 'Open anyway'
+          }}</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
-      <v-dialog v-model="finishDialog" max-width="480">
-        <v-card>
-          <v-card-title>Finish interaction?</v-card-title>
-          <v-card-text>
-            <p>Is the work in this step done? Finishing the interaction will close this application and continue the workflow.</p>
-          </v-card-text>
-          <v-card-actions>
-            <v-spacer />
-            <v-btn variant="text" @click="finishDialog = false">Back</v-btn>
-            <v-btn color="green" @click="confirmFinish">Yes</v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-dialog>
-
-      <v-dialog v-model="finishErrorDialog" max-width="480">
-        <v-card>
-          <v-card-title>
-            <v-icon color="red">mdi-alert-circle</v-icon>
-            <span class="ml-3">Could not finish interaction</span>
-          </v-card-title>
-          <v-card-text>
-            <p>Could not finish interaction on "{{ finishErrorName }}", please retry or contact the sites operator.</p>
-            <p class="text-caption text-grey">error: {{ finishErrorMessage }}</p>
-          </v-card-text>
-          <v-card-actions>
-            <v-spacer />
-            <v-btn variant="text" @click="finishErrorDialog = false">Ok</v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-dialog>
-    </v-container>
-  </div>
+    <ConfirmDialog
+      v-model="finishDialog"
+      :title="`Finish the interaction with “${finishItem?.name ?? ''}”?`"
+      text="This closes the application and continues the workflow. Unsaved work in the application is lost."
+      confirm-text="Finish interaction"
+      @confirm="confirmFinish"
+    />
+  </v-container>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
-import { notify } from '@kyvg/vue3-notification'
-import { kaapanaApiService, useProjectStore } from '@kaapana/base-ui'
+import type { VBtn } from 'vuetify/components'
+import { ConfirmDialog, apiErrorInfo, kaapanaIcons, useProjectStore } from '@kaapana/base-ui'
+import {
+  completeActiveApplication,
+  fetchActiveApplications,
+  type ActiveApplication,
+} from '@/api/applications'
+import { describePod, podStatus, problemPods, type PodStatus } from '@/utils/podStatus'
+import { notifyFailure } from '@/utils/notifyFailure'
+import { useFailureDetailsStore, type FailureDetails } from '@/stores/failureDetails'
 
-interface Pod {
-  name: string
-  status: string
-  ready: string
-  restarts: number | string
-}
-
-interface ActiveApplication {
-  annotations: Record<string, string>
-  createdAt: string
-  startedAt: string
-  fromWorkflowRun: boolean
-  name: string
-  paths: string[]
-  pods: Pod[]
-  project: string | number
-  ready: boolean
-  releaseName: string
-}
+const POLL_INTERVAL_MS = 10_000
 
 const projectStore = useProjectStore()
 const { selectedProject } = storeToRefs(projectStore)
+const failureDetails = useFailureDetailsStore()
 const route = useRoute()
 
-// This one container backs two menu entries; the route's meta.mode selects the
-// section to render. Both lists are still populated on every poll (see
-// getActiveApplications) so switching routes needs no refetch.
+// One container backs both menu entries, and the route selects the list.
 const isTasks = computed(() => route.meta.mode === 'tasks')
 
-const loadingTriggered = ref(true)
-const loadingProject = ref(true)
-const projectApplications = ref<ActiveApplication[]>([])
-const triggeredApplications = ref<ActiveApplication[]>([])
+const applications = ref<ActiveApplication[]>([])
+const loaded = ref(false)
+const loadFailure = ref<FailureDetails | null>(null)
+const retrying = ref(false)
 let polling = 0
 let fetching = false
-let pollErrorNotified = false
-const dialog = ref(false)
-const dialogReleaseName = ref('')
-const dialogPath = ref('')
+
+const finishing = ref<string[]>([])
+// Keeps a finished release out of the list until the backend uninstall
+// completes, which can take longer than one poll.
+const finished = ref<string[]>([])
 const finishDialog = ref(false)
 const finishItem = ref<ActiveApplication | null>(null)
-const finishing = ref<string[]>([])
-const finished = ref<string[]>([])
-const finishErrorDialog = ref(false)
-const finishErrorName = ref('')
-const finishErrorMessage = ref('')
-const sortKey = ref('name')
+
+const statusDialog = ref(false)
+const dialogReleaseName = ref('')
+const dialogPath = ref('')
+const statusCancelButton = ref<InstanceType<typeof VBtn> | null>(null)
+
+const sortKey = ref<'name' | 'startedAt'>('name')
 const sortDesc = ref(false)
 
-const displayedApps = computed(() =>
-  isTasks.value ? triggeredApplications.value : projectApplications.value
-)
-const loading = computed(() =>
-  isTasks.value ? loadingTriggered.value : loadingProject.value
+const sortDirectionLabel = computed(() => (sortDesc.value ? 'Sort ascending' : 'Sort descending'))
+
+const triggeredApplications = computed(() =>
+  applications.value.filter(
+    (item) =>
+      item.fromWorkflowRun &&
+      item.project === selectedProject.value.id &&
+      !finished.value.includes(item.releaseName),
+  ),
 )
 
-// Re-derive the dialog's app from the freshly polled lists (not a snapshot),
-// so an open dialog updates live as the app moves pending -> ready/error.
-const dialogItem = computed<ActiveApplication | null>(() => {
-  if (!dialogReleaseName.value) return null
-  const all = [...projectApplications.value, ...triggeredApplications.value]
-  return all.find((a) => a.releaseName === dialogReleaseName.value) || null
+// Project-wide applications are matched by their ingress path, not by `project`.
+const projectApplications = computed(() => {
+  const rulePattern = new RegExp(`^/applications/project/${selectedProject.value.id}/release/.+$`)
+  return applications.value.filter(
+    (item) => !item.fromWorkflowRun && item.paths.every((path) => rulePattern.test(path)),
+  )
 })
 
-const dialogStatus = computed<string>(() => {
-  return dialogItem.value ? podStatus(dialogItem.value) : 'pending'
-})
-
-// Classify 'ready' | 'pending' | 'error' from the pods' kube status: completed
-// or running with all containers ready (N/N) is ready; normal lifecycle states
-// are pending; anything else is an error.
-function podStatus(item: ActiveApplication) {
-  const pods = item.pods || []
-  if (pods.length === 0) {
-    return 'pending'
-  }
-  const transient = [
-    'pending',
-    'containercreating',
-    'podinitializing',
-    'terminating',
-  ]
-  let hasError = false
-  let hasPending = false
-  for (const pod of pods) {
-    const status = (pod.status || '').toLowerCase()
-    const [readyCount, wantCount] = (pod.ready || '').split('/')
-    if (status === 'completed') {
-      continue
-    }
-    if (status === 'running' && readyCount === wantCount) {
-      continue
-    }
-    if (
-      status === 'running' ||
-      /^init:\d/.test(status) || // Init:0/2 is progress; Init:Error/OOMKilled are failures
-      transient.includes(status)
-    ) {
-      hasPending = true
-    } else {
-      hasError = true
-    }
-  }
-  if (hasError) return 'error'
-  if (hasPending) return 'pending'
-  return 'ready'
-}
-
-function sortedApps(apps: ActiveApplication[]) {
-  const key = sortKey.value
+const sortedApps = computed(() => {
+  const apps = isTasks.value ? triggeredApplications.value : projectApplications.value
   const dir = sortDesc.value ? -1 : 1
+  const key = (app: ActiveApplication) =>
+    sortKey.value === 'startedAt' ? new Date(app.startedAt).getTime() : app.name.toLowerCase()
   return [...apps].sort((a, b) => {
-    let av: any
-    let bv: any
-    if (key === 'startedAt') {
-      av = new Date(a.startedAt).getTime()
-      bv = new Date(b.startedAt).getTime()
-    } else {
-      av = (a.name || '').toLowerCase()
-      bv = (b.name || '').toLowerCase()
-    }
+    const av = key(a)
+    const bv = key(b)
     if (av < bv) return -dir
     if (av > bv) return dir
     return 0
   })
+})
+
+// Derived from the polled list, so an open dialog follows the application from
+// pending to ready or error.
+const dialogItem = computed(
+  () => applications.value.find((a) => a.releaseName === dialogReleaseName.value) ?? null,
+)
+const dialogStatus = computed<PodStatus>(() =>
+  dialogItem.value ? statusOf(dialogItem.value) : 'pending',
+)
+const dialogTitle = computed(() => {
+  if (dialogStatus.value === 'error') return 'Problem starting the application'
+  if (dialogStatus.value === 'ready') return 'Application is ready'
+  return 'Application is starting'
+})
+
+function statusOf(item: ActiveApplication): PodStatus {
+  return podStatus(item.pods)
 }
 
 function linkColor(item: ActiveApplication) {
-  const status = podStatus(item)
-  if (status === 'pending') return 'grey'
-  if (status === 'error') return 'red'
+  const status = statusOf(item)
+  if (status === 'pending') return undefined
+  if (status === 'error') return 'error'
   return 'primary'
 }
 
 function linkLabel(item: ActiveApplication) {
-  const status = podStatus(item)
+  const status = statusOf(item)
   if (status === 'pending') return 'Starting...'
   if (status === 'error') return 'Error'
   return 'Open'
 }
 
 function onLinkClick(item: ActiveApplication, path: string) {
-  if (podStatus(item) === 'ready') {
+  if (statusOf(item) === 'ready') {
     window.open(path, '_blank')
     return
   }
   dialogReleaseName.value = item.releaseName
   dialogPath.value = path
-  dialog.value = true
+  statusDialog.value = true
+}
+
+function focusStatusCancel() {
+  statusCancelButton.value?.$el?.focus()
 }
 
 function visitDialogPath() {
   window.open(dialogPath.value, '_blank')
-  dialog.value = false
+  statusDialog.value = false
+}
+
+function isFinishing(item: ActiveApplication) {
+  return finishing.value.includes(item.releaseName)
 }
 
 function openFinishDialog(item: ActiveApplication) {
@@ -292,143 +348,69 @@ function openFinishDialog(item: ActiveApplication) {
 }
 
 function confirmFinish() {
-  finishDialog.value = false
   if (finishItem.value) finishInteraction(finishItem.value)
 }
 
-function isFinishing(item: ActiveApplication) {
-  return finishing.value.includes(item.releaseName)
+async function finishInteraction(item: ActiveApplication) {
+  const { releaseName } = item
+  if (finishing.value.includes(releaseName)) return
+  finishing.value.push(releaseName)
+  try {
+    await completeActiveApplication(releaseName)
+    finished.value.push(releaseName)
+  } catch (err) {
+    console.error(err)
+    notifyFailure(
+      'Could not finish the interaction',
+      `The workflow step of "${item.name}" is still open. Try again, or contact your administrator if it persists.`,
+      err,
+    )
+  } finally {
+    finishing.value = finishing.value.filter((r) => r !== releaseName)
+  }
 }
 
-function problemPods(item: ActiveApplication) {
-  const pods = item.pods || []
-  return pods.filter((pod) => {
-    const status = (pod.status || '').toLowerCase()
-    const [readyCount, wantCount] = (pod.ready || '').split('/')
-    if (status === 'completed') return false
-    if (status === 'running' && readyCount === wantCount) return false
-    return true
-  })
-}
-
-function getActiveApplications() {
+async function loadApplications() {
   if (fetching) return
   fetching = true
-  kaapanaApiService
-    .helmApiGet('/active-applications', {})
-    .then((response: any) => {
-      const selectedProjectId = projectStore.selectedProject.id
-      const allActiveApplications: ActiveApplication[] = response.data
-        .filter((item: any) => {
-          if (item.paths.length == 0) {
-            console.log('WARNING: ignoring application without paths:', item)
-            return false
-          }
-          return true
-        })
-        .map((item: any) => {
-          let name = item.name
-          if ('kaapana.ai/display-name' in item.annotations) {
-            name = item.annotations['kaapana.ai/display-name']
-          }
-          const formattedDate = new Intl.DateTimeFormat('en-UK', {
-            dateStyle: 'long',
-            timeStyle: 'short',
-          }).format(new Date(item.created_at))
-          return {
-            annotations: item.annotations,
-            createdAt: formattedDate,
-            startedAt: item.created_at,
-            fromWorkflowRun: item.from_workflow_run,
-            name: name,
-            paths: item.paths,
-            pods: item.pods,
-            project: item.project,
-            ready: item.ready,
-            releaseName: item.release_name,
-          }
-        })
-      triggeredApplications.value = allActiveApplications.filter((item) => {
-        return item.fromWorkflowRun === true && item.project === selectedProjectId && !finished.value.includes(item.releaseName)
-      })
-      // Project-wide apps are matched by their ingress path pattern, not item.project.
-      projectApplications.value = allActiveApplications.filter((item) => {
-        const rulePattern = new RegExp(
-          `^\/applications\/project\/${selectedProjectId}\/release\/.+$`
-        )
-        let hasProjectURL = item.paths.every((path: string) => {
-          return rulePattern.test(path)
-        })
-        return hasProjectURL && (item.fromWorkflowRun === false)
-      })
-      loadingProject.value = false
-      loadingTriggered.value = false
-      fetching = false
-      // Re-arm last: a throw while processing the payload lands in .catch and
-      // must not toast again every tick.
-      pollErrorNotified = false
-    })
-    .catch((err: any) => {
-      console.log(err)
-      loadingProject.value = false
-      loadingTriggered.value = false
-      fetching = false
-      // Polled every 10s, so notify once and re-arm only after a success —
-      // otherwise a persistent backend failure toasts every tick.
-      if (pollErrorNotified) return
-      pollErrorNotified = true
-      notify({
-        type: 'error',
-        title: 'Could not load applications',
-        text: 'Fetching the active applications failed. Retrying on the next refresh.',
-      })
-    })
+  try {
+    if (selectedProject.value.id === undefined) {
+      try {
+        await projectStore.getSelectedProject()
+      } catch (err) {
+        console.error(err)
+        loadFailure.value = {
+          title: 'Could not load the project',
+          text: 'Without the selected project the applications cannot be listed.',
+          error: apiErrorInfo(err),
+        }
+        return
+      }
+    }
+    applications.value = await fetchActiveApplications()
+    loaded.value = true
+    loadFailure.value = null
+  } catch (err) {
+    console.error(err)
+    loadFailure.value = {
+      title: 'Could not load the applications',
+      text: 'The application service could not be reached or reported an error.',
+      error: apiErrorInfo(err),
+    }
+  } finally {
+    fetching = false
+  }
 }
 
-// `finishing` spins the item's buttons while the request is in flight; on
-// success the release is remembered in `finished` so the 10s poll cannot
-// re-add it before the backend uninstall completes.
-function finishInteraction(item: ActiveApplication) {
-  const releaseName = item.releaseName
-  finishing.value.push(releaseName)
-  kaapanaApiService
-    .helmApiPost('/complete-active-application', { release_name: releaseName })
-    .then(() => {
-      finished.value.push(releaseName)
-      triggeredApplications.value = triggeredApplications.value.filter(
-        (app) => app.releaseName !== releaseName
-      )
-      finishing.value = finishing.value.filter((r) => r !== releaseName)
-    })
-    .catch((err: any) => {
-      console.log(err)
-      finishing.value = finishing.value.filter((r) => r !== releaseName)
-      finishErrorName.value = item.name
-      finishErrorMessage.value =
-        err?.response?.data?.detail ?? err?.response?.data ?? err?.message ?? String(err)
-      finishErrorDialog.value = true
-    })
+async function retry() {
+  retrying.value = true
+  await loadApplications()
+  retrying.value = false
 }
 
 onMounted(() => {
-  // Load the project first so the initial applications fetch can classify the
-  // response against a known project id (otherwise the list renders blank until
-  // the first poll).
-  projectStore.getSelectedProject().then(() => {
-    getActiveApplications()
-  }).catch((err: any) => {
-    console.log(err)
-    loadingProject.value = false
-    loadingTriggered.value = false
-    notify({
-      type: 'error',
-      title: 'Could not load the project',
-      text: 'Without the selected project the applications cannot be listed. Reload to retry.',
-    })
-  })
-  polling = window.setInterval(() => {
-    getActiveApplications()
-  }, 10000)
+  loadApplications()
+  polling = window.setInterval(loadApplications, POLL_INTERVAL_MS)
 })
 
 onBeforeUnmount(() => {
@@ -436,8 +418,8 @@ onBeforeUnmount(() => {
 })
 </script>
 
-<style lang="scss">
-a {
-  text-decoration: none;
+<style scoped>
+.active-applications {
+  max-width: 1000px;
 }
 </style>

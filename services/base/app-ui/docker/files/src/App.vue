@@ -1,32 +1,35 @@
 <script setup lang="ts">
-import { useShellSettings } from '@kaapana/base-ui'
+import { ErrorDetailsDialog, useShellSettings } from '@kaapana/base-ui'
+import { useFailureDetailsStore, type FailureDetails } from '@/stores/failureDetails'
 
 const { viewKey } = useShellSettings()
+const failureDetails = useFailureDetailsStore()
+
+// A failure notification carries its details in `data.failure` (see
+// utils/notifyFailure.ts); selecting it opens ErrorDetailsDialog.
+function onNotificationClick(item: { data?: unknown }) {
+  const failure = (item.data as { failure?: FailureDetails } | undefined)?.failure
+  if (failure) failureDetails.show(failure)
+}
 </script>
 
 <template>
   <v-app>
-    <notifications position="bottom right" width="20%" :duration="5000" />
+    <notifications
+      position="bottom right"
+      width="20%"
+      :duration="5000"
+      close-on-click
+      @click="onNotificationClick"
+    />
     <v-main>
       <router-view :key="viewKey" />
     </v-main>
+    <ErrorDetailsDialog
+      v-model="failureDetails.open"
+      :title="failureDetails.current?.title"
+      :text="failureDetails.current?.text"
+      :error="failureDetails.current?.error ?? null"
+    />
   </v-app>
 </template>
-
-<style lang="scss">
-#app {
-  font-family: "Avenir", Helvetica, Arial, sans-serif;
-  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  font-size: 14px;
-  line-height: 1.42857143;
-  color: #333;
-}
-
-@media (min-width: 2100px) {
-  .v-container--fluid {
-    max-width: 2100px !important;
-  }
-}
-</style>

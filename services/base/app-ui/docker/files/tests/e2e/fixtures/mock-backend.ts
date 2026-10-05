@@ -10,13 +10,16 @@ export const VIEW_PATH = '/project/admin/app-ui/'
 export const TASKS_PATH = VIEW_PATH + 'tasks'
 export const APPS_PATH = VIEW_PATH + 'apps'
 
+export const TASKS_TITLE = 'Applications waiting for your input'
+export const APPS_TITLE = 'Project applications'
+
 // The project VIEW_PATH scopes to (the first mock project); the view filters
 // applications by its id.
 export const PROJECT_ID = 1
 
-// Raw (snake_case) wire shapes as parsed by getActiveApplications() in
-// ActiveApplications.vue, whose interfaces are private to the .vue — re-declared
-// here; drift is caught at the builder call sites, not by type-check.
+// Raw (snake_case) wire shapes as parsed by src/api/applications.ts, whose
+// interfaces are private to it. Re-declared here; drift is caught at the
+// builder call sites, not by type-check.
 export interface RawPod {
   name: string
   status: string
@@ -64,7 +67,9 @@ export const errorPod: RawPod = {
   restarts: 7,
 }
 
-export function app(overrides: Partial<RawApplication> & Pick<RawApplication, 'release_name'>): RawApplication {
+export function app(
+  overrides: Partial<RawApplication> & Pick<RawApplication, 'release_name'>,
+): RawApplication {
   return {
     annotations: {},
     created_at: '2026-07-20T10:15:00Z',
@@ -95,7 +100,12 @@ export const defaultMockData: MockData = {
   activeApplications: [
     // Workflow-triggered apps (from_workflow_run: true) -> "requesting input" panel.
     app({ release_name: 'seg-editor-1a2b', name: 'Segmentation Editor', pods: [readyPod] }),
-    app({ release_name: 'vol-viewer-3c4d', name: 'Volume Viewer', pods: [pendingPod], ready: false }),
+    app({
+      release_name: 'vol-viewer-3c4d',
+      name: 'Volume Viewer',
+      pods: [pendingPod],
+      ready: false,
+    }),
     app({ release_name: 'broken-5e6f', name: 'Broken Tool', pods: [errorPod], ready: false }),
     // Project-wide app (from_workflow_run: false) -> "Applications" panel.
     app({
@@ -123,10 +133,14 @@ export function viewPathFor(project: { id: number; short_id?: string }): string 
  */
 export async function installMockBackend(page: Page, data: MockData = defaultMockData) {
   await page.route('**/oauth2/userinfo', (r) => r.fulfill(json(data.userinfo)))
-  await page.route('**/jsons/testingAuthenticationToken.json', (r) => r.fulfill(json(data.userinfo)))
+  await page.route('**/jsons/testingAuthenticationToken.json', (r) =>
+    r.fulfill(json(data.userinfo)),
+  )
   await page.route('**/aii/users/current', (r) => r.fulfill(json(data.aiiUser)))
   await page.route('**/aii/projects', (r) => r.fulfill(json(data.projects)))
-  await page.route(`**/aii/users/${data.aiiUser.id}/projects`, (r) => r.fulfill(json(data.projects)))
+  await page.route(`**/aii/users/${data.aiiUser.id}/projects`, (r) =>
+    r.fulfill(json(data.projects)),
+  )
   await page.route(/\/kube-helm-api\/active-applications/, (r) =>
     r.fulfill(json(data.activeApplications)),
   )
@@ -172,6 +186,27 @@ export async function settle(page: Page, path: string = TASKS_PATH) {
   await expect(page.getByText('Sort by:')).toBeVisible()
 }
 
+/** The list row of the application called `name`. */
+export function row(page: Page, name: string) {
+  return page.locator('.v-list-item').filter({ hasText: name })
+}
+
+/** The open dialog. */
+export function dialog(page: Page) {
+  return page.getByRole('dialog')
+}
+
+/** Answer every active-applications request with a server error. */
+export async function failApplicationList(page: Page) {
+  await page.route(/\/kube-helm-api\/active-applications/, (r) =>
+    r.fulfill({
+      status: 500,
+      contentType: 'application/json',
+      body: JSON.stringify({ detail: 'kube-helm is unreachable' }),
+    }),
+  )
+}
+
 /** Common happy path: prime + settle, leaving a populated, quiescent view. */
 export async function boot(
   page: Page,
@@ -189,4 +224,22 @@ export async function poll(page: Page) {
 
 export function openedUrls(page: Page): Promise<string[]> {
   return page.evaluate(() => (window as unknown as { __opened: string[] }).__opened)
+}
+
+/**
+ * Dismiss the open dialog with Escape. Vuetify honours Escape only once its
+ * overlay stack has settled, so a first press can be swallowed under load.
+ */
+export async function dismissWithEscape(page: Page) {
+  await expect(dialog(page)).toBeVisible()
+  for (let attempt = 0; attempt < 5; attempt++) {
+    await page.keyboard.press('Escape')
+    try {
+      await expect(dialog(page)).toBeHidden({ timeout: 1_000 })
+      return
+    } catch {
+      // Pressed before the overlay settled; press again.
+    }
+  }
+  throw new Error('Escape never took effect')
 }

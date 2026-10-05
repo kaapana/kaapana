@@ -43,3 +43,21 @@ spec:
   ports:
     - port: 80
       targetPort: 8080
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: data-api-project-ingressroute
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: PathRegexp(`^/project/[^/]+/data-api(/|$)`)
+      middlewares:
+        - name: strip-project-prefix
+        - name: strip-prefix-data-api
+      services:
+        - name: data-api
+          port: 80

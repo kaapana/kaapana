@@ -9,6 +9,13 @@ from app.db.session import get_async_db
 from app.models.domain import DataEntity, MetadataEntry
 from app.models.events import EventAction
 from app.services.entity_repository import metadata_entry_to_orm
+from app.services.project_scope import (
+    ProjectScope,
+    get_project_scope,
+    guard_permissions_change,
+    project_of_entity,
+    scope_predicate,
+)
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from jsonschema import Draft7Validator, SchemaError, ValidationError
 from pydantic import BaseModel, Field
@@ -127,9 +134,11 @@ async def describe_metadata_fields(
     key: str,
     sample_size: int = Query(1000, ge=10, le=5000, description="Maximum metadata entries to sample"),
     db: AsyncSession = Depends(get_async_db),
+    scope: ProjectScope | None = Depends(get_project_scope),
 ) -> MetadataFieldListResponse:
-    total_entries = await db.scalar(select(func.count()).where(MetadataEntryORM.key == key)) or 0
-    stmt = select(MetadataEntryORM.data).where(MetadataEntryORM.key == key).limit(sample_size)
+    conditions = _entry_conditions(key, scope)
+    total_entries = await db.scalar(select(func.count()).select_from(MetadataEntryORM).where(*conditions)) or 0
+    stmt = select(MetadataEntryORM.data).where(*conditions).limit(sample_size)
     result = await db.execute(stmt)
     payloads = result.scalars().all()
     sampled_entries = len(payloads)
@@ -158,9 +167,10 @@ async def sample_metadata_field_values(
     limit: int = Query(25, ge=1, le=100),
     sample_size: int = Query(1000, ge=10, le=5000, description="Maximum metadata entries to analyze"),
     db: AsyncSession = Depends(get_async_db),
+    scope: ProjectScope | None = Depends(get_project_scope),
 ) -> MetadataFieldValuesResponse:
     normalized_path = path.strip()
-    stmt = select(MetadataEntryORM.data).where(MetadataEntryORM.key == key).limit(sample_size)
+    stmt = select(MetadataEntryORM.data).where(*_entry_conditions(key, scope)).limit(sample_size)
     result = await db.execute(stmt)
     payloads = result.scalars().all()
 
@@ -213,14 +223,17 @@ async def attach_metadata(
     entity_id: UUID,
     entry: MetadataEntry,
     db: AsyncSession = Depends(get_async_db),
+    scope: ProjectScope | None = Depends(get_project_scope),
 ) -> DataEntity:
+    guard_permissions_change(entry.key, entry.data, scope)
     schema_record = await get_metadata_schema(db, entry.key)
     validator = Draft7Validator(schema_record.schema)
     try:
         validator.validate(entry.data)
     except ValidationError as exc:
         raise HTTPException(status_code=400, detail=f"Metadata entry violates schema: {exc.message}") from exc
-    entity = await require_entity(db, entity_id)
+    entity = await require_entity(db, entity_id, scope)
+    previous_project = project_of_entity(entity)
     existing_entry = next((m for m in entity.metadata_entries if m.key == entry.key), None)
     replaced_existing = existing_entry is not None
     if replaced_existing:
@@ -230,7 +243,7 @@ async def attach_metadata(
     updated = await commit_and_return_entity(db, entity_id)
     if replaced_existing:
         cleanup_metadata_artifacts(entity_id, entry.key)
-    await broadcast_entity_event(EventAction.UPDATED, updated)
+    await broadcast_entity_event(EventAction.UPDATED, updated, [previous_project])
     return updated
 
 
@@ -239,8 +252,15 @@ async def attach_metadata(
     response_model=DataEntity,
     summary="Delete a metadata entry for an entity",
 )
-async def delete_metadata_entry(entity_id: UUID, key: str, db: AsyncSession = Depends(get_async_db)) -> DataEntity:
-    entity = await require_entity(db, entity_id)
+async def delete_metadata_entry(
+    entity_id: UUID,
+    key: str,
+    db: AsyncSession = Depends(get_async_db),
+    scope: ProjectScope | None = Depends(get_project_scope),
+) -> DataEntity:
+    guard_permissions_change(key, None, scope)
+    entity = await require_entity(db, entity_id, scope)
+    previous_project = project_of_entity(entity)
     metadata_entry = next((m for m in entity.metadata_entries if m.key == key), None)
     if metadata_entry is None:
         raise HTTPException(status_code=404, detail="Metadata entry not found")
@@ -248,8 +268,16 @@ async def delete_metadata_entry(entity_id: UUID, key: str, db: AsyncSession = De
     entity.metadata_entries.remove(metadata_entry)
     updated = await commit_and_return_entity(db, entity_id)
     cleanup_metadata_artifacts(entity_id, key)
-    await broadcast_entity_event(EventAction.UPDATED, updated)
+    await broadcast_entity_event(EventAction.UPDATED, updated, [previous_project])
     return updated
+
+
+def _entry_conditions(key: str, scope: ProjectScope | None) -> list[Any]:
+    conditions: list[Any] = [MetadataEntryORM.key == key]
+    predicate = scope_predicate(scope, MetadataEntryORM.entity_id)
+    if predicate is not None:
+        conditions.append(predicate)
+    return conditions
 
 
 # ---------------------------------------------------------------------------

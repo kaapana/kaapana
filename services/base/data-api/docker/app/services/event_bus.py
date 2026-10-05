@@ -16,8 +16,9 @@ _BATCH_FLUSH_INTERVAL = 0.01  # seconds
 
 
 class _ConnectionState:
-    def __init__(self, websocket: WebSocket) -> None:
+    def __init__(self, websocket: WebSocket, project_id: str | None) -> None:
         self.websocket = websocket
+        self.project_id = project_id
         self.queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=_QUEUE_MAXSIZE)
         self.sender_task: asyncio.Task[None] | None = None
 
@@ -29,9 +30,9 @@ class EventBus:
         self._connections: dict[WebSocket, _ConnectionState] = {}
         self._lock = asyncio.Lock()
 
-    async def connect(self, websocket: WebSocket) -> None:
+    async def connect(self, websocket: WebSocket, project_id: str | None = None) -> None:
         await websocket.accept()
-        state = _ConnectionState(websocket)
+        state = _ConnectionState(websocket, project_id)
         state.sender_task = asyncio.create_task(self._connection_worker(state))
         async with self._lock:
             self._connections[websocket] = state
@@ -56,12 +57,18 @@ class EventBus:
         except Exception:  # pragma: no cover - best effort
             logger.debug("Websocket already closed", exc_info=True)
 
-    async def broadcast(self, event: EventMessage | Dict[str, Any]) -> None:
+    async def broadcast(
+        self,
+        event: EventMessage | Dict[str, Any],
+        project_ids: frozenset[str | None] | None = None,
+    ) -> None:
         payload = event.model_dump(mode="json") if isinstance(event, EventMessage) else dict(event)
         async with self._lock:
             states = list(self._connections.values())
 
         for state in states:
+            if project_ids is not None and state.project_id is not None and state.project_id not in project_ids:
+                continue
             try:
                 state.queue.put_nowait(payload)
             except asyncio.QueueFull:

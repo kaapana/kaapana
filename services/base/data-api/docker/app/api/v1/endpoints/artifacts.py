@@ -8,6 +8,7 @@ from app.models.domain import Artifact, DataEntity
 from app.models.events import EventAction
 from app.services.artifact_store import get_artifact_store
 from app.services.entity_repository import artifact_to_orm
+from app.services.project_scope import ProjectScope, get_project_scope
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,8 +34,9 @@ async def upload_artifact(
     artifact_id: str,
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_async_db),
+    scope: ProjectScope | None = Depends(get_project_scope),
 ) -> DataEntity:
-    entity = await require_entity(db, entity_id)
+    entity = await require_entity(db, entity_id, scope)
 
     metadata_entry = next((m for m in entity.metadata_entries if m.key == key), None)
     if metadata_entry is None:
@@ -72,8 +74,9 @@ async def download_artifact(
     artifact_id: str,
     disposition: str = Query("attachment", regex="^(inline|attachment)$"),
     db: AsyncSession = Depends(get_async_db),
+    scope: ProjectScope | None = Depends(get_project_scope),
 ):
-    entity = await require_entity(db, entity_id)
+    entity = await require_entity(db, entity_id, scope)
 
     metadata_entry = next((m for m in entity.metadata_entries if m.key == key), None)
     if metadata_entry is None:

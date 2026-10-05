@@ -48,8 +48,9 @@ class QueryTranslationError(Exception):
 async def execute_entity_query(
     session: AsyncSession,
     request: QueryRequest,
+    scope: ColumnElement[bool] | None = None,
 ) -> tuple[list[DataEntity], int, UUID | None]:
-    predicate = _build_query_predicate(request.where)
+    predicate = _combine_with_scope(_build_query_predicate(request.where), scope)
     total_count = await _count_entities(session, predicate)
 
     limit = request.limit or 100
@@ -73,8 +74,9 @@ async def execute_entity_query(
 async def prepare_query_index_statement(
     session: AsyncSession,
     request: QueryIndexRequest,
+    scope: ColumnElement[bool] | None = None,
 ) -> tuple[int, Any]:
-    predicate = _build_query_predicate(request.where)
+    predicate = _combine_with_scope(_build_query_predicate(request.where), scope)
     total_count = await _count_entities(session, predicate)
 
     stmt = (
@@ -88,6 +90,17 @@ async def prepare_query_index_statement(
         stmt = stmt.where(tuple_(DataEntityORM.created_at, DataEntityORM.id) > tuple_(created_at, cursor_id))
 
     return total_count, stmt
+
+
+def _combine_with_scope(
+    predicate: ColumnElement[bool] | None,
+    scope: ColumnElement[bool] | None,
+) -> ColumnElement[bool] | None:
+    if scope is None:
+        return predicate
+    if predicate is None:
+        return scope
+    return and_(scope, predicate)
 
 
 async def _count_entities(session: AsyncSession, predicate: ColumnElement[bool] | None) -> int:

@@ -15,6 +15,14 @@ from app.services.entity_repository import (
     resolve_entity_cursor,
     storage_to_orm,
 )
+from app.services.project_scope import (
+    ProjectScope,
+    assign_entity_to_scope,
+    ensure_permissions_schema,
+    get_project_scope,
+    project_of_entity,
+    scope_predicate,
+)
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -49,16 +57,26 @@ class EntityRecordPage(BaseModel):
 
 
 @router.post("", response_model=DataEntity, summary="Create or replace a data entity")
-async def create_entity(entity: DataEntity, db: AsyncSession = Depends(get_async_db)) -> DataEntity:
+async def create_entity(
+    entity: DataEntity,
+    db: AsyncSession = Depends(get_async_db),
+    scope: ProjectScope | None = Depends(get_project_scope),
+) -> DataEntity:
+    if scope is not None:
+        entity = assign_entity_to_scope(entity, scope)
+        await ensure_permissions_schema(db)
     existing = await fetch_entity_orm(db, entity.id)
+    previous_project = project_of_entity(existing) if existing is not None else None
     if existing is not None:
+        if scope is not None and previous_project != scope.id:
+            raise HTTPException(status_code=409, detail="The entity ID is already in use")
         await db.delete(existing)
         await db.flush()
 
     db.add(entity_to_orm(entity))
     result = await commit_and_return_entity(db, entity.id)
     action = EventAction.UPDATED if existing else EventAction.CREATED
-    await broadcast_entity_event(action, result)
+    await broadcast_entity_event(action, result, [previous_project] if existing else ())
     return result
 
 
@@ -67,12 +85,16 @@ async def list_entities(
     limit: int = Query(100, ge=1, le=10000),
     cursor: UUID | None = Query(None, description="Return entities created after the entity with this ID"),
     db: AsyncSession = Depends(get_async_db),
+    scope: ProjectScope | None = Depends(get_project_scope),
 ) -> EntityListResponse:
     stmt = (
         select(DataEntityORM.id, DataEntityORM.created_at)
         .order_by(DataEntityORM.created_at, DataEntityORM.id)
         .limit(limit + 1)
     )
+    predicate = scope_predicate(scope)
+    if predicate is not None:
+        stmt = stmt.where(predicate)
     if cursor:
         try:
             created_at, entity_id = await resolve_entity_cursor(db, cursor)
@@ -96,16 +118,20 @@ async def list_entities(
 )
 async def stream_entity_index(
     db: AsyncSession = Depends(get_async_db),
+    scope: ProjectScope | None = Depends(get_project_scope),
 ) -> StreamingResponse:
+    predicate = scope_predicate(scope)
     total_count_stmt = select(func.count(DataEntityORM.id))
-    total_count_result = await db.execute(total_count_stmt)
-    total_count = int(total_count_result.scalar() or 0)
-
     stmt = (
         select(DataEntityORM.id)
         .order_by(DataEntityORM.created_at, DataEntityORM.id)
         .execution_options(stream_results=True)
     )
+    if predicate is not None:
+        total_count_stmt = total_count_stmt.where(predicate)
+        stmt = stmt.where(predicate)
+    total_count_result = await db.execute(total_count_stmt)
+    total_count = int(total_count_result.scalar() or 0)
 
     async def iterator() -> AsyncIterator[bytes]:
         yield b'{"total_count":' + str(total_count).encode() + b',"items":['
@@ -133,9 +159,10 @@ async def list_entity_records(
     limit: int = Query(50, ge=1, le=10000),
     cursor: UUID | None = Query(None, description="Return entities created after the entity with this ID"),
     db: AsyncSession = Depends(get_async_db),
+    scope: ProjectScope | None = Depends(get_project_scope),
 ) -> EntityRecordPage:
     try:
-        entity_orms = await fetch_entity_page(db, cursor=cursor, limit=limit)
+        entity_orms = await fetch_entity_page(db, cursor=cursor, limit=limit, predicate=scope_predicate(scope))
     except ValueError as exc:  # pragma: no cover - defensive
         raise HTTPException(status_code=400, detail="Invalid cursor") from exc
     has_more = len(entity_orms) > limit
@@ -146,8 +173,12 @@ async def list_entity_records(
 
 
 @router.get("/{entity_id}", response_model=DataEntity, summary="Get a data entity by ID")
-async def get_entity(entity_id: UUID, db: AsyncSession = Depends(get_async_db)) -> DataEntity:
-    return await require_entity_response(db, entity_id)
+async def get_entity(
+    entity_id: UUID,
+    db: AsyncSession = Depends(get_async_db),
+    scope: ProjectScope | None = Depends(get_project_scope),
+) -> DataEntity:
+    return await require_entity_response(db, entity_id, scope)
 
 
 @router.post(
@@ -159,8 +190,9 @@ async def add_storage_coordinate(
     entity_id: UUID,
     coord: StorageCoordinate,
     db: AsyncSession = Depends(get_async_db),
+    scope: ProjectScope | None = Depends(get_project_scope),
 ) -> DataEntity:
-    entity = await require_entity(db, entity_id)
+    entity = await require_entity(db, entity_id, scope)
     entity.storage_coordinates.append(storage_to_orm(coord))
     updated = await commit_and_return_entity(db, entity_id)
     await broadcast_entity_event(EventAction.UPDATED, updated)
@@ -173,9 +205,12 @@ async def add_storage_coordinate(
     summary="Remove a storage coordinate from an entity by index",
 )
 async def remove_storage_coordinate(
-    entity_id: UUID, index: int, db: AsyncSession = Depends(get_async_db)
+    entity_id: UUID,
+    index: int,
+    db: AsyncSession = Depends(get_async_db),
+    scope: ProjectScope | None = Depends(get_project_scope),
 ) -> DataEntity:
-    entity = await require_entity(db, entity_id)
+    entity = await require_entity(db, entity_id, scope)
     try:
         entity.storage_coordinates.pop(index)
     except IndexError as exc:  # pragma: no cover - defensive
@@ -186,10 +221,15 @@ async def remove_storage_coordinate(
 
 
 @router.delete("/{entity_id}", status_code=204, summary="Delete a data entity")
-async def delete_entity(entity_id: UUID, db: AsyncSession = Depends(get_async_db)) -> Response:
-    entity = await require_entity(db, entity_id)
+async def delete_entity(
+    entity_id: UUID,
+    db: AsyncSession = Depends(get_async_db),
+    scope: ProjectScope | None = Depends(get_project_scope),
+) -> Response:
+    entity = await require_entity(db, entity_id, scope)
+    project = project_of_entity(entity)
     await db.delete(entity)
     await db.commit()
     cleanup_entity_artifacts(entity_id)
-    await broadcast_entity_event(EventAction.DELETED, entity_id)
+    await broadcast_entity_event(EventAction.DELETED, entity_id, [project])
     return Response(status_code=204)

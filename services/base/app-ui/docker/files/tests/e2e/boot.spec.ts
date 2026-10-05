@@ -24,3 +24,19 @@ test('renders on a fresh profile, with no shell-seeded settings', async ({ page 
   // is engine-version specific.
   expect(consoleErrors.filter((t) => /SyntaxError/.test(t))).toEqual([])
 })
+
+test('the view follows the shell into the dark theme', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage['settings'] = JSON.stringify({ darkMode: true })
+  })
+  await installMockBackend(page)
+  await page.goto(TASKS_PATH)
+  const heading = page.getByRole('heading', { name: TASKS_TITLE })
+  await expect(heading).toBeVisible()
+
+  await expect(page.locator('.v-application')).toHaveClass(/v-theme--kaapanaThemeDark/)
+  const channels = await heading.evaluate((el) =>
+    getComputedStyle(el).color.match(/\d+/g)!.slice(0, 3).map(Number),
+  )
+  for (const channel of channels) expect(channel).toBeGreaterThan(200)
+})

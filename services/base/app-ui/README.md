@@ -129,7 +129,7 @@ Specs by concern:
 
 | Spec | Covers |
 | --- | --- |
-| `boot` | fresh-profile boot |
+| `boot` | fresh-profile boot, the shell's dark-mode setting |
 | `applications-list` | per-route lists and affordances, display names, apps without paths, sorting, auth failure |
 | `open-application` | opening ready apps, the status dialog and its live update |
 | `finish-interaction` | the finish payload, cancelling, no double submit, the failure notification and its details |

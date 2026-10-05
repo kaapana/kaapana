@@ -56,5 +56,5 @@ More details
 ************
 
 - Service architecture, install/uninstall lifecycle, status state machines, the REST API and more: ``services/base/extension-manager-service/docker/files/app/README.md``
-- UI: ``services/base/extension-manager-ui/docker/README.md``.
+- UI: ``services/base/extension-manager-ui/README.md``.
 - ``extensionctl`` cli and python api: ``lib/kaapana_extensions/README.md``.

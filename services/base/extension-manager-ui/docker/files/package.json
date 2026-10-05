@@ -10,8 +10,9 @@
     "dev": "vite",
     "build": "npm run type-check && vite build",
     "build-only": "vite build",
-    "type-check": "vue-tsc --build",
-    "preview": "vite preview"
+    "type-check": "vue-tsc --build && vue-tsc --noEmit -p tsconfig.e2e.json",
+    "preview": "vite preview",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@kaapana/base-ui": "file:../../../base-ui/docker/files",
@@ -24,6 +25,7 @@
     "vuetify": "^3.10.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.54.1",
     "@types/node": "^22.16.5",
     "@vitejs/plugin-vue": "^6.0.1",
     "typescript": "~5.8.0",

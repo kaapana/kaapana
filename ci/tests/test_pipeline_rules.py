@@ -202,7 +202,7 @@ def test_the_admin_chart_and_namespace_come_from_the_variables():
 
 
 def test_build_does_not_lint_charts(default_config):
-    """Charts are linted by lint: [helm] in the tests stage; the build must not repeat it."""
+    """Charts are linted by lint: [helm] in the unittest stage; the build must not repeat it."""
     script = "\n".join(jobs(default_config)["build_packages"]["script"])
     assert "--no-linting" in script
 

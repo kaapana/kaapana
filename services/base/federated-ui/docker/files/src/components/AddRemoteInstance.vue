@@ -1,11 +1,15 @@
 <script setup lang="ts">
+import { notify } from '@kyvg/vue3-notification'
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { ConfirmDialog, apiErrorInfo, apiErrorText, type ApiErrorInfo } from '@kaapana/base-ui'
-import { FERNET_DEACTIVATED, addRemoteInstance, type RemoteInstanceDefinition } from '@/api/federation'
+import {
+  FERNET_DEACTIVATED,
+  addRemoteInstance,
+  type RemoteInstanceDefinition,
+} from '@/api/federation'
 import { setDirty } from '@/composables/viewDirty'
 import { useFailureDetailsStore } from '@/stores/failureDetails'
 import { kaapanaIcons } from '@/utils/icons'
-import { notifySuccess } from '@/utils/notifyFailure'
 
 const props = defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [value: boolean]; added: [] }>()
@@ -46,14 +50,20 @@ const showDiscardConfirm = ref(false)
 let opener: HTMLElement | null = null
 
 const required = (message: string) => (value: unknown) =>
-  (typeof value === 'string' ? value.trim() !== '' : value !== null && value !== undefined) || message
+  (typeof value === 'string' ? value.trim() !== '' : value !== null && value !== undefined) ||
+  message
 
 const rules = {
-  instanceName: [required('Enter the instance name of the remote platform, as shown on its own instance card.')],
+  instanceName: [
+    required('Enter the instance name of the remote platform, as shown on its own instance card.'),
+  ],
   host: [
-    required('Enter the host name or IP address of the remote platform, for example kaapana.example.org.'),
+    required(
+      'Enter the host name or IP address of the remote platform, for example kaapana.example.org.',
+    ),
     (value: string) =>
-      !/^\w+:\/\//.test(value.trim()) || 'Leave out the protocol: enter kaapana.example.org, not https://kaapana.example.org.',
+      !/^\w+:\/\//.test(value.trim()) ||
+      'Leave out the protocol: enter kaapana.example.org, not https://kaapana.example.org.',
   ],
   port: [
     (value: unknown) => {
@@ -90,13 +100,15 @@ watch(pasted, (text) => {
   if ('port' in parsed) definition.port = Number(parsed.port)
   if ('token' in parsed) definition.token = String(parsed.token)
   if ('fernet_key' in parsed) definition.fernet_key = String(parsed.fernet_key)
-  if ('ssl_check' in parsed) definition.ssl_check = parsed.ssl_check === true || parsed.ssl_check === 'true'
+  if ('ssl_check' in parsed)
+    definition.ssl_check = parsed.ssl_check === true || parsed.ssl_check === 'true'
 })
 
 const dirty = computed(
   () =>
     props.modelValue &&
-    (pasted.value.trim() !== '' || JSON.stringify(definition) !== JSON.stringify(initialDefinition())),
+    (pasted.value.trim() !== '' ||
+      JSON.stringify(definition) !== JSON.stringify(initialDefinition())),
 )
 watch(dirty, (value) => setDirty('add-remote', value))
 onBeforeUnmount(() => setDirty('add-remote', false))
@@ -151,7 +163,11 @@ async function submit() {
   }
   try {
     await addRemoteInstance(payload)
-    notifySuccess('Remote instance added', `This platform now federates with ${payload.instance_name}.`)
+    notify({
+      type: 'success',
+      title: 'Remote instance added',
+      text: `This platform now federates with ${payload.instance_name}.`,
+    })
     emit('added')
     close()
   } catch (err) {
@@ -268,7 +284,11 @@ function showSubmitErrorDetails() {
                 label="Connection details"
                 :placeholder="PASTE_EXAMPLE"
                 :error-messages="pasteResult.error"
-                :messages="pasteResult.filled ? 'The fields under “Enter details” were filled from the pasted definition.' : undefined"
+                :messages="
+                  pasteResult.filled
+                    ? 'The fields under “Enter details” were filled from the pasted definition.'
+                    : undefined
+                "
                 rows="8"
                 variant="outlined"
                 class="font-monospace"

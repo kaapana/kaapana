@@ -1,12 +1,29 @@
 import { test, expect } from '@playwright/test'
-import { CLIENT, defaultMockData, installMockBackend, localInstance, seedShellState, VIEW_PATH } from './fixtures/mock-backend'
-import { card, collectPageErrors, countRequests, failRoute, field, openView, toasts } from './fixtures/helpers'
+import {
+  CLIENT,
+  defaultMockData,
+  installMockBackend,
+  localInstance,
+  seedShellState,
+  VIEW_PATH,
+} from './fixtures/mock-backend'
+import {
+  card,
+  collectPageErrors,
+  countRequests,
+  failRoute,
+  field,
+  openView,
+  toasts,
+} from './fixtures/helpers'
 
 test('lists this platform and its remote instances in separate sections', async ({ page }) => {
   await openView(page)
 
   await expect(page.getByRole('heading', { level: 1, name: 'Instance overview' })).toBeVisible()
-  await expect(page.getByTestId('summary')).toHaveText('This platform federates with 1 remote instance.')
+  await expect(page.getByTestId('summary')).toHaveText(
+    'This platform federates with 1 remote instance.',
+  )
   await expect(page.getByRole('heading', { name: 'This platform' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Remote instances' })).toBeVisible()
 
@@ -26,7 +43,14 @@ test('shows which fields each instance can edit', async ({ page }) => {
   await openView(page)
 
   const local = card(page, 'central-node')
-  for (const label of ['Fernet key', 'Verify SSL', 'Sync automatically', 'Start workflows automatically', 'Allowed workflows', 'Allowed datasets']) {
+  for (const label of [
+    'Fernet key',
+    'Verify SSL',
+    'Sync automatically',
+    'Start workflows automatically',
+    'Allowed workflows',
+    'Allowed datasets',
+  ]) {
     await expect(local.getByRole('button', { name: `Edit ${label}` })).toBeVisible()
   }
   for (const label of ['Network', 'Token']) {
@@ -37,7 +61,12 @@ test('shows which fields each instance can edit', async ({ page }) => {
   for (const label of ['Network', 'Token', 'Fernet key', 'Verify SSL']) {
     await expect(remote.getByRole('button', { name: `Edit ${label}` })).toBeVisible()
   }
-  for (const label of ['Sync automatically', 'Start workflows automatically', 'Allowed workflows', 'Allowed datasets']) {
+  for (const label of [
+    'Sync automatically',
+    'Start workflows automatically',
+    'Allowed workflows',
+    'Allowed datasets',
+  ]) {
     await expect(remote.getByRole('button', { name: `Edit ${label}` })).toHaveCount(0)
   }
 })
@@ -56,7 +85,9 @@ test('states values in text, not only by colour', async ({ page }) => {
   await expect(remote.getByTestId('freshness')).toContainText('Updated')
 })
 
-test('a remote instance that never reported shows that instead of a stale colour', async ({ page }) => {
+test('a remote instance that never reported shows that instead of a stale colour', async ({
+  page,
+}) => {
   await openView(page, {
     ...defaultMockData,
     instances: [
@@ -152,12 +183,12 @@ test('a failed sync reports why, offers details, and skips the refetch', async (
 
   const toast = toasts(page)
   await expect(toast).toContainText('Could not sync the remote instances')
-  await expect(toast).toContainText('remote unreachable')
   await expect(toast).not.toContainText('Remote instances synced')
   expect(refetches()).toBe(0)
 
   await toast.getByText('Could not sync the remote instances').click()
   await expect(page.getByRole('dialog')).toContainText('GET')
+  await expect(page.getByRole('dialog')).toContainText('remote unreachable')
   expect(pageErrors).toEqual([])
 })
 

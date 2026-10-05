@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { notify } from '@kyvg/vue3-notification'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { apiErrorInfo, apiErrorText, type ApiErrorInfo } from '@kaapana/base-ui'
 import { checkForRemoteUpdates, listInstances, type KaapanaInstance } from '@/api/federation'
@@ -7,7 +8,7 @@ import InstanceCard from '@/components/InstanceCard.vue'
 import { clearDirty } from '@/composables/viewDirty'
 import { useFailureDetailsStore } from '@/stores/failureDetails'
 import { kaapanaIcons } from '@/utils/icons'
-import { notifyFailure, notifySuccess } from '@/utils/notifyFailure'
+import { notifyFailure } from '@/utils/notifyFailure'
 
 const POLL_INTERVAL_MS = 15_000
 
@@ -75,7 +76,11 @@ async function syncRemotes() {
   syncing.value = true
   try {
     await checkForRemoteUpdates()
-    notifySuccess('Remote instances synced', 'The latest settings of all remote instances were fetched.')
+    notify({
+      type: 'success',
+      title: 'Remote instances synced',
+      text: 'The latest settings of all remote instances were fetched.',
+    })
     await loadInstances()
   } catch (err) {
     notifyFailure(
@@ -199,7 +204,12 @@ onBeforeUnmount(() => {
             data-testid="no-remotes"
           >
             <template #actions>
-              <v-btn color="primary" variant="text" :prepend-icon="kaapanaIcons.add" @click="addOpen = true">
+              <v-btn
+                color="primary"
+                variant="text"
+                :prepend-icon="kaapanaIcons.add"
+                @click="addOpen = true"
+              >
                 Add remote instance
               </v-btn>
             </template>

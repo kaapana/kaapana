@@ -1,232 +1,300 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import {
+  apiErrorInfo,
+  apiErrorText,
+  ConfirmDialog,
+  kaapanaIcons,
+  postViewDirty,
+} from '@kaapana/base-ui'
+import { fetchExtensions } from '@/features/extensions/api'
 import {
   createRepository,
   deleteRepository,
   fetchRepositories,
   updateRepository,
 } from '@/features/repositories/api'
-import NewRepository from '@/features/repositories/components/NewRepository.vue'
-import RepositoryIterator from '@/features/repositories/components/RepositoryIterator.vue'
-import SelectedRepository from '@/features/repositories/components/SelectedRepository.vue'
-import {
-  createFormState,
-  toCreateRequest,
-  toUpdateRequest,
-} from '@/features/repositories/formAdapter'
-import type { Repository } from '@/shared/types/apiSchemas'
+import RepositoryFormDialog from '@/features/repositories/components/RepositoryFormDialog.vue'
+import { toCreateRequest, toUpdateRequest } from '@/features/repositories/formAdapter'
 import type { RepositoryFormState } from '@/features/repositories/types'
-import { getApiErrorMessage } from '@/shared/utils/apiErrors'
+import BaseCardIterator from '@/shared/components/BaseCardIterator.vue'
+import { useFailureDetailsStore, type FailureDetails } from '@/shared/stores/failureDetails'
+import type { InstalledExtension, Repository } from '@/shared/types/apiSchemas'
+import { notifyFailure, notifySuccess } from '@/shared/utils/notify'
+import { plural } from '@/shared/utils/status'
+
+const failureDetails = useFailureDetailsStore()
 
 const repositories = ref<Repository[]>([])
-const loadingRepositories = ref(false)
-const repositoryError = ref<string | null>(null)
-const selectedRepository = ref<Repository | null>(null)
-const selectedRepositoryForm = ref<RepositoryFormState>(createFormState())
-const createRepositoryForm = ref<RepositoryFormState>(createFormState())
-const showingNewRepositoryDialog = ref(false)
-const creatingRepository = ref(false)
-const createRepositoryError = ref<string | null>(null)
-const editingSelectedRepository = ref(false)
-const updatingSelectedRepository = ref(false)
-const deletingSelectedRepository = ref(false)
-const repositoryActionError = ref<string | null>(null)
+const installed = ref<InstalledExtension[]>([])
+const loading = ref(false)
+const loaded = ref(false)
+const loadFailure = ref<FailureDetails | null>(null)
 
-function replaceRepositoryInList(updated: Repository) {
-  const index = repositories.value.findIndex((repo) => repo.id === updated.id)
-  if (index === -1) {
-    repositories.value.push(updated)
-  } else {
-    repositories.value.splice(index, 1, updated)
-  }
-}
+const formOpen = ref(false)
+const formRepository = ref<Repository | null>(null)
+const formSubmitting = ref(false)
+const formFailure = ref<FailureDetails | null>(null)
+const formDirty = ref(false)
 
-function selectRepository(repository: Repository) {
-  selectedRepository.value = repository
-  selectedRepositoryForm.value = createFormState(repository)
-  editingSelectedRepository.value = false
-  repositoryActionError.value = null
-}
+const removeCandidate = ref<Repository | null>(null)
+const showRemoveConfirm = ref(false)
+const removingId = ref<string | null>(null)
 
-function clearSelectedRepository() {
-  selectedRepository.value = null
-  editingSelectedRepository.value = false
-  repositoryActionError.value = null
-}
+watch(formDirty, (dirty) => postViewDirty(dirty))
 
-function enableEditSelectedRepository() {
-  if (!selectedRepository.value) return
+const removeTitle = computed(() => `Remove repository "${removeCandidate.value?.name ?? ''}"?`)
+const removeText = computed(() => {
+  const repository = removeCandidate.value
+  if (!repository) return ''
+  const tracked = installed.value.filter(
+    (extension) => extension.repository_id === repository.id && extension.status !== 'uninstalled',
+  ).length
+  const base =
+    'Its extensions no longer appear in the catalog, and its stored credentials are deleted.'
+  if (!tracked) return base
+  return `${base} The extension manager also stops tracking the ${plural(tracked, 'extension')} installed from it: their content stays on the platform but can no longer be uninstalled here.`
+})
 
-  selectedRepositoryForm.value = createFormState(selectedRepository.value)
-  editingSelectedRepository.value = true
-  repositoryActionError.value = null
-}
-
-function cancelEditSelectedRepository() {
-  editingSelectedRepository.value = false
-  repositoryActionError.value = null
-}
-
-function showNewRepositoryDialog() {
-  createRepositoryForm.value = createFormState()
-  createRepositoryError.value = null
-  showingNewRepositoryDialog.value = true
-}
-
-function clearNewRepositoryDialog() {
-  if (creatingRepository.value) return
-
-  showingNewRepositoryDialog.value = false
-  createRepositoryForm.value = createFormState()
-  createRepositoryError.value = null
-}
-
-function updateCreateRepositoryForm(repositoryForm: RepositoryFormState) {
-  createRepositoryForm.value = repositoryForm
-}
-
-function updateSelectedRepositoryForm(repositoryForm: RepositoryFormState) {
-  selectedRepositoryForm.value = repositoryForm
+function showLoadFailure() {
+  if (loadFailure.value) failureDetails.show(loadFailure.value)
 }
 
 async function loadRepositories() {
-  loadingRepositories.value = true
-  repositoryError.value = null
-
+  loading.value = true
   try {
-    repositories.value = await fetchRepositories()
-    if (selectedRepository.value) {
-      selectedRepository.value =
-        repositories.value.find((repository) => repository.id === selectedRepository.value?.id) ??
-        null
+    const [loadedRepositories, loadedExtensions] = await Promise.all([
+      fetchRepositories(),
+      fetchExtensions().catch(() => installed.value),
+    ])
+    repositories.value = loadedRepositories
+    installed.value = loadedExtensions
+    loadFailure.value = null
+  } catch (err) {
+    loadFailure.value = {
+      title: repositories.value.length
+        ? 'Could not refresh the repositories'
+        : 'Could not load the repositories',
+      text: 'The extension manager could not be reached or reported an error.',
+      error: apiErrorInfo(err),
     }
-  } catch (err) {
-    console.error(err)
-    repositoryError.value = getApiErrorMessage(err, 'Failed to fetch repositories.')
-    repositories.value = []
   } finally {
-    loadingRepositories.value = false
+    loading.value = false
+    loaded.value = true
   }
 }
 
-async function createNewRepository() {
-  creatingRepository.value = true
-  createRepositoryError.value = null
+function openCreateForm() {
+  formRepository.value = null
+  formFailure.value = null
+  formOpen.value = true
+}
 
+function openEditForm(repository: Repository) {
+  formRepository.value = repository
+  formFailure.value = null
+  formOpen.value = true
+}
+
+async function submitForm(form: RepositoryFormState) {
+  const editing = formRepository.value
+  formSubmitting.value = true
+  formFailure.value = null
   try {
-    const created = await createRepository(toCreateRequest(createRepositoryForm.value))
-    repositories.value.push(created)
-    showingNewRepositoryDialog.value = false
-    createRepositoryForm.value = createFormState()
+    if (editing) {
+      const updated = await updateRepository(editing.id, toUpdateRequest(form))
+      repositories.value = repositories.value.map((repository) =>
+        repository.id === updated.id ? updated : repository,
+      )
+      notifySuccess('Repository saved', `The changes to "${updated.name}" are saved.`)
+    } else {
+      const created = await createRepository(toCreateRequest(form))
+      repositories.value = [...repositories.value, created]
+      notifySuccess(
+        'Repository added',
+        `"${created.name}" is registered. Its extensions appear in the catalog.`,
+      )
+    }
+    formOpen.value = false
   } catch (err) {
-    console.error(err)
-    createRepositoryError.value = getApiErrorMessage(err, 'Failed to create repository.')
+    const fallback = editing
+      ? `Could not save the changes to "${editing.name}".`
+      : 'Could not add the repository.'
+    formFailure.value = {
+      title: editing ? 'Saving the repository failed' : 'Adding the repository failed',
+      text: apiErrorText(err, fallback),
+      error: apiErrorInfo(err),
+    }
   } finally {
-    creatingRepository.value = false
+    formSubmitting.value = false
   }
 }
 
-async function updateSelectedRepository() {
-  if (!selectedRepository.value) return
-
-  updatingSelectedRepository.value = true
-  repositoryActionError.value = null
-
-  try {
-    const updated = await updateRepository(
-      selectedRepository.value.id,
-      toUpdateRequest(selectedRepositoryForm.value),
-    )
-    replaceRepositoryInList(updated)
-    selectedRepository.value = updated
-    selectedRepositoryForm.value = createFormState(updated)
-    editingSelectedRepository.value = false
-  } catch (err) {
-    console.error(err)
-    repositoryActionError.value = getApiErrorMessage(err, 'Failed to update repository.')
-  } finally {
-    updatingSelectedRepository.value = false
-  }
+function requestRemove(repository: Repository) {
+  removeCandidate.value = repository
+  showRemoveConfirm.value = true
 }
 
-async function deleteSelectedRepository() {
-  if (!selectedRepository.value) return
-
-  deletingSelectedRepository.value = true
-  repositoryActionError.value = null
-
-  const idToDelete = selectedRepository.value.id
-
+async function removeRepository() {
+  const repository = removeCandidate.value
+  if (!repository || removingId.value) return
+  removingId.value = repository.id
   try {
-    await deleteRepository(idToDelete)
-    repositories.value = repositories.value.filter((repo) => repo.id !== idToDelete)
-    clearSelectedRepository()
+    await deleteRepository(repository.id)
+    repositories.value = repositories.value.filter((entry) => entry.id !== repository.id)
+    notifySuccess('Repository removed', `"${repository.name}" is no longer registered.`)
   } catch (err) {
-    console.error(err)
-    repositoryActionError.value = getApiErrorMessage(err, 'Failed to remove repository.')
+    notifyFailure('Removing the repository failed', `Could not remove "${repository.name}".`, err)
   } finally {
-    deletingSelectedRepository.value = false
+    removingId.value = null
   }
 }
 
 onMounted(loadRepositories)
+onBeforeUnmount(() => postViewDirty(false))
 </script>
 
 <template>
-  <v-container fluid>
-    <v-container class="pad-lg">
-      <div class="d-flex flex-wrap align-center justify-space-between ga-3 mb-4">
-        <div>
-          <h1 class="text-h5 mb-1">Repository Management</h1>
-          <div class="text-body-2 text-medium-emphasis">
-            {{ repositories.length }} repositories registered
-          </div>
-        </div>
-
-        <div class="d-flex align-center ga-2">
-          <v-btn color="primary" variant="tonal" @click="showNewRepositoryDialog">
-            <v-icon start>mdi-plus</v-icon>
-            New repository
-          </v-btn>
-
-          <v-btn color="primary" :loading="loadingRepositories" @click="loadRepositories">
-            <v-icon start>mdi-refresh</v-icon>
-            Refresh
-          </v-btn>
-        </div>
+  <div>
+    <div class="d-flex flex-wrap align-center justify-space-between ga-3 mb-4">
+      <div class="text-body-2 text-medium-emphasis">
+        {{ plural(repositories.length, 'repository', 'repositories') }} registered
       </div>
+      <div class="d-flex align-center ga-2">
+        <v-btn
+          variant="text"
+          color="primary"
+          :prepend-icon="kaapanaIcons.refresh"
+          :loading="loading"
+          :disabled="loading"
+          @click="loadRepositories"
+        >
+          Refresh
+        </v-btn>
+        <v-btn
+          color="primary"
+          variant="flat"
+          :prepend-icon="kaapanaIcons.add"
+          data-testid="new-repository"
+          @click="openCreateForm"
+        >
+          New repository
+        </v-btn>
+      </div>
+    </div>
 
-      <NewRepository
-        :showing-new-repository-dialog="showingNewRepositoryDialog"
-        :create-repository-form="createRepositoryForm"
-        :creating-repository="creatingRepository"
-        :create-repository-error="createRepositoryError"
-        @clear-new-repository-dialog="clearNewRepositoryDialog"
-        @update:create-repository-form="updateCreateRepositoryForm"
-        @create-new-repository="createNewRepository"
-      />
+    <v-alert
+      v-if="loadFailure && repositories.length"
+      type="warning"
+      variant="tonal"
+      class="mb-4"
+      data-testid="stale-alert"
+    >
+      Could not refresh the repositories. The list shows their last known state.
+      <template #append>
+        <v-btn variant="text" @click="showLoadFailure">Details</v-btn>
+      </template>
+    </v-alert>
 
-      <SelectedRepository
-        :selected-repository="selectedRepository"
-        :selected-repository-form="selectedRepositoryForm"
-        :editing-selected-repository="editingSelectedRepository"
-        :updating-selected-repository="updatingSelectedRepository"
-        :deleting-selected-repository="deletingSelectedRepository"
-        :repository-action-error="repositoryActionError"
-        @clear-selected-repository="clearSelectedRepository"
-        @enable-edit-selected-repository="enableEditSelectedRepository"
-        @cancel-edit-selected-repository="cancelEditSelectedRepository"
-        @update:selected-repository-form="updateSelectedRepositoryForm"
-        @update-selected-repository="updateSelectedRepository"
-        @delete-selected-repository="deleteSelectedRepository"
-      />
+    <BaseCardIterator
+      :items="repositories"
+      :loading="loading || !loaded"
+      :item-key="(repository) => repository.id"
+    >
+      <template #card="{ item }">
+        <v-card-title class="text-wrap">{{ item.name }}</v-card-title>
+        <v-card-subtitle class="text-wrap">{{ item.repository_url }}</v-card-subtitle>
+        <v-card-text
+          class="flex-grow-1 text-body-2"
+          :class="{ 'text-medium-emphasis': !item.description }"
+        >
+          {{ item.description || 'No description provided.' }}
+        </v-card-text>
+        <v-card-actions>
+          <v-btn
+            color="primary"
+            variant="text"
+            :prepend-icon="kaapanaIcons.edit"
+            :aria-label="`Edit ${item.name}`"
+            :disabled="removingId === item.id"
+            @click="openEditForm(item)"
+          >
+            Edit
+          </v-btn>
+          <v-btn
+            color="error"
+            variant="text"
+            :prepend-icon="kaapanaIcons.delete"
+            :aria-label="`Remove ${item.name}`"
+            :loading="removingId === item.id"
+            :disabled="removingId === item.id"
+            @click="requestRemove(item)"
+          >
+            Remove
+          </v-btn>
+        </v-card-actions>
+      </template>
 
-      <RepositoryIterator
-        :repositories="repositories"
-        :loading-repositories="loadingRepositories"
-        :repository-error="repositoryError"
-        @select-repository="selectRepository"
-      />
-    </v-container>
-  </v-container>
+      <template #empty>
+        <div data-testid="empty-state">
+          <v-empty-state
+            v-if="loadFailure"
+            :icon="kaapanaIcons.error"
+            color="error"
+            size="56"
+            title="Could not load the repositories"
+            text="The extension manager could not be reached or reported an error. Try again, or contact your administrator if it persists."
+          >
+            <template #actions>
+              <v-btn
+                color="primary"
+                variant="text"
+                :prepend-icon="kaapanaIcons.refresh"
+                @click="loadRepositories"
+              >
+                Try again
+              </v-btn>
+              <v-btn variant="text" @click="showLoadFailure">Details</v-btn>
+            </template>
+          </v-empty-state>
+
+          <v-empty-state
+            v-else
+            size="56"
+            title="No repositories registered yet"
+            text="Register the OCI repository your extensions are published to. Its extensions then appear in the catalog."
+          >
+            <template #actions>
+              <v-btn
+                color="primary"
+                variant="text"
+                :prepend-icon="kaapanaIcons.add"
+                @click="openCreateForm"
+              >
+                New repository
+              </v-btn>
+            </template>
+          </v-empty-state>
+        </div>
+      </template>
+    </BaseCardIterator>
+
+    <RepositoryFormDialog
+      v-model="formOpen"
+      :repository="formRepository"
+      :submitting="formSubmitting"
+      :failure="formFailure"
+      @update:dirty="formDirty = $event"
+      @submit="submitForm"
+    />
+
+    <ConfirmDialog
+      v-model="showRemoveConfirm"
+      color="error"
+      :title="removeTitle"
+      :text="removeText"
+      confirm-text="Remove repository"
+      @confirm="removeRepository"
+    />
+  </div>
 </template>

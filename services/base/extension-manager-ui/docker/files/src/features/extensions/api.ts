@@ -1,30 +1,24 @@
-import apiClient from '@/shared/api/client'
+import { httpClient } from '@kaapana/base-ui'
+import { EXTENSIONS_API, asList } from '@/shared/api/extensionsApi'
 import type { InstalledExtension } from '@/shared/types/apiSchemas'
 
-const API_BASE = '/extensions'
+const API_BASE = `${EXTENSIONS_API}/extensions`
 
-export async function installExtension(repositoryId: string, tag: string): Promise<void> {
-  await apiClient.post(`${API_BASE}/install`, null, {
-    params: {
-      repository_id: repositoryId,
-      tag,
-    },
+export async function installExtension(
+  repositoryId: string,
+  tag: string,
+): Promise<InstalledExtension> {
+  const response = await httpClient.post<InstalledExtension>(`${API_BASE}/install`, null, {
+    params: { repository_id: repositoryId, tag },
   })
+  return response.data
 }
 
 export async function fetchExtensions(): Promise<InstalledExtension[]> {
-  const response = await apiClient.get<InstalledExtension[]>(API_BASE)
-  if (!response.data || !Array.isArray(response.data)) {
-    return []
-  }
-  return response.data
-}
-
-export async function fetchExtensionById(extensionId: string): Promise<InstalledExtension> {
-  const response = await apiClient.get<InstalledExtension>(`${API_BASE}/${extensionId}`)
-  return response.data
+  const response = await httpClient.get(API_BASE)
+  return asList<InstalledExtension>(response.data)
 }
 
 export async function uninstallExtension(extensionId: string): Promise<void> {
-  await apiClient.post(`${API_BASE}/${extensionId}/uninstall`)
+  await httpClient.post(`${API_BASE}/${extensionId}/uninstall`)
 }

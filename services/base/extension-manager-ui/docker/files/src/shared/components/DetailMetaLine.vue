@@ -13,22 +13,10 @@ const visibleItems = computed(() =>
 </script>
 
 <template>
-  <div class="detail-meta-line">
-    <template v-for="(item, index) in visibleItems" :key="item">
-      <span v-if="index > 0" class="detail-meta-line-separator">·</span>
+  <div class="d-flex flex-wrap ga-2">
+    <template v-for="(item, index) in visibleItems" :key="index">
+      <span v-if="index > 0" aria-hidden="true">·</span>
       <span>{{ item }}</span>
     </template>
   </div>
 </template>
-
-<style scoped>
-.detail-meta-line {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0 8px;
-}
-
-.detail-meta-line-separator {
-  text-align: center;
-}
-</style>

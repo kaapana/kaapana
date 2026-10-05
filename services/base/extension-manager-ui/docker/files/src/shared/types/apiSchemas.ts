@@ -1,9 +1,6 @@
-// Backend-mirrored from extension-manager-service.
-// These should match the API response shapes.
-
 export interface Repository {
   name: string
-  description?: string
+  description: string
   repository_url: string
   id: string
 }

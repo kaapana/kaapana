@@ -1,15 +1,31 @@
 <script setup lang="ts">
+import { kaapanaIcons } from '@kaapana/base-ui'
+import { watch } from 'vue'
+
 const props = defineProps<{
   open: boolean
   title?: string
   subtitle?: string
-  error?: string | null
   maxWidth?: number | string
 }>()
 
 const emit = defineEmits<{
   (event: 'close'): void
 }>()
+
+let opener: HTMLElement | null = null
+
+watch(
+  () => props.open,
+  (open) => {
+    if (open) opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  },
+)
+
+function restoreFocus() {
+  if (opener?.isConnected) opener.focus()
+  opener = null
+}
 
 function handleDialogUpdate(value: boolean) {
   if (!value) emit('close')
@@ -19,35 +35,38 @@ function handleDialogUpdate(value: boolean) {
 <template>
   <v-dialog
     :model-value="props.open"
-    :max-width="props.maxWidth ?? 720"
+    :max-width="props.maxWidth ?? 900"
+    scrollable
     @update:model-value="handleDialogUpdate"
+    @after-leave="restoreFocus"
   >
-    <v-card class="detail-dialog-card">
-      <div class="detail-dialog-sticky">
-        <v-card-title class="d-flex align-center justify-space-between">
+    <v-card :elevation="5">
+      <v-card-title class="d-flex align-start ga-2">
+        <div class="flex-grow-1 min-width-0">
           <slot name="header">
-            <div>
-              <div v-if="props.title" class="text-h6">{{ props.title }}</div>
-              <div v-if="props.subtitle" class="text-body-2 text-medium-emphasis">
-                {{ props.subtitle }}
-              </div>
+            <div class="text-h6 text-wrap">{{ props.title }}</div>
+            <div v-if="props.subtitle" class="text-body-2 text-medium-emphasis text-wrap">
+              {{ props.subtitle }}
             </div>
           </slot>
-          <v-btn icon="mdi-close" variant="text" size="small" title="Close" @click="emit('close')" />
-        </v-card-title>
+        </div>
+        <v-btn
+          :icon="kaapanaIcons.close"
+          variant="text"
+          size="small"
+          aria-label="Close"
+          @click="emit('close')"
+        />
+      </v-card-title>
 
+      <template v-if="$slots.sticky">
         <v-divider />
+        <slot name="sticky" />
+      </template>
 
-        <template v-if="$slots.sticky">
-          <slot name="sticky" />
-          <v-divider />
-        </template>
-      </div>
+      <v-divider />
 
-      <v-card-text class="detail-dialog-body">
-        <v-alert v-if="props.error" type="error" density="compact" class="mb-4">
-          {{ props.error }}
-        </v-alert>
+      <v-card-text>
         <slot name="body" />
       </v-card-text>
 
@@ -63,20 +82,7 @@ function handleDialogUpdate(value: boolean) {
 </template>
 
 <style scoped>
-.detail-dialog-card {
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-}
-
-.detail-dialog-sticky {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  background: rgb(var(--v-theme-surface));
-}
-
-.detail-dialog-body {
-  overflow-y: auto;
+.min-width-0 {
+  min-width: 0;
 }
 </style>

@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": false
+  },
+  "include": ["tests/e2e/**/*.ts", "playwright.config.ts", "env.d.ts"]
+}

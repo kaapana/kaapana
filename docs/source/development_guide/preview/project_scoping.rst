@@ -147,10 +147,19 @@ In the service, read the project from the enriched header:
        return json.loads(project_header)
 
 Currently scoped services: ``kaapana-backend``, ``kube-helm-api``,
-``workflow-api`` and ``dicom-web-filter``, which read the header; the two
-``path``-scoped viewers ``ohif`` and ``slim`` (below); and every UI served
-under the prefix — the ``portal-ui`` shell and the nine ``*-ui`` view charts,
-which take their scope from their own document URL rather than from the header.
+``workflow-api``, ``dicom-web-filter`` and ``data-api``, which read the header;
+the two ``path``-scoped viewers ``ohif`` and ``slim`` (below); and every UI
+served under the prefix — the ``portal-ui`` shell and the ten ``*-ui`` view
+charts, which take their scope from their own document URL rather than from the
+header.
+
+``data-api`` has no project column of its own. It scopes by the ``permissions``
+metadata entry (``{"project": <project id>, "owner": …}``) that the ingestion
+DAG attaches: with a ``Project`` header it only lists, queries and returns
+entities whose entry names that project, assigns entities created through the
+prefix to it, and refuses to move or remove the entry. Without the header — the
+in-cluster ingestion DAG and the admin-only unprefixed route — it stays
+unscoped.
 
 OHIF and Slim are ``path``-scoped viewers: their document URL decides the scope.
 Served under ``/project/<id>/ohif/`` or ``/project/<id>/slim/`` their runtime
@@ -197,7 +206,7 @@ the shell):
 
 .. code-block:: typescript
 
-   const PROJECT_SCOPED = /^\/(kaapana-backend|kube-helm-api|workflow-api|dicom-web-filter)\//
+   const PROJECT_SCOPED = /^\/(kaapana-backend|kube-helm-api|workflow-api|dicom-web-filter|data-api)\//
 
    function prefixProjectScope(config: InternalAxiosRequestConfig) {
      if (config.url && PROJECT_SCOPED.test(config.url)) {

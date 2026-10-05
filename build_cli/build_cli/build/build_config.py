@@ -1,6 +1,6 @@
 import re
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -34,15 +34,15 @@ class BuildConfig(BaseModel):
     log_level: str
     enable_linting: bool
     enable_build_kit: bool = True  # Docker BuildKit: https://docs.docker.com/develop/develop-images/build_enhancements/
-    cache_from: Optional[bool] = False
-    cache_to: Optional[bool] = False
-    cache_to_registry: Optional[str] = None
-    cache_to_username: Optional[str] = None
-    cache_to_password: Optional[str] = None
-    cache_from_registry: Optional[str] = None
-    cache_from_username: Optional[str] = None
-    cache_from_password: Optional[str] = None
-    cache_tag: Optional[str] = "cache"
+    cache_from: bool | None = False
+    cache_to: bool | None = False
+    cache_to_registry: str | None = None
+    cache_to_username: str | None = None
+    cache_to_password: str | None = None
+    cache_from_registry: str | None = None
+    cache_from_username: str | None = None
+    cache_from_password: str | None = None
+    cache_tag: str | None = "cache"
     keep_buildx_builder: bool = False
     parallel_processes: int
     max_build_rounds: int = 5
@@ -52,23 +52,24 @@ class BuildConfig(BaseModel):
     interactive: bool = False
     build_only: bool
     scan_only: bool = False
-    containers_to_build_by_charts: List[str] = Field(default_factory=list)
-    containers_to_build: List[str] = Field(default_factory=list)
+    containers_to_build_by_charts: list[str] = Field(default_factory=list)
+    containers_to_build: list[str] = Field(default_factory=list)
     only_charts: bool = False
-    lint_only: bool = False  # helm lint + kubeval of the chart tree, nothing else
+    changed_files: list[Path] = Field(default_factory=list)
+    lint_only: bool = False  # helm lint + kubeconform validation of the chart tree, nothing else
 
     # Others
-    http_proxy: Optional[str]
+    http_proxy: str | None
     include_model_weights: bool = False
     push_to_microk8s: bool
     create_offline_installation: bool
     publish_offline_installer: bool = False
     skip_platform_images_tarball: bool = False
-    offline_image_platform: Optional[str] = None
-    offline_extra_files: List[str] = Field(default_factory=list)
+    offline_image_platform: str | None = None
+    offline_extra_files: list[str] = Field(default_factory=list)
     platform_filter: str
-    external_source_dirs: List[Path] = Field(default_factory=list)
-    build_ignore_patterns: List[str] = Field(default_factory=list)
+    external_source_dirs: list[Path] = Field(default_factory=list)
+    build_ignore_patterns: list[str] = Field(default_factory=list)
 
     # Additional Details
     vulnerability_scan: bool

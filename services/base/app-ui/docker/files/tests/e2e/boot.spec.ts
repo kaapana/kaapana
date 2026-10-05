@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { installMockBackend, TASKS_PATH } from './fixtures/mock-backend'
+import { installMockBackend, TASKS_PATH, TASKS_TITLE } from './fixtures/mock-backend'
 
 // Regression class that cost data-gallery-ui a blank page: every other spec
 // seeds localStorage["settings"], so only this one sees a fresh-profile boot —
@@ -15,7 +15,7 @@ test('renders on a fresh profile, with no shell-seeded settings', async ({ page 
   await installMockBackend(page)
   await page.goto(TASKS_PATH)
 
-  await expect(page.getByText('Applications requesting your input', { exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: TASKS_TITLE })).toBeVisible()
   await expect(page.getByText('Sort by:')).toBeVisible()
   await expect(page.getByText('Segmentation Editor')).toBeVisible()
   expect(pageErrors).toEqual([])

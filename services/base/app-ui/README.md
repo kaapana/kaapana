@@ -7,6 +7,18 @@ section: **Tasks** (`/tasks`) — workflow-triggered apps awaiting user input �
 and **Apps** (`/apps`) — project-wide running apps. One container serves both;
 the route's `meta.mode` selects which set `ActiveApplications.vue` renders.
 
+The view is `src/views/ActiveApplications.vue`, supported by:
+
+| Path | Purpose |
+| --- | --- |
+| `src/api/applications.ts` | The kube-helm calls, mapped from the wire format to `ActiveApplication`. |
+| `src/utils/podStatus.ts` | Classifies an application as ready, pending or error from its pods. |
+| `src/utils/notifyFailure.ts` | Reports a failed action as a notification that carries its details. |
+| `src/stores/failureDetails.ts` | The one failure-details dialog, opened from a notification, alert or empty state. |
+
+The theme, typeface, icon map, `ConfirmDialog` and `ErrorDetailsDialog` come
+from `@kaapana/base-ui`.
+
 ## Features
 
 - **Two routes, one view.** `/tasks` shows apps with `from_workflow_run: true`
@@ -19,11 +31,18 @@ the route's `meta.mode` selects which set `ActiveApplications.vue` renders.
   status tooltip.
 - **Open in new tab.** A ready app opens its path directly in a new tab; a
   pending or errored app instead opens a status dialog (with pod detail on
-  error) offering *Visit anyway*.
-- **Finish interaction** (Tasks only). A confirm dialog then a POST that
-  removes the row optimistically; the release name is remembered so the next
-  poll can't re-add it before the backend uninstall completes. Failures surface
-  in an error dialog.
+  error) offering *Open anyway*. Cancel takes the initial focus.
+- **Finish interaction** (Tasks only). A `ConfirmDialog` states what finishing
+  does, then a POST removes the row; the release name is remembered so the
+  next poll can't re-add it before the backend uninstall completes. While the
+  request runs, the row's controls are disabled. A failure arrives as a
+  transient notification; selecting it opens `ErrorDetailsDialog` with the
+  backend message.
+- **Loading, empty and failure states.** A skeleton shows until the first
+  response arrives. An empty list says why it is empty, per route. A failed
+  first load (applications or project) shows an error state with *Try again*
+  and *Details*. A failed poll after a successful load keeps the last list and
+  shows an inline alert until a poll succeeds.
 - **Polling.** The active-applications list is re-fetched every 10 s; an open
   status dialog re-derives its app from the fresh list, so it updates live as
   the app moves pending → ready/error.
@@ -46,6 +65,10 @@ onto `/project/<short_id>/…`; the other calls are **not** project-prefixed.
 | GET | `/aii/users/<id>/projects` (non-admin) · `/aii/projects` (admin) | List the user's projects to resolve the URL slug | no |
 | GET | `/kube-helm-api/active-applications` | The active-applications list (10 s poll) | **yes** |
 | POST | `/kube-helm-api/complete-active-application` | Finish a workflow interaction (`{ release_name }`) | **yes** |
+
+The view calls no legacy `kaapana-backend` endpoint: its own calls go to
+`kube-helm-api`, the rest are the auth and `aii` lookups inside
+`@kaapana/base-ui`.
 
 Menu-badge endpoint (polled by the shell, declared in
 `app-ui-chart/templates/service.yaml` on the **Tasks** ingress only, not Apps):
@@ -97,5 +120,15 @@ after any change to its `src/` before running tests — consumers otherwise
 import the stale `dist/` through the npm symlink and nothing errors, the
 change is just missing.
 
-Suites: `applications-list`, `open-application`, `finish-interaction`,
-`polling`, `project-scope`.
+Specs by concern:
+
+| Spec | Covers |
+| --- | --- |
+| `boot` | fresh-profile boot |
+| `applications-list` | per-route lists and affordances, display names, apps without paths, sorting, auth failure |
+| `open-application` | opening ready apps, the status dialog and its live update |
+| `finish-interaction` | the finish payload, cancelling, no double submit, the failure notification and its details |
+| `states` | loading skeleton, empty states, failed first load with retry, failed project lookup |
+| `polling` | status changes across polls, the stale-list alert |
+| `project-scope` | every call carries the `/project/<slug>/` prefix; the unscoped-URL redirect |
+| `guidelines` | confirmations and focus, theme and typeface, readable width, accessible names |

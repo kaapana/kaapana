@@ -6,16 +6,16 @@ import {
   viewPathFor,
   UNSCOPED_VIEW_PATH,
   TASKS_PATH,
+  TASKS_TITLE,
+  dialog,
+  row,
 } from './fixtures/mock-backend'
 
 // The four services base-ui's httpClient rewrites onto /project/<short_id>/
 // (its PROJECT_SCOPED allowlist). Matched anywhere in the path so a call that
 // bypasses the interceptor entirely is still caught.
-const PROJECT_SCOPED_SERVICE = /(^|\/)(kaapana-backend|kube-helm-api|workflow-api|dicom-web-filter)\//
-
-function row(page: import('@playwright/test').Page, name: string) {
-  return page.locator('.v-list-item').filter({ hasText: name })
-}
+const PROJECT_SCOPED_SERVICE =
+  /(^|\/)(kaapana-backend|kube-helm-api|workflow-api|dicom-web-filter)\//
 
 // The /project/<short_id> document prefix IS the project selection: API calls
 // must be scoped to it (not to a default or any shared state), and a document
@@ -67,23 +67,23 @@ test('no request to a project-scoped service escapes the /project/<slug>/ prefix
   const booted = page.waitForResponse((r) => /kube-helm-api\/active-applications/.test(r.url()))
   await page.goto(viewPathFor(project))
   await booted
-  await expect(page.getByText('Applications requesting your input', { exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: TASKS_TITLE })).toBeVisible()
 
   // Neither dialog calls a backend today — covered so a status/log lookup added
   // later stays inside the window.
   await row(page, 'Broken Tool').getByRole('button', { name: 'Error' }).click()
   await expect(page.getByText('Problem starting the application')).toBeVisible()
-  await page.getByRole('button', { name: 'Ok' }).click()
+  await dialog(page).getByRole('button', { name: 'Cancel' }).click()
   await row(page, 'Volume Viewer').getByRole('button', { name: 'Starting...' }).click()
   await expect(page.getByText('Application is starting')).toBeVisible()
-  await page.getByRole('button', { name: 'Back' }).click()
+  await dialog(page).getByRole('button', { name: 'Cancel' }).click()
   await expect(page.locator('.v-overlay__scrim')).toHaveCount(0)
 
   // Finish interaction — the view's only write, and its only request outside
   // the boot and poll fetches.
   const finish = page.waitForResponse((r) => r.url().includes('/complete-active-application'))
   await row(page, 'Segmentation Editor').getByRole('button', { name: 'Finish Interaction' }).click()
-  await page.getByRole('button', { name: 'Yes' }).click()
+  await dialog(page).getByRole('button', { name: 'Finish interaction' }).click()
   await finish
   await expect(page.getByText('Segmentation Editor')).toHaveCount(0)
 
@@ -97,5 +97,5 @@ test('without a project prefix the view redirects onto the first project', async
   // "/" redirects to "/tasks", and the missing project prefix is filled in with
   // the user's first project -> the default Tasks route under /project/admin.
   await page.waitForURL(`**${TASKS_PATH}`)
-  await expect(page.getByText('Applications requesting your input', { exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: TASKS_TITLE })).toBeVisible()
 })

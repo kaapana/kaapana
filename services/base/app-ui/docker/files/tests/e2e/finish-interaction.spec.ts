@@ -1,21 +1,20 @@
 import { test, expect } from '@playwright/test'
-import { boot } from './fixtures/mock-backend'
+import { boot, dialog, row } from './fixtures/mock-backend'
 
-function row(page: import('@playwright/test').Page, name: string) {
-  return page.locator('.v-list-item').filter({ hasText: name })
+async function askToFinish(page: import('@playwright/test').Page, name: string) {
+  await row(page, name).getByRole('button', { name: 'Finish Interaction' }).click()
+  await expect(dialog(page)).toContainText(`Finish the interaction with “${name}”?`)
 }
 
 test('finishing an interaction posts the release name and removes the row', async ({ page }) => {
   await boot(page)
-
-  await row(page, 'Segmentation Editor').getByRole('button', { name: 'Finish Interaction' }).click()
-  await expect(page.getByText('Finish interaction?')).toBeVisible()
+  await askToFinish(page, 'Segmentation Editor')
 
   const [request] = await Promise.all([
     page.waitForRequest(
       (r) => r.url().includes('/complete-active-application') && r.method() === 'POST',
     ),
-    page.getByRole('button', { name: 'Yes' }).click(),
+    dialog(page).getByRole('button', { name: 'Finish interaction' }).click(),
   ])
   expect(request.postDataJSON()).toMatchObject({ release_name: 'seg-editor-1a2b' })
 
@@ -23,10 +22,51 @@ test('finishing an interaction posts the release name and removes the row', asyn
   await expect(page.getByText('Segmentation Editor')).toHaveCount(0)
 })
 
-test('a failing finish request surfaces an error dialog', async ({ page }) => {
+test('cancelling the confirmation sends nothing', async ({ page }) => {
   await boot(page)
+  let posts = 0
+  page.on('request', (r) => {
+    if (r.url().includes('/complete-active-application')) posts += 1
+  })
 
-  // Make the finish call fail (later route wins over the fixture's 200).
+  await askToFinish(page, 'Segmentation Editor')
+  await dialog(page).getByRole('button', { name: 'Cancel' }).click()
+
+  await expect(dialog(page)).toBeHidden()
+  await expect(row(page, 'Segmentation Editor')).toBeVisible()
+  expect(posts).toBe(0)
+})
+
+test('the row is unavailable while its finish request runs', async ({ page }) => {
+  await boot(page)
+  let posts = 0
+  let release = () => {}
+  const held = new Promise<void>((resolve) => (release = resolve))
+  await page.route(/\/kube-helm-api\/complete-active-application/, async (r) => {
+    posts += 1
+    await held
+    return r.fallback()
+  })
+
+  await askToFinish(page, 'Segmentation Editor')
+  await dialog(page).getByRole('button', { name: 'Finish interaction' }).click()
+
+  const editor = row(page, 'Segmentation Editor')
+  await expect(editor.getByRole('button', { name: 'Finish Interaction' })).toBeDisabled()
+  await expect(editor.getByRole('button', { name: 'Open' })).toBeDisabled()
+  // Forced, because being unclickable is the point: a second click must not
+  // reach the endpoint.
+  await editor.getByRole('button', { name: 'Finish Interaction' }).click({ force: true })
+
+  release()
+  await expect(page.getByText('Segmentation Editor')).toHaveCount(0)
+  expect(posts).toBe(1)
+})
+
+test('a failing finish keeps the row and reports the failure with its details', async ({
+  page,
+}) => {
+  await boot(page)
   await page.route(/\/kube-helm-api\/complete-active-application/, (r) =>
     r.fulfill({
       status: 500,
@@ -35,11 +75,21 @@ test('a failing finish request surfaces an error dialog', async ({ page }) => {
     }),
   )
 
-  await row(page, 'Segmentation Editor').getByRole('button', { name: 'Finish Interaction' }).click()
-  await page.getByRole('button', { name: 'Yes' }).click()
+  await askToFinish(page, 'Segmentation Editor')
+  await dialog(page).getByRole('button', { name: 'Finish interaction' }).click()
 
-  await expect(page.getByText('Could not finish interaction', { exact: true })).toBeVisible()
-  await expect(page.getByText(/helm uninstall failed/)).toBeVisible()
-  // The app stays in the list since the finish did not complete.
-  await expect(row(page, 'Segmentation Editor').getByRole('button', { name: 'Open' })).toBeVisible()
+  const notification = page
+    .locator('.vue-notification')
+    .filter({ hasText: 'Could not finish the interaction' })
+  await expect(notification).toContainText('Segmentation Editor')
+  // The backend message stays out of the notification and behind the disclosure.
+  await expect(notification).not.toContainText('helm uninstall failed')
+  await expect(row(page, 'Segmentation Editor').getByRole('button', { name: 'Open' })).toBeEnabled()
+
+  await notification.click()
+  const details = dialog(page).filter({ hasText: 'Copy details' })
+  await expect(details).toContainText('helm uninstall failed')
+  await expect(details).toContainText(
+    'POST /project/admin/kube-helm-api/complete-active-application',
+  )
 })

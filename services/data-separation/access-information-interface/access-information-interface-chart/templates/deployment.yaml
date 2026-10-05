@@ -42,10 +42,6 @@ spec:
           value: "4"
         - name: KEYCLOAK_URL
           value: "https://keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc"
-        - name: KEYCLOAK_REALM
-          value: "kaapana"
-        - name: KEYCLOAK_KAAPANA_REALM_USER_NAME
-          value: "kaapana"
         - name: KEYCLOAK_SERVICE_CLIENT_SECRET
           valueFrom:
             secretKeyRef:

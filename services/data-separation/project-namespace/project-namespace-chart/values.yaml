@@ -12,11 +12,3 @@ global:
   - name: workflow-data
     storage_class: workflow
     storage: 200Gi
-
-
-kaapana_database:
-  admin: false
-  postgres_user: root
-  postgres_password: root
-  postgres_db: airflow
-  appName: airflow

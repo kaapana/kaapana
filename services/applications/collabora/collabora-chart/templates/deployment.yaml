@@ -70,8 +70,6 @@ spec:
           value: /collabora-wopi
         - name: COLLABORA_URL
           value: http://collabora-chart.services:9981/collabora
-        - name: DOCUMENT_ROOT
-          value:  /minio
         - name: WOPI_API_ENDPOINT
           # value: http://collabora-chart-wopi.services:5000/collabora-wopi
           # Workaround till double backslash urls are supported by oauth2-proxy

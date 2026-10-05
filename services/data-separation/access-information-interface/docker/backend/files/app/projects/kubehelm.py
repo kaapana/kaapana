@@ -23,7 +23,7 @@ def install_project_helm_chart(project: Project):
         "release_name": project.kubernetes_namespace,
         "version": kaapana_build_version,
         "extension_params": {
-            "project": project.short_id,
+            "project_short_id": project.short_id,
             "project_namespace": project.kubernetes_namespace,
             "namespace": project.kubernetes_namespace,
             "project_id": str(project.id),

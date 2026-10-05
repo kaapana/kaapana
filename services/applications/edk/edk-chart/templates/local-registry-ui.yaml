@@ -23,8 +23,6 @@ spec:
               value: "http://{{ tpl .Values.global.local_registry_url . }}"
             - name: SINGLE_REGISTRY
               value: "true"
-            - name: BASE_PATH
-              value: "{{ .Values.global.local_registry_ui_path }}"
             - name: DELETE_IMAGES
               value: "true"
             - name: HTTP_PROXY

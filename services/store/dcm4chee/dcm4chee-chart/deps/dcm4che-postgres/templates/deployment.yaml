@@ -35,8 +35,6 @@ spec:
           image: "{{ .Values.global.registry_url }}/dcm4che-postgres:{{ .Values.global.kaapana_build_version  }}"
           imagePullPolicy:  {{ .Values.global.pull_policy_images }}
           env:
-            - name: STORAGE_DIR
-              value: /storage/fs1
             - name: POSTGRES_DB
               value: pacsdb
             - name: POSTGRES_USER

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import {
+  app,
   boot,
   prime,
   row,
@@ -51,13 +52,23 @@ test('the display-name annotation names the application', async ({ page }) => {
   await boot(page, {
     ...defaultMockData,
     activeApplications: [
-      {
-        ...defaultMockData.activeApplications[0],
-        annotations: { 'kaapana.ai/display-name': 'MITK Workbench' },
-      },
+      app({ release_name: 'mitk-workbench-9z8y', displayName: 'MITK Workbench' }),
     ],
   })
-  await expect(row(page, 'MITK Workbench')).toBeVisible()
+  await expect(page.locator('.v-list-item-title')).toHaveText(['MITK Workbench'])
+})
+
+// Charts render an empty annotation when they were installed without a
+// display name, so an empty value must not hide the application's name.
+test('an empty display name falls back to the ingress name', async ({ page }) => {
+  await boot(page, {
+    ...defaultMockData,
+    activeApplications: [
+      app({ release_name: 'mitk-flow-1a2b3c', displayName: '' }),
+      app({ release_name: 'slicer-4d5e6f', displayName: '  ' }),
+    ],
+  })
+  await expect(page.locator('.v-list-item-title')).toHaveText(['mitk-flow-1a2b3c', 'slicer-4d5e6f'])
 })
 
 test('an application without paths is left out', async ({ page }) => {
@@ -65,12 +76,7 @@ test('an application without paths is left out', async ({ page }) => {
     ...defaultMockData,
     activeApplications: [
       ...defaultMockData.activeApplications,
-      {
-        ...defaultMockData.activeApplications[0],
-        release_name: 'no-path',
-        name: 'Pathless',
-        paths: [],
-      },
+      app({ release_name: 'no-path', displayName: 'Pathless', paths: [] }),
     ],
   })
   await expect(row(page, 'Segmentation Editor')).toBeVisible()
@@ -78,12 +84,11 @@ test('an application without paths is left out', async ({ page }) => {
 })
 
 test('sorting by name and start date, in both directions', async ({ page }) => {
-  const [a, b] = defaultMockData.activeApplications
   await boot(page, {
     ...defaultMockData,
     activeApplications: [
-      { ...a, name: 'Alpha', created_at: '2026-07-21T10:00:00Z' },
-      { ...b, name: 'Beta', created_at: '2026-07-20T10:00:00Z' },
+      app({ release_name: 'alpha', displayName: 'Alpha', created_at: '2026-07-21T10:00:00Z' }),
+      app({ release_name: 'beta', displayName: 'Beta', created_at: '2026-07-20T10:00:00Z' }),
     ],
   })
   const titles = page.locator('.v-list-item-title')
@@ -99,12 +104,11 @@ test('sorting by name and start date, in both directions', async ({ page }) => {
 })
 
 test('a row with an invalid start date still renders and sorts last by start', async ({ page }) => {
-  const [a, b] = defaultMockData.activeApplications
   await boot(page, {
     ...defaultMockData,
     activeApplications: [
-      { ...a, name: 'Undated', created_at: 'not-a-date' },
-      { ...b, name: 'Dated', created_at: '2026-07-20T10:00:00Z' },
+      app({ release_name: 'undated', displayName: 'Undated', created_at: 'not-a-date' }),
+      app({ release_name: 'dated', displayName: 'Dated', created_at: '2026-07-20T10:00:00Z' }),
     ],
   })
 

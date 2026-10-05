@@ -529,7 +529,7 @@ async function copyDefinition() {
       v-model="confirmDelete"
       color="error"
       :title="`Delete remote instance “${props.instance.instance_name}”?`"
-      text="This platform stops federating with it and deletes all jobs it holds for that instance. The remote platform itself is not changed, and you can add it again later."
+      text="This platform stops federating with it and deletes the jobs it sent to that instance and the workflows received from it. Your datasets and your own workflows are kept. The remote platform itself is not changed, and you can add it again later."
       confirm-text="Delete instance"
       @confirm="removeInstance"
     />

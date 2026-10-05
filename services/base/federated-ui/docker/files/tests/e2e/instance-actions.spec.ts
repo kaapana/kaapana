@@ -192,7 +192,10 @@ test('deleting a remote instance asks first and says what follows', async ({ pag
 
   const confirm = dialog(page)
   await expect(confirm).toContainText('Delete remote instance “gpu-node-1”?')
-  await expect(confirm).toContainText('deletes all jobs it holds for that instance')
+  await expect(confirm).toContainText(
+    'deletes the jobs it sent to that instance and the workflows received from it',
+  )
+  await expect(confirm).toContainText('Your datasets and your own workflows are kept')
   await expect(confirm).toContainText('The remote platform itself is not changed')
 
   const del = nextRequest(page, CLIENT.instance, 'DELETE')

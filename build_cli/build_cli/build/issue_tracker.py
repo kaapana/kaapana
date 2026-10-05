@@ -46,6 +46,7 @@ class IssueTracker:
         level: str,
         path: str | Path = "",
         output=None,
+        quiet: bool = False,
     ):
         """
         Create a BuildIssue instance and append it to the current ctx.build_state issues list.
@@ -66,8 +67,9 @@ class IssueTracker:
         log = []
         if output is not None:
             log = IssueTracker._make_log(output)
-            logger.error("LOG:")
-            logger.error(log)
+            if not quiet:
+                logger.error("LOG:")
+                logger.error(log)
 
         issue = Issue(
             component=component,
@@ -79,7 +81,8 @@ class IssueTracker:
         )
 
         cls.issues.append(issue)
-        logger.warning(json.dumps(issue.model_dump(), sort_keys=True))
+        if not quiet:
+            logger.warning(json.dumps(issue.model_dump(), sort_keys=True))
 
         if cls.exit_on_error or level == "FATAL":
             exit(1)

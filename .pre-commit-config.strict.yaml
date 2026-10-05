@@ -3,7 +3,7 @@ repos:
     rev: v0.16.4
     hooks:
       - id: ruff-check
-        args: [--fix]
+        args: [--config, ci/ci-code/lint/ruff-quality.toml, --fix]
       - id: ruff-format
         types_or: [python, pyi, jupyter]
 
@@ -18,8 +18,8 @@ repos:
   - repo: local
     hooks:
       - id: ui-lint
-        name: ESLint/Prettier
-        entry: ci/ci-code/lint/ui_lint.sh
+        name: ESLint/Prettier (strict)
+        entry: ci/ci-code/lint/ui_lint.sh --strict
         language: system
         files: \.(ts|mts|tsx|vue)$
         require_serial: true
@@ -27,3 +27,4 @@ repos:
     rev: v2.15.1
     hooks:
       - id: hadolint
+        args: [--failure-threshold, style]

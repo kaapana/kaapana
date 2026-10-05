@@ -87,8 +87,9 @@ timeout**, and a shared pip cache (`key: pip-test-jobs`).
 `build_documentation` uploads the built HTML and its log. `check_readthedocs`
 runs only on scheduled `develop` pipelines. 
 
-`lint`, `code_quality` and `helm_lint` are in `ci/pipeline/lint.yml`; `helm_lint`
-runs `kaapana-build --lint-only` on `ci-base` and needs a full clone with tags.
+`lint` is a matrix over `LINTER` (`ruff`, `ui`, `hadolint`) on `ci-base`; the script picks
+each entry's commands by `$LINTER`, and each entry publishes its Code Quality report.
+Each entry fails on formatting or its enforced ruleset.
 
 ### build
 
@@ -281,7 +282,7 @@ runner.
 
 One tool image for every job that needs more than plain Python:
 [`ci/images/ci-base/Dockerfile`](../images/ci-base/Dockerfile). Contents: git,
-docker CLI + buildx, helm (with the kubeval plugin, which `kaapana-build`
+docker CLI + buildx, helm (which `kaapana-build`
 requires), trivy, dcmtk, nmap, jq, ansible, node 22 + npm, chromium for
 playwright, snapd + squashfs-tools for the offline-package scan, and the pinned
 Python test dependencies.
@@ -419,7 +420,7 @@ Four report types are wired up. Only GitLab reads them; no job does.
 |---|---|---|
 | JUnit | every pytest job, `ui_e2e_tests`, `ui_unit_tests`, `playwright_ui_tests` | pipeline **Tests** tab, failed-test summary in the MR |
 | Coverage (cobertura) | the pytest jobs that pass `--cov` | coverage badge, line markers in the MR diff |
-| Code Quality | `code_quality` | MR **Code Quality** widget |
+| Code Quality | every `lint` matrix entry | MR **Code Quality** widget |
 | Container scanning | `security_scan` | MR security widget, vulnerability report |
 
 Coverage is per suite — each job measures the one directory it exercises, and

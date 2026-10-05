@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import {
   boot,
   dialog,
@@ -11,6 +11,8 @@ import {
   readyPod,
   pendingPod,
   errorPod,
+  TASKS_PATH,
+  type MockData,
 } from './fixtures/mock-backend'
 
 test('a pending app becomes openable after the next poll reports it ready', async ({ page }) => {
@@ -79,4 +81,63 @@ test('a failing poll keeps the last list and says so until a poll succeeds', asy
   failing = false
   await poll(page)
   await expect(alert).toHaveCount(0)
+})
+
+test.describe('embedded in the shell', () => {
+  async function openEmbedded(page: Page, data: MockData) {
+    await prime(page, data)
+    await page.route('**/shell-harness', (r) =>
+      r.fulfill({
+        status: 200,
+        contentType: 'text/html',
+        body: `<!doctype html><html><body><script>
+                 window.__msgs = []
+                 addEventListener('message', (e) => window.__msgs.push(e.data))
+               </script><iframe src="${TASKS_PATH}" style="width:1280px;height:900px;border:0"></iframe></body></html>`,
+      }),
+    )
+    await page.goto('/shell-harness')
+    return page.frameLocator('iframe')
+  }
+  const messages = (page: Page) =>
+    page.evaluate(() => (window as unknown as { __msgs: unknown[] }).__msgs)
+
+  async function pollAndWait(page: Page) {
+    const responded = page.waitForResponse(/\/kube-helm-api\/active-applications/)
+    await poll(page)
+    await responded
+  }
+
+  test('a changed task list asks the shell to refresh its badge', async ({ page }) => {
+    const data = structuredClone(defaultMockData)
+    const view = await openEmbedded(page, data)
+    await expect(
+      view.locator('.v-list-item').filter({ hasText: 'Segmentation Editor' }),
+    ).toBeVisible()
+
+    await pollAndWait(page)
+    expect(await messages(page)).toEqual([])
+
+    data.activeApplications = data.activeApplications.filter(
+      (a) => a.release_name !== 'seg-editor-1a2b',
+    )
+    await pollAndWait(page)
+    await expect.poll(() => messages(page)).toEqual([{ type: 'kaapana:shell-refresh' }])
+
+    await pollAndWait(page)
+    expect(await messages(page)).toEqual([{ type: 'kaapana:shell-refresh' }])
+  })
+
+  test('a change to project-wide applications does not refresh the shell', async ({ page }) => {
+    const data = structuredClone(defaultMockData)
+    const view = await openEmbedded(page, data)
+    await expect(
+      view.locator('.v-list-item').filter({ hasText: 'Segmentation Editor' }),
+    ).toBeVisible()
+
+    data.activeApplications = data.activeApplications.filter((a) => a.from_workflow_run)
+    await pollAndWait(page)
+    await pollAndWait(page)
+    expect(await messages(page)).toEqual([])
+  })
 })

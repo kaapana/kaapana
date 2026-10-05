@@ -49,7 +49,9 @@ from `@kaapana/base-ui`.
 - **Sorting** by name or start date, ascending/descending.
 - **Menu badge** (Tasks entry): the shell renders a count badge from the
   chart's `kaapana.ai/ui.badge-path` (see below) — polled by the shell, not by
-  this app.
+  this app. When a poll shows that the project's task list changed, the view
+  sends `kaapana:shell-refresh` (`refreshShell()`), so the badge follows
+  without waiting for the shell's own poll.
 
 ## Backend endpoints
 
@@ -129,6 +131,6 @@ Specs by concern:
 | `open-application` | opening ready apps, the status dialog and its live update |
 | `finish-interaction` | the finish payload, cancelling, no double submit, the failure notification and its details |
 | `states` | loading skeleton, empty states, failed first load with retry, failed project lookup |
-| `polling` | status changes across polls, the stale-list alert |
+| `polling` | status changes across polls, the stale-list alert, the shell refresh when embedded |
 | `project-scope` | every call carries the `/project/<slug>/` prefix; the unscoped-URL redirect |
 | `guidelines` | confirmations and focus, theme and typeface, readable width, accessible names |

@@ -212,7 +212,13 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import type { VBtn } from 'vuetify/components'
-import { ConfirmDialog, apiErrorInfo, kaapanaIcons, useProjectStore } from '@kaapana/base-ui'
+import {
+  ConfirmDialog,
+  apiErrorInfo,
+  kaapanaIcons,
+  refreshShell,
+  useProjectStore,
+} from '@kaapana/base-ui'
 import {
   completeActiveApplication,
   fetchActiveApplications,
@@ -238,6 +244,7 @@ const loadFailure = ref<FailureDetails | null>(null)
 const retrying = ref(false)
 let polling = 0
 let fetching = false
+let taskSignature: string | null = null
 
 const finishing = ref<string[]>([])
 // Keeps a finished release out of the list until the backend uninstall
@@ -390,6 +397,7 @@ async function loadApplications() {
     applications.value = await fetchActiveApplications()
     loaded.value = true
     loadFailure.value = null
+    notifyShellOnTaskChange()
   } catch (err) {
     console.error(err)
     loadFailure.value = {
@@ -400,6 +408,16 @@ async function loadApplications() {
   } finally {
     fetching = false
   }
+}
+
+function notifyShellOnTaskChange() {
+  const signature = applications.value
+    .filter((item) => item.fromWorkflowRun && item.project === selectedProject.value.id)
+    .map((item) => item.releaseName)
+    .sort()
+    .join('\n')
+  if (taskSignature !== null && signature !== taskSignature) refreshShell()
+  taskSignature = signature
 }
 
 async function retry() {

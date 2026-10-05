@@ -20,9 +20,6 @@ spec:
       - name: project-management-ui-container
         image: "{{ .Values.global.registry_url }}/project-management-ui:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
-        env:
-        - name: POSTGRES_USER
-          value: {{ .Values.global.postgres_user }}
         ports:
           - name: proj-list-http
             containerPort: {{ if .Values.global.dev_files }}5174{{ else }}80{{ end }}

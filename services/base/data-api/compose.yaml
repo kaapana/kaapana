@@ -28,7 +28,6 @@ services:
       - DEV_FILES=True
       - PORT=8080
       - WORKERS=4
-      - LOG_LEVEL=INFO
     depends_on:
       postgres:
         condition: service_healthy

@@ -88,7 +88,13 @@
             ? 'When a workflow starts an application that needs your input, it appears here.'
             : `No application is installed for project ${selectedProject.name}. Applications are installed from the Extensions view.`
         "
-      />
+      >
+        <template v-if="emptyStateAction" #actions>
+          <v-btn color="primary" variant="text" @click="navigateShell(emptyStateAction.route)">
+            {{ emptyStateAction.label }}
+          </v-btn>
+        </template>
+      </v-empty-state>
 
       <v-list v-else lines="two">
         <v-list-item v-for="item in sortedApps" :key="item.releaseName">
@@ -215,9 +221,14 @@ import type { VBtn } from 'vuetify/components'
 import {
   ConfirmDialog,
   apiErrorInfo,
+  checkAuthR,
+  kaapanaApiService,
   kaapanaIcons,
+  navigateShell,
   refreshShell,
+  useAuthStore,
   useProjectStore,
+  type PolicyData,
 } from '@kaapana/base-ui'
 import {
   completeActiveApplication,
@@ -233,6 +244,7 @@ const POLL_INTERVAL_MS = 10_000
 const projectStore = useProjectStore()
 const { selectedProject } = storeToRefs(projectStore)
 const failureDetails = useFailureDetailsStore()
+const authStore = useAuthStore()
 const route = useRoute()
 
 // One container backs both menu entries, and the route selects the list.
@@ -257,6 +269,8 @@ const statusDialog = ref(false)
 const dialogReleaseName = ref('')
 const dialogPath = ref('')
 const statusCancelButton = ref<InstanceType<typeof VBtn> | null>(null)
+
+const policyData = ref<PolicyData>({})
 
 const sortKey = ref<'name' | 'startedAt'>('name')
 const sortDesc = ref(false)
@@ -292,6 +306,18 @@ const sortedApps = computed(() => {
     }
     return (a.startedAt - b.startedAt) * dir
   })
+})
+
+const emptyStateAction = computed(() => {
+  const action = isTasks.value
+    ? {
+        label: 'Run a workflow',
+        route: '/web/workflows/workflow-execution',
+        policyPath: '/workflow-execution-ui/',
+      }
+    : { label: 'Open Extensions', route: '/web/-/extensions', policyPath: '/extensions-ui/' }
+  const roles = authStore.currentUser?.roles ?? []
+  return checkAuthR(policyData.value, action.policyPath, { roles }) ? action : null
 })
 
 // Derived from the polled list, so an open dialog follows the application from
@@ -420,6 +446,14 @@ function notifyShellOnTaskChange() {
   taskSignature = signature
 }
 
+async function loadPolicy() {
+  try {
+    policyData.value = (await kaapanaApiService.getPolicyData()) as PolicyData
+  } catch (err) {
+    console.error(err)
+  }
+}
+
 async function retry() {
   retrying.value = true
   await loadApplications()
@@ -427,6 +461,7 @@ async function retry() {
 }
 
 onMounted(() => {
+  loadPolicy()
   loadApplications()
   polling = window.setInterval(loadApplications, POLL_INTERVAL_MS)
 })

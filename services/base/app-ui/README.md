@@ -39,7 +39,9 @@ from `@kaapana/base-ui`.
   transient notification; selecting it opens `ErrorDetailsDialog` with the
   backend message.
 - **Loading, empty and failure states.** A skeleton shows until the first
-  response arrives. An empty list says why it is empty, per route. A failed
+  response arrives. An empty list says why it is empty, per route, and offers
+  the next step (*Run a workflow* on Tasks, *Open Extensions* on Apps) when the
+  policy allows the user to open that view. A failed
   first load (applications or project) shows an error state with *Try again*
   and *Details*. A failed poll after a successful load keeps the last list and
   shows an inline alert until a poll succeeds.
@@ -67,10 +69,11 @@ onto `/project/<short_id>/…`; the other calls are **not** project-prefixed.
 | GET | `/aii/users/<id>/projects` (non-admin) · `/aii/projects` (admin) | List the user's projects to resolve the URL slug | no |
 | GET | `/kube-helm-api/active-applications` | The active-applications list (10 s poll) | **yes** |
 | POST | `/kube-helm-api/complete-active-application` | Finish a workflow interaction (`{ release_name }`) | **yes** |
+| GET | `/kaapana-backend/open-policy-data` | Decide whether the empty states offer their next step | **yes** |
 
-The view calls no legacy `kaapana-backend` endpoint: its own calls go to
-`kube-helm-api`, the rest are the auth and `aii` lookups inside
-`@kaapana/base-ui`.
+`open-policy-data` is the only legacy `kaapana-backend` call. It stays until
+the policy is available from a current service; the shell reads the same
+endpoint for its menu. A failed load hides the empty-state actions.
 
 Menu-badge endpoint (polled by the shell, declared in
 `app-ui-chart/templates/service.yaml` on the **Tasks** ingress only, not Apps):
@@ -130,7 +133,7 @@ Specs by concern:
 | `applications-list` | per-route lists and affordances, display names, apps without paths, sorting, auth failure |
 | `open-application` | opening ready apps, the status dialog and its live update |
 | `finish-interaction` | the finish payload, cancelling, no double submit, the failure notification and its details |
-| `states` | loading skeleton, empty states, failed first load with retry, failed project lookup |
+| `states` | loading skeleton, empty states and their policy-gated actions, failed first load with retry, failed project lookup |
 | `polling` | status changes across polls, the stale-list alert, the shell refresh when embedded |
 | `project-scope` | every call carries the `/project/<slug>/` prefix; the unscoped-URL redirect |
 | `guidelines` | confirmations and focus, theme and typeface, readable width, accessible names |

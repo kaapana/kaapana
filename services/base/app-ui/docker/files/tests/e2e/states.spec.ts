@@ -43,6 +43,48 @@ test('each route explains its empty list', async ({ page }) => {
   )
 })
 
+test('an empty list offers the next step when the policy allows it', async ({ page }) => {
+  await boot(page, { ...defaultMockData, activeApplications: [] }, TASKS_PATH)
+  const state = page.locator('.v-empty-state')
+
+  const run = state.getByRole('button', { name: 'Run a workflow' })
+  await expect(run).toBeVisible()
+  await run.click()
+  await page.waitForURL('**/web/workflows/workflow-execution')
+
+  await page.goto(APPS_PATH)
+  await state.getByRole('button', { name: 'Open Extensions' }).click()
+  await page.waitForURL('**/web/-/extensions')
+})
+
+const policyLoaded = (page: import('@playwright/test').Page) =>
+  page.waitForResponse(/\/kaapana-backend\/open-policy-data/)
+
+test('an empty list hides the next step the user may not take', async ({ page }) => {
+  await prime(page, {
+    ...defaultMockData,
+    activeApplications: [],
+    policyData: { endpoints_per_role: { admin: [{ path: '^/app-ui/', methods: ['GET'] }] } },
+  })
+  const policy = policyLoaded(page)
+  await settle(page)
+  await policy
+  await expect(page.locator('.v-empty-state')).toContainText('No applications are waiting')
+  await expect(page.getByRole('button', { name: 'Run a workflow' })).toHaveCount(0)
+})
+
+test('an unloaded policy hides the next step', async ({ page }) => {
+  await prime(page, { ...defaultMockData, activeApplications: [] })
+  await page.route(/\/kaapana-backend\/open-policy-data/, (r) =>
+    r.fulfill({ status: 500, body: '' }),
+  )
+  const policy = policyLoaded(page)
+  await settle(page)
+  await policy
+  await expect(page.locator('.v-empty-state')).toContainText('No applications are waiting')
+  await expect(page.getByRole('button', { name: 'Run a workflow' })).toHaveCount(0)
+})
+
 test('a failed first load is an error with a retry, not an empty list', async ({ page }) => {
   await prime(page)
   await failApplicationList(page)

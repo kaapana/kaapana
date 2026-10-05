@@ -44,6 +44,7 @@ export interface MockData {
   aiiUser: { id: string; realm_roles: string[] }
   projects: Array<{ id: number; name: string; short_id?: string }>
   activeApplications: RawApplication[]
+  policyData: { endpoints_per_role: Record<string, Array<{ path: string; methods: string[] }>> }
 }
 
 // Project-scoped ingress path shape the view's regex requires for the
@@ -115,6 +116,9 @@ export const defaultMockData: MockData = {
       pods: [readyPod],
     }),
   ],
+  policyData: {
+    endpoints_per_role: { admin: [{ path: '^/.*', methods: ['GET', 'POST', 'PUT', 'DELETE'] }] },
+  },
 }
 
 function json(body: unknown) {
@@ -145,6 +149,7 @@ export async function installMockBackend(page: Page, data: MockData = defaultMoc
     r.fulfill(json(data.activeApplications)),
   )
   await page.route(/\/kube-helm-api\/complete-active-application/, (r) => r.fulfill(json({})))
+  await page.route(/\/kaapana-backend\/open-policy-data/, (r) => r.fulfill(json(data.policyData)))
 }
 
 /**

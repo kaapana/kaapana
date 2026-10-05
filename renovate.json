@@ -210,7 +210,7 @@
       "matchManagers": ["npm"],
       "addLabels": ["Coverage: e2e"],
       "prBodyNotes": [
-        "**Test coverage of `{{{packageFile}}}`: UI tests.** The `ui_e2e_test` job runs its Playwright tests against a mocked backend."
+        "**Test coverage of `{{{packageFile}}}`: UI tests.** The `ui_e2e_tests` job runs its Playwright tests against a mocked backend."
       ]
     },
     {

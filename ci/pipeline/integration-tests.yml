@@ -9,7 +9,7 @@ spec:
 ---
 # Stage: integrationtest — integration + UI tests against the live platform
 # In:  VM_FQDN / VM_USER (deployment.env dotenv, else DEPLOYMENT_INSTANCE_*);
-#      CLIENT_SECRET dotenv from setup_integration_test; the live platform
+#      CLIENT_SECRET dotenv from setup_integration_tests; the live platform
 #      over HTTPS/DICOM
 # Out: JUnit/log/report artifacts; platform state mutations passed along the
 #      first_login → install_extensions → send_data → run_workflows chain
@@ -24,7 +24,7 @@ spec:
 
 ##############################################
 
-setup_integration_test:
+setup_integration_tests:
   extends: .deployment_target_template
   stage: integrationtest
   tags:
@@ -67,7 +67,7 @@ setup_integration_test:
       when: on_success
     - when: never
   needs:
-    - job: setup_integration_test
+    - job: setup_integration_tests
       artifacts: true
     - job: prepare_deployment
       artifacts: true
@@ -125,13 +125,13 @@ install_extensions:
     - job: prepare_deployment
       artifacts: true
       optional: true
-    - job: setup_integration_test
+    - job: setup_integration_tests
       artifacts: true
     - job: platform_deployment
       optional: true
     - job: first_login
       optional: true
-    - job: playwright_ui_test
+    - job: playwright_ui_tests
       optional: true
   variables:
     PYTEST_FILE: "ci/ci-code/integration_tests/tests/test_install_extensions.py"
@@ -150,7 +150,7 @@ send_data:
     - job: prepare_deployment
       artifacts: true
       optional: true
-    - job: setup_integration_test
+    - job: setup_integration_tests
       artifacts: true
     - job: first_login
       optional: true
@@ -175,7 +175,7 @@ run_workflows:
     - job: prepare_deployment
       artifacts: true
       optional: true
-    - job: setup_integration_test
+    - job: setup_integration_tests
       artifacts: true
     - job: first_login
       optional: true
@@ -190,7 +190,7 @@ run_workflows:
     PYTEST_WORKERS: "4"
     PYTEST_DIST: "loadgroup"
 
-playwright_ui_test:
+playwright_ui_tests:
   extends: .deployment_target_template
   stage: integrationtest
   rules:

@@ -91,7 +91,7 @@ cd services/base/app-ui/docker/files
 npx playwright test      # fixed port 4301 (portal-ui 4300, views 4301-4309)
 ```
 
-Locally the suite runs against the dev server; in CI (`ui_e2e_test`) it
+Locally the suite runs against the dev server; in CI (`ui_e2e_tests`) it
 previews the production build. Rebuild `@kaapana/base-ui` (`npm run build`)
 after any change to its `src/` before running tests — consumers otherwise
 import the stale `dist/` through the npm symlink and nothing errors, the

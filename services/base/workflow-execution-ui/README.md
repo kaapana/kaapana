@@ -119,7 +119,7 @@ cd services/base/workflow-execution-ui/docker/files
 npx playwright test    # fixed port 4308 (portal-ui 4300, views 4301-4309)
 ```
 
-Locally the suite runs against the dev server; in CI (`ui_e2e_test`) it
+Locally the suite runs against the dev server; in CI (`ui_e2e_tests`) it
 previews the production build. Rebuild `@kaapana/base-ui` (`npm run build`)
 after any change to its `src/` — **including the shared `WorkflowExecution`
 component this app wraps** — before running tests; consumers otherwise import

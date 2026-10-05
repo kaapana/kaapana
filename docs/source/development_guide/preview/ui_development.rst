@@ -352,7 +352,7 @@ its menu entry navigates to — see
 CI
 --
 
-The ``ui_e2e_test`` job in ``ci/pipeline/unit-tests.yml`` runs one matrix entry
+The ``ui_e2e_tests`` job in ``ci/pipeline/unit-tests.yml`` runs one matrix entry
 per app. Before installing an app it checks the app's ``package.json`` for
 ``"@kaapana/base-ui"`` and, if present, first runs ``npm ci && npm run build``
 in the library — so a consumer gets the library built in CI automatically,
@@ -364,7 +364,7 @@ is a hard-coded list. A new view is not tested at all until it is added to it:
 .. code-block:: yaml
 
    # ci/pipeline/unit-tests.yml
-   ui_e2e_test:
+   ui_e2e_tests:
      parallel:
        matrix:
          - APP:
@@ -375,7 +375,7 @@ is a hard-coded list. A new view is not tested at all until it is added to it:
 Pick the app's Playwright port from the registry in :ref:`ui_testing` (one port
 per app, ``--strictPort``) so suites can keep running in parallel.
 
-The same file carries ``ui_unit_test``, a single (non-matrix) job running
+The same file carries ``ui_unit_tests``, a single (non-matrix) job running
 ``portal-ui``'s vitest suites — it is the only app with a ``test:unit`` script.
 
 .. _ui_linting:
@@ -388,7 +388,7 @@ Linting
   apps carry no lint configuration or lint dependencies of their own.
 - One script, ``ci/ci-code/lint/ui_lint.sh``, runs both the ``lint: [ui]`` CI
   job and the ``ui-lint`` pre-commit hook. It lints every committed
-  ``.ts``/``.mts``/``.tsx``/``.vue`` file — unlike ``ui_e2e_test``, there's no
+  ``.ts``/``.mts``/``.tsx``/``.vue`` file — unlike ``ui_e2e_tests``, there's no
   list to update for a new app.
 
 .. code-block:: bash
@@ -415,16 +415,16 @@ Each suite starts its app's own Vite server (the dev server locally, a
 ``portal-ui`` on 4300, the views on 4301–4309, ``base-ui`` on 4310 — so all
 suites can run in parallel on one machine. Run a suite from the view's
 ``docker/files`` directory with ``npx playwright test`` (build ``base-ui``
-first if the view consumes it). CI runs the same suites in the ``ui_e2e_test`` matrix job.
+first if the view consumes it). CI runs the same suites in the ``ui_e2e_tests`` matrix job.
 
 ``base-ui`` has a Playwright suite too. It drives the Storybook stories (the
 dev server locally, a static build in CI) and tests plain functions such as
 the OPA policy check without a browser. Run it with ``npx playwright test``
 from ``services/base/base-ui/docker/files``; CI runs it as the ``base-ui``
-entry of ``ui_e2e_test``.
+entry of ``ui_e2e_tests``.
 
 ``portal-ui`` additionally ships vitest unit suites under
 ``src/**/__tests__`` for the pieces that are awkward to reach through the
 browser (the project-prefix rewriting in ``api/http.ts``, the OPA menu filter,
 the stores). Run them with ``npm run test:unit``; CI runs them in
-``ui_unit_test``.
+``ui_unit_tests``.

@@ -122,8 +122,8 @@ TOGGLES = (
 )
 
 TOGGLED_JOBS = [
-    ("exec_unit_tests", "unit_test"),
-    ("exec_unit_tests", "ci_config_test"),
+    ("exec_unit_tests", "unit_tests"),
+    ("exec_unit_tests", "ci_config_tests"),
     ("exec_unit_tests", "build_documentation"),
     ("exec_lint", "lint"),
     ("exec_build", "build_packages"),
@@ -131,13 +131,13 @@ TOGGLED_JOBS = [
     ("exec_deploy", "platform_deployment"),
     ("exec_deploy", "destroy_deployment"),
     ("exec_server_installation", "server_installation"),
-    ("exec_integration_tests", "setup_integration_test"),
+    ("exec_integration_tests", "setup_integration_tests"),
     ("exec_integration_tests", "scan_ports"),
     ("exec_integration_tests", "first_login"),
     ("exec_integration_tests", "install_extensions"),
     ("exec_integration_tests", "send_data"),
     ("exec_integration_tests", "run_workflows"),
-    ("exec_integration_tests", "playwright_ui_test"),
+    ("exec_integration_tests", "playwright_ui_tests"),
     ("exec_security_scan", "security_scan"),
     ("exec_ci_image_rebuild", "build_ci_image"),
     ("exec_vm_sweep", "sweep_deployment_vms"),

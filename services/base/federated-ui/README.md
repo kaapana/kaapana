@@ -20,8 +20,8 @@ Sourced from `src/` and `tests/e2e`:
   while a fetch runs queues one more fetch instead of being dropped.
 - **States** — skeleton cards on the first load; a failed first load shows an
   error empty state with *Try again* and *Details*; a failed poll keeps the last
-  list under a warning alert; no remotes shows an empty state that offers
-  *Add remote instance*.
+  list under a warning alert; no remotes shows an empty state that points to
+  the *Add remote instance* button in the page header.
 - **Instance card** (`components/InstanceCard.vue`, rows in
   `components/InstanceField.vue`) — name, local/remote subtitle and, for a
   remote, an *Updated …* chip (success < 5 min, warning < 5 h, error older,

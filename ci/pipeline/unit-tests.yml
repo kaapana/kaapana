@@ -139,17 +139,35 @@ kaapana_client_tests:
 ##############################################
 service_tests:
   extends: .pytest_template
+  rules:
+    - if: '"$[[ inputs.exec_unit_tests ]]" == "true" && $SERVICE == "portal-api"'
+      when: on_success
+      variables:
+        SERVICE_ROOT: services/base/portal-api/docker
+    - if: '"$[[ inputs.exec_unit_tests ]]" == "true" && $SERVICE == "notification-service"'
+      when: on_success
+      variables:
+        SERVICE_ROOT: services/base/notification-service/docker/files
+    - if: '"$[[ inputs.exec_unit_tests ]]" == "true" && $SERVICE == "dicom-web-filter"'
+      when: on_success
+      variables:
+        SERVICE_ROOT: services/data-separation/dicom-web-filter/docker/files
+    - if: '"$[[ inputs.exec_unit_tests ]]" == "true" && $SERVICE == "kaapana-backend"'
+      when: on_success
+      variables:
+        SERVICE_ROOT: services/base/kaapana-backend/docker/files
+    - when: never
   parallel:
     matrix:
       - SERVICE:
-          - services/base/portal-api/docker
-          - services/base/notification-service/docker/files
-          - services/data-separation/dicom-web-filter/docker/files
-          - services/base/kaapana-backend/docker/files
+          - portal-api
+          - notification-service
+          - dicom-web-filter
+          - kaapana-backend
   script:
-    - pip install -r $KAAPANA_DIR/$SERVICE/tests/requirements.txt
-    - pytest $KAAPANA_DIR/$SERVICE/tests --junitxml=service_report.xml
-        --cov=$SERVICE/app --cov-report=term --cov-report=xml:coverage.xml
+    - pip install -r $KAAPANA_DIR/$SERVICE_ROOT/tests/requirements.txt
+    - pytest $KAAPANA_DIR/$SERVICE_ROOT/tests --junitxml=service_report.xml
+        --cov=$SERVICE_ROOT/app --cov-report=term --cov-report=xml:coverage.xml
   artifacts:
     reports:
       junit:

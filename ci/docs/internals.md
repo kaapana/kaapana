@@ -513,7 +513,7 @@ report, and the steps under [Adding a job](#adding-a-job) apply as well.
 ## Adding a job
 
 A service unit-test suite is usually not a job: if the service keeps `app/` and
-`tests/` side by side, add its root to the `service_tests` matrix instead. A job of
+`tests/` side by side, add it to the `service_tests` matrix instead. A job of
 its own means the layout differs, and that job says how. For everything else:
 
 1. Extend the right template instead of repeating its settings.

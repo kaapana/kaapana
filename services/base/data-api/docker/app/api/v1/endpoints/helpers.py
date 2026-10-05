@@ -94,6 +94,16 @@ def cleanup_entity_artifacts(entity_id: UUID | str) -> None:
         logger.warning("Failed to delete artifacts for entity %s", entity_id, exc_info=True)
 
 
+def cleanup_artifact(entity_id: UUID | str, key: str, artifact_id: str) -> None:
+    store = get_artifact_store()
+    try:
+        store.delete_artifact(str(entity_id), key, artifact_id)
+    except Exception:  # pragma: no cover - filesystem best effort
+        logger.warning(
+            "Failed to delete artifact %s of entity %s metadata key %s", artifact_id, entity_id, key, exc_info=True
+        )
+
+
 def cleanup_metadata_artifacts(entity_id: UUID | str, key: str) -> None:
     store = get_artifact_store()
     try:

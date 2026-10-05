@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .helpers import (
     broadcast_entity_event,
     broadcast_metadata_key_event,
+    cleanup_artifact,
     cleanup_metadata_artifacts,
     commit_and_return_entity,
     get_metadata_schema,
@@ -235,14 +236,16 @@ async def attach_metadata(
     entity = await require_entity(db, entity_id, scope)
     previous_project = project_of_entity(entity)
     existing_entry = next((m for m in entity.metadata_entries if m.key == entry.key), None)
-    replaced_existing = existing_entry is not None
-    if replaced_existing:
+    dropped_artifacts: list[str] = []
+    if existing_entry is not None:
+        kept = {artifact.id for artifact in entry.artifacts}
+        dropped_artifacts = [a.artifact_id for a in existing_entry.artifacts if a.artifact_id not in kept]
         entity.metadata_entries.remove(existing_entry)
 
     entity.metadata_entries.append(metadata_entry_to_orm(entry))
     updated = await commit_and_return_entity(db, entity_id)
-    if replaced_existing:
-        cleanup_metadata_artifacts(entity_id, entry.key)
+    for artifact_id in dropped_artifacts:
+        cleanup_artifact(entity_id, entry.key, artifact_id)
     await broadcast_entity_event(EventAction.UPDATED, updated, [previous_project])
     return updated
 

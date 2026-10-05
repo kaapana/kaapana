@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+import sys
 import time
 from enum import Enum, auto
 from pathlib import Path
@@ -392,6 +393,10 @@ class Container:
             stdout=stdout_log_file.read_text(),
             stderr=stderr_log_file.read_text(),
         )
+
+        if config.log_level == "DEBUG":
+            sys.stdout.write(f"{self.tag}: build stdout:\n{output.stdout}")
+            sys.stderr.write(f"{self.tag}: build stderr:\n{output.stderr}")
 
         if output.returncode == 0:
             if config.cache_enabled:

@@ -32,6 +32,14 @@ def get_release_name(kwargs):
     return f"kaapanaint-{release_name}"
 
 
+def get_kubernetes_run_id(run_id):
+    return cure_invalid_name(run_id, r"(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?", max_length=63)
+
+
+def get_conf_configmap_name(run_id):
+    return f"{get_kubernetes_run_id(run_id)}-config"
+
+
 def generate_minio_credentials(x_auth_token):
     # Not sure if DurationSeconds has an influence, this WebIdentitytoken maybe defines the session period
     # Version is hard-coded, check https://github.com/minio/minio/blob/master/docs/sts/web-identity.md for more information!

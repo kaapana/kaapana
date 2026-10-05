@@ -102,7 +102,7 @@ test('a remote instance that never reported shows that instead of a stale colour
   await expect(field(card(page, 'gpu-node-1'), 'Last updated')).toContainText('Never')
 })
 
-test('explains an empty remote list and offers to add one', async ({ page }) => {
+test('explains an empty remote list with a single add action', async ({ page }) => {
   await openView(page, { ...defaultMockData, instances: [localInstance] })
 
   await expect(page.getByTestId('summary')).toHaveText(
@@ -110,7 +110,9 @@ test('explains an empty remote list and offers to add one', async ({ page }) => 
   )
   const empty = page.getByTestId('no-remotes')
   await expect(empty).toContainText('No remote instances yet')
-  await empty.getByRole('button', { name: 'Add remote instance' }).click()
+  await expect(empty.getByRole('button')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Add remote instance' })).toHaveCount(1)
+  await page.getByTestId('add-remote').click()
   await expect(page.getByRole('dialog')).toContainText('Add remote instance')
 })
 

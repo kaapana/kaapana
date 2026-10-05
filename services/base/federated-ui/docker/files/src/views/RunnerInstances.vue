@@ -200,20 +200,9 @@ onBeforeUnmount(() => {
           <v-empty-state
             size="56"
             title="No remote instances yet"
-            text="Add a remote instance to run workflows on another Kaapana platform. You need its host and token, which its administrator can copy from that platform's instance card."
+            text="Use “Add remote instance” to run workflows on another Kaapana platform. You need its host and token, which its administrator can copy from that platform's instance card."
             data-testid="no-remotes"
-          >
-            <template #actions>
-              <v-btn
-                color="primary"
-                variant="text"
-                :prepend-icon="kaapanaIcons.add"
-                @click="addOpen = true"
-              >
-                Add remote instance
-              </v-btn>
-            </template>
-          </v-empty-state>
+          />
         </v-card>
       </section>
     </template>

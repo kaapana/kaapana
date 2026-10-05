@@ -412,7 +412,8 @@ run them.
 
 Each suite starts its app's own Vite server (the dev server locally, a
 ``preview`` of the production build in CI) on a fixed per-app port —
-``portal-ui`` on 4300, the views on 4301–4309, ``base-ui`` on 4310 — so all
+``portal-ui`` on 4300, the views on 4301–4309, ``base-ui`` on 4310,
+``extension-manager-ui`` on 4311 — so all
 suites can run in parallel on one machine. Run a suite from the view's
 ``docker/files`` directory with ``npx playwright test`` (build ``base-ui``
 first if the view consumes it). CI runs the same suites in the ``ui_e2e_tests`` matrix job.

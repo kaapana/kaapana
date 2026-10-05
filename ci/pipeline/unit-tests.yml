@@ -296,7 +296,7 @@ keycloak_setup_tests:
 # UI e2e Tests (mock-backed Playwright, no platform)
 ##############################################
 # One matrix job per frontend app; each suite starts its app on its own fixed
-# port (4300-4310, see each app's playwright.config.ts).
+# port (4300-4311, see each app's playwright.config.ts).
 ui_e2e_tests:
   extends: .test_template
   image: $CI_BASE_IMAGE
@@ -319,6 +319,7 @@ ui_e2e_tests:
           - federated-ui
           - workflow-execution-ui
           - workflow-list-ui
+          - extension-manager-ui
           - base-ui
   script:
     - APP_DIR="services/base/$APP/docker/files"

@@ -36,8 +36,16 @@ test.describe('actions requiring confirmation', () => {
 
 test.describe('visual language', () => {
   test('the shared theme is in effect: platform typeface and theme roles', async ({ page }) => {
-    const font = await page.evaluate(() => getComputedStyle(document.body).fontFamily)
-    expect(font).toContain('Roboto')
+    const loadedFaces = await page.evaluate(async () => {
+      await document.fonts.ready
+      return [...document.fonts].filter((f) => /roboto/i.test(f.family) && f.status === 'loaded')
+        .length
+    })
+    expect(loadedFaces).toBeGreaterThan(0)
+    const font = await page
+      .getByRole('heading', { level: 1 })
+      .evaluate((el) => getComputedStyle(el).fontFamily)
+    expect(font).toMatch(/roboto/i)
 
     // Status colours are theme roles, not literals: error = #C62828.
     await expect(row(page, 'Broken Tool').getByRole('button', { name: 'Error' })).toHaveCSS(

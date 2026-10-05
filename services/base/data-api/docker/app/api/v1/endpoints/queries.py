@@ -9,6 +9,7 @@ from app.services.entity_query import (
     execute_entity_query,
     prepare_query_index_statement,
 )
+from app.services.project_scope import ProjectScope, get_project_scope, scope_predicate
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,9 +18,13 @@ router = APIRouter(prefix="/entities", tags=["entity-queries"])
 
 
 @router.post("/query", response_model=QueryResponse, summary="Query data entities")
-async def query_entities(request: QueryRequest, db: AsyncSession = Depends(get_async_db)) -> QueryResponse:
+async def query_entities(
+    request: QueryRequest,
+    db: AsyncSession = Depends(get_async_db),
+    scope: ProjectScope | None = Depends(get_project_scope),
+) -> QueryResponse:
     try:
-        results, total_count, next_cursor = await execute_entity_query(db, request)
+        results, total_count, next_cursor = await execute_entity_query(db, request, scope_predicate(scope))
     except QueryTranslationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except ValueError as exc:
@@ -33,9 +38,13 @@ async def query_entities(request: QueryRequest, db: AsyncSession = Depends(get_a
     summary="Stream IDs that match a query",
     description="Returns the full ordered list of entity IDs that match the provided query filter, allowing clients to hydrate large result sets without issuing thousands of cursor requests.",
 )
-async def stream_query_index(request: QueryIndexRequest, db: AsyncSession = Depends(get_async_db)) -> StreamingResponse:
+async def stream_query_index(
+    request: QueryIndexRequest,
+    db: AsyncSession = Depends(get_async_db),
+    scope: ProjectScope | None = Depends(get_project_scope),
+) -> StreamingResponse:
     try:
-        total_count, stmt = await prepare_query_index_statement(db, request)
+        total_count, stmt = await prepare_query_index_statement(db, request, scope_predicate(scope))
     except QueryTranslationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except ValueError as exc:

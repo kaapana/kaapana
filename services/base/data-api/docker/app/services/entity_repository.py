@@ -25,6 +25,7 @@ from app.models.domain import (
 from sqlalchemy import Select, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from sqlalchemy.sql.elements import ColumnElement
 
 _STORAGE_TYPE_MAP: dict[StoreType, type[BaseStorageCoordinate]] = {
     StoreType.PACS: PacsStorageCoordinate,
@@ -77,8 +78,11 @@ async def fetch_entity_page(
     *,
     cursor: UUID | None,
     limit: int,
+    predicate: ColumnElement[bool] | None = None,
 ) -> List[DataEntityORM]:
     stmt = _entity_select().order_by(*_creation_order()).limit(limit + 1)
+    if predicate is not None:
+        stmt = stmt.where(predicate)
     if cursor:
         created_at, entity_id = await _cursor_tuple(session, cursor)
         stmt = stmt.where(tuple_(DataEntityORM.created_at, DataEntityORM.id) > tuple_(created_at, entity_id))

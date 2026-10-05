@@ -172,7 +172,7 @@ test('sync remotes asks the backend for updates, confirms, and refetches', async
   await expect.poll(refetches).toBe(1)
 })
 
-test('a failed sync reports why, offers details, and skips the refetch', async ({ page }) => {
+test('a failed sync reports why, offers details, and refetches what did sync', async ({ page }) => {
   const pageErrors = collectPageErrors(page)
   await page.clock.install()
   await openView(page)
@@ -186,7 +186,7 @@ test('a failed sync reports why, offers details, and skips the refetch', async (
   const toast = toasts(page)
   await expect(toast).toContainText('Could not sync the remote instances')
   await expect(toast).not.toContainText('Remote instances synced')
-  expect(refetches()).toBe(0)
+  await expect.poll(refetches).toBe(1)
 
   await toast.getByText('Could not sync the remote instances').click()
   await expect(page.getByRole('dialog')).toContainText('GET')

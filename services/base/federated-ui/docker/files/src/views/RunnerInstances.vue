@@ -85,9 +85,10 @@ async function syncRemotes() {
   } catch (err) {
     notifyFailure(
       'Could not sync the remote instances',
-      'At least one remote instance could not be reached. The settings shown may be outdated.',
+      'At least one remote instance could not be synced. The settings shown for it may be outdated.',
       err,
     )
+    await loadInstances()
   } finally {
     syncing.value = false
   }

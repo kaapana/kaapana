@@ -1,62 +1,13 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
-import type {
-  ContentStatus,
-  ExtensionContent,
-  ExtensionManifest,
-  InstalledContent,
-} from '@/shared/types/apiSchemas'
+import { computed } from 'vue'
+import StatusIndicator from '@/shared/components/StatusIndicator.vue'
+import type { ExtensionManifest, InstalledContent } from '@/shared/types/apiSchemas'
+import { plural, presentContentStatus } from '@/shared/utils/status'
 
 const props = defineProps<{
   extensionManifest: ExtensionManifest
   installedContents?: InstalledContent[]
 }>()
-
-const contentStatusColor: Record<ContentStatus, string> = {
-  pending: 'warning',
-  installing: 'warning',
-  installation_failed: 'error',
-  installed: 'success',
-  uninstalling: 'warning',
-  uninstallation_failed: 'error',
-  uninstalled: 'grey',
-}
-
-const extensionManifestJson = computed(() => JSON.stringify(props.extensionManifest, null, 2))
-
-const showingRawManifest = ref(false)
-const expandedContents = reactive<Record<string, boolean>>({})
-const expandedDependencies = reactive<Record<number, boolean>>({})
-
-function toggleRawManifest() {
-  showingRawManifest.value = !showingRawManifest.value
-}
-
-function contentKey(name: string, contentType: string): string {
-  return `${contentType}:${name}`
-}
-
-function toggleContent(name: string, contentType: string) {
-  const key = contentKey(name, contentType)
-  expandedContents[key] = !expandedContents[key]
-}
-
-function isContentExpanded(name: string, contentType: string): boolean {
-  return Boolean(expandedContents[contentKey(name, contentType)])
-}
-
-function toggleDependency(index: number) {
-  expandedDependencies[index] = !expandedDependencies[index]
-}
-
-function isDependencyExpanded(index: number): boolean {
-  return Boolean(expandedDependencies[index])
-}
-
-function dependencyLabel(dep: unknown, index: number): string {
-  if (isNamedDependency(dep)) return dep.name
-  return `Dependency ${index + 1}`
-}
 
 interface NamedDependency {
   name: string
@@ -72,14 +23,12 @@ function isNamedDependency(dep: unknown): dep is NamedDependency {
   )
 }
 
-function dependencyJson(dep: unknown): string {
-  return JSON.stringify(dep, null, 2)
+function contentKey(name: string, contentType: string): string {
+  return `${contentType}:${name}`
 }
 
-const contents = computed(() => props.extensionManifest.contents ?? [])
-
 const installedStatusByKey = computed(() => {
-  const statusByKey = new Map<string, ContentStatus>()
+  const statusByKey = new Map<string, string>()
   for (const entry of props.installedContents ?? []) {
     statusByKey.set(contentKey(entry.name, entry.content_type), entry.status)
   }
@@ -87,255 +36,129 @@ const installedStatusByKey = computed(() => {
 })
 
 const contentRows = computed(() =>
-  contents.value.map((manifestContent: ExtensionContent) => {
-    const key = contentKey(manifestContent.name, manifestContent.contentType)
+  (props.extensionManifest.contents ?? []).map((content) => {
+    const key = contentKey(content.name, content.contentType)
+    const status = installedStatusByKey.value.get(key)
     return {
       key,
-      name: manifestContent.name,
-      contentType: manifestContent.contentType,
-      files: manifestContent.files,
-      status: installedStatusByKey.value.get(key),
+      name: content.name,
+      contentType: content.contentType,
+      files: content.files ?? [],
+      status: status ? presentContentStatus(status) : null,
     }
   }),
 )
 
-const dependencies = computed(() => props.extensionManifest.dependencies ?? [])
-const contentsLabel = computed(() =>
-  contents.value.length === 1 ? '1 item' : `${contents.value.length} items`,
+const dependencies = computed(() =>
+  (props.extensionManifest.dependencies ?? []).map((dep, index) => ({
+    key: index,
+    label: isNamedDependency(dep) ? dep.name : `Dependency ${index + 1}`,
+    named: isNamedDependency(dep) ? dep : null,
+    json: JSON.stringify(dep, null, 2),
+  })),
 )
-const dependenciesLabel = computed(() =>
-  dependencies.value.length === 1 ? '1 dependency' : `${dependencies.value.length} dependencies`,
-)
+
+const extensionManifestJson = computed(() => JSON.stringify(props.extensionManifest, null, 2))
 </script>
 
 <template>
-  <div class="manifest-details">
-    <!-- Contents -->
+  <div class="d-flex flex-column ga-6">
     <section>
-      <div class="section-header">
-        <div class="section-title">Contents</div>
-        <div class="section-count">{{ contentsLabel }}</div>
+      <div class="d-flex align-baseline justify-space-between mb-2">
+        <h3 class="text-subtitle-1">Contents</h3>
+        <span class="text-caption text-medium-emphasis">{{
+          plural(contentRows.length, 'item')
+        }}</span>
       </div>
-
-      <div v-if="contentRows.length" class="content-list">
-        <div
-          v-for="row in contentRows"
-          :key="row.key"
-          class="content-row"
-        >
-          <button
-            type="button"
-            class="content-row-header"
-            @click="toggleContent(row.name, row.contentType)"
-          >
-            <v-icon size="small">
-              {{
-                isContentExpanded(row.name, row.contentType)
-                  ? 'mdi-chevron-down'
-                  : 'mdi-chevron-right'
-              }}
-            </v-icon>
-            <span class="content-name">{{ row.name }}</span>
-            <span v-if="row.status" class="content-status">
-              <v-icon :color="contentStatusColor[row.status]" size="x-small">
-                mdi-circle
-              </v-icon>
-              <span>{{ row.status }}</span>
-            </span>
-          </button>
-
-          <div
-            v-if="isContentExpanded(row.name, row.contentType)"
-            class="content-row-body"
-          >
-            <div class="metadata-grid">
-              <div class="metadata-label">Type</div>
-              <div class="metadata-value">{{ row.contentType }}</div>
-              <div class="metadata-label">Files</div>
-              <div class="metadata-value">
-                <div v-if="row.files.length" class="file-list">
-                  <div v-for="file in row.files" :key="file.path">
-                    {{ file.path }}
-                  </div>
-                </div>
-                <div v-else class="text-medium-emphasis">No files</div>
-              </div>
+      <v-expansion-panels
+        flat
+        class="border rounded"
+        v-if="contentRows.length"
+        multiple
+        variant="accordion"
+        data-testid="contents"
+      >
+        <v-expansion-panel v-for="row in contentRows" :key="row.key">
+          <v-expansion-panel-title>
+            <div class="d-flex align-center flex-wrap ga-3 w-100 me-2">
+              <span class="flex-grow-1 text-truncate">{{ row.name }}</span>
+              <StatusIndicator v-if="row.status" :status="row.status" class="text-body-2" />
             </div>
-          </div>
-        </div>
-      </div>
-      <div v-else class="text-body-2 text-medium-emphasis">No manifest contents returned.</div>
+          </v-expansion-panel-title>
+          <v-expansion-panel-text>
+            <dl class="manifest-details text-body-2">
+              <dt class="text-medium-emphasis">Type</dt>
+              <dd>{{ row.contentType }}</dd>
+              <dt class="text-medium-emphasis">Files</dt>
+              <dd>
+                <div v-for="file in row.files" :key="file.path">{{ file.path }}</div>
+                <span v-if="row.files.length === 0" class="text-medium-emphasis">No files</span>
+              </dd>
+            </dl>
+          </v-expansion-panel-text>
+        </v-expansion-panel>
+      </v-expansion-panels>
+      <p v-else class="text-body-2 text-medium-emphasis">The manifest lists no contents.</p>
     </section>
 
-    <!-- Dependencies -->
     <section v-if="dependencies.length">
-      <div class="section-header">
-        <div class="section-title">Dependencies</div>
-        <div class="section-count">{{ dependenciesLabel }}</div>
+      <div class="d-flex align-baseline justify-space-between mb-2">
+        <h3 class="text-subtitle-1">Dependencies</h3>
+        <span class="text-caption text-medium-emphasis">
+          {{ plural(dependencies.length, 'dependency', 'dependencies') }}
+        </span>
       </div>
-
-      <div class="content-list">
-        <div
-          v-for="(dep, index) in dependencies"
-          :key="index"
-          class="content-row"
-        >
-          <button type="button" class="content-row-header" @click="toggleDependency(index)">
-            <v-icon size="small">
-              {{ isDependencyExpanded(index) ? 'mdi-chevron-down' : 'mdi-chevron-right' }}
-            </v-icon>
-            <span class="content-name">{{ dependencyLabel(dep, index) }}</span>
-          </button>
-
-          <div v-if="isDependencyExpanded(index)" class="content-row-body">
-            <div v-if="isNamedDependency(dep)" class="metadata-grid">
-              <div class="metadata-label">Name</div>
-              <div class="metadata-value">{{ dep.name }}</div>
-              <div class="metadata-label">Version</div>
-              <div class="metadata-value">{{ dep.version ?? '—' }}</div>
-            </div>
-            <pre v-else class="manifest-json text-body-2">{{ dependencyJson(dep) }}</pre>
-          </div>
-        </div>
-      </div>
+      <v-expansion-panels flat class="border rounded" multiple variant="accordion">
+        <v-expansion-panel v-for="dep in dependencies" :key="dep.key" :title="dep.label">
+          <v-expansion-panel-text>
+            <dl v-if="dep.named" class="manifest-details text-body-2">
+              <dt class="text-medium-emphasis">Name</dt>
+              <dd>{{ dep.named.name }}</dd>
+              <dt class="text-medium-emphasis">Version</dt>
+              <dd>{{ dep.named.version ?? 'Not specified' }}</dd>
+            </dl>
+            <pre v-else class="manifest-json text-body-2">{{ dep.json }}</pre>
+          </v-expansion-panel-text>
+        </v-expansion-panel>
+      </v-expansion-panels>
     </section>
 
-    <!-- Advanced -->
     <section>
-      <div class="section-header">
-        <div class="section-title">Advanced</div>
-      </div>
-
-      <div class="advanced-row">
-        <span>Raw manifest</span>
-        <v-btn variant="text" size="small" @click="toggleRawManifest">
-          {{ showingRawManifest ? 'Hide' : 'Show' }}
-        </v-btn>
-      </div>
-
-      <v-card v-if="showingRawManifest" variant="outlined" class="raw-manifest-card">
-        <v-card-text>
-          <pre class="manifest-json raw-manifest-code text-body-2">{{ extensionManifestJson }}</pre>
-        </v-card-text>
-      </v-card>
+      <h3 class="text-subtitle-1 mb-2">Advanced</h3>
+      <v-expansion-panels flat class="border rounded" variant="accordion">
+        <v-expansion-panel title="Raw manifest">
+          <v-expansion-panel-text>
+            <pre class="manifest-json raw-manifest text-body-2">{{ extensionManifestJson }}</pre>
+          </v-expansion-panel-text>
+        </v-expansion-panel>
+      </v-expansion-panels>
     </section>
   </div>
 </template>
 
 <style scoped>
 .manifest-details {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.section-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.section-title {
-  font-weight: 500;
-}
-
-.section-count {
-  font-size: 13px;
-  opacity: 0.6;
-}
-
-.content-list {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.content-row + .content-row {
-  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-}
-
-.content-row-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  padding: 8px 12px;
-  background: transparent;
-  border: 0;
-  text-align: left;
-  cursor: pointer;
-  color: inherit;
-  font: inherit;
-}
-
-.content-row-header:hover {
-  background: rgba(var(--v-theme-on-surface), 0.04);
-}
-
-.content-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.content-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 13px;
-  opacity: 0.85;
-}
-
-.content-row-body {
-  padding: 4px 12px 12px 34px;
-}
-
-.metadata-grid {
   display: grid;
-  grid-template-columns: 88px 1fr;
+  grid-template-columns: max-content 1fr;
+  column-gap: 16px;
   row-gap: 8px;
-  column-gap: 12px;
+  margin: 0;
 }
 
-.metadata-label {
-  opacity: 0.6;
-  font-size: 13px;
-}
-
-.metadata-value {
-  font-size: 13px;
+.manifest-details dd {
+  margin: 0;
   min-width: 0;
-}
-
-.file-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.advanced-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.raw-manifest-card {
-  margin-top: 8px;
-}
-
-.raw-manifest-code {
-  max-height: 320px;
-  overflow: auto;
+  overflow-wrap: anywhere;
 }
 
 .manifest-json {
-  color: inherit;
   margin: 0;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.raw-manifest {
+  max-height: 320px;
+  overflow: auto;
 }
 </style>

@@ -37,6 +37,8 @@ export function presentContentStatus(status: string): StatusPresentation {
   return contentStatus[status as ContentStatus] ?? { label: status, tone: 'neutral' }
 }
 
+export const REMOVED_REPOSITORY = 'Repository removed'
+
 export const UNINSTALLABLE_STATUSES: readonly ExtensionStatus[] = [
   'installed',
   'pulling_failed',

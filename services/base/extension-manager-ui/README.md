@@ -64,7 +64,8 @@ Everything in `src/shared/` stays local to this view; nothing is moved to
   stored credentials are kept unless both username and password are entered.
   Closing an edited form asks before discarding, and an edited form reports
   the view as dirty to the shell. Removing a repository is confirmed and says
-  when the extension manager stops tracking extensions installed from it.
+  that extensions installed from it stay installed and can still be
+  uninstalled; they show "Repository removed" afterwards.
 - **Empty and failure states** — each section distinguishes "nothing yet"
   (with the next step), "nothing matches" (catalog: clear filters) and "could
   not load" (retry and details). A failed refresh keeps the last list with an
@@ -84,7 +85,7 @@ All calls go to `extension-manager-service` through the
 | GET | `/extensions-api/repositories` | List repositories (all three sections). |
 | POST | `/extensions-api/repositories` | Register a repository (`name`, `description`, `repository_url`, `username`, `password`). |
 | PUT | `/extensions-api/repositories/<id>` | Update a repository; `username`/`password` only when both are replaced. |
-| DELETE | `/extensions-api/repositories/<id>` | Remove a repository. |
+| DELETE | `/extensions-api/repositories/<id>` | Remove a repository; its installed extensions keep their records with `repository_id: null`. |
 | GET | `/extensions-api/repositories/<id>/extensionManifests` | Tags and manifests of the extensions published in a repository (30 s timeout, one call per repository). |
 | GET | `/extensions-api/extensions` | Extensions with platform state (polled while one is in progress). |
 | POST | `/extensions-api/extensions/install?repository_id=<id>&tag=<tag>` | Start an installation. |
@@ -96,43 +97,9 @@ front of the iframe. It reads only the shell's `localStorage["settings"]`.
 
 ### Known backend limitations (proposal)
 
-Both are in `extension-manager-service`; the UI works around them today.
+In `extension-manager-service`; the UI works around it today.
 
-#### 1. Removing a repository deletes the records of its installed extensions
-
-`extensions.repository_id` is `NOT NULL` with `ondelete="CASCADE"`, so
-`DELETE /repositories/<id>` also deletes every extension record (and its
-content records) installed from it. The content stays on the platform, but
-nothing is left to uninstall it with — although uninstalling never needs the
-repository; it only uses each content's stored `location`. The repository is
-only needed to *pull*: the catalog, a first installation and a retry after a
-failed one.
-
-Schema note for options B and C: tables are created with
-`Base.metadata.create_all`, which creates missing tables but never alters
-existing ones, and the database lives on a persistent volume. A changed
-column definition therefore reaches existing platforms only through an
-explicit, idempotent `ALTER TABLE` run at startup (there is no migration tool
-such as Alembic).
-
-| Option | Backend change | Behaviour | Cost |
-| --- | --- | --- | --- |
-| **A. Block** | `DELETE /repositories/<id>` answers `409` while records from it exist. | The user uninstalls the extensions first; the UI disables *Remove* and says why. | Small: one check plus a test. No schema change. |
-| **B. Detach** | `repository_id` nullable, `ondelete="SET NULL"`; `repository_id: UUID \| None` in the API schema; startup `ALTER TABLE extensions ALTER COLUMN repository_id DROP NOT NULL` and recreate `extensions_repository_id_fkey` with `ON DELETE SET NULL`. | Installed extensions survive the removal and can still be uninstalled. Failed installs of a detached extension can only be uninstalled, not retried (`install` already answers `404` for an unknown repository). The UI shows "Repository removed". | Medium: model, schema, one-off SQL, tests; small UI change. |
-| **C. Uninstall with the repository** | `DELETE /repositories/<id>` starts the uninstall of every extension from it and removes the repository when all are `uninstalled`. Needs a repository state ("removing") and a rule for a failed uninstall (keep the repository, report it). Without B the repository row must outlive all uninstalls, because the cascade would otherwise drop the records mid-uninstall. | One action removes the source and everything installed from it. | Large: asynchronous, new state, failure handling. Also the broadest effect of any action in the app. |
-
-Recommendation: **B**. A repository is a *source*; an installation is
-platform state and should not share the source's lifetime. **A** is the
-smallest safe step if B has to wait. **C** can be built on top of B later if
-"remove everything from this source" is wanted as its own action.
-
-The UI already asks before removing: the shared `ConfirmDialog` with the
-initial focus on *Cancel* and a red *Remove repository*, as for destructive
-actions elsewhere. Its text follows the chosen option: A — not reachable
-while extensions exist; B — "installed extensions stay installed and can still
-be uninstalled"; C — names every extension that will be uninstalled.
-
-#### 2. A just-uninstalled version cannot be reinstalled for 30 s
+#### A just-uninstalled version cannot be reinstalled for 30 s
 
 When an uninstall finishes, the record moves to `uninstalled`, which has no
 allowed transition, and the background task deletes it after `sleep(30)`. A

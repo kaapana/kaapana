@@ -19,14 +19,16 @@ test('a pending app becomes openable after the next poll reports it ready', asyn
   const data = {
     ...defaultMockData,
     activeApplications: [
-      app({ release_name: 'x1', name: 'Transitioner', pods: [pendingPod], ready: false }),
+      app({ release_name: 'x1', displayName: 'Transitioner', pods: [pendingPod], ready: false }),
     ],
   }
   await boot(page, data)
   await expect(row(page, 'Transitioner').getByRole('button', { name: 'Starting...' })).toBeVisible()
 
   // Backend now reports the pod running -> the next poll flips the affordance.
-  data.activeApplications = [app({ release_name: 'x1', name: 'Transitioner', pods: [readyPod] })]
+  data.activeApplications = [
+    app({ release_name: 'x1', displayName: 'Transitioner', pods: [readyPod] }),
+  ]
   await poll(page)
 
   await expect(row(page, 'Transitioner').getByRole('button', { name: 'Open' })).toBeVisible()
@@ -39,13 +41,15 @@ test('an errored app recovers to ready across polls', async ({ page }) => {
   const data = {
     ...defaultMockData,
     activeApplications: [
-      app({ release_name: 'x2', name: 'Recovering', pods: [errorPod], ready: false }),
+      app({ release_name: 'x2', displayName: 'Recovering', pods: [errorPod], ready: false }),
     ],
   }
   await boot(page, data)
   await expect(row(page, 'Recovering').getByRole('button', { name: 'Error' })).toBeVisible()
 
-  data.activeApplications = [app({ release_name: 'x2', name: 'Recovering', pods: [readyPod] })]
+  data.activeApplications = [
+    app({ release_name: 'x2', displayName: 'Recovering', pods: [readyPod] }),
+  ]
   await poll(page)
 
   await expect(row(page, 'Recovering').getByRole('button', { name: 'Open' })).toBeVisible()

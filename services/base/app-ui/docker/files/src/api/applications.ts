@@ -8,7 +8,7 @@ interface RawActiveApplication {
   name: string
   paths: string[]
   pods: Pod[]
-  project: string | number
+  project: string
   release_name: string
 }
 
@@ -20,7 +20,7 @@ export interface ActiveApplication {
   fromWorkflowRun: boolean
   paths: string[]
   pods: Pod[]
-  project: string | number
+  project: string
 }
 
 const TIMEOUT_MS = 10_000
@@ -31,7 +31,7 @@ function toActiveApplication(raw: RawActiveApplication): ActiveApplication {
   const startedAt = new Date(raw.created_at).getTime()
   const hasStart = !Number.isNaN(startedAt)
   return {
-    name: raw.annotations?.['kaapana.ai/display-name'] ?? raw.name ?? raw.release_name,
+    name: raw.annotations?.['kaapana.ai/display-name']?.trim() || raw.name || raw.release_name,
     releaseName: raw.release_name,
     createdAt: hasStart ? dateFormat.format(startedAt) : 'at an unknown time',
     startedAt: hasStart ? startedAt : null,

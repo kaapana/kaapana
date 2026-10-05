@@ -14,27 +14,31 @@ export const TASKS_TITLE = 'Applications waiting for your input'
 export const APPS_TITLE = 'Project applications'
 
 // The project VIEW_PATH scopes to (the first mock project); the view filters
-// applications by its id.
-export const PROJECT_ID = 1
+// applications by its id, an AII UUID.
+export const PROJECT_ID = '7f3c9a2e-5b41-4d8e-9c6a-1e2f3a4b5c6d'
+export const OTHER_PROJECT_ID = '2b8d4f6a-0c1e-4a3b-8d5f-6e7a8b9c0d1e'
 
-// Raw (snake_case) wire shapes as parsed by src/api/applications.ts, whose
-// interfaces are private to it. Re-declared here; drift is caught at the
-// builder call sites, not by type-check.
+// Wire shapes of kube-helm's ActiveApplication schema, as parsed by
+// src/api/applications.ts. Re-declared here; drift is caught at the builder
+// call sites, not by type-check.
 export interface RawPod {
   name: string
   status: string
   ready: string
   restarts: number | string
+  age?: string
 }
 
 export interface RawApplication {
   annotations: Record<string, string>
   created_at: string
   from_workflow_run: boolean
+  // The ingress name. The name users see is the kaapana.ai/display-name annotation.
   name: string
+  namespace: string
   paths: string[]
   pods: RawPod[]
-  project: string | number
+  project: string
   ready: boolean
   release_name: string
 }
@@ -42,7 +46,7 @@ export interface RawApplication {
 export interface MockData {
   userinfo: { preferredUsername: string; groups: string[]; user: string }
   aiiUser: { id: string; realm_roles: string[] }
-  projects: Array<{ id: number; name: string; short_id?: string }>
+  projects: Array<{ id: string; name: string; short_id?: string }>
   activeApplications: RawApplication[]
   policyData: { endpoints_per_role: Record<string, Array<{ path: string; methods: string[] }>> }
 }
@@ -68,19 +72,33 @@ export const errorPod: RawPod = {
   restarts: 7,
 }
 
+/**
+ * An application as kube-helm reports it. Every Kaapana chart sets the
+ * kaapana.ai/display-name annotation; it is empty when the chart was installed
+ * without a display name. `displayName` sets it, `name` is the ingress name.
+ */
 export function app(
-  overrides: Partial<RawApplication> & Pick<RawApplication, 'release_name'>,
+  overrides: Partial<RawApplication> &
+    Pick<RawApplication, 'release_name'> & { displayName?: string },
 ): RawApplication {
+  const { displayName, ...rest } = overrides
+  const fromWorkflowRun = rest.from_workflow_run ?? true
   return {
-    annotations: {},
     created_at: '2026-07-20T10:15:00Z',
-    from_workflow_run: true,
+    from_workflow_run: fromWorkflowRun,
     name: overrides.release_name,
+    namespace: 'project-admin',
     paths: [projectPath(overrides.release_name)],
     pods: [readyPod],
     project: PROJECT_ID,
     ready: true,
-    ...overrides,
+    ...rest,
+    annotations: {
+      'kaapana.ai/type': fromWorkflowRun ? 'triggered' : 'application',
+      'kaapana.ai/display-name': displayName ?? overrides.release_name,
+      'meta.helm.sh/release-name': overrides.release_name,
+      ...rest.annotations,
+    },
   }
 }
 
@@ -95,23 +113,28 @@ export const defaultMockData: MockData = {
     realm_roles: ['admin'],
   },
   projects: [
-    { id: 1, name: 'admin', short_id: 'admin' },
-    { id: 2, name: 'research-b', short_id: 'resb' },
+    { id: PROJECT_ID, name: 'admin', short_id: 'admin' },
+    { id: OTHER_PROJECT_ID, name: 'research-b', short_id: 'resb' },
   ],
   activeApplications: [
     // Workflow-triggered apps (from_workflow_run: true) -> "requesting input" panel.
-    app({ release_name: 'seg-editor-1a2b', name: 'Segmentation Editor', pods: [readyPod] }),
+    app({ release_name: 'seg-editor-1a2b', displayName: 'Segmentation Editor', pods: [readyPod] }),
     app({
       release_name: 'vol-viewer-3c4d',
-      name: 'Volume Viewer',
+      displayName: 'Volume Viewer',
       pods: [pendingPod],
       ready: false,
     }),
-    app({ release_name: 'broken-5e6f', name: 'Broken Tool', pods: [errorPod], ready: false }),
+    app({
+      release_name: 'broken-5e6f',
+      displayName: 'Broken Tool',
+      pods: [errorPod],
+      ready: false,
+    }),
     // Project-wide app (from_workflow_run: false) -> "Applications" panel.
     app({
       release_name: 'jupyter-7g8h',
-      name: 'JupyterLab',
+      displayName: 'JupyterLab',
       from_workflow_run: false,
       pods: [readyPod],
     }),
@@ -126,7 +149,7 @@ function json(body: unknown) {
 }
 
 /** Shell URL of the view scoped to `project` (see VIEW_PATH). */
-export function viewPathFor(project: { id: number; short_id?: string }): string {
+export function viewPathFor(project: { id: string; short_id?: string }): string {
   return `/project/${project.short_id ?? project.id}${UNSCOPED_VIEW_PATH}`
 }
 

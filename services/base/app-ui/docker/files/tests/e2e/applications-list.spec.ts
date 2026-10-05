@@ -98,6 +98,26 @@ test('sorting by name and start date, in both directions', async ({ page }) => {
   await expect(titles).toHaveText(['Beta', 'Alpha'])
 })
 
+test('a row with an invalid start date still renders and sorts last by start', async ({ page }) => {
+  const [a, b] = defaultMockData.activeApplications
+  await boot(page, {
+    ...defaultMockData,
+    activeApplications: [
+      { ...a, name: 'Undated', created_at: 'not-a-date' },
+      { ...b, name: 'Dated', created_at: '2026-07-20T10:00:00Z' },
+    ],
+  })
+
+  await expect(row(page, 'Undated').getByText('Started at an unknown time')).toBeVisible()
+  await expect(row(page, 'Dated').getByText(/^Started 20 July 2026/)).toBeVisible()
+
+  const titles = page.locator('.v-list-item-title')
+  await page.getByRole('button', { name: 'Started' }).click()
+  await expect(titles).toHaveText(['Dated', 'Undated'])
+  await page.getByRole('button', { name: 'Sort descending' }).click()
+  await expect(titles).toHaveText(['Dated', 'Undated'])
+})
+
 // Regression: the router auth guard must proceed even when checkAuth fails, so
 // the view still mounts instead of aborting the navigation into a blank page
 // (the gateway is the real auth boundary in front of the iframe).

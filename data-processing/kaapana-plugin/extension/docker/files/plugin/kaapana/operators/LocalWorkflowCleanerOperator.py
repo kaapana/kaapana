@@ -13,7 +13,7 @@ from kaapana.blueprints.kaapana_global_variables import (
 )
 from kaapana.blueprints.kaapana_utils import (
     clean_previous_dag_run,
-    cure_invalid_name,
+    get_conf_configmap_name,
 )
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 
@@ -48,8 +48,7 @@ class LocalWorkflowCleanerOperator(KaapanaBaseOperator):
 
     def post_execute(self, context, result=None):
         run_id = context["run_id"]
-        run_id_cured = cure_invalid_name(context["run_id"], r"(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?")
-        configmap_name = f"{run_id_cured}-config"
+        configmap_name = get_conf_configmap_name(run_id)
         namespace = self.namespace
         self.delete_conf_configmap(configmap_name, namespace)
 

@@ -276,14 +276,14 @@ const projectApplications = computed(() => {
 const sortedApps = computed(() => {
   const apps = isTasks.value ? triggeredApplications.value : projectApplications.value
   const dir = sortDesc.value ? -1 : 1
-  const key = (app: ActiveApplication) =>
-    sortKey.value === 'startedAt' ? new Date(app.startedAt).getTime() : app.name.toLowerCase()
   return [...apps].sort((a, b) => {
-    const av = key(a)
-    const bv = key(b)
-    if (av < bv) return -dir
-    if (av > bv) return dir
-    return 0
+    if (sortKey.value === 'name') {
+      return a.name.toLowerCase().localeCompare(b.name.toLowerCase()) * dir
+    }
+    if (a.startedAt === null || b.startedAt === null) {
+      return Number(a.startedAt === null) - Number(b.startedAt === null)
+    }
+    return (a.startedAt - b.startedAt) * dir
   })
 })
 

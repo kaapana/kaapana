@@ -75,7 +75,7 @@ Tracks an installed (or in-progress) extension.
 | Field           | Type              | Description                                            |
 |-----------------|-------------------|--------------------------------------------------------|
 | `id`            | UUID              | Primary key                                            |
-| `repository_id` | UUID (FK)         | Which registry this was pulled from                    |
+| `repository_id` | UUID (FK, null)   | Which registry this was pulled from; `null` once that repository is removed |
 | `tag`           | string            | OCI tag used to pull this extension                    |
 | `manifest`      | JSON              | Full `ExtensionManifest` at install time               |
 | `status`        | `ExtensionStatus` | Current lifecycle state (see below)                    |
@@ -169,7 +169,7 @@ Manages the list of known OCI registries and exposes discovery endpoints.
 | `GET`    | `/repositories`                               | List registries (filter by `name` or `id`)              |
 | `GET`    | `/repositories/{id}`                          | Get a single registry                                   |
 | `PUT`    | `/repositories/{id}`                          | Update registry credentials or description              |
-| `DELETE` | `/repositories/{id}`                          | Remove a registry                                       |
+| `DELETE` | `/repositories/{id}`                          | Remove a registry; its installed extensions are kept with `repository_id: null` and can still be uninstalled |
 | `GET`    | `/repositories/{id}/extensions`               | List available extension tags in the registry           |
 | `GET`    | `/repositories/{id}/extensionManifests`       | Fetch manifests for tags (optionally filtered by tag)   |
 
@@ -244,6 +244,7 @@ Key behaviours:
 - **Row-level locking** — `SELECT ... FOR UPDATE NOWAIT` prevents two concurrent requests from mutating the same extension or content row simultaneously. The lock fails immediately rather than waiting; concurrent attempts raise a `LockedExtensionException` which the caller surfaces as an HTTP 409.
 - **Transition validation** — `update_extension_status` and `update_content_status` check the requested transition against an allow-list before committing. This enforces the state machines described above.
 - **Cascade deletes** — deleting an extension removes all its `InstalledContent` rows automatically.
+- **Detach on repository removal** — deleting a repository sets `repository_id` to `NULL` on its extensions (`ON DELETE SET NULL`) instead of deleting them. Installation is platform state; the repository is only needed to pull, so a detached extension can be uninstalled but not reinstalled or retried. Platforms created before 0.8 get the constraint change from `utils/migration-chart` (`migration-0.7.x-0.8.x.sh`).
 
 ---
 

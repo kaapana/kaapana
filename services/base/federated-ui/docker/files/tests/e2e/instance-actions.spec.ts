@@ -1,6 +1,16 @@
 import { test, expect } from '@playwright/test'
 import { CLIENT, defaultMockData, localInstance, remoteInstance } from './fixtures/mock-backend'
-import { card, collectPageErrors, countRequests, dialog, failRoute, field, nextRequest, openView, toasts } from './fixtures/helpers'
+import {
+  card,
+  collectPageErrors,
+  countRequests,
+  dialog,
+  failRoute,
+  field,
+  nextRequest,
+  openView,
+  toasts,
+} from './fixtures/helpers'
 
 const onlyRemote = { ...defaultMockData, instances: [remoteInstance] }
 const onlyLocal = { ...defaultMockData, instances: [localInstance] }
@@ -107,7 +117,9 @@ test('a background poll mid-edit does not discard the unsaved value', async ({ p
   expect((await put).postDataJSON().port).toBe(8443)
 })
 
-test('a failed save keeps the field open with the entered value and offers details', async ({ page }) => {
+test('a failed save keeps the field open with the entered value and offers details', async ({
+  page,
+}) => {
   const pageErrors = collectPageErrors(page)
   await openView(page, onlyRemote)
   await failRoute(page, CLIENT.remote, 'instance is unreachable')
@@ -118,11 +130,11 @@ test('a failed save keeps the field open with the entered value and offers detai
   await remote.getByRole('button', { name: 'Save Network' }).click()
 
   await expect(toasts(page)).toContainText('Could not save the change')
-  await expect(toasts(page)).toContainText('instance is unreachable')
   await expect(remote.getByLabel('Port')).toHaveValue('8443')
 
   await toasts(page).getByText('Could not save the change').click()
   await expect(dialog(page)).toContainText('PUT')
+  await expect(dialog(page)).toContainText('instance is unreachable')
   expect(pageErrors).toEqual([])
 })
 
@@ -167,8 +179,10 @@ test('a failed dataset load reports it and keeps the editor usable', async ({ pa
 
   await local.getByRole('button', { name: 'Edit Allowed datasets' }).click()
   await expect(toasts(page)).toContainText('Could not load the datasets')
-  await expect(toasts(page)).toContainText('datasets are down')
   await expect(local.getByRole('button', { name: 'Save Allowed datasets' })).toBeEnabled()
+
+  await toasts(page).getByText('Could not load the datasets').click()
+  await expect(dialog(page)).toContainText('datasets are down')
   expect(pageErrors).toEqual([])
 })
 
@@ -208,11 +222,16 @@ test('a failed delete keeps the instance and reports why', async ({ page }) => {
   await dialog(page).getByRole('button', { name: 'Delete instance' }).click()
 
   await expect(toasts(page)).toContainText('Could not delete the remote instance')
-  await expect(toasts(page)).toContainText('Kaapana instance not found')
   await expect(card(page, 'gpu-node-1')).toBeVisible()
+
+  await toasts(page).getByText('Could not delete the remote instance').click()
+  await expect(dialog(page)).toContainText('Kaapana instance not found')
 })
 
-test('copies the connection details of this platform in the shape the paste tab reads', async ({ page, context }) => {
+test('copies the connection details of this platform in the shape the paste tab reads', async ({
+  page,
+  context,
+}) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await openView(page, onlyLocal)
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { notify } from '@kyvg/vue3-notification'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { ConfirmDialog } from '@kaapana/base-ui'
 import {
@@ -17,9 +18,10 @@ import { setDirty } from '@/composables/viewDirty'
 import { copyText } from '@/utils/clipboard'
 import { formatTimestamp, freshness } from '@/utils/format'
 import { federationIcons, kaapanaIcons } from '@/utils/icons'
-import { notifyFailure, notifySuccess } from '@/utils/notifyFailure'
+import { notifyFailure } from '@/utils/notifyFailure'
 
-type FieldKey = 'network' | 'token' | 'fernet' | 'ssl' | 'autoSync' | 'autoRun' | 'dags' | 'datasets'
+type FieldKey =
+  'network' | 'token' | 'fernet' | 'ssl' | 'autoSync' | 'autoRun' | 'dags' | 'datasets'
 
 interface Draft {
   port: number | string
@@ -172,7 +174,11 @@ async function save() {
       })
     }
     editing.value = null
-    notifySuccess(`${FIELD_LABELS[field]} saved`, `The change to ${props.instance.instance_name} is in effect.`)
+    notify({
+      type: 'success',
+      title: `${FIELD_LABELS[field]} saved`,
+      text: `The change to ${props.instance.instance_name} is in effect.`,
+    })
     emit('changed')
   } catch (err) {
     notifyFailure(
@@ -203,7 +209,11 @@ async function removeInstance() {
   deleting.value = true
   try {
     await deleteInstance(props.instance.id)
-    notifySuccess('Remote instance deleted', `${props.instance.instance_name} is no longer federated with this platform.`)
+    notify({
+      type: 'success',
+      title: 'Remote instance deleted',
+      text: `${props.instance.instance_name} is no longer federated with this platform.`,
+    })
     emit('changed')
   } catch (err) {
     notifyFailure(
@@ -219,18 +229,27 @@ async function removeInstance() {
 async function copyDefinition() {
   try {
     await copyText(JSON.stringify(instanceDefinition(props.instance), null, 2))
-    notifySuccess(
-      'Connection details copied',
-      'Paste them into “Add remote instance” on the platform that should federate with this one.',
-    )
+    notify({
+      type: 'success',
+      title: 'Connection details copied',
+      text: 'Paste them into “Add remote instance” on the platform that should federate with this one.',
+    })
   } catch (err) {
-    notifyFailure('Could not copy the connection details', 'The browser did not allow access to the clipboard.', err)
+    notifyFailure(
+      'Could not copy the connection details',
+      'The browser did not allow access to the clipboard.',
+      err,
+    )
   }
 }
 </script>
 
 <template>
-  <v-card :elevation="2" class="instance-card" :data-testid="`instance-${props.instance.instance_name}`">
+  <v-card
+    :elevation="2"
+    class="instance-card"
+    :data-testid="`instance-${props.instance.instance_name}`"
+  >
     <v-card-item>
       <template #prepend>
         <v-icon :icon="remote ? federationIcons.remote : federationIcons.local" color="primary" />
@@ -331,7 +350,10 @@ async function copyDefinition() {
           @save="save"
           @cancel="cancelEdit"
         >
-          <span v-if="props.instance.fernet_key === FERNET_DEACTIVATED" class="text-medium-emphasis">
+          <span
+            v-if="props.instance.fernet_key === FERNET_DEACTIVATED"
+            class="text-medium-emphasis"
+          >
             Deactivated
           </span>
           <span v-else class="font-monospace">{{ props.instance.fernet_key }}</span>
@@ -416,7 +438,11 @@ async function copyDefinition() {
           <span class="d-inline-flex align-center ga-1">
             <v-icon
               size="small"
-              :icon="draft.automatic_workflow_execution ? federationIcons.enabled : federationIcons.disabled"
+              :icon="
+                draft.automatic_workflow_execution
+                  ? federationIcons.enabled
+                  : federationIcons.disabled
+              "
               :color="draft.automatic_workflow_execution ? 'success' : undefined"
             />
             {{ draft.automatic_workflow_execution ? 'Yes' : 'No' }}
@@ -466,7 +492,9 @@ async function copyDefinition() {
           @cancel="cancelEdit"
         >
           <div v-if="draft.allowed_datasets.length" class="d-flex flex-wrap ga-1">
-            <v-chip v-for="dataset in draft.allowed_datasets" :key="dataset" size="small">{{ dataset }}</v-chip>
+            <v-chip v-for="dataset in draft.allowed_datasets" :key="dataset" size="small">{{
+              dataset
+            }}</v-chip>
           </div>
           <span v-else class="text-medium-emphasis">None</span>
           <template #edit>
@@ -488,8 +516,12 @@ async function copyDefinition() {
           </template>
         </InstanceField>
 
-        <InstanceField label="Created">{{ formatTimestamp(props.instance.time_created) }}</InstanceField>
-        <InstanceField label="Last updated">{{ formatTimestamp(props.instance.time_updated) }}</InstanceField>
+        <InstanceField label="Created">{{
+          formatTimestamp(props.instance.time_created)
+        }}</InstanceField>
+        <InstanceField label="Last updated">{{
+          formatTimestamp(props.instance.time_updated)
+        }}</InstanceField>
       </dl>
     </v-card-text>
 

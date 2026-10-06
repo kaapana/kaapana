@@ -3016,6 +3016,12 @@ function update_coredns_rewrite() {
         return 0
     fi
 
+    # The CoreDNS ConfigMap lives in kube-system, which is not accessible without cluster-scoped rights
+    if [ "$RESTRICTED_RBAC" = "true" ]; then
+        echo "Skipped DNS rewrite because RESTRICTED_RBAC=true (no access to kube-system)"
+        return 0
+    fi
+
     # Build the new rewrite rule.
     # Ensure both hostname and target are FQDNs (with trailing dots).
     local new_rule="rewrite name exact ${hostname}. oauth2-proxy-service.$ADMIN_NAMESPACE.svc.cluster.local."

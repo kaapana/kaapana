@@ -34,6 +34,7 @@ destroy_deployment:
     - { job: send_data, optional: true, artifacts: false }
     - { job: run_workflows, optional: true, artifacts: false }
     - { job: playwright_ui_tests, optional: true, artifacts: false }
+    - { job: benchmark_platform, optional: true, artifacts: false }
   rules:
     # Never destroy externally-provided VMs
     - if: '$DEPLOYMENT_INSTANCE_FQDN != ""'

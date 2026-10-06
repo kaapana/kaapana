@@ -1,6 +1,6 @@
 """Kaapana platform benchmark.
 
-  benchmark run --suite ingest --host https://<instance> --password <pw> --data-dir <dir>
+  benchmark run --suite ingest --host https://<instance> --password <pw> --client-secret <secret> --data-dir <dir>
   benchmark run --suite internet --suite gpu --kubectl "ssh <host> microk8s kubectl"
   benchmark run --suite ingest --scenario max --runs 3 --out artifacts/benchmark
 
@@ -59,6 +59,9 @@ def run(
     host: Optional[str] = typer.Option(None, envvar="BENCHMARK_HOST", help="platform URL (ingest)"),
     username: str = typer.Option("kaapana"),
     password: str = typer.Option("", help="platform password (ingest)"),
+    client_secret: Optional[str] = typer.Option(
+        None, envvar="CLIENT_SECRET", help="Keycloak secret of the kaapana OIDC client (ingest)"
+    ),
     data_dir: Optional[Path] = typer.Option(
         None, envvar="BENCHMARK_DATA_DIR", help="dataset repo root; scenario root_path is relative to this (ingest)"
     ),
@@ -86,6 +89,8 @@ def run(
     if "ingest" in suite:
         if not host:
             raise typer.BadParameter("--host is required for the ingest suite")
+        if not client_secret:
+            raise typer.BadParameter("--client-secret (or CLIENT_SECRET) is required for the ingest suite")
         if not data_dir:
             raise typer.BadParameter("--data-dir is required for the ingest suite")
         if not scenario_file:
@@ -110,6 +115,7 @@ def run(
                     host,
                     username,
                     password,
+                    client_secret,
                     dag_id,
                     data_dir,
                     root_path,

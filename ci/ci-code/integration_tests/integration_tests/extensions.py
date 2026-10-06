@@ -2,8 +2,8 @@ import json
 import logging
 
 import requests
-from integration_tests.utils.KaapanaAuth import KaapanaAuth
 from integration_tests.utils.logger import get_logger
+from kaapana_auth import KaapanaAuth
 
 logger = get_logger(__name__, logging.DEBUG)
 

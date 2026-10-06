@@ -13,7 +13,7 @@ OpenMetrics. Four suites:
 ## Install
 
 ```bash
-pip install -e .        # provides the `benchmark` command
+pip install -e ../kaapana-auth -e .   # shared token client + the `benchmark` command
 ```
 
 ## Usage
@@ -21,7 +21,7 @@ pip install -e .        # provides the `benchmark` command
 ```bash
 export BENCHMARK_DATA_DIR=~/data   # dataset repo root; or pass --data-dir each time
 
-benchmark run --suite ingest --host https://<instance> --password <pw> --scenario-file scenarios.json
+benchmark run --suite ingest --host https://<instance> --password <pw> --client-secret <secret> --scenario-file scenarios.json
 benchmark run --suite ingest --scenario-file scenarios.json --scenario minimal --scenario max --runs 3
 benchmark run --suite internet --suite gpu --kubectl "ssh <host> microk8s kubectl"
 benchmark run --suite helm --helm "ssh <host> microk8s helm" --kubectl "ssh <host> microk8s kubectl"
@@ -84,6 +84,9 @@ relative to `--data-dir/root_path`:
 - `split_runs` > 0 means the receiver cut a series apart mid-transfer (settle
   timer fired early); `dropped_series` counts series accepted but never
   triggering a run.
+- Logs in with a Keycloak token through the shared `utils/kaapana-auth`
+  client. `--client-secret` (or `CLIENT_SECRET`) is the `kaapana` OIDC client
+  secret: `helm get values kaapana-admin-chart -o json | jq -r .global.oidc_client_secret`.
 - `--timeout-h` (default 4) bounds the wait per scenario. TLS verification is
   disabled (self-signed platform certs).
 

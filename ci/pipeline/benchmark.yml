@@ -6,7 +6,7 @@ spec:
       type: string
 ---
 # Stage: benchmark — runs after the test stage, so no test traffic skews the timing
-# In:  deployment.env dotenv (VM_FQDN, VM_USER); BENCHMARK_DATA_CONFIG
+# In:  deployment.env dotenv (VM_FQDN, VM_USER); the platform's OIDC client secret; BENCHMARK_DATA_CONFIG
 #      (File-type CI variable: url/token/root_path/scenarios JSON); the live platform
 # Out: results.json + metrics.txt (OpenMetrics) as job artifacts
 ##############################################
@@ -46,8 +46,15 @@ benchmark_platform:
         git clone "$BENCHMARK_CLONE_URL" "$BENCHMARK_REPO_DIR"
       fi
     - git -C "$BENCHMARK_REPO_DIR" lfs pull
-    - pip install -e "$CI_PROJECT_DIR/utils/platform-benchmark"
     - mkdir -p "$ARTIFACTS_DIR/benchmark"
+    - |
+      ansible-playbook "$CI_PROJECT_DIR/ci/ci-code/integration_tests/remote_execution/setup_integration_tests.yaml" \
+        -i "$VM_FQDN," \
+        -u "$VM_USER" \
+        --private-key "$DEPLOYMENT_INSTANCE_SSH_KEY"
+      export "$(grep '^CLIENT_SECRET=' "$ARTIFACTS_DIR/integration_test_setup.env")"
+      rm "$ARTIFACTS_DIR/integration_test_setup.env"
+    - pip install -e "$CI_PROJECT_DIR/utils/kaapana-auth" -e "$CI_PROJECT_DIR/utils/platform-benchmark"
     - jq '{root_path, scenarios}' "$BENCHMARK_DATA_CONFIG" > "$ARTIFACTS_DIR/benchmark/scenarios.json"
     - |
       benchmark run \

@@ -1,11 +1,11 @@
 export type ProjectItem = {
-    id: string,
-    short_id: string,
-    external_id?: number,
-    name: string,
-    description?: string,
-    multiinstallable_whitelist?: string[],
-    is_archived: boolean,
+    id: string
+    short_id: string
+    external_id?: string | null
+    name: string
+    description?: string
+    multiinstallable_whitelist?: string[]
+    is_archived: boolean
 }
 
 export type UserItem = {

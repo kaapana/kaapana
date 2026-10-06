@@ -16,17 +16,23 @@ set -euo pipefail
 #   - platforms/kaapana-admin-chart/templates/service_account.yaml
 #   - platforms/kaapana-platform-chart/deps/services-namespace/templates/service_account.yaml
 #
-# After you add the same namespaces to `EXTRA_MANAGED_NAMESPACES` in
-# `kaapanactl.sh` and redeploy, the chart-managed RBAC will take over and this
-# script does not need to be rerun for those namespaces.
+# After you add the same namespaces to `EXTRA_MANAGED_NAMESPACES` (kaapanactl.local.sh)
+# and redeploy, the chart-managed RBAC will take over and this script does not need
+# to be rerun for those namespaces.
+#
+# Usage: ADMIN_NAMESPACE=<admin ns> SERVICES_NAMESPACE=<services ns> \
+#          ./utils/apply-managed-project-namespace-rbac.sh <project namespace> [<project namespace> ...]
 
-PROJECT_NAMESPACES=(
-  "project-test"
-)
+if [ "$#" -eq 0 ]; then
+    echo "Usage: ADMIN_NAMESPACE=<admin ns> SERVICES_NAMESPACE=<services ns> $0 <project namespace> [...]"
+    exit 1
+fi
+PROJECT_NAMESPACES=("$@")
 
-ADMIN_NAMESPACE="idai-admin"
-SERVICES_NAMESPACE="idai-services"
+ADMIN_NAMESPACE="${ADMIN_NAMESPACE:-admin}"
+SERVICES_NAMESPACE="${SERVICES_NAMESPACE:-services}"
 ROLE_NAME="kaapana-admin-ns"
+echo "Kaapana admin namespace: ${ADMIN_NAMESPACE}, services namespace: ${SERVICES_NAMESPACE}"
 
 if command -v kubectl >/dev/null 2>&1; then
     KUBE="kubectl"

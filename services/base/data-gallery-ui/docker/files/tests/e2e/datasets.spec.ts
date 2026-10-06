@@ -124,6 +124,55 @@ test('removing some series from a dataset lowers the result count', async ({ pag
   await expect(page.getByText('1 selected', { exact: true })).toBeVisible()
 })
 
+// The view pages with the last query, so the removal must replace it: a query
+// still listing the removed series brings them back on the next page.
+test('after removing series from a dataset, the next page no longer asks for them', async ({ page }) => {
+  const data = makeDefaultMockData()
+  data.datasets.push({ ...data.datasets[0], name: 'all3', identifiers: [...data.seriesUids] })
+  data.settings.datasets.itemsPerPagePagination = 1
+  await openGallery(page, data)
+  await selectDataset(page, 'all3 (project)')
+  await expect(page.getByRole('button', { name: 'Go to page 3' })).toBeVisible()
+
+  await page.locator('.seriesCard').first().click()
+  await page.getByRole('button', { name: 'Remove 1 series from “all3”' }).click()
+  await confirmAction(page, 'Remove')
+  await expect(page.getByRole('button', { name: 'Go to page 3' })).toHaveCount(0)
+
+  const count = page.waitForResponse(
+    (r) => /\/dataset\/aggregatedSeriesNum$/.test(r.url()) && r.request().method() === 'POST',
+  )
+  const list = page.waitForRequest(
+    (req) => isSeriesListRequest(req) && req.postDataJSON().pageIndex === 2,
+  )
+  await page.getByRole('button', { name: 'Go to page 2' }).click()
+
+  expect(await (await count).json()).toBe(2)
+  expect((await list).postDataJSON().query.bool.must).toContainEqual({
+    ids: { values: ['4.5.6', '7.8.9'] },
+  })
+})
+
+// The results stay mounted during the refresh, so focus stays on Remove.
+test('removing some series from a dataset keeps focus on Remove while the gallery refreshes', async ({
+  page,
+}) => {
+  await openGallery(page)
+  await selectDataset(page, 'nsclc (project)')
+  await expect(page.getByText('MR Brain')).toBeVisible()
+  await page.locator('.seriesCard').first().click()
+  await delayRoute(page, /\/dataset\/series$/, 1_500, 'POST')
+
+  const refreshed = page.waitForResponse((r) => isSeriesListRequest(r.request()))
+  await page.getByRole('button', { name: 'Remove 1 series from “nsclc”' }).click()
+  await confirmAction(page, 'Remove')
+  await refreshed
+
+  await expect(page.getByText('1 selected', { exact: true })).toBeVisible()
+  await expect(page.locator('.seriesCard')).toHaveCount(1)
+  await expect(page.getByRole('button', { name: 'Remove 1 series from “nsclc”' })).toBeFocused()
+})
+
 /* ------------------------------------------------------------ deep links -- */
 
 const selector = (page: Page) => page.locator('.v-autocomplete').first()

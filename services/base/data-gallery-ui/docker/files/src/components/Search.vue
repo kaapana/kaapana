@@ -80,7 +80,7 @@
     >
       {{ searchFailure.text }}
       <template #append>
-        <v-btn variant="text" size="small" @click="searchFailure.retry">Try again</v-btn>
+        <v-btn variant="text" size="small" @click="searchFailure.retry()">Try again</v-btn>
         <v-btn variant="text" size="small" @click="showSearchFailureDetails">Details</v-btn>
       </template>
     </v-alert>
@@ -208,7 +208,8 @@ const props = withDefaults(
   { selectedDataset: null, loading: false },
 )
 const emit = defineEmits<{
-  search: [query: any]
+  /** `refresh`: re-run after the dataset's series changed; results stay on screen. */
+  search: [query: any, refresh: boolean]
   dataset: [dataset: Dataset | null]
   'update:dirty': [dirty: boolean]
 }>()
@@ -294,8 +295,10 @@ async function loadSelectedDataset(): Promise<boolean> {
   return true
 }
 
+/** After the dataset's series changed: reloads it and searches again, so the
+ *  query lists only its current series. */
 async function reloadDataset() {
-  await loadSelectedDataset()
+  if (await loadSelectedDataset()) await search(true)
 }
 
 /** Without an access level a link prefers the project dataset over a private one. */
@@ -536,16 +539,16 @@ function composeQuery(fields: string[] | null = null) {
 }
 
 /** Sends the search and clears a previous search failure. */
-function runSearch(query: ReturnType<typeof composeQuery>) {
+function runSearch(query: ReturnType<typeof composeQuery>, refresh: boolean) {
   clearSearchFailure('search')
-  emit('search', query)
+  emit('search', query, refresh)
 }
 
-async function search() {
+async function search(refresh = false) {
   const hasQueryString = query_string.value && query_string.value.trim().length > 0
 
   if (!hasQueryString) {
-    runSearch(composeQuery(null))
+    runSearch(composeQuery(null), refresh)
     return
   }
 
@@ -558,7 +561,7 @@ async function search() {
         text: 'This project has no searchable text fields, so only the filters were applied. Add or change filters to narrow the results.',
         type: 'warn',
       })
-      runSearch(composeQuery(null))
+      runSearch(composeQuery(null), refresh)
       return
     }
 
@@ -568,11 +571,11 @@ async function search() {
         text: `Free text is searched across ${field_count} fields, more than the ${max_clause_count} this index allows. Add a filter to narrow the scope, or search using filters only — the filters were applied without the free text.`,
         type: 'error',
       })
-      runSearch(composeQuery(null))
+      runSearch(composeQuery(null), refresh)
       return
     }
 
-    runSearch(composeQuery(fields))
+    runSearch(composeQuery(fields), refresh)
   } catch (error) {
     reportSearchFailure(
       {
@@ -583,7 +586,7 @@ async function search() {
       },
       error,
     )
-    emit('search', composeQuery(null))
+    emit('search', composeQuery(null), refresh)
   }
 }
 

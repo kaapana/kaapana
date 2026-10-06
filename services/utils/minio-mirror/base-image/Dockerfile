@@ -1,14 +1,13 @@
 FROM local-only/base-python-cpu:latest
 LABEL REGISTRY="local-only"
 LABEL IMAGE="base-minio-mc"
-LABEL VERSION="2025-08-13"
+LABEL VERSION="2026-09-16"
 LABEL CI_IGNORE="False"
 
 
-RUN curl -fL https://dl.min.io/client/mc/release/linux-amd64/mcli_20250813083541.0.0_amd64.deb \
-  -o mcli.deb && \
-  dpkg -i mcli.deb && \
-  ln -s /usr/local/bin/mcli /usr/local/bin/mc
+# dl.min.io and the MinIO images are gone; take mc from the pinned Silo (community MinIO fork) server image
+COPY --from=docker.io/pgsty/silo:RELEASE.2026-09-16T00-00-00Z@sha256:635197cb9f36d01bee221d34d1c7d7960f6a95c48b0b6c01d99cd13bdae51a46 /usr/bin/mcli /usr/local/bin/mcli
+RUN ln -s /usr/local/bin/mcli /usr/local/bin/mc
 
 
 RUN adduser --uid 1000 kaapana && chmod -R 777 /home/kaapana

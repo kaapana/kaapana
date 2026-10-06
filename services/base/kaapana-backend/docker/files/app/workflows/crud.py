@@ -17,6 +17,8 @@ from app.database import SessionLocal
 from app.dependencies import fetch_default_project_id
 from cryptography.fernet import Fernet
 from fastapi import HTTPException, Response
+from filelock import FileLock
+from filelock import Timeout as FileLockTimeout
 from psycopg2.errors import UniqueViolation
 from sqlalchemy import String, and_, cast, desc, func, or_
 from sqlalchemy.exc import IntegrityError, NoResultFound
@@ -650,19 +652,31 @@ def update_external_job(db: Session, db_job):
             #     logging.error(r.json())
 
 
-def _request_remote_sync(remote_backend_url, ssl_check, token, job_params, payload):
-    with requests.Session() as s:
-        return requests_retry_session(session=s).put(
-            f"{remote_backend_url}/sync-client-remote",
-            params=job_params,
-            json=payload,
-            verify=ssl_check,
-            headers={
-                "FederatedAuthorization": f"{token}",
-                "User-Agent": "kaapana",
-            },
-            timeout=TIMEOUT,
-        )
+class RemoteSyncInProgress(Exception):
+    pass
+
+
+def _request_remote_sync(instance_id, remote_backend_url, ssl_check, token, job_params, payload):
+    lock = FileLock(f"/tmp/remote_sync_{instance_id}.lock")
+    try:
+        lock.acquire(timeout=0)
+    except FileLockTimeout:
+        raise RemoteSyncInProgress()
+    try:
+        with requests.Session() as s:
+            return requests_retry_session(session=s).put(
+                f"{remote_backend_url}/sync-client-remote",
+                params=job_params,
+                json=payload,
+                verify=ssl_check,
+                headers={
+                    "FederatedAuthorization": f"{token}",
+                    "User-Agent": "kaapana",
+                },
+                timeout=TIMEOUT,
+            )
+    finally:
+        lock.release()
 
 
 def get_remote_updates(db: Session, periodically=False):
@@ -689,6 +703,7 @@ def get_remote_updates(db: Session, periodically=False):
     futures = [
         executor.submit(
             _request_remote_sync,
+            i.id,
             f"{i.protocol}://{i.host}:{i.port}/kaapana-backend/remote",
             i.ssl_check,
             i.token,
@@ -705,6 +720,10 @@ def get_remote_updates(db: Session, periodically=False):
         except FutureTimeoutError:
             logging.warning(f"Remote backend {db_remote_kaapana_instance.host} did not answer within {sync_timeout} s")
             unreachable.append(f"{db_remote_kaapana_instance.instance_name}: no answer within {sync_timeout} s")
+            continue
+        except RemoteSyncInProgress:
+            logging.info(f"Previous sync of remote backend {db_remote_kaapana_instance.host} is still running")
+            unreachable.append(f"{db_remote_kaapana_instance.instance_name}: previous sync still running")
             continue
         except requests.exceptions.RequestException as e:
             logging.warning(f"Could not reach remote backend {db_remote_kaapana_instance.host}: {e}")

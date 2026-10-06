@@ -15,10 +15,14 @@ export interface WorkflowFormDefaults {
   hideOnUI?: string[]
 }
 
+/** How the shell picks the theme: follow the browser, or a fixed choice. */
+export type ThemeMode = 'system' | 'light' | 'dark'
+
 export interface Settings {
+  /** The effective value the views read; the shell derives it from themeMode. */
   darkMode: boolean
+  themeMode: ThemeMode
   devMode: boolean
-  navigationMode: boolean
   landingPage: string[]
   datasets: {
     structured: boolean

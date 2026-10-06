@@ -20,7 +20,7 @@ metadata:
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
-    kubernetes.io/ingress.class: traefik
+    kubernetes.io/ingress.class: kaapana
 spec:
   rules:
   - host: {{ .Values.global.hostname }}

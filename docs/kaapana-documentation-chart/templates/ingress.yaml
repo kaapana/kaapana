@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/component: nginx
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    kubernetes.io/ingress.class: traefik
+    kubernetes.io/ingress.class: kaapana
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:

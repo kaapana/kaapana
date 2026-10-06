@@ -22,7 +22,7 @@ metadata:
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/preserve-host: "true"
-    kubernetes.io/ingress.class: traefik
+    kubernetes.io/ingress.class: kaapana
 spec:
   rules:
   - host: {{ .Values.global.hostname }}

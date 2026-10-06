@@ -31,7 +31,7 @@ metadata:
   namespace: "{{  .Values.global.admin_namespace  }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    kubernetes.io/ingress.class: traefik
+    kubernetes.io/ingress.class: kaapana
     traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.admin_namespace  }}-kh-strip-prefix@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:

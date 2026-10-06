@@ -29,7 +29,7 @@ metadata:
   namespace: "{{ tpl .Values.global.namespace . }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    kubernetes.io/ingress.class: traefik
+    kubernetes.io/ingress.class: kaapana
     traefik.ingress.kubernetes.io/router.middlewares: {{ tpl .Values.global.namespace . }}-cs-strip-prefix-{{ .Release.Name }}@kubernetescrd
     traefik.ingress.kubernetes.io/preserve-host: "true"
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"

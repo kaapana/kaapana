@@ -5,7 +5,7 @@ metadata:
   namespace: "{{  .Values.global.helm_namespace  }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    kubernetes.io/ingress.class: traefik
+    kubernetes.io/ingress.class: kaapana
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:
@@ -36,7 +36,7 @@ metadata:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.helm_namespace  }}-traefik-redirect@kubernetescrd,{{  .Values.global.helm_namespace  }}-traefik-strip-prefix@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
-    kubernetes.io/ingress.class: traefik
+    kubernetes.io/ingress.class: kaapana
 spec:
 
   rules:

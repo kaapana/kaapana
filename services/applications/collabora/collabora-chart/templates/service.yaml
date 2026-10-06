@@ -70,7 +70,7 @@ metadata:
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/preserve-host: "true"
-    kubernetes.io/ingress.class: traefik
+    kubernetes.io/ingress.class: kaapana
     # traefik.ingress.kubernetes.io/router.middlewares: {{ tpl .Values.global.namespace . }}-collabora-wopi-redirect-workaround@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
@@ -95,7 +95,7 @@ metadata:
     app.kubernetes.io/name: {{ .Release.Name }}
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    kubernetes.io/ingress.class: traefik
+    kubernetes.io/ingress.class: kaapana
     traefik.ingress.kubernetes.io/preserve-host: "true"
     traefik.ingress.kubernetes.io/router.middlewares: {{ tpl .Values.global.namespace . }}-strip-prefix-{{ .Release.Name }}-wopi@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"

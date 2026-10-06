@@ -47,6 +47,9 @@ metadata:
   name: keycloak-ingress-ip
   namespace: "{{  .Values.global.admin_namespace  }}"
   annotations:  
+    {{- if not .Values.global.external_ingress }}
+    kubernetes.io/ingress.class: kaapana
+    {{- end }}
     {{- if or (eq .Values.global.external_ingress "traefik") (not .Values.global.external_ingress) }}
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     {{- end }}

@@ -1,7 +1,7 @@
 <template>
     <v-col>
         <!-- ── Launch dialog ───────────────────────────────────────── -->
-        <v-dialog v-model="isLaunchAppDialogOpen" max-width="1000">
+        <v-dialog v-model="isLaunchAppDialogOpen" max-width="600">
             <LaunchApplication
                 v-if="selectedApplication"
                 :extension="selectedApplication"
@@ -68,8 +68,8 @@
                 <template #item.name="{ item }">
                     <span class="font-weight-medium">{{ item.annotations['ui-visible-name'] }}</span>
 
-                    <!-- DOCUMENTATION LINK TOOLTIP -->
                     <v-tooltip
+                        v-if="item.annotations.documentation"
                         location="bottom"
                         text="Open the documentation in a new tab"
                     >
@@ -93,14 +93,9 @@
                 <template #item.description="{ item }">
                     <v-tooltip location="bottom">
                         <template #activator="{ props }">
-                            <div v-bind="props">
-                                <span>
-                                    {{ item.description.length > 28
-                                        ? item.description.slice(0, 28) + "..."
-                                        : item.description
-                                        }}
-                                </span>
-                            </div>
+                            <span v-bind="props" class="d-inline-block text-truncate pm-description">
+                                {{ item.description }}
+                            </span>
                         </template>
 
                         <span>{{ item.description }}</span>
@@ -118,7 +113,8 @@
                                     color="primary"
                                     variant="text"
                                     :prepend-icon="kaapanaIcons.start"
-                                    :disabled="!can(project?.id, 'launch_application', item.releaseName)"
+                                    :loading="isLaunching && selectedApplication?.releaseName === item.releaseName"
+                                    :disabled="isLaunching || !can(project?.id, 'launch_application', item.releaseName)"
                                     @click="onLaunchApplication(item)"
                                 >
                                     Launch
@@ -174,12 +170,15 @@ import LaunchApplication from '@/components/LaunchApplication.vue'
 interface Extension {
     releaseName: string;
     annotations: {
-        "ui-visible-name": string;
-        documentation?: string;
-    };
-    description: string;
-    version: string;
-    keywords: string[];
+        'ui-visible-name': string
+        documentation?: string
+    }
+    description?: string
+    version: string
+    keywords: string[]
+    // The backend reports a param-less extension as the literal string "null";
+    // no config form then — install directly.
+    extension_params?: Record<string, unknown> | 'null' | null
 }
 
 interface Props {
@@ -190,8 +189,9 @@ interface Props {
 const props = defineProps<Props>();
 
 const emit = defineEmits<{
-    (e: 'toggle', value: boolean): void;
-}>();
+    (e: 'toggle', value: boolean): void
+    (e: 'launched'): void
+}>()
 
 const { can } = usePermissions();
 const permissionsStore = usePermissionsStore();
@@ -281,8 +281,15 @@ const filteredExtensions = computed(() => {
 
 // ── Methods ────────────────────────────────────────────────────────────────
 
+const hasParameters = (item: Extension) =>
+    !!item.extension_params && item.extension_params !== 'null' && Object.keys(item.extension_params).length > 0
+
 const onLaunchApplication = (item: Extension) => {
     selectedApplication.value = item;
+    if (!hasParameters(item)) {
+        onApplicationLaunched({ extension: item, values: {} })
+        return
+    }
     isLaunchAppDialogOpen.value = true;
 };
 
@@ -297,6 +304,9 @@ const onApplicationLaunched = async ({ extension, values }: { extension: any; va
     try {
         await kubeHelmPost('helm-install-chart', payload)
         notify({ type: 'success', text: `${extension.annotations['ui-visible-name']} is starting.` })
+        emit('launched')
+        isLaunchAppDialogOpen.value = false
+        selectedApplication.value = null
     } catch (error) {
         notifyFailure(
             'Application not launched',
@@ -306,9 +316,7 @@ const onApplicationLaunched = async ({ extension, values }: { extension: any; va
     } finally {
         isLaunching.value = false
     }
-    isLaunchAppDialogOpen.value = false;
-    selectedApplication.value = null;
-};
+}
 
 const getFullEndpoint = (path: string) => {
     return `${window.location.origin}${path}`;
@@ -318,9 +326,15 @@ const loadExtensions = async () => {
     if (!props.project?.id) return
     loadError.value = null
     try {
-        isLoading.value = true;
-        const extensions = await kubeHelmGet('extensions');
-        const multiinstallable = extensions.filter((item: any) => item.multiinstallable === 'yes');
+        isLoading.value = true
+        // Without the whitelist the "Allowed" column would show every application
+        // as not allowed, and saving would replace the whitelist with only the
+        // staged changes.
+        const [extensions] = await Promise.all([
+            kubeHelmGet('extensions'),
+            permissionsStore.loadProjectWhitelist(props.project.id),
+        ])
+        const multiinstallable = extensions.filter((item: any) => item.multiinstallable === 'yes')
         
         multiinstallableExtensions.value = multiinstallable.filter((item: any) => item.installed === 'no');
     } catch (error) {
@@ -364,3 +378,9 @@ const extensionTableHeaders = [
     },
 ]
 </script>
+
+<style scoped>
+.pm-description {
+    max-width: 28ch;
+}
+</style>

@@ -1,5 +1,5 @@
 <template>
-    <v-dialog v-model="dialog" max-width="1200px">
+    <v-dialog v-model="dialog" max-width="900">
         <v-card title="Application Parameters">
             <v-card-text>
                 <v-alert v-if="!extensionParams || Object.keys(extensionParams).length === 0" type="info" class="mb-0">

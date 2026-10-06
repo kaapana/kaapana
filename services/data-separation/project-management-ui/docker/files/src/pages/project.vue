@@ -124,8 +124,13 @@
 
         <!-- ── Multiinstallable Applications ────────────────────────── -->
         <v-row>
-          <MultiinstallableApplications :key="`apps-${refreshKey}`" :project="project" :expanded="isAppsSectionExpanded"
-            @toggle="isAppsSectionExpanded = $event" />
+          <MultiinstallableApplications
+            :key="`apps-${refreshKey}`"
+            :project="project"
+            :expanded="isAppsSectionExpanded"
+            @toggle="isAppsSectionExpanded = $event"
+            @launched="activeAppsKey++"
+          />
         </v-row>
       </template>
 
@@ -135,7 +140,7 @@
         <!-- ── Active Project Applications ──────────────────────────── -->
         <v-row>
           <ActiveProjectApplications
-            :key="`active-${refreshKey}`"
+            :key="`active-${refreshKey}-${activeAppsKey}`"
             :project="project"
             :expanded="isActiveAppsSectionExpanded"
             @toggle="isActiveAppsSectionExpanded = $event"
@@ -225,6 +230,7 @@ export default defineComponent({
       isActiveAppsSectionExpanded: false,
 
       refreshKey: 0,
+      activeAppsKey: 0,
       loadError: null as unknown,
 
       busy: null as 'delete' | 'archive' | 'unarchive' | null,
@@ -269,7 +275,11 @@ export default defineComponent({
         const project: ProjectItem = await aiiApiGet(`projects/${this.projectId}`)
         this.project = project
         setScopedProject(project)
-        usePermissionsStore().loadProjectWhitelist(this.projectId)
+        // Only narrows which application actions are offered; kube-helm checks the
+        // whitelist itself, and the application section reports its own load failure.
+        usePermissionsStore()
+          .loadProjectWhitelist(this.projectId)
+          .catch(() => undefined)
       } catch (error) {
         this.loadError = error
       }
@@ -279,12 +289,15 @@ export default defineComponent({
       this.uninstallingRelease = app.release_name
       try {
         await kubeHelmPost('helm-delete-chart', { release_name: app.release_name })
-        notify({ type: 'success', text: `Application "${app.release_name}" uninstalled.` })
+        notify({
+          type: 'success',
+          text: `${app.annotations['kaapana.ai/display-name']} is being removed.`,
+        })
         await this.refresh()
       } catch (error: unknown) {
         notifyFailure(
           'Application not uninstalled',
-          `Could not uninstall "${app.release_name}".`,
+          `Could not uninstall ${app.annotations['kaapana.ai/display-name']}.`,
           error,
         )
       } finally {

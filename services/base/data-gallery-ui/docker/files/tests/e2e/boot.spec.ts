@@ -52,6 +52,24 @@ test('renders the series gallery from typical data', async ({ page }) => {
   await expect(page.getByText('3 selected')).toBeVisible()
 })
 
+// base-ui ships its component styles as one stylesheet each view must import;
+// a missing import throws nothing, it just leaves base-ui components unstyled.
+// The error-details grid rule stands in for the whole sheet.
+test("loads base-ui's component stylesheet", async ({ page }) => {
+  await openGallery(page)
+  const loaded = await page.evaluate(() =>
+    [...document.styleSheets].some((sheet) =>
+      [...sheet.cssRules].some(
+        (rule) =>
+          rule instanceof CSSStyleRule &&
+          rule.selectorText.startsWith('.kaapana-error-details') &&
+          rule.style.display === 'grid',
+      ),
+    ),
+  )
+  expect(loaded, "src/main.ts must import '@kaapana/base-ui/style.css'").toBe(true)
+})
+
 test('series cards fill their grid column', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 1000 })
   await openGallery(page)

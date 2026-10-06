@@ -34,43 +34,65 @@
                 >
                 <template #item="{ item }">
                     <tr>
-                        <td><v-icon>mdi-application-outline</v-icon></td>
-                        <td>{{ item.annotations["kaapana.ai/display-name"] }}</td>
+                        <td><v-icon :icon="projectIcons.application" /></td>
+                        <td>{{ item.annotations['kaapana.ai/display-name'] }}</td>
                         <td>{{ installedExtensionsByReleaseName[item.release_name]?.helmStatus }}</td>
                         <td class="text-center">
-                            <v-btn
+                            <v-tooltip
                                 v-if="item.values && Object.keys(item.values).length > 0"
-                                
-                                icon="mdi-information"
-                                color="primary"
-                                variant="text"
-                                @click="showParameters(item)"
-                            />
+                                text="Show parameters"
+                                location="top"
+                            >
+                                <template #activator="{ props }">
+                                    <v-btn
+                                        v-bind="props"
+                                        :icon="kaapanaIcons.info"
+                                        :aria-label="`Parameters of ${item.annotations['kaapana.ai/display-name']}`"
+                                        color="primary"
+                                        variant="text"
+                                        @click="showParameters(item)"
+                                    />
+                                </template>
+                            </v-tooltip>
                         </td>
                         <td class="text-center">
                             <div class="d-flex justify-center ga-2">
-                                <a
+                                <v-tooltip
                                     v-for="path in item.paths"
                                     :key="path"
-                                    :href="getFullEndpoint(path)"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
+                                    text="Open in a new tab"
+                                    location="top"
                                 >
-                                    <v-icon size="large" color="primary">mdi-open-in-new</v-icon>
-                                </a>
+                                    <template #activator="{ props }">
+                                        <v-btn
+                                            v-bind="props"
+                                            :icon="kaapanaIcons.externalLink"
+                                            :href="getFullEndpoint(path)"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            :aria-label="`Open ${item.annotations['kaapana.ai/display-name']} in a new tab`"
+                                            color="primary"
+                                            variant="text"
+                                        />
+                                    </template>
+                                </v-tooltip>
                             </div>
                         </td>
                         <td class="text-center">
                             <v-tooltip
-                                text="Not whitelisted for this project. Only admins can uninstall this."
-                                :disabled="can(project?.id, 'delete_active_apps', item.release_name)"
+                                :text="
+                                    can(project?.id, 'delete_active_apps', item.release_name)
+                                        ? 'Uninstall application'
+                                        : 'Not whitelisted for this project. Only admins can uninstall this.'
+                                "
                                 location="top"
                             >
                                 <template #activator="{ props }">
                                     <span v-bind="props">
                                         <v-btn
                                             density="default"
-                                            icon="mdi-trash-can"
+                                            :icon="kaapanaIcons.delete"
+                                            :aria-label="`Uninstall ${item.annotations['kaapana.ai/display-name']}`"
                                             color="error"
                                             variant="text"
                                             :disabled="!can(project?.id, 'delete_active_apps', item.release_name)"
@@ -88,7 +110,7 @@
                 <v-sheet rounded v-else class="mt-4">
                     <v-container>
                         <v-row align="center" justify="center" no-gutters>
-                            <v-icon icon="mdi-information" size="x-large" color="medium-emphasis"></v-icon>
+                            <v-icon :icon="kaapanaIcons.info" size="x-large" color="medium-emphasis"></v-icon>
                         </v-row>
                         <v-row align="center" justify="center" no-gutters class="py-6">
                             <div class="text-subtitle-1 font-weight-light text-center">
@@ -135,12 +157,13 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted, watch } from 'vue';
-import { kubeHelmGet } from '@/common/services';
-import SearchBar from '@/components/SearchBar.vue';
-import SectionHeader from '@/components/SectionHeader.vue';
-import ApplicationParametersDialog from './ApplicationParametersDialog.vue';
-import { usePermissions } from '@/permissions/usePermissions';
+import { kaapanaIcons, projectIcons } from '@/utils/projectIcons'
+import { ref, computed, onMounted, watch } from 'vue'
+import { kubeHelmGet } from '@/common/services'
+import SearchBar from '@/components/SearchBar.vue'
+import SectionHeader from '@/components/SectionHeader.vue'
+import ApplicationParametersDialog from './ApplicationParametersDialog.vue'
+import { usePermissions } from '@/permissions/usePermissions'
 
 interface ActiveApplication {
     release_name: string;

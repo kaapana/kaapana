@@ -1,6 +1,6 @@
 <template>
     <v-card title="Create New Project">
-      <template #prepend><v-icon color="primary">mdi-plus-box</v-icon></template>
+        <template #prepend><v-icon color="primary" :icon="kaapanaIcons.add" /></template>
 
         <v-card-text>
             <v-container>
@@ -39,12 +39,11 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from 'vue';
-import { aiiApiPost } from '@/common/services';
-import { refreshShell } from '@/common/shell';
-import { projectNameRules } from '@/common/validation';
-
-
+import { kaapanaIcons } from '@/utils/projectIcons'
+import { ref, computed } from 'vue'
+import { aiiApiPost } from '@/common/services'
+import { refreshShell } from '@/common/shell'
+import { projectNameRules } from '@/common/validation'
 
 const props = defineProps({
     oncancel: {

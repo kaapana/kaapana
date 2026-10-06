@@ -5,10 +5,10 @@
 
   <v-container fluid class="pm-view">
     <div class="d-flex justify-space-between mb-2">
-      <v-btn variant="text" prepend-icon="mdi-arrow-left" @click="goToProjectsList">
+      <v-btn variant="text" :prepend-icon="projectIcons.back" @click="goToProjectsList">
         Projects
       </v-btn>
-      <v-btn variant="text" prepend-icon="mdi-refresh" @click="refresh">Refresh</v-btn>
+      <v-btn variant="text" :prepend-icon="kaapanaIcons.refresh" @click="refresh">Refresh</v-btn>
     </div>
 
     <v-row>
@@ -25,36 +25,58 @@
           </div>
           <v-skeleton-loader v-else :loading="!project" type="heading" width="200" />
           <div v-if="userHasAdminAccess && project?.name !== 'admin'" class="d-flex ga-1">
-            <v-btn
-              icon="mdi-pencil"
-              size="default"
-              variant="text"
-              color="primary"
-              @click="openEditDialog"
-            />
-            <v-btn
-              v-if="!project?.is_archived"
-              icon="mdi-archive-arrow-down"
-              size="default"
-              variant="text"
-              color="primary"
-              @click="archiveDialog = true"
-            />
-            <v-btn
-              v-if="project?.is_archived"
-              icon="mdi-archive-arrow-up"
-              size="default"
-              variant="text"
-              color="primary"
-              @click="unarchiveProject"
-            />
-            <v-btn
-              icon="mdi-trash-can"
-              size="default"
-              variant="text"
-              color="error"
-              @click="openDeleteDialog"
-            />
+            <v-tooltip text="Edit project" location="top">
+              <template #activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  :icon="kaapanaIcons.edit"
+                  aria-label="Edit project"
+                  size="default"
+                  variant="text"
+                  color="primary"
+                  @click="openEditDialog"
+                />
+              </template>
+            </v-tooltip>
+            <v-tooltip v-if="!project?.is_archived" text="Archive project" location="top">
+              <template #activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  :icon="projectIcons.archive"
+                  aria-label="Archive project"
+                  size="default"
+                  variant="text"
+                  color="primary"
+                  @click="archiveDialog = true"
+                />
+              </template>
+            </v-tooltip>
+            <v-tooltip v-if="project?.is_archived" text="Unarchive project" location="top">
+              <template #activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  :icon="projectIcons.unarchive"
+                  aria-label="Unarchive project"
+                  size="default"
+                  variant="text"
+                  color="primary"
+                  @click="unarchiveProject"
+                />
+              </template>
+            </v-tooltip>
+            <v-tooltip text="Delete project" location="top">
+              <template #activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  :icon="kaapanaIcons.delete"
+                  aria-label="Delete project"
+                  size="default"
+                  variant="text"
+                  color="error"
+                  @click="openDeleteDialog"
+                />
+              </template>
+            </v-tooltip>
           </div>
         </div>
         <v-alert v-if="project?.is_archived" type="warning" density="compact" variant="tonal" class="mb-3">
@@ -121,19 +143,26 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
-import { aiiApiGet, aiiApiPost, aiiApiDelete, kubeHelmPost, setScopedProject } from '@/common/services';
-import { ProjectItem } from '@/common/types';
-import ProjectUsers from '@/components/ProjectUsers.vue';
-import ProjectWorkflows from '@/components/ProjectWorkflows.vue';
-import MultiinstallableApplications from '@/components/MultiinstallableApplications.vue';
-import ActiveProjectApplications from '@/components/ActiveProjectApplications.vue';
-import DeleteProjectDialog from '@/components/DeleteProjectDialog.vue';
-import EditProjectDialog from '@/components/EditProjectDialog.vue';
-import ArchiveProjectDialog from '@/components/ArchiveProjectDialog.vue';
-import { usePermissions } from '@/permissions/usePermissions';
-import { usePermissionsStore } from '@/permissions/permissions.store';
-import { isAdminUser, waitForStoreUser } from '@/common/userAccess';
+import { kaapanaIcons, projectIcons } from '@/utils/projectIcons'
+import { defineComponent } from 'vue'
+import {
+  aiiApiGet,
+  aiiApiPost,
+  aiiApiDelete,
+  kubeHelmPost,
+  setScopedProject,
+} from '@/common/services'
+import { ProjectItem } from '@/common/types'
+import ProjectUsers from '@/components/ProjectUsers.vue'
+import ProjectWorkflows from '@/components/ProjectWorkflows.vue'
+import MultiinstallableApplications from '@/components/MultiinstallableApplications.vue'
+import ActiveProjectApplications from '@/components/ActiveProjectApplications.vue'
+import DeleteProjectDialog from '@/components/DeleteProjectDialog.vue'
+import EditProjectDialog from '@/components/EditProjectDialog.vue'
+import ArchiveProjectDialog from '@/components/ArchiveProjectDialog.vue'
+import { usePermissions } from '@/permissions/usePermissions'
+import { usePermissionsStore } from '@/permissions/permissions.store'
+import { isAdminUser, waitForStoreUser } from '@/common/userAccess'
 
 export default defineComponent({
   components: {
@@ -147,8 +176,8 @@ export default defineComponent({
   },
 
   setup() {
-    const { can } = usePermissions();
-    return { can };
+    const { can } = usePermissions()
+    return { kaapanaIcons, projectIcons, can }
   },
 
   data() {

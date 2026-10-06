@@ -18,7 +18,7 @@
           item-title="username"
           label="Search and select users"
           placeholder="Type to search..."
-          prepend-inner-icon="mdi-account-search-outline"
+          :prepend-inner-icon="projectIcons.searchUser"
           multiple
           clearable
           no-data-text="No users found"
@@ -27,14 +27,14 @@
         >
           <template #selection="{ item }">
             <v-chip size="small" class="mr-1">
-              <v-icon icon="mdi-account-circle" size="18" />
+              <v-icon :icon="kaapanaIcons.account" size="18" />
               <span class="ml-1">{{ item.raw.username }}</span>
             </v-chip>
           </template>
           <template #item="{ props, item }">
             <v-list-item v-bind="props" class="py-3">
               <template #prepend>
-                <v-icon icon="mdi-account-circle" color="primary" />
+                <v-icon :icon="kaapanaIcons.account" color="primary" />
               </template>
               <v-list-item-title>{{ item.raw.first_name }} {{ item.raw.last_name }}</v-list-item-title>
               <v-list-item-subtitle>
@@ -50,7 +50,7 @@
           size="x-small"
           variant="text"
           :color="showSystemUsers ? 'warning' : 'medium-emphasis'"
-          :prepend-icon="showSystemUsers ? 'mdi-robot-off' : 'mdi-robot'"
+          :prepend-icon="projectIcons.systemUsers"
           class="mb-2"
           @click="showSystemUsers = !showSystemUsers; loadAvailableUsers()"
         >
@@ -58,7 +58,7 @@
         </v-btn>
 
         <p v-if="selectedUserIds.length > 0" class="text-body-2 text-medium-emphasis">
-          <v-icon size="14" class="mr-1">mdi-information-outline</v-icon>
+          <v-icon size="14" class="mr-1" :icon="kaapanaIcons.info" />
           {{ selectedUserIds.length }} user{{ selectedUserIds.length > 1 ? 's' : '' }} selected
         </p>
       </template>
@@ -79,7 +79,7 @@
                 <div class="text-subtitle-2 font-weight-medium">{{ role.name }}</div>
                 <div class="text-body-2 text-medium-emphasis">{{ role.description }}</div>
               </div>
-              <v-icon v-if="isSelected" color="primary">mdi-check-circle</v-icon>
+              <v-icon v-if="isSelected" color="primary" :icon="kaapanaIcons.success" />
             </v-card-text>
           </v-card>
         </v-item>
@@ -101,19 +101,15 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted } from 'vue';
-import { UserItem, UserRole } from '@/common/types';
-import { aiiApiGet, aiiApiPost, aiiApiPut } from '@/common/services';
-import { isAdminUser, isSystemUser, waitForStoreUser } from '@/common/userAccess';
+import { kaapanaIcons, projectIcons, roleIcons } from '@/utils/projectIcons'
+import { ref, computed, onMounted } from 'vue'
+import { UserItem, UserRole } from '@/common/types'
+import { aiiApiGet, aiiApiPost, aiiApiPut } from '@/common/services'
+import { isAdminUser, isSystemUser, waitForStoreUser } from '@/common/userAccess'
 
 interface Role { id: number; name: string; description: string; }
 
-const ROLE_ICONS: Record<string, string> = {
-  'principal-investigator': 'mdi-shield-account',
-  'scientist': 'mdi-flask-outline',
-  'admin': 'mdi-shield-crown',
-};
-const roleIcon = (name: string) => ROLE_ICONS[name] ?? 'mdi-account-circle';
+const roleIcon = (name: string) => roleIcons[name] ?? kaapanaIcons.account
 
 interface ProjectRef { id?: string; name?: string; }
 

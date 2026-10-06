@@ -1,5 +1,5 @@
 <template>
-  <v-card title="Edit Project" prepend-icon="mdi-pencil">
+  <v-card title="Edit Project" :prepend-icon="kaapanaIcons.edit">
     <v-card-text>
       <v-container>
         <v-row><v-col>
@@ -22,12 +22,16 @@
 </template>
 
 <script lang="ts">
+import { kaapanaIcons } from '@/utils/projectIcons'
 import { defineComponent, PropType } from 'vue'
 import { aiiApiPut } from '@/common/services'
 import { ProjectItem } from '@/common/types'
 import { projectNameRules } from '@/common/validation'
 
 export default defineComponent({
+  setup() {
+    return { kaapanaIcons }
+  },
   props: {
     project: { type: Object as PropType<ProjectItem>, required: true },
   },

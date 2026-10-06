@@ -32,7 +32,7 @@
                         :disabled="pendingCount === 0 || isSaving"
                         :loading="isSaving"
                         color="primary"
-                        prepend-icon="mdi-content-save"
+                        :prepend-icon="kaapanaIcons.save"
                         @click="saveChanges"
                     >
                         Save Changes
@@ -61,7 +61,7 @@
                 >
                     <template #item.icon>
                         <td>
-                            <v-icon icon="mdi-gamepad-variant" />
+                            <v-icon :icon="projectIcons.workflow" />
                         </td>
                     </template>
 
@@ -89,10 +89,8 @@
                 <!-- Empty state -->
                 <v-sheet v-else rounded class="mt-4">
                     <v-container class="text-center py-8">
-                        <v-icon icon="mdi-gamepad-variant-outline" size="x-large" color="medium-emphasis" />
-                        <div class="text-subtitle-1 text-medium-emphasis mt-4">
-                            No workflows available
-                        </div>
+                        <v-icon :icon="projectIcons.workflow" size="x-large" color="medium-emphasis" />
+                        <div class="text-subtitle-1 text-medium-emphasis mt-4">No workflows available</div>
                     </v-container>
                 </v-sheet>
             </div>
@@ -101,12 +99,13 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted, watch } from 'vue';
-import { usePermissions } from '@/permissions/usePermissions';
-import { aiiApiDelete, aiiApiGet, aiiApiPost, kaapanaBackendGetDags } from '@/common/services';
-import SearchBar from '@/components/SearchBar.vue';
-import SectionHeader from '@/components/SectionHeader.vue';
-import type { Software } from '@/common/types';
+import { kaapanaIcons, projectIcons } from '@/utils/projectIcons'
+import { ref, computed, onMounted, watch } from 'vue'
+import { usePermissions } from '@/permissions/usePermissions'
+import { aiiApiDelete, aiiApiGet, aiiApiPost, kaapanaBackendGetDags } from '@/common/services'
+import SearchBar from '@/components/SearchBar.vue'
+import SectionHeader from '@/components/SectionHeader.vue'
+import type { Software } from '@/common/types'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 

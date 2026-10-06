@@ -8,18 +8,22 @@
       <div v-if="userHasAdminAccess" class="d-flex flex-wrap ga-2">
         <v-btn
           variant="outlined"
-          prepend-icon="mdi-shield-key"
+          :prepend-icon="projectIcons.roleRights"
           @click="$router.push('/role-rights')"
         >
           Edit Role Rights
         </v-btn>
-        <v-btn color="primary" prepend-icon="mdi-plus" @click="projectDialog = true">
+        <v-btn color="primary" :prepend-icon="kaapanaIcons.add" @click="projectDialog = true">
           Create New Project
         </v-btn>
       </div>
     </div>
 
-    <v-alert density="compact" class="mb-4" v-model="error" icon="mdi-alert-circle"
+    <v-alert
+      density="compact"
+      class="mb-4"
+      v-model="error"
+      :icon="kaapanaIcons.error"
       text="Some error happened while creating the project. Please try again with different inputs."
       title="Project could not be created" type="error" prominent closable />
 
@@ -27,7 +31,7 @@
       <v-toolbar color="surface-light" flat density="comfortable">
         <v-text-field
           v-model="search"
-          prepend-inner-icon="mdi-magnify"
+          :prepend-inner-icon="kaapanaIcons.search"
           label="Search projects"
           variant="outlined"
           density="compact"
@@ -55,7 +59,7 @@
           <v-btn
             color="primary"
             variant="text"
-            append-icon="mdi-arrow-right"
+            :append-icon="projectIcons.open"
             @click.stop="goToProjects(item.id)"
           >
             View
@@ -64,37 +68,58 @@
 
         <template v-if="userHasAdminAccess" #item.actions="{ item }">
           <template v-if="item.name !== 'admin'">
-            <v-btn
-              v-if="!item.is_archived"
-              icon="mdi-pencil"
-              size="default"
-              variant="text"
-              color="primary"
-              @click.stop="openEditDialog(item)"
-            />
-            <v-btn
-              v-if="!item.is_archived"
-              icon="mdi-archive-arrow-down"
-              size="default"
-              variant="text"
-              color="primary"
-              @click.stop="openArchiveDialog(item)"
-            />
-            <v-btn
-              v-if="item.is_archived"
-              icon="mdi-archive-arrow-up"
-              size="default"
-              variant="text"
-              color="primary"
-              @click.stop="unarchiveItem(item)"
-            />
-            <v-btn
-              icon="mdi-trash-can"
-              size="default"
-              variant="text"
-              color="error"
-              @click.stop="openDeleteDialog(item)"
-            />
+            <v-tooltip v-if="!item.is_archived" text="Edit project" location="top">
+              <template #activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  :icon="kaapanaIcons.edit"
+                  :aria-label="`Edit ${item.name}`"
+                  size="default"
+                  variant="text"
+                  color="primary"
+                  @click.stop="openEditDialog(item)"
+                />
+              </template>
+            </v-tooltip>
+            <v-tooltip v-if="!item.is_archived" text="Archive project" location="top">
+              <template #activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  :icon="projectIcons.archive"
+                  :aria-label="`Archive ${item.name}`"
+                  size="default"
+                  variant="text"
+                  color="primary"
+                  @click.stop="openArchiveDialog(item)"
+                />
+              </template>
+            </v-tooltip>
+            <v-tooltip v-if="item.is_archived" text="Unarchive project" location="top">
+              <template #activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  :icon="projectIcons.unarchive"
+                  :aria-label="`Unarchive ${item.name}`"
+                  size="default"
+                  variant="text"
+                  color="primary"
+                  @click.stop="unarchiveItem(item)"
+                />
+              </template>
+            </v-tooltip>
+            <v-tooltip text="Delete project" location="top">
+              <template #activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  :icon="kaapanaIcons.delete"
+                  :aria-label="`Delete ${item.name}`"
+                  size="default"
+                  variant="text"
+                  color="error"
+                  @click.stop="openDeleteDialog(item)"
+                />
+              </template>
+            </v-tooltip>
           </template>
         </template>
       </v-data-table>
@@ -118,17 +143,18 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from "vue";
-import CreateNewProjectForm from "@/components/CreateNewProjectForm.vue";
-import EditProjectDialog from "@/components/EditProjectDialog.vue";
-import DeleteProjectDialog from "@/components/DeleteProjectDialog.vue";
-import ArchiveProjectDialog from "@/components/ArchiveProjectDialog.vue";
-import { aiiApiGet, aiiApiDelete, aiiApiPost } from "@/common/services";
-import { refreshShell } from "@/common/shell";
-import { ProjectItem, UserItem } from "@/common/types";
-import { isAdminUser, waitForStoreUser } from "@/common/userAccess";
-import { useSnackbar } from "@/composables/useSnackbar";
-import store from "@/common/store";
+import { kaapanaIcons, projectIcons } from '@/utils/projectIcons'
+import { defineComponent } from 'vue'
+import CreateNewProjectForm from '@/components/CreateNewProjectForm.vue'
+import EditProjectDialog from '@/components/EditProjectDialog.vue'
+import DeleteProjectDialog from '@/components/DeleteProjectDialog.vue'
+import ArchiveProjectDialog from '@/components/ArchiveProjectDialog.vue'
+import { aiiApiGet, aiiApiDelete, aiiApiPost } from '@/common/services'
+import { refreshShell } from '@/common/shell'
+import { ProjectItem, UserItem } from '@/common/types'
+import { isAdminUser, waitForStoreUser } from '@/common/userAccess'
+import { useSnackbar } from '@/composables/useSnackbar'
+import store from '@/common/store'
 
 export default defineComponent({
   components: {
@@ -139,8 +165,8 @@ export default defineComponent({
   },
   props: {},
   setup() {
-    const { showSnackbar, snackbarText, snackbarColor, notify } = useSnackbar();
-    return { showSnackbar, snackbarText, snackbarColor, notify };
+    const { showSnackbar, snackbarText, snackbarColor, notify } = useSnackbar()
+    return { kaapanaIcons, projectIcons, showSnackbar, snackbarText, snackbarColor, notify }
   },
   data() {
     return {

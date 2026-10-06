@@ -9,8 +9,13 @@
                 @click="emit('toggle', !expanded)"
             >
                 <!-- icon -->
-                <v-btn :icon="expanded ? 'mdi-chevron-down' : 'mdi-chevron-right'" variant="text"
-                    @click.stop="emit('toggle', !expanded)" />
+                <v-btn
+                    :icon="expanded ? projectIcons.collapse : kaapanaIcons.expand"
+                    :aria-label="expanded ? 'Collapse section' : 'Expand section'"
+                    :aria-expanded="expanded"
+                    variant="text"
+                    @click.stop="emit('toggle', !expanded)"
+                />
 
                 <!-- TITLE -->
                 <h2 class="text-h5 py-4 ml-2">
@@ -32,6 +37,7 @@
 </template>
 
 <script setup lang="ts">
+import { kaapanaIcons, projectIcons } from '@/utils/projectIcons'
 defineProps<{
     expanded: boolean
 }>()

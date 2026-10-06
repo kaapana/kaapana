@@ -66,6 +66,26 @@ test('uninstall confirms what is removed, then reports that it started', async (
   await expect(dialog(page).getByTestId('status').first()).toContainText('Uninstalling')
 })
 
+test('an extension whose repository was removed can still be uninstalled', async ({ page }) => {
+  const data = defaultMockData()
+  data.extensions[0].repository_id = null
+  await openView(page, 'extensions', data)
+
+  await expect(card(page, 'totalsegmentator')).toContainText('Repository removed')
+  await card(page, 'totalsegmentator').click()
+  await expect(dialog(page)).toContainText('Repository removed')
+  await dialog(page).getByTestId('uninstall').click()
+
+  const confirm = dialog(page)
+  await expect(confirm).toContainText('Version 2.0.0 and')
+  await expect(confirm).not.toContainText('from Repository removed')
+
+  const request = nextRequest(page, `/extensions/${TOTALSEG_ID}/uninstall`, 'POST')
+  await confirmAction(page, 'Uninstall extension')
+  await request
+  await expect(toasts(page).filter({ hasText: 'Uninstall started' })).toBeVisible()
+})
+
 test('dismissing the confirmation uninstalls nothing', async ({ page }) => {
   await openView(page, 'extensions')
   const uninstalls = countRequests(page, `/extensions/${TOTALSEG_ID}/uninstall`, 'POST')

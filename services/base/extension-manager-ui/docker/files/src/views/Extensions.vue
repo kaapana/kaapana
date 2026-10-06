@@ -10,7 +10,12 @@ import { usePolling } from '@/shared/composables/usePolling'
 import { useFailureDetailsStore, type FailureDetails } from '@/shared/stores/failureDetails'
 import type { InstalledExtension, Repository } from '@/shared/types/apiSchemas'
 import { notifyFailure, notifySuccess } from '@/shared/utils/notify'
-import { isChanging, plural, presentExtensionStatus } from '@/shared/utils/status'
+import {
+  isChanging,
+  plural,
+  presentExtensionStatus,
+  REMOVED_REPOSITORY,
+} from '@/shared/utils/status'
 
 const failureDetails = useFailureDetailsStore()
 
@@ -25,11 +30,10 @@ const uninstalling = ref(false)
 const selectedExtension = computed(
   () => installedExtensions.value.find((extension) => extension.id === selectedId.value) ?? null,
 )
-const selectedRepository = computed(() =>
-  selectedExtension.value
-    ? (repositories.value[selectedExtension.value.repository_id] ?? null)
-    : null,
-)
+const selectedRepository = computed(() => {
+  const repositoryId = selectedExtension.value?.repository_id
+  return repositoryId ? (repositories.value[repositoryId] ?? null) : null
+})
 const activeCount = computed(
   () => installedExtensions.value.filter((extension) => extension.status !== 'uninstalled').length,
 )
@@ -39,7 +43,8 @@ const anyTransitional = computed(() =>
 
 usePolling(() => loadInstalledExtensions(), anyTransitional)
 
-function repositoryName(repositoryId: string): string {
+function repositoryName(repositoryId: string | null): string {
+  if (!repositoryId) return REMOVED_REPOSITORY
   return repositories.value[repositoryId]?.name ?? repositoryId
 }
 

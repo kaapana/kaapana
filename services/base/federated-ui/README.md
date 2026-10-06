@@ -28,8 +28,8 @@ Sourced from `src/` and `tests/e2e`:
   neutral *Never updated* for a remote that has not reported yet). Values are
   stated in text (*Yes*/*No*, *Deactivated*, *None*), not by colour alone.
 - **Edit in place** — one field at a time per card: pencil → field with Save and
-  Cancel; Enter saves. Remote cards edit network port, token, Fernet key and SSL
-  verification; the local card edits Fernet encryption, SSL verification,
+  Cancel; Enter saves. Remote cards edit network port, token, Fernet key, SSL
+  verification and sync timeout; the local card edits Fernet encryption, SSL verification,
   automatic sync, automatic workflow start, allowed workflows and allowed
   datasets. Invalid values disable Save and say how to fix them. A failed save
   keeps the field open with the entered value. A background poll never
@@ -46,9 +46,11 @@ Sourced from `src/` and `tests/e2e`:
 - **Copy connection details** — copies the local instance definition as JSON,
   in exactly the shape the *Paste details* tab reads.
 - **Sync remote instances** — triggers a remote-update check, confirms, and
-  refetches; disabled while there is no remote. The backend tries every remote
-  and answers 502 naming each one that failed (connection error or any non-200
-  status); the view reports that and still refetches the remotes that synced.
+  refetches; disabled while there is no remote. The backend contacts all
+  remotes concurrently and waits for each at most its *sync timeout* (per
+  remote, 1–300 s, default 15 s), then answers 502 naming each one that failed
+  (timeout, connection error or any non-200 status); the view reports that and
+  still refetches the remotes that synced.
 - **Feedback** — successes are transient notifications; failures are error
   notifications whose technical detail opens in `ErrorDetailsDialog` when
   selected (`utils/notifyFailure.ts`, `stores/failureDetails.ts`).
@@ -72,7 +74,7 @@ Federation client API (base path `/kaapana-backend/client`):
 | POST | `get-kaapana-instances` | Load local + remote instances (initial + 15 s poll). |
 | GET | `check-for-remote-updates` | *Sync remote instances*; 502 lists the remotes that failed. |
 | POST | `remote-kaapana-instance` | Register a new remote instance. |
-| PUT | `remote-kaapana-instance` | Save port, token, Fernet key or SSL check of a remote. |
+| PUT | `remote-kaapana-instance` | Save port, token, Fernet key, SSL check or sync timeout of a remote. |
 | PUT | `client-kaapana-instance` | Save the local instance settings. |
 | DELETE | `kaapana-instance?kaapana_instance_id=<id>` | Delete a remote instance, the jobs sent to it and the workflows received from it. |
 | POST | `get-dags` | Workflow options for the allowed-workflows editor. |

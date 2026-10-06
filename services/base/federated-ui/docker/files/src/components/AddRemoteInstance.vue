@@ -4,7 +4,9 @@ import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { ConfirmDialog, apiErrorInfo, apiErrorText, type ApiErrorInfo } from '@kaapana/base-ui'
 import {
   FERNET_DEACTIVATED,
+  SYNC_TIMEOUT_DEFAULT,
   addRemoteInstance,
+  syncTimeoutRule,
   type RemoteInstanceDefinition,
 } from '@/api/federation'
 import { setDirty } from '@/composables/viewDirty'
@@ -24,6 +26,7 @@ function initialDefinition(): RemoteInstanceDefinition {
     token: '',
     fernet_key: FERNET_DEACTIVATED,
     ssl_check: false,
+    sync_timeout: SYNC_TIMEOUT_DEFAULT,
   }
 }
 
@@ -75,6 +78,7 @@ const rules = {
     },
   ],
   token: [required('Enter the token shown on the remote platform’s own instance card.')],
+  syncTimeout: [syncTimeoutRule],
 }
 
 const pasteResult = computed<{ error?: string; filled?: boolean }>(() => {
@@ -160,6 +164,7 @@ async function submit() {
     port: Number(definition.port),
     token: definition.token.trim(),
     fernet_key: definition.fernet_key.trim() || FERNET_DEACTIVATED,
+    sync_timeout: Number(definition.sync_timeout),
   }
   try {
     await addRemoteInstance(payload)
@@ -264,6 +269,18 @@ function showSubmitErrorDetails() {
                 v-model="definition.fernet_key"
                 label="Fernet key"
                 hint="The Fernet key shown on the remote platform’s instance card, or “deactivated”."
+                persistent-hint
+                variant="outlined"
+                density="comfortable"
+                class="mb-2"
+              />
+              <v-text-field
+                v-model="definition.sync_timeout"
+                label="Sync timeout (seconds)"
+                type="number"
+                :rules="rules.syncTimeout"
+                validate-on="blur"
+                hint="How long a sync waits for this remote platform before reporting it as unreachable."
                 persistent-hint
                 variant="outlined"
                 density="comfortable"

@@ -89,7 +89,7 @@ const submit = () => {
             refreshShell();
             props.oncomplete?.();
         })
-        .catch(() => props.oncomplete?.(false));
+        .catch((error) => props.oncomplete?.(false, error))
 }
 
 const cancel = () => {

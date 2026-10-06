@@ -1,8 +1,4 @@
 <template>
-  <v-snackbar v-model="isSnackbarVisible" :timeout="3000" location="top" :color="snackbarColor" elevation="2" closable>
-    {{ snackbarMessage }}
-  </v-snackbar>
-
   <v-container fluid class="pm-view">
     <div class="d-flex justify-space-between mb-2">
       <v-btn variant="text" :prepend-icon="projectIcons.back" @click="goToProjectsList">
@@ -157,6 +153,8 @@ import MultiinstallableApplications from '@/components/MultiinstallableApplicati
 import ActiveProjectApplications from '@/components/ActiveProjectApplications.vue'
 import EditProjectDialog from '@/components/EditProjectDialog.vue'
 import { ConfirmDialog } from '@kaapana/base-ui'
+import { notify } from '@kyvg/vue3-notification'
+import { notifyFailure } from '@/utils/notifyFailure'
 import { useConfirmation } from '@/composables/useConfirmation'
 import { archiveProjectConfirmation, deleteProjectConfirmation } from '@/utils/projectConfirmations'
 import { usePermissions } from '@/permissions/usePermissions'
@@ -194,11 +192,7 @@ export default defineComponent({
       refreshKey: 0,
 
       editDialog: false,
-
-      isSnackbarVisible: false,
-      snackbarMessage: '',
-      snackbarColor: 'info',
-    };
+    }
   },
 
   mounted() {
@@ -220,12 +214,6 @@ export default defineComponent({
   },
 
   methods: {
-    notify(message: string, color = 'info'): void {
-      this.snackbarMessage = message;
-      this.snackbarColor = color;
-      this.isSnackbarVisible = true;
-    },
-
     goToProjectsList(): void {
       this.$router.push('/');
     },
@@ -242,7 +230,7 @@ export default defineComponent({
         this.project = project;
         setScopedProject(project);
         if (!silent) {
-          this.notify(`Selected project: ${project.name}.`, 'success');
+          notify({ type: 'success', text: `Selected project: ${project.name}.` })
         }
         usePermissionsStore().loadProjectWhitelist(this.projectId);
       } catch (error) {
@@ -252,25 +240,29 @@ export default defineComponent({
 
     async confirmAppUninstall(app: any): Promise<void> {
       try {
-        await kubeHelmPost('helm-delete-chart', { release_name: app.release_name });
-        this.notify(`Application "${app.release_name}" uninstalled successfully.`, 'success');
-        await this.refresh();
-      } catch (error: any) {
-        console.error('Failed to uninstall application:', error);
-        const detail = error?.response?.data?.detail ?? error?.message ?? 'Unknown error';
-        this.notify(`Failed to uninstall "${app.release_name}": ${detail}`, 'error');
+        await kubeHelmPost('helm-delete-chart', { release_name: app.release_name })
+        notify({ type: 'success', text: `Application "${app.release_name}" uninstalled.` })
+        await this.refresh()
+      } catch (error: unknown) {
+        notifyFailure(
+          'Application not uninstalled',
+          `Could not uninstall "${app.release_name}".`,
+          error,
+        )
       }
     },
 
     openEditDialog(): void { this.editDialog = true; },
 
     async handleEditSuccess(): Promise<void> {
-      this.editDialog = false;
-      await this.loadProject();
-      this.notify('Project updated successfully.', 'success');
+      this.editDialog = false
+      await this.loadProject()
+      notify({ type: 'success', text: 'Project updated.' })
     },
 
-    handleEditError(msg: string): void { this.notify(msg, 'error'); },
+    handleEditError(text: string, error?: unknown): void {
+      notifyFailure('Project not updated', text, error)
+    },
 
     openDeleteDialog(): void {
       if (!this.project) return
@@ -282,8 +274,7 @@ export default defineComponent({
         await aiiApiDelete(`projects/${this.projectId}`);
         this.$router.push('/');
       } catch (error) {
-        console.error(error);
-        this.notify('Failed to delete project.', 'error');
+        notifyFailure('Project not deleted', `Could not delete "${this.project?.name}".`, error)
       }
     },
 
@@ -294,23 +285,25 @@ export default defineComponent({
 
     async archiveProject(): Promise<void> {
       try {
-        await aiiApiPost(`projects/${this.projectId}/archive`, {});
-        await this.loadProject();
-        this.notify(`Project "${this.project?.name}" archived.`, 'success');
+        await aiiApiPost(`projects/${this.projectId}/archive`, {})
+        await this.loadProject()
+        notify({ type: 'success', text: `Project "${this.project?.name}" archived.` })
       } catch (error) {
-        console.error(error);
-        this.notify('Failed to archive project.', 'error');
+        notifyFailure('Project not archived', `Could not archive "${this.project?.name}".`, error)
       }
     },
 
     async unarchiveProject(): Promise<void> {
       try {
-        await aiiApiPost(`projects/${this.projectId}/unarchive`, {});
-        await this.loadProject();
-        this.notify(`Project "${this.project?.name}" unarchived.`, 'success');
+        await aiiApiPost(`projects/${this.projectId}/unarchive`, {})
+        await this.loadProject()
+        notify({ type: 'success', text: `Project "${this.project?.name}" unarchived.` })
       } catch (error) {
-        console.error(error);
-        this.notify('Failed to unarchive project.', 'error');
+        notifyFailure(
+          'Project not unarchived',
+          `Could not unarchive "${this.project?.name}".`,
+          error,
+        )
       }
     },
 

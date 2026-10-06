@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
 import type { ProjectItem } from '@/common/types'
 import {
   defaultMockData,
@@ -18,6 +18,13 @@ export function failRoute(page: Page, method: string, path: RegExp, detail: stri
   return page.route(path, (r) =>
     r.request().method() === method ? r.fulfill(serverError(detail, status)) : r.fallback(),
   )
+}
+
+/** Let the requests to `path` succeed again and retry from the failure message. */
+export async function retryFrom(page: Page, alert: Locator, path: RegExp) {
+  await page.unroute(path)
+  await alert.getByRole('button', { name: 'Try again' }).click()
+  await expect(alert).toBeHidden()
 }
 
 export function nextRequest(page: Page, method: string, url: string) {
@@ -112,4 +119,16 @@ export async function waitForExpandTransition(page: Page) {
 export async function expandSection(page: Page, title: string) {
   await page.getByRole('heading', { name: title }).click()
   await waitForExpandTransition(page)
+}
+
+export function toasts(page: Page) {
+  return page.locator('.vue-notification-wrapper')
+}
+
+export async function openFailureDetails(page: Page, title: string) {
+  const toast = toasts(page).filter({ hasText: title })
+  await expect(toast).toBeVisible()
+  await toast.click()
+  await expect(dialog(page).getByText(title, { exact: true })).toBeVisible()
+  return dialog(page)
 }

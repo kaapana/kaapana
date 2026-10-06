@@ -34,7 +34,7 @@
                     :disabled="pendingCount === 0 || isSaving"
                     :loading="isSaving"
                     color="primary"
-                    prepend-icon="mdi-content-save"
+                    :prepend-icon="kaapanaIcons.save"
                     @click="saveChanges"
                 >
                     Save Changes
@@ -56,7 +56,7 @@
                     :items="filteredExtensions" :sort-by="[{ key: 'name', order: 'asc' }]" multi-sort class="mt-4">
                 <template #item.icon>
                     <td>
-                        <v-icon icon="mdi-application-outline" />
+                        <v-icon :icon="projectIcons.application" />
                     </td>
                 </template>
                 <template #item.name="{ item }">
@@ -64,18 +64,25 @@
                         <span class="font-weight-medium">{{ item.annotations["ui-visible-name"] }}</span>
 
                         <!-- DOCUMENTATION LINK TOOLTIP -->
-                        <v-tooltip location="bottom">
+                        <v-tooltip
+                            location="bottom"
+                            text="Open the documentation in a new tab"
+                        >
                             <template #activator="{ props }">
-                                <a
+                                <v-btn
+                                    v-bind="props"
+                                    icon
+                                    variant="text"
+                                    size="small"
+                                    color="primary"
                                     :href="getFullEndpoint('/docs/' + item.annotations.documentation)"
                                     target="_blank"
-                                    v-bind="props"
+                                    rel="noopener noreferrer"
+                                    :aria-label="`Documentation for ${item.annotations['ui-visible-name']} (opens in a new tab)`"
                                 >
-                                    <v-icon color="primary"> mdi-information </v-icon>
-                                </a>
+                                    <v-icon :icon="kaapanaIcons.help" />
+                                </v-btn>
                             </template>
-
-                            <span>Link to the documentation.</span>
                         </v-tooltip>
 
                     </td>
@@ -110,6 +117,7 @@
                                     <v-btn
                                         color="primary"
                                         variant="text"
+                                        :prepend-icon="kaapanaIcons.start"
                                         :disabled="!can(project?.id, 'launch_application', item.releaseName)"
                                         @click="onLaunchApplication(item)"
                                     >
@@ -137,7 +145,7 @@
                 <v-sheet rounded v-else class="mt-4">
                     <v-container>
                         <v-row align="center" justify="center" no-gutters>
-                            <v-icon icon="mdi-information" size="x-large" color="medium-emphasis"></v-icon>
+                            <v-icon :icon="kaapanaIcons.info" size="x-large" color="medium-emphasis"></v-icon>
                         </v-row>
                         <v-row align="center" justify="center" no-gutters class="py-6">
                             <div class="text-subtitle-1 font-weight-light text-center">
@@ -153,13 +161,14 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted, watch } from 'vue';
-import { usePermissions } from '@/permissions/usePermissions';
-import { usePermissionsStore } from '@/permissions/permissions.store';
-import { aiiApiPut, kubeHelmGet, kubeHelmPost } from '@/common/services';
-import SearchBar from '@/components/SearchBar.vue';
-import SectionHeader from '@/components/SectionHeader.vue';
-import LaunchApplication from '@/components/LaunchApplication.vue';
+import { kaapanaIcons, projectIcons } from '@/utils/projectIcons'
+import { ref, computed, onMounted, watch } from 'vue'
+import { usePermissions } from '@/permissions/usePermissions'
+import { usePermissionsStore } from '@/permissions/permissions.store'
+import { aiiApiPut, kubeHelmGet, kubeHelmPost } from '@/common/services'
+import SearchBar from '@/components/SearchBar.vue'
+import SectionHeader from '@/components/SectionHeader.vue'
+import LaunchApplication from '@/components/LaunchApplication.vue'
 
 interface Extension {
     releaseName: string;

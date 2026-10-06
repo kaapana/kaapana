@@ -8,12 +8,13 @@
         hide-details
         clearable
         :label="label"
-        prepend-inner-icon="mdi-magnify"
+        :prepend-inner-icon="kaapanaIcons.search"
         class="pm-search"
     />
 </template>
 
 <script setup lang="ts">
+import { kaapanaIcons } from '@/utils/projectIcons'
 defineProps<{
     modelValue?: string;
     label: string;

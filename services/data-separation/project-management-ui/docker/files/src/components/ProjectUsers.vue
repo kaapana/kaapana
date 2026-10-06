@@ -21,12 +21,19 @@
                 <v-tooltip v-if="isAdmin" location="top">
                     <template #activator="{ props }">
                         <div class="d-flex align-center ga-2" v-bind="props">
+                            <v-icon
+                                :color="showSystemUsers ? 'primary' : 'medium-emphasis'"
+                                :icon="projectIcons.systemUsers"
+                            />
 
-                            <v-icon :color="showSystemUsers ? 'primary' : 'medium-emphasis'">
-                                mdi-account-cog
-                            </v-icon>
-
-                            <v-switch v-model="showSystemUsers" hide-details inset density="compact" color="primary" />
+                            <v-switch
+                                v-model="showSystemUsers"
+                                aria-label="Show system users"
+                                hide-details
+                                inset
+                                density="compact"
+                                color="primary"
+                            />
                         </div>
                     </template>
 
@@ -37,7 +44,7 @@
                 <v-btn
                     v-if="can(project?.id, 'manage_users')"
                     color="primary"
-                    prepend-icon="mdi-account-plus"
+                    :prepend-icon="projectIcons.addUser"
                     @click.stop="openAddUserDialog"
                 >
                     Add User
@@ -60,7 +67,7 @@
 
                     <template #item.icon>
                         <td>
-                            <v-icon>mdi-account-circle</v-icon>
+                            <v-icon :icon="kaapanaIcons.account" />
                         </td>
                     </template>
 
@@ -107,20 +114,32 @@
                     <template #item.actions="{ item }">
                         <td class="text-center">
                             <div class="d-flex justify-center ga-1">
-                                <v-btn
-                                    @click="openEditUserDialog(item)"
-                                    icon="mdi-link-edit"
-                                    color="primary"
-                                    variant="text"
-                                    :disabled="!can(project?.id, 'manage_users')"
-                                />
-                                <v-btn
-                                    @click="onRemoveUser(item)"
-                                    icon="mdi-trash-can"
-                                    color="error"
-                                    variant="text"
-                                    :disabled="!can(project?.id, 'manage_users')"
-                                />
+                                <v-tooltip text="Change role" location="top">
+                                    <template #activator="{ props }">
+                                        <v-btn
+                                            v-bind="props"
+                                            @click="openEditUserDialog(item)"
+                                            :icon="projectIcons.editRole"
+                                            :aria-label="`Change role of ${item.username}`"
+                                            color="primary"
+                                            variant="text"
+                                            :disabled="!can(project?.id, 'manage_users')"
+                                        />
+                                    </template>
+                                </v-tooltip>
+                                <v-tooltip text="Remove from project" location="top">
+                                    <template #activator="{ props }">
+                                        <v-btn
+                                            v-bind="props"
+                                            @click="onRemoveUser(item)"
+                                            :icon="kaapanaIcons.delete"
+                                            :aria-label="`Remove ${item.username} from the project`"
+                                            color="error"
+                                            variant="text"
+                                            :disabled="!can(project?.id, 'manage_users')"
+                                        />
+                                    </template>
+                                </v-tooltip>
                             </div>
                         </td>
                     </template>
@@ -130,7 +149,7 @@
                 <v-sheet rounded v-else class="mt-4">
                     <v-container>
                         <v-row align="center" justify="center" no-gutters>
-                            <v-icon icon="mdi-information" size="x-large" color="medium-emphasis"></v-icon>
+                            <v-icon :icon="kaapanaIcons.info" size="x-large" color="medium-emphasis"></v-icon>
                         </v-row>
                         <v-row align="center" justify="center" no-gutters class="py-6">
                             <div class="text-subtitle-1 font-weight-light text-center">
@@ -142,7 +161,7 @@
                                 v-if="can(project?.id, 'manage_users')"
                                 color="primary"
                                 variant="outlined"
-                                prepend-icon="mdi-account-plus"
+                                :prepend-icon="projectIcons.addUser"
                                 @click="openAddUserDialog"
                             >
                                 Add user to project "{{ project?.name }}"
@@ -205,6 +224,7 @@
 </template>
 
 <script lang="ts" setup>
+import { kaapanaIcons, projectIcons } from '@/utils/projectIcons'
 import { ref, onMounted, watch, computed } from 'vue'
 import { UserItem, UserRole } from '@/common/types'
 import { usePermissions } from '@/permissions/usePermissions'

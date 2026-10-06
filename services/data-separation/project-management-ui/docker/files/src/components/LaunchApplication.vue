@@ -38,7 +38,7 @@
             <template v-if="param.help" #append-outer>
               <v-tooltip>
                 <template #activator="{ props }">
-                  <v-icon v-bind="props">mdi-tooltip-question</v-icon>
+                  <v-icon v-bind="props" :icon="kaapanaIcons.help" />
                 </template>
                 <div v-html="param.help"></div>
               </v-tooltip>
@@ -54,7 +54,7 @@
             <template v-if="param.help" #append>
               <v-tooltip>
                 <template #activator="{ props }">
-                  <v-icon v-bind="props">mdi-tooltip-question</v-icon>
+                  <v-icon v-bind="props" :icon="kaapanaIcons.help" />
                 </template>
                 <div v-html="param.help"></div>
               </v-tooltip>
@@ -73,7 +73,7 @@
             <template v-if="param.help" #append-outer>
               <v-tooltip>
                 <template #activator="{ props }">
-                  <v-icon v-bind="props">mdi-tooltip-question</v-icon>
+                  <v-icon v-bind="props" :icon="kaapanaIcons.help" />
                 </template>
                 <div v-html="param.help"></div>
               </v-tooltip>
@@ -93,7 +93,7 @@
             <template v-if="param.help" #append-outer>
               <v-tooltip>
                 <template #activator="{ props }">
-                  <v-icon v-bind="props">mdi-tooltip-question</v-icon>
+                  <v-icon v-bind="props" :icon="kaapanaIcons.help" />
                 </template>
                 <div v-html="param.help"></div>
               </v-tooltip>
@@ -122,7 +122,8 @@
 
 
 <script setup>
-import { ref, computed, watch } from "vue";
+import { kaapanaIcons } from '@/utils/projectIcons'
+import { ref, computed, watch } from 'vue'
 
 const props = defineProps({
   extension: {

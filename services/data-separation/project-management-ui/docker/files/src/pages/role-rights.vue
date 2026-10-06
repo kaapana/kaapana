@@ -5,7 +5,7 @@
 
   <v-container fluid class="pm-view">
     <div class="mb-2">
-      <v-btn variant="text" prepend-icon="mdi-arrow-left" @click="$router.push('/')">
+      <v-btn variant="text" :prepend-icon="projectIcons.back" @click="$router.push('/')">
         Projects
       </v-btn>
     </div>
@@ -19,20 +19,20 @@
         <v-btn
           variant="outlined"
           color="error"
-          prepend-icon="mdi-restore"
+          :prepend-icon="projectIcons.reset"
           :loading="resetting"
           @click="resetDialog = true"
         >
           Reset to Defaults
         </v-btn>
-        <v-btn prepend-icon="mdi-plus" variant="outlined" @click="addRightDialog = true">
+        <v-btn :prepend-icon="kaapanaIcons.add" variant="outlined" @click="addRightDialog = true">
           Add Right
         </v-btn>
         <v-btn
           :disabled="pendingCount === 0 || saving"
           :loading="saving"
           color="primary"
-          prepend-icon="mdi-content-save"
+          :prepend-icon="kaapanaIcons.save"
           @click="confirmDialog = true"
         >
           Save Changes
@@ -96,7 +96,19 @@
               </td>
               <td>
                 <div class="d-flex justify-end pr-2">
-                  <v-btn icon="mdi-trash-can" size="default" variant="text" color="error" @click="deleteRight(right)" />
+                  <v-tooltip text="Delete right" location="top">
+                    <template #activator="{ props }">
+                      <v-btn
+                        v-bind="props"
+                        :icon="kaapanaIcons.delete"
+                        :aria-label="`Delete right ${right.name}`"
+                        size="default"
+                        variant="text"
+                        color="error"
+                        @click="deleteRight(right)"
+                      />
+                    </template>
+                  </v-tooltip>
                 </div>
               </td>
             </tr>
@@ -167,9 +179,10 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
-import { aiiApiGet, aiiApiPost, aiiApiDelete } from '@/common/services';
-import { isAdminUser, waitForStoreUser } from '@/common/userAccess';
+import { kaapanaIcons, projectIcons } from '@/utils/projectIcons'
+import { defineComponent } from 'vue'
+import { aiiApiGet, aiiApiPost, aiiApiDelete } from '@/common/services'
+import { isAdminUser, waitForStoreUser } from '@/common/userAccess'
 
 interface Right {
   id: number;
@@ -186,6 +199,9 @@ interface Role {
 }
 
 export default defineComponent({
+  setup() {
+    return { kaapanaIcons, projectIcons }
+  },
   data() {
     return {
       isAdmin: false,

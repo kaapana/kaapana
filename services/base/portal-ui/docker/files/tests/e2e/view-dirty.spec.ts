@@ -116,9 +116,27 @@ test('menu navigation away from a dirty view prompts; "Stay" keeps URL and ifram
   expect(galleryHits()).toBe(1)
 })
 
-test('menu navigation away from a dirty view prompts; "Leave view" navigates', async ({
+test('Enter right after the prompt opens means "Stay": focus starts on the safe action', async ({
   page,
 }) => {
+  await installMockBackend(page)
+  const galleryHits = await stubDirtyView(page, '/data-gallery-ui')
+  await stubView(page, '/extensions-ui')
+  await page.goto('/')
+
+  await makeDirty(page)
+  await page.getByText('Extensions').click()
+  await expect(dialog(page)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Stay' })).toBeFocused()
+
+  await page.keyboard.press('Enter')
+
+  await expect(dialog(page)).toHaveCount(0)
+  await expect(page).toHaveURL(/\/project\/admin$/)
+  expect(galleryHits()).toBe(1)
+})
+
+test('menu navigation away from a dirty view prompts; "Leave view" navigates', async ({ page }) => {
   await installMockBackend(page)
   await stubDirtyView(page, '/data-gallery-ui')
   await stubView(page, '/extensions-ui')
@@ -147,7 +165,7 @@ test('the corner refresh on a dirty view prompts; "Stay" skips, "Leave view" rel
   await makeDirty(page)
   // dispatchEvent sidesteps the hover-reveal of the corner overlay (opacity 0 /
   // pointer-events none until the hotspot is hovered), which is not under test.
-  const refresh = page.locator('.iframe-overlay a').first()
+  const refresh = page.getByRole('button', { name: 'Reload view' })
   await refresh.dispatchEvent('click')
 
   await expect(dialog(page)).toBeVisible()

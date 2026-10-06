@@ -1,28 +1,23 @@
 <script setup lang="ts">
+import { ConfirmDialog } from '@kaapana/base-ui'
 import { useViewStateStore } from '@/stores/viewState'
 
 // Shell-level confirm behind viewState.confirmLeave(): one dialog for every
 // state-destroying action (project switch, menu navigation, corner refresh).
+// Escape, the backdrop and a stray Enter all mean "Stay".
 const viewState = useViewStateStore()
 </script>
 
 <template>
-  <v-dialog
+  <!-- Leaving discards the view's work, so it is confirmed as destructive. -->
+  <ConfirmDialog
     :model-value="viewState.confirmVisible"
-    width="440"
-    @update:model-value="(open: boolean) => open || viewState.resolveLeave(false)"
-  >
-    <v-card>
-      <v-card-title>Unsaved changes</v-card-title>
-      <v-card-text>
-        Leaving this view reloads it. Any unsaved changes (such as filters or
-        form input) will be lost.
-      </v-card-text>
-      <v-card-actions>
-        <v-spacer />
-        <v-btn @click="viewState.resolveLeave(false)">Stay</v-btn>
-        <v-btn color="primary" @click="viewState.resolveLeave(true)">Leave view</v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+    color="error"
+    title="Unsaved changes"
+    text="Leaving this view reloads it. Any unsaved changes (such as filters or form input) will be lost."
+    cancel-text="Stay"
+    confirm-text="Leave view"
+    @confirm="viewState.resolveLeave(true)"
+    @cancel="viewState.resolveLeave(false)"
+  />
 </template>

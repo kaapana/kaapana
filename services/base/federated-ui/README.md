@@ -49,7 +49,8 @@ Sourced from `src/` and `tests/e2e`:
   refetches; disabled while there is no remote. The backend contacts all
   remotes concurrently and waits for each at most its *sync timeout* (per
   remote, 1–300 s, default 15 s), then answers 502 naming each one that failed
-  (timeout, connection error or any non-200 status); the view reports that and
+  (timeout, connection error, any non-200 status, or an answer under a
+  different instance name than the one registered); the view reports that and
   still refetches the remotes that synced.
 - **Feedback** — successes are transient notifications; failures are error
   notifications whose technical detail opens in `ErrorDetailsDialog` when

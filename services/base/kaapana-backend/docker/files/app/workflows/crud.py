@@ -721,6 +721,16 @@ def get_remote_updates(db: Session, periodically=False):
         remote_kaapana_instance = schemas.RemoteKaapanaInstanceUpdateExternal(
             **incoming_data["update_remote_instance_payload"]
         )
+        if remote_kaapana_instance.instance_name != db_remote_kaapana_instance.instance_name:
+            logging.warning(
+                f"Remote backend {db_remote_kaapana_instance.host} answered as "
+                f"{remote_kaapana_instance.instance_name}, expected {db_remote_kaapana_instance.instance_name}"
+            )
+            unreachable.append(
+                f"{db_remote_kaapana_instance.instance_name}: the platform at {db_remote_kaapana_instance.host} "
+                f"is named {remote_kaapana_instance.instance_name}"
+            )
+            continue
 
         create_and_update_remote_kaapana_instance(
             db=db,

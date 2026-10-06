@@ -183,8 +183,6 @@ const props = defineProps<Props>();
 
 const emit = defineEmits<{
     (e: 'toggle', value: boolean): void;
-    (e: 'whitelist-change', releaseName: string, isAllowed: boolean): void;
-    (e: 'launch-application', item: Extension): void;
 }>();
 
 const { can } = usePermissions();

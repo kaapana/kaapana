@@ -137,10 +137,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'cancel'): void;
   (e: 'success'): void;
-  (e: 'users-added', users: UserItem[]): void;
-  (e: 'users-add-failed', userIds: string[]): void;
-  (e: 'role-updated', roleName: string): void;
-  (e: 'role-update-failed', rollback: () => void): void;
 }>();
 
 const availableRoles = ref<Role[]>([]);
@@ -202,32 +198,22 @@ const onSubmit = async () => {
   isSubmitting.value = true;
   try {
     if (isAddMode.value) {
-      const addedUsers = await addUsersToProject();
-      emit('users-added', addedUsers);
+      await addUsersToProject();
     } else {
       await updateUserRole();
-      emit('role-updated', selectedRole.value);
     }
     emit('success');
   } catch (error) {
     console.error('Failed to save user assignment:', error);
     validationError.value = 'Something went wrong. Please try again.';
-    if (!isAddMode.value && props.userToEdit?.role) {
-      const previousRole = { ...props.userToEdit.role };
-      emit('role-update-failed', () => { props.userToEdit!.role = previousRole; });
-    } else if (isAddMode.value) {
-      emit('users-add-failed', [...selectedUserIds.value]);
-    }
   } finally {
     isSubmitting.value = false;
   }
 };
 
-const addUsersToProject = async (): Promise<UserItem[]> => {
-  if (!props.project?.id) return [];
-  const addedUsers = availableUsers.value.filter(u => selectedUserIds.value.includes(u.id)).map(u => ({ ...u, role: { name: selectedRole.value } as UserRole }));
+const addUsersToProject = async () => {
+  if (!props.project?.id) return;
   await Promise.all(selectedUserIds.value.map(userId => aiiApiPost(`projects/${props.project!.id}/role/${selectedRole.value}/user/${userId}`)));
-  return addedUsers;
 };
 
 const updateUserRole = async () => {

@@ -80,10 +80,6 @@
           <v-btn icon="mdi-trash-can" size="default" variant="text" color="error" @click.stop="openDeleteDialog(item)" />
         </template>
       </template>
-
-      <template #item.is_archived="{ item }">
-        <span :class="{ 'opacity-60': item.is_archived }">{{ item.is_archived ? 'Yes' : '—' }}</span>
-      </template>
     </v-data-table>
 
   </v-container>
@@ -102,13 +98,11 @@
     <ArchiveProjectDialog v-if="selectedProject" :project="selectedProject"
       @confirm="handleArchiveConfirm" @cancel="archiveDialog = false" />
   </v-dialog>
-  <confirm ref="confirm"></confirm>
 </template>
 
 <script lang="ts">
 import { defineComponent } from "vue";
 import CreateNewProjectFrom from "@/components/CreateNewProjectForm.vue";
-import Confirm from "@/components/Confirm.vue";
 import EditProjectDialog from "@/components/EditProjectDialog.vue";
 import DeleteProjectDialog from "@/components/DeleteProjectDialog.vue";
 import ArchiveProjectDialog from "@/components/ArchiveProjectDialog.vue";
@@ -122,7 +116,6 @@ import store from "@/common/store";
 export default defineComponent({
   components: {
     CreateNewProjectFrom,
-    Confirm,
     EditProjectDialog,
     DeleteProjectDialog,
     ArchiveProjectDialog,
@@ -138,7 +131,6 @@ export default defineComponent({
       search: '',
       projectDialog: false,
       error: false,
-      projectFetched: false,
       userHasAdminAccess: false,
       editDialog: false,
       deleteDialog: false,
@@ -169,25 +161,8 @@ export default defineComponent({
         : [...base, ...view];
     },
   },
-  watch: {
-    // TODO
-    // Watching the user object deeply
-    // not triggering
-    "store.state.user": {
-      handler(newValue, oldValue) {
-        // console.log("User object changed:", { newValue, oldValue });
-        // Perform your logic here, e.g., fetching projects
-        if (newValue !== oldValue) {
-          this.fetchProjects(newValue);
-        }
-      },
-      deep: true, // Enables deep watching of user object
-    },
-  },
   methods: {
     fetchProjects: function (user: UserItem) {
-      // console.log(user)
-      // project url to fetch the projects under the user
       let projects_url = `users/${user.id}/projects`;
 
       // if default-user / kaapana_admin, fetch all the projects
@@ -198,7 +173,6 @@ export default defineComponent({
       try {
         aiiApiGet(projects_url).then((projects: ProjectItem[]) => {
           this.projects = projects;
-          this.projectFetched = true;
         });
       } catch (error: unknown) {
         console.log(error);

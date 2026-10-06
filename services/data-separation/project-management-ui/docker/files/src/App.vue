@@ -23,8 +23,6 @@ const contentBackground = computed(() => {
 
 
 async function fetchCurrentUser() {
-  store.state.fetching = true;
-
   try {
     const userResp = await aiiApiGet("users/current");
 
@@ -35,8 +33,6 @@ async function fetchCurrentUser() {
   } catch (error) {
     console.error(error);
     throw error;
-  } finally {
-    store.state.fetching = false;
   }
 }
 

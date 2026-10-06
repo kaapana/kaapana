@@ -8,6 +8,9 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
+    // Same reason as in vite.config.ts:
+    // The linked @kaapana/base-ui must use this app's vue and vuetify
+    dedupe: ['vue', 'vuetify', 'axios', '@kyvg/vue3-notification', 'pinia'],
   },
   test: {
     environment: 'jsdom',
@@ -15,8 +18,9 @@ export default defineConfig({
     css: true,
     server: {
       deps: {
-        // vuetify ships raw .css imports node can't load
-        inline: ['vuetify'],
+        // vuetify ships raw .css imports node can't load; base-ui is inlined
+        // so the dedupe above applies to its imports as well.
+        inline: ['vuetify', '@kaapana/base-ui'],
       },
     },
   },

@@ -6,7 +6,7 @@ OpenMetrics. Four suites:
 | suite | what it measures | needs |
 |---|---|---|
 | `ingest` | timing of the ingestion DAG for the scenarios of the dataset | platform HTTPS APIs + dcmtk (`dcmsend`, `dcmdump`) |
-| `internet` | ping / download / upload from inside the cluster (speedtest pod, `klakadkfz/speedtest` image) | kubectl access |
+| `internet` | ping / download / upload from inside the cluster (speedtest pod running `speedtest-cli` on `python:3.12-alpine`) | kubectl access |
 | `gpu` | gpu_burn throughput + per-GPU health (`chrstnhntschl/gpu_burn` image) | kubectl access |
 | `helm` | how fast the machine deploys increasingly big helm charts (the kaapana-platform-chart timeout problem) | helm + kubectl access |
 
@@ -23,8 +23,8 @@ export BENCHMARK_DATA_DIR=~/data   # dataset repo root; or pass --data-dir each 
 
 benchmark run --suite ingest --host https://<instance> --password <pw> --scenario-file scenarios.json
 benchmark run --suite ingest --scenario-file scenarios.json --scenario minimal --scenario max --runs 3
-benchmark run --suite internet --suite gpu --kubectl "ssh e230-pc11 microk8s kubectl"
-benchmark run --suite helm --helm "ssh e230-pc11 microk8s helm" --kubectl "ssh e230-pc11 microk8s kubectl"
+benchmark run --suite internet --suite gpu --kubectl "ssh <host> microk8s kubectl"
+benchmark run --suite helm --helm "ssh <host> microk8s helm" --kubectl "ssh <host> microk8s kubectl"
 ```
 
 - One command for everything; `--suite` and `--scenario` are repeatable,
@@ -91,7 +91,7 @@ relative to `--data-dir/root_path`:
 
 - Run a pod on the instance's cluster via `--kubectl`, any command prefix
   behaving like kubectl (e.g. `"ssh <host> microk8s kubectl"`).
-- `internet` defaults to the DKFZ HTTP proxy (`--proxy ''` to disable).
+- `internet` runs without a proxy unless `--proxy` (or `BENCHMARK_PROXY`) is set.
 
 ### helm
 

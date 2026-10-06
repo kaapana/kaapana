@@ -1,7 +1,7 @@
 """Kaapana platform benchmark.
 
   benchmark run --suite ingest --host https://<instance> --password <pw> --data-dir <dir>
-  benchmark run --suite internet --suite gpu --kubectl "ssh e230-pc11 microk8s kubectl"
+  benchmark run --suite internet --suite gpu --kubectl "ssh <host> microk8s kubectl"
   benchmark run --suite ingest --scenario max --runs 3 --out artifacts/benchmark
 
 --out writes results.json and metrics.txt (OpenMetrics). --scenario-file holds
@@ -56,7 +56,7 @@ def run(
     suite: List[str] = typer.Option(["ingest"], help=f"suites to run: {', '.join(SUITES)}"),
     runs: int = typer.Option(1, help="repetitions of every selected suite"),
     out: Optional[Path] = typer.Option(None, help="write results.json and metrics.txt here"),
-    host: str = typer.Option("https://e230-pc11.inet.dkfz-heidelberg.de", help="platform URL (ingest)"),
+    host: Optional[str] = typer.Option(None, envvar="BENCHMARK_HOST", help="platform URL (ingest)"),
     username: str = typer.Option("kaapana"),
     password: str = typer.Option("", help="platform password (ingest)"),
     data_dir: Optional[Path] = typer.Option(
@@ -73,9 +73,7 @@ def run(
     helm_cmd: str = typer.Option("helm", "--helm", help='helm entrypoint, e.g. "ssh host microk8s helm"'),
     namespace: str = typer.Option("default", help="namespace for the internet/gpu pods"),
     gpu_seconds: int = typer.Option(60, help="gpu_burn stress duration"),
-    proxy: Optional[str] = typer.Option(
-        "http://www-int2.dkfz-heidelberg.de:80", help="HTTP proxy for the speedtest pod ('' to disable)"
-    ),
+    proxy: Optional[str] = typer.Option(None, envvar="BENCHMARK_PROXY", help="HTTP proxy for the speedtest pod"),
 ) -> None:
     """Run the selected suites and report their metrics."""
     unknown = [s for s in suite if s not in SUITES]
@@ -86,6 +84,8 @@ def run(
     config: dict[str, list[str]] = {}
     names: list[str] = []
     if "ingest" in suite:
+        if not host:
+            raise typer.BadParameter("--host is required for the ingest suite")
         if not data_dir:
             raise typer.BadParameter("--data-dir is required for the ingest suite")
         if not scenario_file:

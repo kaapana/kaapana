@@ -7,7 +7,7 @@ import json
 from suites.k8s import run_pod
 
 POD_NAME = "benchmark-speedtest"
-IMAGE = "klakadkfz/speedtest"
+IMAGE = "python:3.12-alpine"
 NO_PROXY = "localhost,127.0.0.1,169.254.169.254,dkfz-heidelberg.de,10.1.0.0/16,10.152.183.0/24"
 
 
@@ -31,7 +31,12 @@ def manifest(namespace: str, proxy: str | None) -> str:
                         "name": "speedtest",
                         "image": IMAGE,
                         "imagePullPolicy": "IfNotPresent",
-                        "command": ["python3", "-u", "/speedtest.py", "--json"],
+                        "command": [
+                            "sh",
+                            "-c",
+                            "pip install --quiet --disable-pip-version-check --root-user-action=ignore "
+                            "speedtest-cli && speedtest-cli --json",
+                        ],
                         "env": env,
                     }
                 ],

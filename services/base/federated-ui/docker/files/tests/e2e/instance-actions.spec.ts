@@ -31,10 +31,27 @@ test('edits a remote port and saves it to the remote endpoint', async ({ page })
     token: 'remote-token',
     fernet_key: 'abc123',
     ssl_check: false,
+    sync_timeout: 15,
   })
   await expect(remote.getByLabel('Port')).toHaveCount(0)
   await expect(field(remote, 'Network')).toContainText('https://10.0.0.5:8443')
   await expect(toasts(page)).toContainText('Network saved')
+})
+
+test('edits the sync timeout of a remote instance', async ({ page }) => {
+  await openView(page, onlyRemote)
+  const remote = card(page, 'gpu-node-1')
+
+  await remote.getByRole('button', { name: 'Edit Sync timeout' }).click()
+  await remote.getByLabel('Sync timeout (seconds)').fill('0')
+  await expect(remote.getByText('Enter a whole number of seconds between 1 and 300')).toBeVisible()
+  await expect(remote.getByRole('button', { name: 'Save Sync timeout' })).toBeDisabled()
+
+  await remote.getByLabel('Sync timeout (seconds)').fill('30')
+  const put = nextRequest(page, CLIENT.remote, 'PUT')
+  await remote.getByRole('button', { name: 'Save Sync timeout' }).click()
+  expect((await put).postDataJSON().sync_timeout).toBe(30)
+  await expect(field(remote, 'Sync timeout')).toContainText('30 s')
 })
 
 test('Enter in an edited field saves it', async ({ page }) => {

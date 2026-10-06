@@ -14,6 +14,7 @@ export interface KaapanaInstance {
   token: string
   fernet_key: string
   ssl_check: boolean
+  sync_timeout: number
   remote: boolean
   automatic_update: boolean
   automatic_workflow_execution: boolean
@@ -30,6 +31,18 @@ export interface RemoteInstanceDefinition {
   token: string
   fernet_key: string
   ssl_check: boolean
+  sync_timeout?: number
+}
+
+export const SYNC_TIMEOUT_DEFAULT = 15
+export const SYNC_TIMEOUT_MAX = 300
+
+export function syncTimeoutRule(value: unknown) {
+  const seconds = Number(value)
+  return (
+    (Number.isInteger(seconds) && seconds >= 1 && seconds <= SYNC_TIMEOUT_MAX) ||
+    `Enter a whole number of seconds between 1 and ${SYNC_TIMEOUT_MAX}, for example ${SYNC_TIMEOUT_DEFAULT}.`
+  )
 }
 
 export interface LocalInstanceSettings {

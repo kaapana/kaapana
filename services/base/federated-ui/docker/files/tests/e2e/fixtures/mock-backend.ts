@@ -40,6 +40,7 @@ export const localInstance: KaapanaInstance = {
   token: 'local-token',
   fernet_key: 'deactivated',
   ssl_check: true,
+  sync_timeout: 15,
   remote: false,
   protocol: 'https',
   time_created: '2024-01-01T00:00:00+00:00',
@@ -58,6 +59,7 @@ export const remoteInstance: KaapanaInstance = {
   token: 'remote-token',
   fernet_key: 'abc123',
   ssl_check: false,
+  sync_timeout: 15,
   remote: true,
   protocol: 'https',
   time_created: '2024-01-01T00:00:00+00:00',
@@ -108,7 +110,9 @@ export const CLIENT = {
 export async function installMockBackend(page: Page, data: MockData = defaultMockData) {
   const instances: KaapanaInstance[] = data.instances.map((i) => ({ ...i }))
 
-  await page.route('**/jsons/testingAuthenticationToken.json', (r) => r.fulfill(json(data.userinfo)))
+  await page.route('**/jsons/testingAuthenticationToken.json', (r) =>
+    r.fulfill(json(data.userinfo)),
+  )
   await page.route('**/oauth2/userinfo', (r) => r.fulfill(json(data.userinfo)))
 
   await page.route(CLIENT.instances, (r) => r.fulfill(json(instances)))
@@ -125,6 +129,7 @@ export async function installMockBackend(page: Page, data: MockData = defaultMoc
         token: body.token,
         fernet_key: body.fernet_key ?? 'deactivated',
         ssl_check: !!body.ssl_check,
+        sync_timeout: body.sync_timeout ?? 15,
         remote: true,
         protocol: 'https',
         time_created: new Date().toISOString(),

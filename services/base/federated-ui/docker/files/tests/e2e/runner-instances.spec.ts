@@ -53,12 +53,12 @@ test('shows which fields each instance can edit', async ({ page }) => {
   ]) {
     await expect(local.getByRole('button', { name: `Edit ${label}` })).toBeVisible()
   }
-  for (const label of ['Network', 'Token']) {
+  for (const label of ['Network', 'Token', 'Sync timeout']) {
     await expect(local.getByRole('button', { name: `Edit ${label}` })).toHaveCount(0)
   }
 
   const remote = card(page, 'gpu-node-1')
-  for (const label of ['Network', 'Token', 'Fernet key', 'Verify SSL']) {
+  for (const label of ['Network', 'Token', 'Fernet key', 'Verify SSL', 'Sync timeout']) {
     await expect(remote.getByRole('button', { name: `Edit ${label}` })).toBeVisible()
   }
   for (const label of [

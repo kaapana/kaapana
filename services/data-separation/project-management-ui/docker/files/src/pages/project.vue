@@ -47,7 +47,7 @@
                   size="default"
                   variant="text"
                   color="primary"
-                  @click="archiveDialog = true"
+                  @click="openArchiveDialog"
                 />
               </template>
             </v-tooltip>
@@ -124,21 +124,19 @@
     <v-divider class="my-4" />
 
     <!-- ── Dialogs ───────────────────────────────────────────────── -->
-    <v-dialog v-model="deleteDialog" max-width="500">
-      <DeleteProjectDialog v-if="project" :project="project"
-        @confirm="handleDeleteConfirm" @cancel="deleteDialog = false" />
-    </v-dialog>
-
     <v-dialog v-model="editDialog" max-width="600">
       <EditProjectDialog v-if="project" :project="project"
         @success="handleEditSuccess" @cancel="editDialog = false" @error="handleEditError" />
     </v-dialog>
 
-    <v-dialog v-model="archiveDialog" max-width="560">
-      <ArchiveProjectDialog v-if="project" :project="project"
-        @confirm="confirmArchive" @cancel="archiveDialog = false" />
-    </v-dialog>
-
+    <ConfirmDialog
+      v-model="confirmOpen"
+      :color="confirmation.color"
+      :title="confirmation.title"
+      :text="confirmation.text"
+      :confirm-text="confirmation.confirmText"
+      @confirm="runConfirmed"
+    />
   </v-container>
 </template>
 
@@ -157,9 +155,10 @@ import ProjectUsers from '@/components/ProjectUsers.vue'
 import ProjectWorkflows from '@/components/ProjectWorkflows.vue'
 import MultiinstallableApplications from '@/components/MultiinstallableApplications.vue'
 import ActiveProjectApplications from '@/components/ActiveProjectApplications.vue'
-import DeleteProjectDialog from '@/components/DeleteProjectDialog.vue'
 import EditProjectDialog from '@/components/EditProjectDialog.vue'
-import ArchiveProjectDialog from '@/components/ArchiveProjectDialog.vue'
+import { ConfirmDialog } from '@kaapana/base-ui'
+import { useConfirmation } from '@/composables/useConfirmation'
+import { archiveProjectConfirmation, deleteProjectConfirmation } from '@/utils/projectConfirmations'
 import { usePermissions } from '@/permissions/usePermissions'
 import { usePermissionsStore } from '@/permissions/permissions.store'
 import { isAdminUser, waitForStoreUser } from '@/common/userAccess'
@@ -170,14 +169,14 @@ export default defineComponent({
     ProjectWorkflows,
     MultiinstallableApplications,
     ActiveProjectApplications,
-    DeleteProjectDialog,
     EditProjectDialog,
-    ArchiveProjectDialog,
+    ConfirmDialog,
   },
 
   setup() {
     const { can } = usePermissions()
-    return { kaapanaIcons, projectIcons, can }
+    const { confirmOpen, confirmation, ask, runConfirmed } = useConfirmation()
+    return { kaapanaIcons, projectIcons, can, confirmOpen, confirmation, ask, runConfirmed }
   },
 
   data() {
@@ -194,9 +193,7 @@ export default defineComponent({
 
       refreshKey: 0,
 
-      deleteDialog: false,
       editDialog: false,
-      archiveDialog: false,
 
       isSnackbarVisible: false,
       snackbarMessage: '',
@@ -275,10 +272,12 @@ export default defineComponent({
 
     handleEditError(msg: string): void { this.notify(msg, 'error'); },
 
-    openDeleteDialog(): void { this.deleteDialog = true; },
+    openDeleteDialog(): void {
+      if (!this.project) return
+      this.ask(deleteProjectConfirmation(this.project, () => this.deleteProject()))
+    },
 
-    async handleDeleteConfirm(): Promise<void> {
-      this.deleteDialog = false;
+    async deleteProject(): Promise<void> {
       try {
         await aiiApiDelete(`projects/${this.projectId}`);
         this.$router.push('/');
@@ -288,8 +287,12 @@ export default defineComponent({
       }
     },
 
-    async confirmArchive(): Promise<void> {
-      this.archiveDialog = false;
+    openArchiveDialog(): void {
+      if (!this.project) return
+      this.ask(archiveProjectConfirmation(this.project, () => this.archiveProject()))
+    },
+
+    async archiveProject(): Promise<void> {
       try {
         await aiiApiPost(`projects/${this.projectId}/archive`, {});
         await this.loadProject();

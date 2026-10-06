@@ -71,3 +71,45 @@ export function row(page: Page, name: string) {
 export function dialog(page: Page) {
   return page.getByRole('dialog')
 }
+
+export async function confirmAction(page: Page, name: string) {
+  const button = dialog(page).getByRole('button', { name, exact: true })
+  await expect(button, `no confirm button labelled "${name}"`).toBeVisible({ timeout: 5_000 })
+  await button.click()
+  await dialog(page).waitFor({ state: 'hidden' })
+}
+
+/**
+ * Press Escape until `settled` holds. Vuetify honours Escape only once its
+ * overlay stack has settled, which happens in a setTimeout after the dialog
+ * appears; under load a first Escape can be swallowed. A repeat comes only
+ * after a second without the expected outcome, long enough for a press that
+ * did take effect to show it.
+ */
+export async function pressEscapeUntil(page: Page, settled: () => Promise<boolean>) {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    await page.keyboard.press('Escape')
+    const deadline = Date.now() + 1_000
+    while (Date.now() < deadline) {
+      if (await settled()) return
+      await page.waitForTimeout(50)
+    }
+  }
+  throw new Error('Escape never took effect')
+}
+
+export async function dismissWithEscape(page: Page) {
+  await expect(dialog(page)).toBeVisible()
+  await pressEscapeUntil(page, () => dialog(page).isHidden())
+}
+
+// Content can still shift when the height animation ends; a click that
+// straddles the shift lands on no element.
+export async function waitForExpandTransition(page: Page) {
+  await expect(page.locator('.expand-transition-enter-active')).toHaveCount(0)
+}
+
+export async function expandSection(page: Page, title: string) {
+  await page.getByRole('heading', { name: title }).click()
+  await waitForExpandTransition(page)
+}

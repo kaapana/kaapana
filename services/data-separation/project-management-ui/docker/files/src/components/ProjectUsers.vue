@@ -198,28 +198,14 @@
             />
         </v-dialog>
 
-        <!-- ── Remove confirmation dialog ─────────────────────────── -->
-        <v-dialog v-model="isRemoveDialogOpen" max-width="400">
-            <v-card rounded="lg">
-                <v-card-title class="text-h6 pa-6 pb-2">Remove user from project?</v-card-title>
-                <v-card-text class="pa-6 pt-2">
-                    <span v-if="userPendingRemoval">
-                        This will remove
-                        <strong>{{ userPendingRemoval.first_name }} {{ userPendingRemoval.last_name }}</strong>
-                        (@{{ userPendingRemoval.username }}) from this project.
-                        They will lose all access immediately.
-                    </span>
-                </v-card-text>
-                <v-card-actions class="pa-4 pt-0">
-                    <v-spacer />
-                    <v-btn variant="text" @click="closeRemoveDialog">Cancel</v-btn>
-                    <v-btn color="error" variant="flat" :loading="isRemoving" @click="confirmRemoveUser">
-                        Remove
-                    </v-btn>
-                </v-card-actions>
-            </v-card>
-        </v-dialog>
-
+        <ConfirmDialog
+            v-model="confirmOpen"
+            :color="confirmation.color"
+            :title="confirmation.title"
+            :text="confirmation.text"
+            :confirm-text="confirmation.confirmText"
+            @confirm="runConfirmed"
+        />
     </v-col>
 </template>
 
@@ -233,6 +219,8 @@ import { isAdminUser, isSystemUser, waitForStoreUser } from '@/common/userAccess
 import AddUserToProject from './AddUserToProject.vue'
 import SearchBar from '@/components/SearchBar.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
+import { ConfirmDialog } from '@kaapana/base-ui'
+import { useConfirmation } from '@/composables/useConfirmation'
 // ── Types ──────────────────────────────────────────────────────────────────
 
 interface UserWithRole extends UserItem {
@@ -263,16 +251,14 @@ const { can } = usePermissions();
 // ── State ──────────────────────────────────────────────────────────────────
 
 const search = ref('')
-const users = ref<UserWithRole[]>([]);
-const isLoadingUsers = ref(false);
-const isRemoving = ref(false);
+const users = ref<UserWithRole[]>([])
+const isLoadingUsers = ref(false)
 
-const isAddDialogOpen = ref(false);
-const isEditDialogOpen = ref(false);
-const isRemoveDialogOpen = ref(false);
+const isAddDialogOpen = ref(false)
+const isEditDialogOpen = ref(false)
 
-const selectedUser = ref<UserWithRole | undefined>(undefined);
-const userPendingRemoval = ref<UserWithRole | undefined>(undefined);
+const selectedUser = ref<UserWithRole | undefined>(undefined)
+const { confirmOpen, confirmation, ask, runConfirmed } = useConfirmation()
 
 // ── System user filtering ──────────────────────────────────────────────────
 
@@ -343,32 +329,28 @@ const closeEditDialog = () => {
 };
 
 const onRemoveUser = (user: UserWithRole) => {
-    userPendingRemoval.value = user;
-    isRemoveDialogOpen.value = true;
-};
-
-const closeRemoveDialog = () => {
-    isRemoveDialogOpen.value = false;
-    userPendingRemoval.value = undefined;
-};
+    ask({
+        color: 'error',
+        title: `Remove ${user.first_name} ${user.last_name} from "${props.project?.name}"?`,
+        text:
+            `@${user.username} loses access to this project when their session next refreshes, ` +
+            'within a few minutes. ' +
+            'Data in the project is not affected, and the user can be added again later.',
+        confirmText: 'Remove user',
+        action: () => removeUser(user),
+    })
+}
 
 // ── User operations ────────────────────────────────────────────────────────
 
-const confirmRemoveUser = async () => {
-    if (!userPendingRemoval.value || !props.project?.id) return;
-    isRemoving.value = true;
+const removeUser = async (user: UserWithRole) => {
+    if (!props.project?.id) return
     try {
-        await aiiApiDelete(
-            `projects/${props.project.id}/user/${userPendingRemoval.value.id}/rolemapping`
-        );
-        isRemoveDialogOpen.value = false;
-        userPendingRemoval.value = undefined;
+        await aiiApiDelete(`projects/${props.project.id}/user/${user.id}/rolemapping`)
         // Reload to verify the change
         await loadProjectUsers({ showLoading: false });
     } catch (error) {
-        console.error('Failed to remove user:', error);
-    } finally {
-        isRemoving.value = false;
+        console.error('Failed to remove user:', error)
     }
 };
 

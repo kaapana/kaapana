@@ -130,29 +130,14 @@
             @close="parametersDialog = false"
         />
 
-        <!-- Uninstall Confirmation Dialog -->
-        <v-dialog v-model="uninstallDialog" max-width="600px">
-            <v-card>
-                <v-card-title class="bg-error text-white">
-                    <span class="text-h5">Uninstall Application</span>
-                </v-card-title>
-                <v-card-text>
-                    <v-alert type="warning" variant="tonal" class="mb-0">
-                        Are you sure you want to uninstall <strong>{{ selectedApplication?.annotations["kaapana.ai/display-name"] }}</strong>?
-                        This action cannot be undone.
-                    </v-alert>
-                </v-card-text>
-                <v-card-actions>
-                    <v-spacer></v-spacer>
-                    <v-btn color="primary" variant="text" @click="uninstallDialog = false">
-                        Cancel
-                    </v-btn>
-                    <v-btn color="error" variant="text" @click="confirmUninstall">
-                        Uninstall
-                    </v-btn>
-                </v-card-actions>
-            </v-card>
-        </v-dialog>
+        <ConfirmDialog
+            v-model="confirmOpen"
+            :color="confirmation.color"
+            :title="confirmation.title"
+            :text="confirmation.text"
+            :confirm-text="confirmation.confirmText"
+            @confirm="runConfirmed"
+        />
     </v-col>
 </template>
 
@@ -163,6 +148,8 @@ import { kubeHelmGet } from '@/common/services'
 import SearchBar from '@/components/SearchBar.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 import ApplicationParametersDialog from './ApplicationParametersDialog.vue'
+import { ConfirmDialog } from '@kaapana/base-ui'
+import { useConfirmation } from '@/composables/useConfirmation'
 import { usePermissions } from '@/permissions/usePermissions'
 
 interface ActiveApplication {
@@ -191,17 +178,17 @@ const emit = defineEmits<{
   (e: 'confirm-uninstall', app: ActiveApplication): void;
 }>();
 
-const { can } = usePermissions();
+const { can } = usePermissions()
+const { confirmOpen, confirmation, ask, runConfirmed } = useConfirmation()
 
 // ── State ──────────────────────────────────────────────────────────────────
 
-const searchQuery = ref('');
-const activeApplications = ref<ActiveApplication[]>([]);
-const installedExtensionsByReleaseName = ref<Record<string, InstalledExtension>>({});
-const isLoading = ref(false);
-const parametersDialog = ref(false);
-const selectedApplication = ref<ActiveApplication | null>(null);
-const uninstallDialog = ref(false);
+const searchQuery = ref('')
+const activeApplications = ref<ActiveApplication[]>([])
+const installedExtensionsByReleaseName = ref<Record<string, InstalledExtension>>({})
+const isLoading = ref(false)
+const parametersDialog = ref(false)
+const selectedApplication = ref<ActiveApplication | null>(null)
 
 // ── Computed ───────────────────────────────────────────────────────────────
 
@@ -216,16 +203,17 @@ const filteredActiveApplications = computed(() => {
 // ── Methods ────────────────────────────────────────────────────────────────
 
 const onConfirmUninstall = (app: ActiveApplication) => {
-    selectedApplication.value = app;
-    uninstallDialog.value = true;
-};
-
-const confirmUninstall = () => {
-    if (selectedApplication.value) {
-        emit('confirm-uninstall', selectedApplication.value);
-        uninstallDialog.value = false;
-    }
-};
+    ask({
+        color: 'error',
+        title: `Uninstall "${app.annotations['kaapana.ai/display-name']}"?`,
+        text:
+            'The application is stopped and removed from the project. Files it synchronized to the ' +
+            "project's storage stay; anything else inside it is lost. The application can be " +
+            'launched again later.',
+        confirmText: 'Uninstall application',
+        action: () => emit('confirm-uninstall', app),
+    })
+}
 
 const getFullEndpoint = (path: string): string => {
     return `${window.location.origin}${path}`;

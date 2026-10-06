@@ -48,7 +48,7 @@
                 ref="searchRef"
                 :selectedDataset="selectedDataset"
                 :loading="isLoading"
-                @search="(query) => updateData(query)"
+                @search="(query, refresh) => updateData(query, false, refresh)"
                 @dataset="onScopeDataset"
                 @update:dirty="(dirty) => (searchDirty = dirty)"
               />
@@ -431,12 +431,13 @@ const datasetNoDataText = computed(() =>
 // call captures an id and a resolving chain discards its results if a newer
 // call has since started.
 let updateDataRequestId = 0
-async function updateData(query: any = {}, useLastquery = false) {
+/** `refresh` keeps the results mounted while loading, and with them the focus. */
+async function updateData(query: any = {}, useLastquery = false, refresh = false) {
   const requestId = ++updateDataRequestId
   if (!useLastquery) {
     searchQuery.value = { ...query }
   }
-  isLoading.value = true
+  if (!refresh) isLoading.value = true
   loadFailure.value = null
   selectedSeriesInstanceUIDs.value = []
   datasets_store.setSelectedItems(selectedSeriesInstanceUIDs.value)
@@ -702,7 +703,8 @@ async function removeFromDataset() {
     removingFromDataset.value = false
   }
 
-  if (!successful) {
+  // A dataset picked meanwhile has its own search.
+  if (!successful || !sameDataset(selectedDataset.value, dataset)) {
     return
   }
   if (patients.value) {
@@ -728,10 +730,9 @@ async function removeFromDataset() {
   seriesInstanceUIDs.value = seriesInstanceUIDs.value.filter(
     (series) => !identifiers.includes(series),
   )
-  aggregatedSeriesNum.value = Math.max(0, aggregatedSeriesNum.value - identifiers.length)
 
-  // Reload manually: only the identifiers changed, not the dataset name, so no
-  // watcher in Search.vue fires.
+  // Reload and search again manually: only the identifiers changed, not the
+  // dataset name, so no watcher in Search.vue fires.
   searchRef.value
     ?.reloadDataset()
     .catch((error: unknown) =>

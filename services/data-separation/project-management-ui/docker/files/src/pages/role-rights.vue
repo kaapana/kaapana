@@ -36,109 +36,124 @@
       </div>
     </div>
 
-    <v-alert v-if="userLoaded && !isAdmin" type="error" class="mb-4">
-      This page is only accessible to admins.
+    <v-alert type="info" variant="tonal" density="compact" class="mb-4">
+      Changes are staged locally until you click <strong>Save Changes</strong>. Users receive
+      updated rights when their session next refreshes, within a few minutes, or at their next
+      login.
     </v-alert>
 
-    <template v-else>
-      <v-alert type="info" variant="tonal" density="compact" class="mb-4">
-        Changes are staged locally until you click <strong>Save Changes</strong>. Users receive
-        updated rights when their session next refreshes, within a few minutes, or at their next
-        login.
-      </v-alert>
+    <v-skeleton-loader v-if="loading" type="table" />
 
-      <v-skeleton-loader v-if="loading" type="table" />
+    <FailureAlert
+      v-else-if="loadError"
+      title="Role rights not loaded"
+      text="Could not load the roles and rights."
+      :error="loadError"
+      :retry="load"
+    />
 
-      <FailureAlert
-        v-else-if="loadError"
-        title="Role rights not loaded"
-        text="Could not load the roles and rights."
-        :error="loadError"
-        :retry="load"
-      />
-
-      <v-card v-else :elevation="2">
-        <v-table density="comfortable">
-          <thead>
-            <tr>
-              <th>Right</th>
-              <th class="text-caption text-medium-emphasis">JWT Claim</th>
-              <th v-for="role in roles" :key="role.id" class="text-center">
-                <div class="font-weight-medium text-uppercase">{{ role.name }}</div>
-                <div class="text-caption text-medium-emphasis font-weight-regular text-wrap">
-                  {{ role.description }}
-                </div>
-              </th>
-              <th class="text-right"></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="right in rights" :key="right.id">
-              <td>
-                <v-tooltip :text="right.description" location="right">
+    <v-card v-else :elevation="2">
+      <v-table density="comfortable">
+        <thead>
+          <tr>
+            <th>Right</th>
+            <th class="text-caption text-medium-emphasis">JWT Claim</th>
+            <th v-for="role in roles" :key="role.id" class="text-center">
+              <div class="font-weight-medium text-uppercase">{{ role.name }}</div>
+              <div class="text-caption text-medium-emphasis font-weight-regular text-wrap">
+                {{ role.description }}
+              </div>
+            </th>
+            <th class="text-right"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="right in rights" :key="right.id">
+            <td>
+              <v-tooltip :text="right.description" location="right">
+                <template #activator="{ props }">
+                  <span v-bind="props" class="font-weight-medium">{{ right.name }}</span>
+                </template>
+              </v-tooltip>
+            </td>
+            <td class="text-caption text-medium-emphasis">
+              <span>{{ right.claim_key }}: {{ right.claim_value }}</span>
+            </td>
+            <td
+              v-for="role in roles"
+              :key="role.id"
+              class="text-center"
+              :class="isPending(role.id, right.id) ? 'pm-pending' : ''"
+            >
+              <v-checkbox-btn
+                :model-value="effectiveValue(role.id, right.id)"
+                color="primary"
+                hide-details
+                density="compact"
+                inline
+                @update:model-value="stage(role.id, right.id, $event)"
+              />
+            </td>
+            <td>
+              <div class="d-flex justify-end pr-2">
+                <v-tooltip text="Delete right" location="top">
                   <template #activator="{ props }">
-                    <span v-bind="props" class="font-weight-medium">{{ right.name }}</span>
+                    <v-btn
+                      v-bind="props"
+                      :icon="kaapanaIcons.delete"
+                      :aria-label="`Delete right ${right.name}`"
+                      :loading="deletingRightId === right.id"
+                      :disabled="deletingRightId !== null"
+                      size="default"
+                      variant="text"
+                      color="error"
+                      @click="askDeleteRight(right)"
+                    />
                   </template>
                 </v-tooltip>
-              </td>
-              <td class="text-caption text-medium-emphasis">
-                <span>{{ right.claim_key }}: {{ right.claim_value }}</span>
-              </td>
-              <td
-                v-for="role in roles"
-                :key="role.id"
-                class="text-center"
-                :class="isPending(role.id, right.id) ? 'pm-pending' : ''"
-              >
-                <v-checkbox-btn
-                  :model-value="effectiveValue(role.id, right.id)"
-                  color="primary"
-                  hide-details
-                  density="compact"
-                  inline
-                  @update:model-value="stage(role.id, right.id, $event)"
-                />
-              </td>
-              <td>
-                <div class="d-flex justify-end pr-2">
-                  <v-tooltip text="Delete right" location="top">
-                    <template #activator="{ props }">
-                      <v-btn
-                        v-bind="props"
-                        :icon="kaapanaIcons.delete"
-                        :aria-label="`Delete right ${right.name}`"
-                        :loading="deletingRightId === right.id"
-                        :disabled="deletingRightId !== null"
-                        size="default"
-                        variant="text"
-                        color="error"
-                        @click="askDeleteRight(right)"
-                      />
-                    </template>
-                  </v-tooltip>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </v-table>
-      </v-card>
-    </template>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </v-table>
+    </v-card>
   </v-container>
 
-  <!-- Add right dialog -->
-  <v-dialog v-model="addRightDialog" max-width="520">
-    <v-card rounded="lg">
-      <v-card-title class="text-h6 pa-6 pb-2">Add New Right</v-card-title>
-      <v-card-text class="pa-6 pt-2 d-flex flex-column ga-3">
-        <v-text-field v-model="newRight.name" label="Name" hint="e.g. manage_users" density="compact" variant="outlined" />
-        <v-text-field v-model="newRight.description" label="Description" density="compact" variant="outlined" />
-        <v-text-field v-model="newRight.claim_key" label="JWT Claim Key" hint="e.g. kaapana.ai/aii" density="compact" variant="outlined" />
-        <v-text-field v-model="newRight.claim_value" label="JWT Claim Value" hint="e.g. manage_users" density="compact" variant="outlined" />
+  <v-dialog v-model="addRightDialog" max-width="600">
+    <v-card title="Add New Right">
+      <v-card-text>
+        <v-form ref="addRightForm" @submit.prevent="addRight">
+          <v-text-field
+            v-model="newRight.name"
+            label="Name"
+            hint="e.g. manage_users"
+            :rules="[required('a name for the right, such as manage_users')]"
+          />
+          <v-text-field
+            v-model="newRight.description"
+            label="Description"
+            :rules="[required('a description')]"
+          />
+          <v-text-field
+            v-model="newRight.claim_key"
+            label="JWT claim key"
+            hint="e.g. kaapana.ai/aii"
+            :rules="[required('the JWT claim key')]"
+          />
+          <v-text-field
+            v-model="newRight.claim_value"
+            label="JWT claim value"
+            hint="e.g. manage_users"
+            :rules="[required('the JWT claim value')]"
+          />
+        </v-form>
       </v-card-text>
-      <v-card-actions class="pa-4 pt-0">
+      <v-card-actions>
         <v-spacer />
-        <v-btn variant="text" @click="addRightDialog = false">Cancel</v-btn>
-        <v-btn color="primary" variant="flat" :loading="addingRight" @click="addRight">Add</v-btn>
+        <v-btn :disabled="addingRight" @click="addRightDialog = false">Cancel</v-btn>
+        <v-btn color="primary" :loading="addingRight" :disabled="addingRight" @click="addRight">
+          Add right
+        </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -163,7 +178,7 @@ import { notifyFailure } from '@/utils/notifyFailure'
 import FailureAlert from '@/components/FailureAlert.vue'
 import { defineComponent, ref } from 'vue'
 import { aiiApiGet, aiiApiPost, aiiApiDelete } from '@/common/services'
-import { isAdminUser, waitForStoreUser } from '@/common/userAccess'
+import { required } from '@/common/validation'
 
 interface Right {
   id: number;
@@ -185,12 +200,19 @@ export default defineComponent({
     const { confirmOpen, confirmation, ask, runConfirmed } = useConfirmation()
     const dirty = ref(false)
     useViewDirty(dirty)
-    return { kaapanaIcons, projectIcons, confirmOpen, confirmation, ask, runConfirmed, dirty }
+    return {
+      kaapanaIcons,
+      projectIcons,
+      confirmOpen,
+      confirmation,
+      ask,
+      runConfirmed,
+      dirty,
+      required,
+    }
   },
   data() {
     return {
-      isAdmin: false,
-      userLoaded: false,
       loading: true,
       saving: false,
       resetting: false,
@@ -221,18 +243,14 @@ export default defineComponent({
   },
 
   mounted() {
-    waitForStoreUser((user) => {
-      this.isAdmin = isAdminUser(user);
-      this.userLoaded = true;
-      if (this.isAdmin) this.load();
-      else this.loading = false;
-    });
+    this.load()
   },
 
   methods: {
     async addRight() {
-      if (!this.newRight.name) return;
-      this.addingRight = true;
+      const form = this.$refs.addRightForm as { validate: () => Promise<{ valid: boolean }> }
+      if (!(await form.validate()).valid) return
+      this.addingRight = true
       try {
         await aiiApiPost('projects/rights', this.newRight)
         notify({ type: 'success', text: `Right "${this.newRight.name}" added.` })
@@ -282,7 +300,7 @@ export default defineComponent({
           'Users receive the updated rights when their session next refreshes, within a few ' +
           'minutes.',
         confirmText: 'Save changes',
-        action: () => this.saveAndLogout(),
+        action: () => this.saveChanges(),
       })
     },
 
@@ -365,7 +383,7 @@ export default defineComponent({
       }
     },
 
-    async saveAndLogout() {
+    async saveChanges() {
       this.saving = true
       let applied = 0
       let failed = 0

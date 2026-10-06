@@ -2,6 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Index from '@/pages/index.vue'
 import Project from '@/pages/project.vue'
 import RoleRights from '@/pages/role-rights.vue'
+import store from '@/common/store'
+import { isAdminUser } from '@/common/userAccess'
 
 const routes = [
   {
@@ -23,6 +25,7 @@ const routes = [
     path: '/role-rights',
     name: 'RoleRights',
     component: RoleRights,
+    beforeEnter: async () => (isAdminUser(await store.userLoaded) ? true : '/'),
   },
   {
     path: '/:pathMatch(.*)*',

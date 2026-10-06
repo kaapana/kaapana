@@ -13,8 +13,7 @@ import { iframeSrcFor } from '@/utils/iframeSrc'
 
 // Only for old bookmarks: the flat routes of the old monolith (/datasets,
 // /workflows, ...) map onto the per-view slugs. Queries are kept for gallery
-// deep links. Due for removal in <release TBD>, together with their grants in
-// auth-backend's data.rego and clearLegacyProjectCookie in api/projects.ts.
+// deep links.
 const legacyRedirects: Record<string, string> = {
   '/datasets': '/workflows/datasets',
   '/data-upload': '/workflows/data-upload',

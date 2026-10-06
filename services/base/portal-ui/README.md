@@ -99,8 +99,7 @@ expired.
   base-ui's `navigateShell` posts that path, and the router redirects it to
   `/project/<short_id>/<section>/<entry>`, keeping the query string. The routes
   of the old monolith (`/datasets`, `/workflows`, …) redirect too, but only for
-  old bookmarks. They are due for removal in <release TBD>, together with their
-  `data.rego` grants and `clearLegacyProjectCookie`.
+  old bookmarks.
 
 ## Backend endpoints
 

@@ -1,9 +1,53 @@
 import { test, expect } from '@playwright/test'
 import { RESEARCH_PROJECT, SCIENTIST_USER } from './fixtures/mock-backend'
-import { openProject, openView, row } from './fixtures/helpers'
+import {
+  dialog,
+  dismissWithEscape,
+  openProject,
+  openView,
+  row,
+  waitForExpandTransition,
+} from './fixtures/helpers'
 
 // Rules from docs/source/development_guide/preview/design_guidelines.rst that
 // hold for every control.
+
+test.describe('actions requiring confirmation', () => {
+  test('a destructive action confirms with the safe action focused and error emphasis', async ({
+    page,
+  }) => {
+    await openView(page)
+    await row(page, RESEARCH_PROJECT.name)
+      .getByRole('button', { name: `Delete ${RESEARCH_PROJECT.name}` })
+      .click()
+    const confirm = dialog(page)
+
+    // What will happen, to what, and what follows.
+    await expect(confirm).toContainText(`Delete "${RESEARCH_PROJECT.name}"?`)
+    await expect(confirm).toContainText('permanently deleted from the platform')
+    await expect(confirm).toContainText('archive it instead')
+    // "Give initial focus to the safe action": Enter must never delete.
+    await expect(confirm.getByRole('button', { name: 'Cancel' })).toBeFocused()
+    await expect(confirm.getByRole('button', { name: 'Delete project' })).toHaveClass(/text-error/)
+  })
+
+  test('a high-impact action confirms with primary emphasis and states its cost', async ({
+    page,
+  }) => {
+    await openView(page)
+    await row(page, RESEARCH_PROJECT.name)
+      .getByRole('button', { name: `Archive ${RESEARCH_PROJECT.name}` })
+      .click()
+    const confirm = dialog(page)
+
+    await expect(confirm).toContainText(`Archive "${RESEARCH_PROJECT.name}"?`)
+    await expect(confirm).toContainText('read-only')
+    await expect(confirm).toContainText('unarchive the project at any time')
+    const archive = confirm.getByRole('button', { name: 'Archive project' })
+    await expect(archive).toHaveClass(/text-primary/)
+    await expect(archive).not.toHaveClass(/error/)
+  })
+})
 
 test.describe('visual language', () => {
   test('the shared theme is in effect: platform typeface and theme roles', async ({ page }) => {
@@ -74,8 +118,7 @@ test.describe('accessibility', () => {
     for (let i = 0; i < 4; i++) {
       await toggles.first().click()
       await expect(toggles).toHaveCount(3 - i)
-      // The sections below shift until the height animation ends.
-      await expect(page.locator('.expand-transition-enter-active')).toHaveCount(0)
+      await waitForExpandTransition(page)
     }
     await expect(page.getByRole('button', { name: 'Collapse section' }).first()).toHaveAttribute(
       'aria-expanded',
@@ -139,7 +182,7 @@ test.describe('accessibility', () => {
     for (let i = 0; i < 4; i++) {
       await toggles.first().click()
       await expect(toggles).toHaveCount(3 - i)
-      await expect(page.locator('.expand-transition-enter-active')).toHaveCount(0)
+      await waitForExpandTransition(page)
     }
     await expect(row(page, SCIENTIST_USER.email)).toBeVisible()
     await expect(row(page, 'JupyterLab (notebooks)')).toBeVisible()
@@ -149,5 +192,22 @@ test.describe('accessibility', () => {
     await page.getByRole('button', { name: 'Edit Role Rights' }).click()
     await expect(page.getByText('manage_users', { exact: true })).toBeVisible()
     await expectTooltips()
+  })
+
+  test('a dismissed confirmation returns focus to the control that opened it', async ({ page }) => {
+    await openView(page)
+    const remove = row(page, RESEARCH_PROJECT.name).getByRole('button', {
+      name: `Delete ${RESEARCH_PROJECT.name}`,
+    })
+
+    await remove.focus()
+    await page.keyboard.press('Enter')
+    await dialog(page).getByRole('button', { name: 'Cancel' }).click()
+    await expect(dialog(page)).toBeHidden()
+    await expect(remove).toBeFocused()
+
+    await page.keyboard.press('Enter')
+    await dismissWithEscape(page)
+    await expect(remove).toBeFocused()
   })
 })

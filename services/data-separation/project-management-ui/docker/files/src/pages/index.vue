@@ -103,7 +103,7 @@
                   size="default"
                   variant="text"
                   color="primary"
-                  @click.stop="unarchiveItem(item)"
+                  @click.stop="unarchiveProject(item)"
                 />
               </template>
             </v-tooltip>
@@ -132,14 +132,14 @@
     <EditProjectDialog v-if="selectedProject" :project="selectedProject"
       @success="handleEditSuccess" @cancel="editDialog = false" @error="handleEditError" />
   </v-dialog>
-  <v-dialog v-model="deleteDialog" max-width="500">
-    <DeleteProjectDialog v-if="selectedProject" :project="selectedProject"
-      @confirm="handleDeleteConfirm" @cancel="deleteDialog = false" />
-  </v-dialog>
-  <v-dialog v-model="archiveDialog" max-width="560">
-    <ArchiveProjectDialog v-if="selectedProject" :project="selectedProject"
-      @confirm="handleArchiveConfirm" @cancel="archiveDialog = false" />
-  </v-dialog>
+  <ConfirmDialog
+    v-model="confirmOpen"
+    :color="confirmation.color"
+    :title="confirmation.title"
+    :text="confirmation.text"
+    :confirm-text="confirmation.confirmText"
+    @confirm="runConfirmed"
+  />
 </template>
 
 <script lang="ts">
@@ -147,26 +147,38 @@ import { kaapanaIcons, projectIcons } from '@/utils/projectIcons'
 import { defineComponent } from 'vue'
 import CreateNewProjectForm from '@/components/CreateNewProjectForm.vue'
 import EditProjectDialog from '@/components/EditProjectDialog.vue'
-import DeleteProjectDialog from '@/components/DeleteProjectDialog.vue'
-import ArchiveProjectDialog from '@/components/ArchiveProjectDialog.vue'
+import { ConfirmDialog } from '@kaapana/base-ui'
 import { aiiApiGet, aiiApiDelete, aiiApiPost } from '@/common/services'
 import { refreshShell } from '@/common/shell'
 import { ProjectItem, UserItem } from '@/common/types'
 import { isAdminUser, waitForStoreUser } from '@/common/userAccess'
 import { useSnackbar } from '@/composables/useSnackbar'
+import { useConfirmation } from '@/composables/useConfirmation'
+import { archiveProjectConfirmation, deleteProjectConfirmation } from '@/utils/projectConfirmations'
 import store from '@/common/store'
 
 export default defineComponent({
   components: {
     CreateNewProjectForm,
     EditProjectDialog,
-    DeleteProjectDialog,
-    ArchiveProjectDialog,
+    ConfirmDialog,
   },
   props: {},
   setup() {
     const { showSnackbar, snackbarText, snackbarColor, notify } = useSnackbar()
-    return { kaapanaIcons, projectIcons, showSnackbar, snackbarText, snackbarColor, notify }
+    const { confirmOpen, confirmation, ask, runConfirmed } = useConfirmation()
+    return {
+      kaapanaIcons,
+      projectIcons,
+      showSnackbar,
+      snackbarText,
+      snackbarColor,
+      notify,
+      confirmOpen,
+      confirmation,
+      ask,
+      runConfirmed,
+    }
   },
   data() {
     return {
@@ -176,8 +188,6 @@ export default defineComponent({
       error: false,
       userHasAdminAccess: false,
       editDialog: false,
-      deleteDialog: false,
-      archiveDialog: false,
       selectedProject: null as ProjectItem | null,
     };
   },
@@ -250,13 +260,9 @@ export default defineComponent({
       this.notify(msg, 'error');
     },
     openDeleteDialog(project: ProjectItem) {
-      this.selectedProject = project;
-      this.deleteDialog = true;
+      this.ask(deleteProjectConfirmation(project, () => this.deleteProject(project)))
     },
-    async handleDeleteConfirm() {
-      if (!this.selectedProject) return;
-      const project = this.selectedProject;
-      this.deleteDialog = false;
+    async deleteProject(project: ProjectItem) {
       try {
         await aiiApiDelete(`projects/${project.id}`);
         refreshShell();
@@ -269,13 +275,9 @@ export default defineComponent({
       }
     },
     openArchiveDialog(project: ProjectItem) {
-      this.selectedProject = project;
-      this.archiveDialog = true;
+      this.ask(archiveProjectConfirmation(project, () => this.archiveProject(project)))
     },
-    async handleArchiveConfirm() {
-      if (!this.selectedProject) return;
-      const project = this.selectedProject;
-      this.archiveDialog = false;
+    async archiveProject(project: ProjectItem) {
       try {
         await aiiApiPost(`projects/${project.id}/archive`, {});
         refreshShell();
@@ -287,7 +289,7 @@ export default defineComponent({
         this.notify('Failed to archive project.', 'error');
       }
     },
-    async unarchiveItem(project: ProjectItem) {
+    async unarchiveProject(project: ProjectItem) {
       try {
         await aiiApiPost(`projects/${project.id}/unarchive`, {});
         refreshShell();

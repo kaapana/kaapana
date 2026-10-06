@@ -21,7 +21,7 @@
           color="error"
           :prepend-icon="projectIcons.reset"
           :loading="resetting"
-          @click="resetDialog = true"
+          @click="askReset"
         >
           Reset to Defaults
         </v-btn>
@@ -33,7 +33,7 @@
           :loading="saving"
           color="primary"
           :prepend-icon="kaapanaIcons.save"
-          @click="confirmDialog = true"
+          @click="askSave"
         >
           Save Changes
         </v-btn>
@@ -46,8 +46,9 @@
 
     <template v-else>
       <v-alert type="info" variant="tonal" density="compact" class="mb-4">
-        Changes are staged locally until you click <strong>Save Changes</strong>.
-        Users receive updated rights on their next login or when their token refreshes (within ~15 minutes).
+        Changes are staged locally until you click <strong>Save Changes</strong>. Users receive
+        updated rights when their session next refreshes, within a few minutes, or at their next
+        login.
       </v-alert>
 
       <v-skeleton-loader v-if="loading" type="table" />
@@ -105,7 +106,7 @@
                         size="default"
                         variant="text"
                         color="error"
-                        @click="deleteRight(right)"
+                        @click="askDeleteRight(right)"
                       />
                     </template>
                   </v-tooltip>
@@ -117,29 +118,6 @@
       </v-card>
     </template>
   </v-container>
-
-  <!-- Reset to defaults dialog -->
-  <v-dialog v-model="resetDialog" max-width="480">
-    <v-card rounded="lg">
-      <v-card-title class="text-h6 pa-6 pb-2">Reset to defaults?</v-card-title>
-      <v-card-text class="pa-6 pt-2">
-        This will:
-        <ul class="mt-2 ml-4">
-          <li>Recreate any missing default rights from the configmap</li>
-          <li><strong>Permanently delete</strong> any custom rights you added</li>
-          <li>Reset all role-rights assignments to the configmap defaults</li>
-        </ul>
-        <div class="mt-3">Any unsaved staged changes will also be discarded.</div>
-      </v-card-text>
-      <v-card-actions class="pa-4 pt-0">
-        <v-spacer />
-        <v-btn variant="text" @click="resetDialog = false">Cancel</v-btn>
-        <v-btn color="error" variant="flat" :loading="resetting" @click="resetToDefaults">
-          Reset
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
 
   <!-- Add right dialog -->
   <v-dialog v-model="addRightDialog" max-width="520">
@@ -159,27 +137,20 @@
     </v-card>
   </v-dialog>
 
-  <!-- Confirm dialog -->
-  <v-dialog v-model="confirmDialog" max-width="480">
-    <v-card rounded="lg">
-      <v-card-title class="text-h6 pa-6 pb-2">Save changes?</v-card-title>
-      <v-card-text class="pa-6 pt-2">
-        This will apply <strong>{{ pendingCount }} change{{ pendingCount !== 1 ? 's' : '' }}</strong>
-        to the role-rights mapping. Users will receive the updated rights on their next login or token refresh.
-      </v-card-text>
-      <v-card-actions class="pa-4 pt-0">
-        <v-spacer />
-        <v-btn variant="text" @click="confirmDialog = false">Cancel</v-btn>
-        <v-btn color="primary" variant="flat" :loading="saving" @click="saveAndLogout">
-          Save
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+  <ConfirmDialog
+    v-model="confirmOpen"
+    :color="confirmation.color"
+    :title="confirmation.title"
+    :text="confirmation.text"
+    :confirm-text="confirmation.confirmText"
+    @confirm="runConfirmed"
+  />
 </template>
 
 <script lang="ts">
 import { kaapanaIcons, projectIcons } from '@/utils/projectIcons'
+import { ConfirmDialog } from '@kaapana/base-ui'
+import { useConfirmation } from '@/composables/useConfirmation'
 import { defineComponent } from 'vue'
 import { aiiApiGet, aiiApiPost, aiiApiDelete } from '@/common/services'
 import { isAdminUser, waitForStoreUser } from '@/common/userAccess'
@@ -199,8 +170,10 @@ interface Role {
 }
 
 export default defineComponent({
+  components: { ConfirmDialog },
   setup() {
-    return { kaapanaIcons, projectIcons }
+    const { confirmOpen, confirmation, ask, runConfirmed } = useConfirmation()
+    return { kaapanaIcons, projectIcons, confirmOpen, confirmation, ask, runConfirmed }
   },
   data() {
     return {
@@ -209,8 +182,6 @@ export default defineComponent({
       loading: true,
       saving: false,
       resetting: false,
-      confirmDialog: false,
-      resetDialog: false,
       addRightDialog: false,
       addingRight: false,
       newRight: { name: '', description: '', claim_key: '', claim_value: '' },
@@ -259,7 +230,47 @@ export default defineComponent({
       }
     },
 
-    async deleteRight(right: { id: number; name: string }) {
+    askDeleteRight(right: Right) {
+      this.ask({
+        color: 'error',
+        title: `Delete right "${right.name}"?`,
+        text:
+          'The right is removed from every role that holds it, and users lose its claim when ' +
+          'their session next refreshes, within a few minutes. Reset to Defaults restores ' +
+          'default rights, not custom ones.',
+        confirmText: 'Delete right',
+        action: () => this.deleteRight(right),
+      })
+    },
+
+    askReset() {
+      this.ask({
+        color: 'error',
+        title: 'Reset role rights to defaults?',
+        text:
+          'All rights and role-right assignments are replaced by the defaults from the ' +
+          'configuration; custom rights are permanently deleted. Unsaved staged changes are ' +
+          'discarded.',
+        confirmText: 'Reset to defaults',
+        action: () => this.resetToDefaults(),
+      })
+    },
+
+    askSave() {
+      const count = this.pendingCount
+      this.ask({
+        color: 'primary',
+        title: 'Save role-right changes?',
+        text:
+          `${count} change${count !== 1 ? 's are' : ' is'} applied to the role-rights mapping. ` +
+          'Users receive the updated rights when their session next refreshes, within a few ' +
+          'minutes.',
+        confirmText: 'Save changes',
+        action: () => this.saveAndLogout(),
+      })
+    },
+
+    async deleteRight(right: Right) {
       try {
         await aiiApiDelete(`projects/rights/${right.id}`);
         this.notify(`Right "${right.name}" deleted.`, 'success');
@@ -271,8 +282,7 @@ export default defineComponent({
     },
 
     async resetToDefaults() {
-      this.resetting = true;
-      this.resetDialog = false;
+      this.resetting = true
       try {
         const result = await aiiApiPost('projects/rights/reset', {});
         this.notify(`Reset complete: ${result.reset} role-right assignments applied.`, 'success');
@@ -342,10 +352,9 @@ export default defineComponent({
     },
 
     async saveAndLogout() {
-      this.saving = true;
-      this.confirmDialog = false;
-      let applied = 0;
-      let failed = 0;
+      this.saving = true
+      let applied = 0
+      let failed = 0
 
       try {
         await Promise.all(

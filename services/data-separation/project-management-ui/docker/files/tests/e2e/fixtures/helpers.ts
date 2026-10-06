@@ -132,3 +132,22 @@ export async function openFailureDetails(page: Page, title: string) {
   await expect(dialog(page).getByText(title, { exact: true })).toBeVisible()
   return dialog(page)
 }
+
+type ShellMessage = { type: string; dirty?: boolean }
+type RecordingWindow = Window & { __shellMessages: ShellMessage[] }
+
+// Standalone, the shell is the page itself, so the messages land on the same window.
+export async function recordShellMessages(page: Page) {
+  await page.addInitScript(() => {
+    const recording = window as unknown as RecordingWindow
+    recording.__shellMessages = []
+    window.addEventListener('message', (event: MessageEvent) => {
+      recording.__shellMessages.push(event.data)
+    })
+  })
+  return () => page.evaluate(() => (window as unknown as RecordingWindow).__shellMessages)
+}
+
+export function lastDirty(messages: ShellMessage[]) {
+  return messages.filter((m) => m.type === 'kaapana:view-dirty').at(-1)?.dirty
+}

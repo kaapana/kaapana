@@ -165,7 +165,7 @@ import ProjectWorkflows from '@/components/ProjectWorkflows.vue'
 import MultiinstallableApplications from '@/components/MultiinstallableApplications.vue'
 import ActiveProjectApplications from '@/components/ActiveProjectApplications.vue'
 import EditProjectDialog from '@/components/EditProjectDialog.vue'
-import { ConfirmDialog } from '@kaapana/base-ui'
+import { ConfirmDialog, refreshShell } from '@kaapana/base-ui'
 import { notify } from '@kyvg/vue3-notification'
 import { notifyFailure } from '@/utils/notifyFailure'
 import { useConfirmation } from '@/composables/useConfirmation'
@@ -275,6 +275,7 @@ export default defineComponent({
 
     async handleEditSuccess(): Promise<void> {
       this.editDialog = false
+      refreshShell()
       await this.loadProject()
       notify({ type: 'success', text: 'Project updated.' })
     },
@@ -292,6 +293,7 @@ export default defineComponent({
       this.busy = 'delete'
       try {
         await aiiApiDelete(`projects/${this.projectId}`)
+        refreshShell()
         this.$router.push('/')
         notify({ type: 'success', text: `Project "${this.project?.name}" deleted.` })
       } catch (error) {
@@ -310,6 +312,7 @@ export default defineComponent({
       this.busy = 'archive'
       try {
         await aiiApiPost(`projects/${this.projectId}/archive`, {})
+        refreshShell()
         await this.loadProject()
         notify({ type: 'success', text: `Project "${this.project?.name}" archived.` })
       } catch (error) {
@@ -323,6 +326,7 @@ export default defineComponent({
       this.busy = 'unarchive'
       try {
         await aiiApiPost(`projects/${this.projectId}/unarchive`, {})
+        refreshShell()
         await this.loadProject()
         notify({ type: 'success', text: `Project "${this.project?.name}" unarchived.` })
       } catch (error) {

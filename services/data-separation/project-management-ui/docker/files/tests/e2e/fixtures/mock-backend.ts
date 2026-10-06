@@ -1,4 +1,5 @@
 import type { Page, Route } from '@playwright/test'
+import type { PolicyData } from '@kaapana/base-ui'
 import type { ProjectItem, UserItem } from '@/common/types'
 import type { UserRight } from '@/permissions/permissions.store'
 
@@ -66,6 +67,8 @@ export interface Membership {
 }
 
 export interface MockData {
+  /** GET /kaapana-backend/open-policy-data: the role grants of the gateway. */
+  policyData: PolicyData
   currentUser: UserItem
   /** The current user's AII rights, across all projects. */
   rights: UserRight[]
@@ -145,7 +148,26 @@ export const SYSTEM_USER: UserItem = {
   realm_roles: ['admin'],
 }
 
+// The role grants of auth-backend's data.rego that this view's controls
+// depend on.
+export const defaultPolicyData: PolicyData = {
+  endpoints_per_role: {
+    user: [
+      { path: '^/aii/.*', methods: ['GET'] },
+      { path: '^/kube-helm-api/active-applications', methods: ['GET'] },
+      { path: '^/projects-ui.*', methods: ['GET'] },
+    ],
+    'project-manager': [
+      { path: '^/aii/.*', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
+      { path: '^/projects-ui.*', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
+      { path: '^/kaapana-backend/open-policy-data', methods: ['GET'] },
+    ],
+    admin: [{ path: '^/.*', methods: ['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'PATCH'] }],
+  },
+}
+
 export const defaultMockData: MockData = {
+  policyData: defaultPolicyData,
   currentUser: ADMIN_USER,
   rights: [],
   projects: [ADMIN_PROJECT, RESEARCH_PROJECT],
@@ -440,6 +462,7 @@ export async function installMockBackend(
 
   await page.route(/\/aii\//, (r) => handleAii(r, state))
   await page.route(/\/kube-helm-api\//, (r) => handleKubeHelm(r, state))
+  await page.route('**/kaapana-backend/open-policy-data', (r) => r.fulfill(json(state.policyData)))
   await page.route(/\/kaapana-backend\/client\/dags(\?.*)?$/, (r) => r.fulfill(json(state.dags)))
   return state
 }

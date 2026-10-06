@@ -104,7 +104,7 @@
         @toggle="isWorkflowsSectionExpanded = $event" />
     </v-row>
 
-    <template v-if="userHasAdminAccess || can(project?.id, 'view_applications')">
+    <template v-if="can(project?.id, 'view_applications')">
       <v-divider class="my-4" />
 
       <!-- ── Multiinstallable Applications ────────────────────────── -->
@@ -114,7 +114,7 @@
       </v-row>
     </template>
 
-    <template v-if="userHasAdminAccess || can(project?.id, 'view_active_apps')">
+    <template v-if="can(project?.id, 'view_active_apps')">
       <v-divider class="my-4" />
 
       <!-- ── Active Project Applications ──────────────────────────── -->

@@ -33,26 +33,15 @@ export default defineConfig(() => ({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
-    extensions: [
-      '.js',
-      '.json',
-      '.jsx',
-      '.mjs',
-      '.ts',
-      '.tsx',
-      '.vue',
-    ],
+    // @kaapana/base-ui is an npm-linked file: dependency; make its vue/vuetify/axios
+    // imports resolve to this app's copies (its own node_modules is absent in
+    // the Docker build and must not win locally).
+    dedupe: ['vue', 'vuetify', 'axios', '@kyvg/vue3-notification', 'pinia'],
+    extensions: ['.js', '.json', '.jsx', '.mjs', '.ts', '.tsx', '.vue'],
   },
   server: {
-    allowedHosts: ["<hostname>"],
     port: 5174,
     host: true,
-    strictPort: true,
-    hmr: {
-      protocol: 'wss',
-      clientPort: 443,
-      path: '/projects-ui/@vite',
-    },
   },
   build: {
     outDir: 'dist',

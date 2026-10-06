@@ -11,9 +11,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@kaapana/base-ui": "file:../../../../base/base-ui/docker/files",
+    "@kyvg/vue3-notification": "^3.4.1",
     "@mdi/font": "^7.4.47",
     "axios": "^1.12.2",
-    "pinia": "^3.0.4",
+    "pinia": "^2.2.6",
     "vue": "^3.5.18",
     "vue-router": "^4.5.1",
     "vuetify": "^3.10.5"

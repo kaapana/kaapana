@@ -3,6 +3,8 @@ set -e  # Exit immediately if a command exits with a non-zero status
 
 export PYTHONPATH="$PWD" 
 
+python3 alembic/migrate.py
+
 if [ -z "${DEV_FILES}" ]; then
     # Production
     exec uvicorn main:app --workers 4 --host 0.0.0.0 --port 8000 --root-path $APPLICATION_ROOT --access-log --use-colors --forwarded-allow-ips '*'

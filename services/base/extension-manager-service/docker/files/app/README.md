@@ -240,6 +240,8 @@ Routes each content item to the correct installer and abstracts the target platf
 
 Provides async SQLAlchemy CRUD operations over the `registries`, `extensions`, and `contents` tables.
 
+The schema is managed by Alembic (`alembic/`, one revision per release, named `v<major>_<minor>_<patch>_<rev>.py`). `boot.sh` runs `alembic/migrate.py` before the server starts: an empty database is upgraded to head; a database without `alembic_version`, created by `create_all` before Alembic, is stamped with the 0.7.0 revision and then upgraded. A schema change needs a new revision next to the model change, e.g. `alembic revision -m "v0-8-0 <change>"`. The tests build the schema with `create_all`; `tests/test_migrations.py` checks the revisions against the models.
+
 Key behaviours:
 - **Row-level locking** — `SELECT ... FOR UPDATE NOWAIT` prevents two concurrent requests from mutating the same extension or content row simultaneously. The lock fails immediately rather than waiting; concurrent attempts raise a `LockedExtensionException` which the caller surfaces as an HTTP 409.
 - **Transition validation** — `update_extension_status` and `update_content_status` check the requested transition against an allow-list before committing. This enforces the state machines described above.

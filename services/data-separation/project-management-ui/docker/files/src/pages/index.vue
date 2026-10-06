@@ -138,12 +138,20 @@
       </v-data-table>
     </v-card>
   </v-container>
-  <v-dialog v-model="projectDialog" max-width="1000">
-    <CreateNewProjectForm :onsuccess="() => (projectDialog = false)" :oncomplete="handleProjectCreate" :oncancel="() => (projectDialog = false)" />
+  <v-dialog v-model="projectDialog" max-width="600">
+    <CreateNewProjectForm
+      v-if="projectDialog"
+      @created="handleProjectCreated"
+      @cancel="projectDialog = false"
+    />
   </v-dialog>
   <v-dialog v-model="editDialog" max-width="600">
-    <EditProjectDialog v-if="selectedProject" :project="selectedProject"
-      @success="handleEditSuccess" @cancel="editDialog = false" @error="handleEditError" />
+    <EditProjectDialog
+      v-if="editDialog && selectedProject"
+      :project="selectedProject"
+      @success="handleEditSuccess"
+      @cancel="editDialog = false"
+    />
   </v-dialog>
   <ConfirmDialog
     v-model="confirmOpen"
@@ -221,13 +229,9 @@ async function fetchProjects() {
   }
 }
 
-function handleProjectCreate(success: boolean = true, error?: unknown) {
-  if (success) {
-    fetchProjects()
-  } else {
-    notifyFailure('Project not created', 'The project could not be created.', error)
-  }
+function handleProjectCreated() {
   projectDialog.value = false
+  fetchProjects()
 }
 
 function goToProjects(projectId: string) {
@@ -244,10 +248,6 @@ function handleEditSuccess() {
   refreshShell()
   fetchProjects()
   notify({ type: 'success', text: 'Project updated.' })
-}
-
-function handleEditError(text: string, error?: unknown) {
-  notifyFailure('Project not updated', text, error)
 }
 
 function openDeleteDialog(project: ProjectItem) {

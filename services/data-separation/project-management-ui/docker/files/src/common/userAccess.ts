@@ -15,11 +15,5 @@ export function isAdminUser(user: UserItem): boolean {
 }
 
 export function waitForStoreUser(callback: (user: UserItem) => void) {
-  const interval = setInterval(() => {
-    const user = store.state.user
-    if (user) {
-      callback(user)
-      clearInterval(interval)
-    }
-  }, 100)
+  store.userLoaded.then(callback)
 }

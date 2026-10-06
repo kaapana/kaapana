@@ -27,13 +27,9 @@ export const usePermissionsStore = defineStore("permissions", {
   }),
 
   actions: {
-    async loadUserRights(userId?: string): Promise<void> {
-      if (!userId) {
-        console.warn("loadUserRights called without userId");
-        return;
-      }
-
-      this.rights = await aiiApiGet('/aii/users/' + userId + '/rights');
+    async loadUserRights(userId: string): Promise<void> {
+      // AII serves rights from its own /aii router, below the /aii/ ingress prefix.
+      this.rights = await aiiApiGet(`aii/users/${userId}/rights`)
 
       this.rightsByProject = this.rights.reduce<RightsByProject>((acc, r) => {
         if (!acc[r.project_id]) acc[r.project_id] = [];

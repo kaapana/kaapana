@@ -4,6 +4,7 @@ LABEL REGISTRY="local-only"
 LABEL IMAGE="base-python-cpu"
 LABEL VERSION="latest"
 LABEL BUILD_IGNORE="False"
+LABEL BUILD_LIB_CONTEXT="True"
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -75,6 +76,12 @@ RUN for pkg_spec in \
 # Copy and install kaapana_federated directly from source
 COPY files/kaapana_federated /app/kaapana_federated
 RUN python3 -m pip install /app/kaapana_federated
+
+# kaapana_client from this repository (lib/kaapana_client, build context "lib"), required by the kaapanapy shim
+# TODO before merging: temporary workaround, revert to the pinned upstream kaapana-client (git commit containing the namespace-derived URLs of lib/kaapana_client/settings.py)
+# and remove BUILD_LIB_CONTEXT above.
+COPY --from=lib kaapana_client /app/kaapana_client
+RUN python3 -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.7.0/constraints.txt /app/kaapana_client
 
 # Install kaapanapy pip package
 COPY files/kaapanapy-shim /app/kaapanapy-shim

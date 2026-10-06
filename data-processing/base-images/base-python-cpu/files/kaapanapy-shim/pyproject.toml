@@ -6,5 +6,6 @@ build-backend = "setuptools.build_meta"
 name = "kaapanapy"
 version = "0.0.1"
 dependencies = [
-    "kaapana-client@git+https://codebase.helmholtz.cloud/kaapana/kaapana.git@85f8af6d2b8684365e93e371bf672c66f43e3bdf#subdirectory=lib/kaapana_client"
+    # TODO before merging: temporary workaround, revert to the pinned upstream kaapana-client (git commit containing the namespace-derived URLs of lib/kaapana_client/settings.py)
+    "kaapana-client"
 ]

@@ -43,6 +43,7 @@
                 <!-- add button -->
                 <v-btn
                     v-if="can(project?.id, 'manage_users')"
+                    :disabled="readOnly"
                     color="primary"
                     :prepend-icon="projectIcons.addUser"
                     @click.stop="openAddUserDialog"
@@ -131,9 +132,7 @@
                                             :aria-label="`Change role of ${item.username}`"
                                             color="primary"
                                             variant="text"
-                                            :disabled="
-                                                removingUserId !== null || !can(project?.id, 'manage_users')
-                                            "
+                                            :disabled="removingUserId !== null || readOnly"
                                         />
                                     </template>
                                 </v-tooltip>
@@ -147,9 +146,7 @@
                                             :loading="removingUserId === item.id"
                                             color="error"
                                             variant="text"
-                                            :disabled="
-                                                removingUserId !== null || !can(project?.id, 'manage_users')
-                                            "
+                                            :disabled="removingUserId !== null || readOnly"
                                         />
                                     </template>
                                 </v-tooltip>
@@ -172,6 +169,7 @@
                         <v-row align="center" justify="center" no-gutters>
                             <v-btn
                                 v-if="can(project?.id, 'manage_users')"
+                                :disabled="readOnly"
                                 color="primary"
                                 variant="outlined"
                                 :prepend-icon="projectIcons.addUser"
@@ -244,8 +242,9 @@ interface UserWithRole extends UserItem {
 }
 
 interface ProjectRef {
-    id?: string;
-    name?: string;
+    id?: string
+    name?: string
+    is_archived?: boolean
 }
 
 // ── Props & emits ──────────────────────────────────────────────────────────
@@ -261,8 +260,8 @@ const emit = defineEmits<{
 
 // ── Permissions ────────────────────────────────────────────────────────────
 
-const { can } = usePermissions();
-
+const { can } = usePermissions()
+const readOnly = computed(() => !!props.project?.is_archived)
 
 // ── State ──────────────────────────────────────────────────────────────────
 
@@ -306,15 +305,17 @@ const filteredUsers = computed(() => {
 
 // ── Table headers ──────────────────────────────────────────────────────────
 
-const tableHeaders = [
+const tableHeaders = computed(() => [
     { title: '', key: 'icon', width: '40px' },
     { title: 'Username', key: 'username' },
     { title: 'First Name', key: 'first_name' },
     { title: 'Last Name', key: 'last_name' },
     { title: 'Email', key: 'email' },
     { title: 'Role', key: 'role' },
-    { title: 'Actions', key: 'actions', width: '100px' }
-];
+    ...(can(props.project?.id, 'manage_users')
+        ? [{ title: 'Actions', key: 'actions', width: '100px' }]
+        : []),
+])
 
 // ── Lifecycle ──────────────────────────────────────────────────────────────
 

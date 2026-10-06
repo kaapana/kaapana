@@ -21,7 +21,7 @@
           </div>
           <v-skeleton-loader v-else-if="!loadError" type="heading" width="200" />
           <div v-if="userHasAdminAccess && project?.name !== 'admin'" class="d-flex ga-1">
-            <v-tooltip text="Edit project" location="top">
+            <v-tooltip v-if="!project?.is_archived" text="Edit project" location="top">
               <template #activator="{ props }">
                 <v-btn
                   v-bind="props"
@@ -96,7 +96,8 @@
           variant="tonal"
           class="mb-3"
         >
-          This project is archived and read-only. Unarchive it to make changes.
+          This project is archived: its details, members and workflow whitelist cannot be changed.
+          Unarchive it to make changes.
         </v-alert>
         <p v-if="project?.description" class="text-body-1 text-medium-emphasis">
           {{ project.description }}

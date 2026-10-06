@@ -82,7 +82,7 @@ test('a user without project rights only sees the project', async ({ page }) => 
     row(page, SCIENTIST_USER.username).getByRole('button', {
       name: `Remove ${SCIENTIST_USER.username} from the project`,
     }),
-  ).toBeDisabled()
+  ).toHaveCount(0)
 })
 
 test('a user with AII rights gets the controls those rights cover', async ({ page }) => {

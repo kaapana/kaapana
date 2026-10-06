@@ -75,7 +75,7 @@
                                 :model-value="effectiveInAii(item)"
                                 hide-details
                                 @update:model-value="stage(item, $event)"
-                                :disabled="!can(project?.id, 'manage_workflow_whitelist')"
+                                :disabled="readOnly || !can(project?.id, 'manage_workflow_whitelist')"
                                 color="primary"
                                 inline
                             >
@@ -112,8 +112,9 @@ import type { Software } from '@/common/types'
 // ── Types ──────────────────────────────────────────────────────────────────
 
 interface ProjectRef {
-    id?: string;
-    name?: string;
+    id?: string
+    name?: string
+    is_archived?: boolean
 }
 
 interface Workflow {
@@ -134,7 +135,8 @@ const emit = defineEmits<{
 
 // ── Permissions ────────────────────────────────────────────────────────────
 
-const { can } = usePermissions();
+const { can } = usePermissions()
+const readOnly = computed(() => !!props.project?.is_archived)
 
 // ── State ──────────────────────────────────────────────────────────────────
 

@@ -34,7 +34,7 @@ managers listed in `enabledManagers` run.
 | `dockerfile` | every `Dockerfile` | `FROM nginxinc/nginx-unprivileged:1.31-alpine`, `FROM quay.io/keycloak/keycloak:26.6.4` |
 | `gitlabci` | `.gitlab-ci.yml`, `ci/pipeline/*.yml` | `image: python:3.12`, the `docker:*-dind` services |
 | `pip_requirements`, `pep621` | `requirements*.txt`, `pyproject.toml`, `constraints/*.txt`, the Airflow `constraints-*.txt` | exact `==` pins in services, `lib/*` packages |
-| `npm` | `package.json` + `package-lock.json` | the Vue apps in `services/base/*-ui` |
+| `npm` | `package.json` + `package-lock.json` | the Vue apps in `services/base/*-ui` and `services/data-separation/project-management-ui` |
 | `maven` | `pom.xml` | the Keycloak extensions |
 | `pre-commit` | `.pre-commit-config.yaml` | ruff |
 | `custom.regex` | lines annotated with `# renovate:`, the opa download URL | `ARG HELM_VERSION`, `RUFF_VERSION` |
@@ -128,7 +128,7 @@ Patch and minor updates are grouped, one MR per group:
 
 | Group | Contains |
 | --- | --- |
-| UI npm dependencies | npm in `services/base/**` |
+| UI npm dependencies | npm in `services/base/**` and `services/data-separation/project-management-ui/**` |
 | other npm dependencies | all other npm |
 | base image Python dependencies | Python in `data-processing/base-images/**` |
 | Python dependencies | all other Python |
@@ -162,7 +162,7 @@ changed file in its description.
 | Label | Meaning | Components |
 | --- | --- | --- |
 | `Coverage: unit` | Unit tests run in the `unittest` stage | `lib/*`, `workflow-api`, `portal-api`, `kaapana-backend`, `extension-manager-service`, `notification-service`, `auth-backend`, `keycloak-setup`, `dicom-web-filter`, `access-information-interface`, `kaapana-plugin` |
-| `Coverage: e2e` | Playwright tests against a mocked backend in `ui_e2e_tests` | `base-ui` and the 10 UIs in the `ui_e2e_tests` matrix |
+| `Coverage: e2e` | Playwright tests against a mocked backend in `ui_e2e_tests` | `base-ui` and the UIs in the `ui_e2e_tests` matrix |
 | `Coverage: integration` | The workflow runs in `run_workflows`. The job may fail, so check it. | processing pipelines with a `ci-config/` directory |
 | `Coverage: pipeline` | The MR pipeline uses the dependency itself | `ci/`, `.gitlab-ci.yml`, `.pre-commit-config.yaml`, `tests/` |
 | `Coverage: none` | Only the build and the deployment | everything else |

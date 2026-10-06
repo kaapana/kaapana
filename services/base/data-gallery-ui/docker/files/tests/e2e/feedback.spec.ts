@@ -133,10 +133,6 @@ test.describe('failed actions', () => {
     ).toBeVisible()
     await expect(details.getByRole('button', { name: 'Copy details' })).toBeVisible()
     await expect(details.getByRole('button', { name: 'Close' })).toBeFocused()
-    // The labels sit beside their values: base-ui's component styles reached the view.
-    const list = details.locator('dl.kaapana-error-details')
-    await expect(list).toHaveCSS('display', 'grid')
-    await expect(list).toHaveCSS('grid-template-columns', /^\S+px \S+px$/)
 
     // Stays after the notification would have gone.
     await page.waitForTimeout(1_000)

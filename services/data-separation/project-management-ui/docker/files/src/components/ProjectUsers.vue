@@ -75,83 +75,59 @@
                     :sort-by="[{ key: 'username', order: 'asc' }]" multi-sort class="mt-4">
 
                     <template #item.icon>
-                        <td>
-                            <v-icon :icon="kaapanaIcons.account" />
-                        </td>
-                    </template>
-
-                    <template #item.username="{ item }">
-                        <td>
-                            <span>{{ item.username }}</span>
-                        </td>
-                    </template>
-
-                    <template #item.first_name="{ item }">
-                        <td>{{ item.first_name }}</td>
-                    </template>
-
-                    <template #item.last_name="{ item }">
-                        <td>{{ item.last_name }}</td>
-                    </template>
-
-                    <template #item.email="{ item }">
-                        <td>{{ item.email }}</td>
+                        <v-icon :icon="kaapanaIcons.account" />
                     </template>
 
                     <template #item.role="{ item }">
-                        <td>
-                            <v-tooltip location="top">
-                                <template #activator="{ props }">
-                                    <span v-bind="props">{{ item.role?.name }}</span>
-                                </template>
+                        <v-tooltip location="top">
+                            <template #activator="{ props }">
+                                <span v-bind="props">{{ item.role?.name }}</span>
+                            </template>
 
-                                <span v-if="item.role?.name === 'principal-investigator'">
-                                    Principal Investigator: Has full access and control over the project.
-                                </span>
+                            <span v-if="item.role?.name === 'principal-investigator'">
+                                Principal Investigator: Has full access and control over the project.
+                            </span>
 
-                                <span v-else-if="item.role?.name === 'scientist'">
-                                    Scientist: Can use approved software for research purposes.
-                                </span>
+                            <span v-else-if="item.role?.name === 'scientist'">
+                                Scientist: Can use approved software for research purposes.
+                            </span>
 
-                                <span v-else>
-                                    {{ item.role?.name }}
-                                </span>
-                            </v-tooltip>
-                        </td>
+                            <span v-else>
+                                {{ item.role?.name }}
+                            </span>
+                        </v-tooltip>
                     </template>
 
                     <template #item.actions="{ item }">
-                        <td class="text-center">
-                            <div class="d-flex justify-center ga-1">
-                                <v-tooltip text="Change role" location="top">
-                                    <template #activator="{ props }">
-                                        <v-btn
-                                            v-bind="props"
-                                            @click="openEditUserDialog(item)"
-                                            :icon="projectIcons.editRole"
-                                            :aria-label="`Change role of ${item.username}`"
-                                            color="primary"
-                                            variant="text"
-                                            :disabled="removingUserId !== null || readOnly"
-                                        />
-                                    </template>
-                                </v-tooltip>
-                                <v-tooltip text="Remove from project" location="top">
-                                    <template #activator="{ props }">
-                                        <v-btn
-                                            v-bind="props"
-                                            @click="onRemoveUser(item)"
-                                            :icon="kaapanaIcons.delete"
-                                            :aria-label="`Remove ${item.username} from the project`"
-                                            :loading="removingUserId === item.id"
-                                            color="error"
-                                            variant="text"
-                                            :disabled="removingUserId !== null || readOnly"
-                                        />
-                                    </template>
-                                </v-tooltip>
-                            </div>
-                        </td>
+                        <div class="d-flex justify-center ga-1">
+                            <v-tooltip text="Change role" location="top">
+                                <template #activator="{ props }">
+                                    <v-btn
+                                        v-bind="props"
+                                        @click="openEditUserDialog(item)"
+                                        :icon="projectIcons.editRole"
+                                        :aria-label="`Change role of ${item.username}`"
+                                        color="primary"
+                                        variant="text"
+                                        :disabled="removingUserId !== null || readOnly"
+                                    />
+                                </template>
+                            </v-tooltip>
+                            <v-tooltip text="Remove from project" location="top">
+                                <template #activator="{ props }">
+                                    <v-btn
+                                        v-bind="props"
+                                        @click="onRemoveUser(item)"
+                                        :icon="kaapanaIcons.delete"
+                                        :aria-label="`Remove ${item.username} from the project`"
+                                        :loading="removingUserId === item.id"
+                                        color="error"
+                                        variant="text"
+                                        :disabled="removingUserId !== null || readOnly"
+                                    />
+                                </template>
+                            </v-tooltip>
+                        </div>
                     </template>
                 </v-data-table>
 
@@ -313,7 +289,7 @@ const tableHeaders = computed(() => [
     { title: 'Email', key: 'email' },
     { title: 'Role', key: 'role' },
     ...(can(props.project?.id, 'manage_users')
-        ? [{ title: 'Actions', key: 'actions', width: '100px' }]
+        ? [{ title: 'Actions', key: 'actions', width: '100px', align: 'center' as const }]
         : []),
 ])
 

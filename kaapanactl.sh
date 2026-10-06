@@ -6,10 +6,15 @@ set -euf -o pipefail
 
 if command -v kubectl >/dev/null 2>&1; then
     KUBE="kubectl"
-    IS_MICROK8S=false
 else
     KUBE="microk8s.kubectl"
-    IS_MICROK8S=true
+fi
+
+IS_MICROK8S=true
+# not microk8s if the current kubeconfig context points to another API server (microk8s: port 16443)
+KUBE_SERVER="$($KUBE config view --minify -o jsonpath='{.clusters[0].cluster.server}' 2>/dev/null || true)"
+if [[ -n "$KUBE_SERVER" && "$KUBE_SERVER" != *:16443 ]]; then
+    IS_MICROK8S=false
 fi
 
 function main() {
@@ -379,7 +384,7 @@ function deploy() {
     HELM_EXECUTABLE="${HELM_EXECUTABLE:-helm}"
     KUBECTL_EXECUTABLE="${KUBECTL_EXECUTABLE:-$KUBE}"
 
-    load_kaapana_config    
+    load_kaapana_config
     ### Parsing command line arguments:
     usage="$(basename "$0")
 
@@ -1588,11 +1593,7 @@ function load_kaapana_config {
     VOLUME_SLOW_DATA="100Gi" # size of volumes in slow data dir (e.g. 100Gi or 100Ti)
     RESTRICTED_RBAC=false # no cluster-scoped rights (e.g. managed Rancher): no PriorityClasses/LimitRanges/ClusterRoles/CRDs, namespaces must exist
     NO_READ_WRITE_MANY_SUPPORT=false # storage only supports ReadWriteOnce: pods sharing volumes are scheduled on the same node
-    if [ "$IS_MICROK8S" != true ]; then
-    #On a remote cluster, get the API_SERVER e.g. via kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}' | awk -F[/:] '{print $4"/32"}')
-    #If it is an FQDN, define a suitable IP-Range 
-        API_SERVER_CIDR="10.0.0.0/8"
-    fi
+    API_SERVER_CIDR="10.0.0.0/8"
 
     # Site-specific settings that shouldn't be committed (gitignored), e.g. kaapanactl.local.sh next to this script
     LOCAL_CONFIG="$(dirname "$(realpath "$0")")/kaapanactl.local.sh"
@@ -2434,7 +2435,7 @@ function deploy_chart {
         fi
         SERVER_IP=$(hostname -I | awk -F ' ' '{print $1}')
         INTERNAL_CIDR="$SERVER_IP/32,$INTERNAL_CIDR"
-    elif [[ "$KUBE" == "kubectl" && -n "$API_SERVER_CIDR" ]]; then
+    elif [[ -n "$API_SERVER_CIDR" ]]; then
         INTERNAL_CIDR="$API_SERVER_CIDR"
     else
         INTERNAL_CIDR=""

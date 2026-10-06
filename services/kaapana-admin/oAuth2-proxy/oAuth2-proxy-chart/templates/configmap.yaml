@@ -39,9 +39,15 @@ data:
     cookie_secret = "{{ randAlphaNum 32 | b64enc }}"
 
     # TLS and SSL settings
+    {{- if .Values.global.external_ingress }}
+    # The external ingress controller terminates TLS with its own certificate and forwards via plain HTTP.
+    # oauth2-proxy can't serve both: with tls_cert_file set it ignores http_address.
+    http_address = "0.0.0.0:4180"
+    {{- else }}
     tls_cert_file = "/ssl/tls.crt"
     tls_key_file = "/ssl/tls.key"
     https_address = "0.0.0.0:8443"
+    {{- end }}
     metrics_address = ":8081"
     ssl_insecure_skip_verify = true
     ssl_upstream_insecure_skip_verify = true

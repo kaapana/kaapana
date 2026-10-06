@@ -3016,6 +3016,12 @@ function update_coredns_rewrite() {
         return 0
     fi
 
+    # With an external ingress the hostname has to resolve to it: oauth2-proxy then only serves HTTP inside the cluster
+    if [ -n "$EXTERNAL_INGRESS" ]; then
+        echo "Skipped DNS rewrite because EXTERNAL_INGRESS=$EXTERNAL_INGRESS"
+        return 0
+    fi
+
     # The CoreDNS ConfigMap lives in kube-system, which is not accessible without cluster-scoped rights
     if [ "$RESTRICTED_RBAC" = "true" ]; then
         echo "Skipped DNS rewrite because RESTRICTED_RBAC=true (no access to kube-system)"

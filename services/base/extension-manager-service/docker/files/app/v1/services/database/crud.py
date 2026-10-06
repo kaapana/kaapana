@@ -46,9 +46,25 @@ async def create_registered_repository(
         authentication=authentication,
     )
     session.add(reg)
+    await session.flush()
+    await _relink_detached_extensions(session, reg)
     await session.commit()
     await session.refresh(reg)
     return reg
+
+
+async def _relink_detached_extensions(session: AsyncSession, repository: RegisteredRepository) -> None:
+    result = await session.execute(
+        select(Extension)
+        .where(Extension.repository_id.is_(None), Extension.repository_url == repository.repository_url)
+        .order_by(Extension.updated_at.desc())
+    )
+    relinked_tags = set()
+    for extension in result.scalars():
+        if extension.tag in relinked_tags:
+            continue
+        relinked_tags.add(extension.tag)
+        extension.repository_id = repository.id
 
 
 async def list_registered_repositories(
@@ -123,12 +139,14 @@ async def delete_registered_repository(session: AsyncSession, repository_id: UUI
 async def create_extension(
     session: AsyncSession,
     *,
-    repository_id: UUID,
+    repository: RegisteredRepository,
     tag: str,
     manifest: dict,
 ) -> Extension:
     ext = Extension(
-        repository_id=repository_id,
+        repository_id=repository.id,
+        repository_name=repository.name,
+        repository_url=repository.repository_url,
         tag=tag,
         manifest=manifest,
         status=ExtensionStatus.PENDING,
@@ -137,6 +155,15 @@ async def create_extension(
     await session.commit()
     await session.refresh(ext)
     return ext
+
+
+async def set_extension_origin(session: AsyncSession, extension_id: UUID, repository: RegisteredRepository) -> None:
+    await session.execute(
+        update(Extension)
+        .where(Extension.id == extension_id)
+        .values(repository_name=repository.name, repository_url=repository.repository_url)
+    )
+    await session.commit()
 
 
 async def get_extension(session: AsyncSession, extension_id: UUID) -> Optional[Extension]:

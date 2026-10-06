@@ -53,10 +53,11 @@ async def install_extension(
                 detail=f"No installer found for content type {content.contentType}",
             )
 
+    db_repository = await crud.get_registered_repository(db, repository_id)
     try:
         db_extension = await crud.create_extension(
             session=db,
-            repository_id=repository_id,
+            repository=db_repository,
             tag=tag,
             manifest=extension_manifest.model_dump(mode="json"),
         )

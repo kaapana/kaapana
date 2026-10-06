@@ -39,6 +39,7 @@ async def install_extension_background_task(
                 status=models.ExtensionStatus.PULLING_FAILED,
             )
             return
+        await crud.set_extension_origin(db, extension_id, db_repository)
 
         async with ociService(
             db_repository.repository_url,

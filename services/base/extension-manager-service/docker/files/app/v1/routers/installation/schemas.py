@@ -15,6 +15,8 @@ class InstalledContent(BaseModel):
 class InstalledExtension(BaseModel):
     id: UUID
     repository_id: Optional[UUID] = None
+    repository_name: Optional[str] = None
+    repository_url: Optional[str] = None
     tag: str
     manifest: ExtensionManifest
     status: str

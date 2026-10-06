@@ -159,6 +159,8 @@ async def test_delete_repository_keeps_installed_extension_uninstallable(
     response = await client.get(extension_location)
     assert response.status_code == 200
     assert response.json()["repository_id"] is None
+    assert response.json()["repository_name"] == "Test Repository"
+    assert response.json()["repository_url"] == "https://example.com/oci"
     assert response.json()["status"] == "installed"
 
     response = await client.get("/extensions")
@@ -173,3 +175,73 @@ async def test_delete_repository_keeps_installed_extension_uninstallable(
 
     response = await client.get(extension_location)
     assert response.status_code == 404
+
+
+async def _create_repository(client: AsyncClient, name: str, repository_url: str) -> str:
+    response = await client.post(
+        "/repositories",
+        json={
+            "name": name,
+            "description": "",
+            "username": "test",
+            "password": "test",
+            "repository_url": repository_url,
+        },
+    )
+    assert response.status_code == 201
+    return response.headers["Location"].split("/")[-1]
+
+
+async def _install(client: AsyncClient, repository_id: str) -> tuple[str, str]:
+    response = await client.get(f"/repositories/{repository_id}/extensions")
+    tag = response.json()[0]
+    response = await client.post(f"/extensions/install?repository_id={repository_id}&tag={tag}")
+    assert response.status_code == 201
+    return tag, response.headers["Location"]
+
+
+@pytest.mark.asyncio
+async def test_readded_repository_relinks_detached_extensions_by_url(client: AsyncClient, mocked_installer):
+    repository_id = await _create_repository(client, "Original", "https://example.com/oci")
+    tag, extension_location = await _install(client, repository_id)
+
+    response = await client.delete(f"/repositories/{repository_id}")
+    assert response.status_code == 204
+
+    other_id = await _create_repository(client, "Other", "https://example.com/other")
+    response = await client.get(extension_location)
+    assert response.json()["repository_id"] is None
+
+    readded_id = await _create_repository(client, "Re-added", "https://example.com/oci")
+    response = await client.get(extension_location)
+    assert response.json()["repository_id"] == readded_id
+    assert response.json()["repository_name"] == "Original"
+    assert response.json()["status"] == "installed"
+    assert readded_id != other_id
+
+    response = await client.post(f"/extensions/install?repository_id={readded_id}&tag={tag}")
+    assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_readded_repository_relinks_one_extension_per_tag(client: AsyncClient, mocked_installer):
+    first_id = await _create_repository(client, "First", "https://example.com/oci")
+    second_id = await _create_repository(client, "Second", "https://example.com/oci")
+    tag, first_location = await _install(client, first_id)
+    _, second_location = await _install(client, second_id)
+
+    for repository_id in (first_id, second_id):
+        response = await client.delete(f"/repositories/{repository_id}")
+        assert response.status_code == 204
+
+    readded_id = await _create_repository(client, "Re-added", "https://example.com/oci")
+
+    response = await client.get("/extensions")
+    linked = [extension for extension in response.json() if extension["repository_id"] == readded_id]
+    detached = [extension for extension in response.json() if extension["repository_id"] is None]
+    assert [extension["tag"] for extension in linked] == [tag]
+    assert len(detached) == 1
+    assert {first_location.split("/")[-1], second_location.split("/")[-1]} == {
+        linked[0]["id"],
+        detached[0]["id"],
+    }

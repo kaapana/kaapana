@@ -77,6 +77,8 @@ class Extension(Base):
         ForeignKey("registries.id", ondelete="SET NULL", name="extensions_repository_id_fkey"),
         nullable=True,
     )
+    repository_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    repository_url: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)
 
     ### REGEX: [a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}
     ### Corresponds to <reference> or tag of a manifest in the OCI distribution spec

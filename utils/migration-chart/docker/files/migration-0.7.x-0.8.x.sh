@@ -37,6 +37,12 @@ BEGIN
         ALTER TABLE extensions ADD CONSTRAINT extensions_repository_id_fkey
             FOREIGN KEY (repository_id) REFERENCES registries (id) ON DELETE SET NULL;
     END IF;
+    ALTER TABLE extensions ADD COLUMN IF NOT EXISTS repository_name varchar(255);
+    ALTER TABLE extensions ADD COLUMN IF NOT EXISTS repository_url varchar(2048);
+    UPDATE extensions e
+        SET repository_name = r.name, repository_url = r.repository_url
+        FROM registries r
+        WHERE e.repository_id = r.id AND e.repository_url IS NULL;
 END $$;
 SQL
 
@@ -92,7 +98,7 @@ migrate_extension_manager_db() {
     local rel=$1
     local sql_b64
     sql_b64=$(printf '%s\n' "$EXTENSION_MANAGER_SQL" | base64 -w0)
-    echo "--- detaching extensions from removed repositories: $rel ---"
+    echo "--- migrating extension-manager schema: $rel ---"
     run_pg_pod "extension-manager-schema" "$PG18_IMAGE" "
 D=/pv/$rel
 [ -f \"\$D/PG_VERSION\" ] || { echo no-cluster; exit 3; }

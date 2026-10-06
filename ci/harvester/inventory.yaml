@@ -78,6 +78,7 @@ all:
       deploy:
         tags: ["deploy"]
         # Integration tests run on this tag and each job holds a deployment VM.
+        maximum_timeout: 28800
         limit: 2
         request_concurrency: 2
         # --test-data-cache-dir /data in integration-tests.yml; without the
@@ -93,7 +94,7 @@ all:
             "deploy",
             "security",
           ]
-        maximum_timeout: 14400 # 4 hours
+        maximum_timeout: 28800
         limit: 8
         request_concurrency: 8
         docker_volumes: ["/cache", "/builds", "/data:/data"]

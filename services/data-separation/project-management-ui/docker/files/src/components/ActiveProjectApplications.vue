@@ -24,6 +24,14 @@
                 <!-- Loading skeleton -->
                 <v-skeleton-loader v-if="isLoading" type="table" class="mt-4" />
 
+                <FailureAlert
+                    v-else-if="loadError"
+                    title="Applications not loaded"
+                    text="Could not load the applications running in this project."
+                    :error="loadError"
+                    :retry="loadActiveApplications"
+                />
+
                 <!-- Applications table -->
                 <v-data-table v-else-if="filteredActiveApplications.length > 0"
                     :headers="activeAppTableHeaders"
@@ -150,6 +158,7 @@ import SectionHeader from '@/components/SectionHeader.vue'
 import ApplicationParametersDialog from './ApplicationParametersDialog.vue'
 import { ConfirmDialog } from '@kaapana/base-ui'
 import { useConfirmation } from '@/composables/useConfirmation'
+import FailureAlert from '@/components/FailureAlert.vue'
 import { usePermissions } from '@/permissions/usePermissions'
 
 interface ActiveApplication {
@@ -187,6 +196,7 @@ const searchQuery = ref('')
 const activeApplications = ref<ActiveApplication[]>([])
 const installedExtensionsByReleaseName = ref<Record<string, InstalledExtension>>({})
 const isLoading = ref(false)
+const loadError = ref<unknown>(null)
 const parametersDialog = ref(false)
 const selectedApplication = ref<ActiveApplication | null>(null)
 
@@ -225,7 +235,8 @@ const showParameters = (app: ActiveApplication) => {
 };
 
 const loadActiveApplications = async () => {
-    if (!props.project?.id) return;
+    if (!props.project?.id) return
+    loadError.value = null
     try {
         isLoading.value = true;
         const allApps = await kubeHelmGet('active-applications');
@@ -238,7 +249,7 @@ const loadActiveApplications = async () => {
             .filter((item: any) => item.installed === 'yes')
             .reduce((map: any, item: any) => { map[item.releaseName] = item; return map; }, {});
     } catch (error) {
-        console.error('Failed to load active applications:', error);
+        loadError.value = error
     } finally {
         isLoading.value = false;
     }

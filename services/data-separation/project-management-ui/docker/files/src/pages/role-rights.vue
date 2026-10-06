@@ -1,8 +1,4 @@
 <template>
-  <v-snackbar v-model="snackbarVisible" :timeout="4000" location="top" :color="snackbarColor" elevation="2" closable>
-    {{ snackbarMessage }}
-  </v-snackbar>
-
   <v-container fluid class="pm-view">
     <div class="mb-2">
       <v-btn variant="text" :prepend-icon="projectIcons.back" @click="$router.push('/')">
@@ -52,6 +48,14 @@
       </v-alert>
 
       <v-skeleton-loader v-if="loading" type="table" />
+
+      <FailureAlert
+        v-else-if="loadError"
+        title="Role rights not loaded"
+        text="Could not load the roles and rights."
+        :error="loadError"
+        :retry="load"
+      />
 
       <v-card v-else :elevation="2">
         <v-table density="comfortable">
@@ -151,6 +155,9 @@
 import { kaapanaIcons, projectIcons } from '@/utils/projectIcons'
 import { ConfirmDialog } from '@kaapana/base-ui'
 import { useConfirmation } from '@/composables/useConfirmation'
+import { notify } from '@kyvg/vue3-notification'
+import { notifyFailure } from '@/utils/notifyFailure'
+import FailureAlert from '@/components/FailureAlert.vue'
 import { defineComponent } from 'vue'
 import { aiiApiGet, aiiApiPost, aiiApiDelete } from '@/common/services'
 import { isAdminUser, waitForStoreUser } from '@/common/userAccess'
@@ -170,7 +177,7 @@ interface Role {
 }
 
 export default defineComponent({
-  components: { ConfirmDialog },
+  components: { ConfirmDialog, FailureAlert },
   setup() {
     const { confirmOpen, confirmation, ask, runConfirmed } = useConfirmation()
     return { kaapanaIcons, projectIcons, confirmOpen, confirmation, ask, runConfirmed }
@@ -191,10 +198,8 @@ export default defineComponent({
       committed: {} as Record<number, Set<number>>,
       // pending overrides: key="${roleId}-${rightId}", value = desired boolean
       pending: {} as Record<string, boolean>,
-      snackbarVisible: false,
-      snackbarMessage: '',
-      snackbarColor: 'info',
-    };
+      loadError: null as unknown,
+    }
   },
 
   computed: {
@@ -217,14 +222,13 @@ export default defineComponent({
       if (!this.newRight.name) return;
       this.addingRight = true;
       try {
-        await aiiApiPost('projects/rights', this.newRight);
-        this.notify(`Right "${this.newRight.name}" added.`, 'success');
-        this.addRightDialog = false;
-        this.newRight = { name: '', description: '', claim_key: '', claim_value: '' };
-        await this.load();
-      } catch (error: any) {
-        const detail = error?.response?.data?.detail ?? error?.message ?? 'Unknown error';
-        this.notify(`Failed to add right: ${detail}`, 'error');
+        await aiiApiPost('projects/rights', this.newRight)
+        notify({ type: 'success', text: `Right "${this.newRight.name}" added.` })
+        this.addRightDialog = false
+        this.newRight = { name: '', description: '', claim_key: '', claim_value: '' }
+        await this.load()
+      } catch (error: unknown) {
+        notifyFailure('Right not added', `Could not add the right "${this.newRight.name}".`, error)
       } finally {
         this.addingRight = false;
       }
@@ -272,37 +276,33 @@ export default defineComponent({
 
     async deleteRight(right: Right) {
       try {
-        await aiiApiDelete(`projects/rights/${right.id}`);
-        this.notify(`Right "${right.name}" deleted.`, 'success');
-        await this.load();
-      } catch (error: any) {
-        const detail = error?.response?.data?.detail ?? error?.message ?? 'Unknown error';
-        this.notify(`Failed to delete right: ${detail}`, 'error');
+        await aiiApiDelete(`projects/rights/${right.id}`)
+        notify({ type: 'success', text: `Right "${right.name}" deleted.` })
+        await this.load()
+      } catch (error: unknown) {
+        notifyFailure('Right not deleted', `Could not delete the right "${right.name}".`, error)
       }
     },
 
     async resetToDefaults() {
       this.resetting = true
       try {
-        const result = await aiiApiPost('projects/rights/reset', {});
-        this.notify(`Reset complete: ${result.reset} role-right assignments applied.`, 'success');
-        await this.load();
-      } catch (error: any) {
-        const detail = error?.response?.data?.detail ?? error?.message ?? 'Unknown error';
-        this.notify(`Reset failed: ${detail}`, 'error');
+        const result = await aiiApiPost('projects/rights/reset', {})
+        notify({
+          type: 'success',
+          text: `Reset complete: ${result.reset} role-right assignments applied.`,
+        })
+        await this.load()
+      } catch (error: unknown) {
+        notifyFailure('Role rights not reset', 'Could not reset the role rights.', error)
       } finally {
         this.resetting = false;
       }
     },
 
-    notify(msg: string, color = 'info') {
-      this.snackbarMessage = msg;
-      this.snackbarColor = color;
-      this.snackbarVisible = true;
-    },
-
     async load() {
-      this.loading = true;
+      this.loading = true
+      this.loadError = null
       try {
         const [roles, rights] = await Promise.all([
           aiiApiGet('projects/roles'),
@@ -321,8 +321,7 @@ export default defineComponent({
         this.committed = committed;
         this.pending = {};
       } catch (error) {
-        console.error('Failed to load role rights:', error);
-        this.notify('Failed to load role rights.', 'error');
+        this.loadError = error
       } finally {
         this.loading = false;
       }
@@ -355,6 +354,7 @@ export default defineComponent({
       this.saving = true
       let applied = 0
       let failed = 0
+      let lastError: unknown = null
 
       try {
         await Promise.all(
@@ -366,21 +366,25 @@ export default defineComponent({
               } else {
                 await aiiApiDelete(`projects/roles/${roleId}/rights/${rightId}`);
               }
-              applied++;
-            } catch (e: any) {
-              console.error(`Failed to update ${key}:`, e);
-              failed++;
+              applied++
+            } catch (error) {
+              lastError = error
+              failed++
             }
           })
         );
 
         if (failed > 0) {
-          this.notify(`${applied} change${applied !== 1 ? 's' : ''} saved, ${failed} failed.`, 'warning');
+          notifyFailure(
+            'Role rights partly saved',
+            `${applied} change${applied !== 1 ? 's' : ''} saved, ${failed} failed.`,
+            lastError,
+          )
         } else {
-          this.notify(
-            `${applied} change${applied !== 1 ? 's' : ''} saved. Users will receive updated rights on their next login or token refresh.`,
-            'success'
-          );
+          notify({
+            type: 'success',
+            text: `${applied} change${applied !== 1 ? 's' : ''} saved. Users receive the updated rights within a few minutes.`,
+          })
         }
 
         // Reload committed state

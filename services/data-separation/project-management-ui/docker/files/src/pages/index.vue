@@ -1,7 +1,4 @@
 <template>
-  <v-snackbar v-model="showSnackbar" :timeout="6000" location="top" :color="snackbarColor" elevation="2">
-    {{ snackbarText }}
-  </v-snackbar>
   <v-container fluid class="pm-view">
     <div class="d-flex flex-wrap align-start justify-space-between ga-4 mb-4">
       <h1 class="text-h4">Projects</h1>
@@ -18,14 +15,6 @@
         </v-btn>
       </div>
     </div>
-
-    <v-alert
-      density="compact"
-      class="mb-4"
-      v-model="error"
-      :icon="kaapanaIcons.error"
-      text="Some error happened while creating the project. Please try again with different inputs."
-      title="Project could not be created" type="error" prominent closable />
 
     <v-card :elevation="2">
       <v-toolbar color="surface-light" flat density="comfortable">
@@ -152,7 +141,8 @@ import { aiiApiGet, aiiApiDelete, aiiApiPost } from '@/common/services'
 import { refreshShell } from '@/common/shell'
 import { ProjectItem, UserItem } from '@/common/types'
 import { isAdminUser, waitForStoreUser } from '@/common/userAccess'
-import { useSnackbar } from '@/composables/useSnackbar'
+import { notify } from '@kyvg/vue3-notification'
+import { notifyFailure } from '@/utils/notifyFailure'
 import { useConfirmation } from '@/composables/useConfirmation'
 import { archiveProjectConfirmation, deleteProjectConfirmation } from '@/utils/projectConfirmations'
 import store from '@/common/store'
@@ -165,15 +155,10 @@ export default defineComponent({
   },
   props: {},
   setup() {
-    const { showSnackbar, snackbarText, snackbarColor, notify } = useSnackbar()
     const { confirmOpen, confirmation, ask, runConfirmed } = useConfirmation()
     return {
       kaapanaIcons,
       projectIcons,
-      showSnackbar,
-      snackbarText,
-      snackbarColor,
-      notify,
       confirmOpen,
       confirmation,
       ask,
@@ -185,7 +170,6 @@ export default defineComponent({
       projects: [] as ProjectItem[],
       search: '',
       projectDialog: false,
-      error: false,
       userHasAdminAccess: false,
       editDialog: false,
       selectedProject: null as ProjectItem | null,
@@ -231,14 +215,14 @@ export default defineComponent({
         console.log(error);
       }
     },
-    handleProjectCreate: function (success: boolean = true) {
+    handleProjectCreate: function (success: boolean = true, error?: unknown) {
       if (success) {
         const user = store.state.user;
         if (user) {
           this.fetchProjects(user);
         }
       } else {
-        this.error = true;
+        notifyFailure('Project not created', 'The project could not be created.', error)
       }
       this.projectDialog = false;
     },
@@ -250,28 +234,27 @@ export default defineComponent({
       this.editDialog = true;
     },
     handleEditSuccess() {
-      this.editDialog = false;
-      refreshShell();
-      const user = store.state.user;
-      if (user) this.fetchProjects(user);
-      this.notify('Project updated successfully.', 'success');
+      this.editDialog = false
+      refreshShell()
+      const user = store.state.user
+      if (user) this.fetchProjects(user)
+      notify({ type: 'success', text: 'Project updated.' })
     },
-    handleEditError(msg: string) {
-      this.notify(msg, 'error');
+    handleEditError(text: string, error?: unknown) {
+      notifyFailure('Project not updated', text, error)
     },
     openDeleteDialog(project: ProjectItem) {
       this.ask(deleteProjectConfirmation(project, () => this.deleteProject(project)))
     },
     async deleteProject(project: ProjectItem) {
       try {
-        await aiiApiDelete(`projects/${project.id}`);
-        refreshShell();
-        const user = store.state.user;
-        if (user) this.fetchProjects(user);
-        this.notify(`Project "${project.name}" deleted.`, 'success');
+        await aiiApiDelete(`projects/${project.id}`)
+        refreshShell()
+        const user = store.state.user
+        if (user) this.fetchProjects(user)
+        notify({ type: 'success', text: `Project "${project.name}" deleted.` })
       } catch (error: unknown) {
-        console.error(error);
-        this.notify('Failed to delete project.', 'error');
+        notifyFailure('Project not deleted', `Could not delete "${project.name}".`, error)
       }
     },
     openArchiveDialog(project: ProjectItem) {
@@ -279,26 +262,24 @@ export default defineComponent({
     },
     async archiveProject(project: ProjectItem) {
       try {
-        await aiiApiPost(`projects/${project.id}/archive`, {});
-        refreshShell();
-        const user = store.state.user;
-        if (user) this.fetchProjects(user);
-        this.notify(`Project "${project.name}" archived.`, 'success');
+        await aiiApiPost(`projects/${project.id}/archive`, {})
+        refreshShell()
+        const user = store.state.user
+        if (user) this.fetchProjects(user)
+        notify({ type: 'success', text: `Project "${project.name}" archived.` })
       } catch (error: unknown) {
-        console.error(error);
-        this.notify('Failed to archive project.', 'error');
+        notifyFailure('Project not archived', `Could not archive "${project.name}".`, error)
       }
     },
     async unarchiveProject(project: ProjectItem) {
       try {
-        await aiiApiPost(`projects/${project.id}/unarchive`, {});
-        refreshShell();
-        const user = store.state.user;
-        if (user) this.fetchProjects(user);
-        this.notify(`Project "${project.name}" unarchived.`, 'success');
+        await aiiApiPost(`projects/${project.id}/unarchive`, {})
+        refreshShell()
+        const user = store.state.user
+        if (user) this.fetchProjects(user)
+        notify({ type: 'success', text: `Project "${project.name}" unarchived.` })
       } catch (error: unknown) {
-        console.error(error);
-        this.notify('Failed to unarchive project.', 'error');
+        notifyFailure('Project not unarchived', `Could not unarchive "${project.name}".`, error)
       }
     },
   },

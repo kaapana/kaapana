@@ -88,6 +88,13 @@
       <v-alert v-if="validationError" type="error" variant="tonal" density="compact" class="mt-4">
         {{ validationError }}
       </v-alert>
+      <FailureAlert
+        v-if="failure"
+        :title="failure.title"
+        :text="failure.text"
+        :error="failure.error"
+        :retry="failure.retry"
+      />
     </v-card-text>
 
     <v-card-actions>
@@ -101,6 +108,7 @@
 </template>
 
 <script lang="ts" setup>
+import FailureAlert from '@/components/FailureAlert.vue'
 import { kaapanaIcons, projectIcons, roleIcons } from '@/utils/projectIcons'
 import { ref, computed, onMounted } from 'vue'
 import { UserItem, UserRole } from '@/common/types'
@@ -130,12 +138,15 @@ const availableRoles = ref<Role[]>([]);
 const isAdmin = ref(false);
 const showSystemUsers = ref(false);
 
-const availableUsers = ref<UserItem[]>([]);
-const selectedUserIds = ref<string[]>([]);
-const selectedRole = ref<string>(props.userToEdit?.role?.name ?? 'scientist');
-const isLoadingAvailableUsers = ref(false);
-const isSubmitting = ref(false);
-const validationError = ref('');
+const availableUsers = ref<UserItem[]>([])
+const selectedUserIds = ref<string[]>([])
+const selectedRole = ref<string>(props.userToEdit?.role?.name ?? 'scientist')
+const isLoadingAvailableUsers = ref(false)
+const isSubmitting = ref(false)
+const validationError = ref('')
+const failure = ref<{ title: string; text: string; error: unknown; retry?: () => unknown } | null>(
+  null,
+)
 
 const isAddMode = computed(() => props.actionType === 'add');
 
@@ -158,15 +169,25 @@ const canSubmit = computed(() => selectedRole.value && (isAddMode.value ? select
 
 onMounted(async () => {
   waitForStoreUser(user => { isAdmin.value = isAdminUser(user); });
-  await loadRoles();
-  if (isAddMode.value) await loadAvailableUsers();
+  await loadOptions();
 });
+
+const loadOptions = async () => {
+  failure.value = null
+  await loadRoles()
+  if (isAddMode.value) await loadAvailableUsers()
+}
 
 const loadRoles = async () => {
   try {
     availableRoles.value = await aiiApiGet('projects/roles');
   } catch (error) {
-    console.error('Failed to load roles:', error);
+    failure.value = {
+      title: 'Roles not loaded',
+      text: 'Could not load the project roles.',
+      error,
+      retry: loadOptions,
+    }
   }
 };
 
@@ -177,37 +198,58 @@ const loadAvailableUsers = async () => {
     const existingIds = new Set(props.existingUserIds ?? []);
     availableUsers.value = (await aiiApiGet('users')).filter((u: UserItem) => !existingIds.has(u.id) && (showSystemUsers.value || !isSystemUser(u)));
   } catch (error) {
-    console.error('Failed to load users:', error);
+    failure.value = {
+      title: 'Users not loaded',
+      text: 'Could not load the users who can be added.',
+      error,
+      retry: loadOptions,
+    }
   } finally {
     isLoadingAvailableUsers.value = false;
   }
 };
 
 const onSubmit = async () => {
-  validationError.value = '';
-  if (isAddMode.value && selectedUserIds.value.length === 0) { validationError.value = 'Please select at least one user.'; return; }
-  if (!selectedRole.value) { validationError.value = 'Please select a role.'; return; }
+  validationError.value = ''
+  failure.value = null
+  if (isAddMode.value && selectedUserIds.value.length === 0) {
+    validationError.value = 'Please select at least one user.'
+    return
+  }
+  if (!selectedRole.value) {
+    validationError.value = 'Please select a role.'
+    return
+  }
 
   isSubmitting.value = true;
   try {
     if (isAddMode.value) {
-      await addUsersToProject();
+      await addUsersToProject()
     } else {
-      await updateUserRole();
+      await updateUserRole()
     }
     emit('success');
   } catch (error) {
-    console.error('Failed to save user assignment:', error);
-    validationError.value = 'Something went wrong. Please try again.';
+    failure.value = isAddMode.value
+      ? {
+          title: 'Users not added',
+          text: 'Not every selected user could be added to the project.',
+          error,
+        }
+      : { title: 'Role not changed', text: 'Could not change the role.', error }
   } finally {
     isSubmitting.value = false;
   }
 };
 
 const addUsersToProject = async () => {
-  if (!props.project?.id) return;
-  await Promise.all(selectedUserIds.value.map(userId => aiiApiPost(`projects/${props.project!.id}/role/${selectedRole.value}/user/${userId}`)));
-};
+  if (!props.project?.id) return
+  await Promise.all(
+    selectedUserIds.value.map((userId) =>
+      aiiApiPost(`projects/${props.project!.id}/role/${selectedRole.value}/user/${userId}`),
+    ),
+  )
+}
 
 const updateUserRole = async () => {
   if (!props.project?.id || !props.userToEdit) return;

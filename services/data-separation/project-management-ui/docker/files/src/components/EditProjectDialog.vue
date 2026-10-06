@@ -70,7 +70,7 @@ export default defineComponent({
         })
         this.$emit('success')
       } catch (error: unknown) {
-        this.$emit('error', 'Failed to update project.')
+        this.$emit('error', `Could not save "${this.form.name}".`, error)
       }
     },
   },

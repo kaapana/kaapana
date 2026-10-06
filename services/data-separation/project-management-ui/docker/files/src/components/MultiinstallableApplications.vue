@@ -1,10 +1,5 @@
 <template>
     <v-col>
-        <!-- ── Snackbar ────────────────────────────────────────────── -->
-        <v-snackbar v-model="isSnackbarVisible" :timeout="3000" location="top" :color="snackbarColor" elevation="2" closable>
-            {{ snackbarMessage }}
-        </v-snackbar>
-
         <!-- ── Launch dialog ───────────────────────────────────────── -->
         <v-dialog v-model="isLaunchAppDialogOpen" max-width="1000">
             <LaunchApplication v-if="selectedApplication" :extension="selectedApplication" @submit="onApplicationLaunched"
@@ -50,6 +45,14 @@
 
                 <!-- Loading skeleton -->
                 <v-skeleton-loader v-if="isLoading" type="table" class="mt-4" />
+
+                <FailureAlert
+                    v-else-if="loadError"
+                    title="Applications not loaded"
+                    text="Could not load the applications that can be launched."
+                    :error="loadError"
+                    :retry="loadExtensions"
+                />
 
                 <!-- Applications table -->
                 <v-data-table v-else-if="filteredExtensions.length > 0" :headers="extensionTableHeaders"
@@ -167,6 +170,9 @@ import { usePermissions } from '@/permissions/usePermissions'
 import { usePermissionsStore } from '@/permissions/permissions.store'
 import { aiiApiPut, kubeHelmGet, kubeHelmPost } from '@/common/services'
 import SearchBar from '@/components/SearchBar.vue'
+import FailureAlert from '@/components/FailureAlert.vue'
+import { notify } from '@kyvg/vue3-notification'
+import { notifyFailure } from '@/utils/notifyFailure'
 import SectionHeader from '@/components/SectionHeader.vue'
 import LaunchApplication from '@/components/LaunchApplication.vue'
 
@@ -197,10 +203,11 @@ const permissionsStore = usePermissionsStore();
 
 // ── State ──────────────────────────────────────────────────────────────────
 
-const searchQuery = ref('');
-const multiinstallableExtensions = ref<Extension[]>([]);
-const isLoading = ref(false);
-const isSaving = ref(false);
+const searchQuery = ref('')
+const multiinstallableExtensions = ref<Extension[]>([])
+const isLoading = ref(false)
+const loadError = ref<unknown>(null)
+const isSaving = ref(false)
 // pending: releaseName → desired whitelist value (only changed items)
 const pending = ref<Record<string, boolean>>({});
 
@@ -241,15 +248,18 @@ const saveChanges = async () => {
             .concat(
                 Object.entries(pending.value)
                     .filter(([name, allow]) => allow && !projectWhitelist.value.includes(name))
-                    .map(([name]) => name)
-            );
-        await aiiApiPut(`projects/${props.project.id}/multiinstallable-whitelist`, {}, { app_names: finalWhitelist });
-        permissionsStore.whitelistByProject[props.project.id] = finalWhitelist;
-        pending.value = {};
-        showSnackbar('Whitelist saved successfully.', 'success');
+                    .map(([name]) => name),
+            )
+        await aiiApiPut(
+            `projects/${props.project.id}/multiinstallable-whitelist`,
+            {},
+            { app_names: finalWhitelist },
+        )
+        permissionsStore.whitelistByProject[props.project.id] = finalWhitelist
+        pending.value = {}
+        notify({ type: 'success', text: 'Application whitelist saved.' })
     } catch (error) {
-        console.error('Failed to save whitelist:', error);
-        showSnackbar('Failed to save whitelist changes.', 'error');
+        notifyFailure('Whitelist not saved', 'Could not save the application whitelist.', error)
     } finally {
         isSaving.value = false;
     }
@@ -259,18 +269,6 @@ const saveChanges = async () => {
 
 const isLaunchAppDialogOpen = ref(false);
 const selectedApplication = ref<any>(null);
-
-// ── Snackbar ───────────────────────────────────────────────────────────────
-
-const isSnackbarVisible = ref(false);
-const snackbarMessage = ref('');
-const snackbarColor = ref('info');
-
-const showSnackbar = (message: string, color: string = 'info') => {
-    snackbarMessage.value = message;
-    snackbarColor.value = color;
-    isSnackbarVisible.value = true;
-};
 
 // ── Computed ───────────────────────────────────────────────────────────────
 
@@ -292,25 +290,21 @@ const onLaunchApplication = (item: Extension) => {
 };
 
 const onApplicationLaunched = async ({ extension, values }: { extension: any; values: any }) => {
-const payload = {
-      name: extension.releaseName,
-      version: extension.version,
-      keywords: extension.keywords,
-      extension_params: values,
+    const payload = {
+        name: extension.releaseName,
+        version: extension.version,
+        keywords: extension.keywords,
+        extension_params: values,
     };
     try {
-        await kubeHelmPost('helm-install-chart', payload);
-        showSnackbar(`Successfully launched ${extension.annotations['ui-visible-name']}`, 'success');
-    } catch (error: any) {
-        console.error('Failed to launch application:', error);
-        const detail = error?.response?.data?.detail ?? error?.message ?? 'Unknown error';
-        const isPermissionError = error?.response?.status === 403;
-        showSnackbar(
-            isPermissionError
-                ? `Permission denied: ${detail}`
-                : `Failed to launch ${extension.annotations['ui-visible-name']}: ${detail}`,
-            'error'
-        );
+        await kubeHelmPost('helm-install-chart', payload)
+        notify({ type: 'success', text: `${extension.annotations['ui-visible-name']} is starting.` })
+    } catch (error) {
+        notifyFailure(
+            'Application not launched',
+            `Could not launch ${extension.annotations['ui-visible-name']}.`,
+            error,
+        )
     }
     isLaunchAppDialogOpen.value = false;
     selectedApplication.value = null;
@@ -321,7 +315,8 @@ const getFullEndpoint = (path: string) => {
 };
 
 const loadExtensions = async () => {
-    if (!props.project?.id) return;
+    if (!props.project?.id) return
+    loadError.value = null
     try {
         isLoading.value = true;
         const extensions = await kubeHelmGet('extensions');
@@ -329,7 +324,7 @@ const loadExtensions = async () => {
         
         multiinstallableExtensions.value = multiinstallable.filter((item: any) => item.installed === 'no');
     } catch (error) {
-        console.error('Failed to load extensions:', error);
+        loadError.value = error
     } finally {
         isLoading.value = false;
     }

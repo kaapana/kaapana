@@ -61,6 +61,14 @@
                 <!-- Loading skeleton -->
                 <v-skeleton-loader v-if="isLoadingUsers" type="table" class="mt-4" />
 
+                <FailureAlert
+                    v-else-if="loadError"
+                    title="Members not loaded"
+                    text="Could not load the members of this project."
+                    :error="loadError"
+                    :retry="loadProjectUsers"
+                />
+
                 <!-- User table -->
                 <v-data-table v-else-if="filteredUsers.length > 0" :headers="tableHeaders" :items="filteredUsers"
                     :sort-by="[{ key: 'username', order: 'asc' }]" multi-sort class="mt-4">
@@ -221,6 +229,8 @@ import SearchBar from '@/components/SearchBar.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 import { ConfirmDialog } from '@kaapana/base-ui'
 import { useConfirmation } from '@/composables/useConfirmation'
+import { notifyFailure } from '@/utils/notifyFailure'
+import FailureAlert from '@/components/FailureAlert.vue'
 // ── Types ──────────────────────────────────────────────────────────────────
 
 interface UserWithRole extends UserItem {
@@ -253,6 +263,7 @@ const { can } = usePermissions();
 const search = ref('')
 const users = ref<UserWithRole[]>([])
 const isLoadingUsers = ref(false)
+const loadError = ref<unknown>(null)
 
 const isAddDialogOpen = ref(false)
 const isEditDialogOpen = ref(false)
@@ -350,7 +361,7 @@ const removeUser = async (user: UserWithRole) => {
         // Reload to verify the change
         await loadProjectUsers({ showLoading: false });
     } catch (error) {
-        console.error('Failed to remove user:', error)
+        notifyFailure('User not removed', `Could not remove @${user.username} from the project.`, error)
     }
 };
 
@@ -368,6 +379,7 @@ const loadProjectUsers = async (options: { showLoading?: boolean } = {}) => {
     if (options.showLoading !== false) {
         isLoadingUsers.value = true;
     }
+    loadError.value = null
     try {
         const fetchedUsers: UserItem[] = await aiiApiGet(`projects/${props.project.id}/users`);
         users.value = fetchedUsers ?? [];
@@ -375,7 +387,7 @@ const loadProjectUsers = async (options: { showLoading?: boolean } = {}) => {
             users.value.map((user, index) => loadUserRole(user.id, index))
         );
     } catch (error) {
-        console.error('Failed to load project users:', error);
+        loadError.value = error
     } finally {
         if (options.showLoading !== false) {
             isLoadingUsers.value = false;
@@ -384,12 +396,8 @@ const loadProjectUsers = async (options: { showLoading?: boolean } = {}) => {
 };
 
 const loadUserRole = async (userId: string, userIndex: number) => {
-    if (!props.project?.id) return;
-    try {
-        const role: UserRole = await aiiApiGet(`projects/${props.project.id}/users/${userId}/roles`);
-        if (users.value[userIndex]) users.value[userIndex].role = role;
-    } catch (error) {
-        console.error(`Failed to load role for user ${userId}:`, error);
-    }
-};
+    if (!props.project?.id) return
+    const role: UserRole = await aiiApiGet(`projects/${props.project.id}/users/${userId}/roles`)
+    if (users.value[userIndex]) users.value[userIndex].role = role
+}
 </script>

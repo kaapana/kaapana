@@ -235,6 +235,13 @@ decide what goes, not the frequency. Like every schedule it is paused by
 `MAINTENANCE=true`; a web run with `exec_vm_sweep` clears the backlog without
 lifting the pause.
 
+### review
+
+`mr_review` and `mr_review_rerun` ([review.yml](../pipeline/review.yml)) post
+one advisory note on the MR. The model gets the MR title, description and diff,
+and the description of up to five linked issues: closed, mentioned, or named
+by the branch. **Confidential issues and comments are left out**.
+
 ### clean
 
 `destroy_deployment`'s `needs:` list **is the teardown barrier**: with
@@ -520,6 +527,28 @@ report, and the steps under [Adding a job](#adding-a-job) apply as well.
    casings. A nested `docker build` needs the proxy as a build arg.
 7. New dependency between stages? Declare it in the header of the stage file that
    consumes it.
+
+## Tokens & secrets
+
+All are project variables (Settings > CI/CD > Variables), masked, unless noted.
+
+| Variable | Used by | What it is |
+|---|---|---|
+| `CI_REGISTRY_TOKEN` | `build_packages`, `build_ci_image`, deploy, security scan (as `REGISTRY_TOKEN`) | Registry push/pull token. Scoped by `REGISTRY_ENV`. See [Registries](#registries) |
+| `RELEASE_REGISTRY_TOKEN` | `build_packages` on release tags (as `REGISTRY_TOKEN`) | Release registry token. Protected, release tag pipelines only |
+| `DOCKER_AUTH_CONFIG` | runners, for pulling job images | Docker auth JSON with a `read_registry` deploy token per registry host. See [`DOCKER_AUTH_CONFIG`](#docker_auth_config) |
+| `DOCKER_IO_PASSWORD` | `build_packages`, server installation | docker.io login, avoids pull rate limits. Optional, paired with `DOCKER_IO_USER` |
+| `GITLAB_API_TOKEN` | `if_ci_failing` (issues, Slack links), runner management ([ci-fleet-setup.md](ci-fleet-setup.md)) | GitLab API token. **Currently not its own variable:** `.gitlab-ci.yml` aliases it to `CI_REGISTRY_TOKEN`. A same-named project variable overrides the alias |
+| `GITLAB_READ_API_TOKEN` | `sweep_deployment_vms` | Project access token, scope `read_api`, role Reporter |
+| `AI_REVIEW_GITLAB_TOKEN` | `mr_review`, `mr_review_rerun` | Project access token `AI Review`, scope `api`, role Reporter, expires 2027-09-25. See [review](#review) |
+| `BLABLADOR_API_TOKEN` | `mr_review`, `mr_review_rerun`, `if_ci_failing` | Blablador (FZ Jülich LLM API) key |
+| `SLACK_BOT_TOKEN` | `if_ci_failing` | Slack bot token for failure notifications |
+| `KAAPANA_READTHEDOCS_TOKEN` | `check_readthedocs` | ReadTheDocs API token |
+| `DEPLOYMENT_INSTANCE_SSH_KEY` | preflight, deploy, integration tests | File-type. SSH private key for the deployment target |
+| `HARVESTER_KUBECONFIG` | deploy, `destroy_deployment`, `sweep_deployment_vms` | File-type. Harvester access, needed when `DEPLOYMENT_INSTANCE_FQDN` is empty |
+| `CLIENT_SECRET` | integration tests | Not a project variable. `setup_integration_tests` reads it from the deployed platform and passes it on in a dotenv artifact |
+
+When you recreate a token, update its row here.
 
 ## Known gaps
 

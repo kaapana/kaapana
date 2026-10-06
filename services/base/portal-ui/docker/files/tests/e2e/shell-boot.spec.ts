@@ -19,22 +19,23 @@ test('menu navigation routes to the entry and swaps the iframe', async ({ page }
   await page.getByText('Workflows', { exact: true }).click()
   await page.getByText('Data Upload').click()
   await expect(page).toHaveURL(/\/workflows\/data-upload/)
-  await expect(page.locator('iframe.kaapana-iframe')).toHaveAttribute(
-    'src',
-    /\/data-upload-ui$/,
-  )
+  await expect(page.locator('iframe.kaapana-iframe')).toHaveAttribute('src', /\/data-upload-ui$/)
 })
 
 // The shell inside its own iframe replaces #app before Vuetify exists, so the
 // notice colors come from localStorage["settings"] rather than a theme token.
-for (const [mode, darkMode, background] of [
-  ['dark', true, 'rgb(18, 18, 18)'],
-  ['light', false, 'rgb(255, 255, 255)'],
+// The expected values are the shared theme's `background` per mode. The
+// browser prefers light, so the "system" seed must ask it, not trust the flag.
+for (const [mode, seed, background] of [
+  ['dark', { themeMode: 'dark', darkMode: true }, 'rgb(18, 18, 18)'],
+  ['light', { themeMode: 'light', darkMode: false }, 'rgb(238, 238, 238)'],
+  ['system', { themeMode: 'system', darkMode: true }, 'rgb(238, 238, 238)'],
 ] as const) {
   test(`nested shell shows the notice on the ${mode} background`, async ({ page }) => {
-    await page.addInitScript((dark) => {
-      localStorage['settings'] = JSON.stringify({ darkMode: dark })
-    }, darkMode)
+    await page.emulateMedia({ colorScheme: 'light' })
+    await page.addInitScript((settings) => {
+      localStorage['settings'] = JSON.stringify(settings)
+    }, seed)
     await page.route('**/nested.html', (r) =>
       r.fulfill({ status: 200, contentType: 'text/html', body: '<iframe src="/"></iframe>' }),
     )

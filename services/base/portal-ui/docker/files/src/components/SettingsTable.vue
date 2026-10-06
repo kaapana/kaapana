@@ -1,33 +1,40 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { loadDicomTagMapping } from '@/api/settings'
+import { kaapanaIcons, type ApiErrorInfo } from '@kaapana/base-ui'
+import { useFailureDetailsStore } from '@/stores/failureDetails'
+import type { DatasetPropItem } from '@/types/settings'
 
-interface PropItem {
-  name: string
-  display: boolean
-  truncate: boolean
-  dashboard: boolean
-  patientView?: boolean
-  studyView?: boolean
-}
-
-withDefaults(
+// The field list is loaded once by SettingsDialog, which also uses it for the
+// Sort field; a retry from here asks the dialog to load it again.
+const props = withDefaults(
   defineProps<{
     structuredView?: boolean
     showMetaData?: boolean
+    fields?: string[]
+    fieldsError?: ApiErrorInfo | null
   }>(),
   {
     structuredView: false,
     showMetaData: false,
+    fields: () => [],
+    fieldsError: null,
   },
 )
+const emit = defineEmits<{ retryFields: [] }>()
+
+const failureDetails = useFailureDetailsStore()
+const FIELDS_ERROR_TEXT = 'The field list could not be loaded.'
 
 // v-model:items so the parent keeps ownership of the settings object
-const items = defineModel<PropItem[]>('items', { required: true })
+const items = defineModel<DatasetPropItem[]>('items', { required: true })
 
 const dialog = ref(false)
-const dicomTags = ref<string[]>([])
-const editedItem = ref<PropItem>({ name: '', display: false, truncate: false, dashboard: false })
+const editedItem = ref<DatasetPropItem>({
+  name: '',
+  display: false,
+  truncate: false,
+  dashboard: false,
+})
 
 const headers = [
   { title: 'Name', align: 'start' as const, sortable: false, key: 'name' },
@@ -40,16 +47,14 @@ const headers = [
 ]
 
 const availableTags = computed(() =>
-  dicomTags.value.filter((item) => !items.value.map((i) => i.name).includes(item)),
+  props.fields.filter((item) => !items.value.map((i) => i.name).includes(item)),
 )
-
-loadDicomTagMapping().then((data) => (dicomTags.value = Object.keys(data)))
 
 watch(dialog, (val) => {
   if (!val) close()
 })
 
-function deleteItemConfirm(item: PropItem) {
+function deleteItemConfirm(item: DatasetPropItem) {
   items.value = items.value.filter((i) => i !== item)
 }
 
@@ -68,10 +73,10 @@ function save() {
   <div>
     <v-row>
       <v-col>
-        <h3>Dataset UI Customization</h3>
+        <div class="text-h6">Dataset UI Customization</div>
       </v-col>
       <v-spacer></v-spacer>
-      <v-dialog v-model="dialog" max-width="500px">
+      <v-dialog v-model="dialog" max-width="400">
         <template #activator="{ props: activatorProps }">
           <v-btn color="primary" class="mb-2" v-bind="activatorProps"> Add Field </v-btn>
         </template>
@@ -81,6 +86,30 @@ function save() {
           </v-card-title>
 
           <v-card-text>
+            <v-alert
+              v-if="fieldsError"
+              type="error"
+              variant="tonal"
+              density="compact"
+              :text="FIELDS_ERROR_TEXT"
+            >
+              <template #append>
+                <v-btn
+                  variant="text"
+                  size="small"
+                  @click="
+                    failureDetails.show({
+                      title: 'Field list',
+                      text: FIELDS_ERROR_TEXT,
+                      error: fieldsError!,
+                    })
+                  "
+                >
+                  Details
+                </v-btn>
+                <v-btn variant="text" size="small" @click="emit('retryFields')">Try again</v-btn>
+              </template>
+            </v-alert>
             <v-container>
               <v-row>
                 <v-col>
@@ -97,7 +126,9 @@ function save() {
           <v-card-actions>
             <v-spacer></v-spacer>
             <v-btn variant="text" @click="close"> Cancel </v-btn>
-            <v-btn color="primary" variant="text" @click="save"> Add </v-btn>
+            <v-btn color="primary" variant="text" :disabled="!editedItem.name" @click="save">
+              Add
+            </v-btn>
           </v-card-actions>
         </v-card>
       </v-dialog>
@@ -108,6 +139,7 @@ function save() {
       :sort-by="[{ key: 'name' }]"
       hide-default-footer
       :items-per-page="-1"
+      no-data-text="No fields yet. Use Add Field to choose one."
     >
       <template #[`item.display`]="{ item }">
         <v-checkbox-btn v-model="item.display" :disabled="!showMetaData"></v-checkbox-btn>
@@ -131,7 +163,13 @@ function save() {
         <v-checkbox-btn v-model="item.truncate" :disabled="!showMetaData"></v-checkbox-btn>
       </template>
       <template #[`item.actions`]="{ item }">
-        <v-icon @click="deleteItemConfirm(item)"> mdi-delete </v-icon>
+        <v-btn
+          :icon="kaapanaIcons.delete"
+          variant="text"
+          size="small"
+          :title="`Remove ${item.name}`"
+          @click="deleteItemConfirm(item)"
+        ></v-btn>
       </template>
     </v-data-table>
   </div>

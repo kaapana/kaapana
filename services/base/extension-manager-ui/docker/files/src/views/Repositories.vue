@@ -53,7 +53,7 @@ const removeText = computed(() => {
   const base =
     'Its extensions no longer appear in the catalog, and its stored credentials are deleted.'
   if (!tracked) return base
-  return `${base} ${plural(tracked, 'extension')} installed from it ${tracked === 1 ? 'stays' : 'stay'} installed and can still be uninstalled, but can no longer be reinstalled.`
+  return `${base} ${plural(tracked, 'extension')} installed from it ${tracked === 1 ? 'stays' : 'stay'} installed and can still be uninstalled. Adding a repository with the same URL again reconnects ${tracked === 1 ? 'it' : 'them'}.`
 })
 
 function showLoadFailure() {

@@ -1,4 +1,9 @@
-import type { ContentStatus, ExtensionStatus } from '@/shared/types/apiSchemas'
+import type {
+  ContentStatus,
+  ExtensionStatus,
+  InstalledExtension,
+  Repository,
+} from '@/shared/types/apiSchemas'
 
 export type StatusTone = 'success' | 'error' | 'progress' | 'neutral'
 
@@ -37,7 +42,16 @@ export function presentContentStatus(status: string): StatusPresentation {
   return contentStatus[status as ContentStatus] ?? { label: status, tone: 'neutral' }
 }
 
-export const REMOVED_REPOSITORY = 'Repository removed'
+const REMOVED_REPOSITORY = 'Repository removed'
+
+export function extensionRepositoryLabel(
+  extension: InstalledExtension,
+  repository: Repository | null | undefined,
+): string {
+  if (repository) return repository.name
+  if (extension.repository_id) return extension.repository_name ?? extension.repository_id
+  return extension.repository_name ? `${extension.repository_name} (removed)` : REMOVED_REPOSITORY
+}
 
 export const UNINSTALLABLE_STATUSES: readonly ExtensionStatus[] = [
   'installed',

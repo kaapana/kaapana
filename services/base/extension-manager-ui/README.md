@@ -65,7 +65,10 @@ Everything in `src/shared/` stays local to this view; nothing is moved to
   Closing an edited form asks before discarding, and an edited form reports
   the view as dirty to the shell. Removing a repository is confirmed and says
   that extensions installed from it stay installed and can still be
-  uninstalled; they show "Repository removed" afterwards.
+  uninstalled. They keep showing the repository they came from, marked
+  "(removed)", and reconnect when a repository with the same URL is added
+  again. Records detached before their origin was stored show
+  "Repository removed".
 - **Empty and failure states** — each section distinguishes "nothing yet"
   (with the next step), "nothing matches" (catalog: clear filters) and "could
   not load" (retry and details). A failed refresh keeps the last list with an
@@ -83,9 +86,9 @@ All calls go to `extension-manager-service` through the
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
 | GET | `/extensions-api/repositories` | List repositories (all three sections). |
-| POST | `/extensions-api/repositories` | Register a repository (`name`, `description`, `repository_url`, `username`, `password`). |
+| POST | `/extensions-api/repositories` | Register a repository (`name`, `description`, `repository_url`, `username`, `password`); reconnects detached extensions with the same `repository_url`. |
 | PUT | `/extensions-api/repositories/<id>` | Update a repository; `username`/`password` only when both are replaced. |
-| DELETE | `/extensions-api/repositories/<id>` | Remove a repository; its installed extensions keep their records with `repository_id: null`. |
+| DELETE | `/extensions-api/repositories/<id>` | Remove a repository; its installed extensions keep their records with `repository_id: null` and their `repository_name` / `repository_url`. |
 | GET | `/extensions-api/repositories/<id>/extensionManifests` | Tags and manifests of the extensions published in a repository (30 s timeout, one call per repository). |
 | GET | `/extensions-api/extensions` | Extensions with platform state (polled while one is in progress). |
 | POST | `/extensions-api/extensions/install?repository_id=<id>&tag=<tag>` | Start an installation. |

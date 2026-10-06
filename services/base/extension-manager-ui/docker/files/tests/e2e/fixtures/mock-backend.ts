@@ -33,6 +33,8 @@ export interface InstalledContentMock {
 export interface InstalledExtensionMock {
   id: string
   repository_id: string | null
+  repository_name?: string | null
+  repository_url?: string | null
   tag: string
   manifest: ManifestMock
   status: string
@@ -104,6 +106,8 @@ export function installation(
   return {
     id,
     repository_id: repository.id,
+    repository_name: repository.name,
+    repository_url: repository.repository_url,
     tag: `${value.id}-v${value.version}`,
     manifest: value,
     status,
@@ -175,6 +179,14 @@ export async function installMockBackend(
         repository_url: body.repository_url,
       }
       data.repositories.push(created)
+      const relinkedTags = new Set<string>()
+      for (const entry of data.extensions) {
+        if (entry.repository_id !== null || entry.repository_url !== created.repository_url)
+          continue
+        if (relinkedTags.has(entry.tag)) continue
+        relinkedTags.add(entry.tag)
+        entry.repository_id = created.id
+      }
       return route.fulfill(json(created, 201))
     }
 

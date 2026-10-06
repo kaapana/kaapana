@@ -11,10 +11,10 @@ import { useFailureDetailsStore, type FailureDetails } from '@/shared/stores/fai
 import type { InstalledExtension, Repository } from '@/shared/types/apiSchemas'
 import { notifyFailure, notifySuccess } from '@/shared/utils/notify'
 import {
+  extensionRepositoryLabel,
   isChanging,
   plural,
   presentExtensionStatus,
-  REMOVED_REPOSITORY,
 } from '@/shared/utils/status'
 
 const failureDetails = useFailureDetailsStore()
@@ -43,9 +43,9 @@ const anyTransitional = computed(() =>
 
 usePolling(() => loadInstalledExtensions(), anyTransitional)
 
-function repositoryName(repositoryId: string | null): string {
-  if (!repositoryId) return REMOVED_REPOSITORY
-  return repositories.value[repositoryId]?.name ?? repositoryId
+function repositoryName(extension: InstalledExtension): string {
+  const repository = extension.repository_id ? repositories.value[extension.repository_id] : null
+  return extensionRepositoryLabel(extension, repository)
 }
 
 function showLoadFailure() {
@@ -150,7 +150,7 @@ onMounted(refreshAll)
     >
       <template #card="{ item }">
         <v-card-title class="text-wrap">{{ item.manifest.name }}</v-card-title>
-        <v-card-subtitle>{{ repositoryName(item.repository_id) }}</v-card-subtitle>
+        <v-card-subtitle>{{ repositoryName(item) }}</v-card-subtitle>
         <v-card-text class="flex-grow-1 text-body-2 text-medium-emphasis">{{
           item.tag
         }}</v-card-text>

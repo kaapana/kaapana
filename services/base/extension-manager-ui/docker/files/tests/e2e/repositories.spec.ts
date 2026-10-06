@@ -210,6 +210,9 @@ test.describe('removal', () => {
     await expect(confirm).toContainText(
       '1 extension installed from it stays installed and can still be uninstalled',
     )
+    await expect(confirm).toContainText(
+      'Adding a repository with the same URL again reconnects it.',
+    )
 
     const request = nextRequest(page, `${API.repositories}/${PUBLIC_REPO.id}`, 'DELETE')
     await confirmAction(page, 'Remove repository')

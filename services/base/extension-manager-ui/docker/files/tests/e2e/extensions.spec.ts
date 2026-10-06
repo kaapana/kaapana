@@ -66,9 +66,36 @@ test('uninstall confirms what is removed, then reports that it started', async (
   await expect(dialog(page).getByTestId('status').first()).toContainText('Uninstalling')
 })
 
-test('an extension whose repository was removed can still be uninstalled', async ({ page }) => {
+test('an extension whose repository was removed keeps its origin and can be uninstalled', async ({
+  page,
+}) => {
+  const data = defaultMockData()
+  data.repositories = data.repositories.filter((repository) => repository.id !== PUBLIC_REPO.id)
+  data.extensions[0].repository_id = null
+  await openView(page, 'extensions', data)
+
+  await expect(card(page, 'totalsegmentator')).toContainText('kaapana-public (removed)')
+  await card(page, 'totalsegmentator').click()
+  await expect(dialog(page)).toContainText('kaapana-public (removed)')
+  await expect(dialog(page)).toContainText(PUBLIC_REPO.repository_url)
+  await dialog(page).getByTestId('uninstall').click()
+
+  const confirm = dialog(page)
+  await expect(confirm).toContainText('Version 2.0.0 from kaapana-public (removed) and')
+
+  const request = nextRequest(page, `/extensions/${TOTALSEG_ID}/uninstall`, 'POST')
+  await confirmAction(page, 'Uninstall extension')
+  await request
+  await expect(toasts(page).filter({ hasText: 'Uninstall started' })).toBeVisible()
+})
+
+test('an extension detached before its origin was recorded shows the repository as removed', async ({
+  page,
+}) => {
   const data = defaultMockData()
   data.extensions[0].repository_id = null
+  data.extensions[0].repository_name = null
+  data.extensions[0].repository_url = null
   await openView(page, 'extensions', data)
 
   await expect(card(page, 'totalsegmentator')).toContainText('Repository removed')
@@ -79,11 +106,6 @@ test('an extension whose repository was removed can still be uninstalled', async
   const confirm = dialog(page)
   await expect(confirm).toContainText('Version 2.0.0 and')
   await expect(confirm).not.toContainText('from Repository removed')
-
-  const request = nextRequest(page, `/extensions/${TOTALSEG_ID}/uninstall`, 'POST')
-  await confirmAction(page, 'Uninstall extension')
-  await request
-  await expect(toasts(page).filter({ hasText: 'Uninstall started' })).toBeVisible()
 })
 
 test('dismissing the confirmation uninstalls nothing', async ({ page }) => {
@@ -209,10 +231,15 @@ test('a failed load is an error, a failed refresh keeps the list with a warning'
   await expect(dialog(page)).toContainText('boom')
 })
 
-test('an unknown repository falls back to its id', async ({ page }) => {
+test('an unknown repository falls back to the recorded name, then to its id', async ({ page }) => {
   const data: MockData = { ...defaultMockData(), repositories: [PUBLIC_REPO] }
-  await openView(page, 'extensions', data)
+  const state = await openView(page, 'extensions', data)
 
+  await expect(card(page, 'radiomics')).toContainText(LAB_REPO.name)
+
+  state.extensions.find((extension) => extension.repository_id === LAB_REPO.id)!.repository_name =
+    null
+  await page.reload()
   await expect(card(page, 'radiomics')).toContainText(LAB_REPO.id)
 })
 

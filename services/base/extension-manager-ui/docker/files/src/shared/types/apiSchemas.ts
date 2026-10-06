@@ -75,6 +75,8 @@ export interface InstalledContent {
 export interface InstalledExtension {
   id: string
   repository_id: string | null
+  repository_name?: string | null
+  repository_url?: string | null
   tag: string
   manifest: ExtensionManifest
   status: ExtensionStatus

@@ -4,8 +4,10 @@ import json
 import logging
 import os
 import string
+import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeoutError
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
@@ -209,6 +211,7 @@ def create_and_update_remote_kaapana_instance(
             port=remote_kaapana_instance.port,
             ssl_check=remote_kaapana_instance.ssl_check,
             fernet_key=remote_kaapana_instance.fernet_key or "deactivated",
+            sync_timeout=remote_kaapana_instance.sync_timeout,
             remote=True,
             time_created=utc_timestamp,
             # time_updated=utc_timestamp,
@@ -219,6 +222,7 @@ def create_and_update_remote_kaapana_instance(
         db_remote_kaapana_instance.port = remote_kaapana_instance.port
         db_remote_kaapana_instance.ssl_check = remote_kaapana_instance.ssl_check
         db_remote_kaapana_instance.fernet_key = remote_kaapana_instance.fernet_key or "deactivated"
+        db_remote_kaapana_instance.sync_timeout = remote_kaapana_instance.sync_timeout
         db_remote_kaapana_instance.time_updated = utc_timestamp
     elif action == "external_update":
         logging.debug(f"Externally updating with db_remote_kaapana_instance: {db_remote_kaapana_instance}")
@@ -680,21 +684,28 @@ def get_remote_updates(db: Session, periodically=False):
         "instance_name": db_client_kaapana.instance_name,
         "status": "queued",
     }
-    with ThreadPoolExecutor(max_workers=len(db_remote_kaapana_instances)) as executor:
-        futures = [
-            executor.submit(
-                _request_remote_sync,
-                f"{i.protocol}://{i.host}:{i.port}/kaapana-backend/remote",
-                i.ssl_check,
-                i.token,
-                job_params,
-                update_remote_instance_payload,
-            )
-            for i in db_remote_kaapana_instances
-        ]
+    started = time.monotonic()
+    executor = ThreadPoolExecutor(max_workers=len(db_remote_kaapana_instances))
+    futures = [
+        executor.submit(
+            _request_remote_sync,
+            f"{i.protocol}://{i.host}:{i.port}/kaapana-backend/remote",
+            i.ssl_check,
+            i.token,
+            job_params,
+            update_remote_instance_payload,
+        )
+        for i in db_remote_kaapana_instances
+    ]
+    executor.shutdown(wait=False)
     for db_remote_kaapana_instance, future in zip(db_remote_kaapana_instances, futures):
+        sync_timeout = db_remote_kaapana_instance.sync_timeout
         try:
-            r = future.result()
+            r = future.result(timeout=max(0, started + sync_timeout - time.monotonic()))
+        except FutureTimeoutError:
+            logging.warning(f"Remote backend {db_remote_kaapana_instance.host} did not answer within {sync_timeout} s")
+            unreachable.append(f"{db_remote_kaapana_instance.instance_name}: no answer within {sync_timeout} s")
+            continue
         except requests.exceptions.RequestException as e:
             logging.warning(f"Could not reach remote backend {db_remote_kaapana_instance.host}: {e}")
             unreachable.append(f"{db_remote_kaapana_instance.instance_name}: {type(e).__name__}")

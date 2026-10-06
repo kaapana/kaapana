@@ -41,13 +41,8 @@ export const usePermissionsStore = defineStore("permissions", {
     },
 
     async loadProjectWhitelist(projectId: string): Promise<void> {
-      if (!projectId) return;
-      try {
-        const whitelist = await aiiApiGet(`projects/${projectId}/multiinstallable-whitelist`);
-        this.whitelistByProject[projectId] = Array.isArray(whitelist) ? whitelist : [];
-      } catch (error) {
-        console.error('Failed to load project whitelist:', error);
-      }
+      const whitelist = await aiiApiGet(`projects/${projectId}/multiinstallable-whitelist`)
+      this.whitelistByProject[projectId] = Array.isArray(whitelist) ? whitelist : []
     },
 
     hasRight(projectId: string, name: string): boolean {

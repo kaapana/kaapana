@@ -421,7 +421,24 @@ function handleKubeHelm(route: Route, state: MockData) {
   if (method === 'GET' && path === '/extensions') return route.fulfill(json(state.extensions))
   if (method === 'GET' && path === '/active-applications')
     return route.fulfill(json(state.activeApplications))
-  if (method === 'POST' && path === '/helm-install-chart') return route.fulfill(json({}))
+  if (method === 'POST' && path === '/helm-install-chart') {
+    // The launched instance runs in the project of the /project/<short_id> prefix.
+    const slug = new URL(request.url()).pathname.match(/^\/project\/([^/]+)\//)?.[1]
+    const project = state.projects.find((p) => p.short_id === slug)
+    const { name } = request.postDataJSON()
+    if (project) {
+      state.activeApplications.push({
+        name,
+        namespace: `project-${project.short_id}`,
+        project: project.id,
+        release_name: `${name}-launched`,
+        paths: [],
+        ready: false,
+        annotations: { 'kaapana.ai/display-name': `${name} (launched)` },
+      })
+    }
+    return route.fulfill(json({}))
+  }
   if (method === 'POST' && path === '/helm-delete-chart') {
     const { release_name } = request.postDataJSON()
     state.activeApplications = state.activeApplications.filter(

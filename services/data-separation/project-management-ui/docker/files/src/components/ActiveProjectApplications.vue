@@ -40,82 +40,77 @@
                     multi-sort
                     class="mt-4"
                 >
-                <template #item="{ item }">
-                    <tr>
-                        <td><v-icon :icon="projectIcons.application" /></td>
-                        <td>{{ item.annotations['kaapana.ai/display-name'] }}</td>
-                        <td>{{ installedExtensionsByReleaseName[item.release_name]?.helmStatus }}</td>
-                        <td class="text-center">
+                    <template #item.icon>
+                        <v-icon :icon="projectIcons.application" />
+                    </template>
+                    <template #item.details="{ item }">
+                        <v-tooltip
+                            v-if="item.values && Object.keys(item.values).length > 0"
+                            text="Show parameters"
+                            location="top"
+                        >
+                            <template #activator="{ props }">
+                                <v-btn
+                                    v-bind="props"
+                                    :icon="kaapanaIcons.info"
+                                    :aria-label="`Parameters of ${item.annotations['kaapana.ai/display-name']}`"
+                                    color="primary"
+                                    variant="text"
+                                    @click="showParameters(item)"
+                                />
+                            </template>
+                        </v-tooltip>
+                    </template>
+                    <template #item.links="{ item }">
+                        <div class="d-flex justify-center ga-2">
                             <v-tooltip
-                                v-if="item.values && Object.keys(item.values).length > 0"
-                                text="Show parameters"
+                                v-for="path in item.paths"
+                                :key="path"
+                                text="Open in a new tab"
                                 location="top"
                             >
                                 <template #activator="{ props }">
                                     <v-btn
                                         v-bind="props"
-                                        :icon="kaapanaIcons.info"
-                                        :aria-label="`Parameters of ${item.annotations['kaapana.ai/display-name']}`"
+                                        :icon="kaapanaIcons.externalLink"
+                                        :href="getFullEndpoint(path)"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        :aria-label="`Open ${item.annotations['kaapana.ai/display-name']} in a new tab`"
                                         color="primary"
                                         variant="text"
-                                        @click="showParameters(item)"
                                     />
                                 </template>
                             </v-tooltip>
-                        </td>
-                        <td class="text-center">
-                            <div class="d-flex justify-center ga-2">
-                                <v-tooltip
-                                    v-for="path in item.paths"
-                                    :key="path"
-                                    text="Open in a new tab"
-                                    location="top"
-                                >
-                                    <template #activator="{ props }">
-                                        <v-btn
-                                            v-bind="props"
-                                            :icon="kaapanaIcons.externalLink"
-                                            :href="getFullEndpoint(path)"
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            :aria-label="`Open ${item.annotations['kaapana.ai/display-name']} in a new tab`"
-                                            color="primary"
-                                            variant="text"
-                                        />
-                                    </template>
-                                </v-tooltip>
-                            </div>
-                        </td>
-                        <td class="text-center">
-                            <v-tooltip
-                                :text="
-                                    can(project?.id, 'delete_active_apps', item.release_name)
-                                        ? 'Uninstall application'
-                                        : 'Not whitelisted for this project. Only admins can uninstall this.'
-                                "
-                                location="top"
-                            >
-                                <template #activator="{ props }">
-                                    <span v-bind="props">
-                                        <v-btn
-                                            density="default"
-                                            :icon="kaapanaIcons.delete"
-                                            :aria-label="`Uninstall ${item.annotations['kaapana.ai/display-name']}`"
-                                            :loading="busyRelease === item.release_name"
-                                            color="error"
-                                            variant="text"
-                                            :disabled="
-                                                !!busyRelease ||
-                                                !can(project?.id, 'delete_active_apps', item.release_name)
-                                            "
-                                            @click="onConfirmUninstall(item)"
-                                        />
-                                    </span>
-                                </template>
-                            </v-tooltip>
-                        </td>
-                    </tr>
-                </template>
+                        </div>
+                    </template>
+                    <template #item.uninstall="{ item }">
+                        <v-tooltip
+                            :text="
+                                can(project?.id, 'delete_active_apps', item.release_name)
+                                    ? 'Uninstall application'
+                                    : 'Not whitelisted for this project. Only admins can uninstall this.'
+                            "
+                            location="top"
+                        >
+                            <template #activator="{ props }">
+                                <span v-bind="props">
+                                    <v-btn
+                                        density="default"
+                                        :icon="kaapanaIcons.delete"
+                                        :aria-label="`Uninstall ${item.annotations['kaapana.ai/display-name']}`"
+                                        :loading="busyRelease === item.release_name"
+                                        color="error"
+                                        variant="text"
+                                        :disabled="
+                                            !!busyRelease || !can(project?.id, 'delete_active_apps', item.release_name)
+                                        "
+                                        @click="onConfirmUninstall(item)"
+                                    />
+                                </span>
+                            </template>
+                        </v-tooltip>
+                    </template>
             </v-data-table>
 
                 <!-- Empty state -->
@@ -274,11 +269,20 @@ watch(
 // ── Table headers ──────────────────────────────────────────────────────────
 
 const activeAppTableHeaders = [
-    { title: '', key: 'icon', width: '40px' },
-    { title: 'Name', key: 'name' },
-    { title: 'Status', key: 'status' },
-    { title: 'Details', key: 'details', align: 'center' as const },
-    { title: 'Links', key: 'links', align: 'center' as const },
-    { title: 'Actions', key: 'uninstall', align: 'center' as const, width: '60px' },
-];
+    { title: '', key: 'icon', width: '40px', sortable: false },
+    {
+        title: 'Name',
+        key: 'name',
+        value: (app: ActiveApplication) => app.annotations['kaapana.ai/display-name'],
+    },
+    {
+        title: 'Status',
+        key: 'status',
+        value: (app: ActiveApplication) =>
+            installedExtensionsByReleaseName.value[app.release_name]?.helmStatus ?? '',
+    },
+    { title: 'Details', key: 'details', align: 'center' as const, sortable: false },
+    { title: 'Links', key: 'links', align: 'center' as const, sortable: false },
+    { title: 'Actions', key: 'uninstall', align: 'center' as const, width: '60px', sortable: false },
+]
 </script>

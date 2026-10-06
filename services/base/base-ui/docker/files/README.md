@@ -13,7 +13,14 @@ deliberately only small, stable pieces.
   by the views.
 - `getProjectSlug()`, `getProjectBase()`, `switchProject(slug)` — the selected
   project, read from the document URL, never from storage.
-- `navigateShell(path)` — ask the shell to open another view.
+- `navigateShell(path)` — ask the shell to open another view, addressed as
+  `/web/<section>/<entry>` (`/web/-/<entry>` for a top-level entry). The shell
+  runs its unsaved-changes confirm first and shows "View unavailable" when the
+  menu has no such entry for the user.
+- `refreshShell()` — ask the shell to reload its menu and the user's project
+  list after this view changed one of them (an extension install, a project
+  created or deleted). Calls within 2 s are merged into one reload. Outside the
+  shell it does nothing.
 - `postViewDirty(dirty)` — postMessage wrapper telling the portal-ui shell the
   embedded view has unsaved in-memory state.
 - `kaapanaThemeLight`, `kaapanaThemeDark`, `KAAPANA_THEME_LIGHT`,

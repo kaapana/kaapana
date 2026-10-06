@@ -356,6 +356,8 @@ ui_unit_tests:
     no_proxy: "localhost,127.0.0.1"
     npm_config_audit: "false"
   script:
+    # portal-ui imports the built dist/ of @kaapana/base-ui, so build the library first.
+    - (cd "$KAAPANA_DIR/services/base/base-ui/docker/files" && npm ci && npm run build)
     - cd "$KAAPANA_DIR/services/base/portal-ui/docker/files"
     - npm ci
     - npm run test:unit -- --reporter=default --reporter=junit --outputFile.junit=test-results/junit.xml

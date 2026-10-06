@@ -1,5 +1,5 @@
 import http from '@/api/http'
-import type { PolicyData } from '@/utils/opa'
+import type { PolicyData } from '@kaapana/base-ui'
 
 export interface UserinfoJwt {
   preferredUsername: string
@@ -9,7 +9,9 @@ export interface UserinfoJwt {
 
 export async function fetchUserinfo(): Promise<UserinfoJwt> {
   // In dev mode the auth proxy is absent; a static token file stands in.
-  const oauthUrl = import.meta.env.PROD ? '/oauth2/userinfo' : '/jsons/testingAuthenticationToken.json'
+  const oauthUrl = import.meta.env.PROD
+    ? '/oauth2/userinfo'
+    : '/jsons/testingAuthenticationToken.json'
   const res = await http.get<UserinfoJwt>(oauthUrl)
   return res.data
 }

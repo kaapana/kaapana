@@ -4,7 +4,7 @@ import type { UserinfoJwt } from '../../../src/api/auth'
 import type { AiiUser, Project } from '../../../src/api/projects'
 import type { SettingsItem } from '../../../src/api/settings'
 import type { KaapanaNotification } from '../../../src/api/notifications'
-import type { PolicyData } from '../../../src/utils/opa'
+import type { PolicyData } from '@kaapana/base-ui'
 
 // Regex, not a glob: Playwright escapes "?" and anchors, so a glob would let the
 // shell's ?fresh=1 read escape the mock and hit the dev server.
@@ -189,12 +189,14 @@ export async function installMockBackend(page: Page, data: MockData = defaultMoc
   await page.route(MENU_ROUTE, (r) => r.fulfill(json(data.menu)))
   await page.route('**/aii/users/current', (r) => r.fulfill(json(data.aiiUser)))
   await page.route('**/aii/projects', (r) => r.fulfill(json(data.projects)))
-  await page.route(`**/aii/users/${data.aiiUser.id}/projects`, (r) => r.fulfill(json(data.projects)))
+  await page.route(`**/aii/users/${data.aiiUser.id}/projects`, (r) =>
+    r.fulfill(json(data.projects)),
+  )
   await page.route('**/kaapana-backend/settings', (r) =>
     r.request().method() === 'GET' ? r.fulfill(json(data.settings)) : r.fulfill(json({})),
   )
   await page.route('**/kaapana-backend/settings/item', (r) => r.fulfill(json({})))
-  // SettingsDialog (always mounted in the drawer) loads this on boot.
+  // SettingsDialog loads this whenever it opens.
   await page.route('**/kaapana-backend/dataset/fields', (r) => r.fulfill(json({})))
   // GET list -> paginated envelope; mark-read PUTs (…/{id}/read, …/read) -> 200.
   await page.route('**/notifications/v2/**', (r) =>

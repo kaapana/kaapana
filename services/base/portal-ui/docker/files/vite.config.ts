@@ -11,20 +11,16 @@ export default defineConfig(() => ({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
+    // @kaapana/base-ui is an npm-linked file: dependency
+    // make its vue/vuetify imports resolve to this app's copies
+    dedupe: ['vue', 'vuetify', 'axios', '@kyvg/vue3-notification', 'pinia'],
     extensions: ['.js', '.json', '.jsx', '.mjs', '.ts', '.tsx', '.vue'],
   },
+  // Backend calls are not proxied (see README, Development).
   server: {
-    allowedHosts: ['<hostname>'],
     port: 5173,
     host: true,
     strictPort: true,
-    hmr: {
-      protocol: 'wss',
-      // Use clientPort so the browser connects to 443 through Traefik;
-      // Vite still listens internally on 5173 and is proxied
-      clientPort: 443,
-      path: '/@vite',
-    },
   },
   build: {
     outDir: 'dist',

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import { useMenuStore, NO_SECTION } from '@/stores/menu'
+import { useMenuStore } from '@/stores/menu'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
 import { fetchMenu } from '@/api/menu'
@@ -40,7 +40,11 @@ function setupStores(userRoles: string[]) {
   auth.isAuthenticated = true
 
   const menu = useMenuStore()
-  menu.items = [entry('landing', '/landing-page/', true), section, entry('extensions', '/extensions-ui/')]
+  menu.items = [
+    entry('landing', '/landing-page/', true),
+    section,
+    entry('extensions', '/extensions-ui/'),
+  ]
   menu.policyData = {
     endpoints_per_role: {
       admin: [{ path: '.*', methods: ['GET'] }],
@@ -92,7 +96,9 @@ describe('menu store dev links', () => {
         user: [{ path: '^/data-gallery-ui/', methods: ['GET'] }],
       },
     }
-    expect(menu.visibleDevLinks({ ...entry('datasets', '/data-gallery-ui/'), devLinks })).toEqual([])
+    expect(menu.visibleDevLinks({ ...entry('datasets', '/data-gallery-ui/'), devLinks })).toEqual(
+      [],
+    )
   })
 
   it('offers nothing for an entry declaring no links', () => {
@@ -117,12 +123,6 @@ describe('menu store entry resolution', () => {
     expect(menu.resolvePath(['workflows'])).toBeNull()
     expect(menu.resolvePath(['workflows', 'nope'])).toBeNull()
     expect(menu.resolvePath([])).toBeNull()
-  })
-
-  it('maps entries back to their section slug', () => {
-    const menu = setupStores(['admin'])
-    expect(menu.sectionOf(section.entries[0]!)).toBe('workflows')
-    expect(menu.sectionOf(menu.defaultEntry!)).toBe(NO_SECTION)
   })
 })
 

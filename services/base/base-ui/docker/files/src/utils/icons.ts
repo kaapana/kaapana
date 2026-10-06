@@ -14,7 +14,9 @@
 // a catalogue of every icon in use — only of actions whose meaning should be
 // constant across views.
 export const kaapanaIcons = {
+  account: 'mdi-account-circle',
   add: 'mdi-plus',
+  apiDocs: 'mdi-api',
   close: 'mdi-close',
   confirm: 'mdi-check',
   delete: 'mdi-delete',
@@ -24,10 +26,15 @@ export const kaapanaIcons = {
   externalLink: 'mdi-open-in-new',
   help: 'mdi-help-circle-outline',
   info: 'mdi-information',
+  logout: 'mdi-exit-to-app',
+  notifications: 'mdi-bell-outline',
+  notificationsUnread: 'mdi-bell-ring',
   refresh: 'mdi-refresh',
   restart: 'mdi-restart',
   save: 'mdi-content-save',
   search: 'mdi-magnify',
+  settings: 'mdi-cog',
+  sidebar: 'mdi-dock-left',
   start: 'mdi-play',
   stop: 'mdi-stop-circle-outline',
   success: 'mdi-check-circle',

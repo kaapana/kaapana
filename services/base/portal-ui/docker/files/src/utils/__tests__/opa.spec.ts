@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { checkAuthR, checkRoleAuthR, type PolicyData } from '@/utils/opa'
+import { checkAuthR, checkRoleAuthR, type PolicyData } from '@kaapana/base-ui'
 
 const policyData: PolicyData = {
   endpoints_per_role: {

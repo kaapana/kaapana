@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { kaapanaIcons } from '@kaapana/base-ui'
 import type { DevLink } from '@/types/menu'
 
 // Never rendered with an empty list — NavDrawer omits the slot instead, so with
@@ -15,7 +16,7 @@ defineProps<{ links: DevLink[] }>()
     :href="links[0]!.path"
     target="_blank"
     rel="noopener"
-    icon="mdi-api"
+    :icon="kaapanaIcons.apiDocs"
     variant="text"
     size="x-small"
     :title="links[0]!.label"
@@ -25,7 +26,7 @@ defineProps<{ links: DevLink[] }>()
     <template #activator="{ props }">
       <v-btn
         v-bind="props"
-        icon="mdi-api"
+        :icon="kaapanaIcons.apiDocs"
         variant="text"
         size="x-small"
         title="API docs"

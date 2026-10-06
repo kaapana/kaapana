@@ -1,5 +1,5 @@
 // Client-side check against the OPA policy data (GET /kaapana-backend/open-policy-data).
-// portal-ui keeps an identical copy in src/utils/opa.ts; change both together.
+// The portal-ui shell imports this too and keeps the unit tests for it.
 
 export interface PolicyEndpoint {
   path: string

@@ -63,89 +63,78 @@
                 <v-data-table v-else-if="filteredExtensions.length > 0" :headers="extensionTableHeaders"
                     :items="filteredExtensions" :sort-by="[{ key: 'name', order: 'asc' }]" multi-sort class="mt-4">
                 <template #item.icon>
-                    <td>
-                        <v-icon :icon="projectIcons.application" />
-                    </td>
+                    <v-icon :icon="projectIcons.application" />
                 </template>
                 <template #item.name="{ item }">
-                    <td>
-                        <span class="font-weight-medium">{{ item.annotations["ui-visible-name"] }}</span>
+                    <span class="font-weight-medium">{{ item.annotations['ui-visible-name'] }}</span>
 
-                        <!-- DOCUMENTATION LINK TOOLTIP -->
-                        <v-tooltip
-                            location="bottom"
-                            text="Open the documentation in a new tab"
-                        >
-                            <template #activator="{ props }">
-                                <v-btn
-                                    v-bind="props"
-                                    icon
-                                    variant="text"
-                                    size="small"
-                                    color="primary"
-                                    :href="getFullEndpoint('/docs/' + item.annotations.documentation)"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    :aria-label="`Documentation for ${item.annotations['ui-visible-name']} (opens in a new tab)`"
-                                >
-                                    <v-icon :icon="kaapanaIcons.help" />
-                                </v-btn>
-                            </template>
-                        </v-tooltip>
-
-                    </td>
+                    <!-- DOCUMENTATION LINK TOOLTIP -->
+                    <v-tooltip
+                        location="bottom"
+                        text="Open the documentation in a new tab"
+                    >
+                        <template #activator="{ props }">
+                            <v-btn
+                                v-bind="props"
+                                icon
+                                variant="text"
+                                size="small"
+                                color="primary"
+                                :href="getFullEndpoint('/docs/' + item.annotations.documentation)"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                :aria-label="`Documentation for ${item.annotations['ui-visible-name']} (opens in a new tab)`"
+                            >
+                                <v-icon :icon="kaapanaIcons.help" />
+                            </v-btn>
+                        </template>
+                    </v-tooltip>
                 </template>
                 <template #item.description="{ item }">
-                    <td>
-                        <v-tooltip location="bottom">
-                            <template #activator="{ props }">
-                                <div v-bind="props">
-                                    <span>
-                                        {{ item.description.length > 28
-                                            ? item.description.slice(0, 28) + "..."
-                                            : item.description
-                                            }}
-                                    </span>
-                                </div>
-                            </template>
+                    <v-tooltip location="bottom">
+                        <template #activator="{ props }">
+                            <div v-bind="props">
+                                <span>
+                                    {{ item.description.length > 28
+                                        ? item.description.slice(0, 28) + "..."
+                                        : item.description
+                                        }}
+                                </span>
+                            </div>
+                        </template>
 
-                            <span>{{ item.description }}</span>
-                        </v-tooltip>
-                    </td>
+                        <span>{{ item.description }}</span>
+                    </v-tooltip>
                 </template>
                 <template #item.launch="{ item }">
-                    <td class="text-center">
-                        <v-tooltip
-                            text="This application is not whitelisted for this project. Contact your project admin."
-                            :disabled="can(project?.id, 'launch_application', item.releaseName)"
-                            location="top"
-                        >
-                            <template #activator="{ props }">
-                                <span v-bind="props">
-                                    <v-btn
-                                        color="primary"
-                                        variant="text"
-                                        :prepend-icon="kaapanaIcons.start"
-                                        :disabled="!can(project?.id, 'launch_application', item.releaseName)"
-                                        @click="onLaunchApplication(item)"
-                                    >
-                                        Launch
-                                    </v-btn>
-                                </span>
-                            </template>
-                        </v-tooltip>
-                    </td>
+                    <v-tooltip
+                        text="This application is not whitelisted for this project. Contact your project admin."
+                        :disabled="can(project?.id, 'launch_application', item.releaseName)"
+                        location="top"
+                    >
+                        <template #activator="{ props }">
+                            <span v-bind="props">
+                                <v-btn
+                                    color="primary"
+                                    variant="text"
+                                    :prepend-icon="kaapanaIcons.start"
+                                    :disabled="!can(project?.id, 'launch_application', item.releaseName)"
+                                    @click="onLaunchApplication(item)"
+                                >
+                                    Launch
+                                </v-btn>
+                            </span>
+                        </template>
+                    </v-tooltip>
                 </template>
                 <template #item.whitelistToggle="{ item }">
-                    <td class="text-center" :class="isPending(item.releaseName) ? 'pm-pending' : ''">
-                        <v-checkbox-btn
-                            :model-value="effectiveInWhitelist(item.releaseName)"
-                            hide-details
-                            @update:model-value="stage(item.releaseName, $event)"
-                            :disabled="!can(project?.id, 'manage_applications_whitelist')"
-                            color="primary"
-                        />
-                    </td>
+                    <v-checkbox-btn
+                        :model-value="effectiveInWhitelist(item.releaseName)"
+                        hide-details
+                        @update:model-value="stage(item.releaseName, $event)"
+                        :disabled="!can(project?.id, 'manage_applications_whitelist')"
+                        color="primary"
+                    />
                 </template>
             </v-data-table>
 
@@ -364,6 +353,14 @@ const extensionTableHeaders = [
     { title: 'Name', key: 'name' },
     { title: 'Description', key: 'description' },
     { title: 'Launch', key: 'launch', width: '100px', align: 'center' as const },
-    { title: 'Allowed', key: 'whitelistToggle', width: '80px', align: 'center' as const },
-];
+    {
+        title: 'Allowed',
+        key: 'whitelistToggle',
+        width: '80px',
+        align: 'center' as const,
+        cellProps: ({ item }: { item: Extension }) => ({
+            class: isPending(item.releaseName) ? 'pm-pending' : '',
+        }),
+    },
+]
 </script>

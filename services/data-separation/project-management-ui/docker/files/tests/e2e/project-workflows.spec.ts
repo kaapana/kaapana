@@ -48,3 +48,15 @@ test('the whitelist of an archived project cannot be changed', async ({ page }) 
 
   await expect(row(page, 'nnunet-predict').getByRole('checkbox')).toBeDisabled()
 })
+
+test('a staged change is marked until it is saved', async ({ page }) => {
+  await open(page)
+  const cell = row(page, 'nnunet-predict').getByRole('cell').last()
+
+  await row(page, 'nnunet-predict').getByRole('checkbox').click()
+  await expect(cell).toHaveClass(/pm-pending/)
+  await expect(cell).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+
+  await section(page).getByRole('button', { name: 'Save Changes' }).click()
+  await expect(cell).not.toHaveClass(/pm-pending/)
+})

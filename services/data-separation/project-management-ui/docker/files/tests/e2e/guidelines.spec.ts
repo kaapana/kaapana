@@ -3,6 +3,7 @@ import { RESEARCH_PROJECT, SCIENTIST_USER } from './fixtures/mock-backend'
 import {
   dialog,
   dismissWithEscape,
+  expandSection,
   openProject,
   openView,
   row,
@@ -209,5 +210,27 @@ test.describe('accessibility', () => {
     await page.keyboard.press('Enter')
     await dismissWithEscape(page)
     await expect(remove).toBeFocused()
+  })
+
+  test('table cells are not nested', async ({ page }) => {
+    await openProject(page, RESEARCH_PROJECT)
+    for (const name of [
+      'Project Users',
+      'Project Workflows',
+      'Multiinstallable Applications',
+      'Active Project Applications',
+    ]) {
+      await expandSection(page, name)
+    }
+    for (const name of [
+      SCIENTIST_USER.email,
+      'collect-metadata',
+      'Tensorboard',
+      'JupyterLab (notebooks)',
+    ]) {
+      await expect(row(page, name)).toBeVisible()
+    }
+
+    await expect(page.locator('td td')).toHaveCount(0)
   })
 })

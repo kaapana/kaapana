@@ -58,29 +58,23 @@
                     class="mt-4"
                 >
                     <template #item.icon>
-                        <td>
-                            <v-icon :icon="projectIcons.workflow" />
-                        </td>
+                        <v-icon :icon="projectIcons.workflow" />
                     </template>
 
                     <template #item.dag_name="{ item }">
-                        <td>
-                            <span class="font-weight-medium">{{ item.dag_name }}</span>
-                        </td>
+                        <span class="font-weight-medium">{{ item.dag_name }}</span>
                     </template>
 
                     <template #item.inAii="{ item }">
-                        <td class="text-center" :class="isPending(item.dag_name) ? 'pm-pending' : ''">
-                            <v-checkbox-btn
-                                :model-value="effectiveInAii(item)"
-                                hide-details
-                                @update:model-value="stage(item, $event)"
-                                :disabled="readOnly || !can(project?.id, 'manage_workflow_whitelist')"
-                                color="primary"
-                                inline
-                            >
-                            </v-checkbox-btn>
-                        </td>
+                        <v-checkbox-btn
+                            :model-value="effectiveInAii(item)"
+                            hide-details
+                            @update:model-value="stage(item, $event)"
+                            :disabled="readOnly || !can(project?.id, 'manage_workflow_whitelist')"
+                            color="primary"
+                            inline
+                        >
+                        </v-checkbox-btn>
                     </template>
                 </v-data-table>
 
@@ -153,8 +147,16 @@ const pending = ref<Record<string, boolean>>({});
 const tableHeaders = [
     { title: '', key: 'icon', width: '40px' },
     { title: 'Workflow ID', key: 'dag_name' },
-    { title: 'Allowed', key: 'inAii', width: '80px', align: 'center' as const },
-];
+    {
+        title: 'Allowed',
+        key: 'inAii',
+        width: '80px',
+        align: 'center' as const,
+        cellProps: ({ item }: { item: Workflow }) => ({
+            class: isPending(item.dag_name) ? 'pm-pending' : '',
+        }),
+    },
+]
 
 // ── Computed ───────────────────────────────────────────────────────────────
 

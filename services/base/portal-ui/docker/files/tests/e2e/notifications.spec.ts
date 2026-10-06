@@ -26,7 +26,7 @@ test('empty state: outline bell, no badge, "No notifications" in the dialog', as
   await page.goto('/')
   await expect(page.locator('.mdi-bell-outline')).toBeVisible()
   await expect(page.locator('.v-badge__badge')).toBeHidden()
-  await page.locator('.mdi-bell-ring, .mdi-bell-outline').first().click()
+  await page.getByRole('button', { name: 'Notifications' }).click()
   await expect(page.getByText('No notifications')).toBeVisible()
 })
 
@@ -42,7 +42,7 @@ test('populated: unread badge count, ringing bell, grouped by topic', async ({ p
   await expect(page.locator('.v-badge__badge')).toHaveText('2')
   await expect(page.locator('.mdi-bell-ring')).toBeVisible()
 
-  await page.locator('.mdi-bell-ring, .mdi-bell-outline').first().click()
+  await page.getByRole('button', { name: 'Notifications' }).click()
   const dialog = page.getByRole('dialog')
   await expect(dialog.getByText('Workflows')).toBeVisible()
   await expect(dialog.getByText('System')).toBeVisible()
@@ -59,7 +59,7 @@ test('marking one read PUTs to its /read endpoint and drops it from the list', a
     ],
   })
   await page.goto('/')
-  await page.locator('.mdi-bell-ring, .mdi-bell-outline').first().click()
+  await page.getByRole('button', { name: 'Notifications' }).click()
   const dialog = page.getByRole('dialog')
 
   const readReq = page.waitForRequest(
@@ -67,7 +67,7 @@ test('marking one read PUTs to its /read endpoint and drops it from the list', a
   )
   await dialog
     .locator('.v-list-item', { hasText: 'Job A' })
-    .locator('.mdi-check-circle-outline')
+    .getByRole('button', { name: 'Mark as read' })
     .click()
   await readReq
   await expect(dialog.getByText('Job A')).toBeHidden()
@@ -85,7 +85,7 @@ test('mark all as read confirms the count, then PUTs the bulk read endpoint once
     ],
   })
   await page.goto('/')
-  await page.locator('.mdi-bell-ring, .mdi-bell-outline').first().click()
+  await page.getByRole('button', { name: 'Notifications' }).click()
 
   const puts: string[] = []
   page.on('request', (r) => {
@@ -106,7 +106,7 @@ test('cancelling the mark-all confirmation sends nothing', async ({ page }) => {
     notifications: [makeNotification({ id: 'n1', title: 'Job A' })],
   })
   await page.goto('/')
-  await page.locator('.mdi-bell-ring, .mdi-bell-outline').first().click()
+  await page.getByRole('button', { name: 'Notifications' }).click()
 
   const puts: string[] = []
   page.on('request', (r) => {
@@ -115,7 +115,9 @@ test('cancelling the mark-all confirmation sends nothing', async ({ page }) => {
   await page.getByRole('dialog').getByRole('button', { name: 'Mark all as read' }).click()
   const confirm = page.getByRole('dialog').filter({ hasText: 'This cannot be undone' })
   await expect(confirm.getByText('1 notification will be marked as read')).toBeVisible()
-  await confirm.getByRole('button', { name: 'Cancel' }).click()
+  // Cancel holds the initial focus: a stray Enter must not mark anything read.
+  await expect(confirm.getByRole('button', { name: 'Cancel' })).toBeFocused()
+  await page.keyboard.press('Enter')
 
   await expect(confirm).toBeHidden()
   expect(puts).toHaveLength(0)
@@ -139,7 +141,7 @@ test('a live WebSocket "new" event refreshes the list and updates the badge', as
   wsRoute!.send(JSON.stringify({ notification_id: 'n99', type: 'new' }))
 
   await expect(page.locator('.v-badge__badge')).toHaveText('1')
-  await page.locator('.mdi-bell-ring, .mdi-bell-outline').first().click()
+  await page.getByRole('button', { name: 'Notifications' }).click()
   await expect(page.getByRole('dialog').getByText('New job')).toBeVisible()
 })
 
@@ -167,7 +169,7 @@ test('a live WebSocket "read" event drops the item from list and badge, no refet
   wsRoute!.send(JSON.stringify({ notification_id: jobA.id, type: 'read' }))
 
   await expect(page.locator('.v-badge__badge')).toHaveText('1')
-  await page.locator('.mdi-bell-ring, .mdi-bell-outline').first().click()
+  await page.getByRole('button', { name: 'Notifications' }).click()
   const dialog = page.getByRole('dialog')
   await expect(dialog.getByText('Job B')).toBeVisible()
   await expect(dialog.getByText('Job A')).toBeHidden()
@@ -211,6 +213,67 @@ test('a live WebSocket "new" event renders a visible toast (no store/component n
   expect(missingRenderWarnings).toEqual([])
 })
 
+test('a failing first page shows the failed state, and Try again recovers', async ({ page }) => {
+  await installMockBackend(page)
+  let failing = true
+  await page.route(/\/notifications\/v2\/?(\?.*)?$/, (r) => {
+    if (r.request().method() !== 'GET')
+      return r.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+    return failing
+      ? r.fulfill({ status: 500, contentType: 'application/json', body: '{}' })
+      : r.fulfill(notificationsBody([makeNotification({ id: 'n1', title: 'Job A' })]))
+  })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Notifications' }).click()
+  const dialog = page.getByRole('dialog')
+  // A failure is not an empty inbox.
+  await expect(dialog.getByText('Could not load notifications')).toBeVisible()
+  await expect(dialog.getByText('No notifications')).toHaveCount(0)
+
+  failing = false
+  await dialog.getByRole('button', { name: 'Try again' }).click()
+  await expect(dialog.getByText('Job A')).toBeVisible()
+  await expect(dialog.getByText('Could not load notifications')).toHaveCount(0)
+})
+
+test('scrolling to the end appends the next page instead of replacing the list', async ({
+  page,
+}) => {
+  await installMockBackend(page)
+  const queries: string[] = []
+  await page.route(/\/notifications\/v2\/?(\?.*)?$/, (r) => {
+    if (r.request().method() !== 'GET')
+      return r.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+    const url = new URL(r.request().url())
+    queries.push(url.search)
+    const secondPage = url.searchParams.get('cursor') === 'cursor-page-2'
+    return r.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: [
+          makeNotification(
+            secondPage ? { id: 'n2', title: 'Job B' } : { id: 'n1', title: 'Job A' },
+          ),
+        ],
+        meta: secondPage
+          ? { nextCursor: null, hasMore: false, total: 2 }
+          : { nextCursor: 'cursor-page-2', hasMore: true, total: 2 },
+      }),
+    })
+  })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Notifications' }).click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.getByText('Job A')).toBeVisible()
+
+  await dialog.locator('.v-card-text').evaluate((el) => el.dispatchEvent(new Event('scroll')))
+
+  await expect(dialog.getByText('Job B')).toBeVisible()
+  await expect(dialog.getByText('Job A')).toBeVisible()
+  expect(queries.filter((q) => q.includes('cursor=cursor-page-2'))).toHaveLength(1)
+})
+
 test('a failing next page keeps the loaded notifications and toasts', async ({ page }) => {
   await installMockBackend(page)
   let getCalls = 0
@@ -234,11 +297,11 @@ test('a failing next page keeps the loaded notifications and toasts', async ({ p
         })
   })
   await page.goto('/')
-  await page.locator('.mdi-bell-ring, .mdi-bell-outline').first().click()
+  await page.getByRole('button', { name: 'Notifications' }).click()
   const dialog = page.getByRole('dialog')
   await expect(dialog.getByText('Job A')).toBeVisible()
 
-  await page.locator('.notification-scroll').evaluate((el) => el.dispatchEvent(new Event('scroll')))
+  await dialog.locator('.v-card-text').evaluate((el) => el.dispatchEvent(new Event('scroll')))
 
   await expect(
     page.locator('.vue-notification-wrapper').getByText('Could not load notifications'),
@@ -259,11 +322,11 @@ test('a failing mark-read keeps the notification in the list and toasts', async 
     }),
   )
   await page.goto('/')
-  await page.locator('.mdi-bell-ring, .mdi-bell-outline').first().click()
+  await page.getByRole('button', { name: 'Notifications' }).click()
   const dialog = page.getByRole('dialog')
   await dialog
     .locator('.v-list-item', { hasText: 'Job A' })
-    .locator('.mdi-check-circle-outline')
+    .getByRole('button', { name: 'Mark as read' })
     .click()
 
   await expect(
@@ -288,7 +351,7 @@ test('a failing mark-all-as-read keeps the list and toasts', async ({ page }) =>
     }),
   )
   await page.goto('/')
-  await page.locator('.mdi-bell-ring, .mdi-bell-outline').first().click()
+  await page.getByRole('button', { name: 'Notifications' }).click()
   const dialog = page.getByRole('dialog')
   await dialog.getByRole('button', { name: 'Mark all as read' }).click()
   await page

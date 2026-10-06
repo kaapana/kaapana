@@ -8,7 +8,15 @@
       @click="onNotificationClick"
     />
     <v-main>
-      <router-view :key="viewKey" />
+      <v-container v-if="bootError" fluid class="pm-view">
+        <FailureAlert
+          title="User not loaded"
+          text="Could not load your user account."
+          :error="bootError"
+          :retry="loadCurrentUser"
+        />
+      </v-container>
+      <router-view v-else :key="viewKey" />
     </v-main>
     <ErrorDetailsDialog
       v-model="failureDetails.open"
@@ -28,6 +36,8 @@ import { UserItem } from '@/common/types'
 import { aiiApiGet } from '@/common/services'
 import { usePermissionsStore } from '@/permissions/permissions.store'
 import { usePolicyStore } from '@/stores/policy'
+import { notifyFailure } from '@/utils/notifyFailure'
+import FailureAlert from '@/components/FailureAlert.vue'
 
 const { viewKey } = useShellSettings()
 const failureDetails = useFailureDetailsStore()
@@ -38,31 +48,35 @@ function onNotificationClick(item: { data?: unknown }) {
   const failure = (item.data as { failure?: unknown } | undefined)?.failure
   if (failure) failureDetails.show(failure as never)
 }
-const user = ref<UserItem | null>(null)
-
-async function fetchCurrentUser() {
-  try {
-    const userResp = await aiiApiGet("users/current");
-
-    store.updateUser(userResp);
-    user.value = userResp;
-
-    return userResp; // important!
-  } catch (error) {
-    console.error(error);
-    throw error;
-  }
-}
-
 const permissions = usePermissionsStore()
 const policy = usePolicyStore()
+const bootError = ref<unknown>(null)
 
-onMounted(async () => {
+onMounted(() => {
   policy.getPolicyData()
-  const currentUser = await fetchCurrentUser()
-
-  await permissions.loadUserRights(currentUser.id)
+  loadCurrentUser()
 })
+
+async function loadCurrentUser() {
+  bootError.value = null
+  let currentUser: UserItem
+  try {
+    currentUser = await aiiApiGet('users/current')
+  } catch (error) {
+    bootError.value = error
+    return
+  }
+  store.updateUser(currentUser)
+  try {
+    await permissions.loadUserRights(currentUser.id)
+  } catch (error) {
+    notifyFailure(
+      'Project rights not loaded',
+      'Could not load your project rights; controls they grant stay hidden.',
+      error,
+    )
+  }
+}
 </script>
 
 <style>

@@ -32,7 +32,17 @@
 
       <v-divider />
 
+      <div v-if="loadError" class="px-4 pb-4">
+        <FailureAlert
+          title="Projects not loaded"
+          text="Could not load the projects."
+          :error="loadError"
+          :retry="fetchProjects"
+        />
+      </div>
+
       <v-data-table
+        v-else
         :headers="tableHeaders"
         :items="projects"
         :search="search"
@@ -145,174 +155,149 @@
   />
 </template>
 
-<script lang="ts">
-import { kaapanaIcons, projectIcons } from '@/utils/projectIcons'
-import { defineComponent } from 'vue'
+<script lang="ts" setup>
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { notify } from '@kyvg/vue3-notification'
+import { ConfirmDialog, refreshShell } from '@kaapana/base-ui'
 import CreateNewProjectForm from '@/components/CreateNewProjectForm.vue'
 import EditProjectDialog from '@/components/EditProjectDialog.vue'
-import { ConfirmDialog } from '@kaapana/base-ui'
+import FailureAlert from '@/components/FailureAlert.vue'
 import { aiiApiGet, aiiApiDelete, aiiApiPost } from '@/common/services'
-import { refreshShell } from '@kaapana/base-ui'
 import { ProjectItem, UserItem } from '@/common/types'
 import { isAdminUser, waitForStoreUser } from '@/common/userAccess'
-import { notify } from '@kyvg/vue3-notification'
-import { notifyFailure } from '@/utils/notifyFailure'
 import { useConfirmation } from '@/composables/useConfirmation'
+import { notifyFailure } from '@/utils/notifyFailure'
+import { kaapanaIcons, projectIcons } from '@/utils/projectIcons'
 import { archiveProjectConfirmation, deleteProjectConfirmation } from '@/utils/projectConfirmations'
-import store from '@/common/store'
 
-export default defineComponent({
-  components: {
-    CreateNewProjectForm,
-    EditProjectDialog,
-    ConfirmDialog,
-  },
-  props: {},
-  setup() {
-    const { confirmOpen, confirmation, ask, runConfirmed } = useConfirmation()
-    return {
-      kaapanaIcons,
-      projectIcons,
-      confirmOpen,
-      confirmation,
-      ask,
-      runConfirmed,
-    }
-  },
-  data() {
-    return {
-      projects: [] as ProjectItem[],
-      search: '',
-      projectDialog: false,
-      userHasAdminAccess: false,
-      editDialog: false,
-      selectedProject: null as ProjectItem | null,
-      loading: false,
-      busy: null as { id: string; action: 'delete' | 'archive' | 'unarchive' } | null,
-    }
-  },
-  mounted() {
-    waitForStoreUser((user) => {
-      this.fetchProjects(user);
-      this.userHasAdminAccess = isAdminUser(user);
-    });
-  },
-  computed: {
-    tableHeaders(): object[] {
-      const base = [
-        { title: 'Short ID', key: 'short_id', sortable: true },
-        { title: 'Name', key: 'name', sortable: true },
-        { title: 'Description', key: 'description', sortable: false },
-      ];
-      const adminOnly = [
-        { title: 'External ID', key: 'external_id', sortable: true },
-      ];
-      const view = [{ title: 'View', key: 'view', sortable: false, align: 'center' as const }];
-      const actions = [{ title: 'Actions', key: 'actions', sortable: false, align: 'center' as const }];
-      return this.userHasAdminAccess
-        ? [...base, ...adminOnly, ...view, ...actions]
-        : [...base, ...view];
-    },
-  },
-  methods: {
-    fetchProjects: function (user: UserItem) {
-      let projects_url = `users/${user.id}/projects`;
+const router = useRouter()
+const { confirmOpen, confirmation, ask, runConfirmed } = useConfirmation()
 
-      // if default-user / kaapana_admin, fetch all the projects
-      if (user.realm_roles && user.realm_roles.includes("project-manager")) {
-        projects_url = `projects`;
-      }
+const user = ref<UserItem | null>(null)
+const projects = ref<ProjectItem[]>([])
+const search = ref('')
+const loading = ref(false)
+const loadError = ref<unknown>(null)
+const userHasAdminAccess = computed(() => !!user.value && isAdminUser(user.value))
 
-      try {
-        this.loading = true
-        aiiApiGet(projects_url)
-          .then((projects: ProjectItem[]) => {
-            this.projects = projects
-          })
-          .finally(() => {
-            this.loading = false
-          })
-      } catch (error: unknown) {
-        console.log(error);
-      }
-    },
-    handleProjectCreate: function (success: boolean = true, error?: unknown) {
-      if (success) {
-        const user = store.state.user;
-        if (user) {
-          this.fetchProjects(user);
-        }
-      } else {
-        notifyFailure('Project not created', 'The project could not be created.', error)
-      }
-      this.projectDialog = false;
-    },
-    goToProjects(projectId: string) {
-      this.$router.push(`/project/${projectId}`);
-    },
-    openEditDialog(project: ProjectItem) {
-      this.selectedProject = project;
-      this.editDialog = true;
-    },
-    handleEditSuccess() {
-      this.editDialog = false
-      refreshShell()
-      const user = store.state.user
-      if (user) this.fetchProjects(user)
-      notify({ type: 'success', text: 'Project updated.' })
-    },
-    handleEditError(text: string, error?: unknown) {
-      notifyFailure('Project not updated', text, error)
-    },
-    openDeleteDialog(project: ProjectItem) {
-      this.ask(deleteProjectConfirmation(project, () => this.deleteProject(project)))
-    },
-    async deleteProject(project: ProjectItem) {
-      this.busy = { id: project.id, action: 'delete' }
-      try {
-        await aiiApiDelete(`projects/${project.id}`)
-        refreshShell()
-        const user = store.state.user
-        if (user) this.fetchProjects(user)
-        notify({ type: 'success', text: `Project "${project.name}" deleted.` })
-      } catch (error: unknown) {
-        notifyFailure('Project not deleted', `Could not delete "${project.name}".`, error)
-      } finally {
-        this.busy = null
-      }
-    },
-    openArchiveDialog(project: ProjectItem) {
-      this.ask(archiveProjectConfirmation(project, () => this.archiveProject(project)))
-    },
-    async archiveProject(project: ProjectItem) {
-      this.busy = { id: project.id, action: 'archive' }
-      try {
-        await aiiApiPost(`projects/${project.id}/archive`, {})
-        refreshShell()
-        const user = store.state.user
-        if (user) this.fetchProjects(user)
-        notify({ type: 'success', text: `Project "${project.name}" archived.` })
-      } catch (error: unknown) {
-        notifyFailure('Project not archived', `Could not archive "${project.name}".`, error)
-      } finally {
-        this.busy = null
-      }
-    },
-    async unarchiveProject(project: ProjectItem) {
-      this.busy = { id: project.id, action: 'unarchive' }
-      try {
-        await aiiApiPost(`projects/${project.id}/unarchive`, {})
-        refreshShell()
-        const user = store.state.user
-        if (user) this.fetchProjects(user)
-        notify({ type: 'success', text: `Project "${project.name}" unarchived.` })
-      } catch (error: unknown) {
-        notifyFailure('Project not unarchived', `Could not unarchive "${project.name}".`, error)
-      } finally {
-        this.busy = null
-      }
-    },
-  },
-});
+const projectDialog = ref(false)
+const editDialog = ref(false)
+const selectedProject = ref<ProjectItem | null>(null)
+const busy = ref<{ id: string; action: 'delete' | 'archive' | 'unarchive' } | null>(null)
+
+const tableHeaders = computed(() => {
+  const base = [
+    { title: 'Short ID', key: 'short_id', sortable: true },
+    { title: 'Name', key: 'name', sortable: true },
+    { title: 'Description', key: 'description', sortable: false },
+  ]
+  const adminOnly = [{ title: 'External ID', key: 'external_id', sortable: true }]
+  const view = [{ title: 'View', key: 'view', sortable: false, align: 'center' as const }]
+  const actions = [{ title: 'Actions', key: 'actions', sortable: false, align: 'center' as const }]
+  return userHasAdminAccess.value
+    ? [...base, ...adminOnly, ...view, ...actions]
+    : [...base, ...view]
+})
+
+onMounted(() => {
+  waitForStoreUser((currentUser) => {
+    user.value = currentUser
+    fetchProjects()
+  })
+})
+
+async function fetchProjects() {
+  if (!user.value) return
+  const url = isAdminUser(user.value) ? 'projects' : `users/${user.value.id}/projects`
+  loading.value = true
+  loadError.value = null
+  try {
+    projects.value = await aiiApiGet(url)
+  } catch (error) {
+    loadError.value = error
+  } finally {
+    loading.value = false
+  }
+}
+
+function handleProjectCreate(success: boolean = true, error?: unknown) {
+  if (success) {
+    fetchProjects()
+  } else {
+    notifyFailure('Project not created', 'The project could not be created.', error)
+  }
+  projectDialog.value = false
+}
+
+function goToProjects(projectId: string) {
+  router.push(`/project/${projectId}`)
+}
+
+function openEditDialog(project: ProjectItem) {
+  selectedProject.value = project
+  editDialog.value = true
+}
+
+function handleEditSuccess() {
+  editDialog.value = false
+  refreshShell()
+  fetchProjects()
+  notify({ type: 'success', text: 'Project updated.' })
+}
+
+function handleEditError(text: string, error?: unknown) {
+  notifyFailure('Project not updated', text, error)
+}
+
+function openDeleteDialog(project: ProjectItem) {
+  ask(deleteProjectConfirmation(project, () => deleteProject(project)))
+}
+
+async function deleteProject(project: ProjectItem) {
+  busy.value = { id: project.id, action: 'delete' }
+  try {
+    await aiiApiDelete(`projects/${project.id}`)
+    refreshShell()
+    fetchProjects()
+    notify({ type: 'success', text: `Project "${project.name}" deleted.` })
+  } catch (error) {
+    notifyFailure('Project not deleted', `Could not delete "${project.name}".`, error)
+  } finally {
+    busy.value = null
+  }
+}
+
+function openArchiveDialog(project: ProjectItem) {
+  ask(archiveProjectConfirmation(project, () => archiveProject(project)))
+}
+
+async function archiveProject(project: ProjectItem) {
+  busy.value = { id: project.id, action: 'archive' }
+  try {
+    await aiiApiPost(`projects/${project.id}/archive`, {})
+    refreshShell()
+    fetchProjects()
+    notify({ type: 'success', text: `Project "${project.name}" archived.` })
+  } catch (error) {
+    notifyFailure('Project not archived', `Could not archive "${project.name}".`, error)
+  } finally {
+    busy.value = null
+  }
+}
+
+async function unarchiveProject(project: ProjectItem) {
+  busy.value = { id: project.id, action: 'unarchive' }
+  try {
+    await aiiApiPost(`projects/${project.id}/unarchive`, {})
+    refreshShell()
+    fetchProjects()
+    notify({ type: 'success', text: `Project "${project.name}" unarchived.` })
+  } catch (error) {
+    notifyFailure('Project not unarchived', `Could not unarchive "${project.name}".`, error)
+  } finally {
+    busy.value = null
+  }
+}
 </script>
 

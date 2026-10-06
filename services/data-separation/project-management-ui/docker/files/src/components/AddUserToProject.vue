@@ -38,8 +38,8 @@
           class="mb-4"
           :custom-filter="userSearchFilter"
         >
-          <template #selection="{ item, select, toggle, selected }">
-            <v-chip v-bind="{ ...$attrs, selected, select, toggle }" size="small" class="mr-1">
+          <template #selection="{ item }">
+            <v-chip size="small" class="mr-1">
               <v-icon icon="mdi-account-circle" size="18" />
               <span class="ml-1" style="font-family: monospace">{{ item.raw.username }}</span>
             </v-chip>
@@ -153,10 +153,17 @@ const validationError = ref('');
 
 const isAddMode = computed(() => props.actionType === 'add');
 
-const userSearchFilter = (_: string, query: string, item: { raw: UserItem }) => {
-  const user = item.raw;
-  const q = query.toLowerCase().trim();
-  return [user.username, user.email, user.first_name, user.last_name, `${user.first_name} ${user.last_name}`]
+const userSearchFilter = (_: string, query: string, item?: { raw: UserItem }) => {
+  if (!item) return false
+  const user = item.raw
+  const q = query.toLowerCase().trim()
+  return [
+    user.username,
+    user.email,
+    user.first_name,
+    user.last_name,
+    `${user.first_name} ${user.last_name}`,
+  ]
     .filter(Boolean)
     .some(f => f.toLowerCase().includes(q));
 };

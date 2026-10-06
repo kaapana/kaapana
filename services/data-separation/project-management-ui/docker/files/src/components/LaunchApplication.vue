@@ -108,11 +108,11 @@
     <v-card-actions>
       <v-spacer></v-spacer>
 
-      <v-btn color="error" @click="emitClose">
+      <v-btn color="error" :disabled="busy" @click="emitClose">
         Cancel
       </v-btn>
 
-      <v-btn color="primary" @click="submit">
+      <v-btn color="primary" :loading="busy" :disabled="busy" @click="submit">
         {{ extension?.multiinstallable === 'yes' ? 'Launch' : 'Install' }}
       </v-btn>
     </v-card-actions>
@@ -126,6 +126,7 @@ import { kaapanaIcons } from '@/utils/projectIcons'
 import { ref, computed, watch } from 'vue'
 
 const props = defineProps({
+  busy: { type: Boolean, default: false },
   extension: {
     type: Object,
     required: false,

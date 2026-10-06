@@ -2,8 +2,13 @@
     <v-col>
         <!-- ── Launch dialog ───────────────────────────────────────── -->
         <v-dialog v-model="isLaunchAppDialogOpen" max-width="1000">
-            <LaunchApplication v-if="selectedApplication" :extension="selectedApplication" @submit="onApplicationLaunched"
-                @close="isLaunchAppDialogOpen = false" />
+            <LaunchApplication
+                v-if="selectedApplication"
+                :extension="selectedApplication"
+                :busy="isLaunching"
+                @submit="onApplicationLaunched"
+                @close="isLaunchAppDialogOpen = false"
+            />
         </v-dialog>
 
         <!-- ── Section header ─────────────────────────────────────── -->
@@ -267,8 +272,9 @@ const saveChanges = async () => {
 
 // ── Launch dialog ──────────────────────────────────────────────────────────
 
-const isLaunchAppDialogOpen = ref(false);
-const selectedApplication = ref<any>(null);
+const isLaunchAppDialogOpen = ref(false)
+const isLaunching = ref(false)
+const selectedApplication = ref<any>(null)
 
 // ── Computed ───────────────────────────────────────────────────────────────
 
@@ -295,7 +301,8 @@ const onApplicationLaunched = async ({ extension, values }: { extension: any; va
         version: extension.version,
         keywords: extension.keywords,
         extension_params: values,
-    };
+    }
+    isLaunching.value = true
     try {
         await kubeHelmPost('helm-install-chart', payload)
         notify({ type: 'success', text: `${extension.annotations['ui-visible-name']} is starting.` })
@@ -305,6 +312,8 @@ const onApplicationLaunched = async ({ extension, values }: { extension: any; va
             `Could not launch ${extension.annotations['ui-visible-name']}.`,
             error,
         )
+    } finally {
+        isLaunching.value = false
     }
     isLaunchAppDialogOpen.value = false;
     selectedApplication.value = null;

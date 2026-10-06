@@ -26,7 +26,9 @@ test('a later poll picks up a newly created project in the selector', async ({ p
 
   // A new project appears on the backend; the 15s poll must surface it.
   projects = [ADMIN, RESB, NEWP]
+  const polled = page.waitForResponse('**/aii/projects')
   await page.clock.runFor(15_000)
+  await polled
 
   await page.locator('.project-select .v-field__input').click()
   await expect(page.getByRole('option', { name: /new-study/ })).toBeVisible()
@@ -68,7 +70,9 @@ test('a project appearing while none is selected can be picked from the unscoped
   await expect(page).toHaveURL(/localhost:\d+\/$/)
 
   projects = [ADMIN]
+  const polled = page.waitForResponse('**/aii/projects')
   await page.clock.runFor(15_000)
+  await polled
 
   await page.locator('.project-select .v-field__input').click()
   await page.getByRole('option', { name: /admin/ }).click()

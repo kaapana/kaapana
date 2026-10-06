@@ -26,7 +26,10 @@ export interface NotificationEvent {
   type: NotificationEventType
 }
 
-export async function fetchNotifications(params?: { limit?: number; cursor?: string | null }): Promise<{
+export async function fetchNotifications(params?: {
+  limit?: number
+  cursor?: string | null
+}): Promise<{
   data: KaapanaNotification[]
   meta: {
     nextCursor: string | null
@@ -60,9 +63,6 @@ export class NotificationWebsocket {
   private readonly url: string
   private connection: WebSocket | null = null
   private readonly messageHandlers: ((event: NotificationEvent) => void)[] = []
-  private readonly openHandlers: ((ev: Event) => void)[] = []
-  private readonly closeHandlers: ((ev: CloseEvent) => void)[] = []
-  private readonly errorHandlers: ((ev: Event) => void)[] = []
   private reconnectAttempts = 0
   private reconnectTimer: number | null = null
   private stabilityTimer: number | null = null
@@ -81,28 +81,25 @@ export class NotificationWebsocket {
     // A dead socket can still emit a late open/message/close/error after we have
     // reconnected; ignoring events from a socket that is no longer the current one
     // keeps registered handlers correct and prevents a second, leaking reconnect.
-    socket.addEventListener('open', (ev: Event) => {
+    socket.addEventListener('open', () => {
       if (socket !== this.connection) return
       this.stabilityTimer = window.setTimeout(() => {
         if (socket === this.connection) this.reconnectAttempts = 0
       }, NotificationWebsocket.STABILITY_WINDOW_MS)
-      this.openHandlers.forEach((h) => h(ev))
     })
     socket.addEventListener('message', (e: MessageEvent) => {
       if (socket !== this.connection) return
       const event = JSON.parse(e.data)
       this.messageHandlers.forEach((h) => h(event))
     })
-    socket.addEventListener('close', (ev: CloseEvent) => {
+    socket.addEventListener('close', () => {
       if (socket !== this.connection) return
       this.clearStabilityTimer()
-      this.closeHandlers.forEach((h) => h(ev))
       this.scheduleReconnect()
     })
-    socket.addEventListener('error', (ev: Event) => {
+    socket.addEventListener('error', () => {
       if (socket !== this.connection) return
       this.clearStabilityTimer()
-      this.errorHandlers.forEach((h) => h(ev))
       this.scheduleReconnect()
     })
   }
@@ -129,18 +126,6 @@ export class NotificationWebsocket {
 
   public onMessage(handler: (event: NotificationEvent) => void): void {
     this.messageHandlers.push(handler)
-  }
-
-  public onOpen(handler: (ev: Event) => void): void {
-    this.openHandlers.push(handler)
-  }
-
-  public onClose(handler: (ev: CloseEvent) => void): void {
-    this.closeHandlers.push(handler)
-  }
-
-  public onError(handler: (ev: Event) => void): void {
-    this.errorHandlers.push(handler)
   }
 
   // Intentional teardown: stop reconnecting and drop any pending timer/socket so

@@ -59,6 +59,18 @@ test('collapse to rail hides the brand text and project selector, expand restore
   await expect(page.getByLabel('Project')).toBeVisible()
 })
 
+test('the collapsed rail shows a text glyph for section entries', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Collapse Sidebar' }).click()
+  // The rail hides the titles, so the section header is found by its text
+  // content and clicked as a row.
+  await page.locator('.nav-menu .v-list-item').filter({ hasText: 'Workflows' }).click()
+
+  // "Data Upload" -> initials, "Workflow List" -> initials.
+  await expect(page.locator('.glyph', { hasText: 'DU' })).toBeVisible()
+  await expect(page.locator('.glyph', { hasText: 'WL' })).toBeVisible()
+})
+
 test('brand shows the admin-chart version parsed from commonData.json', async ({ page }) => {
   await page.route('**/jsons/commonData.json', (r) =>
     r.fulfill({

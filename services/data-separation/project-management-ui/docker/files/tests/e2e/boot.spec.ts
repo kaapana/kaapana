@@ -28,3 +28,28 @@ test('renders a project detail page directly', async ({ page }) => {
   await expect(page.getByText('Project Users')).toBeVisible()
   expect(pageErrors).toEqual([])
 })
+
+test('follows the shell dark-mode setting', async ({ page }) => {
+  await page.addInitScript(() =>
+    localStorage.setItem('settings', JSON.stringify({ darkMode: true })),
+  )
+  await openView(page, defaultMockData, { seedSettings: false })
+
+  await expect(page.locator('.v-application')).toHaveClass(/v-theme--kaapanaThemeDark/)
+})
+
+test('switches theme live when the shell toggles dark mode', async ({ page }) => {
+  await openView(page)
+  await expect(page.locator('.v-application')).toHaveClass(/v-theme--kaapanaThemeLight/)
+
+  // The shell writes in another browsing context; a same-document write fires
+  // no storage event, so dispatch the one the shell's write would cause.
+  await page.evaluate(() => {
+    const oldValue = localStorage.getItem('settings')
+    const newValue = JSON.stringify({ darkMode: true })
+    localStorage.setItem('settings', newValue)
+    window.dispatchEvent(new StorageEvent('storage', { key: 'settings', oldValue, newValue }))
+  })
+
+  await expect(page.locator('.v-application')).toHaveClass(/v-theme--kaapanaThemeDark/)
+})

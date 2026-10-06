@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { apiErrorInfo, type ApiErrorInfo } from '@kaapana/base-ui'
 import {
   clearLegacyProjectCookie,
   fetchCurrentAiiUser,
@@ -46,6 +47,10 @@ export const useProjectStore = defineStore('project', {
     selectedProject: null as Project | null,
     availableProjects: [] as Project[],
     loaded: false,
+    // The last list load failed, so the selector can tell "could not load"
+    // apart from "member of no project"; lastError feeds its Details dialog.
+    error: false,
+    lastError: null as ApiErrorInfo | null,
   }),
   actions: {
     async ensureLoaded() {
@@ -57,12 +62,13 @@ export const useProjectStore = defineStore('project', {
         // Default selection until the URL carries a project.
         const last = lastSelectedProject()
         const selected =
-          this.availableProjects.find((p) => p.id == last?.id) ??
-          this.availableProjects[0] ??
-          null
+          this.availableProjects.find((p) => p.id == last?.id) ?? this.availableProjects[0] ?? null
         if (selected) this.selectProject(selected)
         this.loaded = true
+        this.error = false
       } catch (error) {
+        this.error = true
+        this.lastError = apiErrorInfo(error)
         console.error('Error fetching projects:', error)
       }
     },
@@ -93,8 +99,11 @@ export const useProjectStore = defineStore('project', {
             if (JSON.stringify(projects) !== JSON.stringify(this.availableProjects)) {
               this.availableProjects = projects
             }
-          } catch {
+            this.error = false
+          } catch (error) {
             // errors keep the last list
+            this.error = true
+            this.lastError = apiErrorInfo(error)
           }
         } while (queued)
       })().finally(() => {

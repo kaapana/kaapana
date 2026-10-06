@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { kaapanaIcons } from '@kaapana/base-ui'
 import http from '@/api/http'
 import AboutDialog from '@/components/AboutDialog.vue'
 import DevLinksButton from '@/components/DevLinksButton.vue'
@@ -11,14 +12,30 @@ import { useAuthStore } from '@/stores/auth'
 import { useMenuStore } from '@/stores/menu'
 import { useProjectStore, projectSlug } from '@/stores/project'
 import { useSettingsStore } from '@/stores/settings'
+import { useFailureDetailsStore } from '@/stores/failureDetails'
 import type { DevLink, MenuEntry, MenuItem } from '@/types/menu'
 
 const auth = useAuthStore()
 const menu = useMenuStore()
 const project = useProjectStore()
 const settings = useSettingsStore()
+const failureDetails = useFailureDetailsStore()
 
 const mini = ref(false)
+
+const retryingMenu = ref(false)
+
+// Fetch the menu again. If it fails again, the notice stays.
+async function retryMenu() {
+  retryingMenu.value = true
+  try {
+    await menu.refresh(true)
+  } catch {
+    // menu.error is set; the notice stays
+  } finally {
+    retryingMenu.value = false
+  }
+}
 
 const chartVersion = ref('')
 onMounted(async () => {
@@ -79,8 +96,11 @@ function glyph(label: string): string {
             <v-img src="/assets/img/logo.webp" alt="Kaapana" contain></v-img>
           </v-avatar>
           <span v-if="!mini" class="brand-text">
-            <span class="brand-name">Kaapana</span>
-            <span v-if="chartVersion" class="brand-version">{{ chartVersion }}</span>
+            <span class="text-body-1 font-weight-medium">Kaapana</span>
+            <!-- Dev builds carry a long version; it is cut rather than wrapped. -->
+            <span v-if="chartVersion" class="text-caption" :title="chartVersion">
+              {{ chartVersion }}
+            </span>
           </span>
         </router-link>
         <v-spacer></v-spacer>
@@ -203,7 +223,26 @@ function glyph(label: string): string {
       <v-progress-circular v-if="!menu.loaded && !menu.error" indeterminate size="20" />
       <template v-else-if="menu.error">
         <div class="text-subtitle-2">Menu unavailable</div>
-        <div class="text-caption">The platform could not be reached. Reload once it is back.</div>
+        <div class="text-caption">The platform could not be reached.</div>
+        <div class="d-flex ga-1 mt-1">
+          <v-btn
+            v-if="menu.lastError"
+            variant="text"
+            size="small"
+            @click="
+              failureDetails.show({
+                title: 'Menu unavailable',
+                text: 'The platform could not be reached.',
+                error: menu.lastError,
+              })
+            "
+          >
+            Details
+          </v-btn>
+          <v-btn variant="text" size="small" :loading="retryingMenu" @click="retryMenu">
+            Try again
+          </v-btn>
+        </div>
       </template>
       <template v-else>
         <div class="text-subtitle-2">No entries</div>
@@ -217,27 +256,27 @@ function glyph(label: string): string {
       <!-- small buttons keep the footer unobtrusive -->
       <div v-if="!mini" class="d-flex align-center px-1 pt-1 pb-0 ga-2">
         <v-btn icon variant="text" size="small" title="Collapse Sidebar" @click.stop="mini = true">
-          <v-icon>mdi-dock-left</v-icon>
+          <v-icon :icon="kaapanaIcons.sidebar"></v-icon>
         </v-btn>
         <v-spacer></v-spacer>
         <AboutDialog />
         <v-btn icon variant="text" size="small" to="/help" title="Help">
-          <v-icon>mdi-help-circle-outline</v-icon>
+          <v-icon :icon="kaapanaIcons.help"></v-icon>
         </v-btn>
         <v-btn icon variant="text" size="small" title="Log out" @click="auth.requestLogout()">
-          <v-icon>mdi-exit-to-app</v-icon>
+          <v-icon :icon="kaapanaIcons.logout"></v-icon>
         </v-btn>
       </div>
       <div v-else class="d-flex flex-column align-center px-1 pt-1 pb-0">
         <v-btn icon variant="text" size="small" title="Expand Sidebar" @click.stop="mini = false">
-          <v-icon>mdi-dock-left</v-icon>
+          <v-icon :icon="kaapanaIcons.sidebar"></v-icon>
         </v-btn>
         <AboutDialog />
         <v-btn icon variant="text" size="small" to="/help" title="Help">
-          <v-icon>mdi-help-circle-outline</v-icon>
+          <v-icon :icon="kaapanaIcons.help"></v-icon>
         </v-btn>
         <v-btn icon variant="text" size="small" title="Log out" @click="auth.requestLogout()">
-          <v-icon>mdi-exit-to-app</v-icon>
+          <v-icon :icon="kaapanaIcons.logout"></v-icon>
         </v-btn>
       </div>
     </template>
@@ -249,24 +288,20 @@ function glyph(label: string): string {
   gap: 8px;
   text-decoration: none;
   min-width: 0;
+  /* Keep the header's white text instead of the theme's link colour. */
+  color: inherit;
 }
 
 .brand-text {
   display: flex;
   flex-direction: column;
-  line-height: 1.2;
+  min-width: 0;
 }
 
-.brand-name {
-  color: white;
-  font-size: 1rem;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-}
-
-.brand-version {
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 0.7rem;
+.brand-text > span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Vuetify's default 32px icon-title spacer wastes width and ellipsizes long titles;

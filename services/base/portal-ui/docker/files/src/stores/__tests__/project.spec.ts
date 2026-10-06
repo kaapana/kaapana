@@ -55,7 +55,7 @@ describe('project store refreshProjects', () => {
     expect(store.availableProjects.map((p) => p.id)).toEqual([1, 2])
   })
 
-  it('keeps the last list when the fetch fails', async () => {
+  it('keeps the last list when the fetch fails, and flags the failure', async () => {
     const store = useProjectStore()
     store.availableProjects = [P(1, 'a')]
     vi.mocked(fetchProjects).mockRejectedValue(new Error('boom'))
@@ -63,6 +63,27 @@ describe('project store refreshProjects', () => {
     await store.refreshProjects()
 
     expect(store.availableProjects.map((p) => p.id)).toEqual([1])
+    expect(store.error).toBe(true)
+
+    vi.mocked(fetchProjects).mockResolvedValue([P(1, 'a')])
+    await store.refreshProjects()
+    expect(store.error).toBe(false)
+  })
+
+  it('flags a failed initial load and stays unloaded so a retry can run', async () => {
+    const store = useProjectStore()
+    vi.mocked(fetchProjects).mockRejectedValueOnce(new Error('boom'))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await store.ensureLoaded()
+    expect(store.error).toBe(true)
+    expect(store.loaded).toBe(false)
+
+    vi.mocked(fetchProjects).mockResolvedValue([P(1, 'a')])
+    await store.ensureLoaded()
+    expect(store.error).toBe(false)
+    expect(store.loaded).toBe(true)
+    expect(store.selectedProject?.id).toBe(1)
   })
 
   it('does not replace the list reference when the payload is unchanged', async () => {

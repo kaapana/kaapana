@@ -11,8 +11,10 @@ import { useProjectStore, projectSlug, withProjectSlug } from '@/stores/project'
 import { useViewStateStore } from '@/stores/viewState'
 import { iframeSrcFor } from '@/utils/iframeSrc'
 
-// Pre-split bookmarks (old monolith routes) mapped onto the per-view
-// container slugs; queries are preserved for gallery deep links.
+// Only for old bookmarks: the flat routes of the old monolith (/datasets,
+// /workflows, ...) map onto the per-view slugs. Queries are kept for gallery
+// deep links. Due for removal in <release TBD>, together with their grants in
+// auth-backend's data.rego and clearLegacyProjectCookie in api/projects.ts.
 const legacyRedirects: Record<string, string> = {
   '/datasets': '/workflows/datasets',
   '/data-upload': '/workflows/data-upload',
@@ -50,14 +52,15 @@ const routes: RouteRecordRaw[] = [
     component: IframeHost,
   },
   {
-    // /web/<section>/<entry> bookmarks from the old shell; NO_SECTION marks
-    // top-level entries. The project prefix is added by the 'unscoped' branch.
+    // /web/<section>/<entry> is the navigation contract between the views and
+    // the shell, not a legacy route: base-ui's navigateShell and portal-api use it.
+    // NO_SECTION ("-") marks top-level entries. The project prefix is added by
+    // the 'unscoped' branch.
     path: '/web/:section/:entry/:rest(.*)*',
     redirect: (route: RouteLocationGeneric) => {
       const section = String(route.params.section)
       const rest = ([] as string[]).concat((route.params.rest as string[]) || []).join('/')
-      const base =
-        (section === NO_SECTION ? '' : `/${section}`) + `/${String(route.params.entry)}`
+      const base = (section === NO_SECTION ? '' : `/${section}`) + `/${String(route.params.entry)}`
       return { path: base + (rest ? `/${rest}` : ''), query: route.query }
     },
   },
@@ -85,11 +88,13 @@ router.beforeEach(async (to, from) => {
   const project = useProjectStore()
   try {
     await auth.ensureLoaded()
-    await Promise.all([menu.ensureLoaded(), project.ensureLoaded()])
   } catch (err) {
-    console.log('Failed to load user/menu data', err)
+    console.error('Failed to load the user', err)
     return true
   }
+  // The drawer shows a menu failure. The project prefix does not need the menu,
+  // so the URL still gets the project: the http interceptor reads it from there.
+  await Promise.allSettled([menu.ensureLoaded(), project.ensureLoaded()])
 
   if (to.name === 'unscoped') {
     // Without any project (user has none) the shell renders unscoped as a
@@ -114,17 +119,15 @@ router.beforeEach(async (to, from) => {
       replace: true,
     }
   }
-  if (to.name === 'view') {
+  // Without a menu no entry can be resolved. The deep link stays, so the
+  // drawer's Try again can open it instead of the default view.
+  if (to.name === 'view' && menu.loaded) {
     const segments = ([] as string[]).concat((to.params.segments as string[]) || [])
     const resolved = menu.resolvePath(segments)
-    if (
-      !resolved ||
-      resolved.entry.target !== 'iframe' ||
-      !menu.isEntryVisible(resolved.entry)
-    ) {
-      // Pre-split bookmarks are project-prefixed, so the route-record
-      // redirects (which only match unscoped paths) never see them: map the
-      // legacy path within the same project prefix before giving up.
+    if (!resolved || resolved.entry.target !== 'iframe' || !menu.isEntryVisible(resolved.entry)) {
+      // Bookmarks of the flat legacy routes may carry a project prefix, so the
+      // route-record redirects (which only match unscoped paths) never see
+      // them: map the legacy path within the same project prefix first.
       const legacy = legacyRedirects['/' + segments.join('/')]
       if (legacy) {
         return { path: `/project/${slug}${legacy}`, query: to.query, replace: true }
@@ -154,5 +157,21 @@ router.beforeEach(async (to, from) => {
   project.selectProject(known)
   return true
 })
+
+/**
+ * Run the guard again for an unscoped current route. A boot that could not
+ * load the user or the projects leaves the URL without a project; once a retry
+ * has loaded them, the guard adds the prefix.
+ */
+export async function scopeCurrentRoute() {
+  const current = router.currentRoute.value
+  if (current.name !== 'unscoped') return
+  await router.replace({
+    path: current.path,
+    query: current.query,
+    hash: current.hash,
+    force: true,
+  })
+}
 
 export default router

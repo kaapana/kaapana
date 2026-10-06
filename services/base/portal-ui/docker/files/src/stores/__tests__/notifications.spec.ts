@@ -77,7 +77,9 @@ describe('notifications store refresh race', () => {
     // A websocket "new" event fires refresh() while that page is still pending.
     const refreshDone = store.refresh()
     // refresh() re-fetches from the top; its response lands first.
-    freshPage1.resolve(page(['new-1', 'a', 'b'], { nextCursor: 'cursor-page-2', hasMore: true, total: 42 }))
+    freshPage1.resolve(
+      page(['new-1', 'a', 'b'], { nextCursor: 'cursor-page-2', hasMore: true, total: 42 }),
+    )
     await refreshDone
 
     expect(store.notifications.map((n) => n.id)).toEqual(['new-1', 'a', 'b'])
@@ -85,7 +87,9 @@ describe('notifications store refresh race', () => {
 
     // The stale page-2 response only now resolves. It must be discarded rather
     // than pushed into the freshly refreshed list, and must not advance state.
-    stalePage2.resolve(page(['old-1', 'old-2'], { nextCursor: 'cursor-page-3', hasMore: false, total: 7 }))
+    stalePage2.resolve(
+      page(['old-1', 'old-2'], { nextCursor: 'cursor-page-3', hasMore: false, total: 7 }),
+    )
     await scrollLoad
 
     expect(store.notifications.map((n) => n.id)).toEqual(['new-1', 'a', 'b'])
@@ -140,6 +144,26 @@ describe('notifications store refresh race', () => {
   })
 })
 
+describe('notifications store error flag', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.resetAllMocks()
+  })
+
+  it('records a failed page load and clears it once a load succeeds', async () => {
+    const store = useNotificationsStore()
+    vi.mocked(fetchNotifications).mockRejectedValueOnce(new Error('boom'))
+    await store.loadMore()
+    expect(store.error).toBe(true)
+    expect(store.loading).toBe(false)
+
+    vi.mocked(fetchNotifications).mockResolvedValue(page(['a']))
+    await store.refresh()
+    expect(store.error).toBe(false)
+    expect(store.notifications.map((n) => n.id)).toEqual(['a'])
+  })
+})
+
 describe('notifications store markAllAsRead', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -149,7 +173,9 @@ describe('notifications store markAllAsRead', () => {
   it('uses the bulk endpoint once, however many pages are unread', async () => {
     const store = useNotificationsStore()
     vi.mocked(fetchNotifications)
-      .mockResolvedValueOnce(page(['a', 'b'], { nextCursor: 'cursor-page-2', hasMore: true, total: 40 }))
+      .mockResolvedValueOnce(
+        page(['a', 'b'], { nextCursor: 'cursor-page-2', hasMore: true, total: 40 }),
+      )
       .mockResolvedValue(page([]))
     await store.loadMore()
 

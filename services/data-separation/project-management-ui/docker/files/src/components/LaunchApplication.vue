@@ -10,17 +10,14 @@
         <template v-for="(param, key) in (extension?.extension_params || {})" :key="key">
 
           <!-- Group title -->
-          <span
-            v-if="param.type === 'group_name'"
-            class="font-weight-bold text-h6"
-          >
+          <span v-if="param.type === 'group_name'" class="text-h6">
             {{ param.default }}
           </span>
 
           <!-- Documentation block -->
           <div v-if="param.type === 'doc'">
             <br />
-            <span class="font-weight-bold text-h6">
+            <span class="text-h6">
               {{ param.title }}
             </span>
 

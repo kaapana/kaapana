@@ -1,16 +1,13 @@
 <template>
     <v-dialog v-model="dialog" max-width="1200px">
-        <v-card>
-            <v-card-title class="bg-primary text-white">
-                <span class="text-h5">Application Parameters</span>
-            </v-card-title>
+        <v-card title="Application Parameters">
             <v-card-text>
                 <v-alert v-if="!extensionParams || Object.keys(extensionParams).length === 0" type="info" class="mb-0">
                     No extension parameters available
                 </v-alert>
                 <v-container v-else class="pa-3">
                     <v-row v-for="(value, key) in extensionParams" :key="key" class="mb-2">
-                        <v-col cols="12" md="3" class="font-weight-medium text-sm">
+                        <v-col cols="12" md="3" class="font-weight-medium text-body-2">
                             {{ formatParamName(key) }}
                         </v-col>
                         <v-col cols="12" md="9">

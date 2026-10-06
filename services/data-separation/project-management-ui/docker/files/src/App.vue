@@ -40,3 +40,19 @@ onMounted(async () => {
 });
 
 </script>
+
+<style>
+/* A readable maximum for the project tables; the container centres itself in
+   the space beyond it. */
+.pm-view {
+  max-width: 1600px;
+}
+
+.pm-search {
+  max-width: 420px;
+}
+
+.pm-pending {
+  background-color: rgba(var(--v-theme-warning), 0.12);
+}
+</style>

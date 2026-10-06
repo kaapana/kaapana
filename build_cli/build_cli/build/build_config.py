@@ -82,7 +82,7 @@ class BuildConfig(BaseModel):
     trivy_executable: str = "trivy"
     trivy_timeout: int = 10000
 
-    snap_download_timeout: int = 120
+    snap_download_timeout: int = 600
     helm_download_timeout: int = 10
     save_image_timeout: int = 6000
 

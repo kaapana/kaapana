@@ -549,7 +549,7 @@ class SecurityScanner:
                     name = futures[future]
                     try:
                         path, skipped, timings = future.result()
-                    except (subprocess.CalledProcessError, RuntimeError) as e:
+                    except (subprocess.SubprocessError, RuntimeError) as e:
                         logger.warning(f"Snap vulnerability scan failed for {name} (non-fatal): {e}")
                     else:
                         if skipped:

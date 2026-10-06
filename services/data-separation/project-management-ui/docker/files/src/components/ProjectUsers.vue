@@ -136,8 +136,7 @@
         <!-- ── Add users dialog ────────────────────────────────────── -->
         <v-dialog v-model="isAddDialogOpen" max-width="640" scrollable>
             <AddUserToProject v-if="isAddDialogOpen" :project="project" action-type="add"
-                :existing-user-ids="users.map(u => u.id)" @cancel="closeAddDialog" @success="onUserOperationSuccess"
-                @users-added="onUsersAdded" @users-add-failed="onUsersAddFailed" />
+                :existing-user-ids="users.map(u => u.id)" @cancel="closeAddDialog" @success="onUserOperationSuccess" />
         </v-dialog>
 
         <!-- ── Edit user role dialog ───────────────────────────────── -->
@@ -145,8 +144,7 @@
             <AddUserToProject v-if="isEditDialogOpen && selectedUser" :project="project" action-type="update"
                 :user-to-edit="selectedUser"
                 :existing-user-ids="users.filter(u => u.id !== selectedUser!.id).map(u => u.id)"
-                @cancel="closeEditDialog" @success="onUserOperationSuccess" @role-updated="onRoleUpdated"
-                @role-update-failed="onRoleUpdateFailed" />
+                @cancel="closeEditDialog" @success="onUserOperationSuccess" />
         </v-dialog>
 
         <!-- ── Remove confirmation dialog ─────────────────────────── -->
@@ -326,22 +324,6 @@ const onUserOperationSuccess = async () => {
     closeEditDialog();
     // Reload to verify the changes
     await loadProjectUsers({ showLoading: false });
-};
-
-const onUsersAdded = (_addedUsers: UserItem[]) => {
-    // Data will be reloaded via onUserOperationSuccess
-};
-
-const onUsersAddFailed = (_failedUserIds: string[]) => {
-    // Data will be reloaded via onUserOperationSuccess
-};
-
-const onRoleUpdated = (_roleName: string) => {
-    // Data will be reloaded via onUserOperationSuccess
-};
-
-const onRoleUpdateFailed = (_rollback: () => void) => {
-    // Data will be reloaded via onUserOperationSuccess
 };
 
 // ── Data fetching ──────────────────────────────────────────────────────────

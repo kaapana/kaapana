@@ -1,99 +1,79 @@
 <template>
     <v-card title="Create New Project">
-        <template #prepend><v-icon color="primary" :icon="kaapanaIcons.add" /></template>
-
         <v-card-text>
-            <v-container>
-                <v-row class="pb-6">
-                    <v-alert 
-                        density="compact"
-                        text="Project name must follow Minio, OpenSearch, and Kubernetes naming convention, and be under 16 
-                        characters. Use a short, lowercase, alphanumeric name (max 13 chars), with - as a separator. 
-                        Avoid spaces and the word 'project' within the name."
-                        type="info"
-                        variant="tonal"
-                    ></v-alert>
-                </v-row>
-                <v-row>
-                    <v-text-field v-model="name" label="Project Name" :rules="project_name_rules"></v-text-field>
-                </v-row>
-                <v-row><v-text-field v-model="description" label="Description" required></v-text-field></v-row>
-                <v-row><v-text-field v-model="external_id" label="External ID"></v-text-field></v-row>
-            </v-container>
+            <v-form ref="form" @submit.prevent="submit">
+                <v-text-field
+                    v-model="name"
+                    label="Project name"
+                    :rules="projectNameRules"
+                    :hint="projectNameHint"
+                    persistent-hint
+                    class="mb-2"
+                />
+                <v-textarea
+                    v-model="description"
+                    label="Description"
+                    :rules="[required('a description')]"
+                    auto-grow
+                    rows="3"
+                />
+                <v-text-field v-model="externalId" label="External ID (optional)" />
+            </v-form>
+            <FailureAlert
+                v-if="failure"
+                title="Project not created"
+                text="The project could not be created."
+                :error="failure"
+            />
         </v-card-text>
         <v-card-actions>
-            <v-container>
-                <v-row>
-                    <v-col cols="6">
-                        <v-btn size="large" variant="tonal" block
-                            @click="cancel">Cancel</v-btn>
-                    </v-col>
-                    <v-col cols="6">
-                        <v-btn :disabled="!valid" color="primary" size="large" variant="flat" block
-                            @click="submit">Create</v-btn>
-                    </v-col>
-                </v-row>
-            </v-container>
+            <v-spacer />
+            <v-btn :disabled="saving" @click="emit('cancel')">Cancel</v-btn>
+            <v-btn color="primary" :loading="saving" :disabled="saving" @click="submit">
+                Create project
+            </v-btn>
         </v-card-actions>
     </v-card>
 </template>
 
 <script lang="ts" setup>
-import { kaapanaIcons } from '@/utils/projectIcons'
-import { ref, computed } from 'vue'
-import { aiiApiPost } from '@/common/services'
+import { ref } from 'vue'
+import { notify } from '@kyvg/vue3-notification'
 import { refreshShell } from '@kaapana/base-ui'
-import { projectNameRules } from '@/common/validation'
+import { aiiApiPost } from '@/common/services'
+import { projectNameHint, projectNameRules, required } from '@/common/validation'
+import FailureAlert from '@/components/FailureAlert.vue'
 
-const props = defineProps({
-    oncancel: {
-        type: Function,
-    },
-    onsuccess: {
-        type: Function,
-    },
-    oncomplete: {
-        type: Function,
-    }
-});
+const emit = defineEmits<{
+    (e: 'created'): void
+    (e: 'cancel'): void
+}>()
 
-const name = ref('');
-const description = ref('');
-const external_id = ref('');
+const form = ref<{ validate: () => Promise<{ valid: boolean }> } | null>(null)
+const name = ref('')
+const description = ref('')
+const externalId = ref('')
+const saving = ref(false)
+const failure = ref<unknown>(null)
 
-const project_name_rules = ref(projectNameRules);
-
-const valid = computed(() => {
-    let validate_name = true;
-    for (const rule of project_name_rules.value) {
-        const result = rule(name.value);
-        if (result !== true) {
-            validate_name = false;
-            break;
-        }
-    }
-    return (validate_name && (description.value.trim() !== ''));
-})
-
-const submit = () => {
-    const data = {
-        "external_id": external_id.value.trim(),
-        "name": name.value.trim(),
-        "description": description.value.trim()
-    }
-
-    props.onsuccess?.();
-
-    aiiApiPost(`projects`, data)
-        .then(() => {
-            refreshShell();
-            props.oncomplete?.();
+async function submit() {
+    if (!(await form.value!.validate()).valid) return
+    saving.value = true
+    failure.value = null
+    try {
+        await aiiApiPost('projects', {
+            external_id: externalId.value.trim(),
+            name: name.value.trim(),
+            description: description.value.trim(),
         })
-        .catch((error) => props.oncomplete?.(false, error))
-}
-
-const cancel = () => {
-    props.oncancel?.();
+        refreshShell()
+        notify({ type: 'success', text: `Project "${name.value.trim()}" created.` })
+        emit('created')
+    } catch (error) {
+        failure.value = error
+    } finally {
+        saving.value = false
+    }
 }
 
 </script>

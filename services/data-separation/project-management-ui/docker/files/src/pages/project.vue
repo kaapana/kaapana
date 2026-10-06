@@ -19,7 +19,7 @@
               {{ project.external_id }}
             </div>
           </div>
-          <v-skeleton-loader v-else :loading="!project" type="heading" width="200" />
+          <v-skeleton-loader v-else-if="!loadError" type="heading" width="200" />
           <div v-if="userHasAdminAccess && project?.name !== 'admin'" class="d-flex ga-1">
             <v-tooltip text="Edit project" location="top">
               <template #activator="{ props }">
@@ -82,7 +82,20 @@
             </v-tooltip>
           </div>
         </div>
-        <v-alert v-if="project?.is_archived" type="warning" density="compact" variant="tonal" class="mb-3">
+        <FailureAlert
+          v-if="loadError"
+          title="Project not loaded"
+          text="Could not load this project."
+          :error="loadError"
+          :retry="loadProject"
+        />
+        <v-alert
+          v-if="project?.is_archived"
+          type="warning"
+          density="compact"
+          variant="tonal"
+          class="mb-3"
+        >
           This project is archived and read-only. Unarchive it to make changes.
         </v-alert>
         <p v-if="project?.description" class="text-body-1 text-medium-emphasis">
@@ -91,51 +104,57 @@
       </v-col>
     </v-row>
 
-    <!-- ── Project Users ────────────────────────────────────────── -->
-    <v-row>
-      <ProjectUsers :key="`users-${refreshKey}`" :project="project" :expanded="isUsersSectionExpanded" @toggle="isUsersSectionExpanded = $event" />
-    </v-row>
+    <template v-if="project">
+      <!-- ── Project Users ────────────────────────────────────────── -->
+      <v-row>
+        <ProjectUsers :key="`users-${refreshKey}`" :project="project" :expanded="isUsersSectionExpanded" @toggle="isUsersSectionExpanded = $event" />
+      </v-row>
 
-    <v-divider class="my-4" />
-
-    <!-- ── Executable Workflows ─────────────────────────────────── -->
-    <v-row>
-      <ProjectWorkflows :key="`workflows-${refreshKey}`" :project="project" :expanded="isWorkflowsSectionExpanded"
-        @toggle="isWorkflowsSectionExpanded = $event" />
-    </v-row>
-
-    <template v-if="can(project?.id, 'view_applications')">
       <v-divider class="my-4" />
 
-      <!-- ── Multiinstallable Applications ────────────────────────── -->
+      <!-- ── Executable Workflows ─────────────────────────────────── -->
       <v-row>
-        <MultiinstallableApplications :key="`apps-${refreshKey}`" :project="project" :expanded="isAppsSectionExpanded"
-          @toggle="isAppsSectionExpanded = $event" />
+        <ProjectWorkflows :key="`workflows-${refreshKey}`" :project="project" :expanded="isWorkflowsSectionExpanded"
+          @toggle="isWorkflowsSectionExpanded = $event" />
       </v-row>
-    </template>
 
-    <template v-if="can(project?.id, 'view_active_apps')">
+      <template v-if="can(project?.id, 'view_applications')">
+        <v-divider class="my-4" />
+
+        <!-- ── Multiinstallable Applications ────────────────────────── -->
+        <v-row>
+          <MultiinstallableApplications :key="`apps-${refreshKey}`" :project="project" :expanded="isAppsSectionExpanded"
+            @toggle="isAppsSectionExpanded = $event" />
+        </v-row>
+      </template>
+
+      <template v-if="can(project?.id, 'view_active_apps')">
+        <v-divider class="my-4" />
+
+        <!-- ── Active Project Applications ──────────────────────────── -->
+        <v-row>
+          <ActiveProjectApplications
+            :key="`active-${refreshKey}`"
+            :project="project"
+            :expanded="isActiveAppsSectionExpanded"
+            @toggle="isActiveAppsSectionExpanded = $event"
+            :busy-release="uninstallingRelease"
+            @confirm-uninstall="confirmAppUninstall"
+          />
+        </v-row>
+      </template>
+
       <v-divider class="my-4" />
-
-      <!-- ── Active Project Applications ──────────────────────────── -->
-      <v-row>
-        <ActiveProjectApplications
-          :key="`active-${refreshKey}`"
-          :project="project"
-          :expanded="isActiveAppsSectionExpanded"
-          @toggle="isActiveAppsSectionExpanded = $event"
-          :busy-release="uninstallingRelease"
-          @confirm-uninstall="confirmAppUninstall"
-        />
-      </v-row>
     </template>
-
-    <v-divider class="my-4" />
 
     <!-- ── Dialogs ───────────────────────────────────────────────── -->
     <v-dialog v-model="editDialog" max-width="600">
-      <EditProjectDialog v-if="project" :project="project"
-        @success="handleEditSuccess" @cancel="editDialog = false" @error="handleEditError" />
+      <EditProjectDialog
+        v-if="editDialog && project"
+        :project="project"
+        @success="handleEditSuccess"
+        @cancel="editDialog = false"
+      />
     </v-dialog>
 
     <ConfirmDialog
@@ -165,6 +184,7 @@ import ProjectWorkflows from '@/components/ProjectWorkflows.vue'
 import MultiinstallableApplications from '@/components/MultiinstallableApplications.vue'
 import ActiveProjectApplications from '@/components/ActiveProjectApplications.vue'
 import EditProjectDialog from '@/components/EditProjectDialog.vue'
+import FailureAlert from '@/components/FailureAlert.vue'
 import { ConfirmDialog, refreshShell } from '@kaapana/base-ui'
 import { notify } from '@kyvg/vue3-notification'
 import { notifyFailure } from '@/utils/notifyFailure'
@@ -181,6 +201,7 @@ export default defineComponent({
     MultiinstallableApplications,
     ActiveProjectApplications,
     EditProjectDialog,
+    FailureAlert,
     ConfirmDialog,
   },
 
@@ -203,6 +224,7 @@ export default defineComponent({
       isActiveAppsSectionExpanded: false,
 
       refreshKey: 0,
+      loadError: null as unknown,
 
       busy: null as 'delete' | 'archive' | 'unarchive' | null,
       uninstallingRelease: null as string | null,
@@ -235,22 +257,20 @@ export default defineComponent({
     },
 
     async refresh(): Promise<void> {
-      await this.loadProject({ silent: true });
-      this.refreshKey++;
+      await this.loadProject()
+      this.refreshKey++
     },
 
-    async loadProject({ silent = false } = {}): Promise<void> {
-      if (!this.projectId) return;
+    async loadProject(): Promise<void> {
+      if (!this.projectId) return
+      this.loadError = null
       try {
-        const project: ProjectItem = await aiiApiGet(`projects/${this.projectId}`);
-        this.project = project;
-        setScopedProject(project);
-        if (!silent) {
-          notify({ type: 'success', text: `Selected project: ${project.name}.` })
-        }
-        usePermissionsStore().loadProjectWhitelist(this.projectId);
+        const project: ProjectItem = await aiiApiGet(`projects/${this.projectId}`)
+        this.project = project
+        setScopedProject(project)
+        usePermissionsStore().loadProjectWhitelist(this.projectId)
       } catch (error) {
-        console.error('Failed to load project:', error);
+        this.loadError = error
       }
     },
 
@@ -278,10 +298,6 @@ export default defineComponent({
       refreshShell()
       await this.loadProject()
       notify({ type: 'success', text: 'Project updated.' })
-    },
-
-    handleEditError(text: string, error?: unknown): void {
-      notifyFailure('Project not updated', text, error)
     },
 
     openDeleteDialog(): void {

@@ -42,7 +42,7 @@
 import { kaapanaIcons } from '@/utils/projectIcons'
 import { ref, computed } from 'vue'
 import { aiiApiPost } from '@/common/services'
-import { refreshShell } from '@/common/shell'
+import { refreshShell } from '@kaapana/base-ui'
 import { projectNameRules } from '@/common/validation'
 
 const props = defineProps({

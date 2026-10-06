@@ -176,6 +176,7 @@ import { usePermissionsStore } from '@/permissions/permissions.store'
 import { aiiApiPut, kubeHelmGet, kubeHelmPost } from '@/common/services'
 import SearchBar from '@/components/SearchBar.vue'
 import FailureAlert from '@/components/FailureAlert.vue'
+import { useViewDirty } from '@/composables/useViewDirty'
 import { notify } from '@kyvg/vue3-notification'
 import { notifyFailure } from '@/utils/notifyFailure'
 import SectionHeader from '@/components/SectionHeader.vue'
@@ -223,7 +224,8 @@ const projectWhitelist = computed<string[]>(
 
 // ── Pending changes helpers ────────────────────────────────────────────────
 
-const pendingCount = computed(() => Object.keys(pending.value).length);
+const pendingCount = computed(() => Object.keys(pending.value).length)
+useViewDirty(computed(() => pendingCount.value > 0))
 
 const effectiveInWhitelist = (releaseName: string): boolean =>
     releaseName in pending.value

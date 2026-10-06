@@ -157,10 +157,11 @@
 import { kaapanaIcons, projectIcons } from '@/utils/projectIcons'
 import { ConfirmDialog } from '@kaapana/base-ui'
 import { useConfirmation } from '@/composables/useConfirmation'
+import { useViewDirty } from '@/composables/useViewDirty'
 import { notify } from '@kyvg/vue3-notification'
 import { notifyFailure } from '@/utils/notifyFailure'
 import FailureAlert from '@/components/FailureAlert.vue'
-import { defineComponent } from 'vue'
+import { defineComponent, ref } from 'vue'
 import { aiiApiGet, aiiApiPost, aiiApiDelete } from '@/common/services'
 import { isAdminUser, waitForStoreUser } from '@/common/userAccess'
 
@@ -182,7 +183,9 @@ export default defineComponent({
   components: { ConfirmDialog, FailureAlert },
   setup() {
     const { confirmOpen, confirmation, ask, runConfirmed } = useConfirmation()
-    return { kaapanaIcons, projectIcons, confirmOpen, confirmation, ask, runConfirmed }
+    const dirty = ref(false)
+    useViewDirty(dirty)
+    return { kaapanaIcons, projectIcons, confirmOpen, confirmation, ask, runConfirmed, dirty }
   },
   data() {
     return {
@@ -208,6 +211,12 @@ export default defineComponent({
   computed: {
     pendingCount(): number {
       return Object.keys(this.pending).length;
+    },
+  },
+
+  watch: {
+    pendingCount(count: number) {
+      this.dirty = count > 0
     },
   },
 

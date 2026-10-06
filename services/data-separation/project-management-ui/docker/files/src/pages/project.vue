@@ -27,6 +27,7 @@
                   v-bind="props"
                   :icon="kaapanaIcons.edit"
                   aria-label="Edit project"
+                  :disabled="busy !== null"
                   size="default"
                   variant="text"
                   color="primary"
@@ -40,6 +41,8 @@
                   v-bind="props"
                   :icon="projectIcons.archive"
                   aria-label="Archive project"
+                  :loading="busy === 'archive'"
+                  :disabled="busy !== null"
                   size="default"
                   variant="text"
                   color="primary"
@@ -53,6 +56,8 @@
                   v-bind="props"
                   :icon="projectIcons.unarchive"
                   aria-label="Unarchive project"
+                  :loading="busy === 'unarchive'"
+                  :disabled="busy !== null"
                   size="default"
                   variant="text"
                   color="primary"
@@ -66,6 +71,8 @@
                   v-bind="props"
                   :icon="kaapanaIcons.delete"
                   aria-label="Delete project"
+                  :loading="busy === 'delete'"
+                  :disabled="busy !== null"
                   size="default"
                   variant="text"
                   color="error"
@@ -112,8 +119,14 @@
 
       <!-- ── Active Project Applications ──────────────────────────── -->
       <v-row>
-        <ActiveProjectApplications :key="`active-${refreshKey}`" :project="project" :expanded="isActiveAppsSectionExpanded"
-          @toggle="isActiveAppsSectionExpanded = $event" @confirm-uninstall="confirmAppUninstall" />
+        <ActiveProjectApplications
+          :key="`active-${refreshKey}`"
+          :project="project"
+          :expanded="isActiveAppsSectionExpanded"
+          @toggle="isActiveAppsSectionExpanded = $event"
+          :busy-release="uninstallingRelease"
+          @confirm-uninstall="confirmAppUninstall"
+        />
       </v-row>
     </template>
 
@@ -191,6 +204,9 @@ export default defineComponent({
 
       refreshKey: 0,
 
+      busy: null as 'delete' | 'archive' | 'unarchive' | null,
+      uninstallingRelease: null as string | null,
+
       editDialog: false,
     }
   },
@@ -239,6 +255,7 @@ export default defineComponent({
     },
 
     async confirmAppUninstall(app: any): Promise<void> {
+      this.uninstallingRelease = app.release_name
       try {
         await kubeHelmPost('helm-delete-chart', { release_name: app.release_name })
         notify({ type: 'success', text: `Application "${app.release_name}" uninstalled.` })
@@ -249,6 +266,8 @@ export default defineComponent({
           `Could not uninstall "${app.release_name}".`,
           error,
         )
+      } finally {
+        this.uninstallingRelease = null
       }
     },
 
@@ -270,11 +289,15 @@ export default defineComponent({
     },
 
     async deleteProject(): Promise<void> {
+      this.busy = 'delete'
       try {
-        await aiiApiDelete(`projects/${this.projectId}`);
-        this.$router.push('/');
+        await aiiApiDelete(`projects/${this.projectId}`)
+        this.$router.push('/')
+        notify({ type: 'success', text: `Project "${this.project?.name}" deleted.` })
       } catch (error) {
         notifyFailure('Project not deleted', `Could not delete "${this.project?.name}".`, error)
+      } finally {
+        this.busy = null
       }
     },
 
@@ -284,16 +307,20 @@ export default defineComponent({
     },
 
     async archiveProject(): Promise<void> {
+      this.busy = 'archive'
       try {
         await aiiApiPost(`projects/${this.projectId}/archive`, {})
         await this.loadProject()
         notify({ type: 'success', text: `Project "${this.project?.name}" archived.` })
       } catch (error) {
         notifyFailure('Project not archived', `Could not archive "${this.project?.name}".`, error)
+      } finally {
+        this.busy = null
       }
     },
 
     async unarchiveProject(): Promise<void> {
+      this.busy = 'unarchive'
       try {
         await aiiApiPost(`projects/${this.projectId}/unarchive`, {})
         await this.loadProject()
@@ -304,6 +331,8 @@ export default defineComponent({
           `Could not unarchive "${this.project?.name}".`,
           error,
         )
+      } finally {
+        this.busy = null
       }
     },
 

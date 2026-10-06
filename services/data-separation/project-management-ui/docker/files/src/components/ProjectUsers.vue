@@ -131,7 +131,9 @@
                                             :aria-label="`Change role of ${item.username}`"
                                             color="primary"
                                             variant="text"
-                                            :disabled="!can(project?.id, 'manage_users')"
+                                            :disabled="
+                                                removingUserId !== null || !can(project?.id, 'manage_users')
+                                            "
                                         />
                                     </template>
                                 </v-tooltip>
@@ -142,9 +144,12 @@
                                             @click="onRemoveUser(item)"
                                             :icon="kaapanaIcons.delete"
                                             :aria-label="`Remove ${item.username} from the project`"
+                                            :loading="removingUserId === item.id"
                                             color="error"
                                             variant="text"
-                                            :disabled="!can(project?.id, 'manage_users')"
+                                            :disabled="
+                                                removingUserId !== null || !can(project?.id, 'manage_users')
+                                            "
                                         />
                                     </template>
                                 </v-tooltip>
@@ -229,6 +234,7 @@ import SearchBar from '@/components/SearchBar.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 import { ConfirmDialog } from '@kaapana/base-ui'
 import { useConfirmation } from '@/composables/useConfirmation'
+import { notify } from '@kyvg/vue3-notification'
 import { notifyFailure } from '@/utils/notifyFailure'
 import FailureAlert from '@/components/FailureAlert.vue'
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -264,6 +270,7 @@ const search = ref('')
 const users = ref<UserWithRole[]>([])
 const isLoadingUsers = ref(false)
 const loadError = ref<unknown>(null)
+const removingUserId = ref<string | null>(null)
 
 const isAddDialogOpen = ref(false)
 const isEditDialogOpen = ref(false)
@@ -356,12 +363,16 @@ const onRemoveUser = (user: UserWithRole) => {
 
 const removeUser = async (user: UserWithRole) => {
     if (!props.project?.id) return
+    removingUserId.value = user.id
     try {
         await aiiApiDelete(`projects/${props.project.id}/user/${user.id}/rolemapping`)
+        notify({ type: 'success', text: `@${user.username} removed from the project.` })
         // Reload to verify the change
         await loadProjectUsers({ showLoading: false });
     } catch (error) {
         notifyFailure('User not removed', `Could not remove @${user.username} from the project.`, error)
+    } finally {
+        removingUserId.value = null
     }
 };
 

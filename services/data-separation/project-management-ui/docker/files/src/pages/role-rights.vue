@@ -107,6 +107,8 @@
                         v-bind="props"
                         :icon="kaapanaIcons.delete"
                         :aria-label="`Delete right ${right.name}`"
+                        :loading="deletingRightId === right.id"
+                        :disabled="deletingRightId !== null"
                         size="default"
                         variant="text"
                         color="error"
@@ -199,6 +201,7 @@ export default defineComponent({
       // pending overrides: key="${roleId}-${rightId}", value = desired boolean
       pending: {} as Record<string, boolean>,
       loadError: null as unknown,
+      deletingRightId: null as number | null,
     }
   },
 
@@ -275,12 +278,15 @@ export default defineComponent({
     },
 
     async deleteRight(right: Right) {
+      this.deletingRightId = right.id
       try {
         await aiiApiDelete(`projects/rights/${right.id}`)
         notify({ type: 'success', text: `Right "${right.name}" deleted.` })
         await this.load()
       } catch (error: unknown) {
         notifyFailure('Right not deleted', `Could not delete the right "${right.name}".`, error)
+      } finally {
+        this.deletingRightId = null
       }
     },
 

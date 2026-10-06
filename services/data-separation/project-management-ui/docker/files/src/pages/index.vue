@@ -32,7 +32,14 @@
 
       <v-divider />
 
-      <v-data-table :headers="tableHeaders" :items="projects" :search="search" item-value="id">
+      <v-data-table
+        :headers="tableHeaders"
+        :items="projects"
+        :search="search"
+        :loading="loading"
+        loading-text="Loading projects…"
+        item-value="id"
+      >
         <template #item.name="{ item }">
           <span class="font-weight-medium">{{ item.name }}</span>
           <v-chip v-if="item.is_archived" size="x-small" color="warning" class="ml-2"
@@ -63,6 +70,7 @@
                   v-bind="props"
                   :icon="kaapanaIcons.edit"
                   :aria-label="`Edit ${item.name}`"
+                  :disabled="busy !== null"
                   size="default"
                   variant="text"
                   color="primary"
@@ -76,6 +84,8 @@
                   v-bind="props"
                   :icon="projectIcons.archive"
                   :aria-label="`Archive ${item.name}`"
+                  :loading="busy?.id === item.id && busy.action === 'archive'"
+                  :disabled="busy !== null"
                   size="default"
                   variant="text"
                   color="primary"
@@ -89,6 +99,8 @@
                   v-bind="props"
                   :icon="projectIcons.unarchive"
                   :aria-label="`Unarchive ${item.name}`"
+                  :loading="busy?.id === item.id && busy.action === 'unarchive'"
+                  :disabled="busy !== null"
                   size="default"
                   variant="text"
                   color="primary"
@@ -102,6 +114,8 @@
                   v-bind="props"
                   :icon="kaapanaIcons.delete"
                   :aria-label="`Delete ${item.name}`"
+                  :loading="busy?.id === item.id && busy.action === 'delete'"
+                  :disabled="busy !== null"
                   size="default"
                   variant="text"
                   color="error"
@@ -173,7 +187,9 @@ export default defineComponent({
       userHasAdminAccess: false,
       editDialog: false,
       selectedProject: null as ProjectItem | null,
-    };
+      loading: false,
+      busy: null as { id: string; action: 'delete' | 'archive' | 'unarchive' } | null,
+    }
   },
   mounted() {
     waitForStoreUser((user) => {
@@ -208,9 +224,14 @@ export default defineComponent({
       }
 
       try {
-        aiiApiGet(projects_url).then((projects: ProjectItem[]) => {
-          this.projects = projects;
-        });
+        this.loading = true
+        aiiApiGet(projects_url)
+          .then((projects: ProjectItem[]) => {
+            this.projects = projects
+          })
+          .finally(() => {
+            this.loading = false
+          })
       } catch (error: unknown) {
         console.log(error);
       }
@@ -247,6 +268,7 @@ export default defineComponent({
       this.ask(deleteProjectConfirmation(project, () => this.deleteProject(project)))
     },
     async deleteProject(project: ProjectItem) {
+      this.busy = { id: project.id, action: 'delete' }
       try {
         await aiiApiDelete(`projects/${project.id}`)
         refreshShell()
@@ -255,12 +277,15 @@ export default defineComponent({
         notify({ type: 'success', text: `Project "${project.name}" deleted.` })
       } catch (error: unknown) {
         notifyFailure('Project not deleted', `Could not delete "${project.name}".`, error)
+      } finally {
+        this.busy = null
       }
     },
     openArchiveDialog(project: ProjectItem) {
       this.ask(archiveProjectConfirmation(project, () => this.archiveProject(project)))
     },
     async archiveProject(project: ProjectItem) {
+      this.busy = { id: project.id, action: 'archive' }
       try {
         await aiiApiPost(`projects/${project.id}/archive`, {})
         refreshShell()
@@ -269,9 +294,12 @@ export default defineComponent({
         notify({ type: 'success', text: `Project "${project.name}" archived.` })
       } catch (error: unknown) {
         notifyFailure('Project not archived', `Could not archive "${project.name}".`, error)
+      } finally {
+        this.busy = null
       }
     },
     async unarchiveProject(project: ProjectItem) {
+      this.busy = { id: project.id, action: 'unarchive' }
       try {
         await aiiApiPost(`projects/${project.id}/unarchive`, {})
         refreshShell()
@@ -280,6 +308,8 @@ export default defineComponent({
         notify({ type: 'success', text: `Project "${project.name}" unarchived.` })
       } catch (error: unknown) {
         notifyFailure('Project not unarchived', `Could not unarchive "${project.name}".`, error)
+      } finally {
+        this.busy = null
       }
     },
   },

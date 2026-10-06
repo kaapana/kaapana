@@ -101,9 +101,13 @@
                                             density="default"
                                             :icon="kaapanaIcons.delete"
                                             :aria-label="`Uninstall ${item.annotations['kaapana.ai/display-name']}`"
+                                            :loading="busyRelease === item.release_name"
                                             color="error"
                                             variant="text"
-                                            :disabled="!can(project?.id, 'delete_active_apps', item.release_name)"
+                                            :disabled="
+                                                !!busyRelease ||
+                                                !can(project?.id, 'delete_active_apps', item.release_name)
+                                            "
                                             @click="onConfirmUninstall(item)"
                                         />
                                     </span>
@@ -176,8 +180,9 @@ interface InstalledExtension {
 }
 
 interface Props {
-    project: { id?: string } | null;
-    expanded: boolean;
+    project: { id?: string } | null
+    expanded: boolean
+    busyRelease?: string | null
 }
 
 const props = defineProps<Props>();

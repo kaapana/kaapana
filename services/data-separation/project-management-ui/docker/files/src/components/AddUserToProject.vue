@@ -99,7 +99,7 @@
 
     <v-card-actions>
       <v-spacer />
-      <v-btn @click="emit('cancel')">Cancel</v-btn>
+      <v-btn :disabled="isSubmitting" @click="emit('cancel')">Cancel</v-btn>
       <v-btn color="primary" :loading="isSubmitting" :disabled="!canSubmit" @click="onSubmit">
         {{ isAddMode ? `Add ${selectedUserIds.length > 1 ? selectedUserIds.length + ' Users' : 'User'}` : 'Save Changes' }}
       </v-btn>
@@ -109,6 +109,7 @@
 
 <script lang="ts" setup>
 import FailureAlert from '@/components/FailureAlert.vue'
+import { notify } from '@kyvg/vue3-notification'
 import { kaapanaIcons, projectIcons, roleIcons } from '@/utils/projectIcons'
 import { ref, computed, onMounted } from 'vue'
 import { UserItem, UserRole } from '@/common/types'
@@ -225,8 +226,17 @@ const onSubmit = async () => {
   try {
     if (isAddMode.value) {
       await addUsersToProject()
+      const added = selectedUserIds.value.length
+      notify({
+        type: 'success',
+        text: `${added} user${added !== 1 ? 's' : ''} added as "${selectedRole.value}". Access starts within a few minutes.`,
+      })
     } else {
       await updateUserRole()
+      notify({
+        type: 'success',
+        text: `@${props.userToEdit?.username} is now "${selectedRole.value}". The change applies within a few minutes.`,
+      })
     }
     emit('success');
   } catch (error) {

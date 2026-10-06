@@ -15,8 +15,16 @@
     </v-card-text>
     <v-card-actions>
       <v-spacer />
-      <v-btn @click="$emit('cancel')">Cancel</v-btn>
-      <v-btn color="primary" variant="elevated" @click="submit">Save</v-btn>
+      <v-btn :disabled="saving" @click="$emit('cancel')">Cancel</v-btn>
+      <v-btn
+        color="primary"
+        variant="elevated"
+        :loading="saving"
+        :disabled="saving"
+        @click="submit"
+      >
+        Save
+      </v-btn>
     </v-card-actions>
   </v-card>
 </template>
@@ -44,6 +52,7 @@ export default defineComponent({
         external_id: this.project.external_id ? String(this.project.external_id) : '',
       },
       nameRules: projectNameRules,
+      saving: false,
     }
   },
   watch: {
@@ -62,6 +71,7 @@ export default defineComponent({
         this.$emit('error', String(nameError))
         return
       }
+      this.saving = true
       try {
         await aiiApiPut(`projects/${this.project.id}`, {}, {
           name: this.form.name,
@@ -71,6 +81,8 @@ export default defineComponent({
         this.$emit('success')
       } catch (error: unknown) {
         this.$emit('error', `Could not save "${this.form.name}".`, error)
+      } finally {
+        this.saving = false
       }
     },
   },

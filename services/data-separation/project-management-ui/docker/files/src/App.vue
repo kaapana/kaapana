@@ -27,6 +27,7 @@ import store from '@/common/store'
 import { UserItem } from '@/common/types'
 import { aiiApiGet } from '@/common/services'
 import { usePermissionsStore } from '@/permissions/permissions.store'
+import { usePolicyStore } from '@/stores/policy'
 
 const { viewKey } = useShellSettings()
 const failureDetails = useFailureDetailsStore()
@@ -53,14 +54,15 @@ async function fetchCurrentUser() {
   }
 }
 
-const permissions = usePermissionsStore();
+const permissions = usePermissionsStore()
+const policy = usePolicyStore()
 
 onMounted(async () => {
-  const currentUser = await fetchCurrentUser();
+  policy.getPolicyData()
+  const currentUser = await fetchCurrentUser()
 
-  await permissions.loadUserRights(currentUser.id);
-});
-
+  await permissions.loadUserRights(currentUser.id)
+})
 </script>
 
 <style>

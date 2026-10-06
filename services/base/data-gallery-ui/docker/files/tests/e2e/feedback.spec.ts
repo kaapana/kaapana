@@ -140,22 +140,28 @@ test.describe('failed actions', () => {
     await dismissWithEscape(page, details)
   })
 
-  test('a download over the size limit says so, and keeps the backend message', async ({ page }) => {
+  test("a download over the size limit fails with the backend's reason in Details", async ({
+    page,
+  }) => {
+    const pageErrors = collectPageErrors(page)
     await openGallery(page)
-    await failRoute(
-      page,
-      DOWNLOAD,
-      'Requested files total size exceeds the limit of 256 MB. Please use the download workflow.',
-      413,
-    )
+    // Not 256: the only limit the user sees is the one the backend states.
+    await failRoute(page, DOWNLOAD, 'Requested files total size exceeds the limit of 512 MB.', 413)
     await page.getByRole('button', { name: /^Download \d+ series$/ }).click()
     await confirmAction(page, 'Download')
 
     const toast = toasts(page).filter({ hasText: 'Download failed' })
-    await expect(toast).toContainText('256 MB download limit')
+    await expect(toast).toContainText(
+      'The download could not be completed. Select this message for details.',
+    )
+    await expect(toast).not.toContainText('MB')
     // The error body arrives as a Blob; it is read before the details are built.
     const details = await openFailureDetails(page, 'Download failed')
-    await expect(details.getByText(/Requested files total size exceeds the limit/)).toBeVisible()
+    await expect(
+      details.getByText('Requested files total size exceeds the limit of 512 MB'),
+    ).toBeVisible()
+    await expect(details.getByText(/^413/)).toBeVisible()
+    expect(pageErrors).toEqual([])
   })
 
   test('a download that gets no response is reported once', async ({ page }) => {

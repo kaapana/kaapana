@@ -6,8 +6,6 @@ import { galleryIcons } from '@/utils/galleryIcons'
 import { notifyFailure } from '@/utils/notifyFailure'
 
 const MAX_DOWNLOADABLE_ITEM = 20
-// The backend's cap on one download (MAX_DOWNLOAD_FILE_SIZE_MB); it answers 413 above it.
-const MAX_DOWNLOAD_MB = 256
 
 const props = withDefaults(defineProps<{ selectedSeries?: string[] | null }>(), {
   selectedSeries: () => [],
@@ -26,7 +24,7 @@ const canDownload = computed(() => count.value > 0 && !tooManyItems.value)
 const confirmText = computed(
   () =>
     `${pending.value.length} series are packaged into a single zip file before the download starts, which may take several minutes. ` +
-    `A download is limited to ${MAX_DOWNLOAD_MB} MB; a larger selection fails. ` +
+    'Downloads have a size limit; for larger amounts, use the "download-selected-files" workflow. ' +
     'The transfer uses network bandwidth and local storage for as long as it runs. ' +
     'Reloading or closing this view while the download runs cancels it.',
 )
@@ -61,9 +59,6 @@ async function startDownload() {
 function downloadFailureText({ status }: ApiErrorInfo): string {
   if (status === null) {
     return 'The download could not be completed: the server could not be reached.'
-  }
-  if (status === 413) {
-    return `The selected series are larger than the ${MAX_DOWNLOAD_MB} MB download limit. Select fewer series, or run the “download-selected-files” workflow.`
   }
   return 'The download could not be completed.'
 }

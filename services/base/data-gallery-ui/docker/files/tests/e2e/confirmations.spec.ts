@@ -53,7 +53,7 @@ const cases: Case[] = [
     title: 'Download series?',
     confirm: 'Download',
     color: 'primary',
-    names: /3 series .*A download is limited to 256 MB; a larger selection fails\. .*network bandwidth and local storage.*cancels it/,
+    names: /3 series .*Downloads have a size limit; for larger amounts, use the "download-selected-files" workflow\. .*network bandwidth and local storage.*cancels it/,
     open: async (page) => {
       await downloadButton(page).click()
     },

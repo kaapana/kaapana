@@ -18,7 +18,7 @@ Pipeline configuration is [`.gitlab-ci.yml`](../.gitlab-ci.yml) plus stage files
 
 | Trigger | Configuration |
 |---|---|
-| Merge request | Full pipeline on every push to the branch with default configuration. A draft MR (Draft, WIP) runs nothing. Label the MR `Security` for security scan, or `CI` for CI tests |
+| Merge request | Full pipeline on every push to the branch with default configuration. A draft MR (Draft, WIP) runs nothing. Label the MR `Security` for security scan, or `CI` for CI tests. Label the MR `AI Review` for an advisory AI review note (`mr_review`, once per MR), or run the manual `mr_review_rerun` job for a new one. Confidential issues are not sent to the model ([internals.md](docs/internals.md#review)) |
 | Push to `develop` | Full pipeline|
 | Schedule | Full pipeline with the schedule's own configuration ([below](#scheduled-pipelines)) |
 | Protected tag `X.Y.Z` | Release build against the release registry ([internals.md](docs/internals.md#registries)) |
@@ -106,6 +106,8 @@ Five groups of knobs. Two are **inputs** and three are **variables**
 whose `CI_REGISTRY_*` rows the jobs use, and preflight fails when it is empty
 (see [Registries](docs/internals.md#registries)).
 
+Every token and secret the CI uses, and what it is for: [Tokens & secrets](docs/internals.md#tokens--secrets).
+
 ### 1. `*_runner_tag` inputs — where a stage runs
 
 One per stage group. Point a stage at your own machine by giving your runner's
@@ -126,6 +128,7 @@ Every stage toggle. Grouped as `[exec]` in the run form.
 |---|---|---|
 | `exec_unit_tests` | `true` | tests stage: unit tests + documentation build |
 | `exec_lint` | `true` | tests stage: `lint` matrix (ruff, ESLint/Prettier, hadolint, helm lint + kubeconform) |
+| `exec_mr_review` | `true` | .post stage: advisory AI review note on MRs with the `AI Review` label, or via the manual `mr_review_rerun`. The model is `MR_REVIEW_MODEL` (default `alias-code`), overridable by a project variable or in the manual run. Tokens: [internals.md](docs/internals.md#review) |
 | `exec_build` | `true` | build stage: full platform build |
 | `exec_security_scan` | `false` | trivy scan of the images this commit resolves to. A failed scan still publishes what it managed to check |
 | `exec_deploy` | `true` | deploy stage: deployment VM/target + platform installation |

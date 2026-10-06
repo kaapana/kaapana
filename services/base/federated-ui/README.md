@@ -49,9 +49,11 @@ Sourced from `src/` and `tests/e2e`:
   refetches; disabled while there is no remote. The backend contacts all
   remotes concurrently and waits for each at most its *sync timeout* (per
   remote, 1–300 s, default 15 s), then answers 502 naming each one that failed
-  (timeout, connection error, any non-200 status, or an answer under a
-  different instance name than the one registered); the view reports that and
-  still refetches the remotes that synced.
+  (timeout, connection error, any non-200 status, an answer under a
+  different instance name than the one registered, or a previous sync of that
+  remote still running); the view reports that and still refetches the remotes
+  that synced. Only one sync request per remote is active at a time, shared by
+  the manual and the automatic sync across all backend workers.
 - **Feedback** — successes are transient notifications; failures are error
   notifications whose technical detail opens in `ErrorDetailsDialog` when
   selected (`utils/notifyFailure.ts`, `stores/failureDetails.ts`).

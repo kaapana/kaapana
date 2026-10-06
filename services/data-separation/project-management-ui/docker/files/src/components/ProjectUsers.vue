@@ -22,7 +22,7 @@
                     <template #activator="{ props }">
                         <div class="d-flex align-center ga-2" v-bind="props">
 
-                            <v-icon :color="showSystemUsers ? 'primary' : 'text'">
+                            <v-icon :color="showSystemUsers ? 'primary' : 'medium-emphasis'">
                                 mdi-account-cog
                             </v-icon>
 
@@ -34,8 +34,12 @@
                 </v-tooltip>
 
                 <!-- add button -->
-                <v-btn v-if="can(project?.id, 'manage_users')" @click.stop="openAddUserDialog" size="large" variant="tonal">
-                    <template #prepend><v-icon color="primary">mdi-account-plus</v-icon></template>
+                <v-btn
+                    v-if="can(project?.id, 'manage_users')"
+                    color="primary"
+                    prepend-icon="mdi-account-plus"
+                    @click.stop="openAddUserDialog"
+                >
                     Add User
                 </v-btn>
 
@@ -46,7 +50,7 @@
         <v-expand-transition>
             <div v-if="props.expanded">
                 <!-- search -->
-                <SearchBar v-model="search" placeholder="Search users..." />
+                <SearchBar v-model="search" label="Search users" />
                 <!-- Loading skeleton -->
                 <v-skeleton-loader v-if="isLoadingUsers" type="table" class="mt-4" />
 
@@ -61,7 +65,9 @@
                     </template>
 
                     <template #item.username="{ item }">
-                        <td><span style="font-family: monospace">{{ item.username }}</span></td>
+                        <td>
+                            <span>{{ item.username }}</span>
+                        </td>
                     </template>
 
                     <template #item.first_name="{ item }">
@@ -100,11 +106,21 @@
 
                     <template #item.actions="{ item }">
                         <td class="text-center">
-                            <div class="d-flex justify-center gap-1">
-                                <v-btn @click="openEditUserDialog(item)" icon="mdi-link-edit" color="primary" variant="text"
-                                    :disabled="!can(project?.id, 'manage_users')" />
-                                <v-btn @click="onRemoveUser(item)" icon="mdi-trash-can" color="error" variant="text"
-                                    :disabled="!can(project?.id, 'manage_users')" />
+                            <div class="d-flex justify-center ga-1">
+                                <v-btn
+                                    @click="openEditUserDialog(item)"
+                                    icon="mdi-link-edit"
+                                    color="primary"
+                                    variant="text"
+                                    :disabled="!can(project?.id, 'manage_users')"
+                                />
+                                <v-btn
+                                    @click="onRemoveUser(item)"
+                                    icon="mdi-trash-can"
+                                    color="error"
+                                    variant="text"
+                                    :disabled="!can(project?.id, 'manage_users')"
+                                />
                             </div>
                         </td>
                     </template>
@@ -114,7 +130,7 @@
                 <v-sheet rounded v-else class="mt-4">
                     <v-container>
                         <v-row align="center" justify="center" no-gutters>
-                            <v-icon icon="mdi-information" size="x-large" class="large-font"></v-icon>
+                            <v-icon icon="mdi-information" size="x-large" color="medium-emphasis"></v-icon>
                         </v-row>
                         <v-row align="center" justify="center" no-gutters class="py-6">
                             <div class="text-subtitle-1 font-weight-light text-center">
@@ -122,8 +138,13 @@
                             </div>
                         </v-row>
                         <v-row align="center" justify="center" no-gutters>
-                            <v-btn @click="openAddUserDialog" size="large" variant="tonal" v-if="can(project?.id, 'manage_users')">
-                                <template #prepend><v-icon color="primary">mdi-account-plus</v-icon></template>
+                            <v-btn
+                                v-if="can(project?.id, 'manage_users')"
+                                color="primary"
+                                variant="outlined"
+                                prepend-icon="mdi-account-plus"
+                                @click="openAddUserDialog"
+                            >
                                 Add user to project "{{ project?.name }}"
                             </v-btn>
                         </v-row>
@@ -134,17 +155,28 @@
         </v-expand-transition>
 
         <!-- ── Add users dialog ────────────────────────────────────── -->
-        <v-dialog v-model="isAddDialogOpen" max-width="640" scrollable>
-            <AddUserToProject v-if="isAddDialogOpen" :project="project" action-type="add"
-                :existing-user-ids="users.map(u => u.id)" @cancel="closeAddDialog" @success="onUserOperationSuccess" />
+        <v-dialog v-model="isAddDialogOpen" max-width="600" scrollable>
+            <AddUserToProject
+                v-if="isAddDialogOpen"
+                :project="project"
+                action-type="add"
+                :existing-user-ids="users.map((u) => u.id)"
+                @cancel="closeAddDialog"
+                @success="onUserOperationSuccess"
+            />
         </v-dialog>
 
         <!-- ── Edit user role dialog ───────────────────────────────── -->
-        <v-dialog v-model="isEditDialogOpen" max-width="480" scrollable>
-            <AddUserToProject v-if="isEditDialogOpen && selectedUser" :project="project" action-type="update"
+        <v-dialog v-model="isEditDialogOpen" max-width="600" scrollable>
+            <AddUserToProject
+                v-if="isEditDialogOpen && selectedUser"
+                :project="project"
+                action-type="update"
                 :user-to-edit="selectedUser"
-                :existing-user-ids="users.filter(u => u.id !== selectedUser!.id).map(u => u.id)"
-                @cancel="closeEditDialog" @success="onUserOperationSuccess" />
+                :existing-user-ids="users.filter((u) => u.id !== selectedUser!.id).map((u) => u.id)"
+                @cancel="closeEditDialog"
+                @success="onUserOperationSuccess"
+            />
         </v-dialog>
 
         <!-- ── Remove confirmation dialog ─────────────────────────── -->

@@ -31,9 +31,7 @@
                     <v-btn
                         :disabled="pendingCount === 0 || isSaving"
                         :loading="isSaving"
-                        size="small"
                         color="primary"
-                        variant="outlined"
                         prepend-icon="mdi-content-save"
                         @click="saveChanges"
                     >
@@ -47,7 +45,7 @@
         <v-expand-transition>
             <div v-if="props.expanded">
                 <!-- search -->
-                <SearchBar v-model="search" placeholder="Search workflows..." />
+                <SearchBar v-model="search" label="Search workflows" />
 
                 <!-- Loading skeleton -->
                 <v-skeleton-loader v-if="isLoading" type="table" class="mt-4" />
@@ -69,18 +67,18 @@
 
                     <template #item.dag_name="{ item }">
                         <td>
-                            <span class="font-weight-medium" style="font-family: monospace">{{ item.dag_name }}</span>
+                            <span class="font-weight-medium">{{ item.dag_name }}</span>
                         </td>
                     </template>
 
                     <template #item.inAii="{ item }">
-                        <td class="text-center" :class="isPending(item.dag_name) ? 'bg-warning-lighten-4' : ''">
+                        <td class="text-center" :class="isPending(item.dag_name) ? 'pm-pending' : ''">
                             <v-checkbox-btn
                                 :model-value="effectiveInAii(item)"
                                 hide-details
                                 @update:model-value="stage(item, $event)"
                                 :disabled="!can(project?.id, 'manage_workflow_whitelist')"
-                                color="success"
+                                color="primary"
                                 inline
                             >
                             </v-checkbox-btn>

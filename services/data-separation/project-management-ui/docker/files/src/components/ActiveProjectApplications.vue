@@ -19,7 +19,7 @@
         <v-expand-transition>
             <div v-if="expanded">
                 <!-- search -->
-                <SearchBar v-model="searchQuery" placeholder="Search applications..." />
+                <SearchBar v-model="searchQuery" label="Search applications" />
 
                 <!-- Loading skeleton -->
                 <v-skeleton-loader v-if="isLoading" type="table" class="mt-4" />
@@ -88,7 +88,7 @@
                 <v-sheet rounded v-else class="mt-4">
                     <v-container>
                         <v-row align="center" justify="center" no-gutters>
-                            <v-icon icon="mdi-information" size="x-large" class="large-font"></v-icon>
+                            <v-icon icon="mdi-information" size="x-large" color="medium-emphasis"></v-icon>
                         </v-row>
                         <v-row align="center" justify="center" no-gutters class="py-6">
                             <div class="text-subtitle-1 font-weight-light text-center">

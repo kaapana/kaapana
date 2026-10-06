@@ -3,62 +3,42 @@
     {{ snackbarMessage }}
   </v-snackbar>
 
-  <v-container max-width="1400" class="bg-surface rounded-lg mt-2">
+  <v-container fluid class="pm-view">
+    <div class="mb-2">
+      <v-btn variant="text" prepend-icon="mdi-arrow-left" @click="$router.push('/')">
+        Projects
+      </v-btn>
+    </div>
 
-    <!-- ── Back navigation ──────────────────────────────────────── -->
-    <v-row no-gutters class="mb-2">
-      <v-col>
-        <v-btn size="x-small" variant="outlined" prepend-icon="mdi-arrow-left" @click="$router.push('/')">
-          Projects
+    <div class="d-flex flex-wrap align-start justify-space-between ga-4 mb-4">
+      <h1 class="text-h4">Edit Role Rights</h1>
+      <div class="d-flex flex-wrap align-center ga-2">
+        <v-chip v-if="pendingCount > 0" color="warning" variant="tonal">
+          {{ pendingCount }} unsaved change{{ pendingCount !== 1 ? 's' : '' }}
+        </v-chip>
+        <v-btn
+          variant="outlined"
+          color="error"
+          prepend-icon="mdi-restore"
+          :loading="resetting"
+          @click="resetDialog = true"
+        >
+          Reset to Defaults
         </v-btn>
-      </v-col>
-    </v-row>
-
-    <!-- ── Header card ──────────────────────────────────────────── -->
-    <v-row class="mb-4">
-      <v-col>
-        <v-sheet class="pa-4 rounded-lg" border>
-          <div class="d-flex align-center justify-space-between">
-            <div class="d-flex align-center ga-3">
-              <v-icon icon="mdi-shield-key" color="primary" size="large" />
-              <span class="text-h5 font-weight-bold">Edit Role Rights</span>
-            </div>
-            <div class="d-flex align-center ga-2">
-              <v-chip v-if="pendingCount > 0" color="warning" variant="tonal">
-                {{ pendingCount }} unsaved change{{ pendingCount !== 1 ? 's' : '' }}
-              </v-chip>
-              <v-btn
-                variant="outlined"
-                size="large"
-                prepend-icon="mdi-restore"
-                :loading="resetting"
-                @click="resetDialog = true"
-              >
-                Reset to Defaults
-              </v-btn>
-              <v-btn
-                size="large"
-                prepend-icon="mdi-plus"
-                variant="outlined"
-                @click="addRightDialog = true"
-              >
-                Add Right
-              </v-btn>
-              <v-btn
-                :disabled="pendingCount === 0 || saving"
-                :loading="saving"
-                color="primary"
-                size="large"
-                prepend-icon="mdi-content-save"
-                @click="confirmDialog = true"
-              >
-                Save Changes
-              </v-btn>
-            </div>
-          </div>
-        </v-sheet>
-      </v-col>
-    </v-row>
+        <v-btn prepend-icon="mdi-plus" variant="outlined" @click="addRightDialog = true">
+          Add Right
+        </v-btn>
+        <v-btn
+          :disabled="pendingCount === 0 || saving"
+          :loading="saving"
+          color="primary"
+          prepend-icon="mdi-content-save"
+          @click="confirmDialog = true"
+        >
+          Save Changes
+        </v-btn>
+      </div>
+    </div>
 
     <v-alert v-if="userLoaded && !isAdmin" type="error" class="mb-4">
       This page is only accessible to admins.
@@ -72,60 +52,57 @@
 
       <v-skeleton-loader v-if="loading" type="table" />
 
-      <v-table v-else density="comfortable" class="rounded">
-        <thead>
-          <tr>
-            <th style="width: 150px">Right</th>
-            <th style="width: 150px" class="text-caption text-medium-emphasis">JWT Claim</th>
-            <th
-              v-for="role in roles"
-              :key="role.id"
-              class="text-center"
-              style="width: 130px"
-            >
-              <div class="font-weight-bold text-uppercase">{{ role.name }}</div>
-              <div class="text-caption text-medium-emphasis font-weight-regular" style="white-space: normal; line-height: 1.3">
-                {{ role.description }}
-              </div>
-            </th>
-            <th style="width: 48px" class="text-right"></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="right in rights" :key="right.id">
-            <td>
-              <v-tooltip :text="right.description" location="right">
-                <template #activator="{ props }">
-                  <span v-bind="props" class="font-weight-medium" style="font-family: monospace">{{ right.name }}</span>
-                </template>
-              </v-tooltip>
-            </td>
-            <td class="text-caption text-medium-emphasis">
-              <span style="font-family: monospace">{{ right.claim_key }}: {{ right.claim_value }}</span>
-            </td>
-            <td
-              v-for="role in roles"
-              :key="role.id"
-              class="text-center"
-              :class="isPending(role.id, right.id) ? 'bg-warning-lighten-4' : ''"
-            >
-              <v-checkbox-btn
-                :model-value="effectiveValue(role.id, right.id)"
-                color="primary"
-                hide-details
-                density="compact"
-                inline
-                @update:model-value="stage(role.id, right.id, $event)"
-              />
-            </td>
-            <td>
-              <div class="d-flex justify-end pr-2">
-                <v-btn icon="mdi-trash-can" size="default" variant="text" color="error" @click="deleteRight(right)" />
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </v-table>
+      <v-card v-else :elevation="2">
+        <v-table density="comfortable">
+          <thead>
+            <tr>
+              <th>Right</th>
+              <th class="text-caption text-medium-emphasis">JWT Claim</th>
+              <th v-for="role in roles" :key="role.id" class="text-center">
+                <div class="font-weight-medium text-uppercase">{{ role.name }}</div>
+                <div class="text-caption text-medium-emphasis font-weight-regular text-wrap">
+                  {{ role.description }}
+                </div>
+              </th>
+              <th class="text-right"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="right in rights" :key="right.id">
+              <td>
+                <v-tooltip :text="right.description" location="right">
+                  <template #activator="{ props }">
+                    <span v-bind="props" class="font-weight-medium">{{ right.name }}</span>
+                  </template>
+                </v-tooltip>
+              </td>
+              <td class="text-caption text-medium-emphasis">
+                <span>{{ right.claim_key }}: {{ right.claim_value }}</span>
+              </td>
+              <td
+                v-for="role in roles"
+                :key="role.id"
+                class="text-center"
+                :class="isPending(role.id, right.id) ? 'pm-pending' : ''"
+              >
+                <v-checkbox-btn
+                  :model-value="effectiveValue(role.id, right.id)"
+                  color="primary"
+                  hide-details
+                  density="compact"
+                  inline
+                  @update:model-value="stage(role.id, right.id, $event)"
+                />
+              </td>
+              <td>
+                <div class="d-flex justify-end pr-2">
+                  <v-btn icon="mdi-trash-can" size="default" variant="text" color="error" @click="deleteRight(right)" />
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </v-table>
+      </v-card>
     </template>
   </v-container>
 

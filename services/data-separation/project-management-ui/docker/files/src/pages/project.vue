@@ -3,55 +3,66 @@
     {{ snackbarMessage }}
   </v-snackbar>
 
-  <v-container max-width="1200" class="bg-surface rounded-lg mt-2">
+  <v-container fluid class="pm-view">
+    <div class="d-flex justify-space-between mb-2">
+      <v-btn variant="text" prepend-icon="mdi-arrow-left" @click="goToProjectsList">
+        Projects
+      </v-btn>
+      <v-btn variant="text" prepend-icon="mdi-refresh" @click="refresh">Refresh</v-btn>
+    </div>
 
-    <!-- ── Back navigation ──────────────────────────────────────── -->
-    <v-row no-gutters class="mb-2" justify="space-between">
-      <v-col cols="auto">
-        <v-btn size="x-small" variant="outlined" prepend-icon="mdi-arrow-left" @click="goToProjectsList">
-          Projects
-        </v-btn>
-      </v-col>
-      <v-col cols="auto">
-        <v-btn size="x-small" variant="outlined" prepend-icon="mdi-refresh" @click="refresh">
-          Refresh
-        </v-btn>
-      </v-col>
-    </v-row>
-
-    <!-- ── Project header card ──────────────────────────────────── -->
     <v-row>
       <v-col>
-        <v-sheet class="pa-4 rounded-lg" border>
-          <div class="d-flex align-center justify-space-between mb-3">
-            <div v-if="project" class="d-flex align-center ga-3">
-              <v-icon icon="mdi-folder-multiple" color="primary" size="large" />
-              <div>
-                <div class="d-flex align-center ga-2">
-                  <span class="text-h5 font-weight-bold" style="font-family: monospace">{{ project.name }}</span>
-                  <v-chip v-if="project.is_archived" color="warning" size="small">Archived</v-chip>
-                </div>
-                <div v-if="project.external_id" class="text-caption text-medium-emphasis" style="font-family: monospace">
-                  {{ project.external_id }}
-                </div>
-              </div>
+        <div class="d-flex align-start justify-space-between mb-3">
+          <div v-if="project">
+            <div class="d-flex align-center ga-2">
+              <h1 class="text-h4">{{ project.name }}</h1>
+              <v-chip v-if="project.is_archived" color="warning" size="small">Archived</v-chip>
             </div>
-            <v-skeleton-loader v-else :loading="!project" type="heading" width="200" />
-            <div v-if="userHasAdminAccess && project?.name !== 'admin'" class="d-flex ga-1">
-              <v-btn icon="mdi-pencil" size="default" variant="text" @click="openEditDialog" />
-              <v-btn v-if="!project?.is_archived" icon="mdi-archive-arrow-down" size="default" variant="text" color="warning" @click="archiveDialog = true" />
-              <v-btn v-if="project?.is_archived" icon="mdi-archive-arrow-up" size="default" variant="text" color="success" @click="unarchiveProject" />
-              <v-btn icon="mdi-trash-can" size="default" variant="text" color="error" @click="openDeleteDialog" />
+            <div v-if="project.external_id" class="text-caption text-medium-emphasis">
+              {{ project.external_id }}
             </div>
           </div>
-          <v-alert v-if="project?.is_archived" type="warning" density="compact" variant="tonal" class="mb-3">
-            This project is archived and read-only. Unarchive it to make changes.
-          </v-alert>
-          <v-sheet v-if="project?.description" class="pa-3 rounded mt-2" border>
-            <div class="text-caption text-medium-emphasis mb-1">Description</div>
-            <div class="text-body-2">{{ project.description }}</div>
-          </v-sheet>
-        </v-sheet>
+          <v-skeleton-loader v-else :loading="!project" type="heading" width="200" />
+          <div v-if="userHasAdminAccess && project?.name !== 'admin'" class="d-flex ga-1">
+            <v-btn
+              icon="mdi-pencil"
+              size="default"
+              variant="text"
+              color="primary"
+              @click="openEditDialog"
+            />
+            <v-btn
+              v-if="!project?.is_archived"
+              icon="mdi-archive-arrow-down"
+              size="default"
+              variant="text"
+              color="primary"
+              @click="archiveDialog = true"
+            />
+            <v-btn
+              v-if="project?.is_archived"
+              icon="mdi-archive-arrow-up"
+              size="default"
+              variant="text"
+              color="primary"
+              @click="unarchiveProject"
+            />
+            <v-btn
+              icon="mdi-trash-can"
+              size="default"
+              variant="text"
+              color="error"
+              @click="openDeleteDialog"
+            />
+          </div>
+        </div>
+        <v-alert v-if="project?.is_archived" type="warning" density="compact" variant="tonal" class="mb-3">
+          This project is archived and read-only. Unarchive it to make changes.
+        </v-alert>
+        <p v-if="project?.description" class="text-body-1 text-medium-emphasis">
+          {{ project.description }}
+        </p>
       </v-col>
     </v-row>
 

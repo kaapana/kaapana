@@ -2,86 +2,103 @@
   <v-snackbar v-model="showSnackbar" :timeout="6000" location="top" :color="snackbarColor" elevation="2">
     {{ snackbarText }}
   </v-snackbar>
-  <v-container max-width="1200" class="bg-surface rounded-lg mt-2">
-
-    <!-- ── Header card ──────────────────────────────────────────── -->
-    <v-row class="mb-4">
-      <v-col>
-        <v-sheet class="pa-4 rounded-lg" border>
-          <div class="d-flex align-center justify-space-between">
-            <div class="d-flex align-center ga-3">
-              <v-icon icon="mdi-folder-multiple" color="primary" size="large" />
-              <span class="text-h5 font-weight-bold">Available Projects</span>
-            </div>
-            <div v-if="userHasAdminAccess" class="d-flex ga-2">
-              <v-btn size="large" variant="tonal" @click="$router.push('/role-rights')">
-                <template #prepend><v-icon color="primary">mdi-shield-key</v-icon></template>
-                Edit Role Rights
-              </v-btn>
-              <v-btn size="large" variant="tonal" @click="projectDialog = true">
-                <template #prepend><v-icon color="primary">mdi-plus-box</v-icon></template>
-                Create New Project
-              </v-btn>
-            </div>
-          </div>
-        </v-sheet>
-      </v-col>
-    </v-row>
+  <v-container fluid class="pm-view">
+    <div class="d-flex flex-wrap align-start justify-space-between ga-4 mb-4">
+      <h1 class="text-h4">Projects</h1>
+      <div v-if="userHasAdminAccess" class="d-flex flex-wrap ga-2">
+        <v-btn
+          variant="outlined"
+          prepend-icon="mdi-shield-key"
+          @click="$router.push('/role-rights')"
+        >
+          Edit Role Rights
+        </v-btn>
+        <v-btn color="primary" prepend-icon="mdi-plus" @click="projectDialog = true">
+          Create New Project
+        </v-btn>
+      </div>
+    </div>
 
     <v-alert density="compact" class="mb-4" v-model="error" icon="mdi-alert-circle"
       text="Some error happened while creating the project. Please try again with different inputs."
       title="Project could not be created" type="error" prominent closable />
 
-    <v-text-field
-      v-model="search"
-      prepend-inner-icon="mdi-magnify"
-      label="Search projects"
-      clearable
-      hide-details
-      class="mb-3"
-    />
+    <v-card :elevation="2">
+      <v-toolbar color="surface-light" flat density="comfortable">
+        <v-text-field
+          v-model="search"
+          prepend-inner-icon="mdi-magnify"
+          label="Search projects"
+          variant="outlined"
+          density="compact"
+          clearable
+          hide-details
+          class="mx-4 pm-search"
+        />
+      </v-toolbar>
 
-    <v-data-table
-      :headers="tableHeaders"
-      :items="projects"
-      :search="search"
-      item-value="id"
-      class="rounded-lg border"
-    >
-      <template #item.name="{ item }">
-        <span class="text-subtitle-2" style="font-family: monospace">{{ item.name }}</span>
-        <v-chip v-if="item.is_archived" size="x-small" color="warning" class="ml-2">Archived</v-chip>
-      </template>
+      <v-divider />
 
-      <template #item.short_id="{ item }">
-        <span style="font-family: monospace">{{ item.short_id }}</span>
-      </template>
-
-      <template #item.external_id="{ item }">
-        <span style="font-family: monospace">{{ item.external_id }}</span>
-      </template>
-
-      <template #item.description="{ item }">
-        <span class="text-medium-emphasis text-body-2">{{ item.description }}</span>
-      </template>
-
-      <template #item.view="{ item }">
-        <v-btn class="text-none" color="primary" min-width="92" variant="outlined" size="small"
-          append-icon="mdi-arrow-right" @click.stop="goToProjects(item.id)">
-          View
-        </v-btn>
-      </template>
-
-      <template v-if="userHasAdminAccess" #item.actions="{ item }">
-        <template v-if="item.name !== 'admin'">
-          <v-btn v-if="!item.is_archived" icon="mdi-pencil" size="default" variant="text" @click.stop="openEditDialog(item)" />
-          <v-btn v-if="!item.is_archived" icon="mdi-archive-arrow-down" size="default" variant="text" color="warning" @click.stop="openArchiveDialog(item)" />
-          <v-btn v-if="item.is_archived" icon="mdi-archive-arrow-up" size="default" variant="text" color="success" @click.stop="unarchiveItem(item)" />
-          <v-btn icon="mdi-trash-can" size="default" variant="text" color="error" @click.stop="openDeleteDialog(item)" />
+      <v-data-table :headers="tableHeaders" :items="projects" :search="search" item-value="id">
+        <template #item.name="{ item }">
+          <span class="font-weight-medium">{{ item.name }}</span>
+          <v-chip v-if="item.is_archived" size="x-small" color="warning" class="ml-2"
+            >Archived</v-chip
+          >
         </template>
-      </template>
-    </v-data-table>
 
+        <template #item.description="{ item }">
+          <span class="text-medium-emphasis text-body-2">{{ item.description }}</span>
+        </template>
+
+        <template #item.view="{ item }">
+          <v-btn
+            color="primary"
+            variant="text"
+            append-icon="mdi-arrow-right"
+            @click.stop="goToProjects(item.id)"
+          >
+            View
+          </v-btn>
+        </template>
+
+        <template v-if="userHasAdminAccess" #item.actions="{ item }">
+          <template v-if="item.name !== 'admin'">
+            <v-btn
+              v-if="!item.is_archived"
+              icon="mdi-pencil"
+              size="default"
+              variant="text"
+              color="primary"
+              @click.stop="openEditDialog(item)"
+            />
+            <v-btn
+              v-if="!item.is_archived"
+              icon="mdi-archive-arrow-down"
+              size="default"
+              variant="text"
+              color="primary"
+              @click.stop="openArchiveDialog(item)"
+            />
+            <v-btn
+              v-if="item.is_archived"
+              icon="mdi-archive-arrow-up"
+              size="default"
+              variant="text"
+              color="primary"
+              @click.stop="unarchiveItem(item)"
+            />
+            <v-btn
+              icon="mdi-trash-can"
+              size="default"
+              variant="text"
+              color="error"
+              @click.stop="openDeleteDialog(item)"
+            />
+          </template>
+        </template>
+      </v-data-table>
+    </v-card>
   </v-container>
   <v-dialog v-model="projectDialog" max-width="1000">
     <CreateNewProjectForm :onsuccess="() => (projectDialog = false)" :oncomplete="handleProjectCreate" :oncancel="() => (projectDialog = false)" />

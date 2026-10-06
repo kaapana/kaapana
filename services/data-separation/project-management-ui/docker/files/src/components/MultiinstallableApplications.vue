@@ -33,9 +33,7 @@
                 <v-btn
                     :disabled="pendingCount === 0 || isSaving"
                     :loading="isSaving"
-                    size="small"
                     color="primary"
-                    variant="outlined"
                     prepend-icon="mdi-content-save"
                     @click="saveChanges"
                 >
@@ -48,7 +46,7 @@
         <v-expand-transition>
             <div v-if="expanded">
                 <!-- search -->
-                <SearchBar v-model="searchQuery" placeholder="Search applications..." />
+                <SearchBar v-model="searchQuery" label="Search applications" />
 
                 <!-- Loading skeleton -->
                 <v-skeleton-loader v-if="isLoading" type="table" class="mt-4" />
@@ -68,11 +66,12 @@
                         <!-- DOCUMENTATION LINK TOOLTIP -->
                         <v-tooltip location="bottom">
                             <template #activator="{ props }">
-                                <a :href="getFullEndpoint('/docs/' + item.annotations.documentation)"
-                                    target="_blank" v-bind="props">
-                                    <v-icon class="cell-icon" color="primary">
-                                        mdi-information
-                                    </v-icon>
+                                <a
+                                    :href="getFullEndpoint('/docs/' + item.annotations.documentation)"
+                                    target="_blank"
+                                    v-bind="props"
+                                >
+                                    <v-icon color="primary"> mdi-information </v-icon>
                                 </a>
                             </template>
 
@@ -109,9 +108,8 @@
                             <template #activator="{ props }">
                                 <span v-bind="props">
                                     <v-btn
-                                        size="small"
                                         color="primary"
-                                        variant="outlined"
+                                        variant="text"
                                         :disabled="!can(project?.id, 'launch_application', item.releaseName)"
                                         @click="onLaunchApplication(item)"
                                     >
@@ -123,13 +121,13 @@
                     </td>
                 </template>
                 <template #item.whitelistToggle="{ item }">
-                    <td class="text-center" :class="isPending(item.releaseName) ? 'bg-warning-lighten-4' : ''">
+                    <td class="text-center" :class="isPending(item.releaseName) ? 'pm-pending' : ''">
                         <v-checkbox-btn
                             :model-value="effectiveInWhitelist(item.releaseName)"
                             hide-details
                             @update:model-value="stage(item.releaseName, $event)"
                             :disabled="!can(project?.id, 'manage_applications_whitelist')"
-                            color="success"
+                            color="primary"
                         />
                     </td>
                 </template>
@@ -139,7 +137,7 @@
                 <v-sheet rounded v-else class="mt-4">
                     <v-container>
                         <v-row align="center" justify="center" no-gutters>
-                            <v-icon icon="mdi-information" size="x-large" class="large-font"></v-icon>
+                            <v-icon icon="mdi-information" size="x-large" color="medium-emphasis"></v-icon>
                         </v-row>
                         <v-row align="center" justify="center" no-gutters class="py-6">
                             <div class="text-subtitle-1 font-weight-light text-center">

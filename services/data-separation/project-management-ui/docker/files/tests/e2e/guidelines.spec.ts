@@ -20,4 +20,30 @@ test.describe('visual language', () => {
     const view = row(page, RESEARCH_PROJECT.name).getByRole('button', { name: 'View' })
     await expect(view).toHaveCSS('color', lightThemePrimary)
   })
+
+  test('the view stays within a readable width on a wide display', async ({ page }) => {
+    await openView(page)
+    await page.setViewportSize({ width: 2560, height: 1200 })
+
+    const box = (await page.locator('.v-container').boundingBox())!
+    expect(box.width).toBeLessThanOrEqual(1600)
+    const leftMargin = box.x
+    const rightMargin = 2560 - box.width - box.x
+    expect(Math.abs(leftMargin - rightMargin)).toBeLessThan(2)
+  })
+
+  test('table actions are tertiary; the page keeps one filled primary action', async ({ page }) => {
+    await openView(page)
+
+    const filled = page.locator('.v-btn.bg-primary')
+    await expect(filled).toHaveCount(1)
+    await expect(filled).toHaveText('Create New Project')
+
+    const research = row(page, RESEARCH_PROJECT.name)
+    const view = research.getByRole('button', { name: 'View' })
+    await expect(view).toHaveClass(/text-primary/)
+    await expect(view).not.toHaveClass(/bg-primary/)
+    await expect(research.locator('.v-btn.text-error')).toHaveCount(1)
+    await expect(research.locator('.v-btn.bg-error')).toHaveCount(0)
+  })
 })

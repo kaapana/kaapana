@@ -5,8 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import requests
-from integration_tests.utils.KaapanaAuth import KaapanaAuth
 from integration_tests.utils.logger import get_logger
+from kaapana_auth import KaapanaAuth
 from yaml import Loader, load_all
 
 logger = get_logger(__name__, logging.INFO)

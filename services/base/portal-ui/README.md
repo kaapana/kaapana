@@ -8,19 +8,20 @@ code: the menu is built at runtime from `GET /portal-api/menu`, and the shell
 talks to the embedded views only through the document URL, `localStorage` and a
 small `postMessage` protocol.
 
-Unlike the nine view apps, `portal-ui` declares no `@kaapana/base-ui`
-dependency — so there is no library to build before it, and no `resolve.dedupe`
-in its `vite.config.ts`. Its `src/api/http.ts` carries the same
-`PROJECT_SCOPED` regex and project-prefixing request interceptor as the
-library's `utils/httpClient.ts`, plus a response interceptor for the
-expired-session reload that the library has no counterpart for;
-`src/utils/opa.ts` has no counterpart in the library at all. It is also the
-only app in the platform with a vitest suite.
+Like the view apps, `portal-ui` depends on `@kaapana/base-ui` (a `file:` link
+to `../../../base-ui/docker/files`, see Development). From the library it takes
+what must look and behave the same in the shell and in the views: the theme,
+the typeface, the icon map, `ConfirmDialog`, `ErrorDetailsDialog`,
+`apiErrorInfo` and the OPA helper. Its own project, auth and HTTP code stays,
+because the library's versions are written for a view running inside the
+shell. For example, `src/api/http.ts` adds the project prefix like the
+library's `utils/httpClient.ts`, but also reloads the page when the session has
+expired.
 
 ## Features
 
 - **Runtime menu.** `stores/menu.ts` polls `/portal-api/menu` every 15 s and
-  filters it client-side against the OPA policy data (`utils/opa.ts`,
+  filters it client-side against the OPA policy data (base-ui's
   `checkAuthR`). The filter is cosmetic — the gateway is the real boundary.
   Sections collapse; the collapsed rail substitutes a text glyph for a section
   child with no `ui.icon`.
@@ -54,9 +55,15 @@ only app in the platform with a vitest suite.
   asks the shell to re-read both, debounced).
 - **Settings.** `stores/settings.ts` merges the DB copy over
   `static/defaultUIConfig.ts` and seeds `localStorage["settings"]` **before**
-  the first iframe mounts — the views read that key synchronously. Dark Mode
-  and Dev Mode are switches in the settings dialog header and apply
-  immediately; Dev Mode additionally reveals each entry's `ui.dev-links`.
+  the first iframe mounts — the views read that key synchronously. The theme
+  choice (System / Light / Dark) and the Dev Mode switch sit in the settings
+  dialog header and apply at once. "System" follows the browser's colour
+  scheme, and follows a change of it without a reload. The views still read
+  the `darkMode` flag, which the shell derives from the choice. Settings stored
+  before the choice existed have only `darkMode`: `false` becomes Light, and
+  `true` becomes System, because the old dialog stored its default `true` on
+  every Save, so it was never a choice. Dev Mode additionally reveals each
+  entry's `ui.dev-links`.
 - **Notifications.** A bell badged with the server-side unread `total`, opening
   a dialog that groups the list by topic and pages in 20 at a time as it is
   scrolled, plus a WebSocket feed (`api/notifications.ts`) that reconnects with
@@ -74,40 +81,57 @@ only app in the platform with a vitest suite.
   `sessionStorage`.
 - **Nested-shell detection.** `main.ts` refuses to boot when
   `window.self !== window.top` (a view URL fell through the gateway back to the
-  SPA) and renders a plain notice instead of nesting menu inside menu. It reads
-  the persisted dark-mode flag straight out of `localStorage` for that notice,
-  since Vuetify has not run yet.
-- **Corner controls.** A hover hotspot in the iframe's bottom-right corner
-  offers reload (guarded by the unsaved-changes confirm) and open-in-new-tab of
-  the URL the iframe is *currently* on, not the entry's start page.
-- **Legacy redirects.** The old monolith's `/web/<section>/<entry>` bookmarks
-  and its flat routes (`/datasets`, `/workflows`, …) redirect onto the new
-  slugs, preserving the query string.
+  SPA) and renders a plain notice instead of nesting menu inside menu. Vuetify
+  has not run yet, so the notice takes its colours from the shared theme and
+  the theme choice stored in `localStorage`.
+- **Failure details.** Clicking an error toast opens base-ui's
+  `ErrorDetailsDialog`: status, request, backend message and request id, with
+  a copy button. Failures shown in place (boot, menu, project list, About
+  version, settings field list) open the same dialog with a *Details* button.
+  See `utils/notifyFailure.ts` and `stores/failureDetails.ts`.
+- **Corner controls.** Two buttons in the bottom-right corner of the view,
+  shown while the mouse is over that corner or one of them has keyboard focus:
+  reload (behind the unsaved-changes confirm) and open in a new tab. Both use
+  the page the view is *currently* on, not the entry's start page. Tab from the
+  drawer reaches them before anything inside the view.
+- **Navigation contract and bookmark redirects.** Views address shell routes
+  as `/web/<section>/<entry>` (`/web/-/<entry>` for a top-level entry):
+  base-ui's `navigateShell` posts that path, and the router redirects it to
+  `/project/<short_id>/<section>/<entry>`, keeping the query string. The routes
+  of the old monolith (`/datasets`, `/workflows`, …) redirect too, but only for
+  old bookmarks. They are due for removal in <release TBD>, together with their
+  `data.rego` grants and `clearLegacyProjectCookie`.
 
 ## Backend endpoints
 
 Every runtime network call. Only `/kaapana-backend/…` and the badge endpoints
 are project-prefixed — `api/http.ts` rewrites URLs matching
 `^/(kaapana-backend|kube-helm-api|workflow-api|dicom-web-filter)/`; everything
-else is requested verbatim.
+else is requested verbatim. The **Legacy** column marks the calls into
+`kaapana-backend`, the API of the old monolith, and says why each one is still
+needed.
 
-| Method | Path | Purpose | Project-prefixed |
-|---|---|---|---|
-| GET | `/oauth2/userinfo` (prod) · `/jsons/testingAuthenticationToken.json` (dev) | Userinfo JWT → username, roles, groups (`stores/auth.ts`) | no |
-| GET | `/kaapana-backend/open-policy-data` | OPA policy data for the client-side menu filter | **yes** |
-| GET | `/portal-api/menu` | The menu itself; polled every 15 s | no |
-| GET | `/aii/users/current` | Resolve the current AII user | no |
-| GET | `/aii/users/<id>/projects` (non-admin) · `/aii/projects` (admin) | The user's projects; re-polled on the menu cadence | no |
-| GET | `/kaapana-backend/settings` | Persisted settings, merged over the defaults and seeded into `localStorage` | **yes** |
-| PUT | `/kaapana-backend/settings` | Save the whole settings object (dialog *Save* / *Restore defaults*) | **yes** |
-| PUT | `/kaapana-backend/settings/item` | Save one key (the Dark Mode / Dev Mode switches) | **yes** |
-| GET | `/kaapana-backend/dataset/fields` | DICOM tag → OpenSearch field mapping for the settings dialog | **yes** |
-| GET | `/notifications/v2/?limit=20&cursor=…` | One page of notifications | no |
-| PUT | `/notifications/v2/<id>/read` | Mark one notification read | no |
-| WS | `/notifications/ws` | Live notification events (`new` / `read`) | no |
-| GET | `/jsons/commonData.json` | Chart version for the drawer header and the About dialog; served by this app's own nginx from the `portal-ui-config` ConfigMap | no |
-| GET | `<entry.badgePath>` | Count badge of any menu entry declaring `kaapana.ai/ui.badge-path` (today only `/kube-helm-api/pending-applications-count`) | **yes**, when the path matches the rewrite |
-| — | `/kaapana-backend/oidc-logout` | Logout; a top-level `location.href`, not an XHR | no |
+| Method | Path | Purpose | Project-prefixed | Legacy |
+|---|---|---|---|---|
+| GET | `/oauth2/userinfo` (prod) · `/jsons/testingAuthenticationToken.json` (dev) | Userinfo JWT → username, roles, groups (`stores/auth.ts`) | no | — |
+| GET | `/kaapana-backend/open-policy-data` | OPA policy data for the client-side menu filter | **yes** | **yes** — goes away once portal-api filters the menu (follow-up issue) |
+| GET | `/portal-api/menu` · `/portal-api/menu?fresh=1` | The menu itself; polled every 15 s. `fresh=1` bypasses portal-api's cache and is sent only after a view's `kaapana:shell-refresh` | no | — |
+| GET | `/aii/users/current` | Resolve the current AII user | no | — |
+| GET | `/aii/users/<id>/projects` (non-admin) · `/aii/projects` (admin) | The user's projects; re-polled on the menu cadence | no | — |
+| GET | `/kaapana-backend/settings` | Persisted settings, merged over the defaults and seeded into `localStorage` | **yes** | **yes** — no newer service stores user settings yet |
+| PUT | `/kaapana-backend/settings` | Save the whole settings object (dialog *Save* / *Restore defaults*) | **yes** | **yes** — as above |
+| PUT | `/kaapana-backend/settings/item` | Save one key (the theme choice, the Dev Mode switch) | **yes** | **yes** — as above |
+| GET | `/kaapana-backend/dataset/fields` | DICOM tag → OpenSearch field mapping for the settings dialog | **yes** | **yes** — moves with the Dataset Configuration tab to `data-gallery-ui` (follow-up issue) |
+| GET | `/notifications/v2/?limit=20&cursor=…` | One page of notifications | no | — |
+| PUT | `/notifications/v2/<id>/read` | Mark one notification read | no | — |
+| PUT | `/notifications/v2/read` | Mark every notification read (dialog *Mark all as read*) | no | — |
+| WS | `/notifications/ws` | Live notification events (`new` / `read` / `read_all`) | no | — |
+| GET | `/jsons/commonData.json` | Chart version for the drawer header and the About dialog; served by this app's own nginx from the `portal-ui-config` ConfigMap | no | — |
+| GET | `<entry.badgePath>` | Count badge of any menu entry declaring `kaapana.ai/ui.badge-path` (today only `/kube-helm-api/pending-applications-count`) | **yes**, when the path matches the rewrite | — |
+| — | `/kaapana-backend/oidc-logout` | Logout; a top-level `location.href`, not an XHR | no | **yes** — no newer logout endpoint yet |
+
+These are the last calls into the old monolith's API; the shell adds no new
+ones.
 
 The notifications base path is the only configurable one
 (`VITE_APP_NOTIFICATIONS_API_ENDPOINT`, default `/notifications`); the rest are
@@ -115,11 +139,13 @@ literals.
 
 ## Development
 
-The shell has no `@kaapana/base-ui` dependency, so there is nothing to build
-first:
+Build `@kaapana/base-ui` first: the shell imports its built `dist/`, which is
+not committed. CI's `ui_unit_tests` and `ui_e2e_tests` jobs do the same.
 
 ```bash
-cd services/base/portal-ui/docker/files
+cd services/base/base-ui/docker/files
+npm ci && npm run build
+cd ../../../portal-ui/docker/files
 npm ci
 npm run dev        # Vite dev server on http://localhost:5173 (strictPort)
 ```
@@ -143,9 +169,10 @@ Two suites. Both are self-contained — no backend and no cluster.
 **Unit (vitest, jsdom)** — `src/**/__tests__/*.spec.ts`, for the pieces that
 are awkward to drive through a browser: the project-prefix rewriting and the
 login-reload logic in `api/http.ts`, the WebSocket backoff in
-`api/notifications.ts`, the OPA filter in `utils/opa.ts`, and the menu,
-notifications and project stores. This is the only app in the platform with
-such a suite; CI runs it as `ui_unit_tests`.
+`api/notifications.ts`, the OPA helper from base-ui (which has no test runner),
+the idle-logout timer, the stores, the failure toast, the theme plugin, and
+`SettingsDialog` mounting with settings stored by older versions. This is the
+only app in the platform with such a suite; CI runs it as `ui_unit_tests`.
 
 ```bash
 cd services/base/portal-ui/docker/files
@@ -166,7 +193,8 @@ previews the production build — set `CI=1` to exercise what CI actually does,
 since `playwright.config.ts` branches on it for the reporter, the web-server
 command, retries and `reuseExistingServer`.
 
-Suites: `about-dialog`, `boot-failure`, `dev-mode`, `iframe-loading`,
-`login-in-iframe`, `menu-badge`, `nav-drawer`, `notifications`,
-`project-refresh`, `project-selector`, `routing`, `settings`, `shell-boot`,
+Suites: `about-dialog`, `boot-failure`, `corner-controls`, `dev-mode`,
+`iframe-loading`, `login-in-iframe`, `menu-badge`, `nav-drawer`,
+`notifications`, `presentation`, `project-refresh`, `project-selector`,
+`routing`, `settings`, `shell-boot`, `theme-toggle-selection`, `user-menu`,
 `view-dirty`, `view-messages`.

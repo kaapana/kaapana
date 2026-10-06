@@ -1,14 +1,13 @@
-FROM docker.io/node:22.13.0-alpine3.20  AS build-stage
-
-WORKDIR /app
-
-COPY ./files ./
-
-RUN npm install -g npm@11.16.0 && npm ci
+FROM docker.io/node:lts-alpine3.23 AS build-stage
 
 LABEL IMAGE="project-management-ui"
 LABEL VERSION="0.0.0"
 LABEL BUILD_IGNORE="False"
+
+WORKDIR /app
+COPY files/package*.json ./
+RUN npm install -g npm@11.16.0 && npm ci
+COPY files .
 
 ################################
 ######### DEVELOPMENT ##########
@@ -22,8 +21,10 @@ LABEL BUILD_IGNORE="False"
 ################################
 RUN npm run build
 
-FROM nginx:1.31.2-alpine
+FROM nginxinc/nginx-unprivileged:1.31-alpine
+WORKDIR /kaapana/app
 
-RUN mkdir /app
-COPY --from=build-stage /app/dist /app
+COPY --from=build-stage /app/dist /kaapana/app
 COPY --from=build-stage /app/nginx.conf /etc/nginx/nginx.conf
+
+USER 1000

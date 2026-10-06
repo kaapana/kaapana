@@ -22,11 +22,17 @@ spec:
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         ports:
           - name: proj-list-http
-            containerPort: {{ if .Values.global.dev_files }}5174{{ else }}80{{ end }}
+            containerPort: {{ if .Values.global.dev_files }}5174{{ else }}5000{{ end }}
+        livenessProbe:
+          httpGet:
+            path: /
+            port: proj-list-http
+          initialDelaySeconds: 10
+          periodSeconds: 20
         resources:
-          limits:
-            memory: "5Gi"
           requests:
+            memory: "10Mi"
+          limits:
             memory: "100Mi"
         volumeMounts:
 {{- if .Values.global.dev_files }}
@@ -35,9 +41,7 @@ spec:
             mountPath: /app
 {{- end }}
           - name: tmp
-            mountPath: /var/run
-          - name: cache
-            mountPath: /var/cache/nginx
+            mountPath: /tmp
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: {{ if .Values.global.dev_files }}false{{ else }}true{{ end }}  # Allow writes for dev mode (node_modules, vite cache)
@@ -50,8 +54,6 @@ spec:
           type: Directory
 {{- end }}
       - name: tmp
-        emptyDir: {}
-      - name: cache
         emptyDir: {}
       priorityClassName: kaapana-high-priority
       imagePullSecrets:

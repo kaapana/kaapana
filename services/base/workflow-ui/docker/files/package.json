@@ -11,7 +11,8 @@
     "build": "run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",
     "build-only": "vite build",
-    "type-check": "vue-tsc --build"
+    "type-check": "vue-tsc --build && vue-tsc --noEmit -p tsconfig.e2e.json",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@kaapana/base-ui": "file:../../../base-ui/docker/files",

@@ -126,11 +126,11 @@ import httpClient from './httpClient'
     }
 
     const prefixes: string[] = []
-    const pathPrefixRegex = /PathPrefix\(`([^`]+)`\)/g
+    const pathPrefixRegex = /PathPrefix\(\s*([`"])(.+?)\1\s*\)/g
     let match
 
     while ((match = pathPrefixRegex.exec(rule)) !== null) {
-      prefixes.push(match[1])
+      prefixes.push(match[2])
     }
 
     return prefixes

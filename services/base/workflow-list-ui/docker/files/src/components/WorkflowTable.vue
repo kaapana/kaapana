@@ -451,7 +451,9 @@ function getJobsOfWorkflow(
     })
     .then((response: any) => {
       loading.value = false
-      if (expanded.value.length > 0) {
+      // A slower response for a row the user has already left behind must not
+      // overwrite the rows of the one now open.
+      if (expanded.value[0] === workflow_name) {
         jobsofExpandedWorkflow.value = response.data
       }
       if (response.data.length === 0 && probeEmpty) {

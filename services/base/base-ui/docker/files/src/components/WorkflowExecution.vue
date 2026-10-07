@@ -814,8 +814,12 @@ function evaluateRequiredField(reqField: string): { name: string; satisfied: boo
     return { name: req_prop_name, satisfied: false };
   }
   const fieldValue = target[req_prop_name];
+  // An array entry can be of any type, so only a string can be blank. Trimming
+  // every entry would throw on a required array of numbers.
+  const filledEntry = (val: any) =>
+    typeof val === "string" ? val.trim() !== "" : val !== null && val !== undefined;
   const satisfied = Array.isArray(fieldValue)
-    ? fieldValue.length > 0 && fieldValue.some((val) => val && val.trim() !== "")
+    ? fieldValue.some(filledEntry)
     : fieldValue !== null && fieldValue !== undefined && fieldValue !== "";
   return { name: req_prop_name, satisfied };
 }

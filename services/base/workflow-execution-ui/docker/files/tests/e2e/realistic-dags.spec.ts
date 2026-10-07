@@ -9,6 +9,7 @@ import {
   optionalFieldsSchema,
   requiredArraySchema,
   requiredArrayNoDefaultSchema,
+  requiredNumberArraySchema,
 } from './fixtures/mock-backend'
 
 // Regression coverage: real backend DAG shapes that crashed vjsf 3 and blanked
@@ -173,4 +174,19 @@ test('a sibling `required` array names the field it is missing', async ({ page }
 
   await page.getByLabel('AE Title').fill('KAAPANA')
   await expect(submit).toBeEnabled()
+})
+
+test('a required array of numbers renders and submits', async ({ page }) => {
+  // Regression: the required-field check trimmed every entry, which throws on
+  // a number and takes the whole view down with it.
+  const pageErrors: string[] = []
+  page.on('pageerror', (e) => pageErrors.push(String(e)))
+
+  await bootView(page, singleDagData('number-array', requiredNumberArraySchema))
+  await selectDag(page, 'number-array')
+
+  const reqP = page.waitForRequest(WORKFLOW)
+  await page.getByRole('button', { name: 'Start Workflow' }).click()
+  expect((await reqP).postDataJSON().conf_data.workflow_form).toEqual({ spacing: [1, 2] })
+  expect(pageErrors).toHaveLength(0)
 })

@@ -467,3 +467,20 @@ export const requiredArrayNoDefaultSchema: Record<string, FormSchema> = {
     required: ['aetitle'],
   },
 }
+
+// A required array of numbers. Its entries cannot be trimmed, and the default
+// already satisfies the requirement.
+export const requiredNumberArraySchema: Record<string, FormSchema> = {
+  workflow_form: {
+    type: 'object',
+    properties: {
+      spacing: {
+        title: 'Spacing',
+        type: 'array',
+        items: { type: 'number', title: 'mm' },
+        default: [1, 2],
+        required: true,
+      },
+    },
+  },
+}

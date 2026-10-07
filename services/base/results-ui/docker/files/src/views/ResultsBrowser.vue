@@ -342,7 +342,8 @@ async function cascadeSelectFolder(folder: TreeNode) {
     return
   }
   if (files.length > OPEN_CONFIRM_THRESHOLD) {
-    // Only one confirm at a time: don't clobber a pending prompt.
+    // Only one confirm at a time. Closing the dialog clears the pending cascade,
+    // so the flag alone is the whole state.
     if (confirmDialog.value) {
       notify({
         type: 'warn',
@@ -364,12 +365,13 @@ async function cascadeSelectFolder(folder: TreeNode) {
 }
 
 async function confirmCascade() {
+  const confirmed = pendingCascade
+  pendingCascade = null
   confirmDialog.value = false
-  if (!pendingCascade) {
+  if (!confirmed) {
     return
   }
-  const { folder, files, truncated } = pendingCascade
-  pendingCascade = null
+  const { folder, files, truncated } = confirmed
   if (!isStillSelected(folder)) {
     return
   }
@@ -393,6 +395,14 @@ async function cancelPendingCascade() {
 function cancelCascade() {
   confirmDialog.value = false
 }
+
+// Cancel, Escape and a click outside all settle the model, and it settles before
+// an in-flight cascade can resolve.
+watch(confirmDialog, (open) => {
+  if (!open) {
+    cancelPendingCascade()
+  }
+})
 
 // Focus the safe action, so confirming a large open takes a deliberate move.
 // The dialog otherwise focuses its own content element once it has opened.
@@ -584,7 +594,6 @@ onMounted(() => {
       v-model="confirmDialog"
       max-width="400"
       @after-enter="focusCancelButton"
-      @after-leave="cancelPendingCascade"
     >
       <v-card>
         <v-card-title>Open {{ confirmCount }} results?</v-card-title>

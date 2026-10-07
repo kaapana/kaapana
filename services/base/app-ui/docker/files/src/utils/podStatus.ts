@@ -2,7 +2,7 @@ export interface Pod {
   name: string
   status: string
   ready: string
-  restarts: number | string
+  restarts: string
 }
 
 export type PodStatus = 'ready' | 'pending' | 'error'

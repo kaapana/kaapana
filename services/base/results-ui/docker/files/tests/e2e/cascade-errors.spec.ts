@@ -236,3 +236,33 @@ test('endless continuation pages stop at the request cap and keep Load more', as
   expect(treeRequests).toBeLessThanOrEqual(301)
   await expect(page.getByRole('button', { name: 'Load more', exact: true })).toBeVisible()
 })
+
+// Cancel must clear the pending cascade when the dialog model settles, not when
+// the leave animation ends. Stretching that animation far past the assertion
+// budget is what tells the two mechanisms apart: hung off the animation the
+// folder stays ticked for 30 s, hung off the model it is unticked at once.
+test('cancel unchecks the folder without waiting for the dialog to animate out', async ({
+  page,
+  context,
+}) => {
+  const data = structuredClone(defaultMockData)
+  data.root.items = [bigFolder('big-a')]
+  data.children = { 'big-a/': { items: bigFiles('big-a', 12), nextContinuationToken: null } }
+  await seedShellState(page)
+  await installMockBackend(page, data)
+  await stubFiles(context)
+  await page.goto(VIEW_PATH)
+  await expect(page.getByText('big-a')).toBeVisible()
+  await page.addStyleTag({
+    content: '.dialog-transition-leave-active { transition-duration: 30000ms !important; }',
+  })
+
+  const aCheckbox = page.locator('.v-list-item', { hasText: 'big-a' }).getByRole('checkbox').first()
+  await aCheckbox.check()
+  await expect(page.getByText('Open 12 results?')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Cancel' }).click()
+
+  await expect(aCheckbox).not.toBeChecked()
+  await expect(page.locator('.v-expansion-panel')).toHaveCount(0)
+})

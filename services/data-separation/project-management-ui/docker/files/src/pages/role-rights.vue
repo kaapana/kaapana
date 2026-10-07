@@ -9,9 +9,12 @@
     <div class="d-flex flex-wrap align-start justify-space-between ga-4 mb-4">
       <h1 class="text-h4">Edit Role Rights</h1>
       <div class="d-flex flex-wrap align-center ga-2">
-        <v-chip v-if="pendingCount > 0" color="warning" variant="tonal">
+        <v-chip v-if="pendingCount > 0" color="warning" variant="tonal" size="small">
           {{ pendingCount }} unsaved change{{ pendingCount !== 1 ? 's' : '' }}
         </v-chip>
+        <v-btn v-if="pendingCount > 0" size="small" variant="text" @click="pending = {}">
+          Discard
+        </v-btn>
         <v-btn
           variant="outlined"
           color="error"
@@ -21,7 +24,7 @@
         >
           Reset to Defaults
         </v-btn>
-        <v-btn :prepend-icon="kaapanaIcons.add" variant="outlined" @click="addRightDialog = true">
+        <v-btn :prepend-icon="kaapanaIcons.add" variant="outlined" @click="openAddRight">
           Add Right
         </v-btn>
         <v-btn
@@ -119,7 +122,12 @@
     </v-card>
   </v-container>
 
-  <v-dialog v-model="addRightDialog" max-width="600">
+  <GuardedDialog
+    v-slot="{ requestClose }"
+    v-model="addRightDialog"
+    :dirty="newRightDirty"
+    max-width="600"
+  >
     <v-card title="Add New Right">
       <v-card-text>
         <v-form ref="addRightForm" @submit.prevent="addRight">
@@ -150,13 +158,13 @@
       </v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn :disabled="addingRight" @click="addRightDialog = false">Cancel</v-btn>
+        <v-btn :disabled="addingRight" @click="requestClose">Cancel</v-btn>
         <v-btn color="primary" :loading="addingRight" :disabled="addingRight" @click="addRight">
           Add right
         </v-btn>
       </v-card-actions>
     </v-card>
-  </v-dialog>
+  </GuardedDialog>
 
   <ConfirmDialog
     v-model="confirmOpen"
@@ -176,6 +184,7 @@ import { useViewDirty } from '@/composables/useViewDirty'
 import { notify } from '@kyvg/vue3-notification'
 import { notifyFailure } from '@/utils/notifyFailure'
 import FailureAlert from '@/components/FailureAlert.vue'
+import GuardedDialog from '@/components/GuardedDialog.vue'
 import { defineComponent, ref } from 'vue'
 import { aiiApiGet, aiiApiPost, aiiApiDelete } from '@/common/services'
 import { required } from '@/common/validation'
@@ -195,7 +204,7 @@ interface Role {
 }
 
 export default defineComponent({
-  components: { ConfirmDialog, FailureAlert },
+  components: { ConfirmDialog, FailureAlert, GuardedDialog },
   setup() {
     const { confirmOpen, confirmation, ask, runConfirmed } = useConfirmation()
     const dirty = ref(false)
@@ -234,6 +243,9 @@ export default defineComponent({
     pendingCount(): number {
       return Object.keys(this.pending).length;
     },
+    newRightDirty(): boolean {
+      return Object.values(this.newRight).some((value) => value.trim() !== '')
+    },
   },
 
   watch: {
@@ -247,6 +259,11 @@ export default defineComponent({
   },
 
   methods: {
+    openAddRight() {
+      this.newRight = { name: '', description: '', claim_key: '', claim_value: '' }
+      this.addRightDialog = true
+    },
+
     async addRight() {
       const form = this.$refs.addRightForm as { validate: () => Promise<{ valid: boolean }> }
       if (!(await form.validate()).valid) return
@@ -255,7 +272,6 @@ export default defineComponent({
         await aiiApiPost('projects/rights', this.newRight)
         notify({ type: 'success', text: `Right "${this.newRight.name}" added.` })
         this.addRightDialog = false
-        this.newRight = { name: '', description: '', claim_key: '', claim_value: '' }
         await this.load()
       } catch (error: unknown) {
         notifyFailure('Right not added', `Could not add the right "${this.newRight.name}".`, error)
@@ -325,6 +341,7 @@ export default defineComponent({
           type: 'success',
           text: `Reset complete: ${result.reset} role-right assignments applied.`,
         })
+        this.pending = {}
         await this.load()
       } catch (error: unknown) {
         notifyFailure('Role rights not reset', 'Could not reset the role rights.', error)
@@ -347,12 +364,20 @@ export default defineComponent({
         const committed: Record<number, Set<number>> = {};
         await Promise.all(
           roles.map(async (role: Role) => {
-            const roleRights: Right[] = await aiiApiGet(`projects/roles/${role.id}/rights`);
-            committed[role.id] = new Set(roleRights.map((r) => r.id));
-          })
-        );
-        this.committed = committed;
-        this.pending = {};
+            const roleRights: Right[] = await aiiApiGet(`projects/roles/${role.id}/rights`)
+            committed[role.id] = new Set(roleRights.map((r) => r.id))
+          }),
+        )
+        this.committed = committed
+        // Adding, deleting and saving reload the matrix; staged changes survive
+        // unless they no longer apply.
+        this.pending = Object.fromEntries(
+          Object.entries(this.pending).filter(([key, grant]) => {
+            const [roleId, rightId] = key.split('-').map(Number)
+            const exists = rights.some((r: Right) => r.id === rightId)
+            return exists && (committed[roleId]?.has(rightId) ?? false) !== grant
+          }),
+        )
       } catch (error) {
         this.loadError = error
       } finally {

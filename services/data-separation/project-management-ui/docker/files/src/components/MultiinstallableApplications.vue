@@ -1,15 +1,21 @@
 <template>
     <v-col>
         <!-- ── Launch dialog ───────────────────────────────────────── -->
-        <v-dialog v-model="isLaunchAppDialogOpen" max-width="600">
+        <GuardedDialog
+            v-slot="{ requestClose }"
+            v-model="isLaunchAppDialogOpen"
+            :dirty="launchDirty"
+            max-width="600"
+        >
             <LaunchApplication
                 v-if="selectedApplication"
                 :extension="selectedApplication"
                 :busy="isLaunching"
                 @submit="onApplicationLaunched"
-                @close="isLaunchAppDialogOpen = false"
+                @close="requestClose"
+                @update:dirty="launchDirty = $event"
             />
-        </v-dialog>
+        </GuardedDialog>
 
         <!-- ── Section header ─────────────────────────────────────── -->
         <SectionHeader :expanded="expanded" @toggle="emit('toggle', $event)">
@@ -27,7 +33,7 @@
 
             <template v-if="can(project?.id, 'manage_applications_whitelist')" #actions>
                 <v-chip v-if="pendingCount > 0" color="warning" variant="tonal" size="small">
-                    {{ pendingCount }} unsaved
+                    {{ pendingCount }} unsaved change{{ pendingCount !== 1 ? 's' : '' }}
                 </v-chip>
                 <v-btn v-if="pendingCount > 0" size="small" variant="text" @click="discardChanges">Discard</v-btn>
                 <v-btn
@@ -168,6 +174,7 @@ import { notify } from '@kyvg/vue3-notification'
 import { notifyFailure } from '@/utils/notifyFailure'
 import SectionHeader from '@/components/SectionHeader.vue'
 import LaunchApplication from '@/components/LaunchApplication.vue'
+import GuardedDialog from '@/components/GuardedDialog.vue'
 
 interface Extension {
     releaseName: string;
@@ -266,6 +273,7 @@ const saveChanges = async () => {
 // ── Launch dialog ──────────────────────────────────────────────────────────
 
 const isLaunchAppDialogOpen = ref(false)
+const launchDirty = ref(false)
 const isLaunching = ref(false)
 const selectedApplication = ref<any>(null)
 

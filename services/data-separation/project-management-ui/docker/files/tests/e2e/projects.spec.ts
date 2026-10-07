@@ -15,6 +15,7 @@ import {
   collectPageErrors,
   confirmAction,
   dialog,
+  discardQuestion,
   failRoute,
   nextRequest,
   openProject,
@@ -212,7 +213,8 @@ test.describe('creating a project', () => {
     await page.getByRole('button', { name: 'Create New Project' }).click()
     await dialog(page).getByLabel('Project name').fill('draft')
     await dialog(page).getByRole('button', { name: 'Cancel' }).click()
-    await expect(dialog(page)).toBeHidden()
+    await discardQuestion(page).getByRole('button', { name: 'Discard changes' }).click()
+    await expect(dialog(page).filter({ visible: true })).toHaveCount(0)
 
     await page.getByRole('button', { name: 'Create New Project' }).click()
     await expect(dialog(page).getByLabel('Project name')).toHaveValue('')
@@ -264,7 +266,8 @@ test.describe('editing, archiving and deleting', () => {
     await edit.click()
     await dialog(page).getByLabel('Description').fill('discarded')
     await dialog(page).getByRole('button', { name: 'Cancel' }).click()
-    await expect(dialog(page)).toBeHidden()
+    await discardQuestion(page).getByRole('button', { name: 'Discard changes' }).click()
+    await expect(dialog(page).filter({ visible: true })).toHaveCount(0)
 
     await edit.click()
     await expect(dialog(page).getByLabel('Description')).toHaveValue(RESEARCH_PROJECT.description!)

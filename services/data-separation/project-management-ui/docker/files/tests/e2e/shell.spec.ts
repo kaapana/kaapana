@@ -34,14 +34,14 @@ test('the project page stays dirty while any section has staged changes', async 
   })
 
   await row(page, 'nnunet-predict').getByRole('checkbox').click()
-  await expect(workflows.getByText('1 unsaved')).toBeVisible()
+  await expect(workflows.getByText('1 unsaved change')).toBeVisible()
   await row(page, 'Tensorboard').getByRole('checkbox').click()
-  await expect(apps.getByText('1 unsaved')).toBeVisible()
+  await expect(apps.getByText('1 unsaved change')).toBeVisible()
   await expect.poll(async () => lastDirty(await messages())).toBe(true)
 
   await workflows.getByRole('button', { name: 'Save Changes' }).click()
   await expect(workflows.getByText('unsaved')).toHaveCount(0)
-  await expect(apps.getByText('1 unsaved')).toBeVisible()
+  await expect(apps.getByText('1 unsaved change')).toBeVisible()
   expect(lastDirty(await messages())).toBe(true)
 
   await apps.getByRole('button', { name: 'Discard' }).click()

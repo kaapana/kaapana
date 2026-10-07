@@ -161,29 +161,41 @@
         </v-expand-transition>
 
         <!-- ── Add users dialog ────────────────────────────────────── -->
-        <v-dialog v-model="isAddDialogOpen" max-width="600" scrollable>
+        <GuardedDialog
+            v-slot="{ requestClose }"
+            v-model="isAddDialogOpen"
+            :dirty="addDirty"
+            max-width="600"
+        >
             <AddUserToProject
                 v-if="isAddDialogOpen"
                 :project="project"
                 action-type="add"
                 :existing-user-ids="users.map((u) => u.id)"
-                @cancel="closeAddDialog"
+                @cancel="requestClose"
+                @update:dirty="addDirty = $event"
                 @success="onUserOperationSuccess"
             />
-        </v-dialog>
+        </GuardedDialog>
 
         <!-- ── Edit user role dialog ───────────────────────────────── -->
-        <v-dialog v-model="isEditDialogOpen" max-width="600" scrollable>
+        <GuardedDialog
+            v-slot="{ requestClose }"
+            v-model="isEditDialogOpen"
+            :dirty="editDirty"
+            max-width="600"
+        >
             <AddUserToProject
                 v-if="isEditDialogOpen && selectedUser"
                 :project="project"
                 action-type="update"
                 :user-to-edit="selectedUser"
                 :existing-user-ids="users.filter((u) => u.id !== selectedUser!.id).map((u) => u.id)"
-                @cancel="closeEditDialog"
+                @cancel="requestClose"
+                @update:dirty="editDirty = $event"
                 @success="onUserOperationSuccess"
             />
-        </v-dialog>
+        </GuardedDialog>
 
         <ConfirmDialog
             v-model="confirmOpen"
@@ -206,6 +218,7 @@ import { isAdminUser, isSystemUser, waitForStoreUser } from '@/common/userAccess
 import AddUserToProject from './AddUserToProject.vue'
 import SearchBar from '@/components/SearchBar.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
+import GuardedDialog from '@/components/GuardedDialog.vue'
 import ListEmptyState from '@/components/ListEmptyState.vue'
 import { ConfirmDialog } from '@kaapana/base-ui'
 import { useConfirmation } from '@/composables/useConfirmation'
@@ -250,6 +263,8 @@ const removingUserId = ref<string | null>(null)
 
 const isAddDialogOpen = ref(false)
 const isEditDialogOpen = ref(false)
+const addDirty = ref(false)
+const editDirty = ref(false)
 
 const selectedUser = ref<UserWithRole | undefined>(undefined)
 const { confirmOpen, confirmation, ask, runConfirmed } = useConfirmation()
@@ -309,10 +324,6 @@ watch(
 // ── Dialog helpers ─────────────────────────────────────────────────────────
 
 const openAddUserDialog = () => { isAddDialogOpen.value = true; };
-
-const closeAddDialog = () => {
-    isAddDialogOpen.value = false;
-};
 
 const openEditUserDialog = (user: UserWithRole) => {
     selectedUser.value = user;

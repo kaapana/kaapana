@@ -118,13 +118,14 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(["close", "submit"]);
+const emit = defineEmits(['close', 'submit', 'update:dirty'])
 
 /* ---------------------------
    FORM STATE
 ---------------------------- */
-const formRef = ref(null);
-const formValues = ref({});
+const formRef = ref(null)
+const formValues = ref({})
+const initialValues = ref({})
 
 /* ---------------------------
    INITIALIZE PARAM VALUES
@@ -132,7 +133,8 @@ const formValues = ref({});
 watch(
   () => props.extension,
   (ext) => {
-    formValues.value = {};
+    formValues.value = {}
+    initialValues.value = {}
 
     if (!ext || !ext.extension_params) return;
 
@@ -154,10 +156,17 @@ watch(
         default:
           break;
       }
-    });
+    })
+    initialValues.value = JSON.parse(JSON.stringify(formValues.value))
   },
   { immediate: true }
 );
+
+watch(
+  () => JSON.stringify(formValues.value) !== JSON.stringify(initialValues.value),
+  (dirty) => emit('update:dirty', dirty),
+  { immediate: true },
+)
 
 /* ---------------------------
    TITLE CONDITION

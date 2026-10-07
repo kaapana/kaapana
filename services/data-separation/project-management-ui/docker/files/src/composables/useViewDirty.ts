@@ -4,8 +4,12 @@ import { postViewDirty } from '@kaapana/base-ui'
 // The shell keeps one dirty flag per view, so publish the OR of all sections.
 const reports = new Map<symbol, boolean>()
 
+export function hasUnsavedChanges(): boolean {
+  return [...reports.values()].some(Boolean)
+}
+
 function publish() {
-  postViewDirty([...reports.values()].some(Boolean))
+  postViewDirty(hasUnsavedChanges())
 }
 
 export function useViewDirty(dirty: Ref<boolean>) {

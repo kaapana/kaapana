@@ -165,21 +165,28 @@
       </v-data-table>
     </v-card>
   </v-container>
-  <v-dialog v-model="projectDialog" max-width="600">
+  <GuardedDialog
+    v-slot="{ requestClose }"
+    v-model="projectDialog"
+    :dirty="createDirty"
+    max-width="600"
+  >
     <CreateNewProjectForm
       v-if="projectDialog"
       @created="handleProjectCreated"
-      @cancel="projectDialog = false"
+      @cancel="requestClose"
+      @update:dirty="createDirty = $event"
     />
-  </v-dialog>
-  <v-dialog v-model="editDialog" max-width="600">
+  </GuardedDialog>
+  <GuardedDialog v-slot="{ requestClose }" v-model="editDialog" :dirty="editDirty" max-width="600">
     <EditProjectDialog
       v-if="editDialog && selectedProject"
       :project="selectedProject"
       @success="handleEditSuccess"
-      @cancel="editDialog = false"
+      @cancel="requestClose"
+      @update:dirty="editDirty = $event"
     />
-  </v-dialog>
+  </GuardedDialog>
   <ConfirmDialog
     v-model="confirmOpen"
     :color="confirmation.color"
@@ -198,6 +205,7 @@ import { ConfirmDialog, refreshShell } from '@kaapana/base-ui'
 import CreateNewProjectForm from '@/components/CreateNewProjectForm.vue'
 import EditProjectDialog from '@/components/EditProjectDialog.vue'
 import FailureAlert from '@/components/FailureAlert.vue'
+import GuardedDialog from '@/components/GuardedDialog.vue'
 import ListEmptyState from '@/components/ListEmptyState.vue'
 import { aiiApiGet, aiiApiDelete, aiiApiPost } from '@/common/services'
 import { ProjectItem, UserItem } from '@/common/types'
@@ -219,6 +227,8 @@ const userHasAdminAccess = computed(() => !!user.value && isAdminUser(user.value
 
 const projectDialog = ref(false)
 const editDialog = ref(false)
+const createDirty = ref(false)
+const editDirty = ref(false)
 const selectedProject = ref<ProjectItem | null>(null)
 const busy = ref<{ id: string; action: 'delete' | 'archive' | 'unarchive' } | null>(null)
 

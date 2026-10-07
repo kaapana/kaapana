@@ -35,7 +35,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { aiiApiPut } from '@/common/services'
 import { ProjectItem } from '@/common/types'
 import { projectNameHint, projectNameRules, required } from '@/common/validation'
@@ -46,6 +46,7 @@ const props = defineProps<{ project: ProjectItem }>()
 const emit = defineEmits<{
   (e: 'success'): void
   (e: 'cancel'): void
+  (e: 'update:dirty', dirty: boolean): void
 }>()
 
 const form = ref<{ validate: () => Promise<{ valid: boolean }> } | null>(null)
@@ -57,6 +58,15 @@ const failure = ref<unknown>(null)
 const failureText = computed(() => `Could not save "${props.project.name}".`)
 // Names from before the current rules stay valid as long as they are kept.
 const nameRules = computed(() => (name.value === props.project.name ? [] : projectNameRules))
+
+watch(
+  () =>
+    name.value !== props.project.name ||
+    description.value !== (props.project.description ?? '') ||
+    externalId.value !== (props.project.external_id ?? ''),
+  (dirty) => emit('update:dirty', dirty),
+  { immediate: true },
+)
 
 async function submit() {
   if (!(await form.value!.validate()).valid) return

@@ -380,8 +380,6 @@ function startWorkflowManually(item: Workflow) {
   shouldExpand.value = false
   manuallyStartClientWorkflowAPI(item.workflow_id, 'confirmed')
 }
-// A workflow whose jobs are all in a terminal state is done; aborting it is a
-// silent no-op on the backend, which otherwise still reports success.
 function isWorkflowTerminal(item: Workflow): boolean {
   return item.workflow_jobs.length > 0 && item.workflow_jobs.every(isTerminalJobStatus)
 }
@@ -412,9 +410,6 @@ function deleteWorkflow(item: Workflow) {
 }
 
 // API Calls
-// `probeEmpty` asks the backend whether the workflow has any jobs at all when
-// this request comes back empty. Only a request the user triggered wants that:
-// the background refresh would otherwise repeat the same warning every 15s.
 function getJobsOfWorkflow(
   workflow_name: string,
   state: string | undefined,

@@ -169,8 +169,7 @@ import { isTerminalJobStatus, jobStatusColor } from '@/utils/jobStatus'
 
 const props = defineProps<{
   jobs: Job[]
-  // The job state the rows were fetched for, when the user picked one from the
-  // workflow's status chips. Undefined means "all states".
+  // undefined means "all states"
   statusFilter?: string
 }>()
 

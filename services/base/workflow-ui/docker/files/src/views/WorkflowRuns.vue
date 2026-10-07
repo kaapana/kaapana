@@ -1,519 +1,494 @@
 <template>
-	<v-container fluid>
-		<v-container class="pad-lg">
-			<!-- Header -->
-			<v-row class="mb-4">
-				<v-col cols="12">
-					<div class="d-flex align-center justify-space-between mb-4">
-						<h1 class="text-h5 mb-0">Workflow Runs</h1>
+  <v-container fluid class="text-left runs-view">
+    <div class="d-flex flex-wrap align-start justify-space-between ga-4 mb-4">
+      <div>
+        <h1 class="text-h4">Workflow runs</h1>
+        <p class="text-body-2 text-medium-emphasis mt-1">
+          Follow, cancel, retry and delete the workflow runs of this project.
+          <template v-if="polling">The list updates automatically while runs are active.</template>
+        </p>
+      </div>
 
-						<div class="d-flex align-center gap-2">
-							<v-btn small variant="text" color="primary" aria-label="info" @click="showInfo = true">
-								<v-icon size="32">mdi-information</v-icon>
-							</v-btn>
+      <div class="d-flex flex-wrap align-center ga-2">
+        <v-btn
+          color="error"
+          variant="tonal"
+          prepend-icon="mdi-broom"
+          :disabled="eligibleForCleanup.length === 0 || cleanupRunning"
+          :loading="cleanupRunning"
+          @click="askBulkCleanup"
+        >
+          Clean finished runs
+        </v-btn>
+        <v-btn
+          :prepend-icon="kaapanaIcons.refresh"
+          :loading="refreshing"
+          :disabled="loading"
+          @click="loadRuns()"
+        >
+          Refresh
+        </v-btn>
+      </div>
+    </div>
 
-							<v-btn small color="warning" aria-label="clean"
-								:disabled="eligibleForCleanup.length === 0" @click="openBulkCleanup">
-								<v-icon left size="18">mdi-broom</v-icon>
-								CLEAN
-							</v-btn>
+    <SearchBar
+      v-model:filters="appliedFilters"
+      v-model:text="searchText"
+      v-model:sort="sort"
+      :runs="runs"
+      class="mb-4"
+    />
 
-							<v-btn small color="primary" aria-label="refresh" @click="loadData" :loading="isRefreshing">
-								<v-icon left size="18">mdi-refresh</v-icon>
-								REFRESH
-							</v-btn>
-						</div>
-					</div>
+    <div
+      v-if="runs.length"
+      class="d-flex flex-wrap align-center ga-2 mb-4"
+      data-testid="status-summary"
+    >
+      <span class="text-body-2">
+        {{ runs.length }} {{ runs.length === 1 ? 'run' : 'runs' }}
+        <span v-if="visibleRuns.length !== runs.length" class="text-medium-emphasis">
+          ({{ visibleRuns.length }} shown)
+        </span>
+      </span>
+      <v-chip
+        v-for="(count, status) in statusStatistics"
+        :key="status"
+        size="small"
+        :color="statusColor(status)"
+        :variant="isStatusFiltered(status) ? 'flat' : 'outlined'"
+        :aria-pressed="isStatusFiltered(status)"
+        :aria-label="`${status}: ${count}. ${isStatusFiltered(status) ? 'Remove' : 'Add'} status filter`"
+        @click="toggleStatusFilter(status)"
+      >
+        {{ status }} · {{ count }}
+      </v-chip>
+    </div>
 
-					<!-- Search bar component -->
-					<SearchBar :runs="runs" :filter-fields="['workflow', 'status', 'external_id']" @update:filters="onSearchUpdate" @apply:filtered="onSearchApply" />
-				</v-col>
-			</v-row>
+    <CollectionState
+      v-if="loadError"
+      state="error"
+      noun="workflow runs"
+      empty-text=""
+      error-text="The workflow service could not be reached or reported an error. Try again, or contact your administrator if it persists."
+      has-error-details
+      :retrying="loading"
+      @retry="loadRuns()"
+      @show-details="showLoadErrorDetails"
+    />
 
-			<v-row class="mb-2">
-				<v-col cols="12">
-					<!-- Statistics Header -->
-					<v-card v-if="!loading">
-						<v-card-text class="py-3">
-							<div class="d-flex align-center justify-space-between flex-wrap gap-3">
-								<!-- Total count -->
-								<div class="d-flex align-center gap-2">
-									<v-icon size="20" color="primary">mdi-counter</v-icon>
-									<span class="text-body-2 font-weight-medium">
-										Total: <strong>{{ runs.length }}</strong> runs
-									</span>
-									<span class="text-caption text-medium-emphasis"
-										v-if="sortedFilteredRuns.length !== runs.length">
-										({{ sortedFilteredRuns.length }} filtered)
-									</span>
-								</div>
+    <v-card v-else :elevation="2">
+      <v-data-table
+        :headers="tableHeaders"
+        :items="visibleRuns"
+        :loading="loading"
+        loading-text="Loading workflow runs…"
+        :items-per-page="25"
+        :items-per-page-options="[10, 25, 50, 100]"
+        density="comfortable"
+      >
+        <template #item="{ item }">
+          <WorkflowRunRow
+            :run="item"
+            :busy="busyRuns[item.id] ?? null"
+            @cancel="askCancel"
+            @retry="retryRun"
+            @clean="askCleanup"
+            @delete="askDelete"
+            @view-logs="viewLogs"
+          />
+        </template>
+        <template #no-data>
+          <CollectionState
+            :state="runs.length ? 'no-matches' : 'empty'"
+            noun="workflow runs"
+            empty-text="Start a workflow to see its run here."
+            @clear-filters="clearFilters"
+          >
+            <template #empty-actions>
+              <v-btn color="primary" variant="text" @click="navigateShell(WORKFLOWS_SHELL_ROUTE)">
+                Open workflows
+              </v-btn>
+            </template>
+          </CollectionState>
+        </template>
+      </v-data-table>
+    </v-card>
 
-								<!-- Status breakdown -->
-								<div class="d-flex align-center gap-2 flex-wrap">
-									<span class="text-caption text-medium-emphasis mr-1">Status:</span>
-									<v-chip v-for="(count, status) in statusStatistics" :key="status" size="small"
-										:color="statusColor(status)"
-										:variant="isStatusFiltered(status) ? 'flat' : 'outlined'"
-										@click="toggleStatusFilter(status)" class="stats-chip">
-										<span class="font-weight-medium">{{ status }}</span>
-										<v-divider vertical class="mx-1" />
-										<span>{{ count }}</span>
-									</v-chip>
-								</div>
-							</div>
-						</v-card-text>
-					</v-card>
-				</v-col>
-			</v-row>
-
-			<!-- Info dialog -->
-			<v-dialog v-model="showInfo" max-width="600">
-				<v-card>
-					<v-card-title>About the Workflow Runs page</v-card-title>
-					<v-card-text>
-						This page displays all workflow runs in a single table. Use the search field to build query
-						filters
-						(status:, workflow:, id:). Runs are always sorted by creation date (newest first). You can
-						cancel running
-						workflows or retry failed ones.
-					</v-card-text>
-					<v-card-actions>
-						<v-spacer />
-						<v-btn text @click="showInfo = false">Close</v-btn>
-					</v-card-actions>
-				</v-card>
-			</v-dialog>
-
-			<!-- Cleanup confirmation dialog (shared for single + bulk) -->
-			<v-dialog v-model="confirmCleanup.open" max-width="520">
-				<v-card>
-					<v-card-title class="d-flex align-center">
-						<v-icon class="mr-2" color="warning">mdi-broom</v-icon>
-						{{ confirmCleanup.mode === 'bulk' ? 'Clean finished workflow runs' : 'Clean workflow run' }}
-					</v-card-title>
-					<v-card-text>
-						<template v-if="confirmCleanup.mode === 'bulk'">
-							This will delete the on-disk data directory for
-							<strong>{{ confirmCleanup.count }} finished run(s)</strong>.
-							The action is irreversible. Logs and run metadata are kept.
-						</template>
-						<template v-else-if="confirmCleanup.target">
-							This will delete the on-disk data directory for workflow run
-							<strong>{{ confirmCleanup.target.id }}</strong>
-							(<code>{{ confirmCleanup.target.workflow?.title }}</code>).
-							The action is irreversible. Logs and run metadata are kept.
-						</template>
-					</v-card-text>
-					<v-card-actions>
-						<v-spacer />
-						<v-btn text @click="confirmCleanup.open = false" :disabled="cleanupRunning">Cancel</v-btn>
-						<v-btn color="warning" variant="elevated" :loading="cleanupRunning"
-							@click="executeCleanup">
-							<v-icon left>mdi-broom</v-icon>
-							Clean
-						</v-btn>
-					</v-card-actions>
-				</v-card>
-			</v-dialog>
-
-			<v-row>
-				<!-- WORKFLOW RUNS TABLE -->
-				<v-col cols="12">
-					<!-- Loading state -->
-					<v-row v-if="loading" class="d-flex justify-center align-center" style="min-height: 300px;">
-						<v-progress-circular indeterminate color="primary" size="64" />
-					</v-row>
-
-					<!-- Error state -->
-					<v-row v-else-if="error" class="d-flex justify-center">
-						<v-col cols="12">
-							<v-alert type="error" prominent>{{ error }}</v-alert>
-						</v-col>
-					</v-row>
-
-					<!-- Empty state -->
-					<v-row v-else-if="runs.length === 0" class="d-flex justify-center">
-						<v-col cols="12">
-							<v-alert type="info" prominent>No workflow runs available.</v-alert>
-						</v-col>
-					</v-row>
-
-					<!-- Runs table -->
-					<v-data-table v-else :headers="tableHeaders" :items="sortedFilteredRuns" density="comfortable"
-						class="workflow-runs-table" :items-per-page="25" :items-per-page-options="[10, 25, 50, 100]">
-						<template #item="{ item }">
-							<WorkflowRunRow :run="item" @cancel="cancelRun" @retry="retryRun" @view-logs="viewLogs"
-								@clean="openSingleCleanup" />
-						</template>
-					</v-data-table>
-
-					<!-- Filtered state - runs exist but none match filters -->
-					<v-row v-if="!loading && runs.length > 0 && sortedFilteredRuns.length === 0"
-						class="d-flex justify-center mt-4">
-						<v-col cols="12">
-							<v-alert type="info" prominent>No workflow runs match your filters.</v-alert>
-						</v-col>
-					</v-row>
-				</v-col>
-			</v-row>
-<LogViewer v-if="selectedWorkflowRunId !== null" v-model="logViewerOpen" :workflow-run-id="selectedWorkflowRunId" :workflow-title="selectedWorkflowTitle" :workflow-version="selectedWorkflowVersion" :run-status="selectedRunStatus" :task-runs="selectedTaskRuns" />
-</v-container>
-
-		<!-- Snackbar for notifications -->
-		<v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="4000" location="top right">
-			{{ snackbar.message }}
-			<template #actions>
-				<v-btn variant="text" @click="snackbar.show = false">
-					Close
-				</v-btn>
-			</template>
-		</v-snackbar>
-	</v-container>
+    <ConfirmDialog
+      v-model="confirmOpen"
+      :title="confirmContent.title"
+      :text="confirmContent.text"
+      :confirm-text="confirmContent.confirmText"
+      :cancel-text="confirmContent.cancelText"
+      color="error"
+      @confirm="executeConfirmed"
+    />
+  </v-container>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import LogViewer from '@/components/LogViewer.vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import {
+  apiErrorInfo,
+  ConfirmDialog,
+  kaapanaIcons,
+  navigateShell,
+  type ApiErrorInfo,
+} from '@kaapana/base-ui'
+import CollectionState from '@/components/CollectionState.vue'
 import SearchBar from '@/components/SearchBar.vue'
-import WorkflowRunRow from '@/components/WorkflowRun.vue'
+import WorkflowRunRow from '@/components/WorkflowRunRow.vue'
 import { workflowRunsApi } from '@/api/workflowRuns'
-import type { WorkflowRun, TaskRun } from '@/types/schemas'
-import { statusColor } from '@/utils/status'
+import { useFailureDetailsStore } from '@/stores/failureDetails'
+import { notifyFailure, notifySuccess, notifyWarning, WORKFLOWS_SHELL_ROUTE } from '@/utils/notify'
+import {
+  filterAndSortRuns,
+  RUN_STATUS_VALUES,
+  type RunFilter,
+  type RunSort,
+} from '@/utils/runFilters'
+import {
+  ACTIVE_RUN_STATES,
+  canClean,
+  CLEANUP_IN_PROGRESS,
+  statusColor,
+  type RunAction,
+} from '@/utils/status'
+import type { WorkflowRun } from '@/types/schemas'
 
-// --- STATE ---
+// workflow-api syncs run states from the engine every 30 s, so polling more
+// often than this shows nothing new.
+const POLL_INTERVAL_MS = 15_000
+const LOAD_ERROR_TEXT = 'The workflow runs could not be loaded.'
+
+const router = useRouter()
+const failureDetails = useFailureDetailsStore()
+
 const runs = ref<WorkflowRun[]>([])
-const loading = ref(true)
-const error = ref<string | null>(null)
+const loading = ref(false)
+const refreshing = ref(false)
+const loadError = ref<ApiErrorInfo | null>(null)
+const pollFailureReported = ref(false)
 
-// UI state
-const showInfo = ref(false)
-const isRefreshing = ref(false)
-const textSearchQuery = ref('')
-const valueSearchQuery = ref('')
+const appliedFilters = ref<RunFilter[]>([])
+const searchText = ref('')
+const sort = ref<RunSort>({ field: 'created_at', direction: 'desc' })
 
-// LogViewer state
-const logViewerOpen = ref(false)
-const selectedWorkflowRunId = ref<number | null>(null)
-const selectedWorkflowTitle = ref('')
-const selectedWorkflowVersion = ref(0)
-const selectedRunStatus = ref('')
-const selectedTaskRuns = ref<TaskRun[]>([])
-
-const snackbar = ref({
-	show: false,
-	message: '',
-	color: 'success'
-})
-
-function showSnackbar(message: string, color: string = 'success') {
-	snackbar.value = {
-		show: true,
-		message,
-		color
-	}
-}
-
-// Handlers for SearchBar component
-function onSearchUpdate(payload: { appliedFilters: Array<{ field: string; value: string }>; text: string }) {
-	appliedFilters.value = Array.isArray(payload?.appliedFilters) ? payload.appliedFilters.slice() : []
-	textSearchQuery.value = payload?.text || ''
-}
-
-// Store the filtered results from SearchBar
-const searchBarFiltered = ref<WorkflowRun[]>([])
-
-function onSearchApply(filtered: WorkflowRun[]) {
-	// Store the filtered and sorted results from SearchBar
-	searchBarFiltered.value = filtered
-}
-
-// --- FILTER BUILDER STATE ---
-interface FilterValue {
-	field: string | null
-	value: string | null
-}
-
-interface AppliedFilter {
-	field: string
-	value: string
-}
-
-const buildingFilter = ref<FilterValue>({
-	field: null,
-	value: null
-})
-
-const appliedFilters = ref<AppliedFilter[]>([])
-
-const tableHeaders: any = [
-	{ title: 'Status', key: 'lifecycle_status', sortable: false, width: '130px', align: 'center' },
-	{ title: 'Workflow', key: 'workflow_title', sortable: false, width: '250px', align: 'start' },
-	{ title: 'Created At', key: 'created_at', sortable: false, width: '180px', align: 'center' },
-	{ title: 'Updated At', key: 'updated_at', sortable: false, width: '180px', align: 'center' },
-	{ title: 'External ID', key: 'external_id', sortable: false, width: '200px', align: 'start' },
-	{ title: 'Actions', key: 'actions', sortable: false, width: '120px', align: 'center' },
+const tableHeaders = [
+  { title: 'Status', key: 'lifecycle_status', sortable: false, width: '130px' },
+  { title: 'Workflow', key: 'workflow', sortable: false },
+  { title: 'Created', key: 'created_at', sortable: false, width: '150px' },
+  { title: 'Updated', key: 'updated_at', sortable: false, width: '150px' },
+  { title: 'External ID', key: 'external_id', sortable: false, width: '200px' },
+  { title: 'Data', key: 'cleanup_status', sortable: false, width: '150px' },
+  { title: 'Actions', key: 'actions', sortable: false, align: 'end' as const, width: '240px' },
 ]
 
-// --- LOAD DATA ---
-async function loadData() {
-	if (isRefreshing.value) return
+const visibleRuns = computed(() =>
+  filterAndSortRuns(runs.value, appliedFilters.value, searchText.value, sort.value),
+)
 
-	loading.value = true
-	isRefreshing.value = true
-	error.value = null
-	try {
-		const runsData = await workflowRunsApi.getAll()
-		runs.value = Array.isArray(runsData) ? runsData : []
-	} catch (err) {
-		console.error(err)
-		error.value = 'Failed to fetch workflow runs.'
-		runs.value = []
-	} finally {
-		loading.value = false
-		isRefreshing.value = false
-	}
-}
-
-onMounted(loadData)
-
-// --- FILTER AND SORT ---
-// Use SearchBar's filtered results if available, otherwise show all runs
-const sortedFilteredRuns = computed(() => {
-	// If SearchBar has emitted filtered results, use those (includes sorting)
-	if (searchBarFiltered.value.length > 0 || appliedFilters.value.length > 0 || textSearchQuery.value) {
-		return searchBarFiltered.value
-	}
-
-	// Otherwise show all runs, sorted by created_at descending
-	const sorted = [...runs.value]
-	sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-	return sorted
-})
-
-// --- STATISTICS ---
 const statusStatistics = computed(() => {
-	const stats: Record<string, number> = {}
-
-	for (const run of runs.value) {
-		const status = run.lifecycle_status
-		stats[status] = (stats[status] || 0) + 1
-	}
-
-	// Sort by predefined order
-	const order = ['Running', 'Pending', 'Scheduled', 'Created', 'Completed', 'Error', 'Canceled']
-	const sorted: Record<string, number> = {}
-
-	for (const status of order) {
-		if (stats[status]) {
-			sorted[status] = stats[status]
-		}
-	}
-
-	return sorted
+  const stats: Record<string, number> = {}
+  for (const run of runs.value) stats[run.lifecycle_status] = (stats[run.lifecycle_status] ?? 0) + 1
+  return Object.fromEntries(RUN_STATUS_VALUES.filter((s) => stats[s]).map((s) => [s, stats[s]]))
 })
 
-// Check if a status is currently filtered
-function isStatusFiltered(status: string): boolean {
-	return appliedFilters.value.some(f =>
-		f.field === 'status' &&
-		f.value.toLowerCase() === status.toLowerCase()
-	)
+function isStatusFilter(f: RunFilter, status: string) {
+  return (
+    f.field === 'status' && f.operator === '=' && f.value.toLowerCase() === status.toLowerCase()
+  )
 }
 
-// Toggle status filter
+function isStatusFiltered(status: string) {
+  return appliedFilters.value.some((f) => isStatusFilter(f, status))
+}
+
 function toggleStatusFilter(status: string) {
-	const existingIndex = appliedFilters.value.findIndex(f =>
-		f.field === 'status' &&
-		f.value.toLowerCase() === status.toLowerCase()
-	)
-
-	if (existingIndex !== -1) {
-		// Remove the filter
-		appliedFilters.value.splice(existingIndex, 1)
-	} else {
-		// Add the filter
-		appliedFilters.value.push({
-			field: 'status',
-			value: status.toLowerCase()
-		})
-	}
+  appliedFilters.value = isStatusFiltered(status)
+    ? appliedFilters.value.filter((f) => !isStatusFilter(f, status))
+    : [...appliedFilters.value, { field: 'status', operator: '=', value: status }]
 }
 
-// --- UTILITY FUNCTIONS ---
-
-async function cancelRun(run: WorkflowRun) {
-	try {
-		await workflowRunsApi.cancel(run.id)
-		await new Promise(resolve => setTimeout(resolve, 500))
-		await loadData()
-	} catch (err: any) {
-		const errorMessage = err?.response?.data?.detail || err?.message || 'Failed to cancel workflow run'
-		showSnackbar(`Failed to cancel: ${errorMessage}`, 'error')
-	}
+function clearFilters() {
+  appliedFilters.value = []
+  searchText.value = ''
 }
 
-async function retryRun(run: WorkflowRun) {
-	try {
-		const newRun = await workflowRunsApi.retry(run.id)
-		await new Promise(resolve => setTimeout(resolve, 500))
-		await loadData()
-	} catch (err: any) {
-		const errorMessage = err?.response?.data?.detail || err?.message || 'Failed to retry workflow run'
-		showSnackbar(`Failed to retry: ${errorMessage}`, 'error')
-	}
+// --- loading and polling ---
+
+async function loadRuns(options: { silent?: boolean } = {}) {
+  if (loading.value || refreshing.value) return
+  const initial = runs.value.length === 0 && !options.silent
+  if (initial) loading.value = true
+  else if (!options.silent) refreshing.value = true
+  const actionsBefore = finishedActions
+  try {
+    const loaded = await workflowRunsApi.getAll()
+    if (actionsBefore === finishedActions) runs.value = loaded
+    loadError.value = null
+    pollFailureReported.value = false
+  } catch (err) {
+    if (runs.value.length === 0) {
+      loadError.value = apiErrorInfo(err)
+    } else if (!options.silent) {
+      notifyFailure(
+        'Could not refresh the workflow runs',
+        'The list shows the last loaded state.',
+        err,
+      )
+    } else if (!pollFailureReported.value) {
+      pollFailureReported.value = true
+      notifyFailure(
+        'Automatic update failed',
+        'The workflow runs could not be updated. The list shows the last loaded state.',
+        err,
+      )
+    }
+  } finally {
+    loading.value = false
+    refreshing.value = false
+  }
+}
+
+function showLoadErrorDetails() {
+  if (loadError.value) {
+    failureDetails.show({
+      title: 'Could not load the workflow runs',
+      text: LOAD_ERROR_TEXT,
+      error: loadError.value,
+    })
+  }
+}
+
+const hasActiveRuns = computed(() =>
+  runs.value.some(
+    (r) =>
+      ACTIVE_RUN_STATES.includes(r.lifecycle_status) ||
+      CLEANUP_IN_PROGRESS.includes(r.cleanup_status ?? 'not_required'),
+  ),
+)
+const pageVisible = ref(document.visibilityState === 'visible')
+const polling = computed(() => hasActiveRuns.value && !loadError.value)
+let pollTimer: ReturnType<typeof setInterval> | null = null
+
+function onVisibilityChange() {
+  pageVisible.value = document.visibilityState === 'visible'
+}
+
+watch(
+  () => polling.value && pageVisible.value && !confirmOpen.value,
+  (active) => {
+    if (pollTimer) clearInterval(pollTimer)
+    pollTimer = active ? setInterval(() => loadRuns({ silent: true }), POLL_INTERVAL_MS) : null
+  },
+)
+
+onMounted(() => {
+  document.addEventListener('visibilitychange', onVisibilityChange)
+  loadRuns()
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+  if (pollTimer) clearInterval(pollTimer)
+})
+
+// --- actions ---
+
+const busyRuns = ref<Record<number, RunAction>>({})
+let finishedActions = 0
+
+function setBusy(ids: number[], action: RunAction | null) {
+  const next = { ...busyRuns.value }
+  for (const id of ids) {
+    if (action) next[id] = action
+    else delete next[id]
+  }
+  busyRuns.value = next
+}
+
+function replaceRun(updated: WorkflowRun) {
+  runs.value = runs.value.map((r) => (r.id === updated.id ? updated : r))
+}
+
+function removeRun(run: WorkflowRun) {
+  runs.value = runs.value.filter((r) => r.id !== run.id)
+}
+
+function runName(run: WorkflowRun) {
+  return `${run.workflow?.title ?? 'Unknown workflow'} v${run.workflow?.increment ?? 0}`
+}
+
+async function runAction(
+  run: WorkflowRun,
+  action: RunAction,
+  call: () => Promise<WorkflowRun | void>,
+  success: string,
+  failure: [string, string],
+  onDone: (result: WorkflowRun | void) => void = (updated) => updated && replaceRun(updated),
+) {
+  setBusy([run.id], action)
+  try {
+    onDone(await call())
+    finishedActions++
+    notifySuccess(success, `${runName(run)} (run ${run.id})`)
+  } catch (err) {
+    notifyFailure(failure[0], failure[1], err)
+  } finally {
+    setBusy([run.id], null)
+  }
+}
+
+function cancelRun(run: WorkflowRun) {
+  return runAction(run, 'cancel', () => workflowRunsApi.cancel(run.id), 'Run canceled', [
+    'Could not cancel the run',
+    `Run ${run.id} of ${runName(run)} could not be canceled.`,
+  ])
+}
+
+function retryRun(run: WorkflowRun) {
+  return runAction(run, 'retry', () => workflowRunsApi.retry(run.id), 'Run retried', [
+    'Could not retry the run',
+    `Run ${run.id} of ${runName(run)} could not be retried.`,
+  ])
+}
+
+function cleanRun(run: WorkflowRun) {
+  return runAction(run, 'clean', () => workflowRunsApi.clean(run.id), 'Data cleanup queued', [
+    'Could not clean the run data',
+    `The data of run ${run.id} of ${runName(run)} could not be cleaned.`,
+  ])
+}
+
+function deleteRun(run: WorkflowRun) {
+  return runAction(
+    run,
+    'delete',
+    () => workflowRunsApi.delete(run.id),
+    'Run deleted',
+    ['Could not delete the run', `Run ${run.id} of ${runName(run)} could not be deleted.`],
+    () => removeRun(run),
+  )
+}
+
+const eligibleForCleanup = computed(() => runs.value.filter(canClean))
+const cleanupRunning = ref(false)
+
+async function cleanAllFinished() {
+  const targets = eligibleForCleanup.value.slice()
+  const ids = targets.map((r) => r.id)
+  cleanupRunning.value = true
+  setBusy(ids, 'clean')
+  try {
+    const results = await Promise.allSettled(targets.map((r) => workflowRunsApi.clean(r.id)))
+    results.forEach((r) => r.status === 'fulfilled' && replaceRun(r.value))
+    finishedActions++
+    const failed = results.filter((r) => r.status === 'rejected') as PromiseRejectedResult[]
+    if (failed.length === 0) {
+      notifySuccess(
+        'Data cleanup queued',
+        `${targets.length} finished ${targets.length === 1 ? 'run' : 'runs'}`,
+      )
+    } else if (failed.length === results.length) {
+      notifyFailure('Could not clean the run data', 'No cleanup could be queued.', failed[0].reason)
+    } else {
+      notifyWarning(
+        'Some cleanups failed',
+        `Cleanup was queued for ${results.length - failed.length} runs. ${failed.length} could not be queued; try again for those.`,
+      )
+    }
+  } finally {
+    cleanupRunning.value = false
+    setBusy(ids, null)
+  }
+}
+
+type ConfirmTarget =
+  { kind: 'cancel' | 'clean' | 'delete'; run: WorkflowRun } | { kind: 'bulk'; count: number }
+const confirmTarget = ref<ConfirmTarget | null>(null)
+const confirmOpen = ref(false)
+
+function ask(target: ConfirmTarget) {
+  confirmTarget.value = target
+  confirmOpen.value = true
+}
+
+function askCancel(run: WorkflowRun) {
+  ask({ kind: 'cancel', run })
+}
+
+function askCleanup(run: WorkflowRun) {
+  ask({ kind: 'clean', run })
+}
+
+function askDelete(run: WorkflowRun) {
+  ask({ kind: 'delete', run })
+}
+
+function askBulkCleanup() {
+  ask({ kind: 'bulk', count: eligibleForCleanup.value.length })
+}
+
+const confirmContent = computed(() => {
+  const target = confirmTarget.value
+  if (target?.kind === 'cancel') {
+    return {
+      title: `Cancel run ${target.run.id}?`,
+      text: `${runName(target.run)} stops. Running tasks are aborted and tasks that have not started yet do not run.`,
+      confirmText: 'Cancel run',
+      cancelText: 'Keep running',
+    }
+  }
+  if (target?.kind === 'clean') {
+    return {
+      title: `Clean the data of run ${target.run.id}?`,
+      text:
+        `The data directory of ${runName(target.run)} is deleted from the workflow volume. ` +
+        'Logs and run details are kept. This cannot be undone.',
+      confirmText: 'Clean data',
+      cancelText: 'Cancel',
+    }
+  }
+  if (target?.kind === 'delete') {
+    return {
+      title: `Delete run ${target.run.id}?`,
+      text:
+        `${runName(target.run)} is removed with its data, task logs and run details. ` +
+        'This cannot be undone.',
+      confirmText: 'Delete run',
+      cancelText: 'Cancel',
+    }
+  }
+  const count = target?.kind === 'bulk' ? target.count : 0
+  return {
+    title: `Clean the data of ${count} finished ${count === 1 ? 'run' : 'runs'}?`,
+    text:
+      'The data directories of all completed, failed and canceled runs that still have data are deleted from ' +
+      'the workflow volume. Logs and run details are kept. This cannot be undone.',
+    confirmText: 'Clean data',
+    cancelText: 'Cancel',
+  }
+})
+
+function executeConfirmed() {
+  const target = confirmTarget.value
+  if (target?.kind === 'cancel') cancelRun(target.run)
+  else if (target?.kind === 'clean') cleanRun(target.run)
+  else if (target?.kind === 'delete') deleteRun(target.run)
+  else if (target?.kind === 'bulk') cleanAllFinished()
 }
 
 function viewLogs(run: WorkflowRun) {
-  selectedWorkflowRunId.value = run.id
-  selectedWorkflowTitle.value = run.workflow.title ?? ''
-  selectedWorkflowVersion.value = run.workflow.increment
-  selectedRunStatus.value = run.lifecycle_status
-  selectedTaskRuns.value = run.task_runs as any
-  logViewerOpen.value = true
-}
-
-// --- CLEANUP ---
-const TERMINAL_LIFECYCLE = ['Completed', 'Error', 'Canceled']
-const CLEANABLE_CLEANUP = ['not_required', 'failed']
-
-function canCleanRun(run: WorkflowRun): boolean {
-	return (
-		TERMINAL_LIFECYCLE.includes(run.lifecycle_status) &&
-		CLEANABLE_CLEANUP.includes(run.cleanup_status ?? 'not_required')
-	)
-}
-
-const eligibleForCleanup = computed(() => runs.value.filter(canCleanRun))
-
-interface CleanupDialogState {
-	open: boolean
-	mode: 'single' | 'bulk'
-	target?: WorkflowRun
-	count?: number
-}
-
-const confirmCleanup = ref<CleanupDialogState>({
-	open: false,
-	mode: 'single',
-})
-const cleanupRunning = ref(false)
-
-function openSingleCleanup(run: WorkflowRun) {
-	confirmCleanup.value = { open: true, mode: 'single', target: run }
-}
-
-function openBulkCleanup() {
-	confirmCleanup.value = {
-		open: true,
-		mode: 'bulk',
-		count: eligibleForCleanup.value.length,
-	}
-}
-
-async function executeCleanup() {
-	cleanupRunning.value = true
-	try {
-		if (confirmCleanup.value.mode === 'single' && confirmCleanup.value.target) {
-			try {
-				await workflowRunsApi.clean(confirmCleanup.value.target.id)
-				showSnackbar('Cleanup queued.', 'success')
-			} catch (err: any) {
-				showSnackbar(`Failed to clean: ${err?.message || err}`, 'error')
-			}
-		} else if (confirmCleanup.value.mode === 'bulk') {
-			const targets = eligibleForCleanup.value.slice()
-			const results = await Promise.allSettled(
-				targets.map(r => workflowRunsApi.clean(r.id))
-			)
-			const succeeded = results.filter(r => r.status === 'fulfilled').length
-			const failed = results.length - succeeded
-			if (failed === 0) {
-				showSnackbar(`Cleanup queued for ${succeeded} run(s).`, 'success')
-			} else {
-				showSnackbar(
-					`Cleanup queued for ${succeeded} run(s); ${failed} failed.`,
-					failed === results.length ? 'error' : 'warning'
-				)
-			}
-		}
-		confirmCleanup.value.open = false
-		await new Promise(resolve => setTimeout(resolve, 500))
-		await loadData()
-	} finally {
-		cleanupRunning.value = false
-	}
+  router.push({ name: 'WorkflowRunLogs', params: { runId: run.id } })
 }
 </script>
 
 <style scoped>
-.stats-chip {
-	cursor: pointer;
-	transition: all 0.2s ease;
-}
-
-.stats-chip:hover {
-	transform: scale(1.05);
-	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-}
-
-.help-table code {
-	background-color: rgba(var(--v-theme-surface-variant), 0.5);
-	border-radius: 4px;
-	padding: 2px 6px;
-	font-family: 'Courier New', Courier, monospace;
-	font-size: 0.875em;
-}
-
-.stats-card {
-	/* make the outlined card border LESS visible - more subtle than search bar */
-	border-color: rgba(var(--v-theme-on-surface), 0.08) !important;
-	background-color: rgb(var(--v-theme-surface));
-}
-
-:deep(.workflow-runs-table) {
-	background-color: transparent;
-}
-
-:deep(.workflow-runs-table .v-data-table__wrapper) {
-	border-radius: 0;
-}
-
-:deep(.workflow-runs-table thead) {
-	background-color: rgb(var(--v-theme-surface));
-}
-
-:deep(.workflow-runs-table thead th) {
-	text-align: center !important;
-}
-
-:deep(.workflow-runs-table .v-data-table-header__content) {
-	display: flex !important;
-	align-items: center !important;
-	justify-content: center !important;
-}
-
-:deep(.workflow-runs-table .v-data-table-header__sort-icon) {
-	opacity: 0.3;
-}
-
-:deep(.workflow-runs-table th:hover .v-data-table-header__sort-icon) {
-	opacity: 1;
-}
-
-:deep(.workflow-runs-table .v-data-table-header__content > span) {
-	flex-grow: 0 !important;
-}
-
-:deep(.workflow-runs-table tbody tr:hover) {
-	background-color: rgba(var(--v-theme-primary), 0.08) !important;
-}
-
-:deep(.workflow-runs-table tbody td) {
-	padding: 8px 12px !important;
-	text-align: center !important;
-}
-
-.font-mono {
-	font-family: 'Courier New', Courier, monospace;
+/* A readable maximum for a seven-column table; the container centres itself
+   in the space beyond it. */
+.runs-view {
+  max-width: 1600px;
 }
 </style>

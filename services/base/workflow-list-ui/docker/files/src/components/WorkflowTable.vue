@@ -211,7 +211,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useNotification } from '@kyvg/vue3-notification'
 import { ConfirmDialog, kaapanaApiService, kaapanaIcons } from '@kaapana/base-ui'
 import type { Workflow, Job } from '@/types/workflow'
@@ -258,7 +258,6 @@ const jobsofExpandedWorkflow = ref<Job[]>([])
 const filteredJobState = ref<string | undefined>(undefined)
 const shouldExpand = ref(true)
 const shouldCollapse = ref(true)
-const localInstance = ref<any>({})
 const loading = ref(false)
 const options = ref<any>({
   page: 1,
@@ -325,9 +324,6 @@ watch(search, (newValue, _oldValue, onCleanup) => {
   onCleanup(() => clearTimeout(searchDebounce))
 })
 
-onMounted(() => {
-  getLocalInstance()
-})
 
 // General Methods
 function refreshClient() {
@@ -416,18 +412,6 @@ function deleteWorkflow(item: Workflow) {
 }
 
 // API Calls
-function getLocalInstance() {
-  kaapanaApiService
-    .federatedClientApiGet('/kaapana-instance')
-    .then((response: any) => {
-      localInstance.value = response.data
-    })
-    // Deliberately not notified: the view works without it, and a toast on
-    // load would be noise. It still has to be traceable.
-    .catch((err: any) => {
-      console.error('Could not load the local instance', err)
-    })
-}
 // `probeEmpty` asks the backend whether the workflow has any jobs at all when
 // this request comes back empty. Only a request the user triggered wants that:
 // the background refresh would otherwise repeat the same warning every 15s.

@@ -48,11 +48,8 @@
                 <!-- search -->
                 <SearchBar v-model="searchQuery" label="Search applications" />
 
-                <!-- Loading skeleton -->
-                <v-skeleton-loader v-if="isLoading" type="table" class="mt-4" />
-
                 <FailureAlert
-                    v-else-if="loadError"
+                    v-if="loadError"
                     title="Applications not loaded"
                     text="Could not load the applications that can be launched."
                     :error="loadError"
@@ -60,94 +57,98 @@
                 />
 
                 <!-- Applications table -->
-                <v-data-table v-else-if="filteredExtensions.length > 0" :headers="extensionTableHeaders"
-                    :items="filteredExtensions" :sort-by="[{ key: 'name', order: 'asc' }]" multi-sort class="mt-4">
-                <template #item.icon>
-                    <v-icon :icon="projectIcons.application" />
-                </template>
-                <template #item.name="{ item }">
-                    <span class="font-weight-medium">{{ item.annotations['ui-visible-name'] }}</span>
+                <v-data-table
+                    v-else
+                    :loading="isLoading"
+                    loading-text="Loading applications…"
+                    :items-per-page="-1"
+                    hide-default-footer
+                    :headers="extensionTableHeaders"
+                    :items="filteredExtensions"
+                    :sort-by="[{ key: 'name', order: 'asc' }]"
+                    multi-sort
+                    class="mt-4"
+                >
+                    <template #item.icon>
+                        <v-icon :icon="projectIcons.application" />
+                    </template>
+                    <template #item.name="{ item }">
+                        <span class="font-weight-medium">{{ item.annotations['ui-visible-name'] }}</span>
 
-                    <v-tooltip
-                        v-if="item.annotations.documentation"
-                        location="bottom"
-                        text="Open the documentation in a new tab"
-                    >
-                        <template #activator="{ props }">
-                            <v-btn
-                                v-bind="props"
-                                icon
-                                variant="text"
-                                size="small"
-                                color="primary"
-                                :href="getFullEndpoint('/docs/' + item.annotations.documentation)"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                :aria-label="`Documentation for ${item.annotations['ui-visible-name']} (opens in a new tab)`"
-                            >
-                                <v-icon :icon="kaapanaIcons.help" />
-                            </v-btn>
-                        </template>
-                    </v-tooltip>
-                </template>
-                <template #item.description="{ item }">
-                    <v-tooltip location="bottom">
-                        <template #activator="{ props }">
-                            <span v-bind="props" class="d-inline-block text-truncate pm-description">
-                                {{ item.description }}
-                            </span>
-                        </template>
-
-                        <span>{{ item.description }}</span>
-                    </v-tooltip>
-                </template>
-                <template #item.launch="{ item }">
-                    <v-tooltip
-                        text="This application is not whitelisted for this project. Contact your project admin."
-                        :disabled="can(project?.id, 'launch_application', item.releaseName)"
-                        location="top"
-                    >
-                        <template #activator="{ props }">
-                            <span v-bind="props">
+                        <v-tooltip
+                            v-if="item.annotations.documentation"
+                            location="bottom"
+                            text="Open the documentation in a new tab"
+                        >
+                            <template #activator="{ props }">
                                 <v-btn
-                                    color="primary"
+                                    v-bind="props"
+                                    icon
                                     variant="text"
-                                    :prepend-icon="kaapanaIcons.start"
-                                    :loading="isLaunching && selectedApplication?.releaseName === item.releaseName"
-                                    :disabled="isLaunching || !can(project?.id, 'launch_application', item.releaseName)"
-                                    @click="onLaunchApplication(item)"
+                                    size="small"
+                                    color="primary"
+                                    :href="getFullEndpoint('/docs/' + item.annotations.documentation)"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    :aria-label="`Documentation for ${item.annotations['ui-visible-name']} (opens in a new tab)`"
                                 >
-                                    Launch
+                                    <v-icon :icon="kaapanaIcons.help" />
                                 </v-btn>
-                            </span>
-                        </template>
-                    </v-tooltip>
-                </template>
-                <template #item.whitelistToggle="{ item }">
-                    <v-checkbox-btn
-                        :model-value="effectiveInWhitelist(item.releaseName)"
-                        hide-details
-                        @update:model-value="stage(item.releaseName, $event)"
-                        :disabled="!can(project?.id, 'manage_applications_whitelist')"
-                        color="primary"
-                    />
-                </template>
-            </v-data-table>
+                            </template>
+                        </v-tooltip>
+                    </template>
+                    <template #item.description="{ item }">
+                        <v-tooltip location="bottom">
+                            <template #activator="{ props }">
+                                <span v-bind="props" class="d-inline-block text-truncate pm-description">
+                                    {{ item.description }}
+                                </span>
+                            </template>
 
-                <!-- Empty state -->
-                <v-sheet rounded v-else class="mt-4">
-                    <v-container>
-                        <v-row align="center" justify="center" no-gutters>
-                            <v-icon :icon="kaapanaIcons.info" size="x-large" color="medium-emphasis"></v-icon>
-                        </v-row>
-                        <v-row align="center" justify="center" no-gutters class="py-6">
-                            <div class="text-subtitle-1 font-weight-light text-center">
-                                No multiinstallable applications found.
-                            </div>
-                        </v-row>
-                    </v-container>
-                </v-sheet>
-
+                            <span>{{ item.description }}</span>
+                        </v-tooltip>
+                    </template>
+                    <template #item.launch="{ item }">
+                        <v-tooltip
+                            text="This application is not whitelisted for this project. Contact your project admin."
+                            :disabled="can(project?.id, 'launch_application', item.releaseName)"
+                            location="top"
+                        >
+                            <template #activator="{ props }">
+                                <span v-bind="props">
+                                    <v-btn
+                                        color="primary"
+                                        variant="text"
+                                        :prepend-icon="kaapanaIcons.start"
+                                        :loading="isLaunching && selectedApplication?.releaseName === item.releaseName"
+                                        :disabled="isLaunching || !can(project?.id, 'launch_application', item.releaseName)"
+                                        @click="onLaunchApplication(item)"
+                                    >
+                                        Launch
+                                    </v-btn>
+                                </span>
+                            </template>
+                        </v-tooltip>
+                    </template>
+                    <template #item.whitelistToggle="{ item }">
+                        <v-checkbox-btn
+                            :model-value="effectiveInWhitelist(item.releaseName)"
+                            hide-details
+                            @update:model-value="stage(item.releaseName, $event)"
+                            :disabled="!can(project?.id, 'manage_applications_whitelist')"
+                            color="primary"
+                        />
+                    </template>
+                    <template #no-data>
+                        <ListEmptyState
+                            :search="searchQuery"
+                            noun="applications"
+                            title="No applications to launch"
+                            text="The extension catalogue holds no application that can be launched in a project."
+                            @clear-search="searchQuery = ''"
+                        />
+                    </template>
+                </v-data-table>
             </div>
         </v-expand-transition>
     </v-col>
@@ -160,6 +161,7 @@ import { usePermissions } from '@/permissions/usePermissions'
 import { usePermissionsStore } from '@/permissions/permissions.store'
 import { aiiApiPut, kubeHelmGet, kubeHelmPost } from '@/common/services'
 import SearchBar from '@/components/SearchBar.vue'
+import ListEmptyState from '@/components/ListEmptyState.vue'
 import FailureAlert from '@/components/FailureAlert.vue'
 import { useViewDirty } from '@/composables/useViewDirty'
 import { notify } from '@kyvg/vue3-notification'

@@ -29,6 +29,15 @@ test('lists the members with their project role', async ({ page }) => {
   await expect(row(page, 'kaapana')).toContainText('admin')
 })
 
+test('a search that matches no member says so and can be cleared', async ({ page }) => {
+  await open(page)
+  await page.getByRole('textbox', { name: 'Search users' }).fill('nobody')
+
+  await expect(page.getByText('No members match "nobody"')).toBeVisible()
+  await page.getByRole('button', { name: 'Clear search', exact: true }).click()
+  await expect(row(page, SCIENTIST_USER.username)).toBeVisible()
+})
+
 test('adds a user with the chosen role', async ({ page }) => {
   await open(page)
   await page.getByRole('button', { name: 'Add User' }).click()

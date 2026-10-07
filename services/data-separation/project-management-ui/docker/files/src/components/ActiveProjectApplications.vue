@@ -21,11 +21,8 @@
                 <!-- search -->
                 <SearchBar v-model="searchQuery" label="Search applications" />
 
-                <!-- Loading skeleton -->
-                <v-skeleton-loader v-if="isLoading" type="table" class="mt-4" />
-
                 <FailureAlert
-                    v-else-if="loadError"
+                    v-if="loadError"
                     title="Applications not loaded"
                     text="Could not load the applications running in this project."
                     :error="loadError"
@@ -33,7 +30,12 @@
                 />
 
                 <!-- Applications table -->
-                <v-data-table v-else-if="filteredActiveApplications.length > 0"
+                <v-data-table
+                    v-else
+                    :loading="isLoading"
+                    loading-text="Loading applications…"
+                    :items-per-page="-1"
+                    hide-default-footer
                     :headers="activeAppTableHeaders"
                     :items="filteredActiveApplications"
                     :sort-by="[{ key: 'name', order: 'asc' }]"
@@ -111,22 +113,16 @@
                             </template>
                         </v-tooltip>
                     </template>
-            </v-data-table>
-
-                <!-- Empty state -->
-                <v-sheet rounded v-else class="mt-4">
-                    <v-container>
-                        <v-row align="center" justify="center" no-gutters>
-                            <v-icon :icon="kaapanaIcons.info" size="x-large" color="medium-emphasis"></v-icon>
-                        </v-row>
-                        <v-row align="center" justify="center" no-gutters class="py-6">
-                            <div class="text-subtitle-1 font-weight-light text-center">
-                                No active applications found for this project.
-                            </div>
-                        </v-row>
-                    </v-container>
-                </v-sheet>
-
+                    <template #no-data>
+                        <ListEmptyState
+                            :search="searchQuery"
+                            noun="applications"
+                            title="No applications running"
+                            text="Applications launched in this project appear here."
+                            @clear-search="searchQuery = ''"
+                        />
+                    </template>
+                </v-data-table>
             </div>
         </v-expand-transition>
 
@@ -153,6 +149,7 @@ import { kaapanaIcons, projectIcons } from '@/utils/projectIcons'
 import { ref, computed, onMounted, watch } from 'vue'
 import { kubeHelmGet } from '@/common/services'
 import SearchBar from '@/components/SearchBar.vue'
+import ListEmptyState from '@/components/ListEmptyState.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 import ApplicationParametersDialog from './ApplicationParametersDialog.vue'
 import { ConfirmDialog } from '@kaapana/base-ui'

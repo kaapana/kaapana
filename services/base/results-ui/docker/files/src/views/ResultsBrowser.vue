@@ -503,11 +503,13 @@ onMounted(() => {
             </v-btn>
           </div>
 
+          <!-- Vuetify matches the term verbatim, so the treeview has to be given the
+               same term the empty state was decided from. -->
           <v-treeview
             v-show="!rootLoadFailed"
             v-model:selected="tree"
             :items="staticUrls"
-            :search="search || undefined"
+            :search="searchTerm || undefined"
             item-value="path"
             item-title="name"
             selectable

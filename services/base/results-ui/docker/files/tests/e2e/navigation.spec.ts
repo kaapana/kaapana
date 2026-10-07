@@ -38,3 +38,15 @@ test('search filters already-loaded nodes', async ({ page }) => {
   await expect(page.getByText('nnunet-training-230101')).toBeHidden()
   await expect(page.getByText('total-segmentator-230102')).toBeHidden()
 })
+
+test('search ignores whitespace around the term', async ({ page }) => {
+  const field = page.getByRole('textbox', { name: 'Search loaded results' })
+
+  await field.fill('  overview  ')
+  await expect(page.getByText('overview.html')).toBeVisible()
+  await expect(page.getByText('nnunet-training-230101')).toBeHidden()
+
+  // A term that is only whitespace is no search at all, on both code paths.
+  await field.fill('   ')
+  await expect(page.getByText('nnunet-training-230101')).toBeVisible()
+})

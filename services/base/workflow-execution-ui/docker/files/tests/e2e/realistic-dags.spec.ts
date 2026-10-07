@@ -7,6 +7,8 @@ import {
   noModelsSchema,
   emptyUploadSchema,
   optionalFieldsSchema,
+  requiredArraySchema,
+  requiredArrayNoDefaultSchema,
 } from './fixtures/mock-backend'
 
 // Regression coverage: real backend DAG shapes that crashed vjsf 3 and blanked
@@ -143,4 +145,32 @@ test('`required: false` fields leave the workflow startable', async ({ page }) =
   await page.getByRole('button', { name: 'Start Workflow' }).click()
   const conf = (await reqP).postDataJSON().conf_data.workflow_form
   expect(conf.start_date).toBe('')
+})
+
+test('a sibling `required` array with defaults starts the workflow', async ({ page }) => {
+  await bootView(page, singleDagData('total-segmentator-v2', requiredArraySchema))
+  await selectDag(page, 'total-segmentator-v2')
+
+  const reqP = page.waitForRequest(WORKFLOW)
+  await page.getByRole('button', { name: 'Start Workflow' }).click()
+  expect((await reqP).postDataJSON().conf_data.workflow_form).toEqual({
+    input: 'CT',
+    nr_thr_resamp: 1,
+    nr_thr_saving: 6,
+  })
+})
+
+test('a sibling `required` array names the field it is missing', async ({ page }) => {
+  // The gate used to walk into the array and find no marker, so this field was
+  // blocked by ajv alone and the tooltip could only say "some fields".
+  await bootView(page, singleDagData('required-array', requiredArrayNoDefaultSchema))
+  await selectDag(page, 'required-array')
+
+  const submit = page.getByRole('button', { name: 'Start Workflow' })
+  await expect(submit).toBeDisabled()
+  await submit.locator('xpath=..').hover()
+  await expect(page.getByText('Fill in the required field: aetitle.')).toBeVisible()
+
+  await page.getByLabel('AE Title').fill('KAAPANA')
+  await expect(submit).toBeEnabled()
 })

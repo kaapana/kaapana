@@ -732,6 +732,15 @@ function findRequiredFields(obj: any, result: string[] = [], prefix = ""): strin
     if (key === "oneOf") {
       continue;
     }
+    // The standard JSON Schema form: a `required` array naming sibling
+    // properties. Each name becomes a path of its own, so the tooltip can name
+    // the field instead of reporting a nameless invalid form.
+    if (key === "required" && Array.isArray(value)) {
+      for (const name of value) {
+        if (typeof name === "string") result.push(`${fullKey}.${name}`);
+      }
+      continue;
+    }
     if (value && typeof value === "object") {
       findRequiredFields(value, result, fullKey);
     } else if (key === "required" && value === true) {

@@ -441,3 +441,29 @@ export const optionalFieldsSchema: Record<string, FormSchema> = {
     },
   },
 }
+
+// total-segmentator-v2 verbatim: the standard JSON Schema convention, a
+// `required` array sitting next to `properties`. Every field it names has a
+// default, so the workflow starts straight away.
+export const requiredArraySchema: Record<string, FormSchema> = {
+  workflow_form: {
+    type: 'object',
+    properties: {
+      input: { title: 'Input Modality', type: 'string', default: 'CT' },
+      nr_thr_resamp: { title: 'resampling thread count', type: 'integer', default: 1 },
+      nr_thr_saving: { title: 'saving thread count', type: 'integer', default: 6 },
+    },
+    required: ['nr_thr_resamp', 'nr_thr_saving', 'input'],
+  },
+}
+
+// The same convention on a field with no default, so the gate has to name it.
+export const requiredArrayNoDefaultSchema: Record<string, FormSchema> = {
+  workflow_form: {
+    type: 'object',
+    properties: {
+      aetitle: { title: 'AE Title', type: 'string' },
+    },
+    required: ['aetitle'],
+  },
+}

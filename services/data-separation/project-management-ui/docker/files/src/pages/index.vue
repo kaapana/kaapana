@@ -102,7 +102,7 @@
 
 <script lang="ts">
 import { defineComponent } from "vue";
-import CreateNewProjectFrom from "@/components/CreateNewProjectForm.vue";
+import CreateNewProjectForm from "@/components/CreateNewProjectForm.vue";
 import EditProjectDialog from "@/components/EditProjectDialog.vue";
 import DeleteProjectDialog from "@/components/DeleteProjectDialog.vue";
 import ArchiveProjectDialog from "@/components/ArchiveProjectDialog.vue";
@@ -115,7 +115,7 @@ import store from "@/common/store";
 
 export default defineComponent({
   components: {
-    CreateNewProjectFrom,
+    CreateNewProjectForm,
     EditProjectDialog,
     DeleteProjectDialog,
     ArchiveProjectDialog,

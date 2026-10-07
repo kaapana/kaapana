@@ -173,13 +173,14 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, watch, computed } from 'vue';
-import { UserItem, UserRole } from '@/common/types';
-import { usePermissions } from '@/permissions/usePermissions';
-import { aiiApiDelete, aiiApiGet } from '@/common/services';
-import { isAdminUser, isSystemUser, waitForStoreUser } from '@/common/userAccess';
-import AddUserToProject from './AddUserToProject.vue';
-import SearchBar from '@/components/SearchBar.vue';
+import { ref, onMounted, watch, computed } from 'vue'
+import { UserItem, UserRole } from '@/common/types'
+import { usePermissions } from '@/permissions/usePermissions'
+import { aiiApiDelete, aiiApiGet } from '@/common/services'
+import { isAdminUser, isSystemUser, waitForStoreUser } from '@/common/userAccess'
+import AddUserToProject from './AddUserToProject.vue'
+import SearchBar from '@/components/SearchBar.vue'
+import SectionHeader from '@/components/SectionHeader.vue'
 // ── Types ──────────────────────────────────────────────────────────────────
 
 interface UserWithRole extends UserItem {

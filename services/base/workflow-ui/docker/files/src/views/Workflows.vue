@@ -1,253 +1,205 @@
 <template>
-  <v-container fluid>
-    <v-container class="pad-lg">
-      <!-- Header: centered and aligned with workflows (md=9, offset-md=3) -->
-      <v-row class="mb-4">
-        <v-col :cols="12" :md="showFilters ? 9 : 12" :offset-md="showFilters ? 3 : 0">
-          <div class="d-flex align-center justify-space-between">
-            <div class="d-flex align-center">
-              <h1 class="text-h5 mb-0">Workflows</h1>
-            </div>
-            <div class="d-flex align-center">
-              <v-btn small variant="text" color="primary" aria-label="info" @click="showInfo = true" class="me-2">
-                <v-icon size="32">mdi-information</v-icon>
-              </v-btn>
-              <!-- Sort dropdown placed next to info with primary background -->
-              <v-menu v-model="sortMenuOpen" location="bottom end" offset-y>
+  <v-container fluid class="text-left workflows-view">
+    <div class="d-flex flex-wrap align-start justify-space-between ga-4 mb-4">
+      <div>
+        <h1 class="text-h4">Workflows</h1>
+        <p class="text-body-2 text-medium-emphasis mt-1">
+          Start a workflow on this project. Its progress appears under Workflow Runs.
+        </p>
+      </div>
 
-                <template #activator="{ props }">
-                  <!-- Outlined button that shows the currently selected sort, using surface color outline -->
-                  <v-btn small color="primary" class="me-2" v-bind="props" aria-label="sort"
-                    :title="`Sort: ${selectedSort}`">
-                    <v-icon left size="18">mdi-sort</v-icon>
-                    {{ selectedSort }}
-                  </v-btn>
-                </template>
-                <v-card>
-                  <v-list density="compact">
-                    <v-list-subheader>Sort by</v-list-subheader>
-                    <v-list-item @click="setSort('Name Asc')">
-                      <template #prepend>
-                        <v-icon v-if="selectedSort === 'Name Asc'">mdi-check</v-icon>
-                      </template>
-                      <v-list-item-title>Name Asc</v-list-item-title>
-                    </v-list-item>
-                    <v-list-item @click="setSort('Name Desc')">
-                      <template #prepend>
-                        <v-icon v-if="selectedSort === 'Name Desc'">mdi-check</v-icon>
-                      </template>
-                      <v-list-item-title>Name Desc</v-list-item-title>
-                    </v-list-item>
-                  </v-list>
-                </v-card>
-              </v-menu>
+      <div class="d-flex flex-wrap align-center ga-2">
+        <v-btn
+          :prepend-icon="showFilters ? 'mdi-filter-variant-remove' : 'mdi-filter-variant'"
+          :aria-expanded="showFilters"
+          aria-controls="workflow-filters"
+          @click="showFilters = !showFilters"
+        >
+          {{ showFilters ? 'Hide filters' : 'Show filters' }}
+        </v-btn>
 
+        <v-menu location="bottom end">
+          <template #activator="{ props: menuProps }">
+            <v-btn v-bind="menuProps" prepend-icon="mdi-sort">Sort: {{ selectedSort.label }}</v-btn>
+          </template>
+          <v-list density="compact" aria-label="Sort workflows">
+            <v-list-item
+              v-for="option in sortOptions"
+              :key="option.value"
+              :active="selectedSort.value === option.value"
+              @click="selectedSort = option"
+            >
+              <template #prepend>
+                <v-icon
+                  :icon="selectedSort.value === option.value ? kaapanaIcons.confirm : undefined"
+                />
+              </template>
+              <v-list-item-title>{{ option.label }}</v-list-item-title>
+            </v-list-item>
+          </v-list>
+        </v-menu>
 
+        <v-btn
+          :prepend-icon="kaapanaIcons.refresh"
+          :loading="loading && hasLoaded"
+          :disabled="loading"
+          @click="loadWorkflows"
+        >
+          Refresh
+        </v-btn>
+      </div>
+    </div>
 
+    <v-row>
+      <v-col v-if="showFilters" id="workflow-filters" cols="12" md="3">
+        <FilterPanel :workflows="workflows" v-model:filters="filters" />
+      </v-col>
 
-              <v-btn small color="primary" class="me-2" @click="showFilters = !showFilters" aria-label="toggle filters">
-                <v-icon left size="18">mdi-filter-variant</v-icon>
-                FILTERS
-              </v-btn>
+      <v-col cols="12" :md="showFilters ? 9 : 12">
+        <v-row v-if="loading && !hasLoaded" data-testid="workflows-loading">
+          <v-col v-for="n in 4" :key="n" cols="12" sm="6" md="4" lg="3">
+            <v-skeleton-loader type="card" />
+          </v-col>
+        </v-row>
 
-              <v-btn small color="primary" class="me-2" aria-label="refresh" @click="loadWorkflows">
-                <v-icon left size="18">mdi-refresh</v-icon>
-                REFRESH
-              </v-btn>
-            </div>
-          </div>
-        </v-col>
-      </v-row>
+        <CollectionState
+          v-else-if="loadError || workflows.length === 0 || filteredAndSortedWorkflows.length === 0"
+          :state="loadError ? 'error' : workflows.length === 0 ? 'empty' : 'no-matches'"
+          noun="workflows"
+          empty-text="No workflow is installed on this platform. Workflows appear here after an administrator installs them."
+          error-text="The workflow service could not be reached or reported an error. Try again, or contact your administrator if it persists."
+          :has-error-details="!!loadError"
+          :retrying="loading"
+          @retry="loadWorkflows"
+          @show-details="showLoadErrorDetails"
+          @clear-filters="clearFilters"
+        />
 
-      <!-- Info dialog moved near header -->
-      <v-dialog v-model="showInfo" max-width="600">
-        <v-card>
-          <v-card-title>About the Workflows page</v-card-title>
-          <v-card-text>
-            This page shows available workflows. Use filters and sorting to find workflows. Click a workflow card to
-            view
-            details. Use the refresh button to fetch the latest workflows from the server.
-          </v-card-text>
-          <v-card-actions>
-            <v-spacer />
-            <v-btn text @click="showInfo = false">Close</v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-dialog>
-
-      <v-row>
-        <!-- FILTER PANEL as left hideable column (split-pane) -->
-        <v-col v-if="showFilters" cols="12" md="3">
-          <FilterPanel :workflows="workflows" :filters="filters" @update:filters="updateFilters" />
-        </v-col>
-
-        <!-- WORKFLOW GRID -->
-        <v-col cols="12" sm="12" :md="showFilters ? 9 : 12">
-          <!-- Loading state -->
-          <v-row v-if="loading" class="d-flex justify-center align-center" style="min-height: 300px;">
-            <v-progress-circular indeterminate color="primary" size="64" />
-          </v-row>
-
-          <!-- Error state -->
-          <v-row v-else-if="error" class="d-flex justify-center">
-            <v-col cols="12">
-              <v-alert type="error" prominent>{{ error }}</v-alert>
-            </v-col>
-          </v-row>
-
-          <!-- Empty state - no workflows at all -->
-          <v-row v-else-if="workflows.length === 0" class="d-flex justify-center">
-            <v-col cols="12">
-              <v-alert type="info" prominent>No workflows available.</v-alert>
-            </v-col>
-          </v-row>
-
-          <!-- Workflows loaded but filtered out -->
-          <v-row v-else class="d-flex flex-wrap justify-start">
-            <!-- Workflow cards -->
-
-            <v-col v-for="([title, versions], index) in filteredAndSortedWorkflows" :key="title" cols="12" sm="6" md="4" lg="3" xl="2" class="d-flex">
-              <v-responsive aspect-ratio="1" class="w-100">
-                <WorkflowCard :workflow="versions[0]" :versions="versions" class="h-100 w-100" />
-              </v-responsive>
-            </v-col>
-
-            <!-- Filtered state - workflows exist but none match filters -->
-            <v-col v-if="filteredAndSortedWorkflows.length === 0" cols="12">
-              <v-alert type="info" prominent>No workflows match your filters.</v-alert>
-            </v-col>
-          </v-row>
-        </v-col>
-      </v-row>
-    </v-container>
+        <v-row v-else>
+          <v-col
+            v-for="[title, versions] in filteredAndSortedWorkflows"
+            :key="title"
+            cols="12"
+            sm="6"
+            md="4"
+            lg="3"
+            class="d-flex"
+          >
+            <WorkflowCard :versions="versions" class="w-100" />
+          </v-col>
+        </v-row>
+      </v-col>
+    </v-row>
   </v-container>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { apiErrorInfo, kaapanaIcons, type ApiErrorInfo } from '@kaapana/base-ui'
+import CollectionState from '@/components/CollectionState.vue'
 import FilterPanel from '@/components/FilterPanel.vue'
 import WorkflowCard from '@/components/WorkflowCard.vue'
-import type { Label, Workflow } from '@/types/schemas'
 import { fetchWorkflows } from '@/api/workflows'
+import { useFailureDetailsStore } from '@/stores/failureDetails'
+import {
+  emptyFilters,
+  LABEL_CATEGORY,
+  LABEL_MATURITY,
+  LABEL_PROVIDER,
+  labelValues,
+  type WorkflowFilters,
+} from '@/utils/labels'
+import { notifyFailure } from '@/utils/notify'
+import type { Workflow } from '@/types/schemas'
 
-// --- STATE ---
+const LOAD_ERROR_TEXT = 'The workflows could not be loaded.'
+
+const failureDetails = useFailureDetailsStore()
+
 const workflows = ref<Workflow[]>([])
-const loading = ref(true)
-const error = ref<string | null>(null)
+const loading = ref(false)
+const hasLoaded = ref(false)
+const loadError = ref<ApiErrorInfo | null>(null)
 
-// UI state for info dialog
-const showInfo = ref(false)
-// UI state for filter drawer
 const showFilters = ref(false)
+const filters = ref<WorkflowFilters>(emptyFilters())
 
-const filters = ref({
-  search: '',
-  categories: [] as string[],
-  providers: [] as string[],
-  maturity: [] as string[],
-})
+const sortOptions = [
+  { value: 'name-asc', label: 'Name A–Z' },
+  { value: 'name-desc', label: 'Name Z–A' },
+] as const
+const selectedSort = ref<(typeof sortOptions)[number]>(sortOptions[0])
 
-// Sort options
-const sortOptions = ['Name Asc', 'Name Desc']
-const selectedSort = ref<string>(sortOptions[0])
-
-function setSort(option: string) {
-  selectedSort.value = option
-  sortMenuOpen.value = false
-}
-
-// menu open state for sort dropdown
-const sortMenuOpen = ref(false)
-
-// --- GROUP WORKFLOWS BY TITLE ---
-const groupedWorkflows = computed<Map<string, Workflow[]>>(() => {
+// Every revision of a workflow is its own entry; one card shows all of them,
+// newest first.
+const groupedWorkflows = computed(() => {
   const map = new Map<string, Workflow[]>()
-
-  workflows.value.forEach((wf: Workflow) => {
+  for (const wf of workflows.value) {
     if (!map.has(wf.title)) map.set(wf.title, [])
     map.get(wf.title)!.push(wf)
-  })
-
-  // Sort each group by increment descending
-  map.forEach((group: Workflow[]) => {
-    group.sort((a, b) => (b.increment ?? 0) - (a.increment ?? 0))
-  })
-
+  }
+  for (const group of map.values()) group.sort((a, b) => (b.increment ?? 0) - (a.increment ?? 0))
   return map
 })
 
-// --- FILTER + SORT ---
+function matchesAny(selected: string[], workflow: Workflow, key: string) {
+  return selected.length === 0 || labelValues(workflow, key).some((v) => selected.includes(v))
+}
+
 const filteredAndSortedWorkflows = computed(() => {
+  const search = filters.value.search.trim().toLowerCase()
   const result: [string, Workflow[]][] = []
-
-  // First, filter the groups
-  groupedWorkflows.value.forEach((group: Workflow[], title: string) => {
-    // Check if any workflow in the group matches the filters
-    const matchesSearch = !filters.value.search ||
-      group.some((wf: Workflow) => wf.title.toLowerCase().includes(filters.value.search.toLowerCase()))
-
-    const matchesCategories = filters.value.categories.length === 0 ||
-      group[0].labels.some((l: Label) =>
-        l.key === 'kaapana-ui.category' &&
-        l.value &&
-        filters.value.categories.includes(l.value)
-      )
-
-
-    const matchesProviders = filters.value.providers.length === 0 ||
-      group[0].labels.some((l: Label) =>
-        l.key === 'kaapana-ui.provider' &&
-        l.value &&
-        filters.value.providers.includes(l.value)
-      )
-
-    const matchesMaturity = filters.value.maturity.length === 0 ||
-      group[0].labels.some((l: Label) =>
-        l.key === 'kaapana-ui.maturity' &&
-        l.value &&
-        filters.value.maturity.includes(l.value)
-      )
-
-
-    // If the group matches all filters, include it
-    if (matchesSearch && matchesCategories && matchesProviders && matchesMaturity) {
-      result.push([title, group])
-    }
+  groupedWorkflows.value.forEach((group, title) => {
+    const latest = group[0]
+    if (search && !title.toLowerCase().includes(search)) return
+    if (!matchesAny(filters.value.categories, latest, LABEL_CATEGORY)) return
+    if (!matchesAny(filters.value.providers, latest, LABEL_PROVIDER)) return
+    if (!matchesAny(filters.value.maturity, latest, LABEL_MATURITY)) return
+    result.push([title, group])
   })
-
-  // Then, sort the filtered groups by title
-  result.sort(([titleA], [titleB]) => {
-    switch (selectedSort.value) {
-      case 'Name Asc':
-        return titleA.localeCompare(titleB)
-      case 'Name Desc':
-        return titleB.localeCompare(titleA)
-      default:
-        return 0
-    }
-  })
-
-  return result
+  const direction = selectedSort.value.value === 'name-asc' ? 1 : -1
+  return result.sort(([a], [b]) => direction * a.localeCompare(b))
 })
 
-// --- METHODS ---
-function updateFilters(newFilters: { search: string; categories: string[]; providers: string[]; maturity?: string[] }) {
-  filters.value = { ...filters.value, ...newFilters }
+function clearFilters() {
+  filters.value = emptyFilters()
+}
+
+function showLoadErrorDetails() {
+  if (loadError.value) {
+    failureDetails.show({
+      title: 'Could not load the workflows',
+      text: LOAD_ERROR_TEXT,
+      error: loadError.value,
+    })
+  }
 }
 
 async function loadWorkflows() {
+  if (loading.value) return
   loading.value = true
   try {
-    const result = await fetchWorkflows()
-    workflows.value = Array.isArray(result) ? result : []
+    workflows.value = await fetchWorkflows()
+    loadError.value = null
   } catch (err) {
-    console.error(err)
-    error.value = 'Failed to load workflows.'
-    workflows.value = []
+    if (workflows.value.length > 0) {
+      notifyFailure('Could not refresh the workflows', 'The list shows the last loaded state.', err)
+    } else {
+      loadError.value = apiErrorInfo(err)
+    }
   } finally {
     loading.value = false
+    hasLoaded.value = true
   }
 }
 
 onMounted(loadWorkflows)
 </script>
+
+<style scoped>
+/* A readable maximum for the card grid; the container centres itself in the
+   space beyond it. */
+.workflows-view {
+  max-width: 1600px;
+}
+</style>

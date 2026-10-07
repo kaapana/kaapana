@@ -25,7 +25,7 @@ export interface RawPod {
   name: string
   status: string
   ready: string
-  restarts: number | string
+  restarts: string
   age?: string
 }
 
@@ -58,18 +58,23 @@ export function projectPath(release: string): string {
 }
 
 // Presets for the three podStatus() outcomes.
-export const readyPod: RawPod = { name: 'app-pod-0', status: 'Running', ready: '1/1', restarts: 0 }
+export const readyPod: RawPod = {
+  name: 'app-pod-0',
+  status: 'Running',
+  ready: '1/1',
+  restarts: '0',
+}
 export const pendingPod: RawPod = {
   name: 'app-pod-0',
   status: 'ContainerCreating',
   ready: '0/1',
-  restarts: 0,
+  restarts: '0',
 }
 export const errorPod: RawPod = {
   name: 'app-pod-0',
   status: 'CrashLoopBackOff',
   ready: '0/1',
-  restarts: 7,
+  restarts: '7',
 }
 
 /**

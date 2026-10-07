@@ -1,5 +1,4 @@
 // Plugins
-import Components from 'unplugin-vue-components/vite'
 import Vue from '@vitejs/plugin-vue'
 // Utilities
 import { defineConfig } from 'vite'
@@ -7,7 +6,7 @@ import { fileURLToPath, URL } from 'node:url'
 
 // https://vitejs.dev/config/
 export default defineConfig(() => ({
-  plugins: [Vue(), Components()],
+  plugins: [Vue()],
   base: '/projects-ui',
   resolve: {
     alias: {

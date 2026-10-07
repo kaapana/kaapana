@@ -182,3 +182,14 @@ test('a dismissed delete confirmation returns focus to the button that opened it
   }).toPass()
   await expect(remove).toBeFocused()
 })
+
+test('a finished job says why its abort button is disabled', async ({ page }) => {
+  await expandRunningWorkflow(page)
+
+  // dag-beta failed, so aborting it is a no-op and the button is disabled. The
+  // reason lives on the wrapper: a disabled button emits no pointer events.
+  const abort = failedJobRow(page).getByRole('button', { name: 'Abort job' })
+  await expect(abort).toBeDisabled()
+  await abort.locator('xpath=..').hover()
+  await expect(page.getByText('job already finished; nothing to abort')).toBeVisible()
+})

@@ -104,9 +104,13 @@
             </v-tooltip>
             <v-tooltip location="bottom">
               <template #activator="{ props }">
-                <v-btn v-bind="props" @click='abortJob(item)' :disabled="isJobTerminal(item)" size="small" icon variant="text" aria-label="Abort job">
-                  <v-icon color="secondary">{{ kaapanaIcons.stop }}</v-icon>
-                </v-btn>
+                <!-- A disabled button emits no pointer events, so the tooltip
+                     needs the surrounding span as its activator. -->
+                <span v-bind="props" class="d-inline-block">
+                  <v-btn @click='abortJob(item)' :disabled="isJobTerminal(item)" size="small" icon variant="text" aria-label="Abort job">
+                    <v-icon color="secondary">{{ kaapanaIcons.stop }}</v-icon>
+                  </v-btn>
+                </span>
               </template>
               <span>{{ isJobTerminal(item) ? 'job already finished; nothing to abort' : 'abort single job' }}</span>
             </v-tooltip>
@@ -130,9 +134,11 @@
           <div v-else-if="item.external_job_id">
             <v-tooltip location="bottom">
               <template #activator="{ props }">
-                <v-btn v-bind="props" @click='abortJob(item)' :disabled="isJobTerminal(item)" size="small" icon variant="text" aria-label="Abort job">
-                  <v-icon color="secondary">{{ kaapanaIcons.stop }}</v-icon>
-                </v-btn>
+                <span v-bind="props" class="d-inline-block">
+                  <v-btn @click='abortJob(item)' :disabled="isJobTerminal(item)" size="small" icon variant="text" aria-label="Abort job">
+                    <v-icon color="secondary">{{ kaapanaIcons.stop }}</v-icon>
+                  </v-btn>
+                </span>
               </template>
               <span>{{ isJobTerminal(item) ? 'job already finished; nothing to abort' : 'abort single job' }}</span>
             </v-tooltip>

@@ -130,17 +130,20 @@
           <v-col v-if="!item.kaapana_instance.remote">
             <v-tooltip location="bottom">
               <template #activator="{ props }">
-                <v-btn
-                  v-bind="props"
-                  @click="abortWorkflow(item)"
-                  :disabled="isWorkflowTerminal(item)"
-                  size="small"
-                  icon
-                  variant="text"
-                  aria-label="Abort workflow"
-                >
-                  <v-icon color="primary">{{ kaapanaIcons.stop }}</v-icon>
-                </v-btn>
+                <!-- A disabled button emits no pointer events, so the tooltip
+                     needs the surrounding span as its activator. -->
+                <span v-bind="props" class="d-inline-block">
+                  <v-btn
+                    @click="abortWorkflow(item)"
+                    :disabled="isWorkflowTerminal(item)"
+                    size="small"
+                    icon
+                    variant="text"
+                    aria-label="Abort workflow"
+                  >
+                    <v-icon color="primary">{{ kaapanaIcons.stop }}</v-icon>
+                  </v-btn>
+                </span>
               </template>
               <span>{{
                 isWorkflowTerminal(item)

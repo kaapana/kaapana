@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { installMockBackend, VIEW_PATH } from './fixtures/mock-backend'
+import { defaultMockData, installMockBackend, VIEW_PATH } from './fixtures/mock-backend'
 
 // The confirmation's action carries the same accessible name as the row button
 // that opened it, so it has to be addressed inside the dialog.
@@ -125,4 +125,22 @@ test('a rejected workflow deletion shows the backend reason', async ({ page }) =
 
   await expect(page.getByText('Error while deleting workflow wf-running-001')).toBeVisible()
   await expect(page.getByText('workflow still has running jobs')).toBeVisible()
+})
+
+test('a finished workflow says why its abort button is disabled', async ({ page }) => {
+  // Only the one terminal workflow, so the tooltip that opens is the only one
+  // carrying this text.
+  const finished = defaultMockData.workflows.filter((w) => w.workflow_name === 'finished-wf')
+  await installMockBackend(page, {
+    ...defaultMockData,
+    workflows: finished,
+    totalWorkflows: finished.length,
+  })
+  await page.goto(VIEW_PATH)
+
+  // The reason lives on the wrapper: a disabled button emits no pointer events.
+  const abort = page.getByRole('button', { name: 'Abort workflow' })
+  await expect(abort).toBeDisabled()
+  await abort.locator('xpath=..').hover()
+  await expect(page.getByText('workflow already finished; nothing to abort')).toBeVisible()
 })

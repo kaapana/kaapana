@@ -37,11 +37,8 @@
                 <!-- search -->
                 <SearchBar v-model="search" label="Search workflows" />
 
-                <!-- Loading skeleton -->
-                <v-skeleton-loader v-if="isLoading" type="table" class="mt-4" />
-
                 <FailureAlert
-                    v-else-if="loadError"
+                    v-if="loadError"
                     title="Workflows not loaded"
                     text="Could not load the workflows or this project's workflow whitelist."
                     :error="loadError"
@@ -50,7 +47,11 @@
 
                 <!-- Workflow table -->
                 <v-data-table
-                    v-else-if="filteredWorkflows.length > 0"
+                    v-else
+                    :loading="isLoading"
+                    loading-text="Loading workflows…"
+                    :items-per-page="-1"
+                    hide-default-footer
                     :headers="tableHeaders"
                     :items="filteredWorkflows"
                     :sort-by="[{ key: 'dag_name', order: 'asc' }]"
@@ -76,15 +77,16 @@
                         >
                         </v-checkbox-btn>
                     </template>
+                    <template #no-data>
+                        <ListEmptyState
+                            :search="search.trim()"
+                            noun="workflows"
+                            title="No workflows available"
+                            text="The platform has no workflows installed that this project could run."
+                            @clear-search="search = ''"
+                        />
+                    </template>
                 </v-data-table>
-
-                <!-- Empty state -->
-                <v-sheet v-else rounded class="mt-4">
-                    <v-container class="text-center py-8">
-                        <v-icon :icon="projectIcons.workflow" size="x-large" color="medium-emphasis" />
-                        <div class="text-subtitle-1 text-medium-emphasis mt-4">No workflows available</div>
-                    </v-container>
-                </v-sheet>
             </div>
         </v-expand-transition>
     </v-col>
@@ -96,6 +98,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { usePermissions } from '@/permissions/usePermissions'
 import { aiiApiDelete, aiiApiGet, aiiApiPost, kaapanaBackendGetDags } from '@/common/services'
 import SearchBar from '@/components/SearchBar.vue'
+import ListEmptyState from '@/components/ListEmptyState.vue'
 import FailureAlert from '@/components/FailureAlert.vue'
 import { useViewDirty } from '@/composables/useViewDirty'
 import { notify } from '@kyvg/vue3-notification'

@@ -59,11 +59,8 @@
             <div v-if="props.expanded">
                 <!-- search -->
                 <SearchBar v-model="search" label="Search users" />
-                <!-- Loading skeleton -->
-                <v-skeleton-loader v-if="isLoadingUsers" type="table" class="mt-4" />
-
                 <FailureAlert
-                    v-else-if="loadError"
+                    v-if="loadError"
                     title="Members not loaded"
                     text="Could not load the members of this project."
                     :error="loadError"
@@ -71,9 +68,18 @@
                 />
 
                 <!-- User table -->
-                <v-data-table v-else-if="filteredUsers.length > 0" :headers="tableHeaders" :items="filteredUsers"
-                    :sort-by="[{ key: 'username', order: 'asc' }]" multi-sort class="mt-4">
-
+                <v-data-table
+                    v-else
+                    :loading="isLoadingUsers"
+                    loading-text="Loading members…"
+                    :items-per-page="-1"
+                    hide-default-footer
+                    :headers="tableHeaders"
+                    :items="filteredUsers"
+                    :sort-by="[{ key: 'username', order: 'asc' }]"
+                    multi-sort
+                    class="mt-4"
+                >
                     <template #item.icon>
                         <v-icon :icon="kaapanaIcons.account" />
                     </template>
@@ -129,34 +135,28 @@
                             </v-tooltip>
                         </div>
                     </template>
+                    <template #no-data>
+                        <ListEmptyState
+                            :search="search.trim()"
+                            noun="members"
+                            title="No members yet"
+                            text="Add users to give them access to this project."
+                            @clear-search="search = ''"
+                        >
+                            <template v-if="can(project?.id, 'manage_users')" #actions>
+                                <v-btn
+                                    :disabled="readOnly"
+                                    color="primary"
+                                    variant="text"
+                                    :prepend-icon="projectIcons.addUser"
+                                    @click="openAddUserDialog"
+                                >
+                                    Add User
+                                </v-btn>
+                            </template>
+                        </ListEmptyState>
+                    </template>
                 </v-data-table>
-
-                <!-- Empty state -->
-                <v-sheet rounded v-else class="mt-4">
-                    <v-container>
-                        <v-row align="center" justify="center" no-gutters>
-                            <v-icon :icon="kaapanaIcons.info" size="x-large" color="medium-emphasis"></v-icon>
-                        </v-row>
-                        <v-row align="center" justify="center" no-gutters class="py-6">
-                            <div class="text-subtitle-1 font-weight-light text-center">
-                                No User found under this Project. Click the following button to Add new user.
-                            </div>
-                        </v-row>
-                        <v-row align="center" justify="center" no-gutters>
-                            <v-btn
-                                v-if="can(project?.id, 'manage_users')"
-                                :disabled="readOnly"
-                                color="primary"
-                                variant="outlined"
-                                :prepend-icon="projectIcons.addUser"
-                                @click="openAddUserDialog"
-                            >
-                                Add user to project "{{ project?.name }}"
-                            </v-btn>
-                        </v-row>
-                    </v-container>
-                </v-sheet>
-
             </div>
         </v-expand-transition>
 
@@ -206,6 +206,7 @@ import { isAdminUser, isSystemUser, waitForStoreUser } from '@/common/userAccess
 import AddUserToProject from './AddUserToProject.vue'
 import SearchBar from '@/components/SearchBar.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
+import ListEmptyState from '@/components/ListEmptyState.vue'
 import { ConfirmDialog } from '@kaapana/base-ui'
 import { useConfirmation } from '@/composables/useConfirmation'
 import { notify } from '@kyvg/vue3-notification'

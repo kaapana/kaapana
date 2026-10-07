@@ -49,7 +49,34 @@
         :loading="loading"
         loading-text="Loading projects…"
         item-value="id"
+        :items-per-page="-1"
+        hide-default-footer
       >
+        <template #no-data>
+          <ListEmptyState
+            :search="search"
+            noun="projects"
+            :title="userHasAdminAccess ? 'No projects yet' : 'You are not in any project yet'"
+            :text="
+              userHasAdminAccess
+                ? 'Create the first project to give users a place for their data and workflows.'
+                : 'Ask a project manager or a project\'s principal investigator to add you.'
+            "
+            @clear-search="search = ''"
+          >
+            <template v-if="userHasAdminAccess" #actions>
+              <v-btn
+                color="primary"
+                variant="text"
+                :prepend-icon="kaapanaIcons.add"
+                @click="projectDialog = true"
+              >
+                Create New Project
+              </v-btn>
+            </template>
+          </ListEmptyState>
+        </template>
+
         <template #item.name="{ item }">
           <span class="font-weight-medium">{{ item.name }}</span>
           <v-chip v-if="item.is_archived" size="x-small" color="warning" class="ml-2"
@@ -171,6 +198,7 @@ import { ConfirmDialog, refreshShell } from '@kaapana/base-ui'
 import CreateNewProjectForm from '@/components/CreateNewProjectForm.vue'
 import EditProjectDialog from '@/components/EditProjectDialog.vue'
 import FailureAlert from '@/components/FailureAlert.vue'
+import ListEmptyState from '@/components/ListEmptyState.vue'
 import { aiiApiGet, aiiApiDelete, aiiApiPost } from '@/common/services'
 import { ProjectItem, UserItem } from '@/common/types'
 import { isAdminUser, waitForStoreUser } from '@/common/userAccess'

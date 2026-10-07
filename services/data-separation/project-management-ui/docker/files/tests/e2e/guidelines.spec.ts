@@ -155,9 +155,8 @@ test.describe('accessibility', () => {
 
   test('icon-only controls name their action in a tooltip', async ({ page }) => {
     // Section toggles are left out: the heading beside them names what they open.
-    // So is the table pagination, Vuetify's own control.
     const expectTooltips = async () => {
-      const controls = page.locator('.v-btn--icon:not([aria-expanded]):not(.v-data-table-footer *)')
+      const controls = page.locator('.v-btn--icon:not([aria-expanded])')
       const count = await controls.count()
       expect(count).toBeGreaterThan(0)
       for (let i = 0; i < count; i++) {

@@ -3,6 +3,7 @@ import type { UserItem } from '@/common/types'
 import {
   ADMIN_PROJECT,
   ADMIN_USER,
+  CANDIDATE_USER,
   defaultMockData,
   installMockBackend,
   RESEARCH_PROJECT,
@@ -102,6 +103,38 @@ test.describe('project list', () => {
     await expect(row(page, RESEARCH_PROJECT.name)).toBeVisible()
     await expect(row(page, ADMIN_PROJECT.name)).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Create New Project' })).toHaveCount(0)
+  })
+
+  test('shows every project on one page', async ({ page }) => {
+    const studies = Array.from({ length: 12 }, (_, i) => ({
+      ...RESEARCH_PROJECT,
+      id: `5e7a9c1b-0000-0000-0000-${String(i).padStart(12, '0')}`,
+      short_id: `study${i}`,
+      name: `study-${i}`,
+    }))
+    const projects = [ADMIN_PROJECT, ...studies]
+    await openView(page, { ...defaultMockData, projects })
+
+    await expect(page.locator('tbody tr')).toHaveCount(projects.length)
+  })
+
+  test('a search that matches nothing says so and can be cleared', async ({ page }) => {
+    await openView(page)
+    await page.getByRole('textbox', { name: 'Search projects' }).fill('liver')
+
+    await expect(page.getByText('No projects match "liver"')).toBeVisible()
+    await page.getByRole('button', { name: 'Clear search', exact: true }).click()
+    await expect(row(page, RESEARCH_PROJECT.name)).toBeVisible()
+  })
+
+  test('a user in no project learns how to join one', async ({ page }) => {
+    await installMockBackend(page, { ...defaultMockData, currentUser: CANDIDATE_USER })
+    await page.goto(VIEW_PATH)
+
+    await expect(page.getByText('You are not in any project yet')).toBeVisible()
+    await expect(
+      page.getByText("Ask a project manager or a project's principal investigator to add you."),
+    ).toBeVisible()
   })
 
   test('a list that cannot load says so', async ({ page }) => {

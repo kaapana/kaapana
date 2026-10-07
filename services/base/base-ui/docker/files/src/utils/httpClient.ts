@@ -14,7 +14,7 @@ export const httpClientWithoutTimeout = axios.create({
 // Calls to project-scoped services are rewritten onto the platform-wide
 // /project/<short_id>/<service>/... convention; the <short_id> comes from the
 // document URL, which carries the same prefix.
-const PROJECT_SCOPED = /^\/(kaapana-backend|kube-helm-api|workflow-api|dicom-web-filter|data-api)\//
+const PROJECT_SCOPED = /^\/(kaapana-backend|kube-helm-api|workflow-api|dicom-web-filter)\//
 
 function prefixProjectScope(config: InternalAxiosRequestConfig): InternalAxiosRequestConfig {
   if (config.url && PROJECT_SCOPED.test(config.url)) {

@@ -1,0 +1,18 @@
+@use 'vuetify/settings' with (
+  $body-font-family: ('Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif),
+);
+
+body {
+  margin: 0;
+  background-color: rgb(var(--v-theme-background));
+  color: rgb(var(--v-theme-on-background));
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+.entity-grid {
+  margin-top: 8px;
+}
+
+.v-application {
+  background-color: transparent !important;
+}

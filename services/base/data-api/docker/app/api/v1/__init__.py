@@ -1,7 +1,6 @@
 from app.api.v1.endpoints import artifacts, entities, maintenance, metadata, queries
 from app.db.session import get_async_db
 from app.services.event_bus import get_event_bus
-from app.services.project_scope import InvalidProjectHeader, parse_project_header
 from fastapi import APIRouter, Depends, WebSocket
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.websockets import WebSocketDisconnect
@@ -24,13 +23,8 @@ async def health_check(
 
 @router.websocket("/ws/events")
 async def events_websocket(websocket: WebSocket) -> None:
-    try:
-        scope = parse_project_header(websocket.headers.get("Project"))
-    except InvalidProjectHeader:
-        await websocket.close(code=1008)
-        return
     bus = get_event_bus()
-    await bus.connect(websocket, scope.id if scope else None)
+    await bus.connect(websocket)
     try:
         while True:
             try:

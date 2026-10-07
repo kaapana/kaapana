@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Iterable
+from typing import Any
 from uuid import UUID
 
 from app.db.models import DataEntityORM, MetadataSchemaORM
@@ -11,7 +11,6 @@ from app.models.events import EventAction, EventMessage, EventResource
 from app.services.artifact_store import get_artifact_store
 from app.services.entity_repository import entity_from_orm, fetch_entity_orm
 from app.services.event_bus import get_event_bus
-from app.services.project_scope import ProjectScope, ensure_in_scope, project_of_entity
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,16 +18,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 logger = logging.getLogger(__name__)
 
 
-async def require_entity(db: AsyncSession, entity_id: UUID, scope: ProjectScope | None = None) -> DataEntityORM:
+async def require_entity(db: AsyncSession, entity_id: UUID) -> DataEntityORM:
     entity = await fetch_entity_orm(db, entity_id)
     if entity is None:
         raise HTTPException(status_code=404, detail="Entity not found")
-    ensure_in_scope(entity, scope)
     return entity
 
 
-async def require_entity_response(db: AsyncSession, entity_id: UUID, scope: ProjectScope | None = None) -> DataEntity:
-    return entity_from_orm(await require_entity(db, entity_id, scope))
+async def require_entity_response(db: AsyncSession, entity_id: UUID) -> DataEntity:
+    entity = await fetch_entity_orm(db, entity_id)
+    if entity is None:
+        raise HTTPException(status_code=404, detail="Entity not found")
+    return entity_from_orm(entity)
 
 
 async def commit_and_return_entity(db: AsyncSession, entity_id: UUID) -> DataEntity:
@@ -49,34 +50,22 @@ async def get_metadata_schema(db: AsyncSession, key: str) -> MetadataSchemaORM:
     return schema
 
 
-def _broadcast_event(
-    resource: EventResource,
-    action: EventAction,
-    project_ids: frozenset[str | None] | None = None,
-    **data: Any,
-) -> None:
+def _broadcast_event(resource: EventResource, action: EventAction, **data: Any) -> None:
     bus = get_event_bus()
     event = EventMessage.build(resource=resource, action=action, **data)
 
     async def _send() -> None:
         try:
-            await bus.broadcast(event, project_ids)
+            await bus.broadcast(event)
         except Exception:  # pragma: no cover - defensive log
             logger.exception("Failed to broadcast event")
 
     asyncio.create_task(_send())
 
 
-async def broadcast_entity_event(
-    action: EventAction,
-    entity: DataEntity | UUID,
-    projects: Iterable[str | None] = (),
-) -> None:
+async def broadcast_entity_event(action: EventAction, entity: DataEntity | UUID) -> None:
     entity_id = entity.id if isinstance(entity, DataEntity) else entity
-    project_ids = set(projects)
-    if isinstance(entity, DataEntity):
-        project_ids.add(project_of_entity(entity))
-    _broadcast_event(EventResource.DATA_ENTITY, action, frozenset(project_ids), id=str(entity_id))
+    _broadcast_event(EventResource.DATA_ENTITY, action, id=str(entity_id))
 
 
 async def broadcast_metadata_key_event(action: EventAction, key: str, schema: dict | None = None) -> None:
@@ -92,16 +81,6 @@ def cleanup_entity_artifacts(entity_id: UUID | str) -> None:
         store.delete_entity(str(entity_id))
     except Exception:  # pragma: no cover - filesystem best effort
         logger.warning("Failed to delete artifacts for entity %s", entity_id, exc_info=True)
-
-
-def cleanup_artifact(entity_id: UUID | str, key: str, artifact_id: str) -> None:
-    store = get_artifact_store()
-    try:
-        store.delete_artifact(str(entity_id), key, artifact_id)
-    except Exception:  # pragma: no cover - filesystem best effort
-        logger.warning(
-            "Failed to delete artifact %s of entity %s metadata key %s", artifact_id, entity_id, key, exc_info=True
-        )
 
 
 def cleanup_metadata_artifacts(entity_id: UUID | str, key: str) -> None:

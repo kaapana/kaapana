@@ -16,51 +16,44 @@ spec:
       labels:
         app.kubernetes.io/name: data-ui-app
     spec:
-      securityContext:
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
       containers:
       - name: data-ui-container
         image: "{{ .Values.global.registry_url }}/data-ui:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  "{{ .Values.global.pull_policy_images }}"
         ports:
         - name: http-port
-          containerPort: {{ if .Values.global.dev_files }}5173{{ else }}5000{{ end }}
+          containerPort: {{ if .Values.global.dev_files }}5173{{ else }}80{{ end }}
         resources:
-{{- if .Values.global.dev_files }}
-          requests:
-            memory: "5Gi"
           limits:
             memory: "5Gi"
-{{- else }}
           requests:
-            memory: "50Mi"
-          limits:
-            memory: "50Mi"
-{{- end }}
+            memory: "100Mi"
         volumeMounts:
 {{- if .Values.global.dev_files }}
+          # Mount source files for hot reload in dev mode
           - name: dev-files
-            mountPath: /kaapana/data-ui/docker/files
+            mountPath: /app
 {{- end }}
           - name: tmp
-            mountPath: /tmp
+            mountPath: /var/run
+          - name: cache
+            mountPath: /var/cache/nginx
         securityContext:
           allowPrivilegeEscalation: false
 {{- if .Values.global.dev_files }}
-          readOnlyRootFilesystem: false
-{{- else }}
-          readOnlyRootFilesystem: true
+          readOnlyRootFilesystem: false  # Allow writes for dev mode (node_modules, vite cache)
 {{- end }}
       volumes:
 {{- if .Values.global.dev_files }}
+      # Mount workflow-ui source code from Kaapana repo for hot reload
       - name: dev-files
         hostPath:
           path: {{ .Values.global.dev_files }}
           type: Directory
 {{- end }}
       - name: tmp
+        emptyDir: {}
+      - name: cache
         emptyDir: {}
       priorityClassName: kaapana-high-priority
       imagePullSecrets:

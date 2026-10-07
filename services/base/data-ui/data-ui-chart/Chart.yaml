@@ -3,4 +3,4 @@ apiVersion: v1
 appVersion: "0.0.0"
 version: "0.0.0"
 name: data-ui
-description: Data view micro-frontend for the data-api, served as an iframe view inside the portal-ui shell
+description: A minimal chart to run the frontend for the data-api

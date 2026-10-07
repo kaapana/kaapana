@@ -13,7 +13,7 @@
             <template #actions>
                 <template v-if="can(project?.id, 'manage_workflow_whitelist')">
                     <v-chip v-if="pendingCount > 0" color="warning" variant="tonal" size="small">
-                        {{ pendingCount }} unsaved
+                        {{ pendingCount }} unsaved change{{ pendingCount !== 1 ? 's' : '' }}
                     </v-chip>
                     <v-btn v-if="pendingCount > 0" size="small" variant="text" @click="discardChanges">
                         Discard
@@ -212,6 +212,9 @@ const saveChanges = async () => {
                 const wf = workflows.value.find((w) => w.dag_name === dag)
                 if (wf) wf.inAii = allow
             })
+            pending.value = Object.fromEntries(
+                Object.entries(pending.value).filter(([dag]) => !dags.includes(dag)),
+            )
             saved += dags.length
         } catch (error) {
             lastError = error
@@ -233,7 +236,6 @@ const saveChanges = async () => {
             false,
         )
 
-    pending.value = {}
     isSaving.value = false
     if (failed > 0) {
         notifyFailure('Workflows partly saved', `${saved} saved, ${failed} failed.`, lastError)

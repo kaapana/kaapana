@@ -18,6 +18,16 @@
       </v-container>
       <router-view v-else :key="viewKey" />
     </v-main>
+    <ConfirmDialog
+      v-model="discardOpen"
+      color="error"
+      title="Discard unsaved changes?"
+      text="Changes on this page are not saved yet and are lost if you continue."
+      confirm-text="Discard changes"
+      cancel-text="Keep editing"
+      @confirm="answerDiscard(true)"
+      @cancel="answerDiscard(false)"
+    />
     <ErrorDetailsDialog
       v-model="failureDetails.open"
       :title="failureDetails.current?.title"
@@ -29,7 +39,8 @@
 
 <script lang="ts" setup>
 import { ref, onMounted } from 'vue'
-import { ErrorDetailsDialog, useShellSettings } from '@kaapana/base-ui'
+import { ConfirmDialog, ErrorDetailsDialog, useShellSettings } from '@kaapana/base-ui'
+import { useDiscardDialog } from '@/composables/useDiscardConfirmation'
 import { useFailureDetailsStore } from '@/stores/failureDetails'
 import store from '@/common/store'
 import { UserItem } from '@/common/types'
@@ -41,6 +52,7 @@ import FailureAlert from '@/components/FailureAlert.vue'
 
 const { viewKey } = useShellSettings()
 const failureDetails = useFailureDetailsStore()
+const { open: discardOpen, answer: answerDiscard } = useDiscardDialog()
 
 // A failure notification carries its details in `data.failure` (see
 // utils/notifyFailure.ts); selecting it opens ErrorDetailsDialog.

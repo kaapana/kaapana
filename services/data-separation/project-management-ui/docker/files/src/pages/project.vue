@@ -154,14 +154,20 @@
     </template>
 
     <!-- ── Dialogs ───────────────────────────────────────────────── -->
-    <v-dialog v-model="editDialog" max-width="600">
+    <GuardedDialog
+      v-slot="{ requestClose }"
+      v-model="editDialog"
+      :dirty="editDirty"
+      max-width="600"
+    >
       <EditProjectDialog
         v-if="editDialog && project"
         :project="project"
         @success="handleEditSuccess"
-        @cancel="editDialog = false"
+        @cancel="requestClose"
+        @update:dirty="editDirty = $event"
       />
-    </v-dialog>
+    </GuardedDialog>
 
     <ConfirmDialog
       v-model="confirmOpen"
@@ -191,10 +197,12 @@ import MultiinstallableApplications from '@/components/MultiinstallableApplicati
 import ActiveProjectApplications from '@/components/ActiveProjectApplications.vue'
 import EditProjectDialog from '@/components/EditProjectDialog.vue'
 import FailureAlert from '@/components/FailureAlert.vue'
+import GuardedDialog from '@/components/GuardedDialog.vue'
 import { ConfirmDialog, refreshShell } from '@kaapana/base-ui'
 import { notify } from '@kyvg/vue3-notification'
 import { notifyFailure } from '@/utils/notifyFailure'
 import { useConfirmation } from '@/composables/useConfirmation'
+import { confirmDiscard } from '@/composables/useDiscardConfirmation'
 import { archiveProjectConfirmation, deleteProjectConfirmation } from '@/utils/projectConfirmations'
 import { usePermissions } from '@/permissions/usePermissions'
 import { usePermissionsStore } from '@/permissions/permissions.store'
@@ -209,6 +217,7 @@ export default defineComponent({
     EditProjectDialog,
     FailureAlert,
     ConfirmDialog,
+    GuardedDialog,
   },
 
   setup() {
@@ -237,6 +246,7 @@ export default defineComponent({
       uninstallingRelease: null as string | null,
 
       editDialog: false,
+      editDirty: false,
     }
   },
 
@@ -264,6 +274,8 @@ export default defineComponent({
     },
 
     async refresh(): Promise<void> {
+      // Remounting the sections drops their staged changes.
+      if (!(await confirmDiscard())) return
       await this.loadProject()
       this.refreshKey++
     },
@@ -293,7 +305,7 @@ export default defineComponent({
           type: 'success',
           text: `${app.annotations['kaapana.ai/display-name']} is being removed.`,
         })
-        await this.refresh()
+        this.activeAppsKey++
       } catch (error: unknown) {
         notifyFailure(
           'Application not uninstalled',

@@ -37,7 +37,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { notify } from '@kyvg/vue3-notification'
 import { refreshShell } from '@kaapana/base-ui'
 import { aiiApiPost } from '@/common/services'
@@ -47,6 +47,7 @@ import FailureAlert from '@/components/FailureAlert.vue'
 const emit = defineEmits<{
     (e: 'created'): void
     (e: 'cancel'): void
+    (e: 'update:dirty', dirty: boolean): void
 }>()
 
 const form = ref<{ validate: () => Promise<{ valid: boolean }> } | null>(null)
@@ -55,6 +56,12 @@ const description = ref('')
 const externalId = ref('')
 const saving = ref(false)
 const failure = ref<unknown>(null)
+
+watch(
+    () => [name.value, description.value, externalId.value].some((v) => v.trim() !== ''),
+    (dirty) => emit('update:dirty', dirty),
+    { immediate: true },
+)
 
 async function submit() {
     if (!(await form.value!.validate()).valid) return

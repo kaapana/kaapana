@@ -111,7 +111,7 @@
 import FailureAlert from '@/components/FailureAlert.vue'
 import { notify } from '@kyvg/vue3-notification'
 import { kaapanaIcons, projectIcons, roleIcons } from '@/utils/projectIcons'
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { UserItem, UserRole } from '@/common/types'
 import { aiiApiGet, aiiApiPost, aiiApiPut } from '@/common/services'
 import { isAdminUser, isSystemUser, waitForStoreUser } from '@/common/userAccess'
@@ -130,9 +130,10 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (e: 'cancel'): void;
-  (e: 'success'): void;
-}>();
+  (e: 'cancel'): void
+  (e: 'success'): void
+  (e: 'update:dirty', dirty: boolean): void
+}>()
 
 const availableRoles = ref<Role[]>([]);
 
@@ -141,7 +142,8 @@ const showSystemUsers = ref(false);
 
 const availableUsers = ref<UserItem[]>([])
 const selectedUserIds = ref<string[]>([])
-const selectedRole = ref<string>(props.userToEdit?.role?.name ?? 'scientist')
+const initialRole = props.userToEdit?.role?.name ?? 'scientist'
+const selectedRole = ref<string>(initialRole)
 const isLoadingAvailableUsers = ref(false)
 const isSubmitting = ref(false)
 const validationError = ref('')
@@ -150,6 +152,12 @@ const failure = ref<{ title: string; text: string; error: unknown; retry?: () =>
 )
 
 const isAddMode = computed(() => props.actionType === 'add');
+
+watch(
+  () => selectedUserIds.value.length > 0 || selectedRole.value !== initialRole,
+  (dirty) => emit('update:dirty', dirty),
+  { immediate: true },
+)
 
 const userSearchFilter = (_: string, query: string, item?: { raw: UserItem }) => {
   if (!item) return false

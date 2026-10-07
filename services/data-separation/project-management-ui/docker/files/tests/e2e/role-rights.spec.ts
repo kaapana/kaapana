@@ -45,6 +45,19 @@ test('saves staged role-right changes', async ({ page }) => {
   expect(state.roleRights[3]).toEqual(expect.arrayContaining([1, 2]))
 })
 
+test('discards staged role-right changes', async ({ page }) => {
+  const state = await open(page)
+  const checkbox = row(page, 'manage_users').getByRole('checkbox').nth(2)
+  await checkbox.click()
+  await expect(page.getByText('1 unsaved change')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Discard' }).click()
+
+  await expect(page.getByText('unsaved change')).toHaveCount(0)
+  await expect(checkbox).not.toBeChecked()
+  expect(state.roleRights[3]).not.toContain(1)
+})
+
 test('adds a right after validating every field', async ({ page }) => {
   const state = await open(page)
   await page.getByRole('button', { name: 'Add Right' }).click()

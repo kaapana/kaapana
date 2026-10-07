@@ -86,6 +86,10 @@ export async function confirmAction(page: Page, name: string) {
   await dialog(page).waitFor({ state: 'hidden' })
 }
 
+export function discardQuestion(page: Page) {
+  return page.getByRole('dialog').filter({ hasText: /Discard (your|unsaved) changes\?/ })
+}
+
 /**
  * Press Escape until `settled` holds. Vuetify honours Escape only once its
  * overlay stack has settled, which happens in a setTimeout after the dialog

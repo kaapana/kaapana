@@ -4,6 +4,7 @@ import Project from '@/pages/project.vue'
 import RoleRights from '@/pages/role-rights.vue'
 import store from '@/common/store'
 import { isAdminUser } from '@/common/userAccess'
+import { confirmDiscard } from '@/composables/useDiscardConfirmation'
 
 const routes = [
   {
@@ -37,5 +38,7 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
 })
+
+router.beforeEach(() => confirmDiscard())
 
 export default router

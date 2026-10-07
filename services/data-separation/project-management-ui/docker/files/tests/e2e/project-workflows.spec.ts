@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { defaultMockData, RESEARCH_PROJECT, type MockData } from './fixtures/mock-backend'
-import { expandSection, openProject, row } from './fixtures/helpers'
+import { expandSection, openProject, row, serverError } from './fixtures/helpers'
 
 async function open(page: import('@playwright/test').Page, data: MockData = defaultMockData) {
   const state = await openProject(page, RESEARCH_PROJECT, data)
@@ -23,11 +23,38 @@ test('stages changes and saves them to the whitelist', async ({ page }) => {
 
   await row(page, 'nnunet-predict').getByRole('checkbox').click()
   await row(page, 'collect-metadata').getByRole('checkbox').click()
-  await expect(section(page).getByText('2 unsaved')).toBeVisible()
+  await expect(section(page).getByText('2 unsaved changes')).toBeVisible()
   await section(page).getByRole('button', { name: 'Save Changes' }).click()
 
   await expect(section(page).getByText('unsaved')).toHaveCount(0)
   expect(state.softwareMappings[RESEARCH_PROJECT.id]).toEqual(['nnunet-predict'])
+})
+
+test('a partly failed save keeps the changes that failed', async ({ page }) => {
+  const state = await open(page)
+  let deleteFailed = false
+  await page.route(/\/software-mappings$/, (r) => {
+    if (r.request().method() !== 'DELETE' || deleteFailed) return r.fallback()
+    deleteFailed = true
+    return r.fulfill(serverError('backend unavailable', 503))
+  })
+
+  await row(page, 'nnunet-predict').getByRole('checkbox').click()
+  await row(page, 'collect-metadata').getByRole('checkbox').click()
+  await section(page).getByRole('button', { name: 'Save Changes' }).click()
+
+  await expect(page.getByText('Workflows partly saved')).toBeVisible()
+  await expect(section(page).getByText('1 unsaved change')).toBeVisible()
+  await expect(row(page, 'collect-metadata').getByRole('checkbox')).not.toBeChecked()
+  expect(state.softwareMappings[RESEARCH_PROJECT.id]).toContain('nnunet-predict')
+
+  const sent: string[] = []
+  page.on('request', (r) => r.url().endsWith('/software-mappings') && sent.push(r.method()))
+  await section(page).getByRole('button', { name: 'Save Changes' }).click()
+
+  await expect(section(page).getByText('unsaved')).toHaveCount(0)
+  expect(state.softwareMappings[RESEARCH_PROJECT.id]).toEqual(['nnunet-predict'])
+  expect(sent).toEqual(['DELETE'])
 })
 
 test('discards staged changes', async ({ page }) => {

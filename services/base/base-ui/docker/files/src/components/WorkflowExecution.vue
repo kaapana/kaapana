@@ -850,13 +850,6 @@ const submitBlockedReason = computed<string | null>(() => {
   return null;
 });
 
-// Reactive counterpart to submissionValidator()'s own required-fields loop, so
-// the Start Workflow button can reflect a schema-required field vjsf itself
-// never wires into the surrounding v-form's own valid state (e.g. a required
-// array/multi-select), not just the fields Vuetify's own :rules cover.
-const requiredFieldsSatisfied = computed(() =>
-  form_requiredFields.value.every((reqField) => evaluateRequiredField(reqField).satisfied)
-);
 
 function validConfirmation() {
   const formatted = formatFormData(state.formData);

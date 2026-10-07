@@ -387,9 +387,6 @@ function markFormTouched() {
   userTouchedForm.value = true;
 }
 
-// Everything the user can type or pick before Start: vjsf's formData, the
-// native run name, and the backend file tree, which reaches formData only at
-// submit time.
 const formSnapshot = () => stableStringify([state.formData, state.workflow_name, state.selectedItems]);
 
 watch(
@@ -401,8 +398,10 @@ watch(
 );
 
 const viewDirty = computed(() => {
+  // The schema fields need the touched baseline, because vjsf fills them with
+  // defaults on its own. The two native controls start empty, so their value
+  // alone says whether the user changed something.
   const formDirty = userTouchedForm.value && formSnapshot() !== formBaseline.value;
-  // Native (non-vjsf) inputs, both reset on every dag change (see dag watcher).
   const nativeDirty = state.selectedDataset !== null || state.datasetLimitWhole === false;
   return formDirty || nativeDirty;
 });
@@ -435,8 +434,6 @@ function normalizeV2Schema(fragment: any): any {
   if (!fragment || typeof fragment !== "object" || Array.isArray(fragment)) {
     return fragment;
   }
-  // A `readOnly` field renders disabled, which on its own only tells the user
-  // that they cannot change it. Say why, through the field's help icon.
   if (fragment.readOnly === true && typeof fragment.type === "string") {
     const text = fragment.description?.trim();
     const sentence = text && !/[.!?]$/.test(text) ? `${text}.` : text;
@@ -869,9 +866,8 @@ function validConfirmation() {
   return failedConfirmations;
 }
 async function submissionValidator() {
-  // The button is disabled while submitting, but a click that lands before
-  // that reactive update paints (e.g. a rapid double-click) would otherwise
-  // still reach this handler a second time.
+  // A double-click can reach this handler twice before the button turns
+  // disabled.
   if (state.submitting) {
     return false;
   }
@@ -886,10 +882,7 @@ async function submissionValidator() {
     return false;
   }
   // The button is disabled whenever any check below would fail, so the failure
-  // paths from here on are a backstop rather than the normal route. They still
-  // matter: both the form's validity and the required-field check settle
-  // asynchronously, so a click can arrive against a button that has not caught
-  // up yet.
+  // paths from here on are a backstop rather than the normal route.
   // vuetify field rules first
   const validation = await executeWorkflow.value!.validate();
   if (validation.valid) {

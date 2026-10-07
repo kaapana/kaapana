@@ -22,22 +22,34 @@ spec:
         imagePullPolicy:  "{{ .Values.global.pull_policy_images }}"
         ports:
         - name: http-port
-          containerPort: {{ if .Values.global.dev_files }}5173{{ else }}80{{ end }}
+          containerPort: 5000
+        livenessProbe:
+          httpGet:
+            path: /workflow-ui/
+            port: http-port
+          initialDelaySeconds: 10
+          periodSeconds: 20
         resources:
+{{- if .Values.global.dev_files }}
+          # The vite dev server needs far more memory than nginx.
           limits:
             memory: "5Gi"
           requests:
             memory: "100Mi"
+{{- else }}
+          limits:
+            memory: "100Mi"
+          requests:
+            memory: "10Mi"
+{{- end }}
         volumeMounts:
 {{- if .Values.global.dev_files }}
           # Mount source files for hot reload in dev mode
           - name: dev-files
-            mountPath: /app
+            mountPath: /kaapana/workflow-ui/docker/files
 {{- end }}
           - name: tmp
-            mountPath: /var/run
-          - name: cache
-            mountPath: /var/cache/nginx
+            mountPath: /tmp
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: {{ if .Values.global.dev_files }}false{{ else }}true{{ end }}  # Allow writes for dev mode (node_modules, vite cache)
@@ -50,8 +62,6 @@ spec:
           type: Directory
 {{- end }}
       - name: tmp
-        emptyDir: {}
-      - name: cache
         emptyDir: {}
       priorityClassName: kaapana-high-priority
       imagePullSecrets:

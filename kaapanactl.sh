@@ -1497,6 +1497,7 @@ function load_kaapana_config {
     ADMIN_NAMESPACE="admin"
     EXTENSIONS_NAMESPACE="extensions"
     PREFIX_ALL_NAMESPACES=false
+    PUBLIC_PROJECT_ID="" # UUID of the initial "public" project (empty: random); its namespace is <PLATFORM_PREFIX>-project-<first 8 chars>
     EXTRA_MANAGED_NAMESPACES="" # comma-separated, in addition to the admin project namespace (${PLATFORM_PREFIX}-project-admin)
     HELM_NAMESPACE="default" # with RESTRICTED_RBAC=true the admin namespace is used
 
@@ -2590,6 +2591,7 @@ function deploy_chart {
     --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
     --set-string global.release_name="$PLATFORM_NAME" \
     --set-string global.platform_prefix="$PLATFORM_PREFIX" \
+    --set-string global.public_project_id="$PUBLIC_PROJECT_ID" \
     --set-string global.deployment_timestamp="$DEPLOYMENT_TIMESTAMP" \
     --set-string global.mount_points_to_monitor="$MOUNT_POINTS_TO_MONITOR" \
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \

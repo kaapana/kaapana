@@ -11,6 +11,9 @@ class OrmBaseModel(BaseModel):
 
 
 class CreateProject(OrmBaseModel):
+    # Optional fixed id: the project namespace "<prefix>-project-<first 8 hex chars of id>" is then known
+    # before the project is created (needed if Kaapana can't create namespaces itself).
+    id: Optional[UUID] = None
     external_id: Optional[str] = None
     name: str
     description: str

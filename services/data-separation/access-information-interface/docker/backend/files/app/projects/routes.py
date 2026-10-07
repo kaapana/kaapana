@@ -54,6 +54,12 @@ async def projects(
         await session.rollback()
 
     created_project = await crud.get_projects(session, project_name=project.name)
+    if not created_project:
+        # the integrity error wasn't the name but the requested id, which belongs to another project
+        raise HTTPException(
+            status_code=409,
+            detail=f"Project id {project.id} is already used by another project",
+        )
     created_project = created_project[0]
 
     await opensearch_helper.setup_new_project(project=created_project, session=session)

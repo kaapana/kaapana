@@ -25,6 +25,8 @@ async def create_project(
         description=project.description,
         external_id=project.external_id,
     )
+    if project.id is not None:
+        new_project.id = project.id
     session.add(new_project)
     await session.commit()
     await session.refresh(new_project)

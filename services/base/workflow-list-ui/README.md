@@ -14,17 +14,16 @@ acts on them (abort/restart/delete/manual-start).
   every options change re-queries `/workflows`. Search is **not** debounced:
   the search watch emits `update:options` synchronously on every input event,
   so each keystroke costs one `GET /workflows`.
-- **Per-state job-count chips** in the Status column: counts named by state,
-  each in that state's theme role, for the states present in the workflow's
-  `workflow_jobs` status list. Clicking a chip loads that workflow's jobs
-  filtered to that state.
+- **Per-state job-count chips** in the Status column: colored counts
+  (queued/scheduled/pending/running/finished/failed) for the states present in
+  the workflow's `workflow_jobs` status list. Clicking a chip loads that
+  workflow's jobs filtered to that state.
 - **Row expansion → job table** (`JobTable.vue`): expanding a workflow fetches
   its jobs and renders a nested `v-data-table` (dag id, created/updated, runner
   and owner instance, conf, status, logs, actions). Only one row expands at a
   time. If a workflow reports no jobs, an existence check warns via a toast.
-- **Job status chips + description tooltip**: status button in the state's
-  theme role whose tooltip shows the per-operator state JSON (parsed, sorted
-  by `start_date`).
+- **Job status chips + description tooltip**: colored status button whose
+  tooltip shows the per-operator state JSON (parsed, sorted by `start_date`).
 - **Conf dialog**: a mail icon per job opens a dialog with the pretty-printed
   `conf_data`.
 - **Workflow actions** (local, non-service, automatic workflows only): abort,
@@ -44,8 +43,7 @@ acts on them (abort/restart/delete/manual-start).
   Only the explicit toolbar refresh toasts on success, whether or not a search
   term is active; the background poll stays silent on success. Either path
   toasts on error.
-- **Theme-aware**: chip colours are theme roles, so they follow the shell's
-  dark/light mode.
+- **Theme-aware**: chip colors adapt to the shell's dark/light mode.
 
 ## Backend endpoints
 
@@ -60,7 +58,6 @@ project store and no `/aii` call.
 | Method | Path | Purpose | Project-prefixed |
 | --- | --- | --- | --- |
 | GET | `/kaapana-backend/client/workflows` | List workflows; body is the tuple `[rows, totalCount]`. Params `limit`, `offset`, `search`. Drives the table, polling, search, paging. | yes |
-| GET | `/kaapana-backend/client/kaapana-instance` | Fetch the local instance (`getLocalInstance`, on mount). | yes |
 | GET | `/kaapana-backend/client/jobs` | Jobs of a workflow. Called with `{workflow_name, status}` on expand / chip click, and `{workflow_name, limit:1}` as an existence check. | yes |
 | PUT | `/kaapana-backend/client/workflow` | Abort / restart / manual-start a workflow. Body `{workflow_id, workflow_status}` with status `abort` / `scheduled` / `confirmed`. | yes |
 | DELETE | `/kaapana-backend/client/workflow` | Delete a workflow (`{workflow_id}`). | yes |

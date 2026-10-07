@@ -425,3 +425,19 @@ export const emptyUploadSchema: Record<string, FormSchema> = {
     },
   },
 }
+
+// query-pacs verbatim: three optional fields carry `required: False`, the
+// boolean convention's negative case. Their defaults are empty strings, so a
+// gate that reads the key without its value blocks the workflow for good.
+export const optionalFieldsSchema: Record<string, FormSchema> = {
+  workflow_form: {
+    type: 'object',
+    properties: {
+      aet: { title: 'AE-Title', type: 'string', default: 'KAAPANA', required: true },
+      start_date: { title: 'Start Date', type: 'string', default: '', required: false },
+      end_date: { title: 'End Date', type: 'string', default: '', required: false },
+      level: { title: 'Level', type: 'string', default: 'series', required: true },
+      max_query_size: { title: 'Max Query Size', type: 'string', default: '', required: false },
+    },
+  },
+}

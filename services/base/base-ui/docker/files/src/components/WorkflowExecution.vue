@@ -734,7 +734,9 @@ function findRequiredFields(obj: any, result: string[] = [], prefix = ""): strin
     }
     if (value && typeof value === "object") {
       findRequiredFields(value, result, fullKey);
-    } else if (key === "required") {
+    } else if (key === "required" && value === true) {
+      // Several dags write `required: false` on an optional field. Only the
+      // value says whether the field is required, never the key alone.
       result.push(fullKey);
     }
   }

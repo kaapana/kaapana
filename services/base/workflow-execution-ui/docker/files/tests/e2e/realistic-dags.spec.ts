@@ -6,6 +6,7 @@ import {
   largeDatasetSchema,
   noModelsSchema,
   emptyUploadSchema,
+  optionalFieldsSchema,
 } from './fixtures/mock-backend'
 
 // Regression coverage: real backend DAG shapes that crashed vjsf 3 and blanked
@@ -126,4 +127,20 @@ test('a schema-readOnly field says why it cannot be edited', async ({ page }) =>
   await expect(page.getByText('Fixed by this workflow.')).toBeHidden()
   await page.locator('.vjsf .wfe-help-icon').hover()
   await expect(page.getByText('Expected input modality. Fixed by this workflow.')).toBeVisible()
+})
+
+test('`required: false` fields leave the workflow startable', async ({ page }) => {
+  // Regression: query-pacs' three optional fields default to an empty string.
+  // Reading the `required` key without its value blocked Start Workflow with
+  // no way for the user to clear it.
+  await bootView(page, singleDagData('query-pacs', optionalFieldsSchema))
+  await selectDag(page, 'query-pacs')
+
+  await expect(page.getByLabel('Start Date')).toHaveValue('')
+  await expect(page.getByRole('button', { name: 'Start Workflow' })).toBeEnabled()
+
+  const reqP = page.waitForRequest(WORKFLOW)
+  await page.getByRole('button', { name: 'Start Workflow' }).click()
+  const conf = (await reqP).postDataJSON().conf_data.workflow_form
+  expect(conf.start_date).toBe('')
 })

@@ -344,7 +344,7 @@ npm install -g gitlab-ci-local
 gitlab-ci-local --preview --variable CI_PIPELINE_SOURCE=web     # merged config
 gitlab-ci-local --list    --variable CI_PIPELINE_SOURCE=web     # what would run
 gitlab-ci-local unit_tests --variable CI_PIPELINE_SOURCE=web    # one job
-gitlab-ci-local --stage tests --variable CI_PIPELINE_SOURCE=web --privileged
+gitlab-ci-local --stage unittest --variable CI_PIPELINE_SOURCE=web --privileged
 ```
 
 - `CI_PIPELINE_SOURCE=web` is required. Without it `workflow:rules` falls
@@ -364,7 +364,7 @@ gitlab-ci-local --stage tests --variable CI_PIPELINE_SOURCE=web --privileged
 change before pushing. `glab ci lint` cannot: it mixes the root config of one
 ref with the includes of another.
 
-This covers the tests stage. Build, deploy and test jobs need registry
-credentials, the SSH key and a target, so their File-type variables would have
-to come from a local `.gitlab-ci-local-variables.yml` — scenario 1 or 2 is the
-easier way to run those.
+This covers the unittest stage. Build, deploy and integrationtest jobs need
+registry credentials, the SSH key and a target, so their File-type variables
+would have to come from a local `.gitlab-ci-local-variables.yml` — scenario 1
+or 2 is the easier way to run those.

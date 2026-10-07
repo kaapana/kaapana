@@ -5,14 +5,14 @@ spec:
     runner_tag:
       type: string
 ---
-# Stage: tests — unit tests + docs
+# Stage: unittest — unit tests + docs
 # In:  the job's own checkout, nothing else
 # Out: JUnit, coverage and HTML report artifacts for the MR UI
 ##############################################
 # TESTS AND DOCS
 ##############################################
 .test_template:
-  stage: tests
+  stage: unittest
   tags:
     - $[[ inputs.runner_tag ]]
   image: python:3.12
@@ -134,6 +134,47 @@ kaapana_client_tests:
       junit:
         - kaapana_client_report.xml
 
+##############################################
+# Service Tests
+##############################################
+service_tests:
+  extends: .pytest_template
+  rules:
+    - if: '"$[[ inputs.exec_unit_tests ]]" == "true" && $SERVICE == "portal-api"'
+      when: on_success
+      variables:
+        SERVICE_ROOT: services/base/portal-api/docker
+    - if: '"$[[ inputs.exec_unit_tests ]]" == "true" && $SERVICE == "notification-service"'
+      when: on_success
+      variables:
+        SERVICE_ROOT: services/base/notification-service/docker/files
+    - if: '"$[[ inputs.exec_unit_tests ]]" == "true" && $SERVICE == "dicom-web-filter"'
+      when: on_success
+      variables:
+        SERVICE_ROOT: services/data-separation/dicom-web-filter/docker/files
+    - if: '"$[[ inputs.exec_unit_tests ]]" == "true" && $SERVICE == "kaapana-backend"'
+      when: on_success
+      variables:
+        SERVICE_ROOT: services/base/kaapana-backend/docker/files
+    - when: never
+  parallel:
+    matrix:
+      - SERVICE:
+          - portal-api
+          - notification-service
+          - dicom-web-filter
+          - kaapana-backend
+  script:
+    - pip install -r $KAAPANA_DIR/$SERVICE_ROOT/tests/requirements.txt
+    - pytest $KAAPANA_DIR/$SERVICE_ROOT/tests --junitxml=service_report.xml
+        --cov=$SERVICE_ROOT/app --cov-report=term --cov-report=xml:coverage.xml
+  artifacts:
+    reports:
+      junit:
+        - service_report.xml
+
+# Own job: tests/ also holds integration and rest-http suites, so only
+# tests/unit runs on an empty runner.
 workflow_api_tests:
   extends: .pytest_template
   script:
@@ -146,48 +187,10 @@ workflow_api_tests:
         - workflow_api_report.xml
 
 ##############################################
-# Portal API Tests
-##############################################
-portal_api_tests:
-  extends: .pytest_template
-  script:
-    - pip install -r $KAAPANA_DIR/services/base/portal-api/docker/tests/requirements.txt
-    - pytest $KAAPANA_DIR/services/base/portal-api/docker/tests/ --junitxml=portal_api_report.xml
-        --cov=services/base/portal-api/docker/app --cov-report=term --cov-report=xml:coverage.xml
-  artifacts:
-    reports:
-      junit:
-        - portal_api_report.xml
-
-##############################################
-# Notification Service Tests
-##############################################
-notification_service_tests:
-  extends: .test_template
-  script:
-    - pip install -r $KAAPANA_DIR/services/base/notification-service/docker/files/tests/requirements.txt
-    - pytest $KAAPANA_DIR/services/base/notification-service/docker/files/tests/ --junitxml=notification_service_report.xml
-  artifacts:
-    reports:
-      junit:
-        - notification_service_report.xml
-
-##############################################
-# Dicom Web Filter Tests
-##############################################
-dicom_web_filter_tests:
-  extends: .test_template
-  script:
-    - pip install -r $KAAPANA_DIR/services/data-separation/dicom-web-filter/docker/files/tests/requirements.txt
-    - pytest $KAAPANA_DIR/services/data-separation/dicom-web-filter/docker/files/tests --junitxml=dicom_web_filter_report.xml
-  artifacts:
-    reports:
-      junit:
-        - dicom_web_filter_report.xml
-
-##############################################
 # Extension API Tests
 ##############################################
+# Own job: the suite sits in app/tests and needs the two sibling libraries
+# installed before it.
 extensions_api_tests:
   extends: .pytest_template
   script:
@@ -203,22 +206,9 @@ extensions_api_tests:
         - extensions_api_report.xml
 
 ##############################################
-# Keycloak Backend Tests
-##############################################
-kaapana_backend_tests:
-  extends: .pytest_template
-  script:
-    - pip install -r $KAAPANA_DIR/services/base/kaapana-backend/docker/files/tests/requirements.txt
-    - pytest $KAAPANA_DIR/services/base/kaapana-backend/docker/files/tests/ --junitxml=kaapana_backend_report.xml
-        --cov=services/base/kaapana-backend/docker/files/app --cov-report=term --cov-report=xml:coverage.xml
-  artifacts:
-    reports:
-      junit:
-        - kaapana_backend_report.xml
-
-##############################################
 # Auth Backend Tests
 ##############################################
+# Own job: no app/ import root, so the coverage target is docker/files.
 auth_backend_tests:
   extends: .pytest_template
   script:
@@ -229,6 +219,54 @@ auth_backend_tests:
     reports:
       junit:
         - auth_backend_report.xml
+
+##############################################
+# Kube-Helm Tests
+##############################################
+# test_ttl_cache.py by name: its siblings are integration tests needing a live
+# kube-helm + cluster and fail at collection here. The suite also sits in
+# app/tests rather than beside it, hence its own job.
+kube_helm_tests:
+  extends: .test_template
+  script:
+    - pip install -r $KAAPANA_DIR/services/kaapana-admin/kube-helm/docker/files/backend/app/tests/requirements.txt
+    - pytest $KAAPANA_DIR/services/kaapana-admin/kube-helm/docker/files/backend/app/tests/test_ttl_cache.py --junitxml=kube_helm_report.xml
+  artifacts:
+    reports:
+      junit:
+        - kube_helm_report.xml
+
+##############################################
+# Access Information Interface Tests
+##############################################
+# Own job: test_naming_conventions.py reads DATABASE_URL at import time and
+# fails collection, so the suite runs by file name.
+access_information_interface_tests:
+  extends: .pytest_template
+  script:
+    - pip install -r $KAAPANA_DIR/services/data-separation/access-information-interface/docker/backend/files/tests/requirements.txt
+    - pytest $KAAPANA_DIR/services/data-separation/access-information-interface/docker/backend/files/tests/test_keycloak_helper.py --junitxml=aii_report.xml
+        --cov=services/data-separation/access-information-interface/docker/backend/files/app
+        --cov-report=term --cov-report=xml:coverage.xml
+  artifacts:
+    reports:
+      junit:
+        - aii_report.xml
+
+##############################################
+# Keycloak Setup Tests
+##############################################
+# Own job: tests/ sits next to docker/ instead of beside the import root.
+keycloak_setup_tests:
+  extends: .pytest_template
+  script:
+    - pip install -r $KAAPANA_DIR/services/kaapana-admin/keycloak/keycloak-setup/tests/requirements.txt
+    - pytest $KAAPANA_DIR/services/kaapana-admin/keycloak/keycloak-setup/tests/ --junitxml=keycloak_setup_report.xml
+        --cov=services/kaapana-admin/keycloak/keycloak-setup/docker/files --cov-report=term --cov-report=xml:coverage.xml
+  artifacts:
+    reports:
+      junit:
+        - keycloak_setup_report.xml
 
 ##############################################
 # OPA Policy Tests
@@ -247,50 +285,6 @@ opa_policy_tests:
     - chmod +x /usr/local/bin/opa
     - cd $KAAPANA_DIR/services/kaapana-admin/auth-backend/auth-backend-chart
     - opa test --v0-compatible -b files
-
-##############################################
-# Kube-Helm Tests
-##############################################
-# test_ttl_cache.py by name: its siblings are integration tests needing a live
-# kube-helm + cluster and fail at collection here.
-kube_helm_tests:
-  extends: .test_template
-  script:
-    - pip install -r $KAAPANA_DIR/services/kaapana-admin/kube-helm/docker/files/backend/app/tests/requirements.txt
-    - pytest $KAAPANA_DIR/services/kaapana-admin/kube-helm/docker/files/backend/app/tests/test_ttl_cache.py --junitxml=kube_helm_report.xml
-  artifacts:
-    reports:
-      junit:
-        - kube_helm_report.xml
-
-##############################################
-# Access Information Interface Tests
-##############################################
-access_information_interface_tests:
-  extends: .pytest_template
-  script:
-    - pip install -r $KAAPANA_DIR/services/data-separation/access-information-interface/docker/backend/files/tests/requirements.txt
-    - pytest $KAAPANA_DIR/services/data-separation/access-information-interface/docker/backend/files/tests/test_keycloak_helper.py --junitxml=aii_report.xml
-        --cov=services/data-separation/access-information-interface/docker/backend/files/app
-        --cov-report=term --cov-report=xml:coverage.xml
-  artifacts:
-    reports:
-      junit:
-        - aii_report.xml
-
-##############################################
-# Keycloak Setup Tests
-##############################################
-keycloak_setup_tests:
-  extends: .pytest_template
-  script:
-    - pip install -r $KAAPANA_DIR/services/kaapana-admin/keycloak/keycloak-setup/tests/requirements.txt
-    - pytest $KAAPANA_DIR/services/kaapana-admin/keycloak/keycloak-setup/tests/ --junitxml=keycloak_setup_report.xml
-        --cov=services/kaapana-admin/keycloak/keycloak-setup/docker/files --cov-report=term --cov-report=xml:coverage.xml
-  artifacts:
-    reports:
-      junit:
-        - keycloak_setup_report.xml
 
 ##############################################
 # UI e2e Tests (mock-backed Playwright, no platform)
@@ -370,7 +364,6 @@ ui_unit_tests:
 # Documentation Build
 ##############################################
 build_documentation:
-  stage: tests
   extends: .test_template
   script:
     - cd $KAAPANA_DIR/docs
@@ -403,7 +396,7 @@ check_readthedocs:
 ##############################################
 # Runs only when this MR touches CI files.
 ci_config_tests:
-  stage: tests
+  stage: unittest
   tags:
     - $[[ inputs.runner_tag ]]
   image: python:3.12

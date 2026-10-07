@@ -102,7 +102,8 @@ Settings overview
        :ref:`existing_cluster_new_project`.
    * - ``EXTRA_MANAGED_NAMESPACES``
      - ``""``
-     - Comma-separated project namespaces, only relevant with ``RESTRICTED_RBAC=true``. See
+     - Comma-separated additional project namespaces (besides the admin and, with
+       ``PUBLIC_PROJECT_ID``, the public project), only relevant with ``RESTRICTED_RBAC=true``. See
        :ref:`existing_cluster_new_project`.
    * - ``DICOM_PORT`` /
        ``global.dicom_port``
@@ -169,8 +170,9 @@ and re-deployments.
 
 **Initial projects.** At the first deployment Kaapana creates the projects ``admin`` (namespace
 ``<prefix>-project-admin``) and ``public``. Set ``PUBLIC_PROJECT_ID`` to a UUID (e.g. from ``uuidgen``)
-to know the ``public`` namespace in advance, and create it before deploying, as described in steps
-2 and 3 below.
+to know the ``public`` namespace in advance, and create it before deploying. ``kaapanactl.sh deploy``
+checks that it exists and handles it like the admin project namespace: the Helm charts create the
+RBAC for it and Traefik watches it, so the RBAC script below is not needed.
 
 **New projects with a known id.** Choose the id first, prepare the namespace, then create the
 project with that id through the API of the ``access-information-interface`` (the UI can't set
@@ -275,12 +277,14 @@ Example: managed Rancher cluster
    DICOM_PORT="31112"
    STORAGE_PROVIDER="default"
    STORAGE_CLASS=""                    # empty: the cluster's default storage class
+   PUBLIC_PROJECT_ID="<uuid>"          # e.g. from uuidgen; namespace myplatform-project-<first 8 chars>
 
 Before deploying: with restricted RBAC you can't install CRDs and can't create namespaces (no
 ClusterRole), so this has to be prepared:
 
 #. Have the cluster administrators install the Traefik CRDs.
-#. Create the namespaces ``myplatform-admin``, ``myplatform-services``, ``myplatform-extensions``
-   and ``myplatform-project-admin`` (e.g. in Rancher).
+#. Create the namespaces ``myplatform-admin``, ``myplatform-services``, ``myplatform-extensions``,
+   ``myplatform-project-admin`` and, if ``PUBLIC_PROJECT_ID`` is set, ``myplatform-project-<first 8
+   characters of PUBLIC_PROJECT_ID>`` (e.g. in Rancher).
 #. Switch to the cluster's context: ``kubectl config use-context <context>``.
 #. Deploy as described in :ref:`deployment`.

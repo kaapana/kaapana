@@ -1498,7 +1498,7 @@ function load_kaapana_config {
     EXTENSIONS_NAMESPACE="extensions"
     PREFIX_ALL_NAMESPACES=false
     PUBLIC_PROJECT_ID="" # UUID of the initial "public" project (empty: random); its namespace is <PLATFORM_PREFIX>-project-<first 8 chars>
-    EXTRA_MANAGED_NAMESPACES="" # comma-separated, in addition to the admin project namespace (${PLATFORM_PREFIX}-project-admin)
+    EXTRA_MANAGED_NAMESPACES="" # comma-separated, in addition to the admin project and (with PUBLIC_PROJECT_ID) the public project namespace
     HELM_NAMESPACE="default" # with RESTRICTED_RBAC=true the admin namespace is used
 
     OIDC_CLIENT_SECRET=$(echo $RANDOM | md5sum | base64 | head -c 32)
@@ -1601,6 +1601,19 @@ function load_kaapana_config {
     if [ -f "$LOCAL_CONFIG" ]; then
         echo -e "${YELLOW}Loading local configuration $LOCAL_CONFIG${NC}"
         source "$LOCAL_CONFIG"
+    fi
+}
+
+# Project namespaces known before deploying: the admin project and, if its id is set, the public project
+function set_initial_project_namespaces {
+    INITIAL_PROJECT_NAMESPACES="${PLATFORM_PREFIX}-project-admin"
+    if [ -n "$PUBLIC_PROJECT_ID" ]; then
+        PUBLIC_PROJECT_ID="${PUBLIC_PROJECT_ID,,}"
+        if ! [[ "$PUBLIC_PROJECT_ID" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
+            echo -e "${RED}PUBLIC_PROJECT_ID '$PUBLIC_PROJECT_ID' is not a valid UUID.${NC}"
+            exit 1
+        fi
+        INITIAL_PROJECT_NAMESPACES="$INITIAL_PROJECT_NAMESPACES ${PLATFORM_PREFIX}-project-${PUBLIC_PROJECT_ID:0:8}"
     fi
 }
 
@@ -2276,8 +2289,8 @@ function create_namespaces {
   local namespaces="$EXTENSIONS_NAMESPACE $SERVICES_NAMESPACE $ADMIN_NAMESPACE $HELM_NAMESPACE"
 
   if [ "$RESTRICTED_RBAC" = "true" ]; then
-    # No permission to create namespaces: all must exist, incl. the admin project namespace kaapana would create later
-    for namespace in $namespaces "${PLATFORM_PREFIX}-project-admin"; do
+    # No permission to create namespaces: all must exist, incl. the initial project namespaces kaapana would create later
+    for namespace in $namespaces $INITIAL_PROJECT_NAMESPACES; do
       if ! $KUBE get namespace "$namespace" >/dev/null 2>&1; then
         echo -e "${RED}Namespace '$namespace' does not exist or is not accessible (RESTRICTED_RBAC=true, namespaces are not created).${NC}"
         echo -e "${RED}Create it beforehand - e.g. in a managed Kubernetes cluster via the platform UI.${NC}"
@@ -2294,6 +2307,7 @@ function create_namespaces {
 }
 
 function deploy_chart {
+    set_initial_project_namespaces
     if [ -z "$CONTAINER_REGISTRY_URL" ]; then
         echo "${RED}CONTAINER_REGISTRY_URL needs to be set! -> please adjust the kaapanactl.sh script!${NC}"
         echo "${RED}ABORT${NC}"
@@ -2550,7 +2564,7 @@ function deploy_chart {
     fi
     echo "proxy settings: http_proxy=$http_proxy, https_proxy=$https_proxy"
 
-    ALL_MANAGED_NAMESPACES="$EXTENSIONS_NAMESPACE,$SERVICES_NAMESPACE,$ADMIN_NAMESPACE,${PLATFORM_PREFIX}-project-admin${EXTRA_MANAGED_NAMESPACES:+,$EXTRA_MANAGED_NAMESPACES}"
+    ALL_MANAGED_NAMESPACES="$EXTENSIONS_NAMESPACE,$SERVICES_NAMESPACE,$ADMIN_NAMESPACE,${INITIAL_PROJECT_NAMESPACES// /,}${EXTRA_MANAGED_NAMESPACES:+,$EXTRA_MANAGED_NAMESPACES}"
 
     $HELM_INSTALL_CMD $CHART_PATH \
     --set-string global.base_namespace="base" \

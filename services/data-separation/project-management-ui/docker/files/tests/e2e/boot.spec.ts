@@ -39,7 +39,7 @@ test('renders a project detail page directly', async ({ page }) => {
 
   await openProject(page, ADMIN_PROJECT)
 
-  await expect(page.getByText('Project Users')).toBeVisible()
+  await expect(page.getByText('Project members')).toBeVisible()
   expect(pageErrors).toEqual([])
 })
 

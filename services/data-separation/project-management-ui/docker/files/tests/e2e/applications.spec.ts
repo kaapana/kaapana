@@ -13,14 +13,14 @@ import {
 
 async function open(page: Page, data: MockData = defaultMockData) {
   const state = await openProject(page, RESEARCH_PROJECT, data)
-  await expandSection(page, 'Multiinstallable Applications')
-  await expandSection(page, 'Active Project Applications')
+  await expandSection(page, 'Multiinstallable applications')
+  await expandSection(page, 'Active project applications')
   return state
 }
 
 const appsSection = (page: Page) =>
   page.locator('.v-row', {
-    has: page.getByRole('heading', { name: 'Multiinstallable Applications' }),
+    has: page.getByRole('heading', { name: 'Multiinstallable applications' }),
   })
 
 test('launches an application with its parameters and lists the new instance', async ({ page }) => {
@@ -69,7 +69,7 @@ test('keeps the launch form with its values when the launch fails', async ({ pag
   await openProject(page, RESEARCH_PROJECT, undefined, {
     routes: (p) => failRoute(p, 'POST', /\/helm-install-chart$/, 'quota exceeded'),
   })
-  await expandSection(page, 'Multiinstallable Applications')
+  await expandSection(page, 'Multiinstallable applications')
   await row(page, 'JupyterLab').getByRole('button', { name: 'Launch' }).click()
   const form = dialog(page)
   const name = form.getByRole('textbox', { name: 'Workspace name (workspace_name)' })
@@ -132,7 +132,7 @@ test('sorts running applications by the name they show', async ({ page }) => {
     activeApplications: [...defaultMockData.activeApplications, second],
   })
   const active = page.locator('.v-row', {
-    has: page.getByRole('heading', { name: 'Active Project Applications' }),
+    has: page.getByRole('heading', { name: 'Active project applications' }),
   })
   const names = active.locator('tbody tr td:nth-child(2)')
 
@@ -149,7 +149,7 @@ test('saves the application whitelist without dropping existing entries', async 
 
   await expect(row(page, 'JupyterLab').getByRole('checkbox')).toBeChecked()
   await row(page, 'Tensorboard').getByRole('checkbox').click()
-  await appsSection(page).getByRole('button', { name: 'Save Changes' }).click()
+  await appsSection(page).getByRole('button', { name: 'Save changes' }).click()
 
   await expect(appsSection(page).getByText('unsaved')).toHaveCount(0)
   expect(state.whitelists[RESEARCH_PROJECT.id]).toEqual(['jupyterlab', 'tensorboard'])
@@ -159,7 +159,7 @@ test('does not offer the whitelist when it could not be loaded', async ({ page }
   await openProject(page, RESEARCH_PROJECT, undefined, {
     routes: (p) => failRoute(p, 'GET', /\/multiinstallable-whitelist$/, 'database locked'),
   })
-  await expandSection(page, 'Multiinstallable Applications')
+  await expandSection(page, 'Multiinstallable applications')
 
   await expect(
     appsSection(page).getByRole('alert').filter({ hasText: 'Could not load the applications' }),

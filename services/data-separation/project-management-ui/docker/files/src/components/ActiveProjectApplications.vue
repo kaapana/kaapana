@@ -4,7 +4,7 @@
         <SectionHeader :expanded="expanded" @toggle="emit('toggle', $event)">
             <!-- LEFT TITLE -->
             <template #title>
-                Active Project Applications
+                Active project applications
             </template>
 
             <!-- OPTIONAL CHIP -->
@@ -91,7 +91,7 @@
                             :text="
                                 can(project?.id, 'delete_active_apps', item.release_name)
                                     ? 'Uninstall application'
-                                    : 'Not whitelisted for this project. Only admins can uninstall this.'
+                                    : 'Not allowed in this project. Only admins can uninstall it.'
                             "
                             location="top"
                         >

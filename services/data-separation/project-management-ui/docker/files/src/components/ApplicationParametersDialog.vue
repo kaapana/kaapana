@@ -1,9 +1,9 @@
 <template>
     <v-dialog v-model="dialog" max-width="900">
-        <v-card title="Application Parameters">
+        <v-card title="Application parameters">
             <v-card-text>
                 <v-alert v-if="!extensionParams || Object.keys(extensionParams).length === 0" type="info" class="mb-0">
-                    No extension parameters available
+                    This application has no parameters.
                 </v-alert>
                 <v-container v-else class="pa-3">
                     <v-row v-for="(value, key) in extensionParams" :key="key" class="mb-2">

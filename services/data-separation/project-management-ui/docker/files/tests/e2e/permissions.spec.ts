@@ -38,13 +38,13 @@ test('an admin gets every section and control', async ({ page }) => {
   await openProject(page, RESEARCH_PROJECT)
 
   await expect(sections(page)).toHaveText([
-    'Project Users',
-    'Project Workflows',
-    'Multiinstallable Applications',
-    'Active Project Applications',
+    'Project members',
+    'Project workflows',
+    'Multiinstallable applications',
+    'Active project applications',
   ])
-  await expect(page.getByRole('button', { name: 'Add User' })).toBeVisible()
-  await expandSection(page, 'Multiinstallable Applications')
+  await expect(page.getByRole('button', { name: 'Add members' })).toBeVisible()
+  await expandSection(page, 'Multiinstallable applications')
   await expect(row(page, 'Tensorboard').getByRole('button', { name: 'Launch' })).toBeEnabled()
 })
 
@@ -55,14 +55,14 @@ test('a project manager administers members and whitelists but not applications'
 
   // The gateway policy grants kube-helm's extensions, install and delete to admins only.
   await expect(sections(page)).toHaveText([
-    'Project Users',
-    'Project Workflows',
-    'Active Project Applications',
+    'Project members',
+    'Project workflows',
+    'Active project applications',
   ])
-  await expect(page.getByRole('button', { name: 'Add User' })).toBeVisible()
-  await expandSection(page, 'Project Workflows')
+  await expect(page.getByRole('button', { name: 'Add members' })).toBeVisible()
+  await expandSection(page, 'Project workflows')
   await expect(row(page, 'nnunet-predict').getByRole('checkbox')).toBeEnabled()
-  await expandSection(page, 'Active Project Applications')
+  await expandSection(page, 'Active project applications')
   await expect(
     page.getByRole('button', { name: 'Uninstall JupyterLab (notebooks)' }),
   ).toBeDisabled()
@@ -72,12 +72,12 @@ test('a user without project rights only sees the project', async ({ page }) => 
   await openProject(page, RESEARCH_PROJECT, as(SCIENTIST_USER))
 
   await expect(sections(page)).toHaveText([
-    'Project Users',
-    'Project Workflows',
-    'Active Project Applications',
+    'Project members',
+    'Project workflows',
+    'Active project applications',
   ])
-  await expect(page.getByRole('button', { name: 'Add User' })).toHaveCount(0)
-  await expandSection(page, 'Project Users')
+  await expect(page.getByRole('button', { name: 'Add members' })).toHaveCount(0)
+  await expandSection(page, 'Project members')
   await expect(
     row(page, SCIENTIST_USER.username).getByRole('button', {
       name: `Remove ${SCIENTIST_USER.username} from the project`,
@@ -96,9 +96,9 @@ test('a user with AII rights gets the controls those rights cover', async ({ pag
     ]),
   )
 
-  await expect(section(page, 'Multiinstallable Applications')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Add User' })).toBeVisible()
-  await expandSection(page, 'Multiinstallable Applications')
+  await expect(section(page, 'Multiinstallable applications')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Add members' })).toBeVisible()
+  await expandSection(page, 'Multiinstallable applications')
   await expect(row(page, 'Tensorboard').getByRole('button', { name: 'Launch' })).toBeEnabled()
 })
 
@@ -109,5 +109,5 @@ test('without the policy data, role grants allow nothing', async ({ page }) => {
   // Rendered from the loaded user, so the policy has been applied by now too.
   await expect(page.getByRole('button', { name: 'Delete project' })).toBeVisible()
 
-  await expect(section(page, 'Multiinstallable Applications')).toHaveCount(0)
+  await expect(section(page, 'Multiinstallable applications')).toHaveCount(0)
 })

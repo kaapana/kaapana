@@ -8,10 +8,10 @@
           :prepend-icon="projectIcons.roleRights"
           @click="$router.push('/role-rights')"
         >
-          Edit Role Rights
+          Edit role rights
         </v-btn>
         <v-btn color="primary" :prepend-icon="kaapanaIcons.add" @click="projectDialog = true">
-          Create New Project
+          Create new project
         </v-btn>
       </div>
     </div>
@@ -71,7 +71,7 @@
                 :prepend-icon="kaapanaIcons.add"
                 @click="projectDialog = true"
               >
-                Create New Project
+                Create new project
               </v-btn>
             </template>
           </ListEmptyState>

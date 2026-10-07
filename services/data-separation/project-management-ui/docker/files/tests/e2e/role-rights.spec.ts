@@ -22,14 +22,14 @@ test('sends users who cannot change role rights back to the project list', async
   await page.goto(RIGHTS_PATH)
 
   await expect(page).toHaveURL(/\/projects-ui\/$/)
-  await expect(page.getByRole('heading', { name: 'Edit Role Rights' })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Edit role rights' })).toHaveCount(0)
 })
 
 test('a project manager may change role rights', async ({ page }) => {
   const manager: UserItem = { ...SCIENTIST_USER, realm_roles: ['project-manager', 'user'] }
   await open(page, { ...defaultMockData, currentUser: manager })
 
-  await expect(page.getByRole('button', { name: 'Add Right' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Add right' })).toBeVisible()
 })
 
 test('saves staged role-right changes', async ({ page }) => {
@@ -38,7 +38,7 @@ test('saves staged role-right changes', async ({ page }) => {
   await row(page, 'manage_users').getByRole('checkbox').nth(2).click()
   await expect(page.getByText('1 unsaved change')).toBeVisible()
 
-  await page.getByRole('button', { name: 'Save Changes' }).click()
+  await page.getByRole('button', { name: 'Save changes' }).click()
   await confirmAction(page, 'Save changes')
 
   await expect(page.getByText('unsaved change')).toHaveCount(0)
@@ -60,7 +60,7 @@ test('discards staged role-right changes', async ({ page }) => {
 
 test('adds a right after validating every field', async ({ page }) => {
   const state = await open(page)
-  await page.getByRole('button', { name: 'Add Right' }).click()
+  await page.getByRole('button', { name: 'Add right' }).click()
   const form = dialog(page)
   const sent: string[] = []
   page.on('request', (r) => r.method() === 'POST' && sent.push(r.url()))

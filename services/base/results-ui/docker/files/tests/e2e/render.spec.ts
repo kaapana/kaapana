@@ -89,6 +89,9 @@ test('a search that matches nothing says so and offers to clear itself', async (
 
   await page.getByRole('textbox', { name: 'Search loaded results' }).fill('no-such-result')
   await expect(page.getByText('No loaded result matches your search.')).toBeVisible()
+  // The view's own message is the only one; the treeview's generic fallback row
+  // would otherwise say the same thing again, untranslated.
+  await expect(page.getByText('No data available')).toHaveCount(0)
 
   await page.getByRole('button', { name: 'Clear search', exact: true }).click()
 

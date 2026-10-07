@@ -490,18 +490,23 @@ onMounted(() => {
             </template>
           </v-alert>
 
-          <div v-else-if="treeIsEmpty" class="pa-6 text-center text-medium-emphasis">
-            <p class="text-body-2">
-              No workflow results yet. Results appear here once a workflow run has produced them.
-            </p>
-          </div>
+          <!-- An empty collection is a normal state, so it carries no alert icon. -->
+          <v-empty-state
+            v-else-if="treeIsEmpty"
+            title="No workflow results yet."
+            text="Results appear here once a workflow run has produced them."
+          />
 
-          <div v-else-if="searchFoundNothing" class="pa-6 text-center text-medium-emphasis">
-            <p class="text-body-2">No loaded result matches your search.</p>
-            <v-btn variant="text" color="primary" class="mt-2" @click="search = null">
-              Clear search
-            </v-btn>
-          </div>
+          <v-empty-state
+            v-else-if="searchFoundNothing"
+            :icon="kaapanaIcons.search"
+            :size="56"
+            title="No loaded result matches your search."
+          >
+            <template #actions>
+              <v-btn variant="text" color="primary" @click="search = null">Clear search</v-btn>
+            </template>
+          </v-empty-state>
 
           <!-- Vuetify matches the term verbatim, so the treeview has to be given the
                same term the empty state was decided from. -->
@@ -510,6 +515,7 @@ onMounted(() => {
             v-model:selected="tree"
             :items="staticUrls"
             :search="searchTerm || undefined"
+            hide-no-data
             item-value="path"
             item-title="name"
             selectable

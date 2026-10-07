@@ -1,142 +1,100 @@
 <template>
-  <v-card class="pa-4" elevation="2" style="position: sticky; top: 16px;">
-    <v-card-title class="text-h6 font-weight-medium">Filters</v-card-title>
-    <v-divider />
+  <v-card :elevation="2" class="filter-panel">
+    <v-card-title class="text-h6">Filters</v-card-title>
     <v-card-text>
-      <!-- SEARCH -->
-      <v-text-field v-model="searchQuery" label="Search workflows" prepend-inner-icon="mdi-magnify" density="compact"
-        variant="outlined" clearable class="mb-4" />
+      <v-text-field
+        :model-value="filters.search"
+        label="Search workflows"
+        :prepend-inner-icon="kaapanaIcons.search"
+        density="compact"
+        variant="outlined"
+        clearable
+        class="mb-2"
+        @update:model-value="update({ search: $event ?? '' })"
+      />
 
-      <!-- Categories -->
-      <div class="mb-4">
-        <div class="mb-2 text-left text-h6 font-weight-bold d-flex align-center">
-          <v-icon class="me-2" size="20">mdi-label-multiple</v-icon>
-          Categories
-        </div>
-        <v-chip-group v-model="selectedCategories" multiple column class="d-flex flex-wrap">
-          <v-chip v-for="category in availableCategories" :key="category" :value="category" variant="outlined" filter
-            class="ma-1">
-            {{ category }}
+      <div v-for="group in groups" :key="group.key" class="mb-4">
+        <div :id="`filter-${group.key}`" class="text-subtitle-1 mb-1">{{ group.label }}</div>
+        <p v-if="group.options.length === 0" class="text-body-2 text-medium-emphasis">
+          No workflow has a {{ group.label.toLowerCase() }} label.
+        </p>
+        <v-chip-group
+          v-else
+          :model-value="filters[group.key]"
+          multiple
+          column
+          :aria-labelledby="`filter-${group.key}`"
+          @update:model-value="update({ [group.key]: $event })"
+        >
+          <v-chip
+            v-for="option in group.options"
+            :key="option"
+            :value="option"
+            variant="outlined"
+            filter
+          >
+            {{ option }}
           </v-chip>
         </v-chip-group>
       </div>
 
-      <!-- PROVIDERS -->
-      <div class="mb-4">
-        <div class="mb-2 text-left text-h6 font-weight-bold d-flex align-center">
-          <v-icon class="me-2" size="20">mdi-domain</v-icon>
-          Providers
-        </div>
-        <v-chip-group v-model="selectedProviders" multiple column class="d-flex flex-wrap">
-          <v-chip v-for="provider in availableProviders" :key="provider" :value="provider" variant="outlined" filter
-            class="ma-1">
-            {{ provider }}
-          </v-chip>
-        </v-chip-group>
-      </div>
-
-      <!-- MATURITY -->
-      <div class="mb-4">
-        <div class="mb-2 text-left text-h6 font-weight-bold d-flex align-center">
-          <v-icon class="me-2" size="20">mdi-star-circle</v-icon>
-          Maturity
-        </div>
-        <v-chip-group v-model="selectedMaturities" multiple column class="d-flex flex-wrap">
-          <v-chip v-for="m in availableMaturities" :key="m" :value="m" variant="outlined" filter class="ma-1">
-            {{ m }}
-          </v-chip>
-        </v-chip-group>
-      </div>
-
-      <!-- RESET -->
-      <v-btn color="primary" @click="resetFilters" block>Reset Filters</v-btn>
+      <v-btn block :disabled="!active" @click="reset">Reset filters</v-btn>
     </v-card-text>
   </v-card>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import type { Workflow, Label } from '@/types/schemas'
+import { computed } from 'vue'
+import { kaapanaIcons } from '@kaapana/base-ui'
+import {
+  emptyFilters,
+  LABEL_CATEGORY,
+  LABEL_MATURITY,
+  LABEL_PROVIDER,
+  labelValues,
+  type WorkflowFilters,
+} from '@/utils/labels'
+import type { Workflow } from '@/types/schemas'
 
-// --- PROPS ---
 const props = defineProps<{
   workflows: Workflow[]
-  filters: {
-    search: string
-    categories: string[]
-    providers: string[]
-    maturity?: string[]
-  }
+  filters: WorkflowFilters
 }>()
 
 const emit = defineEmits<{
-  (e: 'update:filters', value: typeof props.filters): void
+  (e: 'update:filters', value: WorkflowFilters): void
 }>()
 
-// --- LOCAL STATE ---
-const searchQuery = ref(props.filters.search)
-const selectedCategories = ref<string[]>(props.filters.categories)
-const selectedProviders = ref<string[]>(props.filters.providers)
-const selectedMaturities = ref<string[]>(props.filters.maturity ?? [])
+function optionsFor(key: string) {
+  return [...new Set(props.workflows.flatMap((w) => labelValues(w, key)))].sort()
+}
 
-// --- AVAILABLE FILTER OPTIONS ---
-const availableCategories = computed(() => {
-  const categories = new Set<string>()
-  if (Array.isArray(props.workflows)) {
-    props.workflows.forEach((w: Workflow) => {
-      w.labels.forEach((l: Label) => {
-        if (l.key === 'kaapana-ui.category' && l.value) {
-          categories.add(l.value)
-        }
-      })
-    })
-  }
-  return Array.from(categories).sort()
-})
+const groups = computed(() => [
+  { key: 'categories' as const, label: 'Categories', options: optionsFor(LABEL_CATEGORY) },
+  { key: 'providers' as const, label: 'Providers', options: optionsFor(LABEL_PROVIDER) },
+  { key: 'maturity' as const, label: 'Maturity', options: optionsFor(LABEL_MATURITY) },
+])
 
-const availableProviders = computed(() => {
-  const providers = new Set<string>()
-  if (Array.isArray(props.workflows)) {
-    props.workflows.forEach((w: Workflow) => {
-      w.labels.forEach((l: Label) => {
-        if (l.key === 'kaapana-ui.provider' && l.value) {
-          providers.add(l.value)
-        }
-      })
-    })
-  }
-  return Array.from(providers).sort()
-})
+const active = computed(
+  () =>
+    !!props.filters.search ||
+    props.filters.categories.length > 0 ||
+    props.filters.providers.length > 0 ||
+    props.filters.maturity.length > 0,
+)
 
-const availableMaturities = computed(() => {
-  const maturities = new Set<string>()
-  if (Array.isArray(props.workflows)) {
-    props.workflows.forEach((w: Workflow) => {
-      w.labels.forEach((l: Label) => {
-        if (l.key === 'kaapana-ui.maturity' && l.value) {
-          maturities.add(l.value)
-        }
-      })
-    })
-  }
-  return Array.from(maturities).sort()
-})
+function reset() {
+  emit('update:filters', emptyFilters())
+}
 
-// --- EMIT CHANGES ---
-watch([searchQuery, selectedCategories, selectedProviders, selectedMaturities], () => {
-  emit('update:filters', {
-    search: searchQuery.value || '',
-    categories: selectedCategories.value || [],
-    providers: selectedProviders.value || [],
-    maturity: selectedMaturities.value || [],
-  })
-}, { deep: true })
-
-// --- RESET ---
-function resetFilters() {
-  searchQuery.value = ''
-  selectedCategories.value = []
-  selectedProviders.value = []
-  selectedMaturities.value = []
+function update(change: Partial<WorkflowFilters>) {
+  emit('update:filters', { ...props.filters, ...change })
 }
 </script>
+
+<style scoped>
+.filter-panel {
+  position: sticky;
+  top: 16px;
+}
+</style>

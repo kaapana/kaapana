@@ -8,8 +8,6 @@ export interface FailureDetails {
   error: ApiErrorInfo
 }
 
-// State of the one ErrorDetailsDialog on the page, rendered in App.vue.
-// Notifications, the stale-list alert and the empty state all open it.
 export const useFailureDetailsStore = defineStore('failureDetails', {
   state: () => ({
     open: false,

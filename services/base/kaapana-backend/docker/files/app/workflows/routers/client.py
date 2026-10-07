@@ -532,12 +532,7 @@ def ui_form_schemas(
 
 @router.get("/check-for-remote-updates")
 def check_for_remote_updates(db: Session = Depends(get_db)):
-    unreachable = crud.get_remote_updates(db, periodically=False)
-    if unreachable:
-        raise HTTPException(
-            status_code=502,
-            detail=f"Could not sync remote instances: {'; '.join(unreachable)}",
-        )
+    crud.get_remote_updates(db, periodically=False)
     return {"Federated backend is up and running!"}
 
 

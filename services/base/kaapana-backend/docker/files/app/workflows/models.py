@@ -88,7 +88,6 @@ class KaapanaInstance(Base):
     time_updated = Column(DateTime(timezone=True))
     automatic_update = Column(Boolean(), default=False, index=True)
     automatic_workflow_execution = Column(Boolean(), default=False, index=True)
-    sync_timeout = Column(Integer(), default=15, server_default="15", nullable=False)
 
     # one-to-many relationships
     workflows = relationship("Workflow", back_populates="kaapana_instance", cascade="all, delete")

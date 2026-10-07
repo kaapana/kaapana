@@ -3,7 +3,7 @@ from enum import Enum
 from typing import List, Optional, Union
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 from typing_extensions import Self
 
 
@@ -30,7 +30,6 @@ class RemoteKaapanaInstanceCreate(KaapanaInstanceBase):
     instance_name: str
     port: int
     fernet_key: str = "deactivated"
-    sync_timeout: int = Field(15, ge=1, le=300)
     allowed_dags: list = []
     allowed_datasets: list = []
 
@@ -66,7 +65,6 @@ class KaapanaInstance(KaapanaInstanceBase):
     fernet_key: str
     encryption_key: str
     remote: bool
-    sync_timeout: int = 15
     allowed_dags: Union[dict, list, None] = None
     allowed_datasets: Optional[AllowedDatasets] = None
     time_created: datetime.datetime

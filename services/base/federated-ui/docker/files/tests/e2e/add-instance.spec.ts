@@ -74,7 +74,6 @@ test('adds a remote instance from the entered details', async ({ page }) => {
   await add.getByLabel('Instance name').fill('new-remote')
   await add.getByLabel('Host').fill('192.168.1.10')
   await add.getByLabel('Token').fill('tok-123')
-  await add.getByLabel('Sync timeout (seconds)').fill('20')
 
   const post = nextRequest(page, CLIENT.remote, 'POST')
   await add.getByRole('button', { name: 'Add instance' }).click()
@@ -85,7 +84,6 @@ test('adds a remote instance from the entered details', async ({ page }) => {
     token: 'tok-123',
     fernet_key: 'deactivated',
     ssl_check: false,
-    sync_timeout: 20,
   })
 
   await expect(page.getByRole('dialog')).toHaveCount(0)
@@ -124,7 +122,6 @@ test('pasted connection details fill the fields', async ({ page }) => {
     token: 'paste-tok',
     fernet_key: 'fk-xyz',
     ssl_check: true,
-    sync_timeout: 15,
   })
 })
 

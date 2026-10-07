@@ -4,10 +4,7 @@ import json
 import logging
 import os
 import string
-import time
 import uuid
-from concurrent.futures import ThreadPoolExecutor
-from concurrent.futures import TimeoutError as FutureTimeoutError
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
@@ -17,8 +14,6 @@ from app.database import SessionLocal
 from app.dependencies import fetch_default_project_id
 from cryptography.fernet import Fernet
 from fastapi import HTTPException, Response
-from filelock import FileLock
-from filelock import Timeout as FileLockTimeout
 from psycopg2.errors import UniqueViolation
 from sqlalchemy import String, and_, cast, desc, func, or_
 from sqlalchemy.exc import IntegrityError, NoResultFound
@@ -213,7 +208,6 @@ def create_and_update_remote_kaapana_instance(
             port=remote_kaapana_instance.port,
             ssl_check=remote_kaapana_instance.ssl_check,
             fernet_key=remote_kaapana_instance.fernet_key or "deactivated",
-            sync_timeout=remote_kaapana_instance.sync_timeout,
             remote=True,
             time_created=utc_timestamp,
             # time_updated=utc_timestamp,
@@ -224,7 +218,6 @@ def create_and_update_remote_kaapana_instance(
         db_remote_kaapana_instance.port = remote_kaapana_instance.port
         db_remote_kaapana_instance.ssl_check = remote_kaapana_instance.ssl_check
         db_remote_kaapana_instance.fernet_key = remote_kaapana_instance.fernet_key or "deactivated"
-        db_remote_kaapana_instance.sync_timeout = remote_kaapana_instance.sync_timeout
         db_remote_kaapana_instance.time_updated = utc_timestamp
     elif action == "external_update":
         logging.debug(f"Externally updating with db_remote_kaapana_instance: {db_remote_kaapana_instance}")
@@ -652,87 +645,44 @@ def update_external_job(db: Session, db_job):
             #     logging.error(r.json())
 
 
-class RemoteSyncInProgress(Exception):
-    pass
+def get_remote_updates(db: Session, periodically=False):
+    db_client_kaapana = get_kaapana_instance(db)
+    if periodically is True and db_client_kaapana.automatic_update is False:
+        return
+    db_kaapana_instances = get_kaapana_instances(db)
+    for db_remote_kaapana_instance in db_kaapana_instances:
+        if not db_remote_kaapana_instance.remote:
+            # Skipping locally running jobs
+            continue
+        update_remote_instance_payload = {
+            "instance_name": db_client_kaapana.instance_name,
+            "allowed_dags": db_client_kaapana.allowed_dags,
+            "allowed_datasets": db_client_kaapana.allowed_datasets,
+            "automatic_update": db_client_kaapana.automatic_update,
+            "automatic_workflow_execution": db_client_kaapana.automatic_workflow_execution,
+        }
 
-
-def _request_remote_sync(instance_id, remote_backend_url, ssl_check, token, job_params, payload):
-    lock = FileLock(f"/tmp/remote_sync_{instance_id}.lock")
-    try:
-        lock.acquire(timeout=0)
-    except FileLockTimeout:
-        raise RemoteSyncInProgress()
-    try:
+        job_params = {
+            "instance_name": db_client_kaapana.instance_name,
+            "status": "queued",
+        }
+        remote_backend_url = f"{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/kaapana-backend/remote"
         with requests.Session() as s:
-            return requests_retry_session(session=s).put(
+            r = requests_retry_session(session=s).put(
                 f"{remote_backend_url}/sync-client-remote",
                 params=job_params,
-                json=payload,
-                verify=ssl_check,
+                json=update_remote_instance_payload,
+                verify=db_remote_kaapana_instance.ssl_check,
                 headers={
-                    "FederatedAuthorization": f"{token}",
+                    "FederatedAuthorization": f"{db_remote_kaapana_instance.token}",
                     "User-Agent": "kaapana",
                 },
                 timeout=TIMEOUT,
             )
-    finally:
-        lock.release()
-
-
-def get_remote_updates(db: Session, periodically=False):
-    db_client_kaapana = get_kaapana_instance(db)
-    if periodically is True and db_client_kaapana.automatic_update is False:
-        return []
-    unreachable = []
-    db_remote_kaapana_instances = [i for i in get_kaapana_instances(db) if i.remote]
-    if not db_remote_kaapana_instances:
-        return unreachable
-    update_remote_instance_payload = {
-        "instance_name": db_client_kaapana.instance_name,
-        "allowed_dags": db_client_kaapana.allowed_dags,
-        "allowed_datasets": db_client_kaapana.allowed_datasets,
-        "automatic_update": db_client_kaapana.automatic_update,
-        "automatic_workflow_execution": db_client_kaapana.automatic_workflow_execution,
-    }
-    job_params = {
-        "instance_name": db_client_kaapana.instance_name,
-        "status": "queued",
-    }
-    started = time.monotonic()
-    executor = ThreadPoolExecutor(max_workers=len(db_remote_kaapana_instances))
-    futures = [
-        executor.submit(
-            _request_remote_sync,
-            i.id,
-            f"{i.protocol}://{i.host}:{i.port}/kaapana-backend/remote",
-            i.ssl_check,
-            i.token,
-            job_params,
-            update_remote_instance_payload,
-        )
-        for i in db_remote_kaapana_instances
-    ]
-    executor.shutdown(wait=False)
-    for db_remote_kaapana_instance, future in zip(db_remote_kaapana_instances, futures):
-        sync_timeout = db_remote_kaapana_instance.sync_timeout
-        try:
-            r = future.result(timeout=max(0, started + sync_timeout - time.monotonic()))
-        except FutureTimeoutError:
-            logging.warning(f"Remote backend {db_remote_kaapana_instance.host} did not answer within {sync_timeout} s")
-            unreachable.append(f"{db_remote_kaapana_instance.instance_name}: no answer within {sync_timeout} s")
-            continue
-        except RemoteSyncInProgress:
-            logging.info(f"Previous sync of remote backend {db_remote_kaapana_instance.host} is still running")
-            unreachable.append(f"{db_remote_kaapana_instance.instance_name}: previous sync still running")
-            continue
-        except requests.exceptions.RequestException as e:
-            logging.warning(f"Could not reach remote backend {db_remote_kaapana_instance.host}: {e}")
-            unreachable.append(f"{db_remote_kaapana_instance.instance_name}: {type(e).__name__}")
-            continue
         if r.status_code != 200:
-            logging.warning(f"Remote backend {db_remote_kaapana_instance.host} answered with status {r.status_code}")
-            unreachable.append(f"{db_remote_kaapana_instance.instance_name}: HTTP {r.status_code}")
+            logging.warning(f"Warning!!! We could not reach the following backend {db_remote_kaapana_instance.host}")
             continue
+        raise_kaapana_connection_error(r)
         incoming_data = r.json()
 
         incoming_jobs = incoming_data["incoming_jobs"]
@@ -740,16 +690,6 @@ def get_remote_updates(db: Session, periodically=False):
         remote_kaapana_instance = schemas.RemoteKaapanaInstanceUpdateExternal(
             **incoming_data["update_remote_instance_payload"]
         )
-        if remote_kaapana_instance.instance_name != db_remote_kaapana_instance.instance_name:
-            logging.warning(
-                f"Remote backend {db_remote_kaapana_instance.host} answered as "
-                f"{remote_kaapana_instance.instance_name}, expected {db_remote_kaapana_instance.instance_name}"
-            )
-            unreachable.append(
-                f"{db_remote_kaapana_instance.instance_name}: the platform at {db_remote_kaapana_instance.host} "
-                f"is named {remote_kaapana_instance.instance_name}"
-            )
-            continue
 
         create_and_update_remote_kaapana_instance(
             db=db,
@@ -824,7 +764,7 @@ def get_remote_updates(db: Session, periodically=False):
             db_workflow = put_workflow_jobs(db, workflow_update)
             logging.debug(f"Updated remote workflow: {db_workflow}")
 
-    return unreachable
+    return  # schemas.RemoteKaapanaInstanceUpdateExternal(**udpate_instance_payload)
 
 
 def sync_states_from_airflow(db: Session, status: str = None, periodically=False):

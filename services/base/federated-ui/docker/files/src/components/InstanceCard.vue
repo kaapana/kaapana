@@ -8,7 +8,6 @@ import {
   instanceDefinition,
   listDags,
   listProjectDatasets,
-  syncTimeoutRule,
   updateLocalInstance,
   updateRemoteInstance,
   type DatasetOption,
@@ -22,15 +21,7 @@ import { federationIcons, kaapanaIcons } from '@/utils/icons'
 import { notifyFailure } from '@/utils/notifyFailure'
 
 type FieldKey =
-  | 'network'
-  | 'token'
-  | 'fernet'
-  | 'ssl'
-  | 'syncTimeout'
-  | 'autoSync'
-  | 'autoRun'
-  | 'dags'
-  | 'datasets'
+  'network' | 'token' | 'fernet' | 'ssl' | 'autoSync' | 'autoRun' | 'dags' | 'datasets'
 
 interface Draft {
   port: number | string
@@ -38,7 +29,6 @@ interface Draft {
   fernet_key: string
   fernet_encrypted: boolean
   ssl_check: boolean
-  sync_timeout: number | string
   automatic_update: boolean
   automatic_workflow_execution: boolean
   allowed_dags: string[]
@@ -53,7 +43,6 @@ const FIELD_LABELS: Record<FieldKey, string> = {
   token: 'Token',
   fernet: 'Fernet key',
   ssl: 'Verify SSL',
-  syncTimeout: 'Sync timeout',
   autoSync: 'Sync automatically',
   autoRun: 'Start workflows automatically',
   dags: 'Allowed workflows',
@@ -70,7 +59,6 @@ function seed(): Draft {
     fernet_key: instance.fernet_key,
     fernet_encrypted: instance.fernet_key !== FERNET_DEACTIVATED,
     ssl_check: instance.ssl_check,
-    sync_timeout: instance.sync_timeout,
     automatic_update: !!instance.automatic_update,
     automatic_workflow_execution: !!instance.automatic_workflow_execution,
     allowed_dags: [...(instance.allowed_dags ?? [])],
@@ -110,7 +98,6 @@ const tokenRule = (value: unknown) =>
 const canSave = computed(() => {
   if (editing.value === 'network') return portRule(draft.value.port) === true
   if (editing.value === 'token') return tokenRule(draft.value.token) === true
-  if (editing.value === 'syncTimeout') return syncTimeoutRule(draft.value.sync_timeout) === true
   return true
 })
 
@@ -175,7 +162,6 @@ async function save() {
         token: draft.value.token.trim(),
         fernet_key: draft.value.fernet_key.trim() || FERNET_DEACTIVATED,
         ssl_check: draft.value.ssl_check,
-        sync_timeout: Number(draft.value.sync_timeout),
       })
     } else {
       await updateLocalInstance({
@@ -414,29 +400,6 @@ async function copyDefinition() {
               color="primary"
               density="compact"
               hide-details
-            />
-          </template>
-        </InstanceField>
-
-        <InstanceField
-          v-if="remote"
-          v-bind="fieldProps('syncTimeout', true)"
-          @edit="startEdit('syncTimeout')"
-          @save="save"
-          @cancel="cancelEdit"
-        >
-          {{ draft.sync_timeout }} s
-          <template #edit>
-            <v-text-field
-              v-model="draft.sync_timeout"
-              label="Sync timeout (seconds)"
-              type="number"
-              :rules="[syncTimeoutRule]"
-              hint="How long a sync waits for this remote instance before reporting it as unreachable."
-              persistent-hint
-              density="compact"
-              variant="outlined"
-              autofocus
             />
           </template>
         </InstanceField>

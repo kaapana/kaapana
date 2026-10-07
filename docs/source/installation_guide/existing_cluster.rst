@@ -230,8 +230,8 @@ External ingress controller
 If the cluster already has an ingress controller that terminates the external traffic, set
 ``EXTERNAL_INGRESS`` to its ingress class (e.g. ``traefik`` on Rancher/RKE2, or ``nginx``). Then:
 
-* Kaapana creates two ingresses with this class for ``HOSTNAME``: ``/`` to oauth2-proxy (the login)
-  and ``/auth`` to Keycloak. All other requests reach Kaapana's own Traefik through oauth2-proxy.
+* Kaapana creates one ingress with this class for ``HOSTNAME``: ``/`` to oauth2-proxy. All requests,
+  including the login pages of Keycloak (``/auth``), reach Kaapana's own Traefik through oauth2-proxy.
 * TLS is terminated by the cluster's ingress controller with its certificate, e.g. the wildcard
   certificate of the platform provider (``*.<domain>``) as its default certificate. The hostname
   has to be covered by that certificate. Inside the cluster, oauth2-proxy is reached via plain HTTP.

@@ -23,8 +23,6 @@ export interface KaapanaVuetifyOptions extends VuetifyOptions {
 }
 
 export function createKaapanaVuetify(options: KaapanaVuetifyOptions = {}) {
-  // The platform typeface and the toast colours travel with the configuration,
-  // so a view cannot ship the theme and forget either.
   injectPlatformFonts()
   injectNotificationStyles()
 

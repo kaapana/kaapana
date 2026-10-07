@@ -1,11 +1,3 @@
-// Toast colours from the platform theme instead of @kyvg/vue3-notification's own
-// fixed palette, which ignores dark mode and puts white text on light orange and
-// green. Each type takes its theme role and that role's contrasting `on-` colour,
-// so the pair follows the shell's theme. The library styles `warn`; `warning`,
-// Vuetify's spelling, is styled too so neither spelling falls back to blue.
-//
-// Scoped to `.v-application`, where Vuetify defines the theme variables; that
-// also outranks the library's own rules whatever order the sheets load in.
 const CSS = `
 .v-application .vue-notification {
   background: rgb(var(--v-theme-info));

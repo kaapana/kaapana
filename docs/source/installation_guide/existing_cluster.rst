@@ -94,6 +94,12 @@ Settings overview
      - ``true`` derives the admin, services and extensions namespaces from the prefix:
        ``<PLATFORM_PREFIX>-admin``, ``-services``, ``-extensions``. Useful if namespace names on the
        cluster must be unique or follow a naming scheme.
+   * - ``PUBLIC_PROJECT_ID`` /
+       ``global.public_project_id``
+     - ``""``
+     - UUID of the ``public`` project created at the first deployment (empty: random). Only relevant
+       with ``RESTRICTED_RBAC=true``: it makes the project's namespace known in advance. See
+       :ref:`existing_cluster_new_project`.
    * - ``EXTRA_MANAGED_NAMESPACES``
      - ``""``
      - Comma-separated project namespaces, only relevant with ``RESTRICTED_RBAC=true``. See
@@ -156,12 +162,21 @@ Creating a project with restricted RBAC
 ---------------------------------------
 
 Normally Kaapana creates a new namespace for each project. With restricted RBAC this is not possible,
-so every new project needs manual steps:
+so the namespace of every new project has to be created beforehand. Its name is
+``<prefix>-project-<short id>``, where the short id is the first 8 characters of the project id
+(a UUID). The id is stored in Kaapana's database, so a project keeps its namespace across restarts
+and re-deployments.
 
-#. Create the project in the Kaapana UI. It fails, because the namespace
-   ``<prefix>-project-<short id>`` doesn't exist. The namespace name is in the error logged by the
-   ``access-information-interface`` and ``kube-helm`` pods. The short id is the first 8 characters of
-   the project id.
+**Initial projects.** At the first deployment Kaapana creates the projects ``admin`` (namespace
+``<prefix>-project-admin``) and ``public``. Set ``PUBLIC_PROJECT_ID`` to a UUID (e.g. from ``uuidgen``)
+to know the ``public`` namespace in advance, and create it before deploying, as described in steps
+2 and 3 below.
+
+**New projects with a known id.** Choose the id first, prepare the namespace, then create the
+project with that id through the API of the ``access-information-interface`` (the UI can't set
+an id):
+
+#. ``uuidgen`` → e.g. ``0a1b2c3d-…``; the namespace is ``<prefix>-project-0a1b2c3d``.
 #. Create this namespace on the cluster (e.g. in Rancher, in the same Rancher project as the other
    Kaapana namespaces).
 #. Give Kaapana's service accounts access to the new namespace:
@@ -171,10 +186,22 @@ so every new project needs manual steps:
       ADMIN_NAMESPACE=<admin ns> SERVICES_NAMESPACE=<services ns> \
         ./utils/apply-managed-project-namespace-rbac.sh <prefix>-project-<short id>
 
-#. Create the project again with the **same name** in the Kaapana UI. Kaapana reuses the existing
-   project and completes the setup. The ``create-project-user`` job adds the namespace to the
-   ConfigMap ``airflow-managed-namespaces`` and restarts the Airflow scheduler, so workflows can
-   run in the new project.
+#. Create the project:
+
+   .. code-block:: bash
+
+      kubectl -n <services ns> port-forward svc/aii-service 8080:8080 &
+      curl -X POST http://localhost:8080/projects -H 'Content-Type: application/json' \
+        -d '{"id": "<uuid>", "name": "<project name>", "description": "<description>"}'
+
+   The ``create-project-user`` job then adds the namespace to the ConfigMap
+   ``airflow-managed-namespaces`` and restarts the Airflow scheduler, so workflows can run in the
+   new project. Users are assigned to the project in the UI as usual.
+
+**Projects created in the UI** get a random id. Creating them fails at first, because the namespace
+doesn't exist yet; the error logged by the ``access-information-interface`` and ``kube-helm`` pods
+names it. Prepare the namespace (steps 2 and 3) and create the project again with the **same name**
+in the UI: Kaapana reuses the existing project and completes the setup.
 
 Traefik only watches the namespaces it got at startup, so applications started in the new project
 (e.g. JupyterLab from a workflow) are not reachable yet. To add the namespace without re-deploying:

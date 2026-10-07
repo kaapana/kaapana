@@ -1,5 +1,7 @@
-node_modules
-dist
+**/node_modules
+**/dist
+**/test-results
+**/playwright-report
 .git
 .gitignore
 Dockerfile

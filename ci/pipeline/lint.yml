@@ -5,7 +5,7 @@ spec:
     runner_tag:
       type: string
 ---
-# Stage: tests — one matrix job per linter
+# Stage: unittest — one matrix job per linter
 # In:  the job's own checkout
 # Out: each linter fails on formatting drift or an enforced rule, and
 #      publishes its advisory findings to the MR Code Quality widget
@@ -14,7 +14,7 @@ spec:
 ##############################################
 # The same commands run locally; see docs/source/development_guide/code_formatting.rst.
 lint:
-  stage: tests
+  stage: unittest
   tags:
     - $[[ inputs.runner_tag ]]
   image: $CI_BASE_IMAGE

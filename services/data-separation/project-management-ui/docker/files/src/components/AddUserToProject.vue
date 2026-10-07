@@ -1,6 +1,6 @@
 <template>
   <v-card
-    :title="isAddMode ? 'Add Users to Project' : `Change Role: @${userToEdit?.username}`"
+    :title="isAddMode ? 'Add members to project' : `Change role: @${userToEdit?.username}`"
     :subtitle="`Project: ${project?.name ?? 'Unknown project'}`"
   >
     <v-card-text>
@@ -54,7 +54,7 @@
           class="mb-2"
           @click="showSystemUsers = !showSystemUsers; loadAvailableUsers()"
         >
-          {{ showSystemUsers ? 'Hide System Users' : 'Show System Users' }}
+          {{ showSystemUsers ? 'Hide system users' : 'Show system users' }}
         </v-btn>
 
         <p v-if="selectedUserIds.length > 0" class="text-body-2 text-medium-emphasis">
@@ -64,7 +64,7 @@
       </template>
 
       <!-- Role selector -->
-      <p class="text-subtitle-2 font-weight-medium mb-2 mt-4">Project Role</p>
+      <p class="text-subtitle-2 font-weight-medium mb-2 mt-4">Project role</p>
       <v-item-group v-model="selectedRole" mandatory class="d-flex flex-column ga-2">
         <v-item v-for="role in availableRoles" :key="role.name" :value="role.name" v-slot="{ isSelected, toggle }">
           <v-card
@@ -101,7 +101,7 @@
       <v-spacer />
       <v-btn :disabled="isSubmitting" @click="emit('cancel')">Cancel</v-btn>
       <v-btn color="primary" :loading="isSubmitting" :disabled="!canSubmit" @click="onSubmit">
-        {{ isAddMode ? `Add ${selectedUserIds.length > 1 ? selectedUserIds.length + ' Users' : 'User'}` : 'Save Changes' }}
+        {{ isAddMode ? `Add ${selectedUserIds.length > 1 ? selectedUserIds.length + ' members' : 'member'}` : 'Save changes' }}
       </v-btn>
     </v-card-actions>
   </v-card>
@@ -237,7 +237,7 @@ const onSubmit = async () => {
       const added = selectedUserIds.value.length
       notify({
         type: 'success',
-        text: `${added} user${added !== 1 ? 's' : ''} added as "${selectedRole.value}". Access starts within a few minutes.`,
+        text: `${added} member${added !== 1 ? 's' : ''} added as "${selectedRole.value}". Access starts within a few minutes.`,
       })
     } else {
       await updateUserRole()
@@ -250,7 +250,7 @@ const onSubmit = async () => {
   } catch (error) {
     failure.value = isAddMode.value
       ? {
-          title: 'Users not added',
+          title: 'Members not added',
           text: 'Not every selected user could be added to the project.',
           error,
         }

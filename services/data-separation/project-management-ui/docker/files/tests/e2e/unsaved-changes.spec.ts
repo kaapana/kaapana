@@ -15,10 +15,10 @@ import {
 
 async function stageWorkflowChange(page: Page) {
   await openProject(page, RESEARCH_PROJECT)
-  await expandSection(page, 'Project Workflows')
+  await expandSection(page, 'Project workflows')
   await row(page, 'nnunet-predict').getByRole('checkbox').click()
   const workflows = page.locator('.v-row', {
-    has: page.getByRole('heading', { name: 'Project Workflows' }),
+    has: page.getByRole('heading', { name: 'Project workflows' }),
   })
   await expect(workflows.getByText('1 unsaved change')).toBeVisible()
   return workflows
@@ -27,7 +27,7 @@ async function stageWorkflowChange(page: Page) {
 test('an edited dialog asks before Escape discards it', async ({ page }) => {
   const messages = await recordShellMessages(page)
   await openView(page)
-  await page.getByRole('button', { name: 'Create New Project' }).click()
+  await page.getByRole('button', { name: 'Create new project' }).click()
   const name = dialog(page).getByLabel('Project name')
   await name.fill('draft')
   await expect.poll(async () => lastDirty(await messages())).toBe(true)
@@ -45,7 +45,7 @@ test('an edited dialog asks before Escape discards it', async ({ page }) => {
 
 test('an untouched dialog closes without asking', async ({ page }) => {
   await openView(page)
-  await page.getByRole('button', { name: 'Create New Project' }).click()
+  await page.getByRole('button', { name: 'Create new project' }).click()
   await dialog(page).getByRole('button', { name: 'Cancel' }).click()
   await expect(dialog(page)).toBeHidden()
 })
@@ -77,7 +77,7 @@ test('leaving the page asks before it drops staged changes', async ({ page }) =>
 
 test('uninstalling an application keeps staged changes in the other sections', async ({ page }) => {
   const workflows = await stageWorkflowChange(page)
-  await expandSection(page, 'Active Project Applications')
+  await expandSection(page, 'Active project applications')
 
   await page.getByRole('button', { name: 'Uninstall JupyterLab (notebooks)' }).click()
   await confirmAction(page, 'Uninstall application')
@@ -88,11 +88,11 @@ test('uninstalling an application keeps staged changes in the other sections', a
 
 test('adding a right keeps staged role-right changes', async ({ page }) => {
   await openView(page)
-  await page.getByRole('button', { name: 'Edit Role Rights' }).click()
+  await page.getByRole('button', { name: 'Edit role rights' }).click()
   await row(page, 'manage_users').getByRole('checkbox').nth(2).click()
   await expect(page.getByText('1 unsaved change')).toBeVisible()
 
-  await page.getByRole('button', { name: 'Add Right' }).click()
+  await page.getByRole('button', { name: 'Add right' }).click()
   const form = dialog(page)
   await form.getByLabel('Name', { exact: true }).fill('export_data')
   await form.getByLabel('Description').fill('Export project data')
@@ -106,7 +106,7 @@ test('adding a right keeps staged role-right changes', async ({ page }) => {
 
 test('deleting a right drops only the staged changes for that right', async ({ page }) => {
   await openView(page)
-  await page.getByRole('button', { name: 'Edit Role Rights' }).click()
+  await page.getByRole('button', { name: 'Edit role rights' }).click()
   await row(page, 'manage_users').getByRole('checkbox').nth(2).click()
   await row(page, 'launch_application').getByRole('checkbox').nth(2).click()
   await expect(page.getByText('2 unsaved changes')).toBeVisible()

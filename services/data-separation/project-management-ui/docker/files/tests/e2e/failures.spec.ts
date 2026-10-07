@@ -16,42 +16,42 @@ import {
 test.describe('a list that cannot load says so instead of looking empty', () => {
   const sections = [
     {
-      section: 'Project Users',
+      section: 'Project members',
       request: 'members',
       path: new RegExp(`/aii/projects/${RESEARCH_PROJECT.id}/users$`),
       text: 'Could not load the members of this project.',
       shows: SCIENTIST_USER.email,
     },
     {
-      section: 'Project Users',
+      section: 'Project members',
       request: 'member roles',
       path: /\/aii\/projects\/[^/]+\/users\/[^/]+\/roles$/,
       text: 'Could not load the members of this project.',
       shows: SCIENTIST_USER.email,
     },
     {
-      section: 'Project Workflows',
+      section: 'Project workflows',
       request: 'workflows',
       path: /\/kaapana-backend\/client\/dags/,
       text: 'Could not load the workflows',
       shows: 'collect-metadata',
     },
     {
-      section: 'Project Workflows',
+      section: 'Project workflows',
       request: 'whitelist',
       path: /\/aii\/projects\/[^/]+\/software-mappings$/,
       text: 'Could not load the workflows',
       shows: 'collect-metadata',
     },
     {
-      section: 'Multiinstallable Applications',
+      section: 'Multiinstallable applications',
       request: 'extensions',
       path: /\/kube-helm-api\/extensions$/,
       text: 'Could not load the applications that can be launched.',
       shows: 'Tensorboard',
     },
     {
-      section: 'Active Project Applications',
+      section: 'Active project applications',
       request: 'active applications',
       path: /\/kube-helm-api\/active-applications$/,
       text: 'Could not load the applications running in this project.',
@@ -82,7 +82,7 @@ test.describe('a list that cannot load says so instead of looking empty', () => 
     await openView(page, undefined, {
       routes: (p) => failRoute(p, 'GET', /\/aii\/projects\/rights$/, 'database locked'),
     })
-    await page.getByRole('button', { name: 'Edit Role Rights' }).click()
+    await page.getByRole('button', { name: 'Edit role rights' }).click()
 
     const alert = page
       .getByRole('alert')
@@ -98,8 +98,8 @@ test.describe('a list that cannot load says so instead of looking empty', () => 
     await openProject(page, RESEARCH_PROJECT, undefined, {
       routes: (p) => failRoute(p, 'GET', /\/aii\/users$/, 'Keycloak unreachable', 502),
     })
-    await expandSection(page, 'Project Users')
-    await page.getByRole('button', { name: 'Add User' }).click()
+    await expandSection(page, 'Project members')
+    await page.getByRole('button', { name: 'Add members' }).click()
 
     const alert = dialog(page)
       .getByRole('alert')
@@ -135,13 +135,13 @@ test.describe('a failed action notifies with the backend detail behind it', () =
     await openProject(page, RESEARCH_PROJECT, undefined, {
       routes: (p) => failRoute(p, 'DELETE', /\/rolemapping$/, 'Last principal investigator', 400),
     })
-    await expandSection(page, 'Project Users')
+    await expandSection(page, 'Project members')
     await row(page, SCIENTIST_USER.username)
       .getByRole('button', { name: `Remove ${SCIENTIST_USER.username} from the project` })
       .click()
-    await confirmAction(page, 'Remove user')
+    await confirmAction(page, 'Remove member')
 
-    const details = await openFailureDetails(page, 'User not removed')
+    const details = await openFailureDetails(page, 'Member not removed')
     await expect(details).toContainText('Last principal investigator')
   })
 
@@ -149,12 +149,12 @@ test.describe('a failed action notifies with the backend detail behind it', () =
     await openProject(page, RESEARCH_PROJECT, undefined, {
       routes: (p) => failRoute(p, 'POST', /\/role\/[^/]+\/user\/[^/]+$/, 'User is disabled', 422),
     })
-    await expandSection(page, 'Project Users')
-    await page.getByRole('button', { name: 'Add User' }).click()
+    await expandSection(page, 'Project members')
+    await page.getByRole('button', { name: 'Add members' }).click()
     await dialog(page).getByRole('combobox', { name: 'Search and select users' }).click()
     await page.getByRole('option', { name: /Alan Turing/ }).click()
     await page.keyboard.press('Escape')
-    await dialog(page).getByRole('button', { name: 'Add User' }).click()
+    await dialog(page).getByRole('button', { name: 'Add member' }).click()
 
     const alert = dialog(page).getByRole('alert').filter({ hasText: 'Not every selected user' })
     await expect(alert).toBeVisible()

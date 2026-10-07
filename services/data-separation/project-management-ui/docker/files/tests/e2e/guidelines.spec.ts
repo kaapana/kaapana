@@ -82,7 +82,7 @@ test.describe('visual language', () => {
 
     const filled = page.locator('.v-btn.bg-primary')
     await expect(filled).toHaveCount(1)
-    await expect(filled).toHaveText('Create New Project')
+    await expect(filled).toHaveText('Create new project')
 
     const research = row(page, RESEARCH_PROJECT.name)
     const view = research.getByRole('button', { name: 'View' })
@@ -134,7 +134,7 @@ test.describe('accessibility', () => {
       ada.getByRole('button', { name: `Remove ${SCIENTIST_USER.username} from the project` }),
     ).toBeVisible()
     await expect(page.getByRole('checkbox', { name: 'Show system users' })).toBeVisible()
-    await expect(page.getByRole('textbox', { name: 'Search users' })).toBeVisible()
+    await expect(page.getByRole('textbox', { name: 'Search members' })).toBeVisible()
 
     await expect(
       row(page, 'JupyterLab').getByRole('link', {
@@ -189,7 +189,7 @@ test.describe('accessibility', () => {
     await expectTooltips()
 
     await openView(page)
-    await page.getByRole('button', { name: 'Edit Role Rights' }).click()
+    await page.getByRole('button', { name: 'Edit role rights' }).click()
     await expect(page.getByText('manage_users', { exact: true })).toBeVisible()
     await expectTooltips()
   })
@@ -214,10 +214,10 @@ test.describe('accessibility', () => {
   test('table cells are not nested', async ({ page }) => {
     await openProject(page, RESEARCH_PROJECT)
     for (const name of [
-      'Project Users',
-      'Project Workflows',
-      'Multiinstallable Applications',
-      'Active Project Applications',
+      'Project members',
+      'Project workflows',
+      'Multiinstallable applications',
+      'Active project applications',
     ]) {
       await expandSection(page, name)
     }

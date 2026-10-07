@@ -4,12 +4,12 @@ import { expandSection, openProject, row, serverError } from './fixtures/helpers
 
 async function open(page: import('@playwright/test').Page, data: MockData = defaultMockData) {
   const state = await openProject(page, RESEARCH_PROJECT, data)
-  await expandSection(page, 'Project Workflows')
+  await expandSection(page, 'Project workflows')
   return state
 }
 
 const section = (page: import('@playwright/test').Page) =>
-  page.locator('.v-row', { has: page.getByRole('heading', { name: 'Project Workflows' }) })
+  page.locator('.v-row', { has: page.getByRole('heading', { name: 'Project workflows' }) })
 
 test('shows which workflows the project may run', async ({ page }) => {
   await open(page)
@@ -24,7 +24,7 @@ test('stages changes and saves them to the whitelist', async ({ page }) => {
   await row(page, 'nnunet-predict').getByRole('checkbox').click()
   await row(page, 'collect-metadata').getByRole('checkbox').click()
   await expect(section(page).getByText('2 unsaved changes')).toBeVisible()
-  await section(page).getByRole('button', { name: 'Save Changes' }).click()
+  await section(page).getByRole('button', { name: 'Save changes' }).click()
 
   await expect(section(page).getByText('unsaved')).toHaveCount(0)
   expect(state.softwareMappings[RESEARCH_PROJECT.id]).toEqual(['nnunet-predict'])
@@ -41,7 +41,7 @@ test('a partly failed save keeps the changes that failed', async ({ page }) => {
 
   await row(page, 'nnunet-predict').getByRole('checkbox').click()
   await row(page, 'collect-metadata').getByRole('checkbox').click()
-  await section(page).getByRole('button', { name: 'Save Changes' }).click()
+  await section(page).getByRole('button', { name: 'Save changes' }).click()
 
   await expect(page.getByText('Workflows partly saved')).toBeVisible()
   await expect(section(page).getByText('1 unsaved change')).toBeVisible()
@@ -50,7 +50,7 @@ test('a partly failed save keeps the changes that failed', async ({ page }) => {
 
   const sent: string[] = []
   page.on('request', (r) => r.url().endsWith('/software-mappings') && sent.push(r.method()))
-  await section(page).getByRole('button', { name: 'Save Changes' }).click()
+  await section(page).getByRole('button', { name: 'Save changes' }).click()
 
   await expect(section(page).getByText('unsaved')).toHaveCount(0)
   expect(state.softwareMappings[RESEARCH_PROJECT.id]).toEqual(['nnunet-predict'])
@@ -84,6 +84,6 @@ test('a staged change is marked until it is saved', async ({ page }) => {
   await expect(cell).toHaveClass(/pm-pending/)
   await expect(cell).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
 
-  await section(page).getByRole('button', { name: 'Save Changes' }).click()
+  await section(page).getByRole('button', { name: 'Save changes' }).click()
   await expect(cell).not.toHaveClass(/pm-pending/)
 })

@@ -1,5 +1,5 @@
 <template>
-    <v-card title="Create New Project">
+    <v-card title="Create new project">
         <v-card-text>
             <v-form ref="form" @submit.prevent="submit">
                 <v-text-field

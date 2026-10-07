@@ -4,7 +4,7 @@
         <SectionHeader :expanded="props.expanded" @toggle="emit('toggle', $event)">
             <!-- LEFT TITLE -->
             <template #title>
-                Project Users
+                Project members
             </template>
 
             <!-- OPTIONAL CHIP -->
@@ -48,7 +48,7 @@
                     :prepend-icon="projectIcons.addUser"
                     @click.stop="openAddUserDialog"
                 >
-                    Add User
+                    Add members
                 </v-btn>
 
             </template>
@@ -58,7 +58,7 @@
         <v-expand-transition>
             <div v-if="props.expanded">
                 <!-- search -->
-                <SearchBar v-model="search" label="Search users" />
+                <SearchBar v-model="search" label="Search members" />
                 <FailureAlert
                     v-if="loadError"
                     title="Members not loaded"
@@ -90,17 +90,7 @@
                                 <span v-bind="props">{{ item.role?.name }}</span>
                             </template>
 
-                            <span v-if="item.role?.name === 'principal-investigator'">
-                                Principal Investigator: Has full access and control over the project.
-                            </span>
-
-                            <span v-else-if="item.role?.name === 'scientist'">
-                                Scientist: Can use approved software for research purposes.
-                            </span>
-
-                            <span v-else>
-                                {{ item.role?.name }}
-                            </span>
+                            <span>{{ item.role?.description || item.role?.name }}</span>
                         </v-tooltip>
                     </template>
 
@@ -151,7 +141,7 @@
                                     :prepend-icon="projectIcons.addUser"
                                     @click="openAddUserDialog"
                                 >
-                                    Add User
+                                    Add members
                                 </v-btn>
                             </template>
                         </ListEmptyState>
@@ -300,8 +290,8 @@ const filteredUsers = computed(() => {
 const tableHeaders = computed(() => [
     { title: '', key: 'icon', width: '40px' },
     { title: 'Username', key: 'username' },
-    { title: 'First Name', key: 'first_name' },
-    { title: 'Last Name', key: 'last_name' },
+    { title: 'First name', key: 'first_name' },
+    { title: 'Last name', key: 'last_name' },
     { title: 'Email', key: 'email' },
     { title: 'Role', key: 'role' },
     ...(can(props.project?.id, 'manage_users')
@@ -343,7 +333,7 @@ const onRemoveUser = (user: UserWithRole) => {
             `@${user.username} loses access to this project when their session next refreshes, ` +
             'within a few minutes. ' +
             'Data in the project is not affected, and the user can be added again later.',
-        confirmText: 'Remove user',
+        confirmText: 'Remove member',
         action: () => removeUser(user),
     })
 }
@@ -359,7 +349,7 @@ const removeUser = async (user: UserWithRole) => {
         // Reload to verify the change
         await loadProjectUsers({ showLoading: false });
     } catch (error) {
-        notifyFailure('User not removed', `Could not remove @${user.username} from the project.`, error)
+        notifyFailure('Member not removed', `Could not remove @${user.username} from the project.`, error)
     } finally {
         removingUserId.value = null
     }

@@ -22,7 +22,7 @@ const projectList = (page: Page) => openView(page)
 const projectPage = (page: Page) => openProject(page, RESEARCH_PROJECT)
 const rightsPage = async (page: Page) => {
   await openView(page)
-  await page.getByRole('button', { name: 'Edit Role Rights' }).click()
+  await page.getByRole('button', { name: 'Edit role rights' }).click()
   await expect(page.getByText('manage_users', { exact: true })).toBeVisible()
 }
 
@@ -50,13 +50,13 @@ const cases: Case[] = [
     name: 'remove a member',
     open: async (page) => {
       await projectPage(page)
-      await expandSection(page, 'Project Users')
+      await expandSection(page, 'Project members')
     },
     trigger: (page) =>
       row(page, SCIENTIST_USER.username)
         .getByRole('button', { name: `Remove ${SCIENTIST_USER.username} from the project` })
         .click(),
-    confirmText: 'Remove user',
+    confirmText: 'Remove member',
     method: 'DELETE',
     url: new RegExp(`/user/${SCIENTIST_USER.id}/rolemapping$`),
   },
@@ -64,7 +64,7 @@ const cases: Case[] = [
     name: 'uninstall an application',
     open: async (page) => {
       await projectPage(page)
-      await expandSection(page, 'Active Project Applications')
+      await expandSection(page, 'Active project applications')
     },
     trigger: (page) =>
       page.getByRole('button', { name: 'Uninstall JupyterLab (notebooks)' }).click(),
@@ -83,7 +83,7 @@ const cases: Case[] = [
   {
     name: 'reset role rights',
     open: rightsPage,
-    trigger: (page) => page.getByRole('button', { name: 'Reset to Defaults' }).click(),
+    trigger: (page) => page.getByRole('button', { name: 'Reset to defaults' }).click(),
     confirmText: 'Reset to defaults',
     method: 'POST',
     url: /\/aii\/projects\/rights\/reset$/,

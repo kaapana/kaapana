@@ -20,18 +20,22 @@ import {
 
 async function open(page: import('@playwright/test').Page) {
   await openProject(page, RESEARCH_PROJECT)
-  await expandSection(page, 'Project Users')
+  await expandSection(page, 'Project members')
 }
 
 test('lists the members with their project role', async ({ page }) => {
   await open(page)
   await expect(row(page, SCIENTIST_USER.username)).toContainText('scientist')
   await expect(row(page, 'kaapana')).toContainText('admin')
+
+  const scientist = defaultMockData.roles.find((r) => r.name === 'scientist')!
+  await row(page, SCIENTIST_USER.username).getByText('scientist', { exact: true }).hover()
+  await expect(page.getByText(scientist.description)).toBeVisible()
 })
 
 test('a search that matches no member says so and can be cleared', async ({ page }) => {
   await open(page)
-  await page.getByRole('textbox', { name: 'Search users' }).fill('nobody')
+  await page.getByRole('textbox', { name: 'Search members' }).fill('nobody')
 
   await expect(page.getByText('No members match "nobody"')).toBeVisible()
   await page.getByRole('button', { name: 'Clear search', exact: true }).click()
@@ -40,7 +44,7 @@ test('a search that matches no member says so and can be cleared', async ({ page
 
 test('adds a user with the chosen role', async ({ page }) => {
   await open(page)
-  await page.getByRole('button', { name: 'Add User' }).click()
+  await page.getByRole('button', { name: 'Add members' }).click()
   const form = dialog(page)
   await form.getByRole('combobox', { name: 'Search and select users' }).click()
   await page.getByRole('option', { name: /Alan Turing/ }).click()
@@ -48,7 +52,7 @@ test('adds a user with the chosen role', async ({ page }) => {
   await form.getByText('principal-investigator', { exact: true }).click()
 
   const request = nextRequest(page, 'POST', `/user/${CANDIDATE_USER.id}`)
-  await form.getByRole('button', { name: 'Add User' }).click()
+  await form.getByRole('button', { name: 'Add member' }).click()
   expect(new URL((await request).url()).pathname).toBe(
     `/aii/projects/${RESEARCH_PROJECT.id}/role/principal-investigator/user/${CANDIDATE_USER.id}`,
   )
@@ -56,7 +60,7 @@ test('adds a user with the chosen role', async ({ page }) => {
   await expect(form).toBeHidden()
   await expect(row(page, CANDIDATE_USER.username)).toContainText('principal-investigator')
   await expect(toasts(page)).toContainText(
-    '1 user added as "principal-investigator". Access starts within a few minutes.',
+    '1 member added as "principal-investigator". Access starts within a few minutes.',
   )
 })
 
@@ -73,8 +77,8 @@ test('finds users to add by name, not only by username', async ({ page }) => {
     ...defaultMockData,
     users: [...defaultMockData.users, grace],
   })
-  await expandSection(page, 'Project Users')
-  await page.getByRole('button', { name: 'Add User' }).click()
+  await expandSection(page, 'Project members')
+  await page.getByRole('button', { name: 'Add members' }).click()
   const search = dialog(page).getByRole('combobox', { name: 'Search and select users' })
 
   await search.fill('turing')
@@ -91,7 +95,7 @@ test("changes a member's role", async ({ page }) => {
   await dialog(page).getByText('principal-investigator', { exact: true }).click()
 
   const request = nextRequest(page, 'PUT', '/rolemapping')
-  await dialog(page).getByRole('button', { name: 'Save Changes' }).click()
+  await dialog(page).getByRole('button', { name: 'Save changes' }).click()
   expect(new URL((await request).url()).searchParams.get('role_name')).toBe(
     'principal-investigator',
   )
@@ -106,7 +110,7 @@ test('removes a member', async ({ page }) => {
   await row(page, SCIENTIST_USER.username)
     .getByRole('button', { name: `Remove ${SCIENTIST_USER.username} from the project` })
     .click()
-  await confirmAction(page, 'Remove user')
+  await confirmAction(page, 'Remove member')
 
   await expect(row(page, SCIENTIST_USER.username)).toHaveCount(0)
   await expect(toasts(page)).toContainText(`@${SCIENTIST_USER.username} removed from the project.`)
@@ -114,7 +118,7 @@ test('removes a member', async ({ page }) => {
 
 test('hides system users unless asked to show them', async ({ page }) => {
   await openProject(page, ADMIN_PROJECT)
-  await expandSection(page, 'Project Users')
+  await expandSection(page, 'Project members')
 
   await expect(row(page, SYSTEM_USER.username)).toHaveCount(0)
   await page.getByRole('checkbox', { name: 'Show system users' }).click()
@@ -127,9 +131,9 @@ test.describe('in an archived project', () => {
       ...defaultMockData,
       projects: [defaultMockData.projects[0], { ...RESEARCH_PROJECT, is_archived: true }],
     })
-    await expandSection(page, 'Project Users')
+    await expandSection(page, 'Project members')
     await expect(page.getByText('This project is archived')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Add User' })).toBeDisabled()
+    await expect(page.getByRole('button', { name: 'Add members' })).toBeDisabled()
     const ada = row(page, SCIENTIST_USER.username)
     await expect(
       ada.getByRole('button', { name: `Change role of ${SCIENTIST_USER.username}` }),

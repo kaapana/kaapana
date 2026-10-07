@@ -7,7 +7,7 @@
     </div>
 
     <div class="d-flex flex-wrap align-start justify-space-between ga-4 mb-4">
-      <h1 class="text-h4">Edit Role Rights</h1>
+      <h1 class="text-h4">Edit role rights</h1>
       <div class="d-flex flex-wrap align-center ga-2">
         <v-chip v-if="pendingCount > 0" color="warning" variant="tonal" size="small">
           {{ pendingCount }} unsaved change{{ pendingCount !== 1 ? 's' : '' }}
@@ -22,10 +22,10 @@
           :loading="resetting"
           @click="askReset"
         >
-          Reset to Defaults
+          Reset to defaults
         </v-btn>
         <v-btn :prepend-icon="kaapanaIcons.add" variant="outlined" @click="openAddRight">
-          Add Right
+          Add right
         </v-btn>
         <v-btn
           :disabled="pendingCount === 0 || saving"
@@ -34,13 +34,13 @@
           :prepend-icon="kaapanaIcons.save"
           @click="askSave"
         >
-          Save Changes
+          Save changes
         </v-btn>
       </div>
     </div>
 
     <v-alert type="info" variant="tonal" density="compact" class="mb-4">
-      Changes are staged locally until you click <strong>Save Changes</strong>. Users receive
+      Changes are staged locally until you click <strong>Save changes</strong>. Users receive
       updated rights when their session next refreshes, within a few minutes, or at their next
       login.
     </v-alert>
@@ -60,7 +60,7 @@
         <thead>
           <tr>
             <th>Right</th>
-            <th class="text-caption text-medium-emphasis">JWT Claim</th>
+            <th class="text-caption text-medium-emphasis">JWT claim</th>
             <th v-for="role in roles" :key="role.id" class="text-center">
               <div class="font-weight-medium text-uppercase">{{ role.name }}</div>
               <div class="text-caption text-medium-emphasis font-weight-regular text-wrap">
@@ -128,7 +128,7 @@
     :dirty="newRightDirty"
     max-width="600"
   >
-    <v-card title="Add New Right">
+    <v-card title="Add new right">
       <v-card-text>
         <v-form ref="addRightForm" @submit.prevent="addRight">
           <v-text-field
@@ -286,7 +286,7 @@ export default defineComponent({
         title: `Delete right "${right.name}"?`,
         text:
           'The right is removed from every role that holds it, and users lose its claim when ' +
-          'their session next refreshes, within a few minutes. Reset to Defaults restores ' +
+          'their session next refreshes, within a few minutes. Reset to defaults restores ' +
           'default rights, not custom ones.',
         confirmText: 'Delete right',
         action: () => this.deleteRight(right),

@@ -21,7 +21,7 @@
         <SectionHeader :expanded="expanded" @toggle="emit('toggle', $event)">
             <!-- LEFT TITLE -->
             <template #title>
-                Multiinstallable Applications
+                Multiinstallable applications
             </template>
 
             <!-- OPTIONAL CHIP -->
@@ -43,7 +43,7 @@
                     :prepend-icon="kaapanaIcons.save"
                     @click="saveChanges"
                 >
-                    Save Changes
+                    Save changes
                 </v-btn>
             </template>
         </SectionHeader>
@@ -116,7 +116,7 @@
                     </template>
                     <template #item.launch="{ item }">
                         <v-tooltip
-                            text="This application is not whitelisted for this project. Contact your project admin."
+                            text="This application is not allowed in this project. A project manager can allow it."
                             :disabled="can(project?.id, 'launch_application', item.releaseName)"
                             location="top"
                         >
@@ -262,9 +262,9 @@ const saveChanges = async () => {
         )
         permissionsStore.whitelistByProject[props.project.id] = finalWhitelist
         pending.value = {}
-        notify({ type: 'success', text: 'Application whitelist saved.' })
+        notify({ type: 'success', text: 'Allowed applications saved.' })
     } catch (error) {
-        notifyFailure('Whitelist not saved', 'Could not save the application whitelist.', error)
+        notifyFailure('Allowed applications not saved', 'Could not save which applications are allowed.', error)
     } finally {
         isSaving.value = false;
     }

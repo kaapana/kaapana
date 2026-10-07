@@ -2,7 +2,7 @@
     <v-col>
         <!-- ── Section header ─────────────────────────────────────── -->
         <SectionHeader :expanded="props.expanded" @toggle="emit('toggle', $event)">
-            <template #title>Project Workflows</template>
+            <template #title>Project workflows</template>
 
             <template #meta>
                 <v-chip v-if="filteredWorkflows.length > 0" size="small" color="primary" variant="tonal">
@@ -25,7 +25,7 @@
                         :prepend-icon="kaapanaIcons.save"
                         @click="saveChanges"
                     >
-                        Save Changes
+                        Save changes
                     </v-btn>
                 </template>
             </template>
@@ -40,7 +40,7 @@
                 <FailureAlert
                     v-if="loadError"
                     title="Workflows not loaded"
-                    text="Could not load the workflows or this project's workflow whitelist."
+                    text="Could not load the workflows or which of them this project allows."
                     :error="loadError"
                     :retry="loadWorkflows"
                 />

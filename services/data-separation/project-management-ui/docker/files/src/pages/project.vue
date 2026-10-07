@@ -96,7 +96,7 @@
           variant="tonal"
           class="mb-3"
         >
-          This project is archived: its details, members and workflow whitelist cannot be changed.
+          This project is archived: its details, members and allowed workflows cannot be changed.
           Unarchive it to make changes.
         </v-alert>
         <p v-if="project?.description" class="text-body-1 text-medium-emphasis">

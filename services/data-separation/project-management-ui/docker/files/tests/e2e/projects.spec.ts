@@ -103,7 +103,7 @@ test.describe('project list', () => {
 
     await expect(row(page, RESEARCH_PROJECT.name)).toBeVisible()
     await expect(row(page, ADMIN_PROJECT.name)).toHaveCount(0)
-    await expect(page.getByRole('button', { name: 'Create New Project' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Create new project' })).toHaveCount(0)
   })
 
   test('shows every project on one page', async ({ page }) => {
@@ -156,7 +156,7 @@ test.describe('project list', () => {
 test.describe('creating a project', () => {
   test('creates the project and lists it', async ({ page }) => {
     const state = await openView(page)
-    await page.getByRole('button', { name: 'Create New Project' }).click()
+    await page.getByRole('button', { name: 'Create new project' }).click()
     const form = dialog(page)
     await form.getByLabel('Project name').fill('liver-ct')
     await form.getByLabel('Description').fill('Liver CT cohort')
@@ -179,7 +179,7 @@ test.describe('creating a project', () => {
     await openView(page)
     const sent: string[] = []
     page.on('request', (r) => r.method() === 'POST' && sent.push(r.url()))
-    await page.getByRole('button', { name: 'Create New Project' }).click()
+    await page.getByRole('button', { name: 'Create new project' }).click()
     const form = dialog(page)
     await form.getByLabel('Project name').fill('Liver CT')
 
@@ -196,7 +196,7 @@ test.describe('creating a project', () => {
     await openView(page, undefined, {
       routes: (p) => failRoute(p, 'POST', /\/aii\/projects$/, 'Name already taken', 409),
     })
-    await page.getByRole('button', { name: 'Create New Project' }).click()
+    await page.getByRole('button', { name: 'Create new project' }).click()
     const form = dialog(page)
     await form.getByLabel('Project name').fill('lung-study')
     await form.getByLabel('Description').fill('Duplicate')
@@ -210,13 +210,13 @@ test.describe('creating a project', () => {
 
   test('starts empty every time it opens', async ({ page }) => {
     await openView(page)
-    await page.getByRole('button', { name: 'Create New Project' }).click()
+    await page.getByRole('button', { name: 'Create new project' }).click()
     await dialog(page).getByLabel('Project name').fill('draft')
     await dialog(page).getByRole('button', { name: 'Cancel' }).click()
     await discardQuestion(page).getByRole('button', { name: 'Discard changes' }).click()
     await expect(dialog(page).filter({ visible: true })).toHaveCount(0)
 
-    await page.getByRole('button', { name: 'Create New Project' }).click()
+    await page.getByRole('button', { name: 'Create new project' }).click()
     await expect(dialog(page).getByLabel('Project name')).toHaveValue('')
   })
 })
@@ -337,10 +337,10 @@ test.describe('project page', () => {
 
     const alert = page.getByRole('alert').filter({ hasText: 'Could not load this project.' })
     await expect(alert).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Project Users' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Project members' })).toHaveCount(0)
 
     await retryFrom(page, alert, new RegExp(`/aii/projects/${RESEARCH_PROJECT.id}$`))
-    await expect(page.getByRole('heading', { name: 'Project Users' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Project members' })).toBeVisible()
   })
 
   test('an edit updates the header', async ({ page }) => {

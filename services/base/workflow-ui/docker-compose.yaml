@@ -40,18 +40,27 @@ services:
     networks:
       - workflow
 
+  # Dev server with hot reload. Build base-ui and run `npm ci` in docker/files
+  # first (see docker/README.md); the mounted sources bring their node_modules.
+  # The dataset picker needs kaapana-backend and stays empty here.
   workflow-ui:
-    build:
-      context: ../workflow-ui/docker
-    image: workflow-ui:latest
+    image: docker.io/node:lts-alpine3.23
+    working_dir: /kaapana/workflow-ui/docker/files
     ports:
-      - 5173:80
+      - 5000:5000
     environment:
-      - VITE_WORKFLOW_API_URL=/v1
-      - VITE_KAAPANA_BACKEND_URL=/kaapana-backend
+      - WORKFLOW_API_PROXY_TARGET=http://workflow-api:8080
     volumes:
-      - ../workflow-ui/docker/files:/app:cached
-      - /app/node_modules
-    # needs the Dockerfile's DEVELOPMENT stage swap from docker/README.md (the shipped
-    # nginx stage has no npm) and a ports: mapping that reaches vite, not nginx
+      - ../workflow-ui/docker/files:/kaapana/workflow-ui/docker/files:cached
+      - ../base-ui/docker/files:/kaapana/base-ui/docker/files:ro
     command: npm run dev -- --host 0.0.0.0
+    depends_on:
+      - workflow-api
+    networks:
+      - workflow
+
+volumes:
+  database:
+
+networks:
+  workflow:

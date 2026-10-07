@@ -1,254 +1,281 @@
 <template>
-  <v-dialog v-model="model" max-width="92vw" @keydown.escape="close">
-    <v-card class="log-viewer-card">
+  <v-card :elevation="2" class="log-viewer">
+    <v-empty-state
+      v-if="run.task_runs.length === 0"
+      size="56"
+      title="No tasks have started yet"
+      text="Task logs appear here once the workflow engine starts the first task of this run."
+    />
 
-      <!-- ===== TITLE BAR ===== -->
-      <v-card-title class="d-flex bg-primary py-4 align-center">
-        <v-icon class="mr-3" size="x-large">mdi-text-box-search-outline</v-icon>
-        <div class="d-flex flex-column flex-grow-1 overflow-hidden">
-          <span class="text-caption text-medium-emphasis">Logs</span>
-          <div class="d-flex align-center gap-2">
-            <span class="text-h6 font-weight-bold text-truncate">{{ workflowTitle }} v{{ workflowVersion }}</span>
-            <v-chip v-if="runStatus" size="small" :color="statusColor(runStatus)" variant="outlined" class="flex-shrink-0">
-              {{ runStatus }}
-            </v-chip>
-          </div>
+    <div v-else class="log-viewer-body">
+      <div class="task-panel">
+        <div class="pa-3 d-flex flex-column ga-2">
+          <v-text-field
+            v-model="taskSearch"
+            label="Filter tasks"
+            density="compact"
+            variant="outlined"
+            prepend-inner-icon="mdi-filter-outline"
+            clearable
+            hide-details
+          />
+          <v-text-field
+            v-model="logSearch"
+            label="Search all logs"
+            density="compact"
+            variant="outlined"
+            :prepend-inner-icon="kaapanaIcons.search"
+            :loading="searchLoading"
+            clearable
+            hide-details
+            @keydown.enter.prevent="$event.shiftKey ? goToPrevMatch() : goToNextMatch()"
+          />
+          <v-btn
+            v-if="run.task_runs.length > 1"
+            prepend-icon="mdi-folder-zip-outline"
+            :loading="downloadingAll"
+            :disabled="downloadingAll"
+            @click="downloadAll"
+          >
+            Download all logs
+          </v-btn>
         </div>
-        <v-btn icon variant="text" class="ml-2" @click="close">
-          <v-icon>mdi-close</v-icon>
-        </v-btn>
-      </v-card-title>
-
-      <v-card-text class="pa-0">
-
-        <div class="log-viewer-body">
-
-          <!-- Left: task panel -->
-          <div v-if="props.taskRuns && props.taskRuns.length > 0" class="task-panel">
-            <div class="task-panel-actions d-flex align-center gap-1 px-3 py-2">
-              <v-tooltip v-if="props.taskRuns.length > 1" text="Download all logs (ZIP)" location="top" theme="dark">
-                <template #activator="{ props: tp }">
-                  <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" :loading="downloadingAllApi" @click="downloadAllApiLogs">
-                    <v-icon>mdi-zip-box</v-icon>
-                  </v-btn>
-                </template>
-              </v-tooltip>
-            </div>
-            <v-divider />
-            <div class="task-panel-inputs pa-3 d-flex flex-column gap-2">
-              <v-text-field
-                v-model="taskSearch"
-                density="compact"
-                variant="outlined"
-                placeholder="Filter tasks…"
-                prepend-inner-icon="mdi-filter-outline"
-                clearable
-                hide-details
-              />
-              <v-text-field
-                v-model="logSearch"
-                density="compact"
-                variant="outlined"
-                placeholder="Search log content…"
-                prepend-inner-icon="mdi-magnify"
-                :loading="searchLoading"
-                clearable
-                hide-details
-                @keydown="onLogSearchKeydown"
-              />
-            </div>
-            <v-divider />
-            <v-list density="compact" class="task-list py-0">
-              <v-list-item
-                v-for="task in filteredTaskRuns"
-                :key="task.id"
-                :active="selectedTaskRunId === task.id"
-                active-color="primary"
-                rounded="sm"
-                @click="selectTaskAndLoad(task.id)"
-                style="cursor: pointer"
-              >
-                <template #prepend>
-                  <v-chip :color="statusColor(task.lifecycle_status)" size="x-small" variant="outlined" class="mr-3">
-                    {{ task.lifecycle_status }}
-                  </v-chip>
-                </template>
-                <v-list-item-title class="text-body-2">{{ task.task_title }}</v-list-item-title>
-                <template #append>
-                  <v-chip
-                    v-if="logSearch && logMatchCounts.get(task.id)"
-                    size="x-small"
-                    color="primary"
-                    variant="tonal"
-                    class="mr-1"
-                  >{{ logMatchCounts.get(task.id) }}</v-chip>
-                  <v-progress-circular
-                    v-if="loading && selectedTaskRunId === task.id"
-                    size="16" width="2" indeterminate color="primary"
-                  />
-                </template>
-              </v-list-item>
-              <v-list-item v-if="filteredTaskRuns.length === 0" class="text-medium-emphasis">
-                <v-list-item-title class="text-caption">No tasks match.</v-list-item-title>
-              </v-list-item>
-            </v-list>
-          </div>
-
-          <!-- Right: log panel -->
-          <div class="log-panel">
-            <div class="log-panel-toolbar d-flex align-center gap-1 px-3 py-2">
-              <v-tooltip text="Reload" location="top" theme="dark">
-                <template #activator="{ props: tp }">
-                  <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" :loading="loading" @click="refreshLogs">
-                    <v-icon>mdi-refresh</v-icon>
-                  </v-btn>
-                </template>
-              </v-tooltip>
-              <template v-if="logLines.length > 0">
-                <v-tooltip text="Copy to clipboard" location="top" theme="dark">
-                  <template #activator="{ props: tp }">
-                    <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" @click="copyToClipboard">
-                      <v-icon>mdi-content-copy</v-icon>
-                    </v-btn>
-                  </template>
-                </v-tooltip>
-                <v-tooltip text="Download log" location="top" theme="dark">
-                  <template #activator="{ props: tp }">
-                    <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" :loading="downloading" @click="downloadLog">
-                      <v-icon>mdi-download</v-icon>
-                    </v-btn>
-                  </template>
-                </v-tooltip>
-              </template>
-              <template v-if="logSearch?.trim() && matchLinesInLog.length > 0">
-                <v-divider vertical class="mx-1" style="align-self: center; height: 20px;" />
-                <span class="match-counter text-caption text-medium-emphasis">{{ currentMatchIdx + 1 }}/{{ matchLinesInLog.length }}</span>
-                <v-tooltip text="Previous match" location="top" theme="dark">
-                  <template #activator="{ props: tp }">
-                    <v-btn v-bind="tp" icon size="x-small" variant="tonal" @click="goToPrevMatch">
-                      <v-icon>mdi-chevron-up</v-icon>
-                    </v-btn>
-                  </template>
-                </v-tooltip>
-                <v-tooltip text="Next match" location="top" theme="dark">
-                  <template #activator="{ props: tp }">
-                    <v-btn v-bind="tp" icon size="x-small" variant="tonal" @click="goToNextMatch">
-                      <v-icon>mdi-chevron-down</v-icon>
-                    </v-btn>
-                  </template>
-                </v-tooltip>
-              </template>
-              <v-spacer />
-              <v-tooltip :text="colorizeMessages ? 'Disable message colors' : 'Colorize messages by severity'" location="top" theme="dark">
-                <template #activator="{ props: tp }">
-                  <v-btn v-bind="tp" icon size="small" :color="colorizeMessages ? 'primary' : 'default'" :variant="colorizeMessages ? 'tonal' : 'outlined'" @click="colorizeMessages = !colorizeMessages">
-                    <v-icon>mdi-palette-outline</v-icon>
-                  </v-btn>
-                </template>
-              </v-tooltip>
-            </div>
-            <v-divider />
-            <div v-if="logLines.length > 0 && logSeverities.length > 1" class="severity-chips px-3 py-2 d-flex align-center gap-1 flex-wrap">
+        <v-divider />
+        <v-list density="compact" class="task-list py-0" aria-label="Tasks" data-testid="task-list">
+          <v-list-item
+            v-for="task in filteredTaskRuns"
+            :key="task.id"
+            :active="selectedTaskRunId === task.id"
+            color="primary"
+            @click="selectTask(task.id)"
+          >
+            <template #prepend>
               <v-chip
-                v-for="sev in logSeverities"
-                :key="sev"
+                :color="statusColor(task.lifecycle_status)"
+                size="x-small"
+                variant="outlined"
+                class="me-3"
+              >
+                {{ task.lifecycle_status }}
+              </v-chip>
+            </template>
+            <v-list-item-title class="text-body-2">{{ task.task_title }}</v-list-item-title>
+            <template #append>
+              <v-chip
+                v-if="logSearch && logMatchCounts.get(task.id)"
+                size="x-small"
+                color="primary"
+                variant="tonal"
+                :aria-label="`${logMatchCounts.get(task.id)} matches`"
+              >
+                {{ logMatchCounts.get(task.id) }}
+              </v-chip>
+            </template>
+          </v-list-item>
+          <v-list-item v-if="filteredTaskRuns.length === 0">
+            <v-list-item-title class="text-body-2 text-medium-emphasis">
+              {{
+                logSearch ? 'No task log contains the search text.' : 'No task matches the filter.'
+              }}
+            </v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </div>
+
+      <div class="log-panel">
+        <div class="d-flex align-center flex-wrap ga-1 px-3 py-2">
+          <span class="text-subtitle-1 me-2">{{ selectedTask?.task_title }}</span>
+          <v-tooltip
+            v-for="action in toolbarActions"
+            :key="action.label"
+            :text="action.label"
+            location="top"
+          >
+            <template #activator="{ props: tooltipProps }">
+              <v-btn
+                v-bind="tooltipProps"
+                :icon="action.icon"
                 size="small"
-                :variant="activeSeverities.has(sev) ? 'flat' : 'tonal'"
-                :color="severityChipColor(sev)"
-                style="cursor: pointer"
-                @click="toggleSeverity(sev)"
-              >{{ sev }} <span class="ms-1 opacity-70">{{ severityCounts.get(sev) }}</span></v-chip>
-            </div>
-            <v-divider v-if="logLines.length > 0 && logSeverities.length > 1" />
-            <div ref="logPanelContentRef" class="log-panel-content">
-              <v-alert v-if="!logLines.length && !loading && !error" type="info" variant="tonal" class="mx-4 mt-4">
-                No logs available for this task run yet.
-              </v-alert>
-              <v-alert v-else-if="error" type="error" variant="tonal" class="mx-4 mt-4">
-                Failed to load logs: {{ error }}
-              </v-alert>
-              <v-alert v-else-if="filteredLogLines.length === 0 && logLines.length > 0" type="info" variant="tonal" class="mx-4 mt-4">
-                No lines match the active severity filter.
-              </v-alert>
-              <div v-else class="log-output">
-                <div
-                  v-for="(line, i) in filteredLogLines"
-                  :key="i"
-                  :data-line-idx="i"
-                  :class="['log-line', colorizeMessages && `log-line--${line.severity.toLowerCase()}`, logSearch?.trim() && i === matchLinesInLog[currentMatchIdx] && 'log-line--active']"
-                >
-                  <span class="log-ts">{{ line.time.slice(0, 19).replace('T', ' ') }}</span>
-                  <span :class="`log-severity log-severity--${line.severity.toLowerCase()}`">{{ line.severity }}</span>
-                  <span class="log-text" v-html="highlightMatch(line.message)"></span>
-                </div>
-              </div>
-            </div>
-            <v-overlay v-model="loading" contained class="d-flex justify-center align-center" persistent>
-              <v-progress-circular indeterminate size="64" color="primary" />
-            </v-overlay>
-          </div>
+                variant="text"
+                :aria-label="action.label"
+                :loading="action.loading"
+                @click="action.run"
+              />
+            </template>
+          </v-tooltip>
 
+          <template v-if="logSearch?.trim() && matchLinesInLog.length > 0">
+            <v-divider vertical class="mx-1" />
+            <span class="text-caption text-medium-emphasis" aria-live="polite">
+              Match {{ currentMatchIdx + 1 }} of {{ matchLinesInLog.length }}
+            </span>
+            <v-btn
+              icon="mdi-chevron-up"
+              size="small"
+              variant="text"
+              aria-label="Previous match"
+              @click="goToPrevMatch"
+            />
+            <v-btn
+              icon="mdi-chevron-down"
+              size="small"
+              variant="text"
+              aria-label="Next match"
+              @click="goToNextMatch"
+            />
+          </template>
+
+          <v-spacer />
+          <v-switch
+            v-model="colorizeMessages"
+            label="Color by severity"
+            color="primary"
+            density="compact"
+            hide-details
+            class="flex-grow-0"
+          />
         </div>
+        <v-divider />
 
-      </v-card-text>
+        <div v-if="logSeverities.length > 1" class="px-3 py-2 d-flex align-center ga-1 flex-wrap">
+          <span class="text-caption text-medium-emphasis me-1">Severity:</span>
+          <v-chip
+            v-for="sev in logSeverities"
+            :key="sev"
+            size="small"
+            :color="severityChipColor(sev)"
+            :variant="activeSeverities.has(sev) ? 'flat' : 'outlined'"
+            :aria-pressed="activeSeverities.has(sev)"
+            @click="toggleSeverity(sev)"
+          >
+            {{ sev }} · {{ severityCounts.get(sev) }}
+          </v-chip>
+        </div>
+        <v-divider v-if="logSeverities.length > 1" />
 
-    </v-card>
-  </v-dialog>
-
-  <v-snackbar v-model="copySnackbar" color="success" :timeout="2500" location="top right">
-    Copied to clipboard
-  </v-snackbar>
+        <div ref="logPanelContentRef" class="log-panel-content" data-testid="log-output">
+          <v-alert v-if="logError" type="error" variant="tonal" class="ma-4">
+            The logs of this task could not be loaded.
+            <template #append>
+              <v-btn variant="text" @click="loadLogs()">Try again</v-btn>
+              <v-btn variant="text" @click="showLogErrorDetails">Details</v-btn>
+            </template>
+          </v-alert>
+          <v-alert
+            v-else-if="!loading && logLines.length === 0"
+            type="info"
+            variant="tonal"
+            class="ma-4"
+          >
+            This task has not written any log lines yet.
+          </v-alert>
+          <v-alert
+            v-else-if="filteredLogLines.length === 0 && logLines.length > 0"
+            type="info"
+            variant="tonal"
+            class="ma-4"
+          >
+            No line has one of the selected severities.
+          </v-alert>
+          <div v-else class="log-output">
+            <div
+              v-for="(line, i) in filteredLogLines"
+              :key="i"
+              :data-line-idx="i"
+              :class="[
+                'log-line',
+                colorizeMessages && `log-line--${line.severity.toLowerCase()}`,
+                logSearch?.trim() && i === matchLinesInLog[currentMatchIdx] && 'log-line--active',
+              ]"
+            >
+              <span class="log-ts">{{ line.time.slice(0, 19).replace('T', ' ') }}</span>
+              <span :class="`log-severity log-severity--${line.severity.toLowerCase()}`">{{
+                line.severity
+              }}</span>
+              <span class="log-text" v-html="highlightMatch(line.message)"></span>
+            </div>
+          </div>
+        </div>
+        <v-overlay
+          :model-value="loading"
+          contained
+          persistent
+          class="d-flex justify-center align-center"
+        >
+          <v-progress-circular indeterminate size="48" color="primary" aria-label="Loading logs" />
+        </v-overlay>
+      </div>
+    </div>
+  </v-card>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
+import { apiErrorInfo, kaapanaIcons, type ApiErrorInfo } from '@kaapana/base-ui'
 import { workflowRunsApi } from '@/api/workflowRuns'
-import type { TaskRun, LogLine } from '@/types/schemas'
-import { statusColor } from '@/utils/status'
-import { downloadAsZip } from '@/utils/zipDownload'
+import { useFailureDetailsStore } from '@/stores/failureDetails'
+import { downloadRunLogs, downloadText } from '@/utils/logDownload'
 import { logLinesToText } from '@/utils/logFormat'
+import { notifyFailure, notifySuccess, notifyWarning } from '@/utils/notify'
+import { statusColor } from '@/utils/status'
+import type { LogLine, TaskRun, WorkflowRun } from '@/types/schemas'
 
-// ── Search ────────────────────────────────────────────────────────────────────
-const taskSearch       = ref('')
-const logSearch        = ref('')
-const logMatchCounts   = ref<Map<number, number>>(new Map())
-const searchLoading    = ref(false)
+const props = defineProps<{ run: WorkflowRun }>()
+
+const failureDetails = useFailureDetailsStore()
+
+const taskSearch = ref('')
+const logSearch = ref('')
+const logMatchCounts = ref<Map<number, number>>(new Map())
+const searchLoading = ref(false)
 const activeSeverities = ref<Set<string>>(new Set())
-// Cache stores LogLine[] per task ID — severity filter applied at search time
-const allTaskLogsCache = ref<Map<number, LogLine[]>>(new Map())
+// Log lines per task id. The severity filter is applied when searching.
+const logCache = ref<Map<number, LogLine[]>>(new Map())
 
-const logSeverities = computed(() => {
-  const s = new Set<string>()
-  logLines.value.forEach((l: LogLine) => s.add(l.severity.toUpperCase()))
-  return [...s].sort()
-})
+const colorizeMessages = ref(true)
+const logLines = ref<LogLine[]>([])
+const loading = ref(false)
+const logError = ref<ApiErrorInfo | null>(null)
+const selectedTaskRunId = ref<number | null>(null)
+const logPanelContentRef = ref<HTMLElement | null>(null)
+const currentMatchIdx = ref(0)
+const downloading = ref(false)
+const downloadingAll = ref(false)
+
+const selectedTask = computed(
+  () => props.run.task_runs.find((t) => t.id === selectedTaskRunId.value) ?? null,
+)
+
+const logSeverities = computed(() =>
+  [...new Set(logLines.value.map((l) => l.severity.toUpperCase()))].sort(),
+)
 
 const severityCounts = computed(() => {
   const m = new Map<string, number>()
-  logLines.value.forEach((l: LogLine) => {
+  for (const l of logLines.value) {
     const sev = l.severity.toUpperCase()
     m.set(sev, (m.get(sev) ?? 0) + 1)
-  })
+  }
   return m
 })
 
 const filteredLogLines = computed(() => {
   if (!activeSeverities.value.size) return logLines.value
-  return logLines.value.filter((l: LogLine) => activeSeverities.value.has(l.severity.toUpperCase()))
+  return logLines.value.filter((l) => activeSeverities.value.has(l.severity.toUpperCase()))
 })
 
 const matchLinesInLog = computed(() => {
   const q = logSearch.value?.trim().toLowerCase()
-  if (!q || !filteredLogLines.value.length) return []
+  if (!q) return []
   return filteredLogLines.value
-    .map((line: LogLine, i: number) => (line.message.toLowerCase().includes(q) ? i : -1))
-    .filter((i: number): i is number => i !== -1)
+    .map((line, i) => (line.message.toLowerCase().includes(q) ? i : -1))
+    .filter((i) => i !== -1)
 })
 
 const filteredTaskRuns = computed(() => {
   const nameQ = (taskSearch.value?.trim() ?? '').toLowerCase()
-  const logQ  = (logSearch.value?.trim() ?? '')
-  return props.taskRuns.filter((t: TaskRun) => {
+  const logQ = logSearch.value?.trim() ?? ''
+  return props.run.task_runs.filter((t: TaskRun) => {
     if (nameQ && !t.task_title.toLowerCase().includes(nameQ)) return false
     if (logQ) {
       const count = logMatchCounts.value.get(t.id)
@@ -258,119 +285,75 @@ const filteredTaskRuns = computed(() => {
   })
 })
 
+const toolbarActions = computed(() => [
+  {
+    label: 'Reload log',
+    icon: kaapanaIcons.refresh,
+    loading: loading.value,
+    run: () => loadLogs(),
+  },
+  { label: 'Copy log', icon: 'mdi-content-copy', loading: false, run: copyToClipboard },
+  { label: 'Download log', icon: 'mdi-download', loading: downloading.value, run: downloadLog },
+])
 
-// ============================================================
-// PROPS & EMITS
-// ============================================================
-
-const props = defineProps<{
-  modelValue: boolean
-  workflowRunId: number
-  workflowTitle: string
-  workflowVersion: number
-  runStatus: string
-  taskRuns: TaskRun[]
-
-}>()
-
-const emit = defineEmits<{
-  (e: 'update:modelValue', value: boolean): void
-}>()
-
-const model = computed({
-  get: () => props.modelValue,
-  set: (value) => emit('update:modelValue', value)
-})
-
-
-// ============================================================
-// STATE
-// ============================================================
-
-const copySnackbar        = ref(false)
-const colorizeMessages    = ref(true)
-const logLines            = ref<LogLine[]>([])
-const loading             = ref(false)
-const downloading         = ref(false)
-const error               = ref<string | null>(null)
-const selectedTaskRunId   = ref<number | null>(null)
-const logPanelContentRef  = ref<HTMLElement | null>(null)
-const currentMatchIdx     = ref(0)
-
-
-// ============================================================
-// DIALOG LIFECYCLE
-// ============================================================
-
-const close = () => {
-  model.value = false
-  logLines.value = []
-  error.value = null
-  selectedTaskRunId.value = null
-  taskSearch.value = ''
-  logSearch.value = ''
-  logMatchCounts.value = new Map()
-  allTaskLogsCache.value = new Map()
-  activeSeverities.value = new Set()
-}
-
-
-// ============================================================
-// TASK RUN SETUP
-// ============================================================
-
-function setupTaskRuns(runs: TaskRun[]) {
-  if (!runs || runs.length === 0) {
-    selectedTaskRunId.value = null
-    return
-  }
-  selectedTaskRunId.value = runs[0].id
-}
-
-
-// ============================================================
-// LOG FETCHING
-// ============================================================
-
-const loadLogs = async (taskId?: number) => {
-  const taskIdToLoad = taskId || selectedTaskRunId.value
-  if (!taskIdToLoad) return
-
+async function loadLogs(taskId = selectedTaskRunId.value) {
+  if (!taskId) return
   loading.value = true
-  error.value = null
+  logError.value = null
   try {
-    const prevActive = new Set(activeSeverities.value)
-    const prevAllSevs = new Set(logLines.value.map((l: LogLine) => l.severity.toUpperCase()))
-    logLines.value = await workflowRunsApi.getTaskRunLogLines(props.workflowRunId, taskIdToLoad)
-    // Preserve selection: keep active ones, auto-select severities not seen in previous log
-    const next = new Set<string>()
-    for (const sev of logLines.value.map((l: LogLine) => l.severity.toUpperCase())) {
-      if (prevActive.has(sev) || !prevAllSevs.has(sev)) next.add(sev)
-    }
-    activeSeverities.value = next
-    const cache = new Map(allTaskLogsCache.value)
-    cache.set(taskIdToLoad, logLines.value)
-    allTaskLogsCache.value = cache
-  } catch (err: any) {
-    error.value = err?.response?.data?.detail || err?.message || 'Failed to load logs'
+    const previousActive = new Set(activeSeverities.value)
+    const previousAll = new Set(logLines.value.map((l) => l.severity.toUpperCase()))
+    const lines = await workflowRunsApi.getTaskRunLogLines(props.run.id, taskId)
+    if (taskId !== selectedTaskRunId.value) return
+    logLines.value = lines
+    // Keep the chosen severities and select the ones the previous log did not have.
+    activeSeverities.value = new Set(
+      lines
+        .map((l) => l.severity.toUpperCase())
+        .filter((sev) => previousActive.has(sev) || !previousAll.has(sev)),
+    )
+    logCache.value = new Map(logCache.value).set(taskId, lines)
+  } catch (err) {
+    if (taskId !== selectedTaskRunId.value) return
+    logLines.value = []
+    logError.value = apiErrorInfo(err)
   } finally {
     loading.value = false
   }
 }
 
-const refreshLogs = () => { loadLogs() }
-
-// ── In-log match navigation ───────────────────────────────────────────────────
-function scrollToLogLine(lineIdx: number) {
-  const el = logPanelContentRef.value?.querySelector(`[data-line-idx="${lineIdx}"]`) as HTMLElement | null
-  el?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+function selectTask(taskId: number) {
+  selectedTaskRunId.value = taskId
+  loadLogs(taskId)
 }
 
-function onLogSearchKeydown(e: KeyboardEvent) {
-  if (e.key !== 'Enter') return
-  e.preventDefault()
-  if (e.shiftKey) goToPrevMatch()
-  else goToNextMatch()
+watch(
+  () => props.run.id,
+  () => {
+    logLines.value = []
+    logCache.value = new Map()
+    const first = props.run.task_runs[0]
+    selectedTaskRunId.value = first?.id ?? null
+    if (first) loadLogs(first.id)
+  },
+  { immediate: true },
+)
+
+function showLogErrorDetails() {
+  if (logError.value) {
+    failureDetails.show({
+      title: 'Could not load the logs',
+      text: `The logs of ${selectedTask.value?.task_title ?? 'this task'} could not be loaded.`,
+      error: logError.value,
+    })
+  }
+}
+
+// --- match navigation ---
+
+function scrollToLogLine(lineIdx: number) {
+  const el = logPanelContentRef.value?.querySelector<HTMLElement>(`[data-line-idx="${lineIdx}"]`)
+  el?.scrollIntoView({ block: 'center', behavior: 'smooth' })
 }
 
 function goToNextMatch() {
@@ -381,11 +364,12 @@ function goToNextMatch() {
 
 function goToPrevMatch() {
   if (!matchLinesInLog.value.length) return
-  currentMatchIdx.value = (currentMatchIdx.value - 1 + matchLinesInLog.value.length) % matchLinesInLog.value.length
+  currentMatchIdx.value =
+    (currentMatchIdx.value - 1 + matchLinesInLog.value.length) % matchLinesInLog.value.length
   scrollToLogLine(matchLinesInLog.value[currentMatchIdx.value])
 }
 
-watch(matchLinesInLog, async (matches: number[]) => {
+watch(matchLinesInLog, async (matches) => {
   currentMatchIdx.value = 0
   if (matches.length) {
     await nextTick()
@@ -393,136 +377,118 @@ watch(matchLinesInLog, async (matches: number[]) => {
   }
 })
 
-const selectTaskAndLoad = async (taskId: number) => {
-  selectedTaskRunId.value = taskId
-  await loadLogs(taskId)
+// --- copy and download ---
+
+function logFileBase() {
+  return `${props.run.workflow.title}-v${props.run.workflow.increment}-run-${props.run.id}`
 }
 
-
-// ============================================================
-// WATCHERS
-// ============================================================
-
-watch(
-  () => props.taskRuns,
-  async (newRuns: TaskRun[]) => {
-    logLines.value = []
-    error.value = null
-    setupTaskRuns(newRuns)
-    if (model.value && selectedTaskRunId.value) {
-      await loadLogs(selectedTaskRunId.value)
-    }
-  },
-  { immediate: true }
-)
-
-watch(model, async (isOpen: boolean) => {
-  if (!isOpen) return
-  logLines.value = []
-  error.value = null
-  setupTaskRuns(props.taskRuns)
-  if (selectedTaskRunId.value) {
-    await loadLogs(selectedTaskRunId.value)
+async function copyToClipboard() {
+  try {
+    await navigator.clipboard.writeText(logLinesToText(logLines.value))
+    notifySuccess('Log copied to the clipboard')
+  } catch {
+    notifyWarning(
+      'Could not copy the log',
+      'The browser did not allow access to the clipboard. Download the log instead.',
+    )
   }
-})
-
-
-// ============================================================
-// UTILITIES
-// ============================================================
-
-const copyToClipboard = () => {
-  navigator.clipboard.writeText(logLinesToText(logLines.value)).then(() => { copySnackbar.value = true })
 }
 
 async function downloadLog() {
-  if (!selectedTaskRunId.value || downloading.value) return
+  const task = selectedTask.value
+  if (!task || downloading.value) return
   downloading.value = true
   try {
-    const lines = await workflowRunsApi.getTaskRunLogLines(props.workflowRunId, selectedTaskRunId.value)
-    const blob = new Blob([logLinesToText(lines)], { type: 'text/plain' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${props.workflowTitle}-v${props.workflowVersion}-task-${selectedTaskRunId.value}.log`
-    a.click()
-    URL.revokeObjectURL(url)
+    const lines = await workflowRunsApi.getTaskRunLogLines(props.run.id, task.id)
+    downloadText(`${logFileBase()}-${task.task_title}.log`, logLinesToText(lines))
+  } catch (err) {
+    notifyFailure(
+      'Could not download the log',
+      `The log of ${task.task_title} could not be fetched.`,
+      err,
+    )
   } finally {
     downloading.value = false
   }
 }
 
-const downloadingAllApi = ref(false)
-
-async function downloadAllApiLogs() {
-  if (downloadingAllApi.value || !props.taskRuns.length) return
-  downloadingAllApi.value = true
+async function downloadAll() {
+  if (downloadingAll.value) return
+  downloadingAll.value = true
   try {
-    const entries = await Promise.all(
-      props.taskRuns.map(async (task: TaskRun) => {
-        try {
-          const lines = await workflowRunsApi.getTaskRunLogLines(props.workflowRunId, task.id)
-          return { name: `${task.task_title}.log`, content: logLinesToText(lines) }
-        } catch {
-          return { name: `${task.task_title}.log`, content: 'Failed to fetch logs.' }
-        }
-      })
+    const failed = await downloadRunLogs(
+      `${logFileBase()}-logs.zip`,
+      props.run.id,
+      props.run.task_runs,
     )
-    downloadAsZip(`${props.workflowTitle}-v${props.workflowVersion}-logs.zip`, entries)
+    if (failed.length) {
+      notifyWarning(
+        'Some logs are missing',
+        `The logs of ${failed.join(', ')} could not be fetched. The download contains the other logs.`,
+      )
+    }
   } finally {
-    downloadingAllApi.value = false
+    downloadingAll.value = false
   }
 }
 
-// ── Log content search ────────────────────────────────────────────────────────
+// --- search across all task logs ---
+
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 
-watch(logSearch, (val: string | null) => {
+function scheduleSearch(delay: number) {
   currentMatchIdx.value = 0
   logMatchCounts.value = new Map()
   if (searchTimer) clearTimeout(searchTimer)
-  const q = (val?.trim() ?? '').toLowerCase()
-  if (!q) return
-  searchTimer = setTimeout(() => searchAllApiLogs(q), 700)
-})
+  const q = (logSearch.value?.trim() ?? '').toLowerCase()
+  if (q) searchTimer = setTimeout(() => searchAllLogs(q), delay)
+}
 
-async function searchAllApiLogs(query: string) {
-  if (!props.taskRuns.length) return
+watch(logSearch, () => scheduleSearch(700))
+watch(activeSeverities, () => scheduleSearch(0))
+
+async function searchAllLogs(query: string) {
   searchLoading.value = true
   try {
-    const uncached = props.taskRuns.filter((t: TaskRun) => !allTaskLogsCache.value.has(t.id))
+    const uncached = props.run.task_runs.filter((t) => !logCache.value.has(t.id))
     if (uncached.length) {
       const fetched = await Promise.all(
-        uncached.map(async (task: TaskRun) => {
+        uncached.map(async (task) => {
           try {
-            const lines = await workflowRunsApi.getTaskRunLogLines(props.workflowRunId, task.id)
-            return { id: task.id, lines }
+            return {
+              id: task.id,
+              lines: await workflowRunsApi.getTaskRunLogLines(props.run.id, task.id),
+            }
           } catch {
             return { id: task.id, lines: [] as LogLine[] }
           }
-        })
+        }),
       )
-      const cache = new Map(allTaskLogsCache.value)
+      const cache = new Map(logCache.value)
       for (const { id, lines } of fetched) cache.set(id, lines)
-      allTaskLogsCache.value = cache
+      logCache.value = cache
     }
-    const map = new Map<number, number>()
-    for (const task of props.taskRuns) {
-      const lines = allTaskLogsCache.value.get(task.id) ?? []
-      const filtered = activeSeverities.value.size
-        ? lines.filter((l: LogLine) => activeSeverities.value.has(l.severity.toUpperCase()))
+    const counts = new Map<number, number>()
+    for (const task of props.run.task_runs) {
+      const lines = logCache.value.get(task.id) ?? []
+      const relevant = activeSeverities.value.size
+        ? lines.filter((l) => activeSeverities.value.has(l.severity.toUpperCase()))
         : lines
-      const content = filtered.map((l: LogLine) => l.message).join('\n')
-      let count = 0; let idx = 0
-      while ((idx = content.toLowerCase().indexOf(query, idx)) !== -1) { count++; idx++ }
-      map.set(task.id, count)
+      const content = relevant
+        .map((l) => l.message)
+        .join('\n')
+        .toLowerCase()
+      let count = 0
+      for (let idx = content.indexOf(query); idx !== -1; idx = content.indexOf(query, idx + 1))
+        count++
+      counts.set(task.id, count)
     }
-    logMatchCounts.value = map
-    // Auto-navigate to first task with matches if the current one has none
-    const currentHasMatches = (map.get(selectedTaskRunId.value ?? -1) ?? 0) > 0
-    if (!currentHasMatches) {
-      const firstMatch = props.taskRuns.find((t: TaskRun) => (map.get(t.id) ?? 0) > 0)
-      if (firstMatch) await selectTaskAndLoad(firstMatch.id)
+    logMatchCounts.value = counts
+    // Move to the first task with matches when the current one has none.
+    if (!(counts.get(selectedTaskRunId.value ?? -1) ?? 0)) {
+      const first = props.run.task_runs.find((t) => (counts.get(t.id) ?? 0) > 0)
+      if (first) selectTask(first.id)
     }
   } finally {
     searchLoading.value = false
@@ -536,55 +502,44 @@ function toggleSeverity(sev: string) {
   activeSeverities.value = next
 }
 
-function severityChipColor(sev: string): string {
-  return ({ ERROR: 'error', CRITICAL: 'error', WARNING: 'warning', WARN: 'warning', INFO: 'info', DEBUG: 'secondary' } as Record<string, string>)[sev] ?? 'primary'
+function severityChipColor(sev: string): string | undefined {
+  return (
+    {
+      ERROR: 'error',
+      CRITICAL: 'error',
+      WARNING: 'warning',
+      WARN: 'warning',
+      INFO: 'info',
+    } as Record<string, string>
+  )[sev]
 }
 
-watch(activeSeverities, () => {
-  currentMatchIdx.value = 0
-  logMatchCounts.value = new Map()
-  const q = logSearch.value?.trim().toLowerCase()
-  if (q) {
-    if (searchTimer) clearTimeout(searchTimer)
-    searchTimer = setTimeout(() => searchAllApiLogs(q), 0)
-  }
-})
-
-// ── Rendering helpers ─────────────────────────────────────────────────────────
 function highlightMatch(text: string): string {
   const safe = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   const q = logSearch.value?.trim() ?? ''
   if (!q) return safe
-  const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  return safe.replace(new RegExp(escaped, 'gi'), m => `<mark>${m}</mark>`)
+  const escaped = q
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return safe.replace(new RegExp(escaped, 'gi'), (m) => `<mark>${m}</mark>`)
 }
-
-
 </script>
 
 <style scoped>
-.log-viewer-card {
-  min-height: 500px;
-  min-width: min(1300px, 95vw);
-}
-
 .log-viewer-body {
   display: flex;
-  min-height: 680px;
-  height: calc(90vh - 160px);
+  height: calc(100vh - 220px);
+  min-height: 480px;
 }
 
 .task-panel {
-  width: 280px;
-  min-width: 280px;
   display: flex;
   flex-direction: column;
+  width: 300px;
+  min-width: 300px;
   border-right: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
-  overflow: hidden;
-}
-
-.task-panel-inputs {
-  flex-shrink: 0;
 }
 
 .task-list {
@@ -593,21 +548,11 @@ function highlightMatch(text: string): string {
 }
 
 .log-panel {
-  flex: 1;
+  position: relative;
   display: flex;
+  flex: 1;
   flex-direction: column;
   min-width: 0;
-  overflow: hidden;
-  position: relative;
-}
-
-.log-panel-toolbar {
-  flex-shrink: 0;
-  min-height: 48px;
-}
-
-.severity-chips {
-  flex-shrink: 0;
 }
 
 .log-panel-content {
@@ -615,65 +560,61 @@ function highlightMatch(text: string): string {
   overflow: auto;
 }
 
+/* Log output is the one place with a monospace face: columns of timestamps and
+   severities only line up in a fixed-width font. */
 .log-output {
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 12px;
   padding: 12px 16px;
+  font-family: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.75rem;
 }
 
 .log-line {
   display: flex;
   gap: 10px;
   line-height: 1.6;
-  min-height: 1.6em;
 }
 
 .log-ts {
-  color: rgba(var(--v-theme-on-surface), 0.45);
-  white-space: nowrap;
   flex-shrink: 0;
+  white-space: nowrap;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .log-severity {
-  white-space: nowrap;
   flex-shrink: 0;
-  font-weight: 600;
   width: 8ch;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
-.log-severity--info    { color: rgba(var(--v-theme-on-surface), 0.7); }
-.log-severity--debug   { color: rgba(var(--v-theme-secondary), 1); }
 .log-severity--warning,
-.log-severity--warn    { color: rgb(var(--v-theme-warning)); }
+.log-severity--warn,
+.log-line--warning .log-text,
+.log-line--warn .log-text {
+  color: rgb(var(--v-theme-warning));
+}
+
 .log-severity--error,
-.log-severity--critical { color: rgb(var(--v-theme-error)); }
+.log-severity--critical,
+.log-line--error .log-text,
+.log-line--critical .log-text {
+  color: rgb(var(--v-theme-error));
+}
 
 .log-text {
   word-break: break-word;
 }
 
 .log-line--active {
-  background: rgba(var(--v-theme-primary), 0.14);
-  border-left: 2px solid rgb(var(--v-theme-primary));
   padding-left: 8px;
+  border-left: 2px solid rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), 0.12);
 }
-
-.match-counter {
-  white-space: nowrap;
-  min-width: 3ch;
-  text-align: center;
-}
-
-.log-line--error .log-text,
-.log-line--critical .log-text { color: rgb(var(--v-theme-error)); }
-
-.log-line--warning .log-text,
-.log-line--warn .log-text     { color: rgb(var(--v-theme-warning)); }
 
 :deep(mark) {
-  background: rgba(255, 200, 0, 0.35);
-  color: inherit;
-  border-radius: 2px;
   padding: 0 1px;
+  border-radius: 2px;
+  background: rgba(var(--v-theme-warning), 0.35);
+  color: inherit;
 }
 </style>

@@ -1,15 +1,17 @@
 import { createApp } from 'vue'
+import { createPinia } from 'pinia'
+import Notifications from '@kyvg/vue3-notification'
 import router from './router/router'
 import vuetify from './plugins/vuetify'
 import App from './App.vue'
 
+import 'vuetify/styles'
+import '@mdi/font/css/materialdesignicons.css'
+import '@kaapana/base-ui/style.css'
 
-import 'vuetify/styles';
-import '@mdi/font/css/materialdesignicons.css';
-import 'roboto-fontface/css/roboto/roboto-fontface.css';
-import './assets/styles.scss';
-
-const app = createApp(App);
-app.use(router);
-app.use(vuetify);
-app.mount('#app');
+const app = createApp(App)
+app.use(createPinia())
+app.use(router)
+app.use(vuetify)
+app.use(Notifications)
+app.mount('#app')

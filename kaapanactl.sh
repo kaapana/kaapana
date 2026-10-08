@@ -1694,7 +1694,7 @@ function delete_deployment {
         echo -e "${YELLOW}Retrying releases stuck in 'uninstalling' with --no-hooks: $(echo $stuck_releases)${NC}"
         for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
             if ! $HELM_EXECUTABLE -n "$namespace" ls --uninstalling | awk 'NR > 1 { print  "-n "$2, $1}' \
-                | xargs -r -P 0 -I % sh -c "$HELM_EXECUTABLE uninstall --no-hooks ${ignore_not_found} --wait --timeout 60s % 2>&1"; then
+                | xargs -r -P 0 -I % sh -c "$HELM_EXECUTABLE uninstall --no-hooks ${ignore_not_found} --timeout 60s % 2>&1"; then
                 failed=1
             fi
         done

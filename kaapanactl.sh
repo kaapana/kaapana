@@ -1659,6 +1659,7 @@ function delete_deployment {
     echo -e "${YELLOW}Undeploy releases${NC}"
     local failed=0
     local namespace
+    local helm_status_flags="--deployed --failed --pending --superseded --uninstalling"
 
     # Per-release uninstall budget. Hooks run inside it, so on a stuck hook this is also how long
     # the undeploy blocks on that one release.
@@ -1669,18 +1670,13 @@ function delete_deployment {
     if $HELM_EXECUTABLE uninstall --help 2>/dev/null | grep -q -- '--ignore-not-found'; then
         ignore_not_found="--ignore-not-found"
     fi
-    # Uninstall hooks run by default so charts can clean up after themselves (e.g. an
-    # extension's pre-delete hook removing its DAGs). Skipping them is opt-in: --no-hooks
-    # for every release, or --auto-no-hooks for releases still stuck afterwards (see below).
-    local uninstall_flags="${NO_HOOKS} ${ignore_not_found} --timeout ${HELM_UNINSTALL_TIMEOUT}"
 
     stop_platform_installer
 
-    # One snapshot per namespace, including releases an earlier aborted undeploy left in
-    # 'uninstalling': helm uninstall re-drives those, hooks included.
+    # Normal undeploy: uninstall all releases in parallel, hooks included unless --no-hooks is set.
     for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
-        if ! $HELM_EXECUTABLE -n "$namespace" ls --deployed --failed --pending --superseded --uninstalling | awk 'NR > 1 { print  "-n "$2, $1}' \
-            | xargs -r -P 0 -I % sh -c "$HELM_EXECUTABLE uninstall ${uninstall_flags} % 2>&1"; then
+        if ! $HELM_EXECUTABLE -n "$namespace" ls $helm_status_flags | awk 'NR > 1 { print  "-n "$2, $1}' \
+            | xargs -r -P 0 -I % sh -c "$HELM_EXECUTABLE uninstall ${NO_HOOKS} ${ignore_not_found} --timeout ${HELM_UNINSTALL_TIMEOUT} % 2>&1"; then
             failed=1
         fi
     done
@@ -1743,7 +1739,7 @@ function delete_deployment {
     # as clean.
     REMAINING_RELEASES=""
     for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
-        if ! NAMESPACE_RELEASES=$($HELM_EXECUTABLE -n "$namespace" ls --short --deployed --failed --pending --superseded --uninstalling); then
+        if ! NAMESPACE_RELEASES=$($HELM_EXECUTABLE -n "$namespace" ls --short $helm_status_flags); then
             echo "${RED}Could not check remaining Helm releases in namespace $namespace.${NC}"
             REMAINING_RELEASES="${REMAINING_RELEASES}${namespace}/<unknown> "
         elif [ -n "$NAMESPACE_RELEASES" ]; then

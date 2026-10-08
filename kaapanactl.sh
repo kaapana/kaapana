@@ -1687,6 +1687,9 @@ function delete_deployment {
     # those, and only those, without hooks; otherwise they are reported below and the undeploy fails.
     local stuck_releases
     stuck_releases="$(list_uninstalling_releases)"
+    if [ -n "$stuck_releases" ] && [ "$AUTO_NO_HOOKS" != "true" ]; then
+        echo -e "${RED}Releases stuck in 'uninstalling': $(echo $stuck_releases)${NC}"
+    fi
     if [ -n "$stuck_releases" ] && [ "$AUTO_NO_HOOKS" = "true" ]; then
         echo -e "${YELLOW}Retrying releases stuck in 'uninstalling' with --no-hooks: $(echo $stuck_releases)${NC}"
         for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do

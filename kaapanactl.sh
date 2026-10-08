@@ -1632,7 +1632,8 @@ function get_domain {
 # go. Stopping it first is what makes "no release left" a meaningful check at the end.
 function stop_platform_installer {
     echo -e "${YELLOW}Stopping the extension installer (kube-helm) ...${NC}"
-    $KUBECTL_EXECUTABLE -n "$ADMIN_NAMESPACE" delete job init-extensions --ignore-not-found --wait=true >/dev/null 2>&1 || true
+    # Foreground cascade: --wait then also waits until the job's pod is gone.
+    $KUBECTL_EXECUTABLE -n "$ADMIN_NAMESPACE" delete job init-extensions --ignore-not-found --cascade=foreground --wait=true >/dev/null 2>&1 || true
     if $KUBECTL_EXECUTABLE -n "$ADMIN_NAMESPACE" get deployment kube-helm-deployment >/dev/null 2>&1; then
         $KUBECTL_EXECUTABLE -n "$ADMIN_NAMESPACE" scale deployment kube-helm-deployment --replicas=0 >/dev/null 2>&1 || true
         $KUBECTL_EXECUTABLE -n "$ADMIN_NAMESPACE" wait --for=delete pod -l app.kubernetes.io/name=kube-helm --timeout=60s >/dev/null 2>&1 || true

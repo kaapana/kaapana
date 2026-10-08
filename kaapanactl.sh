@@ -1764,9 +1764,12 @@ function delete_deployment {
             echo "${RED}Some pods were still terminating when the wait ran out: $(echo $TERMINATING_PODS)${NC}"
             echo "${RED}Please check manually that nothing is left before redeploying: kubectl get pods -A${NC}"
         fi
-        if [ -n "$remaining_releases" ]; then
+        if [[ "$remaining_releases" == *"<unknown>"* ]]; then
+            echo "${RED}Error while checking Helm releases. Run 'helm ls -A' manually to diagnose, then re-run './kaapanactl.sh deploy --undeploy'.${NC}"
+        elif [ -n "$remaining_releases" ]; then
             echo "${RED}Helm releases remain: ${remaining_releases}${NC}"
-            echo "${RED}Re-run './kaapanactl.sh deploy --auto-no-hooks --undeploy' to force releases stuck in 'uninstalling' (skips their hooks), or './kaapanactl.sh deploy --no-hooks' to purge everything without hooks.${NC}"
+            echo "${RED}Re-run './kaapanactl.sh deploy --undeploy' first: it uninstalls these with their hooks, including releases in 'uninstalling'.${NC}"
+            echo "${RED}If a release stays 'uninstalling', './kaapanactl.sh deploy --auto-no-hooks --undeploy' forces only those (skips their hooks); './kaapanactl.sh deploy --no-hooks' purges everything without hooks.${NC}"
         elif [ "$failed" -ne 0 ]; then
             echo "${RED}Some helm uninstalls reported errors (see above).${NC}"
         fi

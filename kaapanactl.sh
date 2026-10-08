@@ -1703,7 +1703,11 @@ function delete_deployment {
     for idx in $(seq 0 $WAIT_UNINSTALL_COUNT)
     do
         sleep 3
-        TERMINATING_PODS=$($KUBECTL_EXECUTABLE get pods --all-namespaces --no-headers 2>/dev/null | awk '$4 == "Terminating" { print $1 "/" $2 }')
+        # Under set -e/pipefail a failing kubectl would end the undeploy silently; retry instead.
+        if ! TERMINATING_PODS=$($KUBECTL_EXECUTABLE get pods --all-namespaces --no-headers 2>/dev/null | awk '$4 == "Terminating" { print $1 "/" $2 }'); then
+            echo -e "${YELLOW}Could not list pods, retrying ...${NC}"
+            continue
+        fi
         echo -e ""
         if [ -z "$TERMINATING_PODS" ]; then
             break

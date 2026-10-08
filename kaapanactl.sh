@@ -1743,26 +1743,29 @@ function delete_deployment {
         pods_still_terminating=1
     fi
 
-    # Every release Helm still knows about, any status. A failing helm ls counts as "unknown", never
-    # as clean.
-    REMAINING_RELEASES=""
+    # Collect every release Helm still knows about and print them as "namespace/release (status)",
+    # with "<unknown>" as the fallback when helm ls fails.
+    local remaining_releases=""
+    local namespace_releases
     for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
-        if ! NAMESPACE_RELEASES=$($HELM_EXECUTABLE -n "$namespace" ls --short $helm_status_flags); then
+        if namespace_releases=$($HELM_EXECUTABLE -n "$namespace" ls -o json $helm_status_flags | jq -r '[.[] | "\(.namespace)/\(.name) (\(.status))"] | join(" ")'); then
+            if [ -n "$namespace_releases" ]; then
+                remaining_releases="${remaining_releases}${namespace_releases} "
+            fi
+        else
             echo "${RED}Could not check remaining Helm releases in namespace $namespace.${NC}"
-            REMAINING_RELEASES="${REMAINING_RELEASES}${namespace}/<unknown> "
-        elif [ -n "$NAMESPACE_RELEASES" ]; then
-            REMAINING_RELEASES="${REMAINING_RELEASES}$(echo "$NAMESPACE_RELEASES" | sed "s|^|${namespace}/|" | tr '\n' ' ')"
+            remaining_releases="${remaining_releases}${namespace}/<unknown> "
         fi
     done
 
-    if [ "$failed" -ne 0 ] || [ -n "$REMAINING_RELEASES" ] || [ "$pods_still_terminating" -ne 0 ]; then
+    if [ "$failed" -ne 0 ] || [ -n "$remaining_releases" ] || [ "$pods_still_terminating" -ne 0 ]; then
         echo "${RED}Undeployment did not finish cleanly.${NC}"
         if [ "$pods_still_terminating" -ne 0 ]; then
             echo "${RED}Some pods were still terminating when the wait ran out: $(echo $TERMINATING_PODS)${NC}"
             echo "${RED}Please check manually that nothing is left before redeploying: kubectl get pods -A${NC}"
         fi
-        if [ -n "$REMAINING_RELEASES" ]; then
-            echo "${RED}Helm releases remain: ${REMAINING_RELEASES}${NC}"
+        if [ -n "$remaining_releases" ]; then
+            echo "${RED}Helm releases remain: ${remaining_releases}${NC}"
             echo "${RED}Re-run './kaapanactl.sh deploy --auto-no-hooks --undeploy' to force releases stuck in 'uninstalling' (skips their hooks), or './kaapanactl.sh deploy --no-hooks' to purge everything without hooks.${NC}"
         elif [ "$failed" -ne 0 ]; then
             echo "${RED}Some helm uninstalls reported errors (see above).${NC}"

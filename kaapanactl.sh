@@ -1684,7 +1684,7 @@ function delete_deployment {
 
     # Helm has no controller: a release still in 'uninstalling' now stays that way until another
     # helm uninstall acts on it - its hooks failed or timed out in this run. --auto-no-hooks retries
-    # those, and only those, without hooks; otherwise they are reported below and the undeploy fails.
+    # those, and only those, without hooks; otherwise they are reported below.
     local stuck_releases
     stuck_releases="$(list_uninstalling_releases)"
     if [ -n "$stuck_releases" ] && [ "$AUTO_NO_HOOKS" != "true" ]; then
@@ -1772,6 +1772,9 @@ function delete_deployment {
             echo "${RED}If a release stays 'uninstalling', './kaapanactl.sh deploy --auto-no-hooks --undeploy' forces only those (skips their hooks); './kaapanactl.sh deploy --no-hooks' purges everything without hooks.${NC}"
         elif [ "$failed" -ne 0 ]; then
             echo "${RED}Some helm uninstalls reported errors (see above).${NC}"
+        fi
+        if [ "$AUTO_NO_HOOKS" = "true" ] && [ -n "$stuck_releases" ]; then
+            echo "${RED}--auto-no-hooks removed $(echo $stuck_releases) without running their hooks, leftovers are possible.${NC}"
         fi
         exit 1
     fi

@@ -1,9 +1,12 @@
-FROM docker.io/node:lts-alpine3.16 as build-stage
+FROM local-only/base-ui:latest AS base-ui
 
-WORKDIR /app
+FROM docker.io/node:lts-alpine3.23 AS build-stage
+
+WORKDIR /kaapana/services/applications/collabora/docker/wopi/files/ui
+COPY --from=base-ui /kaapana/base-ui/docker/files/package.json /kaapana/services/base/base-ui/docker/files/package.json
+COPY --from=base-ui /kaapana/base-ui/docker/files/dist /kaapana/services/base/base-ui/docker/files/dist
 COPY files/ui/package*.json ./
-RUN npm install -g npm@9.9.4 && npm ci
-
+RUN npm install -g npm@11.16.0 && npm ci
 COPY files/ui .
 RUN npm run build
 
@@ -14,7 +17,7 @@ LABEL IMAGE="kaapana-wopi"
 LABEL VERSION="0.1.0"
 LABEL BUILD_IGNORE="False"
 
-COPY --from=build-stage /app/dist /app/ui/dist
+COPY --from=build-stage /kaapana/services/applications/collabora/docker/wopi/files/ui/dist /app/ui/dist
 WORKDIR /app
 
 COPY files/requirements.txt /app/

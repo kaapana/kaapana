@@ -2,7 +2,7 @@
   <v-container fluid>
       <v-dialog
         v-model="dialogConfData"
-        width="600px"
+        width="900px"
       >
         <v-card>
           <v-card-title class="text-h5 lighten-2">Conf object</v-card-title>
@@ -17,6 +17,16 @@
         </v-card>
       </v-dialog>
 
+      <ConfirmDialog
+        v-model="deleteDialogOpen"
+        :title='`Delete job ${jobPendingDelete?.id}?`'
+        text="This permanently removes the job and its logs."
+        confirm-text="Delete job"
+        color="error"
+        @confirm="onDeleteConfirmed"
+        @cancel="onDeleteCancelled"
+      ></ConfirmDialog>
+
       <v-data-table
         :headers="headers"
         :items="filteredJobs"
@@ -24,6 +34,12 @@
         :sort-by="[{ key: 'time_updated', order: 'desc' }]"
         :items-per-page="itemsPerPage"
       >
+        <template #no-data>
+          <div v-if="statusFilter">
+            No job of this workflow is in state "{{ statusFilter }}".
+          </div>
+          <div v-else>This workflow has no jobs yet.</div>
+        </template>
       <template v-slot:item.time_updated="{ item }">
         {{ new Date(item.time_updated).toLocaleString() }}
       </template>
@@ -31,16 +47,17 @@
         {{ new Date(item.time_created).toLocaleString() }}
       </template>
         <template v-slot:item.conf_data="{ item }">
-          <v-icon color="secondary" @click="openConfData(item.conf_data)">
-              mdi-email
-          </v-icon>
+          <v-btn @click="openConfData(item.conf_data)" size="small" icon variant="text"
+            aria-label="Show the configuration of this job">
+            <v-icon color="secondary">{{ kaapanaIcons.info }}</v-icon>
+          </v-btn>
         </template>
         <template v-slot:item.status="{ item }">
           <v-tooltip location="bottom">
             <template #activator="{ props }">
               <v-btn
                v-bind="props"
-               :color="getStatusColor(item.status, isDark)"
+               :color="jobStatusColor[item.status]"
                rounded
                variant="outlined"
                size="small"
@@ -54,16 +71,16 @@
         <template v-slot:item.airflow="{ item }">
           <v-tooltip v-if="item.kaapana_instance.instance_name == item.owner_kaapana_instance_name || item.external_job_id" location="bottom">
             <template #activator="{ props }">
-              <v-btn v-bind="props" @click='direct_airflow_grid_details(item)' size="small" icon variant="text">
-                <v-icon color="secondary">mdi-chart-timeline-variant</v-icon>
+              <v-btn v-bind="props" @click='direct_airflow_grid_details(item)' size="small" icon variant="text" aria-label="Open the Airflow run details">
+                <v-icon color="secondary">{{ kaapanaIcons.externalLink }}</v-icon>
               </v-btn>
             </template>
             <span>airflow's dag_run details</span>
           </v-tooltip>
           <v-tooltip v-if="item.kaapana_instance.instance_name == item.owner_kaapana_instance_name || item.external_job_id" location="bottom">
             <template #activator="{ props }">
-              <v-btn v-if="item.status == 'failed'" v-bind="props" @click='direct_airflow_operator_logs(item)' size="small" icon variant="text">
-                <v-icon color="secondary">mdi-alert-decagram-outline</v-icon>
+              <v-btn v-if="item.status == 'failed'" v-bind="props" @click='direct_airflow_operator_logs(item)' size="small" icon variant="text" aria-label="Airflow logs of the failed operator">
+                <v-icon color="secondary">{{ kaapanaIcons.error }}</v-icon>
               </v-btn>
             </template>
             <span>airflow logs of failed operator</span>
@@ -87,24 +104,28 @@
             </v-tooltip>
             <v-tooltip location="bottom">
               <template #activator="{ props }">
-                <v-btn v-bind="props" @click='abortJob(item)' size="small" icon variant="text">
-                  <v-icon color="secondary">mdi-stop-circle-outline</v-icon>
-                </v-btn>
+                <!-- A disabled button emits no pointer events, so the tooltip
+                     needs the surrounding span as its activator. -->
+                <span v-bind="props" class="d-inline-block">
+                  <v-btn @click='abortJob(item)' :disabled="isJobTerminal(item)" size="small" icon variant="text" aria-label="Abort job">
+                    <v-icon color="secondary">{{ kaapanaIcons.stop }}</v-icon>
+                  </v-btn>
+                </span>
               </template>
-              <span>abort single job</span>
+              <span>{{ isJobTerminal(item) ? 'job already finished; nothing to abort' : 'abort single job' }}</span>
             </v-tooltip>
             <v-tooltip location="bottom">
               <template #activator="{ props }">
-                <v-btn v-bind="props" @click='restartJob(item)' size="small" icon variant="text">
-                  <v-icon color="secondary">mdi-rotate-left</v-icon>
+                <v-btn v-bind="props" @click='restartJob(item)' size="small" icon variant="text" aria-label="Restart job">
+                  <v-icon color="secondary">{{ kaapanaIcons.restart }}</v-icon>
                 </v-btn>
               </template>
               <span>restart single job</span>
             </v-tooltip>
             <v-tooltip location="bottom">
               <template #activator="{ props }">
-                <v-btn v-bind="props" @click='deleteJob(item)' size="small" icon variant="text">
-                  <v-icon color="secondary">mdi-trash-can-outline</v-icon>
+                <v-btn v-bind="props" @click='confirmDeleteJob(item)' size="small" icon variant="text" aria-label="Delete job">
+                  <v-icon color="secondary">{{ kaapanaIcons.delete }}</v-icon>
                 </v-btn>
               </template>
               <span>delete single job</span>
@@ -113,11 +134,13 @@
           <div v-else-if="item.external_job_id">
             <v-tooltip location="bottom">
               <template #activator="{ props }">
-                <v-btn v-bind="props" @click='abortJob(item)' size="small" icon variant="text">
-                  <v-icon color="secondary">mdi-stop-circle-outline</v-icon>
-                </v-btn>
+                <span v-bind="props" class="d-inline-block">
+                  <v-btn @click='abortJob(item)' :disabled="isJobTerminal(item)" size="small" icon variant="text" aria-label="Abort job">
+                    <v-icon color="secondary">{{ kaapanaIcons.stop }}</v-icon>
+                  </v-btn>
+                </span>
               </template>
-              <span>abort single job</span>
+              <span>{{ isJobTerminal(item) ? 'job already finished; nothing to abort' : 'abort single job' }}</span>
             </v-tooltip>
           </div>
           <div v-else>
@@ -139,13 +162,15 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useTheme } from 'vuetify'
 import { useNotification } from '@kyvg/vue3-notification'
-import { kaapanaApiService } from '@kaapana/base-ui'
+import { ConfirmDialog, kaapanaApiService, kaapanaIcons } from '@kaapana/base-ui'
 import type { Job } from '@/types/workflow'
+import { isTerminalJobStatus, jobStatusColor } from '@/utils/jobStatus'
 
 const props = defineProps<{
   jobs: Job[]
+  // undefined means "all states"
+  statusFilter?: string
 }>()
 
 const emit = defineEmits<{
@@ -153,18 +178,17 @@ const emit = defineEmits<{
 }>()
 
 const { notify } = useNotification()
-const vTheme = useTheme()
-const isDark = computed(() => vTheme.global.current.value.dark)
 
 const dialogConfData = ref(false)
 const prettyConfData = ref<any>({})
+const deleteDialogOpen = ref(false)
+const jobPendingDelete = ref<Job | null>(null)
 const jobStatus = ref('all')
 const search = ref('')
 const dag_run_tasks_n_states = ref<Record<string, any[]>>({})
 const itemsPerPage = ref(10)
 
 const filteredJobs = computed<Job[]>(() => {
-  console.log('jobs: ', props.jobs)
   if (props.jobs !== null) {
     return props.jobs.filter((i) => {
       let statusFilter = false
@@ -205,24 +229,6 @@ function openConfData(conf_data: any) {
 function closeConfData() {
   dialogConfData.value = false
 }
-function getStatusColor(status: string, darkTheme: boolean) {
-  console.log('job status: ', status)
-  if (status == 'queued') {
-    return 'grey'
-  } else if (status == 'pending') {
-    return 'orange'
-  } else if (status == 'scheduled') {
-    return 'blue'
-  } else if (status == 'running') {
-    return 'green'
-  } else if (status == 'finished') {
-    return darkTheme ? '#607D8B' : 'black'
-  } else if (status == 'deleted') {
-    return 'brown'
-  } else {
-    return 'red'
-  }
-}
 function formatJson(jsonString: string | null | undefined) {
   if (jsonString == null) {
     console.error('Given JSON is NULL')
@@ -258,16 +264,29 @@ function formatJson(jsonString: string | null | undefined) {
     }
   }
 }
+function isJobTerminal(item: Job): boolean {
+  return isTerminalJobStatus(item.status)
+}
 function abortJob(item: Job) {
-  console.log('Abort Job:', item.id, 'Item:', item)
   abortJobAPI(item.id, 'abort', 'The worklow was aborted!')
 }
 function restartJob(item: Job) {
-  console.log('Restart Job:', item.id, 'Item:', item)
   restartJobAPI(item.id, 'scheduled', 'The worklow was triggered!')
 }
+function confirmDeleteJob(item: Job) {
+  jobPendingDelete.value = item
+  deleteDialogOpen.value = true
+}
+function onDeleteConfirmed() {
+  if (jobPendingDelete.value) {
+    deleteJob(jobPendingDelete.value)
+  }
+  jobPendingDelete.value = null
+}
+function onDeleteCancelled() {
+  jobPendingDelete.value = null
+}
 function deleteJob(item: Job) {
-  console.log('Delete Job:', item.id, 'Item:', item)
   deleteJobAPI(item.id)
 }
 function direct_airflow_grid_details(item: Job) {
@@ -290,7 +309,7 @@ async function direct_airflow_operator_logs(item: Job) {
   }
   if (!failed_operator) {
     notify({
-      type: 'warning',
+      type: 'warn',
       title: `No failed operator found for job ${item.id}`,
       text: 'Airflow reports no task of this job in state failed.',
     })
@@ -325,7 +344,6 @@ function abortJobAPI(job_id: Job['id'], status: string, description: string) {
         title: `Error while aborting job ${job_id}`,
         text: err?.response?.data?.detail ?? err.message,
       })
-      console.log(err)
     })
 }
 function restartJobAPI(job_id: Job['id'], status: string, description: string) {
@@ -344,7 +362,6 @@ function restartJobAPI(job_id: Job['id'], status: string, description: string) {
         title: `Error while restarting job ${job_id}`,
         text: err?.response?.data?.detail ?? err.message,
       })
-      console.log(err)
     })
 }
 function deleteJobAPI(job_id: Job['id']) {
@@ -354,7 +371,6 @@ function deleteJobAPI(job_id: Job['id']) {
     })
     .then(() => {
       emit('refreshView')
-      console.log('Job deleted')
     })
     .catch((err: any) => {
       notify({
@@ -362,7 +378,6 @@ function deleteJobAPI(job_id: Job['id']) {
         title: `Error while deleting job ${job_id}`,
         text: err?.response?.data?.detail ?? err.message,
       })
-      console.log(err)
     })
 }
 async function getJobTaskinstancesAPI(job_id: Job['id']) {
@@ -379,17 +394,12 @@ async function getJobTaskinstancesAPI(job_id: Job['id']) {
         title: `Error while loading task instances of job ${job_id}`,
         text: err?.response?.data?.detail ?? err.message,
       })
-      console.log(err)
       throw err
     })
 }
 </script>
 
 <style scoped lang="scss">
-.my-chip {
-  border-width: 3px;
-}
-
 .custom-tooltip-content {
   line-height: 0.5;
   padding: 4px;

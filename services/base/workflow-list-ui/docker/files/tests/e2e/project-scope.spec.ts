@@ -65,7 +65,7 @@ test('no request to a project-scoped service escapes the /project/<slug>/ prefix
     .locator('td .v-data-table')
     .getByRole('row')
     .filter({ hasText: 'dag-alpha' })
-    .locator('button:has(.mdi-stop-circle-outline)')
+    .getByRole('button', { name: 'Abort job' })
     .click()
   await aborted
 

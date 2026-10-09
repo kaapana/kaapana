@@ -105,8 +105,8 @@ ui_forms = {
                 "type": "string",
                 "readOnly": True,
             },
-            "required": ["input", "strict_mode"],
         },
+        "required": ["input", "strict_mode"],
     },
 }
 

@@ -1,10 +1,11 @@
 <template>
-  <div class="federated-panel">
-    <v-container class="text-left" fluid>
+  <div>
+    <v-container class="text-left workflow-list-container" fluid>
       <workflow-table
         :workflows="clientWorkflows"
         :ext-loading="workflowTableLoading"
         :total-items="totalItems"
+        :load-error="workflowLoadError"
         @refreshView="() => getClientWorkflows(true)"
         @update:options="onOptions"
       ></workflow-table>
@@ -31,6 +32,7 @@ const { notify } = useNotification()
 let polling = 0
 const clientWorkflows = ref<Workflow[]>([])
 const workflowTableLoading = ref(false)
+const workflowLoadError = ref(false)
 const totalItems = ref(0)
 const options = ref<WorkflowOptions>({
   page: 1,
@@ -41,10 +43,8 @@ const options = ref<WorkflowOptions>({
 // `userInitiated` is only true for an explicit refresh (the toolbar refresh
 // button); the 15s background poll leaves it false so it refreshes silently.
 function getClientWorkflows(userInitiated = false) {
-  console.log('Fetching workflows')
   workflowTableLoading.value = true
   const { page, itemsPerPage, search } = options.value
-  console.log('Search: ', search)
   kaapanaApiService
     .federatedClientApiGet('/workflows', {
       limit: itemsPerPage,
@@ -53,6 +53,7 @@ function getClientWorkflows(userInitiated = false) {
     })
     .then((response: any) => {
       workflowTableLoading.value = false
+      workflowLoadError.value = false
       clientWorkflows.value = response.data[0]
       totalItems.value = response.data[1]
       if (userInitiated) {
@@ -62,13 +63,13 @@ function getClientWorkflows(userInitiated = false) {
         })
       }
     })
-    .catch((err: any) => {
+    .catch(() => {
       workflowTableLoading.value = false
+      workflowLoadError.value = true
       notify({
         title: 'Error while refreshing workflow list.',
         type: 'error',
       })
-      console.log(err)
     })
 }
 
@@ -77,13 +78,12 @@ function onOptions(newOptions: WorkflowOptions) {
   getClientWorkflows()
 }
 
-function clearExtensionsInterval() {
+function clearWorkflowPolling() {
   window.clearInterval(polling)
 }
 
 // TODO Workflow list auto-refresh variable exported into settings/config.
-function startExtensionsInterval() {
-  console.log('Surprise refresh')
+function startWorkflowPolling() {
   polling = window.setInterval(() => {
     getClientWorkflows()
   }, 15000)
@@ -91,11 +91,11 @@ function startExtensionsInterval() {
 
 onMounted(() => {
   workflowTableLoading.value = true
-  startExtensionsInterval()
+  startWorkflowPolling()
 })
 
 onBeforeUnmount(() => {
-  clearExtensionsInterval()
+  clearWorkflowPolling()
 })
 </script>
 
@@ -104,15 +104,11 @@ a {
   text-decoration: none;
 }
 
-.v-expansion-panel-content__wrap {
-  padding: 0;
-}
-
-.toggleMouseHand {
-  cursor: pointer;
-}
-
-.someSpace {
-  margin-bottom: 20px;
+// The nine columns, two of them reserving room for the status chips and the
+// action buttons, need about 1700px; past that they only drift apart and the
+// row's values end up far from each other. Cap the view there and let the rest
+// of a wide screen become margin. Nothing changes below that width.
+.workflow-list-container {
+  max-width: 1800px;
 }
 </style>

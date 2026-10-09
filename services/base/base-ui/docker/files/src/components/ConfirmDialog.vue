@@ -30,8 +30,7 @@ const props = withDefaults(
     text: string
     confirmText?: string
     cancelText?: string
-    // 'error' for a destructive action, 'primary' for a reversible high-impact
-    // one. A caller that means "destructive" has to say so.
+    // 'error' for a destructive action, 'primary' for a reversible one.
     color?: string
   }>(),
   {
@@ -43,15 +42,11 @@ const props = withDefaults(
 
 const cancelButton = ref<InstanceType<typeof VBtn> | null>(null)
 
-// Capture the control that opened the dialog, to return focus to it on close;
-// a model-value-driven dialog gives Vuetify no activator to restore. Read
-// before Cancel takes the initial focus.
+// Capture the control that opened the dialog, to return focus to it on close.
 let opener: HTMLElement | null = null
 
 // Cancel must take the initial focus, so a stray Enter cancels instead of
-// confirming. The `autofocus` attribute does not achieve that here: VDialog
-// mounts its content after the activator is handled and then focuses the
-// overlay itself, so the button is focused explicitly once it exists.
+// confirming. The `autofocus` attribute does not achieve that here.
 watch(
   () => props.modelValue,
   async (open) => {

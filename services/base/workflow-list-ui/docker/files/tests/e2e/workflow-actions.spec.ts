@@ -1,5 +1,12 @@
 import { test, expect } from '@playwright/test'
-import { installMockBackend, VIEW_PATH } from './fixtures/mock-backend'
+import { defaultMockData, installMockBackend, VIEW_PATH } from './fixtures/mock-backend'
+
+// The confirmation's action carries the same accessible name as the row button
+// that opened it, so it has to be addressed inside the dialog.
+function confirmButton(page: import('@playwright/test').Page, name: string) {
+  return page.getByRole('dialog').getByRole('button', { name })
+}
+
 
 const WORKFLOW = /\/kaapana-backend\/client\/workflow(\?|$)/
 const SYNC = /\/kaapana-backend\/client\/check-for-remote-updates/
@@ -16,7 +23,7 @@ test('abort workflow sends PUT /workflow with status "abort"', async ({ page }) 
   const reqP = page.waitForRequest(
     (r) => WORKFLOW.test(r.url()) && r.method() === 'PUT',
   )
-  await runningRow(page).locator('button:has(.mdi-stop-circle-outline)').click()
+  await runningRow(page).getByRole('button', { name: 'Abort workflow' }).click()
   const req = await reqP
   expect(req.postDataJSON()).toEqual({
     workflow_id: 'wf-running-001',
@@ -32,7 +39,7 @@ test('restart workflow sends PUT /workflow with status "scheduled"', async ({ pa
   await page.goto(VIEW_PATH)
 
   const reqP = page.waitForRequest((r) => WORKFLOW.test(r.url()) && r.method() === 'PUT')
-  await runningRow(page).locator('button:has(.mdi-rotate-left)').click()
+  await runningRow(page).getByRole('button', { name: 'Restart workflow' }).click()
   const req = await reqP
   expect(req.postDataJSON()).toEqual({
     workflow_id: 'wf-running-001',
@@ -45,7 +52,8 @@ test('delete workflow sends DELETE /workflow with the workflow_id', async ({ pag
   await page.goto(VIEW_PATH)
 
   const reqP = page.waitForRequest((r) => WORKFLOW.test(r.url()) && r.method() === 'DELETE')
-  await runningRow(page).locator('button:has(.mdi-trash-can-outline)').click()
+  await runningRow(page).getByRole('button', { name: 'Delete workflow' }).click()
+  await confirmButton(page, 'Delete workflow').click()
   const req = await reqP
   expect(req.url()).toContain('workflow_id=wf-running-001')
   await expect(page.getByText('Successfully deleted workflow wf-running-001')).toBeVisible()
@@ -62,7 +70,7 @@ test('manual-start (non-automatic workflow) sends PUT /workflow with status "con
   await page
     .getByRole('row')
     .filter({ hasText: 'queued-wf' })
-    .locator('button:has(.mdi-play-circle-outline)')
+    .locator('button:has(.mdi-play)')
     .click()
   const req = await reqP
   expect(req.postDataJSON()).toEqual({
@@ -99,4 +107,40 @@ test('sync failure shows an error notification', async ({ page }) => {
   await expect(page.getByText('Error while checking for remote updates')).toBeVisible()
   await expect(page.getByText('remote unreachable')).toBeVisible()
   expect(pageErrors).toEqual([])
+})
+
+test('a rejected workflow deletion shows the backend reason', async ({ page }) => {
+  await installMockBackend(page)
+  await page.route(WORKFLOW, (r) =>
+    r.fulfill({
+      status: 409,
+      contentType: 'application/json',
+      body: '{"detail":"workflow still has running jobs"}',
+    }),
+  )
+  await page.goto(VIEW_PATH)
+
+  await runningRow(page).getByRole('button', { name: 'Delete workflow' }).click()
+  await confirmButton(page, 'Delete workflow').click()
+
+  await expect(page.getByText('Error while deleting workflow wf-running-001')).toBeVisible()
+  await expect(page.getByText('workflow still has running jobs')).toBeVisible()
+})
+
+test('a finished workflow says why its abort button is disabled', async ({ page }) => {
+  // Only the one terminal workflow, so the tooltip that opens is the only one
+  // carrying this text.
+  const finished = defaultMockData.workflows.filter((w) => w.workflow_name === 'finished-wf')
+  await installMockBackend(page, {
+    ...defaultMockData,
+    workflows: finished,
+    totalWorkflows: finished.length,
+  })
+  await page.goto(VIEW_PATH)
+
+  // The reason lives on the wrapper: a disabled button emits no pointer events.
+  const abort = page.getByRole('button', { name: 'Abort workflow' })
+  await expect(abort).toBeDisabled()
+  await abort.locator('xpath=..').hover()
+  await expect(page.getByText('workflow already finished; nothing to abort')).toBeVisible()
 })

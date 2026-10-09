@@ -5,9 +5,10 @@
         <h5>Workflow Execution</h5>
         <v-tooltip location="bottom">
           <template v-slot:activator="{ props }">
-            <v-btn v-bind="props" @click="getKaapanaInstances()" size="small" icon variant="text">
+            <v-btn v-bind="props" @click="getKaapanaInstances()" size="small" icon variant="text"
+              aria-label="Reload the runner instances">
               <v-icon color="primary">
-                mdi-refresh
+                {{ kaapanaIcons.refresh }}
               </v-icon>
             </v-btn>
           </template>
@@ -62,7 +63,13 @@
                 target="_blank">
                 <span> Link to the documentation </span>
               </a>
-              <Vjsf v-if="name != 'documentation_form'" v-model="formData[name]" :schema="compatSchemas[name]" :options="vjsfOptions"></Vjsf>
+              <v-alert v-for="field in unavailableFields[name] ?? []" :key="field.key" type="warning"
+                variant="tonal" density="comfortable" class="mb-4" :title="field.title"
+                :text="field.description"></v-alert>
+              <Vjsf v-if="name != 'documentation_form'" v-model="formData[name]" :schema="compatSchemas[name]" :options="vjsfOptions"
+                @update:state="onVjsfState(name, $event)">
+                <template #fieldHelp="{ text }"><HelpIcon :text="text" /></template>
+              </Vjsf>
             </v-col>
             <!-- Plain Vuetify autocomplete instead of a vjsf field: vjsf builds
                  one node per oneOf branch, so hundreds of datasets blow the
@@ -79,7 +86,7 @@
             </v-col>
             <v-col cols="12" v-if="showDatasetLimit" :key="'__dataset_limit__'">
               <div class="d-flex align-center ga-4">
-                <v-switch v-model="datasetLimitWhole" label="Process whole dataset" color="primary"
+                <v-switch v-model="datasetLimitWhole" label="Process whole dataset"
                   hide-details></v-switch>
                 <v-number-input v-if="!datasetLimitWhole" v-model="datasetLimit" :min="1"
                   label="Limit dataset size" hide-details></v-number-input>
@@ -131,7 +138,10 @@
           <v-row v-if="Object.keys(external_schemas).length">
             <v-col v-for="(schema, name) in external_schemas" cols="12" :key="name">
               <p>{{ name }}</p>
-              <Vjsf v-model="formData['external_schema_' + name]" :schema="compatExternalSchemas[name]" :options="vjsfOptions"></Vjsf>
+              <Vjsf v-model="formData['external_schema_' + name]" :schema="compatExternalSchemas[name]" :options="vjsfOptions"
+                @update:state="onVjsfState('external_schema_' + name, $event)">
+                <template #fieldHelp="{ text }"><HelpIcon :text="text" /></template>
+              </Vjsf>
             </v-col>
           </v-row>
           <!-- Conf data summarizing the configured workflow -->
@@ -139,8 +149,8 @@
             <v-col cols="12">
               <v-tooltip v-model="showConfData" location="top">
                 <template v-slot:activator="{ props }">
-                  <v-btn icon variant="text" v-bind="props">
-                    <v-icon color="#BDBDBD">mdi-email</v-icon>
+                  <v-btn icon variant="text" v-bind="props" aria-label="Show the configuration of this workflow">
+                    <v-icon color="secondary">{{ kaapanaIcons.info }}</v-icon>
                   </v-btn>
                 </template>
                 <pre class="text-left">Workflow name: {{ workflow_name }}</pre>
@@ -161,9 +171,20 @@
       </v-card-text>
       <v-card-actions v-if="available_dags.length">
         <v-spacer></v-spacer>
-        <v-btn color="primary" variant="elevated" @click="submissionValidator()">
-          Start Workflow
-        </v-btn>
+        <v-tooltip location="top" :disabled="!submitBlockedReason">
+          <template v-slot:activator="{ props }">
+            <!-- A disabled button emits no pointer events, so the surrounding
+                 span has to be the tooltip's activator. -->
+            <span v-bind="props" class="d-inline-block">
+              <v-btn color="primary" variant="elevated"
+                :disabled="!!submitBlockedReason || submitting"
+                :loading="submitting" @click="submissionValidator()">
+                Start Workflow
+              </v-btn>
+            </span>
+          </template>
+          <span>{{ submitBlockedReason }}</span>
+        </v-tooltip>
         <v-btn variant="elevated" @click="isDialog ? cancel() : clearForm()">
           {{ isDialog ? "Cancel" : "Clear" }}
         </v-btn>
@@ -179,16 +200,25 @@ import { notify } from "@kyvg/vue3-notification";
 // app's auto-import/global registration cannot resolve components for it.
 // Vuetify stays a peer, so these bind to the consumer's copy.
 import {
-  VCard, VForm, VCardTitle, VCardText, VCardActions, VContainer, VRow, VCol,
+  VAlert, VCard, VForm, VCardTitle, VCardText, VCardActions, VContainer, VRow, VCol,
   VIcon, VBtn, VTooltip, VSelect, VAutocomplete, VTextField, VProgressCircular,
   VSwitch, VNumberInput, VTreeview, VSpacer,
 } from "vuetify/components";
 import { HelpIcon } from "./HelpIcon";
+import { kaapanaIcons } from "../utils/icons";
 import { postViewDirty } from "../utils/viewDirty";
 import kaapanaApiService from "../utils/kaapanaApiService";
 import Vjsf from "@koumoul/vjsf";
 import { v2compat } from "@koumoul/vjsf/compat/v2";
 import "@koumoul/vjsf/styles/vjsf.css";
+
+// A field the backend offers no choices for yet, lifted out of the form (see
+// liftUnavailableFields).
+interface UnavailableField {
+  key: string;
+  title: string;
+  description: string;
+}
 
 interface TreeItem {
   name: string;
@@ -212,6 +242,7 @@ interface State {
   schemas_dict: Record<string, any>;
   external_schemas: Record<string, any>;
   workflow_name: string | null;
+  submitting: boolean;
   showConfData: boolean;
   datasets_available: boolean;
   workflowsSettings: Record<string, any>;
@@ -222,6 +253,7 @@ interface State {
   datasetItems: { title: string; value: string }[];
   datasetRequired: boolean;
   showDatasetPicker: boolean;
+  unavailableFields: Record<string, UnavailableField[]>;
   selectedDataset: string | null;
   showDatasetLimit: boolean;
   datasetLimitWhole: boolean;
@@ -274,6 +306,7 @@ function initialState(): State {
     schemas_dict: {},
     external_schemas: {},
     workflow_name: null,
+    submitting: false,
     showConfData: false,
     datasets_available: true,
     workflowsSettings: {},
@@ -284,6 +317,7 @@ function initialState(): State {
     datasetItems: [],
     datasetRequired: false,
     showDatasetPicker: false,
+    unavailableFields: {},
     selectedDataset: null,
     showDatasetLimit: false,
     datasetLimitWhole: true,
@@ -308,6 +342,7 @@ const {
   schemas_dict,
   external_schemas,
   workflow_name,
+  submitting,
   showConfData,
   datasets_available,
   hasBackendField,
@@ -316,6 +351,7 @@ const {
   datasetItems,
   datasetRequired,
   showDatasetPicker,
+  unavailableFields,
   selectedDataset,
   showDatasetLimit,
   datasetLimitWhole,
@@ -327,10 +363,10 @@ const {
 const form_requiredFields = ref<string[]>([]);
 
 // View-dirty reporting: the shell warns before a project switch reloads this
-// iframe. Dirty must reflect user input only — a single-dag project re-selects
-// its dag on every load (so that choice alone is not dirty), and vjsf fills
-// formData with schema defaults asynchronously, so the baseline tracks formData
-// until the user first interacts, then freezes.
+// iframe. Dirty must reflect user input only: the workflow choice is not input
+// (a reload offers it again, a single-dag project even re-selects it), and
+// vjsf fills formData with schema defaults asynchronously, so the baseline
+// tracks the form until the user first interacts, then freezes.
 const userTouchedForm = ref(false);
 const formBaseline = ref("{}");
 
@@ -351,21 +387,23 @@ function markFormTouched() {
   userTouchedForm.value = true;
 }
 
+const formSnapshot = () => stableStringify([state.formData, state.workflow_name, state.selectedItems]);
+
 watch(
-  () => state.formData,
-  () => {
-    if (!userTouchedForm.value) formBaseline.value = stableStringify(state.formData);
+  formSnapshot,
+  (snapshot) => {
+    if (!userTouchedForm.value) formBaseline.value = snapshot;
   },
-  { deep: true }
+  { immediate: true }
 );
 
 const viewDirty = computed(() => {
-  const dagDirty = state.dag_id !== null && state.available_dags.length > 1;
-  const formDirty =
-    userTouchedForm.value && stableStringify(state.formData) !== formBaseline.value;
-  // Native (non-vjsf) inputs, both reset on every dag change (see dag watcher).
+  // The schema fields need the touched baseline, because vjsf fills them with
+  // defaults on its own. The two native controls start empty, so their value
+  // alone says whether the user changed something.
+  const formDirty = userTouchedForm.value && formSnapshot() !== formBaseline.value;
   const nativeDirty = state.selectedDataset !== null || state.datasetLimitWhole === false;
-  return dagDirty || formDirty || nativeDirty;
+  return formDirty || nativeDirty;
 });
 
 watch(viewDirty, (dirty) => {
@@ -373,6 +411,19 @@ watch(viewDirty, (dirty) => {
 });
 
 const executeWorkflow = ref<VForm | null>(null);
+
+// Labels of the vjsf fields whose value ajv rejects, per form, refreshed by
+// each <Vjsf> on every state change. vjsf tells the surrounding v-form only
+// valid / invalid, never which field, and keeps an error hidden until the
+// field was touched, so its state tree is the only place that knows.
+const invalidVjsfFields = ref<Record<string, string[]>>({});
+function invalidLabels(node: any): string[] {
+  const own = node.error && node.layout?.label ? [node.layout.label] : [];
+  return own.concat(...(node.children ?? []).map(invalidLabels));
+}
+function onVjsfState(form: string, s: any) {
+  invalidVjsfFields.value[form] = invalidLabels(s.stateTree.root);
+}
 
 // Kaapana DAG schemas use vjsf-2-era conventions that vjsf 3 / ajv either
 // reject (the whole form renders blank) or silently ignore. Normalize in place:
@@ -382,6 +433,11 @@ const executeWorkflow = ref<VForm | null>(null);
 function normalizeV2Schema(fragment: any): any {
   if (!fragment || typeof fragment !== "object" || Array.isArray(fragment)) {
     return fragment;
+  }
+  if (fragment.readOnly === true && typeof fragment.type === "string") {
+    const text = fragment.description?.trim();
+    const sentence = text && !/[.!?]$/.test(text) ? `${text}.` : text;
+    fragment.description = sentence ? `${sentence} Fixed by this workflow.` : "Fixed by this workflow.";
   }
   // ajv rejects empty `enum`/`oneOf` and crashes the whole form; real DAGs emit
   // them for "nothing to pick yet" fields. Drop the constraint, mark readOnly.
@@ -466,23 +522,37 @@ function normalizeV2Schema(fragment: any): any {
   return fragment;
 }
 
+// Draw each field's description with the platform's HelpIcon in the input's
+// append slot (the fieldHelp slot on <Vjsf>), like the native fields, instead
+// of vjsf's own toggle.
+function addFieldHelp(fragment: any): any {
+  if (!fragment || typeof fragment !== "object") return fragment;
+  if (typeof fragment.description === "string" && !fragment.properties) {
+    const layout = typeof fragment.layout === "string" ? { comp: fragment.layout } : fragment.layout ?? {};
+    fragment.layout = { ...layout, slots: { ...layout.slots, append: { name: "fieldHelp", props: { text: fragment.description } } } };
+  }
+  for (const [key, value] of Object.entries(fragment))
+    if (!["default", "const", "enum", "examples", "layout"].includes(key)) addFieldHelp(value);
+  return fragment;
+}
+
 // Adapt to vjsf 3 at render time only: the dag_id watcher and
 // processDefaultsFromSettings keep operating on the v2 shape
 // (findRequiredFields relies on the boolean `required` convention).
 function toVjsfSchema(schema: any) {
   try {
-    return v2compat(normalizeV2Schema(JSON.parse(JSON.stringify(schema))));
+    return addFieldHelp(v2compat(normalizeV2Schema(JSON.parse(JSON.stringify(schema)))));
   } catch (e) {
     console.warn("vjsf v2compat conversion failed; using raw schema", e);
     return schema;
   }
 }
 
-// Field descriptions become click-to-reveal help toggles. `hint` is left out
-// deliberately: json-layout resolves description as subtitle -> hint -> help,
-// so listing it would pre-empt the help toggle.
+// Sections keep their description as subtitle. A field's description is drawn
+// by addFieldHelp, so vjsf's own help channel stays empty and it draws no
+// toggle of its own.
 const vjsfOptions = {
-  useDescription: ["subtitle", "help"] as ("hint" | "subtitle" | "help")[],
+  useDescription: ["subtitle"] as ("hint" | "subtitle" | "help")[],
 };
 
 const compatSchemas = computed<Record<string, any>>(() => {
@@ -659,14 +729,125 @@ function findRequiredFields(obj: any, result: string[] = [], prefix = ""): strin
     if (key === "oneOf") {
       continue;
     }
+    // The standard JSON Schema form: a `required` array naming sibling
+    // properties. Each name becomes a path of its own, so the tooltip can name
+    // the field instead of reporting a nameless invalid form.
+    if (key === "required" && Array.isArray(value)) {
+      for (const name of value) {
+        if (typeof name === "string") result.push(`${fullKey}.${name}`);
+      }
+      continue;
+    }
     if (value && typeof value === "object") {
       findRequiredFields(value, result, fullKey);
-    } else if (key === "required") {
+    } else if (key === "required" && value === true) {
+      // Several dags write `required: false` on an optional field. Only the
+      // value says whether the field is required, never the key alone.
       result.push(fullKey);
     }
   }
   return result;
 }
+
+// A property whose `enum` or `oneOf` came back empty offers nothing to choose:
+// the backend is saying the thing is not installed or not available in this
+// project. Rendering it as a disabled input turns that sentence into a field
+// label, so lift those properties out of the schema and let the caller show
+// them as inline alerts instead. Runs after findRequiredFields, so a lifted
+// field that was required still blocks the submit.
+function liftUnavailableFields(schemas: any): Record<string, UnavailableField[]> {
+  const lifted: Record<string, UnavailableField[]> = {};
+  for (const [formName, form] of Object.entries<any>(schemas)) {
+    const properties = form?.properties;
+    if (!properties || typeof properties !== "object") continue;
+    for (const [key, prop] of Object.entries<any>(properties)) {
+      const empty =
+        (Array.isArray(prop?.enum) && prop.enum.length === 0) ||
+        (Array.isArray(prop?.oneOf) && prop.oneOf.length === 0);
+      if (!empty) continue;
+      (lifted[formName] ??= []).push({
+        key,
+        title: prop.title ?? key,
+        description: prop.description ?? "",
+      });
+      delete properties[key];
+      if (Array.isArray(form.required)) {
+        form.required = form.required.filter((name: string) => name !== key);
+        if (!form.required.length) delete form.required;
+      }
+    }
+  }
+  return lifted;
+}
+
+// Schema-structure keywords that show up in a findRequiredFields() path but
+// are never part of the submitted form data itself.
+const SCHEMA_STRUCTURE_KEYS = new Set(["properties", "items", "allOf", "anyOf", "then", "else", "dependencies"]);
+
+// A required-field path looks like "form.properties.prop.properties.nested.required"
+// (schema keywords interleaved with the actual property names). Drop the
+// trailing "required" marker and every schema keyword, keeping only the form
+// name and the real, nested property path within it.
+function requiredFieldPath(fullKey: string): string[] {
+  return fullKey
+    .split(".")
+    .filter((segment) => segment !== "required" && !SCHEMA_STRUCTURE_KEYS.has(segment) && !/^\d+$/.test(segment));
+}
+
+// Whether a single required-field path (as collected by findRequiredFields) is
+// currently satisfied in formData. An array counts as satisfied only once it
+// has at least one non-empty entry; every other type just needs a non-empty
+// value (0 and false are valid values, not missing ones).
+function evaluateRequiredField(reqField: string): { name: string; satisfied: boolean } {
+  const path = requiredFieldPath(reqField);
+  const form_name = path[0];
+  const nestedPath = path.slice(1);
+  const req_prop_name = nestedPath[nestedPath.length - 1];
+  let target: any = state.formData[form_name];
+  for (const segment of nestedPath.slice(0, -1)) {
+    target = target?.[segment];
+  }
+  if (!target || typeof target !== "object" || !target.hasOwnProperty(req_prop_name)) {
+    return { name: req_prop_name, satisfied: false };
+  }
+  const fieldValue = target[req_prop_name];
+  // An array entry can be of any type, so only a string can be blank. Trimming
+  // every entry would throw on a required array of numbers.
+  const filledEntry = (val: any) =>
+    typeof val === "string" ? val.trim() !== "" : val !== null && val !== undefined;
+  const satisfied = Array.isArray(fieldValue)
+    ? fieldValue.some(filledEntry)
+    : fieldValue !== null && fieldValue !== undefined && fieldValue !== "";
+  return { name: req_prop_name, satisfied };
+}
+
+// Why Start Workflow cannot be clicked, or null when it can. The button used to
+// be disabled with no explanation, leaving the user to guess which field was
+// missing; the checks below are the same ones submissionValidator() applies
+// after a click, in the order it applies them.
+const submitBlockedReason = computed<string | null>(() => {
+  if (!state.dag_id) return "Select a workflow first.";
+  if (!state.workflow_name) return "Enter a name for this workflow run.";
+  if (state.datasets_available !== true) {
+    return "The selected runner instances have no common allowed datasets.";
+  }
+  const missing = form_requiredFields.value
+    .map((reqField) => evaluateRequiredField(reqField))
+    .filter((field) => !field.satisfied)
+    .map((field) => field.name);
+  if (missing.length > 0) {
+    return `Fill in the required ${missing.length === 1 ? "field" : "fields"}: ${missing.join(", ")}.`;
+  }
+  if (!state.valid) {
+    const invalid = Object.values(invalidVjsfFields.value).flat();
+    return invalid.length
+      ? `Fix the invalid ${invalid.length === 1 ? "field" : "fields"}: ${invalid.join(", ")}.`
+      : "Some fields still hold an invalid value.";
+  }
+  return null;
+});
+
+
 function validConfirmation() {
   const formatted = formatFormData(state.formData);
   const failedConfirmations: string[] = [];
@@ -685,6 +866,11 @@ function validConfirmation() {
   return failedConfirmations;
 }
 async function submissionValidator() {
+  // A double-click can reach this handler twice before the button turns
+  // disabled.
+  if (state.submitting) {
+    return false;
+  }
   let valid_check = [];
   let invalid_fields = [];
   if (state.datasets_available !== true) {
@@ -695,42 +881,19 @@ async function submissionValidator() {
     });
     return false;
   }
+  // The button is disabled whenever any check below would fail, so the failure
+  // paths from here on are a backstop rather than the normal route.
   // vuetify field rules first
   const validation = await executeWorkflow.value!.validate();
   if (validation.valid) {
     // then the schema's required fields, which vjsf does not enforce itself
     for (let i = 0; i < form_requiredFields.value.length; i++) {
-      const req_field = form_requiredFields.value[i];
-      // req_field looks like "<form>.<...>.<prop>.required"
-      const substrings = req_field.split(".");
-      let form_name = "";
-      let req_prop_name = "";
-      for (let i = 0; i < substrings.length; i++) {
-        if (i === 0) {
-          form_name = substrings[i];
-        } else if (substrings[i] === "required") {
-          req_prop_name = substrings[i - 1];
-          break;
-        }
-      }
-      if (state.formData[form_name].hasOwnProperty(req_prop_name)) {
-        const fieldValue = state.formData[form_name][req_prop_name];
-
-        // Validate arrays - check if array has at least one non-empty element
-        // Validate all others, excluding null and "", but allowing 0 or false
-        const isValid = Array.isArray(fieldValue)
-          ? fieldValue.length > 0 && fieldValue.some((val) => val && val.trim() !== "")
-          : fieldValue !== null && fieldValue !== undefined && fieldValue !== "";
-
-        if (isValid) {
-          valid_check.push(true);
-        } else {
-          valid_check.push(false);
-          invalid_fields.push(req_prop_name);
-        }
+      const { name, satisfied } = evaluateRequiredField(form_requiredFields.value[i]);
+      if (satisfied) {
+        valid_check.push(true);
       } else {
         valid_check.push(false);
-        invalid_fields.push(req_prop_name);
+        invalid_fields.push(name);
       }
     }
     if (valid_check.every((value) => value === true)) {
@@ -891,6 +1054,7 @@ function submitWorkflow() {
       dataset_limit: state.datasetLimit ?? 1,
     };
   }
+  state.submitting = true;
   kaapanaApiService
     .federatedClientApiPost("/workflow", {
       workflow_name: state.workflow_name,
@@ -905,16 +1069,14 @@ function submitWorkflow() {
         type: "success",
         title: "Workflow successfully created!",
       });
+      // reset() re-initializes state, submitting included.
       reset();
       // Navigation on success is the consumer's job (via @successful).
       emit("successful");
     })
     .catch((err) => {
-      console.log(err);
-      notify({
-        type: "error",
-        title: "An error occured during the workflow creation!",
-      });
+      state.submitting = false;
+      notifyLoadError("An error occurred during the workflow creation!", err);
     });
 }
 function toCamelCase(target: string) {
@@ -974,10 +1136,12 @@ watch(
   () => state.dag_id,
   (value) => {
     state.formData = {};
+    invalidVjsfFields.value = {};
     // Re-arm the dirty baseline for the new dag's form (defaults repopulate async).
     userTouchedForm.value = false;
     state.selectedDataset = null;
     state.showDatasetPicker = false;
+    state.unavailableFields = {};
     state.datasetItems = [];
     state.datasetRequired = false;
     state.showDatasetLimit = false;
@@ -1029,6 +1193,7 @@ watch(
       }
 
       form_requiredFields.value = findRequiredFields(schemas);
+      state.unavailableFields = liftUnavailableFields(schemas);
       if ("external_schemas" in schemas) {
         state.external_dag_id = schemas["external_schemas"];
         delete schemas.external_schemas;
@@ -1060,6 +1225,7 @@ watch(
   () => state.external_dag_id,
   () => {
     state.external_schemas = {};
+    invalidVjsfFields.value = {};
     if (state.external_dag_id != null) {
       getKaapanaInstancesWithExternalDagAvailable();
     } else {
@@ -1100,29 +1266,20 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.is-invalid {
-  border: 1px solid red;
-}
-
 .justify-space-between {
   justify-content: 0;
 }
 
-.wfe-help-icon {
-  color: #bdbdbd;
+/* vjsf wraps a named slot in a div; let the help button be the append slot's
+   flex item itself, as it is on the native fields, so both align the same.
+   vjsf renders inside its own component, hence :deep(). */
+:deep(.vjsf .v-input__append > div) {
+  display: contents;
 }
 
-/* vjsf 3 renders help toggles as a saturated filled circle hanging past the
-   field's right edge; tone them down to this view's muted grey and pull them
-   back inside the field bounds. */
-:deep(.vjsf-help-message-toggle.v-btn) {
-  background-color: transparent !important;
-  color: #bdbdbd !important;
-  box-shadow: none !important;
-}
-/* !important: vjsf's own `right: -30px` rule ties this one on specificity, so
-   without it the winner depends on stylesheet insertion order in the bundle. */
-:deep(.vjsf-help-message .vjsf-help-message-toggle) {
-  right: 0 !important;
+/* A disabled field blocks pointer events on its whole box, help icon included;
+   that icon is where a fixed field says why, so it must stay hoverable. */
+:deep(.v-input--disabled .wfe-help-icon) {
+  pointer-events: auto;
 }
 </style>

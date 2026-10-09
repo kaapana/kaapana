@@ -7,3 +7,5 @@ build.log
 npm-debug.log*
 /.cache
 .DS_Store
+files/ui/test-results
+files/ui/playwright-report

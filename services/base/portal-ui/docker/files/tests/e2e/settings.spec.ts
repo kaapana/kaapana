@@ -155,41 +155,6 @@ test('Restore default configuration keeps the theme and Dev Mode', async ({ page
   await expect(page.getByLabel('Dev Mode')).toBeChecked()
 })
 
-test('the DICOM tag field explains what it expects, clears while typing, rejects duplicates', async ({
-  page,
-}) => {
-  await installMockBackend(page)
-  await page.goto('/')
-  await page.getByRole('button', { name: 'Settings' }).click()
-  await page.getByRole('tab', { name: 'Dicom Validation' }).click()
-  const field = page.getByLabel('DICOM tag to ignore')
-
-  await field.fill('xyz')
-  await field.press('Enter')
-  await expect(page.getByText('Use only hex digits, a comma and brackets')).toBeVisible()
-  // Typing again clears the message; the next add validates afresh.
-  await field.fill('xyz0')
-  await expect(page.getByText('Use only hex digits, a comma and brackets')).toHaveCount(0)
-
-  // One tag only: extra digits are reported, not dropped.
-  await field.fill('0010,00100010')
-  await field.press('Enter')
-  await expect(page.getByText('A tag has two groups of four hex digits')).toBeVisible()
-
-  // The hint also shows an example tag, so the chip is located as a chip.
-  const chip = page.locator('.v-chip', { hasText: '(0010,0010)' })
-  await field.fill('0010,0010')
-  await field.press('Enter')
-  await expect(chip).toBeVisible()
-  await expect(field).toHaveValue('')
-
-  // The same tag written differently is still a duplicate.
-  await field.fill('(0010,0010)')
-  await field.press('Enter')
-  await expect(page.getByText('This tag is already in the list.')).toBeVisible()
-  await expect(chip).toHaveCount(1)
-})
-
 test('Add Field enables Add only once a field is chosen', async ({ page }) => {
   await installMockBackend(page)
   await page.route('**/kaapana-backend/dataset/fields', (r) =>

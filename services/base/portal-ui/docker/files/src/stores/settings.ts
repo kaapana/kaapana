@@ -64,6 +64,7 @@ export const useSettingsStore = defineStore('settings', {
       if (this.loaded) return
       try {
         const settingsFromDb = settingsResponseToObject(await fetchSettings())
+        delete settingsFromDb.workflows
         const merged = Object.assign(
           {},
           structuredClone(defaultSettings) as Settings,

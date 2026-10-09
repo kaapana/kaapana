@@ -8,13 +8,6 @@ import { useSettingsStore } from '@/stores/settings'
 import { useFailureDetailsStore } from '@/stores/failureDetails'
 import type { Settings, ThemeMode } from '@/types/settings'
 
-interface ValidateDicomsProperties {
-  validator_algorithm: string
-  exit_on_error: boolean
-  tags_whitelist: string[]
-  [key: string]: unknown
-}
-
 const settingsStore = useSettingsStore()
 const failureDetails = useFailureDetailsStore()
 
@@ -26,8 +19,6 @@ const themeModes: { title: string; value: ThemeMode }[] = [
 
 const dialog = ref(false)
 const selectedTab = ref('dataset')
-const newTag = ref('')
-const tagError = ref('')
 const selectedSortKey = ref<string | null>(null)
 const sortMapping = ref<Record<string, string>>({})
 const sortMappingError = ref<ApiErrorInfo | null>(null)
@@ -37,25 +28,10 @@ const SORT_MAPPING_ERROR_TEXT = 'The field list could not be loaded. Sorting can
 // JSON round-trip, NOT structuredClone: the store state is a reactive proxy
 // and structuredClone throws DataCloneError on proxies.
 function cloneStoreSettings(): Settings {
-  const copy = JSON.parse(JSON.stringify(settingsStore.settings)) as Settings
-  if (!('workflows' in copy) || !copy.workflows) {
-    copy.workflows = structuredClone(defaultSettings.workflows)
-  }
-  // Persisted settings may hold a `workflows` object with only per-DAG form
-  // defaults (written by the workflow-execution form) and no validateDicoms —
-  // a throw here would unmount the whole component including its button.
-  if (!copy.workflows['validateDicoms']?.properties) {
-    copy.workflows['validateDicoms'] = structuredClone(defaultSettings.workflows['validateDicoms'])
-  }
-  return copy
-}
-
-function validateDicomsOf(copy: Settings): ValidateDicomsProperties {
-  return copy.workflows['validateDicoms']!.properties as ValidateDicomsProperties
+  return JSON.parse(JSON.stringify(settingsStore.settings)) as Settings
 }
 
 const settings = ref<Settings>(cloneStoreSettings())
-const validateDicoms = ref<ValidateDicomsProperties>(validateDicomsOf(settings.value))
 
 // The working copy as it was when the dialog opened; edits make it dirty.
 const pristine = ref(JSON.stringify(settings.value))
@@ -83,10 +59,7 @@ function discardEdits() {
 
 function resetWorkingCopy() {
   settings.value = cloneStoreSettings()
-  validateDicoms.value = validateDicomsOf(settings.value)
   pristine.value = JSON.stringify(settings.value)
-  newTag.value = ''
-  tagError.value = ''
 }
 
 const sortKeys = computed(() => Object.keys(sortMapping.value))
@@ -131,7 +104,6 @@ function keepHeaderControls(copy: Settings) {
 async function restoreDefaultSettings() {
   settings.value = structuredClone(defaultSettings) as Settings
   keepHeaderControls(settings.value)
-  validateDicoms.value = validateDicomsOf(settings.value)
   pristine.value = JSON.stringify(settings.value)
   loadSortItems()
   restoring.value = true
@@ -143,7 +115,6 @@ async function restoreDefaultSettings() {
 }
 
 async function onSave() {
-  settings.value.workflows['validateDicoms']!.properties = validateDicoms.value
   keepHeaderControls(settings.value)
   saving.value = true
   try {
@@ -151,59 +122,6 @@ async function onSave() {
     if (await settingsStore.saveSettings(settings.value)) dialog.value = false
   } finally {
     saving.value = false
-  }
-}
-
-const TAG_EXAMPLE = 'for example (0010,0010)'
-
-// Returns the tag as "(gggg,eeee)", or sets tagError to the first problem found.
-function validateDicomTag(tagval: string): [boolean, string] {
-  tagval = tagval.replace(/\s/g, '')
-
-  if (tagval.length == 0) {
-    tagError.value = `Enter a DICOM tag, ${TAG_EXAMPLE}.`
-    return [false, tagval]
-  }
-
-  tagval = tagval.toLowerCase()
-  tagval = tagval.replaceAll('0x', '')
-
-  const allowed_chars = /^[0-9a-f,()]*$/
-  if (!allowed_chars.test(tagval)) {
-    tagError.value = `Use only hex digits, a comma and brackets, ${TAG_EXAMPLE}.`
-    return [false, tagval]
-  }
-
-  // The whole input must be one tag; extra digits are an error, not ignored.
-  const dicomTagMatcher = /^\(?([0-9a-f]{4}),?([0-9a-f]{4})\)?$/
-  const tagParts = dicomTagMatcher.exec(tagval)
-  if (!tagParts) {
-    tagError.value = `A tag has two groups of four hex digits, ${TAG_EXAMPLE}.`
-    return [false, tagval]
-  }
-
-  return [true, `(${tagParts[1]},${tagParts[2]})`]
-}
-
-function onValidationTagAdd() {
-  const [isValid, normalizedTag] = validateDicomTag(newTag.value)
-  if (!isValid) return
-
-  // Compared after normalisation, so "0010,0010" and "(0010,0010)" are the same tag.
-  if (validateDicoms.value.tags_whitelist.includes(normalizedTag)) {
-    tagError.value = 'This tag is already in the list.'
-    return
-  }
-
-  tagError.value = ''
-  validateDicoms.value.tags_whitelist.push(normalizedTag)
-  newTag.value = ''
-}
-
-function removeFromValidationWhitelist(item: string) {
-  const index = validateDicoms.value.tags_whitelist.indexOf(item)
-  if (index !== -1) {
-    validateDicoms.value.tags_whitelist.splice(index, 1)
   }
 }
 </script>
@@ -220,7 +138,6 @@ function removeFromValidationWhitelist(item: string) {
       <div class="d-flex align-center pr-4 pt-2">
         <v-tabs v-model="selectedTab">
           <v-tab value="dataset">Dataset Configuration</v-tab>
-          <v-tab value="dcm-validation">Dicom Validation</v-tab>
         </v-tabs>
         <v-spacer></v-spacer>
         <!-- Apply immediately via the store, independent of Save -->
@@ -340,57 +257,6 @@ function removeFromValidationWhitelist(item: string) {
             </v-card-text>
           </v-container>
         </v-tabs-window-item>
-        <v-tabs-window-item value="dcm-validation">
-          <v-container fluid>
-            <v-card-text>
-              <v-row>
-                <v-col cols="12" md="8">
-                  <v-checkbox
-                    v-model="validateDicoms.exit_on_error"
-                    label="Stop workflow execution on error"
-                    hide-details
-                    class="mb-4"
-                  ></v-checkbox>
-                  <v-select
-                    v-model="validateDicoms.validator_algorithm"
-                    :items="['dciodvfy', 'dicom-validator']"
-                    label="Default DICOM validation algorithm"
-                  ></v-select>
-                  <!-- The error clears while typing; the next add validates again. -->
-                  <v-text-field
-                    v-model="newTag"
-                    label="DICOM tag to ignore"
-                    :hint="`Press Enter or the add button, ${TAG_EXAMPLE}.`"
-                    :error-messages="tagError"
-                    @update:model-value="tagError = ''"
-                    @keydown.enter="onValidationTagAdd"
-                  >
-                    <template #append-inner>
-                      <v-btn
-                        :icon="kaapanaIcons.add"
-                        variant="text"
-                        size="small"
-                        title="Add tag"
-                        @click="onValidationTagAdd"
-                      ></v-btn>
-                    </template>
-                  </v-text-field>
-                  <div class="d-flex flex-wrap ga-2">
-                    <v-chip
-                      v-for="item in validateDicoms.tags_whitelist"
-                      :key="item"
-                      closable
-                      variant="outlined"
-                      @click:close="removeFromValidationWhitelist(item)"
-                    >
-                      {{ item }}
-                    </v-chip>
-                  </div>
-                </v-col>
-              </v-row>
-            </v-card-text>
-          </v-container>
-        </v-tabs-window-item>
       </v-tabs-window>
       <v-card-actions>
         <v-btn
@@ -414,7 +280,7 @@ function removeFromValidationWhitelist(item: string) {
         v-model="confirmRestore"
         color="error"
         title="Restore the default configuration?"
-        text="Your saved settings are replaced by the defaults, for every view and both tabs of this dialog. The theme and Dev Mode stay as they are. This cannot be undone."
+        text="Your saved settings are replaced by the defaults, for every view. The theme and Dev Mode stay as they are. This cannot be undone."
         confirm-text="Restore defaults"
         @confirm="restoreDefaultSettings"
       />
@@ -435,8 +301,8 @@ function removeFromValidationWhitelist(item: string) {
   width: 140px;
 }
 
-/* A fixed height keeps the dialog from resizing when the tab changes. On a
-   short window this area scrolls, so the tabs and the buttons stay visible. */
+/* On a short window this area scrolls, so the tabs and the buttons stay
+   visible. */
 .settings-body {
   height: 880px;
   overflow-y: auto;

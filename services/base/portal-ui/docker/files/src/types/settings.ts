@@ -10,11 +10,6 @@ export interface DatasetPropItem {
   studyView?: boolean
 }
 
-export interface WorkflowFormDefaults {
-  properties: { [key: string]: unknown }
-  hideOnUI?: string[]
-}
-
 /** How the shell picks the theme: follow the browser, or a fixed choice. */
 export type ThemeMode = 'system' | 'light' | 'dark'
 
@@ -35,6 +30,5 @@ export interface Settings {
     executeSlicedSearch: boolean
     props: DatasetPropItem[]
   }
-  workflows: { [dagName: string]: WorkflowFormDefaults }
   [key: string]: unknown
 }

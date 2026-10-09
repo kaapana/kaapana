@@ -290,7 +290,8 @@ opa_policy_tests:
 # UI e2e Tests (mock-backed Playwright, no platform)
 ##############################################
 # One matrix job per frontend app; each suite starts its app on its own fixed
-# port (4300-4310, see each app's playwright.config.ts).
+# port (4300-4310, see each app's playwright.config.ts). An APP entry
+# containing a slash is the app's directory; any other names services/base/$APP.
 ui_e2e_tests:
   extends: .test_template
   image: $CI_BASE_IMAGE
@@ -315,7 +316,11 @@ ui_e2e_tests:
           - workflow-list-ui
           - base-ui
   script:
-    - APP_DIR="services/base/$APP/docker/files"
+    - |
+      case "$APP" in
+        */*) APP_DIR="$APP" ;;
+        *) APP_DIR="services/base/$APP/docker/files" ;;
+      esac
     # Apps consuming @kaapana/base-ui (an npm file: link) import its built
     # dist/ — build the library once before the app's own install/build.
     - |

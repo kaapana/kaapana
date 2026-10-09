@@ -372,6 +372,9 @@ is a hard-coded list. A new view is not tested at all until it is added to it:
              ...
              - <view>-ui
 
+An entry is a view name under ``services/base``, or, for a UI that lives
+elsewhere, the path of its app directory.
+
 Pick the app's Playwright port from the registry in :ref:`ui_testing` (one port
 per app, ``--strictPort``) so suites can keep running in parallel.
 

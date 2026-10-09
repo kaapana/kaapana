@@ -164,7 +164,6 @@ router.beforeEach(async (to, from) => {
  */
 export async function scopeCurrentRoute() {
   const current = router.currentRoute.value
-  if (current.name !== 'unscoped') return
   await router.replace({
     path: current.path,
     query: current.query,

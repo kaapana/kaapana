@@ -29,7 +29,6 @@ export default defineConfig({
       },
     }),
   ],
-  define: { 'process.env': {} },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -39,15 +38,15 @@ export default defineConfig({
   server: {
     port: 3000,
     proxy: {
-      "/documents": {
-        target: "http://localhost:5000",
+      '/documents': {
+        target: 'http://localhost:5000',
         changeOrigin: true,
         secure: false,
       },
-      "/ws": {
+      '/ws': {
         target: 'ws://localhost:5000',
         ws: true,
-      }
-    }
+      },
+    },
   },
 })

@@ -425,3 +425,62 @@ export const emptyUploadSchema: Record<string, FormSchema> = {
     },
   },
 }
+
+// query-pacs verbatim: three optional fields carry `required: False`, the
+// boolean convention's negative case. Their defaults are empty strings, so a
+// gate that reads the key without its value blocks the workflow for good.
+export const optionalFieldsSchema: Record<string, FormSchema> = {
+  workflow_form: {
+    type: 'object',
+    properties: {
+      aet: { title: 'AE-Title', type: 'string', default: 'KAAPANA', required: true },
+      start_date: { title: 'Start Date', type: 'string', default: '', required: false },
+      end_date: { title: 'End Date', type: 'string', default: '', required: false },
+      level: { title: 'Level', type: 'string', default: 'series', required: true },
+      max_query_size: { title: 'Max Query Size', type: 'string', default: '', required: false },
+    },
+  },
+}
+
+// total-segmentator-v2 verbatim: the standard JSON Schema convention, a
+// `required` array sitting next to `properties`. Every field it names has a
+// default, so the workflow starts straight away.
+export const requiredArraySchema: Record<string, FormSchema> = {
+  workflow_form: {
+    type: 'object',
+    properties: {
+      input: { title: 'Input Modality', type: 'string', default: 'CT' },
+      nr_thr_resamp: { title: 'resampling thread count', type: 'integer', default: 1 },
+      nr_thr_saving: { title: 'saving thread count', type: 'integer', default: 6 },
+    },
+    required: ['nr_thr_resamp', 'nr_thr_saving', 'input'],
+  },
+}
+
+// The same convention on a field with no default, so the gate has to name it.
+export const requiredArrayNoDefaultSchema: Record<string, FormSchema> = {
+  workflow_form: {
+    type: 'object',
+    properties: {
+      aetitle: { title: 'AE Title', type: 'string' },
+    },
+    required: ['aetitle'],
+  },
+}
+
+// A required array of numbers. Its entries cannot be trimmed, and the default
+// already satisfies the requirement.
+export const requiredNumberArraySchema: Record<string, FormSchema> = {
+  workflow_form: {
+    type: 'object',
+    properties: {
+      spacing: {
+        title: 'Spacing',
+        type: 'array',
+        items: { type: 'number', title: 'mm' },
+        default: [1, 2],
+        required: true,
+      },
+    },
+  },
+}

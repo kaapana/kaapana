@@ -55,7 +55,8 @@ also imports its stylesheet (see below).
 In particular there is **no font import**: the platform
 typeface (Roboto, weights 300/400/500) is injected by `createKaapanaVuetify()`,
 so a view that uses the shared Vuetify configuration cannot ship the theme and
-forget the face.
+forget the face. The toast colours come the same way: `createKaapanaVuetify()`
+maps `@kyvg/vue3-notification`'s types onto the theme roles.
 
 Why it works that way. Vuetify's stylesheet asks for `"Roboto", sans-serif` in 81
 separate rule blocks and exposes no CSS custom property for the family, so a view

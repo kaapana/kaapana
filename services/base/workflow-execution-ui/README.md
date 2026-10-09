@@ -37,8 +37,10 @@ schemas:
   value-discriminated `dependencies`/`oneOf` → `allOf`/`if`/`then`; empty
   `enum`/`oneOf` stripped and marked `readOnly` (so "nothing to pick yet" fields
   show their notice instead of blanking the form); object-const `oneOf` node
-  types reconciled. Field `description`s surface via vjsf's own muted `(i)` help
-  toggle.
+  types reconciled. Field `description`s are drawn by base-ui's `HelpIcon` in the
+  input's append slot (`layout.slots.append`), as on the native fields; a
+  `readOnly` field's description gains "Fixed by this workflow." so the icon
+  also says why the field is disabled.
 - **Settings-based defaults + `hideOnUI`** — `localStorage["settings"].workflows`
   (shell-seeded, keyed by `camelCase(dag_id)`) overrides schema defaults per
   field; fields listed under `hideOnUI` are marked `x-display: hidden` (not
@@ -50,14 +52,16 @@ schemas:
   The dataset object-const is serialized to a scalar for the picker and restored
   into `data_form` on submit; the limit is omitted when "whole dataset" is on.
 - **Validation gating** — required-field checks, and any boolean field literally
-  named `confirmation` must be `true` before submit fires.
+  named `confirmation` must be `true` before submit fires. While Start Workflow
+  is disabled, its tooltip names the missing required fields or, from vjsf's
+  `update:state` tree, the fields whose value is invalid.
 - **Unsaved-changes (view-dirty) reporting** — the view posts
   `kaapana:view-dirty` to the shell (`postViewDirty`) so a project switch (which
   reloads the iframe and discards in-memory form state) can warn first. On by
-  default for the standalone view (`!isDialog`). The DAG choice counts as dirty
-  only in a multi-DAG project (a single-DAG project re-selects on reload); form
-  edits are diffed against a baseline that absorbs vjsf's async default
-  population until the user first interacts.
+  default for the standalone view (`!isDialog`). The DAG choice alone is not
+  dirty (a reload offers it again); the form (vjsf data, the run name and the
+  backend file selection) is diffed against a baseline that absorbs vjsf's async
+  default population until the user first interacts.
 - **Success redirect** — on submit the shared component resets and emits
   `successful`; the wrapper calls `navigateShell('/web/workflows/workflows')`.
   Embedded that posts `kaapana:navigate` to the shell and deliberately leaves

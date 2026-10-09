@@ -13,12 +13,14 @@ test('string field renders as a text input with its schema default', async ({ pa
   await expect(page.getByLabel('Text Field')).toHaveValue('hello')
 })
 
-test('a field description is revealed by a discreet (i) help toggle', async ({ page }) => {
-  // useDescription: ['subtitle','help'] renders vjsf 3's own (i) help toggle.
-  const toggle = page.locator('.vjsf-help-message-toggle').first()
-  await expect(toggle).toBeVisible()
-  await expect(page.getByText('The text to process')).toHaveCount(0)
-  await toggle.click()
+test('a field description is revealed by the platform help icon', async ({ page }) => {
+  // The description reaches the fieldHelp slot, which draws base-ui's HelpIcon
+  // in the input's append slot exactly like the native fields; vjsf's own help
+  // channel stays empty.
+  const help = page.locator('.vjsf .wfe-help-icon').first()
+  await expect(help).toBeVisible()
+  await expect(page.getByText('The text to process')).toBeHidden()
+  await help.hover()
   await expect(page.getByText('The text to process')).toBeVisible()
 })
 
@@ -38,7 +40,7 @@ test('integer field renders as a number input with the default', async ({ page }
 })
 
 test('number field renders as a number input with the fractional default', async ({ page }) => {
-  await expect(page.getByLabel('Ratio')).toHaveValue('0.5')
+  await expect(page.getByLabel('Ratio', { exact: true })).toHaveValue('0.5')
 })
 
 test('array field renders as a chips input', async ({ page }) => {
@@ -79,4 +81,18 @@ test('editing fields updates the rendered values', async ({ page }) => {
   const enabled = page.getByRole('checkbox', { name: 'Enabled' })
   await enabled.check()
   await expect(enabled).toBeChecked()
+})
+
+test('a vjsf field help icon is the native one, in the native gutter', async ({ page }) => {
+  // One help affordance for the whole form: the same HelpIcon, in the same
+  // append slot, so the native and the schema-driven icons share a right edge.
+  await expect(page.locator('.vjsf-help-message-toggle')).toHaveCount(0)
+  const native = await page
+    .locator('.v-input', { has: page.getByLabel('Workflow name') })
+    .locator('.wfe-help-icon')
+    .boundingBox()
+  const vjsf = await page.locator('.vjsf .wfe-help-icon').first().boundingBox()
+  expect(native).not.toBeNull()
+  expect(vjsf).not.toBeNull()
+  expect(Math.abs(native!.x - vjsf!.x)).toBeLessThan(1)
 })

@@ -15,8 +15,8 @@ acts on them (abort/restart/delete/manual-start).
   the search watch emits `update:options` synchronously on every input event,
   so each keystroke costs one `GET /workflows`.
 - **Per-state job-count chips** in the Status column: colored counts
-  (queued/scheduled/pending/running/finished/failed) derived from the
-  workflow's `workflow_jobs` status list. Clicking a chip loads that
+  (queued/scheduled/pending/running/finished/failed) for the states present in
+  the workflow's `workflow_jobs` status list. Clicking a chip loads that
   workflow's jobs filtered to that state.
 - **Row expansion → job table** (`JobTable.vue`): expanding a workflow fetches
   its jobs and renders a nested `v-data-table` (dag id, created/updated, runner
@@ -58,7 +58,6 @@ project store and no `/aii` call.
 | Method | Path | Purpose | Project-prefixed |
 | --- | --- | --- | --- |
 | GET | `/kaapana-backend/client/workflows` | List workflows; body is the tuple `[rows, totalCount]`. Params `limit`, `offset`, `search`. Drives the table, polling, search, paging. | yes |
-| GET | `/kaapana-backend/client/kaapana-instance` | Fetch the local instance (`getLocalInstance`, on mount). | yes |
 | GET | `/kaapana-backend/client/jobs` | Jobs of a workflow. Called with `{workflow_name, status}` on expand / chip click, and `{workflow_name, limit:1}` as an existence check. | yes |
 | PUT | `/kaapana-backend/client/workflow` | Abort / restart / manual-start a workflow. Body `{workflow_id, workflow_status}` with status `abort` / `scheduled` / `confirmed`. | yes |
 | DELETE | `/kaapana-backend/client/workflow` | Delete a workflow (`{workflow_id}`). | yes |

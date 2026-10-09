@@ -27,8 +27,6 @@ interface Userinfo {
 // from the app source so contract drift fails type-check.
 export interface MockData {
   userinfo: Userinfo
-  // response.data of GET /kaapana-backend/client/kaapana-instance (getLocalInstance)
-  localInstance: KaapanaInstance
   // GET /kaapana-backend/client/workflows returns the tuple [rows, totalCount]
   workflows: Workflow[]
   totalWorkflows: number
@@ -135,7 +133,6 @@ export const defaultMockData: MockData = {
     groups: ['role:admin', '/kaapana_admin'],
     user: '00000000-0000-0000-0000-000000000001',
   },
-  localInstance,
   workflows,
   totalWorkflows: workflows.length,
   jobs,
@@ -174,10 +171,6 @@ export async function installMockBackend(
   // Auth: prod build asks the oauth2 proxy, dev server a static token file.
   await page.route('**/oauth2/userinfo', (r) => r.fulfill(json(data.userinfo)))
   await page.route('**/jsons/testingAuthenticationToken.json', (r) => r.fulfill(json(data.userinfo)))
-
-  await page.route(new RegExp(`${CLIENT}/kaapana-instance(\\?|$)`), (r) =>
-    r.fulfill(json(data.localInstance)),
-  )
 
   await page.route(new RegExp(`${CLIENT}/workflows(\\?|$)`), (r) =>
     r.fulfill(json([data.workflows, data.totalWorkflows])),

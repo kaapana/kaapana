@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { bootView, selectDag } from './fixtures/mock-backend'
+import { bootView, selectDag, singleDagData } from './fixtures/mock-backend'
 
 // Validation gating is asserted at the network level (a blocked submit fires
 // NO /workflow request) rather than against vjsf internals.
@@ -83,16 +83,11 @@ test('clearing the required workflow name blocks submit with a field error', asy
   await bootView(page)
   await selectDag(page, 'mock-all-fields')
 
-  let fired = false
-  page.on('request', (r) => {
-    if (r.url().includes('/client/workflow')) fired = true
-  })
-
   await page.getByLabel('Workflow name').fill('')
-  await page.getByRole('button', { name: 'Start Workflow' }).click()
   await expect(page.getByText('Workflow name is required')).toBeVisible()
-  await page.waitForTimeout(300)
-  expect(fired).toBe(false)
+  // The Start Workflow button now reflects the form's own validity, so an
+  // empty required field disables it rather than only erroring after a click.
+  await expect(page.getByRole('button', { name: 'Start Workflow' })).toBeDisabled()
 })
 
 test('property-level `required: true` schema renders all fields and submits', async ({
@@ -132,21 +127,13 @@ test('property-level `required: true` schema renders all fields and submits', as
   })
 })
 
-test('empty required field blocks submit with a validation message and no request', async ({
-  page,
-}) => {
+test('empty required field blocks submit with no request', async ({ page }) => {
   await bootView(page)
   await selectDag(page, 'mock-required')
 
-  let fired = false
-  page.on('request', (r) => {
-    if (r.url().includes('/client/workflow')) fired = true
-  })
-
-  await page.getByRole('button', { name: 'Start Workflow' }).click()
-  await expect(page.getByText(/Validation of form input values failed!/)).toBeVisible()
-  await page.waitForTimeout(300)
-  expect(fired).toBe(false)
+  // The button reflects the form's own validity, so a required vjsf field left
+  // empty disables Start Workflow rather than only erroring after a click.
+  await expect(page.getByRole('button', { name: 'Start Workflow' })).toBeDisabled()
 })
 
 test('filling the required field unblocks submit and its value reaches the payload', async ({
@@ -256,7 +243,7 @@ test('a failed submit does not carry a stale dataset_limit into the retry', asyn
   const req1P = page.waitForRequest(WORKFLOW)
   await page.getByRole('button', { name: 'Start Workflow' }).click()
   expect((await req1P).postDataJSON().conf_data.data_form.dataset_limit).toBe(25)
-  await expect(page.getByText('An error occured during the workflow creation!')).toBeVisible()
+  await expect(page.getByText('An error occurred during the workflow creation!')).toBeVisible()
 
   // Toggle back to "whole dataset", make the endpoint succeed, and resubmit.
   await page.getByRole('checkbox', { name: 'Process whole dataset' }).click()
@@ -276,5 +263,64 @@ test('submit backend error surfaces an error notification', async ({ page }) => 
   )
   await selectDag(page, 'mock-all-fields')
   await page.getByRole('button', { name: 'Start Workflow' }).click()
-  await expect(page.getByText('An error occured during the workflow creation!')).toBeVisible()
+  const toast = page.locator('.vue-notification-wrapper')
+  await expect(toast.getByText('An error occurred during the workflow creation!')).toBeVisible()
+  await expect(toast.getByText('nope')).toBeVisible()
+})
+
+test('a disabled Start Workflow says which required field is missing', async ({ page }) => {
+  await bootView(page)
+  await selectDag(page, 'mock-required')
+
+  const submit = page.getByRole('button', { name: 'Start Workflow' })
+  await expect(submit).toBeDisabled()
+
+  // The reason lives on the wrapper around the button: a disabled button emits
+  // no pointer events of its own.
+  await submit.locator('xpath=..').hover()
+  await expect(page.getByText('Fill in the required field: aetitle.')).toBeVisible()
+
+  await page.getByLabel('AE Title').fill('KAAPANA')
+  await expect(submit).toBeEnabled()
+})
+
+test('a disabled Start Workflow names the field holding an invalid value', async ({ page }) => {
+  await bootView(
+    page,
+    singleDagData('short-title', {
+      workflow_form: {
+        type: 'object',
+        properties: { aetitle: { type: 'string', title: 'AE Title', default: 'OK', maxLength: 4 } },
+      },
+    }),
+  )
+  await selectDag(page, 'short-title')
+  await page.getByLabel('AE Title').fill('TOOLONG')
+
+  const submit = page.getByRole('button', { name: 'Start Workflow' })
+  await expect(submit).toBeDisabled()
+  await submit.locator('xpath=..').hover()
+  await expect(page.getByText('Fix the invalid field: AE Title.')).toBeVisible()
+})
+
+test('an untouched invalid default is named although its field shows no error yet', async ({
+  page,
+}) => {
+  // vjsf keeps a field's error hidden until the user touches it, while the
+  // button is already disabled; the tooltip must still say which field.
+  await bootView(
+    page,
+    singleDagData('bad-default', {
+      workflow_form: {
+        type: 'object',
+        properties: { aetitle: { type: 'string', title: 'AE Title', default: 'TOOLONG', maxLength: 4 } },
+      },
+    }),
+  )
+  await selectDag(page, 'bad-default')
+
+  const submit = page.getByRole('button', { name: 'Start Workflow' })
+  await expect(submit).toBeDisabled()
+  await submit.locator('xpath=..').hover()
+  await expect(page.getByText('Fix the invalid field: AE Title.')).toBeVisible()
 })

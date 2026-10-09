@@ -1,3 +1,5 @@
+import type { JobStatus } from '@/utils/jobStatus'
+
 export interface KaapanaInstance {
   instance_name: string
   remote?: boolean
@@ -21,7 +23,7 @@ export interface Workflow {
 
 export interface Job {
   id: number | string
-  status: string
+  status: JobStatus
   description?: string | null
   conf_data?: any
   time_created: string

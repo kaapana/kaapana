@@ -8,7 +8,7 @@
       <v-col cols="4" class="text-right">
         <v-tooltip location="bottom">
           <template #activator="{ props }">
-            <v-btn v-bind="props" @click="checkForRemoteUpdates" icon variant="text">
+            <v-btn v-bind="props" @click="checkForRemoteUpdates" icon variant="text" aria-label="Sync with the remote instances">
               <v-icon color="primary">mdi-sync</v-icon>
             </v-btn>
           </template>
@@ -16,16 +16,16 @@
         </v-tooltip>
         <v-tooltip location="bottom">
           <template #activator="{ props }">
-            <v-btn v-bind="props" @click="redirectToAirflow()" icon variant="text">
-              <v-icon color="primary">mdi-chart-timeline-variant</v-icon>
+            <v-btn v-bind="props" @click="redirectToAirflow()" icon variant="text" aria-label="Open Airflow">
+              <v-icon color="primary">{{ kaapanaIcons.externalLink }}</v-icon>
             </v-btn>
           </template>
           <span>redirect to Airflow workflow engine</span>
         </v-tooltip>
         <v-tooltip location="bottom">
           <template #activator="{ props }">
-            <v-btn v-bind="props" @click="refreshClient()" icon variant="text">
-              <v-icon color="primary">mdi-refresh</v-icon>
+            <v-btn v-bind="props" @click="refreshClient()" icon variant="text" aria-label="Refresh the workflow list">
+              <v-icon color="primary">{{ kaapanaIcons.refresh }}</v-icon>
             </v-btn>
           </template>
           <span>refresh workflow list</span>
@@ -34,7 +34,7 @@
       <v-col cols="4">
         <v-text-field
           v-model="search"
-          append-inner-icon="mdi-magnify"
+          :append-inner-icon="kaapanaIcons.search"
           label="Search for Workflow"
           variant="underlined"
           single-line
@@ -44,9 +44,18 @@
       </v-col>
       </v-row>
     </v-card-title>
+    <ConfirmDialog
+      v-model="deleteDialogOpen"
+      :title='`Delete workflow "${workflowPendingDelete?.workflow_name}"?`'
+      text="This also deletes all jobs belonging to the workflow."
+      confirm-text="Delete workflow"
+      color="error"
+      @confirm="onDeleteConfirmed"
+      @cancel="onDeleteCancelled"
+    ></ConfirmDialog>
     <v-data-table-server
       :headers="workflowHeaders"
-      :items="filteredWorkflows"
+      :items="sortedWorkflows"
       item-value="workflow_name"
       class="elevation-1"
       v-model:expanded="expanded"
@@ -57,6 +66,14 @@
       @update:options="updateOptions"
       :items-length="totalItems"
     >
+      <template #no-data>
+        <div v-if="loadError" class="text-error">
+          Could not load workflows.
+          <a href="#" @click.prevent="refreshClient()">Retry</a>
+        </div>
+        <div v-else-if="search">No workflows match your search "{{ search }}".</div>
+        <div v-else>No workflows yet.</div>
+      </template>
       <template v-slot:item.dataset_name="{ item }">
         {{ item.dataset_name != null ? item.dataset_name.name + '(' + item.dataset_name.access_level + ')' : "" }}
       </template>
@@ -68,7 +85,7 @@
       </template>
       <template v-slot:item.status="{ item }">
         <v-btn
-          v-for="state in getStatesColorMap(item, isDark)"
+          v-for="state in jobStateCounts(item)"
           :key="state.status"
           :color="state.color"
           class="ml-1 my-chip"
@@ -77,7 +94,7 @@
           variant="outlined"
           @click="getJobsOfWorkflow(item.workflow_name, state.status, false)"
         >
-          {{ state.count }}
+          {{ state.count }} {{ state.status }}
         </v-btn>
       </template>
       <template v-slot:item.actions="{ item }">
@@ -101,8 +118,9 @@
                 size="small"
                 icon
                 variant="text"
+                aria-label="Start workflow"
               >
-                <v-icon color="red">mdi-play-circle-outline</v-icon>
+                <v-icon color="primary">{{ kaapanaIcons.start }}</v-icon>
               </v-btn>
             </template>
             <span>start scheduled workflow manually</span>
@@ -112,17 +130,26 @@
           <v-col v-if="!item.kaapana_instance.remote">
             <v-tooltip location="bottom">
               <template #activator="{ props }">
-                <v-btn
-                  v-bind="props"
-                  @click="abortWorkflow(item)"
-                  size="small"
-                  icon
-                  variant="text"
-                >
-                  <v-icon color="primary">mdi-stop-circle-outline</v-icon>
-                </v-btn>
+                <!-- A disabled button emits no pointer events, so the tooltip
+                     needs the surrounding span as its activator. -->
+                <span v-bind="props" class="d-inline-block">
+                  <v-btn
+                    @click="abortWorkflow(item)"
+                    :disabled="isWorkflowTerminal(item)"
+                    size="small"
+                    icon
+                    variant="text"
+                    aria-label="Abort workflow"
+                  >
+                    <v-icon color="primary">{{ kaapanaIcons.stop }}</v-icon>
+                  </v-btn>
+                </span>
               </template>
-              <span>abort workflow including all its jobs</span>
+              <span>{{
+                isWorkflowTerminal(item)
+                  ? 'workflow already finished; nothing to abort'
+                  : 'abort workflow including all its jobs'
+              }}</span>
             </v-tooltip>
             <v-tooltip location="bottom">
               <template #activator="{ props }">
@@ -132,8 +159,9 @@
                   size="small"
                   icon
                   variant="text"
+                  aria-label="Restart workflow"
                 >
-                  <v-icon color="primary">mdi-rotate-left</v-icon>
+                  <v-icon color="primary">{{ kaapanaIcons.restart }}</v-icon>
                 </v-btn>
               </template>
               <span>restart workflow including all its jobs</span>
@@ -142,12 +170,13 @@
               <template #activator="{ props }">
                 <v-btn
                   v-bind="props"
-                  @click="deleteWorkflow(item)"
+                  @click="confirmDeleteWorkflow(item)"
                   size="small"
                   icon
                   variant="text"
+                  aria-label="Delete workflow"
                 >
-                  <v-icon color="primary">mdi-trash-can-outline</v-icon>
+                  <v-icon color="primary">{{ kaapanaIcons.delete }}</v-icon>
                 </v-btn>
               </template>
               <span>delete workflow including all its jobs</span>
@@ -171,6 +200,7 @@
             <job-table
               v-if="jobsofExpandedWorkflow"
               :jobs="jobsofExpandedWorkflow"
+              :status-filter="filteredJobState"
               @refreshView="refreshClient()"
             ></job-table>
           </td>
@@ -181,17 +211,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
-import { useTheme } from 'vuetify'
+import { computed, ref, watch } from 'vue'
 import { useNotification } from '@kyvg/vue3-notification'
-import { kaapanaApiService } from '@kaapana/base-ui'
+import { ConfirmDialog, kaapanaApiService, kaapanaIcons } from '@kaapana/base-ui'
 import type { Workflow, Job } from '@/types/workflow'
+import { JOB_STATUSES, isTerminalJobStatus, jobStatusColor } from '@/utils/jobStatus'
 import JobTable from './JobTable.vue'
 
 const props = defineProps<{
   workflows: Workflow[]
   extLoading: boolean
   totalItems: number
+  loadError?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -200,8 +231,6 @@ const emit = defineEmits<{
 }>()
 
 const { notify } = useNotification()
-const vTheme = useTheme()
-const isDark = computed(() => vTheme.global.current.value.dark)
 
 const search = ref('')
 const expanded = ref<string[]>([])
@@ -213,37 +242,55 @@ const workflowHeaders = [
   { title: 'Updated', key: 'time_updated' },
   { title: 'Username', key: 'username' },
   { title: 'Owner Instance', key: 'kaapana_instance.instance_name' },
-  { title: 'Status', key: 'status', align: 'center' },
+  { title: 'Status', key: 'status', align: 'center', minWidth: '220px' },
   {
     title: 'Actions',
     key: 'actions',
     sortable: false,
     align: 'center',
+    minWidth: '180px',
+    nowrap: true,
   },
 ] as const
 
 const expandedWorkflow = ref<Workflow | null>(null)
 const jobsofExpandedWorkflow = ref<Job[]>([])
-const jobsofWorkflows = ref<Job[]>([])
 const filteredJobState = ref<string | undefined>(undefined)
 const shouldExpand = ref(true)
 const shouldCollapse = ref(true)
-const localInstance = ref<any>({})
 const loading = ref(false)
 const options = ref<any>({
   page: 1,
   itemsPerPage: 10,
   search: '',
 })
+const deleteDialogOpen = ref(false)
+const workflowPendingDelete = ref<Workflow | null>(null)
 
-const filteredWorkflows = computed<Workflow[]>(() => {
-  if (props.workflows !== null) {
-    if (expandedWorkflow.value) {
-      getJobsOfWorkflow(expandedWorkflow.value.workflow_name, filteredJobState.value)
-    }
-    return props.workflows
+const filteredWorkflows = computed<Workflow[]>(() => props.workflows ?? [])
+
+function getNestedValue(item: Workflow, path: string) {
+  return path.split('.').reduce<any>((value, key) => (value == null ? value : value[key]), item)
+}
+
+// The backend has no order_by param, so `/workflows` always returns one fixed
+// order; sort the current page in place so clicking a header actually
+// reorders what is visible, even though a later page keeps its own order.
+const sortedWorkflows = computed<Workflow[]>(() => {
+  const sortBy = options.value.sortBy as { key: string; order?: 'asc' | 'desc' }[] | undefined
+  if (!sortBy || sortBy.length === 0) {
+    return filteredWorkflows.value
   }
-  return []
+  const { key, order } = sortBy[0]
+  return [...filteredWorkflows.value].sort((a, b) => {
+    const valueA = getNestedValue(a, key)
+    const valueB = getNestedValue(b, key)
+    if (valueA == null && valueB == null) return 0
+    if (valueA == null) return 1
+    if (valueB == null) return -1
+    const comparison = valueA < valueB ? -1 : valueA > valueB ? 1 : 0
+    return order === 'desc' ? -comparison : comparison
+  })
 })
 
 watch(
@@ -253,21 +300,33 @@ watch(
   },
 )
 
-watch(search, (newValue) => {
-  console.log('Search backend for: ', newValue)
+// Keep the expanded row in step with the list's 15s poll. This used to run as a
+// side effect of a computed, so every poll refetched the jobs and a workflow
+// without any re-raised its warning each time.
+watch(
+  () => props.workflows,
+  () => {
+    if (!expandedWorkflow.value) return
+    getJobsOfWorkflow(expandedWorkflow.value.workflow_name, filteredJobState.value, true, false)
+  },
+)
+
+let searchDebounce: ReturnType<typeof setTimeout> | undefined
+watch(search, (newValue, _oldValue, onCleanup) => {
   loading.value = true
-  options.value.search = newValue
-  console.log('Search backend for: ', options.value)
-  emit('update:options', options.value)
+  clearTimeout(searchDebounce)
+  // Debounce the backend round-trip: without this, every keystroke fired its
+  // own request.
+  searchDebounce = setTimeout(() => {
+    options.value.search = newValue
+    emit('update:options', options.value)
+  }, 300)
+  onCleanup(() => clearTimeout(searchDebounce))
 })
 
-onMounted(() => {
-  getLocalInstance()
-})
 
 // General Methods
 function refreshClient() {
-  console.log('Refresh Button')
   emit('refreshView')
 }
 function checkForRemoteUpdates() {
@@ -277,11 +336,9 @@ function checkForRemoteUpdates() {
       title: 'Error while checking for remote updates',
       text: err?.response?.data?.detail ?? err.message,
     })
-    console.log(err)
   })
 }
 function updateOptions(newOptions: any) {
-  console.log('Table options changed.')
   loading.value = true
   options.value = newOptions
   emit('update:options', newOptions)
@@ -301,29 +358,19 @@ function expandRow(item: Workflow) {
     } else {
       expanded.value = [item.workflow_name]
       expandedWorkflow.value = item
-      if (!jobsofExpandedWorkflow.value) {
-        getJobsOfWorkflow(expandedWorkflow.value.workflow_name, filteredJobState.value)
-      }
+      jobsofExpandedWorkflow.value = []
+      getJobsOfWorkflow(item.workflow_name, filteredJobState.value)
     }
   } else {
     shouldExpand.value = true
   }
 }
-function getStatesColorMap(item: Workflow, darkTheme: boolean) {
-  const states = item.workflow_jobs
-  const colorMap: Record<string, string> = {
-    queued: 'grey',
-    scheduled: 'blue',
-    pending: 'orange',
-    running: 'green',
-    finished: darkTheme ? '#607D8B' : 'black',
-    failed: 'red',
-  }
-  return Object.entries(colorMap).map(([state, color]) => ({
-    status: state,
-    color: color,
-    count: states.filter((_state) => _state === state).length,
-  }))
+function jobStateCounts(item: Workflow) {
+  return JOB_STATUSES.map((status) => ({
+    status,
+    color: jobStatusColor[status],
+    count: item.workflow_jobs.filter((s) => s === status).length,
+  })).filter((state) => state.count > 0)
 }
 function redirectToAirflow() {
   const airflow_url = window.location.origin + '/flow/home'
@@ -331,37 +378,44 @@ function redirectToAirflow() {
 }
 function startWorkflowManually(item: Workflow) {
   shouldExpand.value = false
-  console.log('Manually start Workflow: ', item.workflow_id)
   manuallyStartClientWorkflowAPI(item.workflow_id, 'confirmed')
+}
+function isWorkflowTerminal(item: Workflow): boolean {
+  return item.workflow_jobs.length > 0 && item.workflow_jobs.every(isTerminalJobStatus)
 }
 function abortWorkflow(item: Workflow) {
   shouldExpand.value = false
-  console.log('Abort Workflow: ', item.workflow_id)
   abortClientWorkflowAPI(item.workflow_id, 'abort')
 }
 function restartWorkflow(item: Workflow) {
   shouldExpand.value = false
-  console.log('Restart Workflow: ', item.workflow_id)
   restartClientWorkflowAPI(item.workflow_id, 'scheduled')
+}
+function confirmDeleteWorkflow(item: Workflow) {
+  workflowPendingDelete.value = item
+  deleteDialogOpen.value = true
+}
+function onDeleteConfirmed() {
+  if (workflowPendingDelete.value) {
+    deleteWorkflow(workflowPendingDelete.value)
+  }
+  workflowPendingDelete.value = null
+}
+function onDeleteCancelled() {
+  workflowPendingDelete.value = null
 }
 function deleteWorkflow(item: Workflow) {
   shouldExpand.value = false
-  console.log('Delete Workflow: ', item.workflow_id, 'Item:', item)
   deleteClientWorkflowAPI(item.workflow_id)
 }
 
 // API Calls
-function getLocalInstance() {
-  kaapanaApiService
-    .federatedClientApiGet('/kaapana-instance')
-    .then((response: any) => {
-      localInstance.value = response.data
-    })
-    .catch((err: any) => {
-      console.log(err)
-    })
-}
-function getJobsOfWorkflow(workflow_name: string, state: string | undefined, collapse = true) {
+function getJobsOfWorkflow(
+  workflow_name: string,
+  state: string | undefined,
+  collapse = true,
+  probeEmpty = true,
+) {
   if (typeof state !== 'undefined') {
     filteredJobState.value = state
   }
@@ -375,16 +429,14 @@ function getJobsOfWorkflow(workflow_name: string, state: string | undefined, col
       status: state,
     })
     .then((response: any) => {
-      if (response.data.length !== 0) {
-        loading.value = false
-      } else {
-        // no jobs in this state -> check whether the workflow has any jobs at all
-        getSingleJobOfWorkflow(workflow_name)
-      }
-      if (expanded.value.length > 0) {
+      loading.value = false
+      // A slower response for a row the user has already left behind must not
+      // overwrite the rows of the one now open.
+      if (expanded.value[0] === workflow_name) {
         jobsofExpandedWorkflow.value = response.data
-      } else {
-        jobsofWorkflows.value = response.data
+      }
+      if (response.data.length === 0 && probeEmpty) {
+        getSingleJobOfWorkflow(workflow_name)
       }
     })
     .catch((err: any) => {
@@ -396,7 +448,6 @@ function getJobsOfWorkflow(workflow_name: string, state: string | undefined, col
         title: `Error while loading jobs of workflow ${workflow_name}`,
         text: err?.response?.data?.detail ?? err.message,
       })
-      console.log(err)
     })
 }
 function getSingleJobOfWorkflow(workflow_name: string) {
@@ -411,14 +462,16 @@ function getSingleJobOfWorkflow(workflow_name: string) {
         const message_text = `Workflow just triggered with >50 jobs? -> Jobs are created. \n
                             Workflow triggered >20 seconds ago?    -> Error while creating jobs.`
         notify({
-          type: 'warning',
+          type: 'warn',
           title: message_title,
           text: message_text,
         })
       }
     })
+    // Deliberately not notified: this is a follow-up probe for a request that
+    // already reported its own failure. It still has to be traceable.
     .catch((err: any) => {
-      console.log(err)
+      console.error(`Could not probe the jobs of workflow ${workflow_name}`, err)
     })
 }
 function deleteClientWorkflowAPI(workflow_id: string) {
@@ -441,8 +494,8 @@ function deleteClientWorkflowAPI(workflow_id: string) {
       notify({
         type: 'error',
         title: message,
+        text: err?.response?.data?.detail ?? err.message,
       })
-      console.log(err)
     })
 }
 function restartClientWorkflowAPI(workflow_id: string, workflow_status: string) {
@@ -466,8 +519,8 @@ function restartClientWorkflowAPI(workflow_id: string, workflow_status: string) 
       notify({
         type: 'error',
         title: message,
+        text: err?.response?.data?.detail ?? err.message,
       })
-      console.log(err)
     })
 }
 function abortClientWorkflowAPI(workflow_id: string, workflow_status: string) {
@@ -491,8 +544,8 @@ function abortClientWorkflowAPI(workflow_id: string, workflow_status: string) {
       notify({
         type: 'error',
         title: message,
+        text: err?.response?.data?.detail ?? err.message,
       })
-      console.log(err)
     })
 }
 function manuallyStartClientWorkflowAPI(workflow_id: string, workflow_status: string) {
@@ -516,8 +569,8 @@ function manuallyStartClientWorkflowAPI(workflow_id: string, workflow_status: st
       notify({
         type: 'error',
         title: message,
+        text: err?.response?.data?.detail ?? err.message,
       })
-      console.log(err)
     })
 }
 </script>

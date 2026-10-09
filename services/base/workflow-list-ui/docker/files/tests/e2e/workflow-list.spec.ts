@@ -13,19 +13,28 @@ test('renders the workflow list with a mix of states', async ({ page }) => {
   await expect(page.getByText('ct-scans(public)')).toBeVisible()
 })
 
-test('status column shows per-state job counts', async ({ page }) => {
+test('status column shows named per-state job counts, only for present states', async ({ page }) => {
   await installMockBackend(page)
   await page.goto(VIEW_PATH)
 
-  // running-wf has workflow_jobs ['running','running','finished'] -> a chip '2'
-  // (running) and a chip '1' (finished) in its status cell.
+  // running-wf has workflow_jobs ['running','running','finished']. Each chip
+  // names its state next to the count (meaning must not rest on colour alone)
+  // and draws it in the state's theme role; absent states get no chip.
   const runningRow = page.getByRole('row').filter({ hasText: 'running-wf' })
-  await expect(runningRow.getByRole('button', { name: '2', exact: true })).toBeVisible()
-  await expect(runningRow.getByRole('button', { name: '1', exact: true })).toBeVisible()
+  await expect(runningRow.getByRole('button', { name: '2 running', exact: true })).toHaveClass(/text-info/)
+  await expect(runningRow.getByRole('button', { name: '1 finished', exact: true })).toHaveClass(/text-success/)
+  await expect(runningRow.locator('.my-chip')).toHaveCount(2)
 
-  // failed-wf: ['failed','finished'] -> two chips of '1'
+  // failed-wf: ['failed','finished']
   const failedRow = page.getByRole('row').filter({ hasText: 'failed-wf' })
-  await expect(failedRow.getByRole('button', { name: '1', exact: true }).first()).toBeVisible()
+  await expect(failedRow.getByRole('button', { name: '1 failed', exact: true })).toHaveClass(/text-error/)
+
+  // queued-wf: ['queued','scheduled','pending']. Waiting states are neutral:
+  // they keep the surface's text colour, which no theme role reaches 3:1
+  // against in dark mode.
+  const queuedRow = page.getByRole('row').filter({ hasText: 'queued-wf' })
+  await expect(queuedRow.getByRole('button', { name: '1 queued', exact: true })).not.toHaveClass(/text-(secondary|info|success|warning|error)/)
+  await expect(queuedRow.getByRole('button', { name: '1 pending', exact: true })).toHaveClass(/text-warning/)
 })
 
 // Regression: a stray pa-6 pushed the toolbar icons ~10px below the square
@@ -36,10 +45,10 @@ test('toolbar icon buttons render their glyph centered', async ({ page }) => {
   await page.goto(VIEW_PATH)
   await expect(page.getByText('Workflow List', { exact: true })).toBeVisible()
 
-  // Scoped to the card title: mdi-chart-timeline-variant also appears inside
-  // expanded-row job tables, which would trip strict mode if a row were open.
+  // Scoped to the card title: mdi-open-in-new also appears inside expanded-row
+  // job tables, which would trip strict mode if a row were open.
   const toolbar = page.locator('.v-card-title')
-  for (const icon of ['mdi-sync', 'mdi-chart-timeline-variant', 'mdi-refresh']) {
+  for (const icon of ['mdi-sync', 'mdi-open-in-new', 'mdi-refresh']) {
     const btn = await toolbar.locator(`button:has(.${icon})`).boundingBox()
     const glyph = await toolbar.locator(`.${icon}`).boundingBox()
     expect(btn, icon).not.toBeNull()
@@ -58,7 +67,7 @@ test('renders an empty state when the backend returns no workflows', async ({ pa
   await page.goto(VIEW_PATH)
 
   await expect(page.getByText('Workflow List', { exact: true })).toBeVisible()
-  await expect(page.getByText('No data available')).toBeVisible()
+  await expect(page.getByText('No workflows yet.')).toBeVisible()
   await expect(page.getByText('running-wf', { exact: true })).toHaveCount(0)
 })
 
@@ -105,4 +114,68 @@ test('shows an error notification when the workflow fetch fails', async ({ page 
 
   await expect(page.getByText('Error while refreshing workflow list.')).toBeVisible()
   await expect(page.getByText('running-wf', { exact: true })).toHaveCount(0)
+})
+
+// Regression: expanding a workflow that has no jobs left the table spinning
+// forever and re-raised its warning on every 15s poll, because the job fetch
+// ran as a side effect of a computed and only cleared `loading` on a non-empty
+// response.
+test('a workflow without jobs settles and warns once, not on every refresh', async ({ page }) => {
+  await installMockBackend(page, { ...defaultMockData, jobs: [] })
+
+  // The "has this workflow any jobs at all?" probe is the limit=1 request.
+  const probes: string[] = []
+  page.on('request', (r) => {
+    if (/\/client\/jobs\?/.test(r.url()) && r.url().includes('limit=1')) probes.push(r.url())
+  })
+
+  await page.goto(VIEW_PATH)
+  await page.getByText('running-wf', { exact: true }).click()
+
+  // The library styles `warn`, not `warning`; the wrong type renders as the default blue.
+  await expect(
+    page.locator('.vue-notification.warn', { hasText: 'No jobs for workflow running-wf' }),
+  ).toBeVisible()
+  await expect(page.getByText('Request is processed - wait a few seconds.')).toBeHidden()
+  expect(probes).toHaveLength(1)
+
+  // A list refresh re-fetches the expanded row's jobs but must not probe again.
+  await page.locator('.v-card-title button:has(.mdi-refresh)').click()
+  await expect(page.getByText('Successfully refreshed workflow list.')).toBeVisible()
+  await expect(page.getByText('Request is processed - wait a few seconds.')).toBeHidden()
+  expect(probes).toHaveLength(1)
+})
+
+test('the job table explains an empty row instead of saying "No data available"', async ({
+  page,
+}) => {
+  await installMockBackend(page, { ...defaultMockData, jobs: [] })
+  await page.goto(VIEW_PATH)
+
+  await page.getByText('running-wf', { exact: true }).click()
+  await expect(page.getByText('This workflow has no jobs yet.')).toBeVisible()
+  await expect(page.getByText('No data available')).toHaveCount(0)
+
+  // Picking a state from the status chips narrows the fetch, so the empty
+  // result means something different and has to say so.
+  const runningRow = page.getByRole('row').filter({ hasText: 'running-wf' })
+  await runningRow.getByRole('button', { name: '2 running', exact: true }).click()
+  await expect(page.getByText('No job of this workflow is in state "running".')).toBeVisible()
+})
+
+test.describe('on a wide screen', () => {
+  test.use({ viewport: { width: 2560, height: 1000 } })
+
+  test('the view stops widening once the columns fit', async ({ page }) => {
+    await installMockBackend(page)
+    await page.goto(VIEW_PATH)
+    await expect(page.getByText('Workflow List', { exact: true })).toBeVisible()
+
+    const box = await page.locator('.workflow-list-container').boundingBox()
+    expect(box).not.toBeNull()
+    if (!box) return
+    expect(box.width).toBeLessThanOrEqual(1800)
+    // the leftover space becomes margin on both sides, not more table
+    expect(Math.abs(box.x - (2560 - box.x - box.width))).toBeLessThan(2)
+  })
 })

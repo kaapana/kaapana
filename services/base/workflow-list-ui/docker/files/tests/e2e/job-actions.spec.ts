@@ -1,6 +1,13 @@
 import { test, expect } from '@playwright/test'
 import { installMockBackend, VIEW_PATH } from './fixtures/mock-backend'
 
+// The confirmation's action carries the same accessible name as the row button
+// that opened it, so it has to be addressed inside the dialog.
+function confirmButton(page: import('@playwright/test').Page, name: string) {
+  return page.getByRole('dialog').getByRole('button', { name })
+}
+
+
 const JOB = /\/kaapana-backend\/client\/job(\?|$)/
 const TASKINSTANCES = /\/kaapana-backend\/client\/get-job-taskinstances/
 
@@ -32,7 +39,7 @@ test('abort job sends PUT /job with status "abort"', async ({ page }) => {
   await expandRunningWorkflow(page)
 
   const reqP = page.waitForRequest((r) => JOB.test(r.url()) && r.method() === 'PUT')
-  await jobRow(page).locator('button:has(.mdi-stop-circle-outline)').click()
+  await jobRow(page).getByRole('button', { name: 'Abort job' }).click()
   const req = await reqP
   expect(req.postDataJSON()).toMatchObject({ job_id: 101, status: 'abort' })
 })
@@ -41,7 +48,7 @@ test('restart job sends PUT /job with status "scheduled"', async ({ page }) => {
   await expandRunningWorkflow(page)
 
   const reqP = page.waitForRequest((r) => JOB.test(r.url()) && r.method() === 'PUT')
-  await jobRow(page).locator('button:has(.mdi-rotate-left)').click()
+  await jobRow(page).getByRole('button', { name: 'Restart job' }).click()
   const req = await reqP
   expect(req.postDataJSON()).toMatchObject({ job_id: 101, status: 'scheduled' })
 })
@@ -50,7 +57,8 @@ test('delete job sends DELETE /job with the job_id', async ({ page }) => {
   await expandRunningWorkflow(page)
 
   const reqP = page.waitForRequest((r) => JOB.test(r.url()) && r.method() === 'DELETE')
-  await jobRow(page).locator('button:has(.mdi-trash-can-outline)').click()
+  await jobRow(page).getByRole('button', { name: 'Delete job' }).click()
+  await confirmButton(page, 'Delete job').click()
   const req = await reqP
   expect(req.url()).toContain('job_id=101')
 })
@@ -61,7 +69,7 @@ test('abort job failure shows an error toast and keeps the job rows', async ({ p
   await expandRunningWorkflow(page)
   await fail500(page, JOB)
 
-  await jobRow(page).locator('button:has(.mdi-stop-circle-outline)').click()
+  await jobRow(page).getByRole('button', { name: 'Abort job' }).click()
 
   await expect(page.getByText('Error while aborting job 101')).toBeVisible()
   await expect(page.getByText('boom')).toBeVisible()
@@ -75,7 +83,7 @@ test('restart job failure shows an error toast and keeps the job rows', async ({
   await expandRunningWorkflow(page)
   await fail500(page, JOB)
 
-  await jobRow(page).locator('button:has(.mdi-rotate-left)').click()
+  await jobRow(page).getByRole('button', { name: 'Restart job' }).click()
 
   await expect(page.getByText('Error while restarting job 101')).toBeVisible()
   await expect(page.getByText('dag-alpha')).toBeVisible()
@@ -88,7 +96,8 @@ test('delete job failure shows an error toast and keeps the job rows', async ({ 
   await expandRunningWorkflow(page)
   await fail500(page, JOB)
 
-  await jobRow(page).locator('button:has(.mdi-trash-can-outline)').click()
+  await jobRow(page).getByRole('button', { name: 'Delete job' }).click()
+  await confirmButton(page, 'Delete job').click()
 
   await expect(page.getByText('Error while deleting job 101')).toBeVisible()
   await expect(page.getByText('dag-alpha')).toBeVisible()
@@ -104,7 +113,7 @@ test('failed-operator logs: a task-instance fetch failure toasts instead of open
   await fail500(page, TASKINSTANCES)
 
   // job 102 (dag-beta) is failed -> it has the failed-operator logs button.
-  await failedJobRow(page).locator('button:has(.mdi-alert-decagram-outline)').click()
+  await failedJobRow(page).getByRole('button', { name: 'Airflow logs of the failed operator' }).click()
 
   await expect(page.getByText('Error while loading task instances of job 102')).toBeVisible()
   await expect(page.getByText('boom')).toBeVisible()
@@ -124,10 +133,63 @@ test('failed-operator logs: a failed job with no failed task warns instead of cr
   // with no task whose last state is 'failed'.
   await expandRunningWorkflow(page)
 
-  await failedJobRow(page).locator('button:has(.mdi-alert-decagram-outline)').click()
+  await failedJobRow(page).getByRole('button', { name: 'Airflow logs of the failed operator' }).click()
 
-  await expect(page.getByText('No failed operator found for job 102')).toBeVisible()
+  await expect(
+    page.locator('.vue-notification.warn', { hasText: 'No failed operator found for job 102' }),
+  ).toBeVisible()
   expect(pageErrors).toEqual([])
   // Match the error NAME - the message wording is engine-version specific.
   expect(consoleErrors.filter((t) => /TypeError/.test(t))).toEqual([])
+})
+
+test('the delete confirmation gives Cancel the initial focus', async ({ page }) => {
+  await expandRunningWorkflow(page)
+
+  await jobRow(page).getByRole('button', { name: 'Delete job' }).click()
+  await expect(confirmButton(page, 'Delete job')).toBeVisible()
+
+  // The guideline asks for focus on the safe action. VDialog focuses its own
+  // overlay wrapper, so the component has to move focus itself; assert where it
+  // actually landed rather than trusting the markup.
+  // innerText is read through the button's uppercasing, hence the lowercasing.
+  await expect
+    .poll(() =>
+      page.evaluate(() => (document.activeElement as HTMLElement | null)?.innerText?.trim().toLowerCase()),
+    )
+    .toBe('cancel')
+})
+
+test('a dismissed delete confirmation returns focus to the button that opened it', async ({ page }) => {
+  await expandRunningWorkflow(page)
+  const remove = jobRow(page).getByRole('button', { name: 'Delete job' })
+  const dialog = page.getByRole('dialog')
+
+  // Cancelled with its button.
+  await remove.focus()
+  await page.keyboard.press('Enter')
+  await dialog.getByRole('button', { name: 'Cancel' }).click()
+  await expect(dialog).toBeHidden()
+  await expect(remove).toBeFocused()
+
+  // Dismissed with Escape. Vuetify honours Escape only once its overlay stack
+  // has settled (a setTimeout after the dialog appears), so press until it takes.
+  await page.keyboard.press('Enter')
+  await expect(confirmButton(page, 'Delete job')).toBeVisible()
+  await expect(async () => {
+    await page.keyboard.press('Escape')
+    await expect(dialog).toBeHidden({ timeout: 500 })
+  }).toPass()
+  await expect(remove).toBeFocused()
+})
+
+test('a finished job says why its abort button is disabled', async ({ page }) => {
+  await expandRunningWorkflow(page)
+
+  // dag-beta failed, so aborting it is a no-op and the button is disabled. The
+  // reason lives on the wrapper: a disabled button emits no pointer events.
+  const abort = failedJobRow(page).getByRole('button', { name: 'Abort job' })
+  await expect(abort).toBeDisabled()
+  await abort.locator('xpath=..').hover()
+  await expect(page.getByText('job already finished; nothing to abort')).toBeVisible()
 })

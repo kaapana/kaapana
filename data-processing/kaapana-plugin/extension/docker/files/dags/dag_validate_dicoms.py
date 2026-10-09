@@ -23,7 +23,7 @@ ui_forms = {
                 "description": "Choose the algorithm to validate your dicoms",
                 "enum": ["dicom-validator", "dciodvfy"],
                 "type": "string",
-                "default": "dicom-validator",
+                "default": "dciodvfy",
                 "required": True,
             },
             "exit_on_error": {
@@ -36,7 +36,12 @@ ui_forms = {
                 "type": "array",
                 "title": "Tags Whitelist",
                 "description": "List of DICOM tags, that will be ignored while validating",
-                "items": {"type": "string", "title": "DICOM tag"},
+                "items": {
+                    "type": "string",
+                    "title": "DICOM tag",
+                    "pattern": r"^\([0-9a-f]{4},[0-9a-f]{4}\)$",
+                    "errorMessage": {"pattern": "Use the format (0010,0010), with lowercase letters."},
+                },
                 "default": [],
             },
         },

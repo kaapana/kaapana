@@ -13,58 +13,72 @@ prefix.
 
 Sourced from `src/` and `tests/e2e`:
 
-- **Instance cards** (`RunnerInstances.vue` → `KaapanaInstance.vue`) — one card
-  per instance, local (`mdi-home`) or remote (`mdi-cloud-braces`), showing
-  network (`protocol://host:port`), token, created/updated timestamps, verify
-  SSL, fernet key, auto-sync and auto-execute flags, allowed DAGs and allowed
-  datasets (as chips). Remote cards carry a freshness dot from `time_updated`
-  (green <5 min, yellow <1 h, orange <5 h, else red). The list refetches on a
-  15 s poll.
-- **Add remote** (`AddRemoteInstance.vue`) — a dialog with two tabs: **Manual**
-  (name/host/port/token/fernet/ssl fields, name+host+token required) and
-  **Paste Config** (a JSON blob parsed into the same fields). Both panes stay
-  mounted (`eager`) so required-field validation fires even when submitting from
-  the Paste tab.
-- **Edit in place** — each card field has a pencil→save inline editor; saving
-  PUTs the whole instance to the local or remote endpoint. A background poll
-  mid-edit does not clobber an unsaved field (the working copy reseeds from the
-  prop only while nothing is being edited).
-- **Sync remotes** — a toolbar button triggers a remote-update check, then
-  refetches.
-- **Delete remote** — trash icon → confirm dialog → delete (also drops the
-  instance's jobs).
-- **Copy local instance definition** — copies the local instance JSON to the
-  clipboard (the shape the Paste Config tab expects on the peer side).
-- Allowed-DAG and allowed-dataset pickers lazily fetch their option lists only
-  when their editor is opened; datasets are filtered client-side to
-  `access_level === 'project'`.
+- **Instance overview** (`views/RunnerInstances.vue`) — a page title with a
+  summary line, then two sections: **This platform** (the local instance) and
+  **Remote instances**. Cards sit in a two-column grid inside a 1600 px
+  readable width. The list refetches on a 15 s poll; a mutation that lands
+  while a fetch runs queues one more fetch instead of being dropped.
+- **States** — skeleton cards on the first load; a failed first load shows an
+  error empty state with *Try again* and *Details*; a failed poll keeps the last
+  list under a warning alert; no remotes shows an empty state that points to
+  the *Add remote instance* button in the page header.
+- **Instance card** (`components/InstanceCard.vue`, rows in
+  `components/InstanceField.vue`) — name, local/remote subtitle and, for a
+  remote, an *Updated …* chip (success < 5 min, warning < 5 h, error older,
+  neutral *Never updated* for a remote that has not reported yet). Values are
+  stated in text (*Yes*/*No*, *Deactivated*, *None*), not by colour alone.
+- **Edit in place** — one field at a time per card: pencil → field with Save and
+  Cancel; Enter saves. Remote cards edit network port, token, Fernet key and SSL
+  verification; the local card edits Fernet encryption, SSL verification,
+  automatic sync, automatic workflow start, allowed workflows and allowed
+  datasets. Invalid values disable Save and say how to fix them. A failed save
+  keeps the field open with the entered value. A background poll never
+  overwrites a field being edited.
+- **Add remote instance** (`components/AddRemoteInstance.vue`) — a medium
+  dialog with *Enter details* and *Paste details* tabs (both `eager`, so
+  validation also runs when submitting from the paste tab). Pasted JSON fills
+  the fields; invalid JSON is explained under the field. A rejected request is
+  shown as an inline alert with *Details*; the button is busy while the request
+  runs. Closing with entered details asks before discarding them.
+- **Delete remote** — `ConfirmDialog` (error colour, Cancel focused) stating
+  that the jobs held for that instance are deleted and the remote platform is
+  not changed.
+- **Copy connection details** — copies the local instance definition as JSON,
+  in exactly the shape the *Paste details* tab reads.
+- **Sync remote instances** — triggers a remote-update check, confirms, and
+  refetches; disabled while there is no remote.
+- **Feedback** — successes are transient notifications; failures are error
+  notifications whose technical detail opens in `ErrorDetailsDialog` when
+  selected (`utils/notifyFailure.ts`, `stores/failureDetails.ts`).
+- **Unsaved changes** — an edited field or a filled add dialog is reported to
+  the shell with `postViewDirty` (`composables/viewDirty.ts`).
+- Allowed-workflow and allowed-dataset options are fetched only when their
+  editor opens; datasets are limited to `access_level === 'project'`.
 
 ## Backend endpoints
 
-Every call goes through the shared `httpClient` (`@kaapana/base-ui`). Its request
-interceptor rewrites URLs matching
-`^/(kaapana-backend|kube-helm-api|workflow-api|dicom-web-filter)/` onto the
-`/project/<short_id>` document prefix, so **all `kaapana-backend` calls below are
-project-scoped** to `/project/<short_id>/…`; the auth calls are not.
+Every call goes through `src/api/federation.ts`, which wraps
+`kaapanaApiService.federatedClientApi*` from `@kaapana/base-ui` and owns the
+request/response types the e2e fixtures import. The shared `httpClient`
+rewrites `/kaapana-backend/…` onto the `/project/<short_id>` document prefix,
+so **all calls below are project-scoped**; the auth calls are not.
 
-Federation client API (`kaapanaApiService`, base path `/kaapana-backend/client`):
-
-| Method | Path | Purpose |
-| --- | --- | --- |
-| POST | `client/get-kaapana-instances` | Load local + remote instances (initial + 15 s poll). |
-| GET | `client/check-for-remote-updates` | "sync remotes" — pull fresh state from remotes. |
-| POST | `client/remote-kaapana-instance` | Register a new remote instance. |
-| PUT | `client/remote-kaapana-instance` | Save edits to a remote instance. |
-| PUT | `client/client-kaapana-instance` | Save edits to the local instance. |
-| DELETE | `client/kaapana-instance?kaapana_instance_id=<id>` | Delete a remote instance (and its jobs). |
-| POST | `client/get-dags` | DAG list for the allowed-DAGs editor (body: `instance_names`, `kind_of_dags`). |
-
-Dataset lookup (`src/common/api.service.ts`, `loadDatasets(false)`, base
-`VITE_KAAPANA_BACKEND_ENDPOINT=/kaapana-backend/`):
+Federation client API (base path `/kaapana-backend/client`):
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| GET | `client/datasets` | Dataset options for the allowed-datasets editor (no query params on this path). |
+| POST | `get-kaapana-instances` | Load local + remote instances (initial + 15 s poll). |
+| GET | `check-for-remote-updates` | *Sync remote instances*. |
+| POST | `remote-kaapana-instance` | Register a new remote instance. |
+| PUT | `remote-kaapana-instance` | Save port, token, Fernet key or SSL check of a remote. |
+| PUT | `client-kaapana-instance` | Save the local instance settings. |
+| DELETE | `kaapana-instance?kaapana_instance_id=<id>` | Delete a remote instance, the jobs sent to it and the workflows received from it. |
+| POST | `get-dags` | Workflow options for the allowed-workflows editor. |
+| GET | `datasets?skip_identifiers=true` | Dataset options for the allowed-datasets editor. |
+
+These endpoints belong to the legacy `kaapana-backend`. They are the only
+implementation of federation, and no successor API exists yet, so the view
+keeps using them.
 
 Auth (base-ui `useAuthStore.checkAuth`, run before every route; **not**
 project-prefixed):
@@ -74,8 +88,7 @@ project-prefixed):
 | GET | `/oauth2/userinfo` | User identity/roles in the deployed platform. |
 | GET | `/jsons/testingAuthenticationToken.json` | Dev-only fallback when the oauth2 proxy is absent. |
 
-There is no project store in this view, so it issues **no `/aii` calls**; toasts
-are client-side (`@kyvg/vue3-notification`), not HTTP.
+There is no project store in this view, so it issues **no `/aii` calls**.
 
 ## Development
 
@@ -121,4 +134,6 @@ import the stale `dist/` through the npm symlink and nothing errors, the
 change is just missing.
 
 Suites: `runner-instances`, `add-instance`, `instance-actions`,
-`project-scope`, `regressions`.
+`project-scope`, `regressions`, and `guidelines` (the cross-cutting rules of
+the Kaapana design guidelines: confirmation focus and colour, typeface, readable
+width, one primary action, shared icons, accessible names).

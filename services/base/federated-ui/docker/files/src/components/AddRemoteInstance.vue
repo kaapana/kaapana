@@ -1,176 +1,336 @@
-<template>
-  <v-dialog v-model="remoteDialog" max-width="600px">
-    <template v-slot:activator="{ props }">
-      <v-btn v-bind="props" color="primary" size="small" rounded variant="outlined">
-        add remote
-      </v-btn>
-    </template>
-    <v-card>
-      <v-form ref="remoteFormRef" v-model="remoteValid">
-        <v-card-title><span class="text-h5">Remote Instance</span></v-card-title>
-        <v-card-text>
-          <v-tabs v-model="tab">
-            <v-tab value="manual">Manual</v-tab>
-            <v-tab value="paste">Paste Config</v-tab>
-          </v-tabs>
-          <!-- `eager` keeps both panes mounted so the manual fields stay
-               registered with the form: submitting from the Paste tab must
-               still trigger the required-field validation below. -->
-          <v-tabs-window v-model="tab">
-            <v-tabs-window-item value="manual" eager>
-              <v-container>
-                <v-row>
-                  <v-col cols="12">
-                    <v-text-field v-model="remotePost.instance_name" label="Instance name" :rules="requiredRule" :disabled="remoteUpdate"></v-text-field>
-                  </v-col>
-                </v-row>
-                <v-row>
-                  <v-col cols="12">
-                    <v-text-field v-model="remotePost.host" label="Host" :rules="requiredRule" :disabled="remoteUpdate"></v-text-field>
-                  </v-col>
-                </v-row>
-                <v-row>
-                  <v-col cols="8">
-                    <v-text-field v-model="remotePost.port" label="Port" type="number"></v-text-field>
-                  </v-col>
-                  <v-col cols="4">
-                    <v-checkbox v-model="remotePost.ssl_check" label="Verify SSL"></v-checkbox>
-                  </v-col>
-                </v-row>
-                <v-row>
-                  <v-col cols="12">
-                    <v-text-field v-model="remotePost.token" label="Token" :rules="requiredRule"></v-text-field>
-                  </v-col>
-                </v-row>
-                <v-row>
-                  <v-col cols="12">
-                    <v-text-field v-model="remotePost.fernet_key" label="Fernet Key"></v-text-field>
-                  </v-col>
-                </v-row>
-              </v-container>
-            </v-tabs-window-item>
-            <v-tabs-window-item value="paste" eager>
-              <v-container>
-                <v-row>
-                  <v-col cols="12">
-                    <v-textarea
-                      v-model="pasteRemote"
-                      label="Paste remote instance definition as json string"
-                      placeholder="{
-                        'instance_name': '<instance_name>',
-                        'host': '<host>',
-                        'port': '<port>',
-                        'token': '<token>',
-                        'fernet_key': '<fernet_key>',
-                        'ssl_check': '<true/false>'
-                      }"
-                      rows="8"
-                      variant="outlined"
-                    ></v-textarea>
-                  </v-col>
-                </v-row>
-              </v-container>
-            </v-tabs-window-item>
-          </v-tabs-window>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn class="mr-4" @click="submitRemoteForm">submit</v-btn>
-          <v-btn @click="resetForm">clear</v-btn>
-        </v-card-actions>
-      </v-form>
-    </v-card>
-  </v-dialog>
-</template>
-
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
 import { notify } from '@kyvg/vue3-notification'
-import { kaapanaApiService } from '@kaapana/base-ui'
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { ConfirmDialog, apiErrorInfo, apiErrorText, type ApiErrorInfo } from '@kaapana/base-ui'
+import {
+  FERNET_DEACTIVATED,
+  addRemoteInstance,
+  type RemoteInstanceDefinition,
+} from '@/api/federation'
+import { setDirty } from '@/composables/viewDirty'
+import { useFailureDetailsStore } from '@/stores/failureDetails'
+import { kaapanaIcons } from '@/utils/icons'
 
-interface RemotePost {
-  ssl_check: boolean
-  token: string
-  host: string
-  instance_name: string
-  port: number | string
-  fernet_key: string
-}
+const props = defineProps<{ modelValue: boolean }>()
+const emit = defineEmits<{ 'update:modelValue': [value: boolean]; added: [] }>()
 
-const emit = defineEmits<{ refreshRemoteFromAdding: [] }>()
+const failureDetails = useFailureDetailsStore()
 
-function initialRemotePost(): RemotePost {
+function initialDefinition(): RemoteInstanceDefinition {
   return {
-    ssl_check: false,
-    token: '',
-    host: '',
     instance_name: '',
+    host: '',
     port: 443,
-    fernet_key: 'deactivated',
+    token: '',
+    fernet_key: FERNET_DEACTIVATED,
+    ssl_check: false,
   }
 }
 
-const remoteValid = ref(false)
-const remoteUpdate = ref(false)
-const remoteDialog = ref(false)
-const tab = ref('manual')
-const pasteRemote = ref('')
-const remotePost = reactive<RemotePost>(initialRemotePost())
-const remoteFormRef = ref<any>(null)
+const PASTE_EXAMPLE = JSON.stringify(
+  {
+    instance_name: 'central-node',
+    host: 'kaapana.example.org',
+    port: 443,
+    token: '<token>',
+    fernet_key: 'deactivated',
+    ssl_check: true,
+  },
+  null,
+  2,
+)
 
-const requiredRule = computed(() => [(v: any) => !!v || 'This field is required'])
+const form = ref<any>(null)
+const tab = ref<'manual' | 'paste'>('manual')
+const definition = reactive<RemoteInstanceDefinition>(initialDefinition())
+const pasted = ref('')
+const submitting = ref(false)
+const submitError = ref<{ text: string; error: ApiErrorInfo } | null>(null)
+const showDiscardConfirm = ref(false)
+let opener: HTMLElement | null = null
 
-watch(pasteRemote, () => {
+const required = (message: string) => (value: unknown) =>
+  (typeof value === 'string' ? value.trim() !== '' : value !== null && value !== undefined) ||
+  message
+
+const rules = {
+  instanceName: [
+    required('Enter the instance name of the remote platform, as shown on its own instance card.'),
+  ],
+  host: [
+    required(
+      'Enter the host name or IP address of the remote platform, for example kaapana.example.org.',
+    ),
+    (value: string) =>
+      !/^\w+:\/\//.test(value.trim()) ||
+      'Leave out the protocol: enter kaapana.example.org, not https://kaapana.example.org.',
+  ],
+  port: [
+    (value: unknown) => {
+      const port = Number(value)
+      return (
+        (Number.isInteger(port) && port >= 1 && port <= 65535) ||
+        'Enter a port number between 1 and 65535, for example 443.'
+      )
+    },
+  ],
+  token: [required('Enter the token shown on the remote platform’s own instance card.')],
+}
+
+const pasteResult = computed<{ error?: string; filled?: boolean }>(() => {
+  const text = pasted.value.trim()
+  if (!text) return {}
   try {
-    const jsonData = JSON.parse(pasteRemote.value)
-    remotePost.instance_name = jsonData.hasOwnProperty('instance_name')
-      ? jsonData['instance_name']
-      : remotePost.instance_name
-    remotePost.host = jsonData.hasOwnProperty('host') ? jsonData['host'] : remotePost.host
-    remotePost.port = jsonData.hasOwnProperty('port') ? jsonData['port'] : remotePost.port
-    remotePost.token = jsonData.hasOwnProperty('token') ? jsonData['token'] : remotePost.token
-    remotePost.fernet_key = jsonData.hasOwnProperty('fernet_key')
-      ? jsonData['fernet_key']
-      : remotePost.fernet_key
-    remotePost.ssl_check = jsonData.hasOwnProperty('ssl_check')
-      ? jsonData['ssl_check']
-      : remotePost.ssl_check
+    const parsed = JSON.parse(text)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error()
+    return { filled: true }
   } catch {
-    notify({
-      type: 'error',
-      title: 'Please enter the instance definition in the correct json format with all fields defined!',
-    })
+    return {
+      error:
+        'This is not a valid connection definition. Paste the JSON copied with “Copy connection details” on the remote platform.',
+    }
   }
 })
 
-function resetForm() {
-  remoteValid.value = false
-  remoteUpdate.value = false
-  remoteDialog.value = false
+watch(pasted, (text) => {
+  if (!pasteResult.value.filled) return
+  const parsed = JSON.parse(text)
+  if ('instance_name' in parsed) definition.instance_name = String(parsed.instance_name)
+  if ('host' in parsed) definition.host = String(parsed.host)
+  if ('port' in parsed) definition.port = Number(parsed.port)
+  if ('token' in parsed) definition.token = String(parsed.token)
+  if ('fernet_key' in parsed) definition.fernet_key = String(parsed.fernet_key)
+  if ('ssl_check' in parsed)
+    definition.ssl_check = parsed.ssl_check === true || parsed.ssl_check === 'true'
+})
+
+const dirty = computed(
+  () =>
+    props.modelValue &&
+    (pasted.value.trim() !== '' ||
+      JSON.stringify(definition) !== JSON.stringify(initialDefinition())),
+)
+watch(dirty, (value) => setDirty('add-remote', value))
+onBeforeUnmount(() => setDirty('add-remote', false))
+
+watch(
+  () => props.modelValue,
+  (open) => {
+    if (open) opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  },
+)
+
+function reset() {
+  Object.assign(definition, initialDefinition())
+  pasted.value = ''
   tab.value = 'manual'
-  pasteRemote.value = ''
-  Object.assign(remotePost, initialRemotePost())
+  submitError.value = null
+  form.value?.resetValidation()
 }
 
-async function submitRemoteForm() {
-  const { valid } = await remoteFormRef.value.validate()
+function close() {
+  emit('update:modelValue', false)
+}
+
+function requestClose() {
+  if (submitting.value) return
+  if (dirty.value) showDiscardConfirm.value = true
+  else close()
+}
+
+function restoreFocus() {
+  reset()
+  opener?.focus()
+  opener = null
+}
+
+async function submit() {
+  if (submitting.value) return
+  const { valid } = await form.value.validate()
   if (!valid) {
+    tab.value = 'manual'
     return
   }
-  kaapanaApiService
-    .federatedClientApiPost('/remote-kaapana-instance', remotePost)
-    .then(() => {
-      remoteDialog.value = false
-      emit('refreshRemoteFromAdding')
-      resetForm()
+  submitting.value = true
+  submitError.value = null
+  const payload: RemoteInstanceDefinition = {
+    ...definition,
+    instance_name: definition.instance_name.trim(),
+    host: definition.host.trim(),
+    port: Number(definition.port),
+    token: definition.token.trim(),
+    fernet_key: definition.fernet_key.trim() || FERNET_DEACTIVATED,
+  }
+  try {
+    await addRemoteInstance(payload)
+    notify({
+      type: 'success',
+      title: 'Remote instance added',
+      text: `This platform now federates with ${payload.instance_name}.`,
     })
-    .catch((err: any) => {
-      console.log(err)
-      notify({
-        type: 'error',
-        title: 'Failed to add remote instance',
-        text: err?.response?.data?.detail ?? err.message,
-      })
-    })
+    emit('added')
+    close()
+  } catch (err) {
+    submitError.value = {
+      text: apiErrorText(err, `Could not add ${payload.instance_name}.`),
+      error: apiErrorInfo(err),
+    }
+  } finally {
+    submitting.value = false
+  }
+}
+
+function showSubmitErrorDetails() {
+  if (!submitError.value) return
+  failureDetails.show({ title: 'Could not add the remote instance', ...submitError.value })
 }
 </script>
+
+<template>
+  <v-dialog
+    :model-value="props.modelValue"
+    max-width="600"
+    scrollable
+    @update:model-value="(value: boolean) => !value && requestClose()"
+    @after-leave="restoreFocus"
+  >
+    <v-card :elevation="5">
+      <v-card-title class="d-flex align-center ga-2">
+        <span>Add remote instance</span>
+        <v-spacer />
+        <v-btn
+          :icon="kaapanaIcons.close"
+          variant="text"
+          size="small"
+          aria-label="Close without adding"
+          @click="requestClose"
+        />
+      </v-card-title>
+
+      <v-divider />
+
+      <v-card-text>
+        <p class="text-body-2 text-medium-emphasis mb-4">
+          Federate with another Kaapana platform. Its administrator can copy the connection details
+          from the instance card of that platform.
+        </p>
+
+        <v-tabs v-model="tab" color="primary" density="compact" class="mb-4">
+          <v-tab value="manual">Enter details</v-tab>
+          <v-tab value="paste">Paste details</v-tab>
+        </v-tabs>
+
+        <v-form ref="form" @submit.prevent="submit">
+          <v-tabs-window v-model="tab">
+            <v-tabs-window-item value="manual" eager>
+              <v-text-field
+                v-model="definition.instance_name"
+                label="Instance name"
+                :rules="rules.instanceName"
+                validate-on="blur"
+                variant="outlined"
+                density="comfortable"
+                class="mb-2"
+              />
+              <v-text-field
+                v-model="definition.host"
+                label="Host"
+                :rules="rules.host"
+                validate-on="blur"
+                variant="outlined"
+                density="comfortable"
+                class="mb-2"
+              />
+              <v-text-field
+                v-model="definition.port"
+                label="Port"
+                type="number"
+                :rules="rules.port"
+                validate-on="blur"
+                variant="outlined"
+                density="comfortable"
+                class="mb-2"
+              />
+              <v-text-field
+                v-model="definition.token"
+                label="Token"
+                :rules="rules.token"
+                validate-on="blur"
+                variant="outlined"
+                density="comfortable"
+                class="mb-2"
+              />
+              <v-text-field
+                v-model="definition.fernet_key"
+                label="Fernet key"
+                hint="The Fernet key shown on the remote platform’s instance card, or “deactivated”."
+                persistent-hint
+                variant="outlined"
+                density="comfortable"
+                class="mb-2"
+              />
+              <v-checkbox
+                v-model="definition.ssl_check"
+                label="Verify the SSL certificate of the remote platform"
+                color="primary"
+                density="comfortable"
+                hide-details
+              />
+            </v-tabs-window-item>
+
+            <v-tabs-window-item value="paste" eager>
+              <v-textarea
+                v-model="pasted"
+                label="Connection details"
+                :placeholder="PASTE_EXAMPLE"
+                :error-messages="pasteResult.error"
+                :messages="
+                  pasteResult.filled
+                    ? 'The fields under “Enter details” were filled from the pasted definition.'
+                    : undefined
+                "
+                rows="8"
+                variant="outlined"
+                class="font-monospace"
+              />
+            </v-tabs-window-item>
+          </v-tabs-window>
+        </v-form>
+
+        <v-alert
+          v-if="submitError"
+          type="error"
+          variant="tonal"
+          density="compact"
+          class="mt-4"
+          data-testid="add-remote-error"
+        >
+          {{ submitError.text }}
+          <template #append>
+            <v-btn variant="text" size="small" @click="showSubmitErrorDetails">Details</v-btn>
+          </template>
+        </v-alert>
+      </v-card-text>
+
+      <v-divider />
+
+      <v-card-actions>
+        <v-spacer />
+        <v-btn :disabled="submitting" @click="requestClose">Cancel</v-btn>
+        <v-btn color="primary" :loading="submitting" :disabled="submitting" @click="submit">
+          Add instance
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
+  <ConfirmDialog
+    v-model="showDiscardConfirm"
+    color="error"
+    title="Discard the new remote instance?"
+    text="The details you entered will be lost. No remote instance is added."
+    confirm-text="Discard"
+    cancel-text="Keep editing"
+    @confirm="close"
+  />
+</template>

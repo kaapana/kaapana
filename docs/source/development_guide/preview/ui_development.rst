@@ -373,7 +373,8 @@ is a hard-coded list. A new view is not tested at all until it is added to it:
              - <view>-ui
 
 An entry is a view name under ``services/base``, or, for a UI that lives
-elsewhere, the path of its app directory.
+elsewhere, the path of its app directory, such as
+``services/applications/collabora/docker/wopi/files/ui``.
 
 Pick the app's Playwright port from the registry in :ref:`ui_testing` (one port
 per app, ``--strictPort``) so suites can keep running in parallel.
@@ -415,7 +416,8 @@ run them.
 
 Each suite starts its app's own Vite server (the dev server locally, a
 ``preview`` of the production build in CI) on a fixed per-app port —
-``portal-ui`` on 4300, the views on 4301–4309, ``base-ui`` on 4310 — so all
+``portal-ui`` on 4300, the views on 4301–4309, ``base-ui`` on 4310, the
+Collabora documents UI on 4313 — so all
 suites can run in parallel on one machine. Run a suite from the view's
 ``docker/files`` directory with ``npx playwright test`` (build ``base-ui``
 first if the view consumes it). CI runs the same suites in the ``ui_e2e_tests`` matrix job.

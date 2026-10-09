@@ -8,13 +8,10 @@
   },
   "dependencies": {
     "@mdi/font": "7.0.96",
-    "roboto-fontface": "0.10.0",
     "vue": "3.3.8",
-    "vue-router": "4.2.5",
     "vuetify": "3.4.2"
   },
   "devDependencies": {
-    "@babel/types": "7.23.3",
     "@types/node": "18.18.9",
     "@vitejs/plugin-vue": "4.5.0",
     "typescript": "5.2.2",

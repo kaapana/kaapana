@@ -139,3 +139,28 @@ test('unchecking a cascaded folder removes its result panels', async ({ page }) 
   await expect(page.locator('.v-expansion-panel')).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'Workflow results' })).toBeVisible()
 })
+
+// The dialog used to be persistent, so neither Escape nor a click outside it
+// did anything and the folder stayed ticked with nothing opened.
+test('pressing escape cancels the confirm and unchecks the folder', async ({ page }) => {
+  const checkbox = page.locator('.v-list-item', { hasText: 'batch-run-230104' }).getByRole('checkbox').first()
+  await checkbox.check()
+  await expect(page.getByText('Open 11 results?')).toBeVisible()
+  // The dialog takes focus only once it has finished opening; Escape reaches it
+  // through the focused element, so a keypress before that would be lost.
+  await expect(page.getByRole('button', { name: 'Cancel' })).toBeFocused()
+
+  await page.keyboard.press('Escape')
+
+  await expect(page.getByText('Open 11 results?')).toBeHidden()
+  await expect(page.locator('.v-expansion-panel')).toHaveCount(0)
+  await expect(checkbox).not.toBeChecked()
+})
+
+// The safe action takes focus, so confirming a large open is deliberate.
+test('the confirm dialog opens with the safe action focused', async ({ page }) => {
+  await page.locator('.v-list-item', { hasText: 'batch-run-230104' }).getByRole('checkbox').first().check()
+  await expect(page.getByText('Open 11 results?')).toBeVisible()
+
+  await expect(page.getByRole('button', { name: 'Cancel' })).toBeFocused()
+})

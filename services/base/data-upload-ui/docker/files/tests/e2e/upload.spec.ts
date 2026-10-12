@@ -80,3 +80,35 @@ test('removing an uploaded file reverts it on the server (DELETE)', async ({ pag
   // FilePond sends the transfer id as the revert body.
   expect(del.postData()).toContain('mock-transfer-id')
 })
+
+test('a file larger than one chunk is sent as consecutive PATCH requests', async ({ page }) => {
+  await installMockBackend(page)
+  await page.goto(VIEW_PATH)
+  const chunkSize = 1024 * 1024
+  // Two and a half chunks: two full chunks and a partial last one.
+  const largeFile = {
+    name: 'large.zip',
+    mimeType: 'application/zip',
+    buffer: Buffer.alloc(2.5 * chunkSize, 1),
+  }
+  const offsets: string[] = []
+  page.on('request', (r) => {
+    if (isUpload(r, 'PATCH')) offsets.push(r.headers()['upload-offset'])
+  })
+
+  await page.locator('input[type="file"]').setInputFiles(largeFile)
+
+  await expect(page.locator('.filepond--file-status-main')).toHaveText('Upload complete')
+  expect(offsets).toEqual(['0', String(chunkSize), String(2 * chunkSize)])
+})
+
+test('the filepath metadata carries the file name of a picked file', async ({ page }) => {
+  await installMockBackend(page)
+  await page.goto(VIEW_PATH)
+
+  const postReq = page.waitForRequest((r) => isUpload(r, 'POST'))
+  await page.locator('input[type="file"]').setInputFiles(smallFile)
+
+  // The backend stores the file under this path inside the upload directory.
+  expect((await postReq).postData()).toContain(`"filepath":"${smallFile.name}"`)
+})

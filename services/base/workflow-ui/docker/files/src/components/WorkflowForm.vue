@@ -399,13 +399,13 @@ function rangeText(form: IntegerUIForm | FloatUIForm) {
 
 function numberHint(form: IntegerUIForm | FloatUIForm) {
   const range = rangeText(form)
-  const kind = form.type === 'int' ? 'A whole number' : 'A number'
+  const kind = form.type === 'int' ? 'An integer number' : 'A number'
   const rangeHint = range ? `${kind} ${range}.` : ''
   return [form.description, rangeHint].filter(Boolean).join(' ')
 }
 
 function numberRules(form: IntegerUIForm | FloatUIForm) {
-  const kind = form.type === 'int' ? 'a whole number' : 'a number'
+  const kind = form.type === 'int' ? 'an integer number' : 'a number'
   const expected = `Enter ${kind}${rangeText(form) ? ` ${rangeText(form)}` : ''}.`
   return [
     (v: unknown) => {

@@ -31,4 +31,16 @@ test.describe('boot', () => {
     await page.goto(`${VIEW_BASE}/`)
     await expect(page).toHaveURL(/\/workflow-ui\/workflows$/)
   })
+
+  test('a run path without /logs opens the run details', async ({ page }) => {
+    await openWorkflows(page)
+    await page.goto(`${VIEW_BASE}/runs/1/`)
+    await expect(page).toHaveURL(/\/workflow-ui\/runs\/1\/logs$/)
+  })
+
+  test('an unknown path redirects to the workflows page', async ({ page }) => {
+    await openWorkflows(page)
+    await page.goto(`${VIEW_BASE}/does-not-exist`)
+    await expect(page).toHaveURL(/\/workflow-ui\/workflows$/)
+  })
 })

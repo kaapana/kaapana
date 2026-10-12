@@ -42,10 +42,16 @@ test('import dialog loads the import workflow and submits it', async ({ page }) 
   await expect(page.getByRole('heading', { name: 'Workflow Execution' })).toBeHidden()
 })
 
-test('a failing workflow submission surfaces an error and keeps the dialog open', async ({ page }) => {
+test('a failing workflow submission surfaces an error and keeps the dialog open', async ({
+  page,
+}) => {
   await installMockBackend(page)
   await page.route('**/kaapana-backend/client/workflow', (r) =>
-    r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'nope' }) }),
+    r.fulfill({
+      status: 500,
+      contentType: 'application/json',
+      body: JSON.stringify({ detail: 'nope' }),
+    }),
   )
   await page.goto(VIEW_PATH)
   await openImportDialog(page)
@@ -97,9 +103,7 @@ test('a data_form dag: dataset lift renders natively and the selection is submit
   expect(conf.data_form).not.toHaveProperty('dataset_limit')
 })
 
-test('a data_form dag: toggling the limit off submits a min-1 dataset_limit', async ({
-  page,
-}) => {
+test('a data_form dag: toggling the limit off submits a min-1 dataset_limit', async ({ page }) => {
   await installMockBackend(page, datasetImportData())
   await page.goto(VIEW_PATH)
   await openImportDialog(page)
@@ -132,7 +136,11 @@ test('a failed submit does not carry a stale dataset_limit into the retry', asyn
   await num.blur()
 
   await page.route(WORKFLOW, (r) =>
-    r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'boom' }) }),
+    r.fulfill({
+      status: 500,
+      contentType: 'application/json',
+      body: JSON.stringify({ detail: 'boom' }),
+    }),
   )
   const req1P = page.waitForRequest(WORKFLOW)
   await page.getByRole('button', { name: 'Start Workflow' }).click()
@@ -142,7 +150,11 @@ test('a failed submit does not carry a stale dataset_limit into the retry', asyn
 
   await page.getByRole('checkbox', { name: 'Process whole dataset' }).click()
   await page.route(WORKFLOW, (r) =>
-    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ workflow_id: 'wf-1' }) }),
+    r.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ workflow_id: 'wf-1' }),
+    }),
   )
   const req2P = page.waitForRequest(WORKFLOW)
   await page.getByRole('button', { name: 'Start Workflow' }).click()

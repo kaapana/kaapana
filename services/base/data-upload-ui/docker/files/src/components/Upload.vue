@@ -15,15 +15,18 @@ import FilePondPluginFileValidateType from 'filepond-plugin-file-validate-type'
 import 'filepond/dist/filepond.min.css'
 import { getProjectBase } from '@kaapana/base-ui'
 
-const props = withDefaults(defineProps<{
-  labelIdle?: string
-  acceptedFileTypes?: string[]
-  onProcessFileStart?: (file: any) => void
-  onProcessFile?: (error: any, file: any) => void
-  url?: string
-}>(), {
-  url: '/kaapana-backend/client/file',
-})
+const props = withDefaults(
+  defineProps<{
+    labelIdle?: string
+    acceptedFileTypes?: string[]
+    onProcessFileStart?: (file: any) => void
+    onProcessFile?: (error: any, file: any) => void
+    url?: string
+  }>(),
+  {
+    url: '/kaapana-backend/client/file',
+  },
+)
 
 const FilePond = vueFilePond(FilePondPluginFileValidateType)
 

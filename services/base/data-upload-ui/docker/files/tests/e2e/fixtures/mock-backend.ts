@@ -63,9 +63,7 @@ export const defaultMockData: MockData = {
     { id: 1, name: 'admin', short_id: 'admin' },
     { id: 2, name: 'research-b', short_id: 'resb' },
   ],
-  instances: [
-    { instance_name: 'kaapana-local', remote: false, allowed_dags: [IMPORT_DAG] },
-  ],
+  instances: [{ instance_name: 'kaapana-local', remote: false, allowed_dags: [IMPORT_DAG] }],
   dags: [IMPORT_DAG],
   schemas: {
     // One dag + a matching schema key so the two cross-gating watchers in
@@ -90,7 +88,9 @@ export const DATASET_IMPORT_DAG = 'import-dicoms-with-dataset'
 export function datasetImportData(): MockData {
   return {
     ...defaultMockData,
-    instances: [{ instance_name: 'kaapana-local', remote: false, allowed_dags: [DATASET_IMPORT_DAG] }],
+    instances: [
+      { instance_name: 'kaapana-local', remote: false, allowed_dags: [DATASET_IMPORT_DAG] },
+    ],
     dags: [DATASET_IMPORT_DAG],
     schemas: {
       [DATASET_IMPORT_DAG]: {
@@ -107,8 +107,14 @@ export function datasetImportData(): MockData {
               type: 'string',
               title: 'Dataset name (size)',
               oneOf: [
-                { const: { name: 'nsclc', username: 'kaapana', access_level: 'project' }, title: 'nsclc (project) (42)' },
-                { const: { name: 'brains', username: 'kaapana', access_level: 'project' }, title: 'brains (project) (7)' },
+                {
+                  const: { name: 'nsclc', username: 'kaapana', access_level: 'project' },
+                  title: 'nsclc (project) (42)',
+                },
+                {
+                  const: { name: 'brains', username: 'kaapana', access_level: 'project' },
+                  title: 'brains (project) (7)',
+                },
               ],
             },
             dataset_limit: {
@@ -159,7 +165,9 @@ export async function installMockBackend(page: Page, data: MockData = defaultMoc
   // The router guard proceeds even on auth failure (the gateway is the real
   // boundary); these only shape the logged-in vs logged-out view.
   await page.route('**/oauth2/userinfo', (r) => r.fulfill(json(data.userinfo)))
-  await page.route('**/jsons/testingAuthenticationToken.json', (r) => r.fulfill(json(data.userinfo)))
+  await page.route('**/jsons/testingAuthenticationToken.json', (r) =>
+    r.fulfill(json(data.userinfo)),
+  )
 
   // Project store (admin path hits /aii/projects; non-admin the per-user list).
   await page.route('**/aii/users/current', (r) => r.fulfill(json(data.currentUser)))
@@ -189,5 +197,7 @@ export async function installMockBackend(page: Page, data: MockData = defaultMoc
   await page.route('**/kaapana-backend/client/get-ui-form-schemas', (r) =>
     r.fulfill(json(data.schemas)),
   )
-  await page.route('**/kaapana-backend/client/workflow', (r) => r.fulfill(json({ workflow_id: 'wf-1' })))
+  await page.route('**/kaapana-backend/client/workflow', (r) =>
+    r.fulfill(json({ workflow_id: 'wf-1' })),
+  )
 }

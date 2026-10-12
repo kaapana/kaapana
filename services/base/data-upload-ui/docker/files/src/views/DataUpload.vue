@@ -2,9 +2,15 @@
   <div class="dropzone">
     <v-container fluid class="text-left">
       <h1>Data upload</h1>
-      <v-alert v-if="selectedProject && selectedProject.is_archived" type="warning" prominent class="mb-4" icon="mdi-archive">
-        This project is archived and is read-only. Data upload is disabled.
-        Unarchive the project to enable uploads again.
+      <v-alert
+        v-if="selectedProject && selectedProject.is_archived"
+        type="warning"
+        prominent
+        class="mb-4"
+        icon="mdi-archive"
+      >
+        This project is archived and is read-only. Data upload is disabled. Unarchive the project to
+        enable uploads again.
       </v-alert>
       <v-row dense>
         <v-col cols="12">
@@ -13,16 +19,15 @@
               Option 1 (preferred): Using the DICOM receiver port.
             </v-card-title>
             <v-card-text>
-              If you have images locally you can use e.g. DCMTK. However, any tool that
-              sends images to a DICOM receiver can be used. Here is an example of sending
-              images with DCMTK:
+              If you have images locally you can use e.g. DCMTK. However, any tool that sends images
+              to a DICOM receiver can be used. Here is an example of sending images with DCMTK:
               <br />
               <br />
               <code>
-                dcmsend -v {{ hostname }} 11112 --scan-directories --aetitle
-                kp-{{ "<" }}dataset-name{{ ">" }} --call
-                kp-{{ selectedProject.short_id }} --scan-pattern '*.dcm' --recurse
-                {{ "<" }}data-dir-of-DICOM-images{{ ">" }}
+                dcmsend -v {{ hostname }} 11112 --scan-directories --aetitle kp-{{
+                  '<'
+                }}dataset-name{{ '>' }} --call kp-{{ selectedProject.short_id }} --scan-pattern
+                '*.dcm' --recurse {{ '<' }}data-dir-of-DICOM-images{{ '>' }}
               </code>
             </v-card-text>
           </v-card>
@@ -33,8 +38,8 @@
               Option 2: Upload the data via the browser(experimental).
             </v-card-title>
             <v-card-text>
-              <v-icon class="my-2" size="large">mdi-numeric-1-circle</v-icon>&nbsp; Make sure
-              your data is correctly formatted for the upload.
+              <v-icon class="my-2" size="large">mdi-numeric-1-circle</v-icon>&nbsp; Make sure your
+              data is correctly formatted for the upload.
               <v-btn color="primary" icon variant="text" @click.stop="infoDialog = true">
                 <v-icon color="primary"> mdi-information </v-icon>
               </v-btn>
@@ -48,40 +53,42 @@
                   <v-card-text>
                     <h3>Upload of DICOM data</h3>
                     <p>
-                      DICOM data should be uploaded in a single compressed zip-file
-                      containing folder(s) with DICOM files.
+                      DICOM data should be uploaded in a single compressed zip-file containing
+                      folder(s) with DICOM files.
                     </p>
                     <h3>Upload NIfTI data</h3>
                     <p>
-                      Since the platform works with the DICOM standard, NIfTI data is
-                      converted to DICOMs by triggering the workflow
-                      `convert-nifitis-to-dicoms-and-import-to-pacs`. If you have only
-                      NIfTI files without segmentations, the files with file endings
-                      `.nii.gz` or `.nii` can be uploaded in a compressed zip-file.
+                      Since the platform works with the DICOM standard, NIfTI data is converted to
+                      DICOMs by triggering the workflow
+                      `convert-nifitis-to-dicoms-and-import-to-pacs`. If you have only NIfTI files
+                      without segmentations, the files with file endings `.nii.gz` or `.nii` can be
+                      uploaded in a compressed zip-file.
                     </p>
                     <p>
-                      For NIfTI data kaapana supports multiple ways to specify metadata
-                      for volumes and segmentations. Depending on the use case the data
-                      has to be formated in one of the directory structures described in
-                      the
-                      <a href="https://kaapana.readthedocs.io/en/stable/user_guide/workflows.html#import-uploaded-nifti-files"
-                        target="_blank">Kaapana documentation</a>.
+                      For NIfTI data kaapana supports multiple ways to specify metadata for volumes
+                      and segmentations. Depending on the use case the data has to be formated in
+                      one of the directory structures described in the
+                      <a
+                        href="https://kaapana.readthedocs.io/en/stable/user_guide/workflows.html#import-uploaded-nifti-files"
+                        target="_blank"
+                        >Kaapana documentation</a
+                      >.
                     </p>
                   </v-card-text>
 
                   <v-card-actions>
                     <v-spacer></v-spacer>
-                    <v-btn color="primary" @click="() => (infoDialog = false)">
-                      Got it!
-                    </v-btn>
+                    <v-btn color="primary" @click="() => (infoDialog = false)"> Got it! </v-btn>
                   </v-card-actions>
                 </v-card>
               </v-dialog>
 
-              <v-icon class="my-2" size="large">mdi-numeric-2-circle</v-icon>&nbsp; Upload
-              DICOMS, NIfTIs or any data you want to use in a workflow as a zip file via
-              the dropzone.
-              <Upload label-idle="Dicoms, ITK images or any other data" :on-process-file="fileComplete"></Upload>
+              <v-icon class="my-2" size="large">mdi-numeric-2-circle</v-icon>&nbsp; Upload DICOMS,
+              NIfTIs or any data you want to use in a workflow as a zip file via the dropzone.
+              <Upload
+                label-idle="Dicoms, ITK images or any other data"
+                :on-process-file="fileComplete"
+              ></Upload>
               <br />
               <v-icon size="large">mdi-numeric-3-circle</v-icon>&nbsp;
               <v-btn color="primary" @click="() => (workflowDialog = true)">
@@ -94,8 +101,14 @@
 
         <v-dialog v-model="workflowDialog" width="500">
           <v-defaults-provider :defaults="underlinedFieldDefaults">
-            <WorkflowExecution :key="componentKey" :onlyLocal="true" kind_of_dags="import" :isDialog="true"
-              @successful="() => (workflowDialog = false)" @cancel="() => (workflowDialog = false)" />
+            <WorkflowExecution
+              :key="componentKey"
+              :onlyLocal="true"
+              kind_of_dags="import"
+              :isDialog="true"
+              @successful="() => (workflowDialog = false)"
+              @cancel="() => (workflowDialog = false)"
+            />
           </v-defaults-provider>
         </v-dialog>
       </v-row>

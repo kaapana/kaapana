@@ -29,7 +29,10 @@ test('info dialog explains the expected upload format', async ({ page }) => {
   await page.goto(VIEW_PATH)
 
   await page.locator('.filepond--root').scrollIntoViewIfNeeded()
-  await page.getByRole('button').filter({ has: page.locator('.mdi-information') }).click()
+  await page
+    .getByRole('button')
+    .filter({ has: page.locator('.mdi-information') })
+    .click()
   await expect(page.getByText('How should the uploaded data look like?')).toBeVisible()
   await expect(page.getByText('Upload of DICOM data')).toBeVisible()
   await page.getByRole('button', { name: 'Got it!' }).click()
@@ -43,7 +46,9 @@ test('auth check failure still mounts the view', async ({ page }) => {
   await installMockBackend(page)
   // Fail both auth endpoints so it holds in dev (token file) and preview (oauth2 proxy).
   await page.route('**/oauth2/userinfo', (r) => r.fulfill({ status: 500, body: '' }))
-  await page.route('**/jsons/testingAuthenticationToken.json', (r) => r.fulfill({ status: 500, body: '' }))
+  await page.route('**/jsons/testingAuthenticationToken.json', (r) =>
+    r.fulfill({ status: 500, body: '' }),
+  )
   await page.goto(VIEW_PATH)
   await expect(page.getByRole('heading', { name: 'Data upload' })).toBeVisible()
 })

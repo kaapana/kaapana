@@ -7,7 +7,7 @@ import shutil
 from pathlib import Path
 
 import requests
-from kaapanapy.settings import ServicesSettings
+from kaapana_client.settings import ServicesSettings
 
 MODEL_INPUT_MOUNT = "/kaapana/app/model"
 

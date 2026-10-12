@@ -2,8 +2,9 @@ import logging
 import os
 from typing import List
 
-from kaapanapy.helper import get_opensearch_client
-from kaapanapy.settings import OpensearchSettings
+import requests
+from kaapana_client.helper import get_opensearch_client
+from kaapana_client.settings import ServicesSettings
 
 # Create a custom logger
 logging.getLogger().setLevel(logging.DEBUG)
@@ -18,14 +19,19 @@ c_handler.setFormatter(c_format)
 # Add handlers to the logger
 logger.addHandler(c_handler)
 
-SERVICES_NAMESPACE = os.environ["SERVICES_NAMESPACE"]
-HOST = f"opensearch-service.{SERVICES_NAMESPACE}.svc"
-PORT = "9200"
-# load_workflow_config() cannot be used under KaapanaTaskOperator (see migration-notes.md) —
-# it reads <workflow_dir>/conf/conf.json, a file only the legacy per-run workflow-directory
-# mount ever produced. Falls back to the plain default index (still env-overridable via
-# OpensearchSettings' own KAAPANA_DEFAULT_OPENSEARCH_INDEX/DEFAULT_INDEX aliases).
-opensearch_index = OpensearchSettings().default_index
+
+def get_project_index() -> str:
+    # Each project keeps its metadata in its own index. The default index of the platform belongs to the admin
+    # project, so the index is taken from the project that started the run.
+    identifier = os.environ["KAAPANA_PROJECT_IDENTIFIER"]
+    if not identifier:
+        raise ValueError("KAAPANA_PROJECT_IDENTIFIER is empty. The task must run in the context of a project.")
+    response = requests.get(f"{ServicesSettings().aii_url}/projects/{identifier}")
+    response.raise_for_status()
+    return response.json()["opensearch_index"]
+
+
+opensearch_index = get_project_index()
 os_client = get_opensearch_client()
 
 

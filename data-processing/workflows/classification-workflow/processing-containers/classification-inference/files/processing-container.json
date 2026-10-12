@@ -13,9 +13,9 @@
                     "description": "If 'True', append the training workflow id/fold/checkpoint kind to the predicted tag."
                 },
                 {
-                    "name": "SERVICES_NAMESPACE",
-                    "value": "services",
-                    "description": "Read directly by the untouched opensearch_helper.py (legacy convention, unprefixed) — KaapanaTaskOperator only injects the KAAPANA_-prefixed KAAPANA_SERVICES_NAMESPACE (see migration-notes.md). 'services' is the correct real-cluster value and normally does not need overriding."
+                    "name": "KAAPANA_PROJECT_IDENTIFIER",
+                    "value": "",
+                    "description": "Identifier of the project that started the run. The workflow-api sets it for every task. It is used to look up the OpenSearch index of the project in the access-information-interface."
                 }
             ],
             "inputs": [

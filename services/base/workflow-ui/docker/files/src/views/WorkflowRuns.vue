@@ -13,7 +13,7 @@
         <v-btn
           color="error"
           variant="tonal"
-          prepend-icon="mdi-broom"
+          :prepend-icon="kaapanaIcons.cleanup"
           :disabled="eligibleForCleanup.length === 0 || cleanupRunning"
           :loading="cleanupRunning"
           @click="askBulkCleanup"

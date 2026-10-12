@@ -10,7 +10,7 @@
 
       <div class="d-flex flex-wrap align-center ga-2">
         <v-btn
-          :prepend-icon="showFilters ? 'mdi-filter-variant-remove' : 'mdi-filter-variant'"
+          :prepend-icon="kaapanaIcons.filter"
           :aria-expanded="showFilters"
           aria-controls="workflow-filters"
           @click="showFilters = !showFilters"

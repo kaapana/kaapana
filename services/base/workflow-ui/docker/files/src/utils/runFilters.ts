@@ -1,3 +1,4 @@
+import { kaapanaIcons } from '@kaapana/base-ui'
 import type { WorkflowRun } from '@/types/schemas'
 
 export type RunFilterOperator = '=' | '!='
@@ -30,8 +31,8 @@ export interface RunFilterField {
 
 export const RUN_FILTER_FIELDS: RunFilterField[] = [
   { key: 'status', label: 'Status', icon: 'mdi-list-status' },
-  { key: 'workflow', label: 'Workflow', icon: 'mdi-sitemap-outline' },
-  { key: 'task', label: 'Task', icon: 'mdi-checkbox-multiple-blank-outline' },
+  { key: 'workflow', label: 'Workflow', icon: kaapanaIcons.workflow },
+  { key: 'task', label: 'Task', icon: kaapanaIcons.task },
   { key: 'id', label: 'Run ID', icon: 'mdi-pound', placeholder: 'Enter a run ID' },
   {
     key: 'external_id',

@@ -81,7 +81,6 @@
             <Upload
               label-idle="Dicoms, ITK images or any other data"
               :disabled="isArchived"
-              :on-process-file="fileComplete"
             ></Upload>
             <br />
             <v-icon size="large">mdi-numeric-3-circle</v-icon>&nbsp;
@@ -93,10 +92,11 @@
         </v-card>
       </v-col>
 
+      <!-- The dialog unmounts its content when it closes, so every opening loads the
+           current list of uploaded files. A forced remount would discard the user's input. -->
       <v-dialog v-model="workflowDialog" width="500">
         <v-defaults-provider :defaults="underlinedFieldDefaults">
           <WorkflowExecution
-            :key="componentKey"
             :onlyLocal="true"
             kind_of_dags="import"
             :isDialog="true"
@@ -139,7 +139,6 @@ const underlinedFieldDefaults = {
 
 const workflowDialog = ref(false)
 const infoDialog = ref(false)
-const componentKey = ref(0)
 const hostname = window.location.hostname
 
 // selectedProject drives the archived guard and the dcmsend example.
@@ -154,10 +153,5 @@ projectStore.getSelectedProject().catch((error: any) => {
 // standalone boots the shell never touched.
 if (!localStorage['settings']) {
   localStorage['settings'] = JSON.stringify(defaultSettings)
-}
-
-function fileComplete() {
-  // Remount WorkflowExecution (:key) so the import form reflects the new upload.
-  componentKey.value += 1
 }
 </script>

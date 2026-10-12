@@ -32,6 +32,6 @@ FROM nginxinc/nginx-unprivileged:1.31-alpine
 WORKDIR /kaapana/app
 
 COPY --from=build-stage /kaapana/workflow-ui/docker/files/dist /kaapana/app
-COPY --from=build-stage /kaapana/workflow-ui/docker/files/nginx.conf /etc/nginx/nginx.conf
+COPY files/nginx.conf /etc/nginx/nginx.conf
 
 USER 1000

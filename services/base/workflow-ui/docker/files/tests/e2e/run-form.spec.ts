@@ -51,7 +51,7 @@ test.describe('run form', () => {
     await form.getByRole('button', { name: 'Start workflow' }).click()
 
     await expect(form).toContainText('Select dataset.')
-    await expect(form).toContainText('Enter a whole number between 1 and 10.')
+    await expect(form).toContainText('Enter an integer number between 1 and 10.')
     expect(recorder.createdRuns).toHaveLength(0)
   })
 

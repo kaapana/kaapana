@@ -16,6 +16,18 @@ test('renders both upload options and the browser dropzone', async ({ page }) =>
   await expect(page.getByRole('button', { name: /Import the data/ })).toBeVisible()
 })
 
+test('the dcmsend example explains the default port and the dataset name limit', async ({
+  page,
+}) => {
+  await installMockBackend(page)
+  await page.goto(VIEW_PATH)
+
+  // The port is set at deploy time and is not known to the view.
+  await expect(page.getByText('11112 is the default port of the DICOM receiver.')).toBeVisible()
+  // The calling AE title carries the dataset name and is limited to 16 characters.
+  await expect(page.getByText(/at most 13 characters after the kp- prefix/)).toBeVisible()
+})
+
 test('empty state: dropzone idle with no file rows', async ({ page }) => {
   await installMockBackend(page)
   await page.goto(VIEW_PATH)

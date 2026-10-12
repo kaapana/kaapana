@@ -22,6 +22,15 @@
               }}dataset-name{{ '>' }} --call kp-{{ selectedProject.short_id }} --scan-pattern
               '*.dcm' --recurse {{ '<' }}data-dir-of-DICOM-images{{ '>' }}
             </code>
+            <p class="mt-4">
+              11112 is the default port of the DICOM receiver. Your administrator may have
+              configured a different port for this platform.
+            </p>
+            <p>
+              Replace {{ '<' }}dataset-name{{ '>' }} with the dataset that should receive the
+              images. DICOM AE titles have at most 16 characters, so the dataset name can have at
+              most 13 characters after the kp- prefix.
+            </p>
           </v-card-text>
         </v-card>
       </v-col>

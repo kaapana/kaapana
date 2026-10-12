@@ -23,11 +23,6 @@
                     "description": "Spatial dimensionality of the input volumes, e.g. '3D' or '2D'."
                 },
                 {
-                    "name": "PATCH_SIZE",
-                    "value": "(128, 128, 128)",
-                    "description": "Patch shape (as a Python tuple literal string) matching the preprocessing container's output shape."
-                },
-                {
                     "name": "BATCH_SIZE",
                     "value": "1",
                     "description": "Training batch size."

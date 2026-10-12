@@ -72,24 +72,12 @@
             }
         },
         {
-            "task_title": "training",
-            "env_variable_name": "PATCH_SIZE",
-            "ui_form": {
-                "type": "str",
-                "title": "Patch size",
-                "description": "Specify the patch size used for training",
-                "regex_pattern": ".*",
-                "default": "(128, 128, 128)",
-                "required": true
-            }
-        },
-        {
             "task_title": "preprocessing",
             "env_variable_name": "PATCH_SIZE",
             "ui_form": {
                 "type": "str",
                 "title": "Patch size",
-                "description": "Specify the patch size used for training",
+                "description": "Shape that every image is resized to, e.g. (128, 128, 128). Training uses the same shape.",
                 "regex_pattern": ".*",
                 "default": "(128, 128, 128)",
                 "required": true

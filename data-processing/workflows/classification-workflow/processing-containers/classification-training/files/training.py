@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import ast
 import json
 import logging
 import os
@@ -70,13 +69,28 @@ if not re.fullmatch(r"[a-z0-9][a-z0-9_-]*", os.environ["MODEL_CHECKPOINT_NAME"])
 # The timestamp keeps the names of separate runs apart, so a new model never overwrites an older one.
 MODEL_CHECKPOINT_NAME = f"{os.environ['MODEL_CHECKPOINT_NAME']}-{datetime.now(timezone.utc):%Y%m%d-%H%M%S}"
 
+
+def get_patch_size() -> tuple:
+    # The preprocessing task resizes every case to the same shape. Reading the shape here avoids a second patch
+    # size parameter, which could differ from the value used for preprocessing.
+    shapes = {
+        np.load(os.path.join(PREPROCESSED_MOUNT, case, f"{case}.npy"), mmap_mode="r").shape
+        for case in os.listdir(PREPROCESSED_MOUNT)
+    }
+    if len(shapes) != 1:
+        raise ValueError(f"Expected one common shape for all preprocessed cases, found {shapes}")
+    return shapes.pop()
+
+
+PATCH_SIZE = get_patch_size()
+
 # Log config
 
 logger.debug(f"TAG_TO_CLASS_MAPPING_JSON={str(TAG_TO_CLASS_MAPPING)}")
 logger.debug(f"TASK={os.environ['TASK']}")
 logger.debug(f"NUM_EPOCHS={os.environ['NUM_EPOCHS']}")
 logger.debug(f"DIMENSIONS={os.environ['DIMENSIONS']}")
-logger.debug(f"PATCH_SIZE={os.environ['PATCH_SIZE']}")
+logger.debug(f"PATCH_SIZE={PATCH_SIZE}")
 logger.debug(f"BATCH_SIZE={os.environ['BATCH_SIZE']}")
 logger.debug(f"TASK={os.environ['TASK']}")
 logger.debug(f"MODEL_CHECKPOINT_NAME={MODEL_CHECKPOINT_NAME}")
@@ -90,7 +104,7 @@ try:
     data["TASK"] = os.environ["TASK"]
     data["NUM_EPOCHS"] = os.environ["NUM_EPOCHS"]
     data["DIMENSIONS"] = os.environ["DIMENSIONS"]
-    data["PATCH_SIZE"] = os.environ["PATCH_SIZE"]
+    data["PATCH_SIZE"] = str(PATCH_SIZE)
     data["BATCH_SIZE"] = os.environ["BATCH_SIZE"]
     data["TASK"] = os.environ["TASK"]
     data["MODEL_CHECKPOINT_NAME"] = MODEL_CHECKPOINT_NAME
@@ -201,8 +215,7 @@ if __name__ == "__main__":
     logger.debug("Results dir set to: %s" % RESULTS_DIR)
 
     # set patch size
-    tuple_from_string = ast.literal_eval(os.environ["PATCH_SIZE"])
-    patch_size = np.array(tuple_from_string)
+    patch_size = np.array(PATCH_SIZE)
 
     logger.debug(f"Patchsize set to: {patch_size}")
 

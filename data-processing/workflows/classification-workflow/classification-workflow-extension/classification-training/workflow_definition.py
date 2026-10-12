@@ -61,7 +61,6 @@ with DAG("{{ dag_id }}", default_args=args) as dag:
             pc_models.BaseEnv(name="TAG_TO_CLASS_MAPPING_JSON", value="tag1,tag2"),
             pc_models.BaseEnv(name="TASK", value="binary"),
             pc_models.BaseEnv(name="DIMENSIONS", value="3D"),
-            pc_models.BaseEnv(name="PATCH_SIZE", value="(128, 128, 128)"),
             pc_models.BaseEnv(name="BATCH_SIZE", value="1"),
             pc_models.BaseEnv(name="NUM_EPOCHS", value="1600"),
             # RUN_ID only names training.py's (unread/unconsumed) TensorBoard log

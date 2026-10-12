@@ -124,11 +124,11 @@
             "env_variable_name": "MODEL_CHECKPOINT_NAME",
             "ui_form": {
                 "type": "str",
-                "title": "Checkpoint name",
-                "description": "Names this model's checkpoint. Reusing a name overwrites that model.",
-                "help": "Also the value you'll enter later in classification-inference to pick this model. Not injected automatically (see migration-notes.md) — pick something unique per run.",
-                "regex_pattern": ".*",
-                "random_default": true,
+                "title": "Model name",
+                "description": "Name of the trained model. A timestamp is added to make the name unique.",
+                "help": "Use lowercase letters, digits, '-' and '_'. In classification-inference, the model appears as classification_<name>-<timestamp>_fold_0.",
+                "regex_pattern": "^[a-z0-9][a-z0-9_-]*$",
+                "default": "resnet18",
                 "required": true
             }
         }

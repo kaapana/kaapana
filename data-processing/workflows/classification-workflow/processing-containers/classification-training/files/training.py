@@ -3,6 +3,8 @@ import ast
 import json
 import logging
 import os
+import re
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
@@ -57,6 +59,17 @@ if len(tag_class_mappings) < 2:
 for class_idx, tag in enumerate(sorted(tag_class_mappings)):
     TAG_TO_CLASS_MAPPING[tag] = class_idx
 
+# The name becomes a directory name in the models volume. Requests to the API can skip the form validation,
+# so the name is checked here again.
+if not re.fullmatch(r"[a-z0-9][a-z0-9_-]*", os.environ["MODEL_CHECKPOINT_NAME"]):
+    raise ValueError(
+        f"Invalid model name '{os.environ['MODEL_CHECKPOINT_NAME']}'. "
+        "Use lowercase letters, digits, '-' and '_', and start with a letter or digit."
+    )
+
+# The timestamp keeps the names of separate runs apart, so a new model never overwrites an older one.
+MODEL_CHECKPOINT_NAME = f"{os.environ['MODEL_CHECKPOINT_NAME']}-{datetime.now(timezone.utc):%Y%m%d-%H%M%S}"
+
 # Log config
 
 logger.debug(f"TAG_TO_CLASS_MAPPING_JSON={str(TAG_TO_CLASS_MAPPING)}")
@@ -66,6 +79,7 @@ logger.debug(f"DIMENSIONS={os.environ['DIMENSIONS']}")
 logger.debug(f"PATCH_SIZE={os.environ['PATCH_SIZE']}")
 logger.debug(f"BATCH_SIZE={os.environ['BATCH_SIZE']}")
 logger.debug(f"TASK={os.environ['TASK']}")
+logger.debug(f"MODEL_CHECKPOINT_NAME={MODEL_CHECKPOINT_NAME}")
 
 # Save config for inference
 
@@ -79,7 +93,7 @@ try:
     data["PATCH_SIZE"] = os.environ["PATCH_SIZE"]
     data["BATCH_SIZE"] = os.environ["BATCH_SIZE"]
     data["TASK"] = os.environ["TASK"]
-    data["MODEL_CHECKPOINT_NAME"] = os.environ["MODEL_CHECKPOINT_NAME"]
+    data["MODEL_CHECKPOINT_NAME"] = MODEL_CHECKPOINT_NAME
     data["FOLD"] = os.environ["FOLD"]
 
     with open(os.path.join(RESULTS_DIR, "config.json"), "w") as f:

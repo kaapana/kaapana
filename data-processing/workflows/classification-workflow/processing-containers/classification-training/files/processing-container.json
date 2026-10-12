@@ -39,8 +39,8 @@
                 },
                 {
                     "name": "MODEL_CHECKPOINT_NAME",
-                    "value": "",
-                    "description": "Not injected by KaapanaTaskOperator (see migration-notes.md) — user-chosen identifier for this training run's checkpoint. Written into this run's config.json (part of the \"model\" output) so persist-model can name the checkpoint's subdirectory under the shared /models volume. Set via the MODEL_CHECKPOINT_NAME workflow_parameter; required."
+                    "value": "resnet18",
+                    "description": "Name of the trained model. Allowed characters are lowercase letters, digits, '-' and '_'. A UTC timestamp is appended, and the result is stored in config.json of the \"model\" output."
                 },
                 {
                     "name": "RUN_ID",

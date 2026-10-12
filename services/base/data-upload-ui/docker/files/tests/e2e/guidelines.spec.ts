@@ -18,4 +18,13 @@ test.describe('visual language', () => {
     )
     expect(robotoFaces).toBeGreaterThan(0)
   })
+
+  test('no local font rule overrides the platform typeface', async ({ page }) => {
+    const fonts = await page.evaluate(() => ({
+      app: getComputedStyle(document.querySelector('#app')!).fontFamily,
+      button: getComputedStyle(document.querySelector('.v-btn')!).fontFamily,
+    }))
+    expect(fonts.app).toContain('Roboto')
+    expect(fonts.button).toContain('Roboto')
+  })
 })

@@ -31,11 +31,10 @@ spec:
           periodSeconds: 20
         resources:
 {{- if .Values.global.dev_files }}
-          # The vite dev server needs far more memory than nginx.
           limits:
             memory: "5Gi"
           requests:
-            memory: "100Mi"
+            memory: "5Gi"
 {{- else }}
           limits:
             memory: "100Mi"

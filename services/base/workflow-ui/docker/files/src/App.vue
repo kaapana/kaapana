@@ -17,13 +17,7 @@ function onNotificationClick(item: { data?: unknown }) {
 <template>
   <div id="app">
     <v-app>
-      <notifications
-        position="bottom right"
-        width="20%"
-        :duration="5000"
-        close-on-click
-        @click="onNotificationClick"
-      />
+      <notifications close-on-click @click="onNotificationClick" />
       <v-main>
         <router-view :key="viewKey" />
       </v-main>

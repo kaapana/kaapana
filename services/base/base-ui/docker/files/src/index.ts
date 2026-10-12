@@ -25,6 +25,7 @@ export {
 } from './utils/vuetifyTheme'
 export { createKaapanaVuetify, type KaapanaVuetifyOptions } from './utils/createKaapanaVuetify'
 export { kaapanaIcons, type KaapanaIconName } from './utils/icons'
+export { kaapanaNotifications } from './utils/notifications'
 export {
   checkAuthR,
   checkRoleAuthR,

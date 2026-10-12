@@ -74,9 +74,7 @@
           </v-list-item>
           <v-list-item v-if="filteredTaskRuns.length === 0">
             <v-list-item-title class="text-body-2 text-medium-emphasis">
-              {{
-                logSearch ? 'No task log contains the search text.' : 'No task matches the filter.'
-              }}
+              {{ logSearch ? 'Phrase not found.' : 'No task matches the filter.' }}
             </v-list-item-title>
           </v-list-item>
         </v-list>

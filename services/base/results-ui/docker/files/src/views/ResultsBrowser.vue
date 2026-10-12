@@ -1,25 +1,16 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch, type ComponentPublicInstance } from 'vue'
 import { notify } from '@kyvg/vue3-notification'
-import { kaapanaApiService } from '@kaapana/base-ui'
+import { kaapanaIcons } from '@kaapana/base-ui'
+import { fetchResultsTree, type ResultsTreeNode } from '@/api/results'
 import IFrameWindow from '@/components/IFrameWindow.vue'
 
-interface TreeNode {
-  name: string
-  path: string
-  url?: string
-  // Real backend sends `false` on folders and a type string on files.
-  file?: string | false
+// The backend node plus the paging and loading state the tree keeps per folder.
+interface TreeNode extends ResultsTreeNode {
   children?: TreeNode[]
-  hasChildren?: boolean
   nextContinuationToken?: string | null
   loadingMore?: boolean
   childrenLoaded?: boolean
-}
-
-interface ResultsPayload {
-  items?: TreeNode[]
-  nextContinuationToken?: string | null
 }
 
 // Small page size keeps a single "Load more" burst renderable: VTreeview has no
@@ -33,11 +24,14 @@ const MAX_CASCADE_FILES = 300
 // reaching it.
 const MAX_CASCADE_REQUESTS = 300
 
-const panel = ref<number | null>(null)
+// The open preview panel, keyed by result path rather than by position, so
+// that removing a result cannot point it at a different one.
+const panel = ref<string | null>(null)
 const staticUrls = ref<TreeNode[]>([])
 const rootNextContinuationToken = ref<string | null>(null)
 const rootLoadingMore = ref(false)
 const rootLoading = ref(false)
+const rootLoadFailed = ref(false)
 // A folder cascade fetches unloaded descendants directly (bypassing VTreeview's
 // per-node spinner), so surface its own progress or a deep check feels frozen.
 const cascadeLoading = ref(false)
@@ -46,6 +40,7 @@ const tree = ref<TreeNode[]>([])
 
 const confirmDialog = ref(false)
 const confirmCount = ref(0)
+const cancelButton = ref<ComponentPublicInstance | null>(null)
 let pendingCascade: { folder: TreeNode; files: TreeNode[]; truncated: boolean } | null = null
 // Incremented synchronously around our own writes to `tree` so the selection
 // watcher ignores them and only reacts to user checkbox changes. A counter (not
@@ -54,20 +49,38 @@ let suppressSelectionWatch = 0
 
 const isFolder = (node: TreeNode) => !node.file
 
+// VTreeview hides the rows it filters out but reports nothing about how many
+// are left, so the same match test runs here to recognise an empty result.
+function matchesSearch(nodes: TreeNode[], term: string): boolean {
+  return nodes.some(
+    (node) =>
+      node.name.toLowerCase().includes(term) || matchesSearch(node.children || [], term),
+  )
+}
+
+const searchTerm = computed(() => (search.value || '').trim().toLowerCase())
+const hasSearchMatches = computed(
+  () => !searchTerm.value || matchesSearch(staticUrls.value, searchTerm.value),
+)
+const treeIsEmpty = computed(() => !rootLoading.value && !rootLoadFailed.value && !staticUrls.value.length)
+const searchFoundNothing = computed(
+  () => !rootLoading.value && !rootLoadFailed.value && !!staticUrls.value.length && !hasSearchMatches.value,
+)
+
 // The backend emits `children: []` + hasChildren on every node; Vuetify treats
 // any defined `children` as an expandable group, so a file with `children: []`
 // gets a bogus expand toggle. Strip the key from leaves, keep it on folders.
-function normalizeNodes(items: TreeNode[] | undefined): TreeNode[] {
-  return (items || []).map((item) => {
+function normalizeNodes(items: ResultsTreeNode[]): TreeNode[] {
+  return items.map((item: TreeNode) => {
     if (item.hasChildren === false) {
-      const { children, ...leaf } = item
+      const { children: _dropped, ...leaf } = item
       return leaf
     }
     return item
   })
 }
 
-const files: Record<string, string> = {
+const FILE_ICONS: Record<string, string> = {
   html: 'mdi-language-html5',
   js: 'mdi-nodejs',
   json: 'mdi-code-json',
@@ -77,14 +90,24 @@ const files: Record<string, string> = {
   txt: 'mdi-file-document-outline',
   xls: 'mdi-file-excel',
 }
+const FALLBACK_FILE_ICON = 'mdi-file-outline'
 
+// Only .html objects reach the tree today, so an unlisted extension would
+// otherwise render an empty icon slot rather than nothing at all.
+const fileIcon = (node: TreeNode) => FILE_ICONS[node.file as string] ?? FALLBACK_FILE_ICON
+
+// VTreeview types its slot payload as unknown; every slot here is a result node.
 const asNode = (item: unknown): TreeNode => item as TreeNode
 
 const selectedFiles = computed(() => tree.value.filter((item) => item.file && item.url))
 
-watch(selectedFiles, (newValue) => {
-  if (newValue.length > 0) {
-    panel.value = newValue.length - 1
+// Expand the result that was just added. Reacting to removals as well would
+// collapse whatever the user is reading whenever another result is unchecked.
+watch(selectedFiles, (newValue, oldValue) => {
+  const previous = new Set(oldValue.map((node) => node.path))
+  const added = newValue.filter((node) => !previous.has(node.path))
+  if (added.length) {
+    panel.value = added[added.length - 1].path
   }
 })
 
@@ -94,16 +117,17 @@ function notifyLoadFailed(text: string) {
 
 function getStaticWebsiteResults() {
   rootLoading.value = true
-  kaapanaApiService
-    .kaapanaApiGet('/get-static-website-results-tree', { limit: PAGE_SIZE })
-    .then((response: any) => {
-      const payload: ResultsPayload = response.data || { items: [], nextContinuationToken: null }
-      staticUrls.value = normalizeNodes(payload.items)
-      rootNextContinuationToken.value = payload.nextContinuationToken || null
+  rootLoadFailed.value = false
+  fetchResultsTree({ limit: PAGE_SIZE })
+    .then((page) => {
+      staticUrls.value = normalizeNodes(page.items)
+      rootNextContinuationToken.value = page.nextContinuationToken
     })
-    .catch((error: any) => {
+    .catch((error) => {
       console.error('Failed to load workflow results:', error)
-      notifyLoadFailed('The workflow results could not be loaded. Please try again.')
+      // Reported inline rather than as a notification, because the alert stays
+      // next to the empty tree it explains and carries the retry.
+      rootLoadFailed.value = true
     })
     .finally(() => {
       rootLoading.value = false
@@ -119,13 +143,9 @@ async function fetchChildren(rawItem: unknown): Promise<boolean> {
   }
 
   try {
-    const response: any = await kaapanaApiService.kaapanaApiGet('/get-static-website-results-tree', {
-      prefix: item.path,
-      limit: PAGE_SIZE,
-    })
-    const payload: ResultsPayload = response.data || { items: [], nextContinuationToken: null }
-    item.children = normalizeNodes(payload.items)
-    item.nextContinuationToken = payload.nextContinuationToken || null
+    const page = await fetchResultsTree({ prefix: item.path, limit: PAGE_SIZE })
+    item.children = normalizeNodes(page.items)
+    item.nextContinuationToken = page.nextContinuationToken
     item.childrenLoaded = true
     return true
   } catch (error) {
@@ -156,14 +176,13 @@ async function loadMoreForNode(item: TreeNode): Promise<boolean> {
 
   item.loadingMore = true
   try {
-    const response: any = await kaapanaApiService.kaapanaApiGet('/get-static-website-results-tree', {
+    const page = await fetchResultsTree({
       prefix: item.path,
-      continuation_token: item.nextContinuationToken,
+      continuationToken: item.nextContinuationToken,
       limit: PAGE_SIZE,
     })
-    const payload: ResultsPayload = response.data || { items: [], nextContinuationToken: null }
-    item.children = (item.children || []).concat(normalizeNodes(payload.items))
-    item.nextContinuationToken = payload.nextContinuationToken || null
+    item.children = (item.children || []).concat(normalizeNodes(page.items))
+    item.nextContinuationToken = page.nextContinuationToken
     return true
   } catch (error) {
     console.error('Failed to load more workflow result children:', error)
@@ -188,13 +207,12 @@ async function loadMoreRootResults() {
 
   rootLoadingMore.value = true
   try {
-    const response: any = await kaapanaApiService.kaapanaApiGet('/get-static-website-results-tree', {
-      continuation_token: rootNextContinuationToken.value,
+    const page = await fetchResultsTree({
+      continuationToken: rootNextContinuationToken.value,
       limit: PAGE_SIZE,
     })
-    const payload: ResultsPayload = response.data || { items: [], nextContinuationToken: null }
-    staticUrls.value = staticUrls.value.concat(normalizeNodes(payload.items))
-    rootNextContinuationToken.value = payload.nextContinuationToken || null
+    staticUrls.value = staticUrls.value.concat(normalizeNodes(page.items))
+    rootNextContinuationToken.value = page.nextContinuationToken
   } catch (error) {
     console.error('Failed to load more root workflow results:', error)
     notifyLoadFailed('The next page of results could not be loaded. Please try again.')
@@ -324,7 +342,8 @@ async function cascadeSelectFolder(folder: TreeNode) {
     return
   }
   if (files.length > OPEN_CONFIRM_THRESHOLD) {
-    // Only one confirm at a time: don't clobber a pending prompt.
+    // Only one confirm at a time. Closing the dialog clears the pending cascade,
+    // so the flag alone is the whole state.
     if (confirmDialog.value) {
       notify({
         type: 'warn',
@@ -346,12 +365,13 @@ async function cascadeSelectFolder(folder: TreeNode) {
 }
 
 async function confirmCascade() {
+  const confirmed = pendingCascade
+  pendingCascade = null
   confirmDialog.value = false
-  if (!pendingCascade) {
+  if (!confirmed) {
     return
   }
-  const { folder, files, truncated } = pendingCascade
-  pendingCascade = null
+  const { folder, files, truncated } = confirmed
   if (!isStillSelected(folder)) {
     return
   }
@@ -361,13 +381,34 @@ async function confirmCascade() {
   }
 }
 
-async function cancelCascade() {
-  confirmDialog.value = false
+// Dismissing the dialog any way at all -- Cancel, Escape, a click outside --
+// has to leave the folder unchecked, or it would stay ticked without its
+// results ever opening.
+async function cancelPendingCascade() {
   if (pendingCascade) {
     const { folder } = pendingCascade
     pendingCascade = null
     await unselectFolder(folder)
   }
+}
+
+function cancelCascade() {
+  confirmDialog.value = false
+}
+
+// Cancel, Escape and a click outside all settle the model, and it settles before
+// an in-flight cascade can resolve.
+watch(confirmDialog, (open) => {
+  if (!open) {
+    cancelPendingCascade()
+  }
+})
+
+// Focus the safe action, so confirming a large open takes a deliberate move.
+// The dialog otherwise focuses its own content element once it has opened.
+function focusCancelButton() {
+  const button = cancelButton.value?.$el as HTMLElement | undefined
+  button?.focus()
 }
 
 // Unchecking a folder drops its already-selected descendants from the selection
@@ -409,9 +450,9 @@ onMounted(() => {
 </script>
 
 <template>
-  <v-container class="text-left" fluid>
+  <v-container class="text-left results-browser" fluid>
     <v-row>
-      <v-col cols="3">
+      <v-col cols="12" md="4" lg="3">
         <v-card>
           <v-text-field
             v-model="search"
@@ -421,15 +462,60 @@ onMounted(() => {
             hide-details="auto"
             variant="outlined"
             density="compact"
-            prepend-inner-icon="mdi-magnify"
+            :prepend-inner-icon="kaapanaIcons.search"
             clearable
             clear-icon="mdi-close-circle-outline"
           />
           <v-progress-linear v-if="rootLoading || cascadeLoading" indeterminate color="primary" />
+
+          <v-alert
+            v-if="rootLoadFailed"
+            type="error"
+            variant="tonal"
+            density="compact"
+            class="ma-3"
+            title="Could not load the results"
+          >
+            <p class="text-body-2">The workflow results could not be loaded.</p>
+            <template #append>
+              <v-btn
+                variant="text"
+                color="error"
+                :prepend-icon="kaapanaIcons.refresh"
+                :loading="rootLoading"
+                @click="getStaticWebsiteResults"
+              >
+                Retry
+              </v-btn>
+            </template>
+          </v-alert>
+
+          <!-- An empty collection is a normal state, so it carries no alert icon. -->
+          <v-empty-state
+            v-else-if="treeIsEmpty"
+            title="No workflow results yet."
+            text="Results appear here once a workflow run has produced them."
+          />
+
+          <v-empty-state
+            v-else-if="searchFoundNothing"
+            :icon="kaapanaIcons.search"
+            :size="56"
+            title="No loaded result matches your search."
+          >
+            <template #actions>
+              <v-btn variant="text" color="primary" @click="search = null">Clear search</v-btn>
+            </template>
+          </v-empty-state>
+
+          <!-- Vuetify matches the term verbatim, so the treeview has to be given the
+               same term the empty state was decided from. -->
           <v-treeview
+            v-show="!rootLoadFailed"
             v-model:selected="tree"
             :items="staticUrls"
-            :search="search || undefined"
+            :search="searchTerm || undefined"
+            hide-no-data
             item-value="path"
             item-title="name"
             selectable
@@ -444,7 +530,7 @@ onMounted(() => {
                 {{ isOpen ? 'mdi-folder-open' : 'mdi-folder' }}
               </v-icon>
               <v-icon v-else>
-                {{ files[asNode(item).file as string] }}
+                {{ fileIcon(asNode(item)) }}
               </v-icon>
             </template>
             <template #title="{ item }">
@@ -476,24 +562,32 @@ onMounted(() => {
         </v-card>
       </v-col>
 
-      <v-col cols="9">
-        <div v-if="selectedFiles.length == 0">
-          <h1>Workflow results</h1>
-          <p>Results from the workflows will be shown here!</p>
-          <v-icon class="results-icon">mdi-chart-bar-stacked</v-icon>
+      <v-col cols="12" md="8" lg="9">
+        <div
+          v-if="selectedFiles.length === 0"
+          class="d-flex flex-column align-center text-center text-medium-emphasis py-16"
+        >
+          <v-icon size="96" icon="mdi-chart-bar-stacked" />
+          <h2 class="text-h5 mt-4">Workflow results</h2>
+          <p class="text-body-1 mt-2">Select a result on the left to preview it here.</p>
         </div>
         <v-expansion-panels v-model="panel" variant="accordion">
-          <v-expansion-panel v-for="node in selectedFiles" :key="node.path">
+          <v-expansion-panel v-for="node in selectedFiles" :key="node.path" :value="node.path">
             <v-expansion-panel-title>
-              <span>
-                {{ node.name }}
-                <v-tooltip location="bottom">
-                  <template #activator="{ props }">
-                    <v-icon color="primary" v-bind="props">mdi-folder</v-icon>
-                  </template>
-                  <span>{{ node.url }}</span>
-                </v-tooltip>
-                <v-icon color="primary" @click="openExternalPage(node.url!)">mdi-open-in-new</v-icon>
+              <span class="d-flex align-center ga-2">
+                <span class="text-truncate">{{ node.name }}</span>
+                <v-btn
+                  icon
+                  :aria-label="`Open ${node.name} in a new tab`"
+                  color="primary"
+                  variant="text"
+                  density="comfortable"
+                  size="small"
+                  @click.stop="openExternalPage(node.url!)"
+                >
+                  <v-icon>{{ kaapanaIcons.externalLink }}</v-icon>
+                  <v-tooltip activator="parent" location="bottom">{{ node.url }}</v-tooltip>
+                </v-btn>
               </span>
             </v-expansion-panel-title>
             <v-expansion-panel-text>
@@ -504,7 +598,11 @@ onMounted(() => {
       </v-col>
     </v-row>
 
-    <v-dialog v-model="confirmDialog" max-width="420" persistent>
+    <v-dialog
+      v-model="confirmDialog"
+      max-width="400"
+      @after-enter="focusCancelButton"
+    >
       <v-card>
         <v-card-title>Open {{ confirmCount }} results?</v-card-title>
         <v-card-text>
@@ -513,7 +611,7 @@ onMounted(() => {
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="cancelCascade">Cancel</v-btn>
+          <v-btn ref="cancelButton" variant="text" @click="cancelCascade">Cancel</v-btn>
           <v-btn color="primary" variant="text" @click="confirmCascade">Open all</v-btn>
         </v-card-actions>
       </v-card>
@@ -521,19 +619,11 @@ onMounted(() => {
   </v-container>
 </template>
 
-<style lang="scss">
-.v-treeview-node__content,
-.v-treeview-node__label {
-  flex-shrink: 1;
-}
-
-.v-treeview-node__root {
-  height: auto;
-}
-
-.results-icon {
-  font-size: 425px !important;
-  text-align: center;
-  width: 100%;
+<style scoped lang="scss">
+// The results are a viewer and earn the width they are given, but past this the
+// tree and the preview drift too far apart to scan as one screen.
+.results-browser {
+  max-width: 2100px;
 }
 </style>
+

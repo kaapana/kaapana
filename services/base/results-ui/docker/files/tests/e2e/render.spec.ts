@@ -20,8 +20,10 @@ test('renders the typical result tree on load', async ({ page }) => {
   await expect(page.getByText('total-segmentator-230102')).toBeVisible()
   await expect(page.getByText('overview.html')).toBeVisible()
 
-  // Nothing selected yet, so the right pane shows the placeholder.
+  // Nothing selected yet, so the right pane shows the placeholder and says what
+  // to do next.
   await expect(page.getByRole('heading', { name: 'Workflow results' })).toBeVisible()
+  await expect(page.getByText('Select a result on the left to preview it here.')).toBeVisible()
 })
 
 // Pages are requested in 100-node chunks so a single render burst stays small
@@ -75,5 +77,59 @@ test('shows no tree rows when the backend returns an empty listing', async ({ pa
   await expect(page.getByText('nnunet-training-230101')).toHaveCount(0)
   await expect(page.locator('.v-treeview .v-list-item')).toHaveCount(0)
 
-  await expect(page.getByRole('heading', { name: 'Workflow results' })).toBeVisible()
+  // An empty listing says so, rather than leaving a blank panel.
+  await expect(page.getByText('No workflow results yet.')).toBeVisible()
+})
+
+test('a search that matches nothing says so and offers to clear itself', async ({ page }) => {
+  await seedShellState(page)
+  await installMockBackend(page)
+  await page.goto(VIEW_PATH)
+  await expect(page.getByText('nnunet-training-230101')).toBeVisible()
+
+  await page.getByRole('textbox', { name: 'Search loaded results' }).fill('no-such-result')
+  await expect(page.getByText('No loaded result matches your search.')).toBeVisible()
+  // The view's own message is the only one; the treeview's generic fallback row
+  // would otherwise say the same thing again, untranslated.
+  await expect(page.getByText('No data available')).toHaveCount(0)
+
+  await page.getByRole('button', { name: 'Clear search', exact: true }).click()
+
+  await expect(page.getByText('No loaded result matches your search.')).toBeHidden()
+  await expect(page.getByText('nnunet-training-230101')).toBeVisible()
+})
+
+// The icon map lists the extensions the backend produced historically; anything
+// outside it used to render an empty icon slot.
+test('a file with an unlisted extension still gets an icon', async ({ page }) => {
+  const data = structuredClone(defaultMockData)
+  data.root.items.push({
+    name: 'summary.csv',
+    path: 'summary.csv',
+    file: 'csv',
+    children: [],
+    hasChildren: false,
+    url: '/minio-console/download/results/summary.csv',
+  })
+  await seedShellState(page)
+  await installMockBackend(page, data)
+  await page.goto(VIEW_PATH)
+
+  const row = page.locator('.v-list-item', { hasText: 'summary.csv' })
+  await expect(row).toBeVisible()
+  await expect(row.locator('.mdi-file-outline')).toHaveCount(1)
+})
+
+// The two columns used to keep their desktop split at every width, leaving the
+// tree a quarter of a narrow window.
+test('the tree and the preview stack on a narrow viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 600, height: 900 })
+  await seedShellState(page)
+  await installMockBackend(page)
+  await page.goto(VIEW_PATH)
+  await expect(page.getByText('nnunet-training-230101')).toBeVisible()
+
+  const treeColumn = page.locator('.v-treeview').locator('xpath=ancestor::div[contains(@class,"v-col")][1]')
+  const box = await treeColumn.boundingBox()
+  expect(box!.width).toBeGreaterThan(400)
 })

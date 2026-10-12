@@ -86,12 +86,8 @@ class BaseUIForm(BaseModel):
     type: str = Field(..., description="Type of the UI form element.")
     title: str = Field(..., description="Display title for the input field.")
     description: str = Field(..., description="Detailed description of this parameter.")
-    help: Optional[str] = Field(
-        None, description="Additional help or usage information."
-    )
-    required: Optional[bool] = Field(
-        False, description="Whether the field is required."
-    )
+    help: Optional[str] = Field(None, description="Additional help or usage information.")
+    required: Optional[bool] = Field(False, description="Whether the field is required.")
     default: Optional[Any] = Field(None, description="Default value for the field.")
 
 
@@ -194,9 +190,7 @@ class StringUIForm(BaseUIForm):
     """
 
     type: Literal["str"] = "str"
-    regex_pattern: str = Field(
-        ..., description="Regex pattern for validating the string input."
-    )
+    regex_pattern: str = Field(..., description="Regex pattern for validating the string input.")
     random_default: Optional[bool] = Field(
         False,
         description="If true and no static default is set, the frontend pre-fills this field with a generated human-readable random value instead of an empty string.",
@@ -250,13 +244,9 @@ class DataEntitiesUIForm(BaseUIForm):
     """
 
     type: Literal["data_entity"] = "data_entity"
-    query: str = Field(
-        ..., description="Query string to fetch data entities from the Data API."
-    )
+    query: str = Field(..., description="Query string to fetch data entities from the Data API.")
     limit: int = Field(..., description="Maximum number of results to return.")
-    pagination: bool = Field(
-        ..., description="Enable pagination in the result display."
-    )
+    pagination: bool = Field(..., description="Enable pagination in the result display.")
 
 
 class FileUIForm(BaseUIForm):
@@ -272,12 +262,8 @@ class FileUIForm(BaseUIForm):
     """
 
     type: Literal["file"] = "file"
-    accept: str | None = Field(
-        default=None, description="Accepted file types (e.g., '.json,.yaml,.txt')."
-    )
-    multiple: bool = Field(
-        default=False, description="Whether to allow multiple file uploads."
-    )
+    accept: str | None = Field(default=None, description="Accepted file types (e.g., '.json,.yaml,.txt').")
+    multiple: bool = Field(default=False, description="Whether to allow multiple file uploads.")
 
 
 class TermsUIForm(BaseUIForm):
@@ -293,9 +279,7 @@ class TermsUIForm(BaseUIForm):
     """
 
     type: Literal["terms"] = "terms"
-    terms_text: str = Field(
-        ..., description="The terms and conditions text that the user must accept."
-    )
+    terms_text: str = Field(..., description="The terms and conditions text that the user must accept.")
 
 
 UIForm = Union[
@@ -403,9 +387,7 @@ class WorkflowUpdate(_MutableWorkflowBase):
     """
 
     # Override the base's required fields to be optional for the partial-update shape.
-    title: Optional[str] = Field(
-        default=None, min_length=1, pattern=r".*[A-Za-z0-9._-].*"
-    )
+    title: Optional[str] = Field(default=None, min_length=1, pattern=r".*[A-Za-z0-9._-].*")
     definition: Optional[str] = None
     labels: Optional[List[Label]] = None
 

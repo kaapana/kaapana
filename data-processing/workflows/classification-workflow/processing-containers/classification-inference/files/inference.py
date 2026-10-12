@@ -77,9 +77,7 @@ def inference(model, mt_val):
             predictions = torch.round(torch.sigmoid(outputs)).detach().cpu().numpy()
 
             for i in range(len(predictions)):
-                final_predictions[samples[i]] = CLASS_TO_TAG_MAPPING[
-                    int(predictions[i][0])
-                ]
+                final_predictions[samples[i]] = CLASS_TO_TAG_MAPPING[int(predictions[i][0])]
 
     return final_predictions
 
@@ -95,13 +93,9 @@ if __name__ == "__main__":
         num_classes=NUM_CLASSES,
     )
 
-    checkpoint_candidates = [
-        f for f in os.listdir(MODEL_MOUNT) if f.endswith(".pth.tar")
-    ]
+    checkpoint_candidates = [f for f in os.listdir(MODEL_MOUNT) if f.endswith(".pth.tar")]
     if len(checkpoint_candidates) != 1:
-        raise FileNotFoundError(
-            f"Expected exactly one checkpoint file in {MODEL_MOUNT}, found {checkpoint_candidates}"
-        )
+        raise FileNotFoundError(f"Expected exactly one checkpoint file in {MODEL_MOUNT}, found {checkpoint_candidates}")
     checkpoint_filename = checkpoint_candidates[0]
     path_to_checkpoint_file = os.path.join(MODEL_MOUNT, checkpoint_filename)
 

@@ -29,7 +29,5 @@ def download_model(task_ids: str) -> None:
 if __name__ == "__main__":
     task_ids = os.environ["TASK_IDS"]
     if not task_ids:
-        raise ValueError(
-            "TASK_IDS is empty — select a model via the TASK_IDS workflow parameter."
-        )
+        raise ValueError("TASK_IDS is empty — select a model via the TASK_IDS workflow parameter.")
     download_model(task_ids)

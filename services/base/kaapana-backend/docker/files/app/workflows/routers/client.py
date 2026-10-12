@@ -966,7 +966,5 @@ def get_installed_models(
     project=Depends(get_project),
 ):
     """List installed models available to the current project, optionally filtered by kind."""
-    db_objs = crud.get_installed_models_by_project(
-        db, project_id=project.get("id"), kind=kind
-    )
+    db_objs = crud.get_installed_models_by_project(db, project_id=project.get("id"), kind=kind)
     return [m.to_dict() for m in db_objs]

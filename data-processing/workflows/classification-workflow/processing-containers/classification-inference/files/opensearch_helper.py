@@ -19,9 +19,7 @@ class OpenSearchHelper:
     @staticmethod
     def add_tag_to_id(doc_id: str, tag: str) -> None:
         # Fetch the current tags of the document
-        response = os_client.get(
-            index=opensearch_index, id=doc_id, _source_includes=["00000000 Tags_keyword"]
-        )
+        response = os_client.get(index=opensearch_index, id=doc_id, _source_includes=["00000000 Tags_keyword"])
         current_tags = response["_source"].get("00000000 Tags_keyword", [])
 
         # Check if the tag is not already in the list

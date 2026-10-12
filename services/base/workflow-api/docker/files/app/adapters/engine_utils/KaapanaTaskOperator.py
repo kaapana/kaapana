@@ -239,9 +239,7 @@ class KaapanaTaskOperator(BaseOperator):
                 task_models.IOVolume(
                     name=channel.name,
                     volume_source=self._workflow_data_volume_source(),
-                    sub_path=str(
-                        Path(context["dag_run"].run_id, self.task_id, channel.name)
-                    ),
+                    sub_path=str(Path(context["dag_run"].run_id, self.task_id, channel.name)),
                 )
             )
         inputs = []

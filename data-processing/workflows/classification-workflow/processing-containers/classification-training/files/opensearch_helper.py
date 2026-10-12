@@ -1,6 +1,7 @@
+import logging
 import os
 from typing import List
-import logging
+
 from kaapanapy.helper import get_opensearch_client
 from kaapanapy.settings import OpensearchSettings
 

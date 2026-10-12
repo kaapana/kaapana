@@ -17,12 +17,27 @@ logger.addHandler(c_handler)
 
 
 def download_model(task_ids: str) -> None:
-    relative_dir, checkpoint_name = task_ids.split("/", 1)
-    source_dir = MODELS_ROOT / relative_dir
+    relative_dir, _, checkpoint_name = task_ids.partition("/")
+    models_root = MODELS_ROOT.resolve()
+    source_dir = (models_root / relative_dir).resolve()
+    checkpoint = (source_dir / checkpoint_name).resolve()
+
+    # TASK_IDS is part of the run request. A value with ".." must not read files outside the models directory.
+    if source_dir.parent != models_root or checkpoint.parent != source_dir:
+        raise ValueError(f"Invalid TASK_IDS '{task_ids}'. Expected '<model directory>/<checkpoint file>'.")
+
+    # The model registry can still list a model whose files were deleted.
+    # A clear message helps the user to select another model.
+    missing = [str(path) for path in (source_dir / "config.json", checkpoint) if not path.is_file()]
+    if missing:
+        raise FileNotFoundError(
+            f"The model '{task_ids}' is not available anymore. Missing files: {', '.join(missing)}. "
+            "Select another model."
+        )
 
     OUTPUT_MOUNT.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source_dir / "config.json", OUTPUT_MOUNT / "config.json")
-    shutil.copy2(source_dir / checkpoint_name, OUTPUT_MOUNT / checkpoint_name)
+    shutil.copy2(checkpoint, OUTPUT_MOUNT / checkpoint.name)
     logger.info(f"Copied model '{task_ids}' from {source_dir} to {OUTPUT_MOUNT}")
 
 

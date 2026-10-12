@@ -210,7 +210,6 @@ def evaluate(model, epoch, mt_val, train_loss):
 
 if __name__ == "__main__":
     logger.debug("Main of trainer_v3 started")
-    logger.debug(f"Set task: {os.environ['RUN_ID']}")
     logger.debug("Train dir set to: %s" % PREPROCESSED_MOUNT)
     logger.debug("Results dir set to: %s" % RESULTS_DIR)
 
@@ -337,7 +336,8 @@ if __name__ == "__main__":
 
     logger.debug("Init Tensorboard")
 
-    writer = SummaryWriter(os.path.join("/tensorboard", os.environ["RUN_ID"]))
+    # One directory per model keeps the curves of separate runs apart in TensorBoard.
+    writer = SummaryWriter(os.path.join("/tensorboard", "classification-training", MODEL_CHECKPOINT_NAME))
 
     best_ema_f1 = 0
     ema_f1 = None

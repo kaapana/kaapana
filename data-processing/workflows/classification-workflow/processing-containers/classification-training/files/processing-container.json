@@ -38,11 +38,6 @@
                     "description": "Name of the trained model. Allowed characters are lowercase letters, digits, '-' and '_'. A UTC timestamp is appended, and the result is stored in config.json of the \"model\" output."
                 },
                 {
-                    "name": "RUN_ID",
-                    "value": "classification-training",
-                    "description": "Not injected by KaapanaTaskOperator (see migration-notes.md) — used only for the TensorBoard log subdirectory and a debug log line, not for checkpoint identity. Statically overridden per DAG in workflow_definition.py rather than exposed as a workflow_parameter, since nothing downstream reads training's TensorBoard logs (see migration-notes.md) — collisions between runs are harmless."
-                },
-                {
                     "name": "KAAPANA_PROJECT_IDENTIFIER",
                     "value": "",
                     "description": "Identifier of the project that started the run. The workflow-api sets it for every task. It is used to look up the OpenSearch index of the project in the access-information-interface."

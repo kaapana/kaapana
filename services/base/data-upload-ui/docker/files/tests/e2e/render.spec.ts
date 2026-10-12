@@ -23,6 +23,21 @@ test('renders both upload options and the browser dropzone', async ({ page }) =>
   await expect(page.getByRole('button', { name: /Import the data/ })).toBeVisible()
 })
 
+test('the dcmsend example can be copied', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  await installMockBackend(page)
+  await page.goto(VIEW_PATH)
+
+  const copy = page.getByRole('button', { name: 'Copy command' })
+  await copy.click()
+  await expect(page.getByRole('button', { name: 'Copied' })).toBeVisible()
+  const copied = await page.evaluate(() => navigator.clipboard.readText())
+  expect(copied).toBe(
+    `dcmsend -v localhost 11112 --scan-directories --aetitle kp-<dataset-name> ` +
+      `--call kp-admin --scan-pattern '*.dcm' --recurse <data-dir-of-DICOM-images>`,
+  )
+})
+
 test('the dcmsend example explains the default port and the dataset name limit', async ({
   page,
 }) => {

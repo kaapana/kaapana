@@ -36,12 +36,17 @@
               If you have images locally you can use e.g. DCMTK. However, any tool that sends images
               to a DICOM receiver can be used. Here is an example of sending images with DCMTK:
             </p>
-            <code>
-              dcmsend -v {{ hostname }} 11112 --scan-directories --aetitle kp-{{
-                '<'
-              }}dataset-name{{ '>' }} --call kp-{{ projectShortId }} --scan-pattern '*.dcm'
-              --recurse {{ '<' }}data-dir-of-DICOM-images{{ '>' }}
-            </code>
+            <div class="d-flex align-start ga-2 bg-surface-light rounded pa-3">
+              <code class="flex-grow-1 dcmsend-command">{{ dcmsendCommand }}</code>
+              <v-btn
+                variant="text"
+                size="small"
+                :prepend-icon="commandCopied ? kaapanaIcons.success : undefined"
+                @click="copyCommand"
+              >
+                {{ commandCopied ? 'Copied' : 'Copy command' }}
+              </v-btn>
+            </div>
             <p class="mt-4 mb-2">
               11112 is the default port of the DICOM receiver. Your administrator may have
               configured a different port for this platform.
@@ -188,6 +193,26 @@ const projectShortId = computed(() => selectedProject.value.short_id ?? '<projec
 const workflowDialog = ref(false)
 const infoDialog = ref(false)
 const hostname = window.location.hostname
+const dcmsendCommand = computed(
+  () =>
+    `dcmsend -v ${hostname} 11112 --scan-directories --aetitle kp-<dataset-name> ` +
+    `--call kp-${projectShortId.value} --scan-pattern '*.dcm' --recurse <data-dir-of-DICOM-images>`,
+)
+const commandCopied = ref(false)
+let commandCopiedTimer: ReturnType<typeof setTimeout> | undefined
+
+async function copyCommand() {
+  try {
+    await navigator.clipboard.writeText(dcmsendCommand.value)
+  } catch {
+    // The clipboard API is unavailable outside secure contexts. The command
+    // stays selectable on the page.
+    return
+  }
+  commandCopied.value = true
+  clearTimeout(commandCopiedTimer)
+  commandCopiedTimer = setTimeout(() => (commandCopied.value = false), 2000)
+}
 
 // selectedProject drives the archived guard and the dcmsend example, so a failed
 // lookup stays visible on the page instead of in a notification that disappears.
@@ -229,6 +254,12 @@ if (!localStorage['settings']) {
    of a wide display. The container centres itself in the space beyond. */
 .data-upload-view {
   max-width: 1200px;
+}
+
+/* Long paths and placeholders must wrap instead of widening the card. */
+.dcmsend-command {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 /* The numbered icons mark the steps, so the list needs no markers of its own. */

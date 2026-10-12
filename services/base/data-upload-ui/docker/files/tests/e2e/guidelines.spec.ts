@@ -30,6 +30,13 @@ test.describe('visual language', () => {
     }
   })
 
+  test('actions use the symbols of the shared icon map', async ({ page }) => {
+    const info = page.getByRole('button', { name: 'How should the uploaded data look?' })
+    await expect(info.locator('.v-icon')).toHaveClass(/(^|\s)mdi-information(\s|$)/)
+    const start = page.getByRole('button', { name: /Import the data/ })
+    await expect(start.locator('.v-icon')).toHaveClass(/(^|\s)mdi-play(\s|$)/)
+  })
+
   test('no local font rule overrides the platform typeface', async ({ page }) => {
     const fonts = await page.evaluate(() => ({
       app: getComputedStyle(document.querySelector('#app')!).fontFamily,

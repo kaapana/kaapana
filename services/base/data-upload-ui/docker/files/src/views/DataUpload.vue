@@ -75,7 +75,7 @@
                         variant="text"
                         aria-label="How should the uploaded data look?"
                       >
-                        <v-icon color="primary"> mdi-information </v-icon>
+                        <v-icon color="primary">{{ kaapanaIcons.info }}</v-icon>
                       </v-btn>
                     </template>
                     <v-card>
@@ -140,7 +140,7 @@
                     <template #activator="{ props: activatorProps }">
                       <v-btn v-bind="activatorProps" color="primary" :disabled="isArchived">
                         Import the data
-                        <v-icon>mdi-play-outline</v-icon>
+                        <v-icon>{{ kaapanaIcons.start }}</v-icon>
                       </v-btn>
                     </template>
                     <v-defaults-provider :defaults="underlinedFieldDefaults">

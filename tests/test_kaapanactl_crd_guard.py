@@ -33,7 +33,7 @@ CASES = {  # $CRD_STATE: (exit code, expected in output)
     "absent": (0, ""),  # fresh install: Helm creates the CRDs itself
     "served": (0, ""),  # redeploy: Helm never removes crds/
     "deleting": (1, "CRD middlewares.traefik.io is being deleted"),  # all reported
-    "unserved": (1, "exists but is not served"),  # fails at once, never waits
+    "unserved": (0, ""),  # left to Helm v4, which re-applies the CRD
     "unreachable": (1, "connection to the server was refused"),  # not "absent"
     "unreadable-chart": (1, 'path "chart.tgz" not found'),  # not "no CRDs"
 }

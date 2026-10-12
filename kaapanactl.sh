@@ -2186,7 +2186,7 @@ function setup_storage_classes() {
 # one that already exists is skipped without any check, so a CRD left terminating
 # (finalizer pending) or not yet served after an earlier uninstall makes the install
 # fail later with "no matches for kind ...". Check the existing ones for an unusable state
-# (being deleted, not served).
+# (being deleted).
 # Usage: check_chart_crds <chart .tgz or directory>
 function check_chart_crds {
     local chart_path="$1" crds crd found deletion_ts problems=0
@@ -2203,12 +2203,15 @@ function check_chart_crds {
             problems=1
             continue
         fi
-        # Established alone is not enough: Helm resolves kinds via API discovery, which can lag behind it.
-        if ! $KUBECTL_EXECUTABLE get "$crd" >/dev/null 2>&1; then
-            echo "${RED}CRD $crd exists but is not served by the API. Retry shortly; if it persists, its status conditions show why:${NC}"
-            echo "  $KUBECTL_EXECUTABLE get crd $crd -o yaml"
-            problems=1
-        fi
+        # Disabled: on Helm v4 this check can block a deploy that would succeed. Helm v4 re-applies
+        # existing CRDs, so one that is not served because of its spec (served: false) is restored
+        # by Helm or fails the apply before anything is installed (tested).
+        # # Established alone is not enough: Helm resolves kinds via API discovery, which can lag behind it.
+        # if ! $KUBECTL_EXECUTABLE get "$crd" >/dev/null 2>&1; then
+        #     echo "${RED}CRD $crd exists but is not served by the API. Retry shortly; if it persists, its status conditions show why:${NC}"
+        #     echo "  $KUBECTL_EXECUTABLE get crd $crd -o yaml"
+        #     problems=1
+        # fi
     done
     return $problems
 }

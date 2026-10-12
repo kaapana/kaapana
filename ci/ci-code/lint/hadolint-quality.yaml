@@ -1,0 +1,17 @@
+# Rules: https://github.com/hadolint/hadolint#rules
+# Advisory: every rule at the level hadolint gives it
+
+# registry.hzdr.de hosts Kaapana's own images; the local registry serves in-cluster builds
+trustedRegistries:
+  - docker.io
+  - quay.io
+  - registry.k8s.io
+  - registry.hzdr.de
+  - local-registry.services.svc.cluster.local:5000
+ignored:
+  # FROM local-only/<image>:latest is an image kaapana-build produces in the same build
+  - DL3007
+  # COPY --from=constraints|lib|charts are build contexts kaapana-build passes in
+  - DL3022
+  # LABEL IMAGE/VERSION/BUILD_IGNORE are the uppercase keys kaapana-build reads
+  - DL3048

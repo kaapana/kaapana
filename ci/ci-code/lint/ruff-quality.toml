@@ -2,8 +2,38 @@ extend = "../../../ruff.toml"
 
 [lint]
 # select on top of an extend also clears the extended ignore list
-select = ["E", "W", "F", "I", "B", "C4", "SIM", "UP", "RUF"]
-ignore = [
-    "E501", # the formatter owns line width
-    "B008", # FastAPI's Depends() idiom
+select = [
+    "E",     # pycodestyle errors: all style errors, including whitespace, indentation and line length
+    "W",     # pycodestyle warnings: trailing whitespace, blank lines with spaces, missing newline at end of file
+    "F",     # Pyflakes: undefined names, unused imports and variables, redefinitions, invalid format strings
+    "I",     # isort: imports sorted and grouped (standard library, third party, first party)
+    "B",     # flake8-bugbear: likely bugs, such as mutable default arguments or loop variables captured in closures
+    "C4",    # flake8-comprehensions: unnecessary list(), dict() and set() calls that a comprehension or literal replaces
+    "SIM",   # flake8-simplify: code that can be written simpler, such as nested ifs or if/else returning a bool
+    "UP",    # pyupgrade: syntax that newer Python versions replace, such as old typing imports or % formatting
+    "RUF",   # Ruff's own rules: mutable class defaults, ambiguous unicode characters, unused noqa comments
+    "S",     # flake8-bandit: security issues, such as hardcoded passwords, shell=True or unsafe deserialisation
+    "BLE",   # flake8-blind-except: except Exception without re-raising or logging
+    "ASYNC", # flake8-async: blocking calls inside async functions, such as time.sleep or synchronous HTTP
+    "DTZ",   # flake8-datetimez: datetime objects created without a timezone
+    "PERF",  # Perflint: slow patterns, such as try/except inside loops or appending in a loop instead of a comprehension
+    "FAST",  # FastAPI: redundant response_model, missing Annotated for dependencies, unused path parameters
+    "C90",   # mccabe: functions that are too complex, by the number of branches
+    "ANN",   # flake8-annotations: missing type annotations on functions and arguments
+    "T20",   # flake8-print: print() and pprint() calls instead of logging
+    "PTH",   # flake8-use-pathlib: os and os.path calls that pathlib replaces
+    "PL",    # Pylint: too many arguments, branches or statements, magic numbers, global statements and more
+    "N",     # pep8-naming: names of classes, functions, arguments and variables
+    "TRY",   # tryceratops: exception handling, such as raising vanilla exceptions or long messages in raise
+    "G",     # flake8-logging-format: f-strings and % formatting in logging calls
+    "LOG",   # flake8-logging: logger misuse, such as getLogger(__file__) or exception() outside except
+    "RET",   # flake8-return: unnecessary return None, else after return, assignments right before return
+    "ARG",   # flake8-unused-arguments: function and method arguments that are never used
+    "FBT",   # flake8-boolean-trap: boolean positional arguments that make calls hard to read
+    "ERA",   # eradicate: commented-out code
 ]
+
+[lint.per-file-ignores]
+# pytest uses plain assert
+"**/{tests,test,e2e}/**" = ["S101"]
+"**/{test_*,*_test,conftest}.py" = ["S101"]

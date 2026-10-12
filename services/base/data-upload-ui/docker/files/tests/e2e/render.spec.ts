@@ -8,11 +8,18 @@ test('renders both upload options and the browser dropzone', async ({ page }) =>
   await expect(page.getByRole('heading', { name: 'Data upload' })).toBeVisible()
   // Option 1: DICOM receiver instructions, with the selected project's short_id
   // baked into the dcmsend example.
-  await expect(page.getByText('Using the DICOM receiver port.')).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Option 1 (preferred): Using the DICOM receiver port' }),
+  ).toBeVisible()
   await expect(page.getByText(/kp-admin/)).toBeVisible()
   // Option 2: browser upload card + FilePond dropzone + import trigger.
-  await expect(page.getByText('Upload the data via the browser')).toBeVisible()
-  await expect(page.getByText('Dicoms, ITK images or any other data')).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Option 2: Upload the data via the browser (experimental)' }),
+  ).toBeVisible()
+  // The label names the click alternative to dragging files.
+  await expect(page.locator('.filepond--drop-label')).toHaveText(
+    'Drop DICOM, NIfTI or other data here or browse',
+  )
   await expect(page.getByRole('button', { name: /Import the data/ })).toBeVisible()
 })
 
@@ -45,8 +52,9 @@ test('info dialog explains the expected upload format', async ({ page }) => {
     .getByRole('button')
     .filter({ has: page.locator('.mdi-information') })
     .click()
-  await expect(page.getByText('How should the uploaded data look like?')).toBeVisible()
-  await expect(page.getByText('Upload of DICOM data')).toBeVisible()
+  await expect(page.getByText('How should the uploaded data look?')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Upload DICOM data' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Upload NIfTI data' })).toBeVisible()
   // The workflow and the documentation section the dialog points to must exist.
   await expect(page.getByText('import-niftis-from-data-upload')).toBeVisible()
   await expect(page.getByRole('link', { name: 'Kaapana documentation' })).toHaveAttribute(
@@ -54,7 +62,7 @@ test('info dialog explains the expected upload format', async ({ page }) => {
     'https://kaapana.readthedocs.io/en/stable/user_guide/workflow_management_system/data_upload.html#nifti-data',
   )
   await page.getByRole('button', { name: 'Got it!' }).click()
-  await expect(page.getByText('How should the uploaded data look like?')).toBeHidden()
+  await expect(page.getByText('How should the uploaded data look?')).toBeHidden()
 })
 
 // Regression: the router auth guard must proceed even when checkAuth fails, so

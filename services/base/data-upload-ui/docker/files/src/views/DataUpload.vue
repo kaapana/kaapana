@@ -1,6 +1,6 @@
 <template>
   <v-container fluid class="text-left data-upload-view">
-    <h1>Data upload</h1>
+    <h1 class="text-h4 mb-4">Data upload</h1>
     <v-alert v-if="projectLoadError" type="error" variant="tonal" class="mb-4">
       {{ projectLoadErrorText }}
       <template #append>
@@ -28,8 +28,8 @@
     <v-row dense>
       <v-col cols="12">
         <v-card>
-          <v-card-title class="text-h5">
-            Option 1 (preferred): Using the DICOM receiver port.
+          <v-card-title tag="h2" class="text-h5">
+            Option 1 (preferred): Using the DICOM receiver port
           </v-card-title>
           <v-card-text>
             <p class="mb-4">
@@ -56,8 +56,8 @@
       </v-col>
       <v-col cols="12">
         <v-card :disabled="isArchived">
-          <v-card-title class="text-h5">
-            Option 2: Upload the data via the browser(experimental).
+          <v-card-title tag="h2" class="text-h5">
+            Option 2: Upload the data via the browser (experimental)
           </v-card-title>
           <v-card-text>
             <ol class="upload-steps">
@@ -74,11 +74,11 @@
                 <v-icon size="large">mdi-numeric-2-circle</v-icon>
                 <div class="flex-grow-1">
                   <p class="mb-2">
-                    Upload DICOMS, NIfTIs or any data you want to use in a workflow as a zip file
-                    via the dropzone.
+                    Upload DICOM data, NIfTI data or any other data you want to use in a workflow as
+                    a zip file via the drop zone.
                   </p>
                   <Upload
-                    label-idle="Dicoms, ITK images or any other data"
+                    label-idle="Drop DICOM, NIfTI or other data here or <span class='filepond--label-action'>browse</span>"
                     :disabled="isArchived"
                     @uploading="postViewDirty"
                   ></Upload>
@@ -101,26 +101,27 @@
 
             <v-dialog v-model="infoDialog" width="60vw">
               <v-card>
-                <v-card-title class="text-h5">
-                  How should the uploaded data look like?
+                <v-card-title tag="h2" class="text-h5">
+                  How should the uploaded data look?
                 </v-card-title>
                 <v-card-text>
-                  <h3>Upload of DICOM data</h3>
-                  <p>
-                    DICOM data should be uploaded in a single compressed zip-file containing
+                  <h3 class="text-h6 mb-2">Upload DICOM data</h3>
+                  <p class="mb-4">
+                    DICOM data should be uploaded in a single compressed zip file containing
                     folder(s) with DICOM files.
                   </p>
-                  <h3>Upload NIfTI data</h3>
-                  <p>
+                  <h3 class="text-h6 mb-2">Upload NIfTI data</h3>
+                  <p class="mb-2">
                     Since the platform works with the DICOM standard, NIfTI data is converted to
-                    DICOMs by triggering the workflow `import-niftis-from-data-upload`. If you have
-                    only NIfTI files without segmentations, the files with file endings `.nii.gz` or
-                    `.nii` can be uploaded in a compressed zip-file.
+                    DICOM by triggering the workflow <code>import-niftis-from-data-upload</code>. If
+                    you have only NIfTI files without segmentations, the files with file endings
+                    <code>.nii.gz</code> or <code>.nii</code> can be uploaded in a compressed zip
+                    file.
                   </p>
                   <p>
-                    For NIfTI data kaapana supports multiple ways to specify metadata for volumes
-                    and segmentations. Depending on the use case the data has to be formated in one
-                    of the directory structures described in the
+                    For NIfTI data, Kaapana supports multiple ways to specify metadata for volumes
+                    and segmentations. Depending on the use case, the data has to be formatted in
+                    one of the directory structures described in the
                     <a
                       href="https://kaapana.readthedocs.io/en/stable/user_guide/workflow_management_system/data_upload.html#nifti-data"
                       target="_blank"

@@ -10,28 +10,35 @@ export const VIEW_PATH = '/project/admin/app-ui/'
 export const TASKS_PATH = VIEW_PATH + 'tasks'
 export const APPS_PATH = VIEW_PATH + 'apps'
 
-// The project VIEW_PATH scopes to (the first mock project); the view filters
-// applications by its id.
-export const PROJECT_ID = 1
+export const TASKS_TITLE = 'Applications waiting for your input'
+export const APPS_TITLE = 'Project applications'
 
-// Raw (snake_case) wire shapes as parsed by getActiveApplications() in
-// ActiveApplications.vue, whose interfaces are private to the .vue — re-declared
-// here; drift is caught at the builder call sites, not by type-check.
+// The project VIEW_PATH scopes to (the first mock project); the view filters
+// applications by its id, an AII UUID.
+export const PROJECT_ID = '7f3c9a2e-5b41-4d8e-9c6a-1e2f3a4b5c6d'
+export const OTHER_PROJECT_ID = '2b8d4f6a-0c1e-4a3b-8d5f-6e7a8b9c0d1e'
+
+// Wire shapes of kube-helm's ActiveApplication schema, as parsed by
+// src/api/applications.ts. Re-declared here; drift is caught at the builder
+// call sites, not by type-check.
 export interface RawPod {
   name: string
   status: string
   ready: string
-  restarts: number | string
+  restarts: string
+  age?: string
 }
 
 export interface RawApplication {
   annotations: Record<string, string>
   created_at: string
   from_workflow_run: boolean
+  // The ingress name. The name users see is the kaapana.ai/display-name annotation.
   name: string
+  namespace: string
   paths: string[]
   pods: RawPod[]
-  project: string | number
+  project: string
   ready: boolean
   release_name: string
 }
@@ -39,8 +46,9 @@ export interface RawApplication {
 export interface MockData {
   userinfo: { preferredUsername: string; groups: string[]; user: string }
   aiiUser: { id: string; realm_roles: string[] }
-  projects: Array<{ id: number; name: string; short_id?: string }>
+  projects: Array<{ id: string; name: string; short_id?: string }>
   activeApplications: RawApplication[]
+  policyData: { endpoints_per_role: Record<string, Array<{ path: string; methods: string[] }>> }
 }
 
 // Project-scoped ingress path shape the view's regex requires for the
@@ -50,31 +58,52 @@ export function projectPath(release: string): string {
 }
 
 // Presets for the three podStatus() outcomes.
-export const readyPod: RawPod = { name: 'app-pod-0', status: 'Running', ready: '1/1', restarts: 0 }
+export const readyPod: RawPod = {
+  name: 'app-pod-0',
+  status: 'Running',
+  ready: '1/1',
+  restarts: '0',
+}
 export const pendingPod: RawPod = {
   name: 'app-pod-0',
   status: 'ContainerCreating',
   ready: '0/1',
-  restarts: 0,
+  restarts: '0',
 }
 export const errorPod: RawPod = {
   name: 'app-pod-0',
   status: 'CrashLoopBackOff',
   ready: '0/1',
-  restarts: 7,
+  restarts: '7',
 }
 
-export function app(overrides: Partial<RawApplication> & Pick<RawApplication, 'release_name'>): RawApplication {
+/**
+ * An application as kube-helm reports it. Every Kaapana chart sets the
+ * kaapana.ai/display-name annotation; it is empty when the chart was installed
+ * without a display name. `displayName` sets it, `name` is the ingress name.
+ */
+export function app(
+  overrides: Partial<RawApplication> &
+    Pick<RawApplication, 'release_name'> & { displayName?: string },
+): RawApplication {
+  const { displayName, ...rest } = overrides
+  const fromWorkflowRun = rest.from_workflow_run ?? true
   return {
-    annotations: {},
     created_at: '2026-07-20T10:15:00Z',
-    from_workflow_run: true,
+    from_workflow_run: fromWorkflowRun,
     name: overrides.release_name,
+    namespace: 'project-admin',
     paths: [projectPath(overrides.release_name)],
     pods: [readyPod],
     project: PROJECT_ID,
     ready: true,
-    ...overrides,
+    ...rest,
+    annotations: {
+      'kaapana.ai/type': fromWorkflowRun ? 'triggered' : 'application',
+      'kaapana.ai/display-name': displayName ?? overrides.release_name,
+      'meta.helm.sh/release-name': overrides.release_name,
+      ...rest.annotations,
+    },
   }
 }
 
@@ -89,22 +118,35 @@ export const defaultMockData: MockData = {
     realm_roles: ['admin'],
   },
   projects: [
-    { id: 1, name: 'admin', short_id: 'admin' },
-    { id: 2, name: 'research-b', short_id: 'resb' },
+    { id: PROJECT_ID, name: 'admin', short_id: 'admin' },
+    { id: OTHER_PROJECT_ID, name: 'research-b', short_id: 'resb' },
   ],
   activeApplications: [
     // Workflow-triggered apps (from_workflow_run: true) -> "requesting input" panel.
-    app({ release_name: 'seg-editor-1a2b', name: 'Segmentation Editor', pods: [readyPod] }),
-    app({ release_name: 'vol-viewer-3c4d', name: 'Volume Viewer', pods: [pendingPod], ready: false }),
-    app({ release_name: 'broken-5e6f', name: 'Broken Tool', pods: [errorPod], ready: false }),
+    app({ release_name: 'seg-editor-1a2b', displayName: 'Segmentation Editor', pods: [readyPod] }),
+    app({
+      release_name: 'vol-viewer-3c4d',
+      displayName: 'Volume Viewer',
+      pods: [pendingPod],
+      ready: false,
+    }),
+    app({
+      release_name: 'broken-5e6f',
+      displayName: 'Broken Tool',
+      pods: [errorPod],
+      ready: false,
+    }),
     // Project-wide app (from_workflow_run: false) -> "Applications" panel.
     app({
       release_name: 'jupyter-7g8h',
-      name: 'JupyterLab',
+      displayName: 'JupyterLab',
       from_workflow_run: false,
       pods: [readyPod],
     }),
   ],
+  policyData: {
+    endpoints_per_role: { admin: [{ path: '^/.*', methods: ['GET', 'POST', 'PUT', 'DELETE'] }] },
+  },
 }
 
 function json(body: unknown) {
@@ -112,7 +154,7 @@ function json(body: unknown) {
 }
 
 /** Shell URL of the view scoped to `project` (see VIEW_PATH). */
-export function viewPathFor(project: { id: number; short_id?: string }): string {
+export function viewPathFor(project: { id: string; short_id?: string }): string {
   return `/project/${project.short_id ?? project.id}${UNSCOPED_VIEW_PATH}`
 }
 
@@ -123,14 +165,19 @@ export function viewPathFor(project: { id: number; short_id?: string }): string 
  */
 export async function installMockBackend(page: Page, data: MockData = defaultMockData) {
   await page.route('**/oauth2/userinfo', (r) => r.fulfill(json(data.userinfo)))
-  await page.route('**/jsons/testingAuthenticationToken.json', (r) => r.fulfill(json(data.userinfo)))
+  await page.route('**/jsons/testingAuthenticationToken.json', (r) =>
+    r.fulfill(json(data.userinfo)),
+  )
   await page.route('**/aii/users/current', (r) => r.fulfill(json(data.aiiUser)))
   await page.route('**/aii/projects', (r) => r.fulfill(json(data.projects)))
-  await page.route(`**/aii/users/${data.aiiUser.id}/projects`, (r) => r.fulfill(json(data.projects)))
+  await page.route(`**/aii/users/${data.aiiUser.id}/projects`, (r) =>
+    r.fulfill(json(data.projects)),
+  )
   await page.route(/\/kube-helm-api\/active-applications/, (r) =>
     r.fulfill(json(data.activeApplications)),
   )
   await page.route(/\/kube-helm-api\/complete-active-application/, (r) => r.fulfill(json({})))
+  await page.route(/\/kaapana-backend\/open-policy-data/, (r) => r.fulfill(json(data.policyData)))
 }
 
 /**
@@ -172,6 +219,27 @@ export async function settle(page: Page, path: string = TASKS_PATH) {
   await expect(page.getByText('Sort by:')).toBeVisible()
 }
 
+/** The list row of the application called `name`. */
+export function row(page: Page, name: string) {
+  return page.locator('.v-list-item').filter({ hasText: name })
+}
+
+/** The open dialog. */
+export function dialog(page: Page) {
+  return page.getByRole('dialog')
+}
+
+/** Answer every active-applications request with a server error. */
+export async function failApplicationList(page: Page) {
+  await page.route(/\/kube-helm-api\/active-applications/, (r) =>
+    r.fulfill({
+      status: 500,
+      contentType: 'application/json',
+      body: JSON.stringify({ detail: 'kube-helm is unreachable' }),
+    }),
+  )
+}
+
 /** Common happy path: prime + settle, leaving a populated, quiescent view. */
 export async function boot(
   page: Page,
@@ -189,4 +257,22 @@ export async function poll(page: Page) {
 
 export function openedUrls(page: Page): Promise<string[]> {
   return page.evaluate(() => (window as unknown as { __opened: string[] }).__opened)
+}
+
+/**
+ * Dismiss the open dialog with Escape. Vuetify honours Escape only once its
+ * overlay stack has settled, so a first press can be swallowed under load.
+ */
+export async function dismissWithEscape(page: Page) {
+  await expect(dialog(page)).toBeVisible()
+  for (let attempt = 0; attempt < 5; attempt++) {
+    await page.keyboard.press('Escape')
+    try {
+      await expect(dialog(page)).toBeHidden({ timeout: 1_000 })
+      return
+    } catch {
+      // Pressed before the overlay settled; press again.
+    }
+  }
+  throw new Error('Escape never took effect')
 }

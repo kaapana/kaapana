@@ -5,19 +5,47 @@ spec:
     runner_tag:
       type: string
 ---
-# Stage: unittest — one matrix job per linter
+# Stage: unittest — three jobs, one matrix entry per tool
 # In:  the job's own checkout
-# Out: each linter fails on formatting drift or an enforced rule, and
-#      publishes its advisory findings to the MR Code Quality widget
-##############################################
-# Lint: one matrix entry per linter
-##############################################
+# Out: format fails on formatting drift, validate fails on a blocking rule,
+#      lint publishes the advisory findings to the MR Code Quality widget
 # The same commands run locally; see docs/source/development_guide/code_formatting.rst.
-lint:
+.code_check:
   stage: unittest
   tags:
     - $[[ inputs.runner_tag ]]
   image: $CI_BASE_IMAGE
+  variables:
+    # Bump together with the rev in .pre-commit-config.yaml.
+    # renovate: datasource=pypi depName=ruff
+    RUFF_VERSION: "0.16.4"
+    HADOLINT_VERSION: "2.15.1"
+
+##############################################
+# Format: fails on formatting drift
+##############################################
+format:
+  extends: .code_check
+  rules:
+    - if: '"$[[ inputs.exec_lint ]]" == "true" && $LINTER == "prettier"'
+      when: on_success
+      allow_failure: true
+    - if: '"$[[ inputs.exec_lint ]]" == "true"'
+      when: on_success
+    - when: never
+  parallel:
+    matrix:
+      - LINTER:
+          - ruff
+          - prettier
+  script:
+    - ci/ci-code/lint/${LINTER}_lint.sh format
+
+##############################################
+# Validate: fails on invalid code and the blocking rules
+##############################################
+validate:
+  extends: .code_check
   rules:
     - if: '"$[[ inputs.exec_lint ]]" == "true" && $LINTER == "ui"'
       when: on_success
@@ -31,11 +59,6 @@ lint:
     - if: '"$[[ inputs.exec_lint ]]" == "true"'
       when: on_success
     - when: never
-  variables:
-    # Bump together with the rev in .pre-commit-config.yaml.
-    # renovate: datasource=pypi depName=ruff
-    RUFF_VERSION: "0.16.4"
-    HADOLINT_VERSION: "2.15.1"
   parallel:
     matrix:
       - LINTER:
@@ -44,13 +67,40 @@ lint:
           - hadolint
           - helm
   script:
-    - ci/ci-code/lint/${LINTER}_lint.sh
+    - ci/ci-code/lint/${LINTER}_lint.sh validate
+  artifacts:
+    when: always
+    reports:
+      junit: helm-reports/*.xml
+    paths:
+      - build/helm-lint/build.log
+
+##############################################
+# Lint: advisory, never fails
+##############################################
+lint:
+  extends: .code_check
+  rules:
+    - if: '"$[[ inputs.exec_lint ]]" == "true" && $LINTER == "helm"'
+      when: on_success
+      variables:
+        GIT_STRATEGY: clone
+        GIT_DEPTH: "0"
+    - if: '"$[[ inputs.exec_lint ]]" == "true"'
+      when: on_success
+    - when: never
+  parallel:
+    matrix:
+      - LINTER:
+          - ruff
+          - ui
+          - hadolint
+          - helm
+  script:
+    - ci/ci-code/lint/${LINTER}_lint.sh lint
   artifacts:
     when: always
     reports:
       codequality: gl-code-quality-report.json
-      junit: helm-reports/*.xml
     paths:
       - gl-code-quality-report.json
-      - build/helm-lint/build.log
-

@@ -14,7 +14,19 @@ if [[ "$(ruff --version 2>/dev/null || true)" != "ruff $RUFF_VERSION" ]]; then
     python -m pip install --quiet --no-cache-dir --target "$TOOLS_DIR/ruff" "ruff==$RUFF_VERSION"
 fi
 
-ruff check --config ci/ci-code/lint/ruff-quality.toml --output-format=gitlab --exit-zero . > gl-code-quality-report.json
-ruff check --config ci/ci-code/lint/ruff-quality.toml --statistics --exit-zero .
-ruff format --check --diff .
-ruff check --output-format=full .
+case "${1:-}" in
+format)
+    ruff format --check --diff .
+    ;;
+validate)
+    ruff check --output-format=full .
+    ;;
+lint)
+    ruff check --config ci/ci-code/lint/ruff-quality.toml --output-format=gitlab --exit-zero . > gl-code-quality-report.json
+    ruff check --config ci/ci-code/lint/ruff-quality.toml --statistics --exit-zero .
+    ;;
+*)
+    echo "usage: $0 format|validate|lint" >&2
+    exit 2
+    ;;
+esac

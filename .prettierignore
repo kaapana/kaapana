@@ -9,5 +9,10 @@ docs/build/
 **/components.d.ts
 **/typed-router.d.ts
 **/auto-imports.d.ts
+**/*.min.js
 services/meta/os-dashboards/
 services/kaapana-admin/maintenance-page/
+# Helm templates are Go templates, not plain YAML
+**/templates/**
+services/kaapana-admin/keycloak/keycloak-setup/keycloak-setup-chart/realm_objects/kaapana-realm.json
+**/package-lock.json

@@ -15,7 +15,7 @@
             label="Filter tasks"
             density="compact"
             variant="outlined"
-            prepend-inner-icon="mdi-filter-outline"
+            :prepend-inner-icon="kaapanaIcons.filter"
             clearable
             hide-details
           />
@@ -32,7 +32,7 @@
           />
           <v-btn
             v-if="run.task_runs.length > 1"
-            prepend-icon="mdi-folder-zip-outline"
+            :prepend-icon="kaapanaIcons.download"
             :loading="downloadingAll"
             :disabled="downloadingAll"
             @click="downloadAll"
@@ -290,8 +290,13 @@ const toolbarActions = computed(() => [
     loading: loading.value,
     run: () => loadLogs(),
   },
-  { label: 'Copy log', icon: 'mdi-content-copy', loading: false, run: copyToClipboard },
-  { label: 'Download log', icon: 'mdi-download', loading: downloading.value, run: downloadLog },
+  { label: 'Copy log', icon: kaapanaIcons.copy, loading: false, run: copyToClipboard },
+  {
+    label: 'Download log',
+    icon: kaapanaIcons.download,
+    loading: downloading.value,
+    run: downloadLog,
+  },
 ])
 
 async function loadLogs(taskId = selectedTaskRunId.value) {

@@ -134,7 +134,7 @@ const actions = computed(() => {
   list.push({
     key: 'logs',
     label: 'View logs',
-    icon: 'mdi-text-box-outline',
+    icon: kaapanaIcons.logs,
     loading: false,
     run: () => emit('view-logs', props.run),
   })
@@ -142,7 +142,7 @@ const actions = computed(() => {
     list.push({
       key: 'download',
       label: 'Download all logs (ZIP)',
-      icon: 'mdi-folder-zip-outline',
+      icon: kaapanaIcons.download,
       loading: downloading.value,
       run: downloadLogs,
     })
@@ -151,7 +151,7 @@ const actions = computed(() => {
     list.push({
       key: 'clean',
       label: props.run.cleanup_status === 'failed' ? 'Retry data cleanup' : 'Clean run data',
-      icon: 'mdi-broom',
+      icon: kaapanaIcons.cleanup,
       color: 'error',
       loading: props.busy === 'clean',
       run: () => emit('clean', props.run),

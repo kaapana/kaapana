@@ -35,9 +35,22 @@
       v-model:filters="appliedFilters"
       v-model:text="searchText"
       v-model:sort="sort"
-      :runs="runs"
+      name="workflow runs"
+      short-name="runs"
+      example="Status = Error"
+      :filter-keys="RUN_FILTER_KEYS"
+      :values-for="(key) => runFilterValues(key, runs)"
+      :value-color="(key, value) => (key === 'status' ? statusColor(value) : undefined)"
+      :sort-options="RUN_SORT_OPTIONS"
       class="mb-4"
-    />
+    >
+      <template #free-text>
+        Free text searches the workflow name, external ID, status and run ID.
+      </template>
+      <template #help>
+        <li>The status counts above the table add or remove a status filter.</li>
+      </template>
+    </SearchBar>
 
     <div
       v-if="runs.length"
@@ -142,10 +155,13 @@ import WorkflowRunRow from '@/components/WorkflowRunRow.vue'
 import { workflowRunsApi } from '@/api/workflowRuns'
 import { useFailureDetailsStore } from '@/stores/failureDetails'
 import { notifyFailure, notifySuccess, notifyWarning, WORKFLOWS_SHELL_ROUTE } from '@/utils/notify'
+import { removeFilter, type Filter } from '@/utils/filters'
 import {
   filterAndSortRuns,
+  RUN_FILTER_KEYS,
+  RUN_SORT_OPTIONS,
   RUN_STATUS_VALUES,
-  type RunFilter,
+  runFilterValues,
   type RunSort,
 } from '@/utils/runFilters'
 import {
@@ -171,7 +187,7 @@ const refreshing = ref(false)
 const loadError = ref<ApiErrorInfo | null>(null)
 const pollFailureReported = ref(false)
 
-const appliedFilters = ref<RunFilter[]>([])
+const appliedFilters = ref<Filter[]>([])
 const searchText = ref('')
 const sort = ref<RunSort>({ field: 'created_at', direction: 'desc' })
 
@@ -195,10 +211,8 @@ const statusStatistics = computed(() => {
   return Object.fromEntries(RUN_STATUS_VALUES.filter((s) => stats[s]).map((s) => [s, stats[s]]))
 })
 
-function isStatusFilter(f: RunFilter, status: string) {
-  return (
-    f.field === 'status' && f.operator === '=' && f.value.toLowerCase() === status.toLowerCase()
-  )
+function isStatusFilter(f: Filter, status: string) {
+  return f.key === 'status' && f.operator === '=' && f.value.toLowerCase() === status.toLowerCase()
 }
 
 function isStatusFiltered(status: string) {
@@ -206,9 +220,20 @@ function isStatusFiltered(status: string) {
 }
 
 function toggleStatusFilter(status: string) {
-  appliedFilters.value = isStatusFiltered(status)
-    ? appliedFilters.value.filter((f) => !isStatusFilter(f, status))
-    : [...appliedFilters.value, { field: 'status', operator: '=', value: status }]
+  let filters = appliedFilters.value
+  if (isStatusFiltered(status)) {
+    for (let i = filters.length - 1; i >= 0; i--) {
+      if (isStatusFilter(filters[i], status)) filters = removeFilter(filters, i)
+    }
+  } else {
+    const last = filters.findLastIndex((f) => f.key === 'status' && f.operator === '=')
+    const filter: Filter = { key: 'status', operator: '=', value: status }
+    filters =
+      last === -1
+        ? [...filters, { ...filter, connector: 'and' }]
+        : filters.toSpliced(last + 1, 0, { ...filter, connector: 'or' })
+  }
+  appliedFilters.value = filters
 }
 
 function clearFilters() {

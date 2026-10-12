@@ -9,69 +9,148 @@ function suggestions(page: Page) {
   return page.locator('.v-overlay--active')
 }
 
-async function addFilter(page: Page, field: string, value: string, operator = '=') {
+async function addFilter(page: Page, key: string, value: string, operator: string | null = '=') {
   await searchInput(page).click()
-  await suggestions(page).getByText(field, { exact: true }).click()
-  await suggestions(page).getByText(operator, { exact: true }).click()
+  await suggestions(page).getByText(key, { exact: true }).click()
+  if (operator) await suggestions(page).getByText(operator, { exact: true }).click()
   await searchInput(page).fill(value)
   await searchInput(page).press('Enter')
 }
 
+async function search(page: Page) {
+  await page.getByRole('search').getByRole('button', { name: 'Search', exact: true }).click()
+}
+
 test.describe('query builder', () => {
-  test('a status filter is built from field and value and shown as a token', async ({ page }) => {
+  test('a status filter is built from key and value and shown as a token', async ({ page }) => {
     await openRuns(page)
     await addFilter(page, 'Status', 'Error')
     await expect(page.getByTestId('filter-token')).toHaveText(/Status\s*=\s*Error/)
+    await search(page)
     await expect(runRows(page)).toHaveCount(1)
     await expect(runRow(page, 3)).toBeVisible()
   })
 
-  test('filters of the same field match any of them', async ({ page }) => {
+  test('new filters are joined with AND', async ({ page }) => {
     await openRuns(page)
     await addFilter(page, 'Status', 'Error')
     await addFilter(page, 'Status', 'Running')
+    await expect(page.getByTestId('filter-connector')).toHaveText('AND')
+    await search(page)
+    await expect(runRows(page)).toHaveCount(0)
+  })
+
+  test('switching a connector to OR matches any filter of the group', async ({ page }) => {
+    await openRuns(page)
+    await addFilter(page, 'Status', 'Error')
+    await addFilter(page, 'Status', 'Running')
+    await page
+      .getByRole('button', { name: 'Change AND before filter Status = Running to OR' })
+      .click()
+    await expect(page.getByTestId('filter-connector')).toHaveText('OR')
+    await expect(page.getByTestId('filter-group')).toHaveCount(1)
+    await search(page)
     await expect(runRows(page)).toHaveCount(2)
+  })
+
+  test('an OR group must match together with the filters joined by AND', async ({ page }) => {
+    await openRuns(page)
+    await addFilter(page, 'Status', 'Running')
+    await addFilter(page, 'Status', 'Error')
+    await page
+      .getByRole('button', { name: 'Change AND before filter Status = Error to OR' })
+      .click()
+    await addFilter(page, 'Workflow', 'Registration')
+    await expect(page.getByTestId('filter-group')).toHaveCount(2)
+    await search(page)
+    await expect(runRows(page)).toHaveCount(1)
+    await expect(runRow(page, 3)).toBeVisible()
+  })
+
+  test('removing the first filter of an OR group keeps the group', async ({ page }) => {
+    await openRuns(page)
+    await addFilter(page, 'Workflow', 'Registration')
+    await addFilter(page, 'Status', 'Running')
+    await addFilter(page, 'Status', 'Error')
+    await page
+      .getByRole('button', { name: 'Change AND before filter Status = Error to OR' })
+      .click()
+    await page.getByRole('button', { name: 'Remove filter Status = Running' }).click()
+    await expect(page.getByTestId('filter-connector')).toHaveText('AND')
+    await search(page)
+    await expect(runRows(page)).toHaveCount(1)
+    await expect(runRow(page, 3)).toBeVisible()
   })
 
   test('!= excludes a value', async ({ page }) => {
     await openRuns(page)
     await addFilter(page, 'Status', 'Error', '!=')
     await expect(page.getByTestId('filter-token')).toHaveText(/Status\s*!=\s*Error/)
+    await search(page)
     await expect(runRows(page)).toHaveCount(2)
     await expect(runRow(page, 3)).toHaveCount(0)
   })
 
-  test('several != filters of the same field exclude all of them', async ({ page }) => {
+  test('several != filters of the same key exclude all of them', async ({ page }) => {
     await openRuns(page)
     await addFilter(page, 'Status', 'Error', '!=')
     await addFilter(page, 'Status', 'Running', '!=')
+    await search(page)
     await expect(runRows(page)).toHaveCount(1)
     await expect(runRow(page, 1)).toBeVisible()
   })
 
-  test('= and != filters of the same field combine', async ({ page }) => {
+  test('= and != filters of the same key combine', async ({ page }) => {
     await openRuns(page)
     await addFilter(page, 'Workflow', 'Segmentation')
     await addFilter(page, 'Workflow', 'Registration')
+    await page
+      .getByRole('button', { name: 'Change AND before filter Workflow = Registration to OR' })
+      .click()
     await addFilter(page, 'Status', 'Running', '!=')
+    await search(page)
     await expect(runRows(page)).toHaveCount(2)
     await expect(runRow(page, 2)).toHaveCount(0)
   })
 
-  test('the operator of a token switches between = and !=', async ({ page }) => {
+  test('a new operator asks for the value again', async ({ page }) => {
     await openRuns(page)
     await addFilter(page, 'Status', 'Error')
-    await page
-      .getByRole('button', { name: 'Change the operator of filter Status = Error to !=' })
-      .click()
-    await expect(page.getByTestId('filter-token')).toHaveText(/Status\s*!=\s*Error/)
+    await page.getByRole('button', { name: 'Change the operator of filter Status = Error' }).click()
+    await expect(searchInput(page)).toHaveAccessibleName('Operator for Status')
+    await suggestions(page).getByText('!=', { exact: true }).click()
+    await expect(searchInput(page)).toHaveAccessibleName('Value for Status')
+    await searchInput(page).fill('Running')
+    await searchInput(page).press('Enter')
+    await expect(page.getByTestId('filter-token')).toHaveText(/Status\s*!=\s*Running/)
+    await search(page)
     await expect(runRows(page)).toHaveCount(2)
   })
 
-  test('filters of different fields must all match', async ({ page }) => {
+  test('filters apply only after Search or Enter in the empty field', async ({ page }) => {
+    await openRuns(page)
+    await addFilter(page, 'Status', 'Error')
+    await expect(page.getByTestId('filter-token')).toHaveCount(1)
+    await expect(runRows(page)).toHaveCount(3)
+    await searchInput(page).press('Enter')
+    await expect(runRows(page)).toHaveCount(1)
+  })
+
+  test('the clear button removes all filters at once and keeps the focus', async ({ page }) => {
+    await openRuns(page)
+    await addFilter(page, 'Status', 'Error')
+    await search(page)
+    await page.getByRole('button', { name: 'Clear all filters' }).click()
+    await expect(page.getByTestId('filter-token')).toHaveCount(0)
+    await expect(searchInput(page)).toBeFocused()
+    await expect(runRows(page)).toHaveCount(3)
+  })
+
+  test('filters of different keys must all match', async ({ page }) => {
     await openRuns(page)
     await addFilter(page, 'Workflow', 'Segmentation')
     await addFilter(page, 'Status', 'Completed')
+    await search(page)
     await expect(runRows(page)).toHaveCount(1)
     await expect(runRow(page, 1)).toBeVisible()
   })
@@ -87,23 +166,73 @@ test.describe('query builder', () => {
     await expect(runRows(page)).toHaveCount(3)
   })
 
+  test('several status counts add status filters joined with OR', async ({ page }) => {
+    await openRuns(page)
+    const summary = page.getByTestId('status-summary')
+    await summary.getByText('Running · 1').click()
+    await summary.getByText('Error · 1').click()
+    await expect(page.getByTestId('filter-connector')).toHaveText('OR')
+    await expect(runRows(page)).toHaveCount(2)
+  })
+
   test('free text searches title, status and ids', async ({ page }) => {
     await openRuns(page)
     await searchInput(page).fill('regist')
+    await searchInput(page).press('Enter')
     await expect(runRows(page)).toHaveCount(1)
     await expect(runRow(page, 3)).toBeVisible()
   })
 
-  test('date filters accept German dates', async ({ page }) => {
+  test('date filters take YYYY-MM-DD', async ({ page }) => {
     await openRuns(page)
-    await addFilter(page, 'Created since', '30.09.2026')
+    await addFilter(page, 'Created after', '2026-09-29', null)
+    await search(page)
     await expect(runRows(page)).toHaveCount(2)
+  })
+
+  test('date filters fill in their only operator and pick the date in a calendar', async ({
+    page,
+  }) => {
+    await openRuns(page)
+    await searchInput(page).click()
+    await suggestions(page).getByText('Created before', { exact: true }).click()
+    await expect(searchInput(page)).toHaveAccessibleName('Value for Created before')
+    await expect(suggestions(page).locator('.v-date-picker')).toBeVisible()
+    await suggestions(page)
+      .locator('.v-date-picker')
+      .getByText('29', { exact: true })
+      .first()
+      .click()
+    await expect(page.getByTestId('filter-token')).toHaveText(/Created before\s*=\s*\d{4}-\d{2}-29/)
+  })
+
+  test('date filters reject anything but YYYY-MM-DD', async ({ page }) => {
+    await openRuns(page)
+    await addFilter(page, 'Created on', 'yesterday', null)
+    await expect(page.getByTestId('filter-token')).toHaveCount(0)
+    await searchInput(page).fill('30.09.2026')
+    await searchInput(page).press('Enter')
+    await expect(page.getByTestId('filter-token')).toHaveCount(0)
+    await searchInput(page).fill('2026-09-30')
+    await searchInput(page).press('Enter')
+    await expect(page.getByTestId('filter-token')).toHaveText(/Created on\s*=\s*2026-09-30/)
+    await search(page)
+    await expect(runRows(page)).toHaveCount(1)
+  })
+
+  test('task is no filter key', async ({ page }) => {
+    await openRuns(page)
+    await searchInput(page).click()
+    await expect(suggestions(page).getByText('Status', { exact: true })).toBeVisible()
+    await expect(suggestions(page).getByText('Task', { exact: true })).toHaveCount(0)
   })
 
   test('no match offers to clear the filters', async ({ page }) => {
     await openRuns(page)
     await addFilter(page, 'Run ID', '999')
+    await search(page)
     await page.getByRole('button', { name: 'Clear filters' }).click()
+    await search(page)
     await expect(runRows(page)).toHaveCount(3)
   })
 
@@ -142,9 +271,10 @@ test.describe('query builder', () => {
       token.getByRole('button', { name: 'Change the value of filter Status = Error' }),
     ).toBeVisible()
     await expect(
-      token.getByRole('button', { name: 'Change the operator of filter Status = Error to !=' }),
+      token.getByRole('button', { name: 'Change the operator of filter Status = Error' }),
     ).toBeVisible()
     await expect(page.getByRole('button', { name: 'Clear all filters' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Search', exact: true })).toBeVisible()
     await expect(
       page.getByRole('button', { name: /Sort runs, currently by Created/ }),
     ).toBeVisible()

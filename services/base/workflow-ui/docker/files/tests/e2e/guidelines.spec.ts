@@ -52,7 +52,9 @@ test.describe('visual language', () => {
       /bg-primary/,
     )
     await expect(page.getByRole('button', { name: 'Refresh' })).not.toHaveClass(/bg-primary/)
-    await expect(page.getByRole('button', { name: 'Show filters' })).not.toHaveClass(/bg-primary/)
+    await expect(page.getByRole('button', { name: 'Search', exact: true })).not.toHaveClass(
+      /bg-primary/,
+    )
   })
 
   test('dialogs use the standard large width', async ({ page }) => {

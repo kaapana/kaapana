@@ -10,36 +10,6 @@
 
       <div class="d-flex flex-wrap align-center ga-2">
         <v-btn
-          :prepend-icon="kaapanaIcons.filter"
-          :aria-expanded="showFilters"
-          aria-controls="workflow-filters"
-          @click="showFilters = !showFilters"
-        >
-          {{ showFilters ? 'Hide filters' : 'Show filters' }}
-        </v-btn>
-
-        <v-menu location="bottom end">
-          <template #activator="{ props: menuProps }">
-            <v-btn v-bind="menuProps" prepend-icon="mdi-sort">Sort: {{ selectedSort.label }}</v-btn>
-          </template>
-          <v-list density="compact" aria-label="Sort workflows">
-            <v-list-item
-              v-for="option in sortOptions"
-              :key="option.value"
-              :active="selectedSort.value === option.value"
-              @click="selectedSort = option"
-            >
-              <template #prepend>
-                <v-icon
-                  :icon="selectedSort.value === option.value ? kaapanaIcons.confirm : undefined"
-                />
-              </template>
-              <v-list-item-title>{{ option.label }}</v-list-item-title>
-            </v-list-item>
-          </v-list>
-        </v-menu>
-
-        <v-btn
           :prepend-icon="kaapanaIcons.refresh"
           :loading="loading && hasLoaded"
           :disabled="loading"
@@ -50,12 +20,26 @@
       </div>
     </div>
 
-    <v-row>
-      <v-col v-if="showFilters" id="workflow-filters" cols="12" md="3">
-        <FilterPanel :workflows="workflows" v-model:filters="filters" />
-      </v-col>
+    <SearchBar
+      v-model:filters="appliedFilters"
+      v-model:text="searchText"
+      v-model:sort="sort"
+      name="workflows"
+      short-name="workflows"
+      example="Category = Segmentation"
+      :filter-keys="filterKeys"
+      :values-for="(key) => workflowFilterValues(key, latestWorkflows)"
+      :sort-options="WORKFLOW_SORT_OPTIONS"
+      class="mb-4"
+    >
+      <template #free-text>Free text searches the workflow name.</template>
+      <template #help>
+        <li>The filter keys come from the <code>kaapana-ui.</code> labels of the workflows.</li>
+      </template>
+    </SearchBar>
 
-      <v-col cols="12" :md="showFilters ? 9 : 12">
+    <v-row>
+      <v-col cols="12">
         <v-row v-if="loading && !hasLoaded" data-testid="workflows-loading">
           <v-col v-for="n in 4" :key="n" cols="12" sm="6" md="4" lg="3">
             <v-skeleton-loader type="card" />
@@ -97,17 +81,17 @@
 import { computed, onMounted, ref } from 'vue'
 import { apiErrorInfo, kaapanaIcons, type ApiErrorInfo } from '@kaapana/base-ui'
 import CollectionState from '@/components/CollectionState.vue'
-import FilterPanel from '@/components/FilterPanel.vue'
+import SearchBar from '@/components/SearchBar.vue'
 import WorkflowCard from '@/components/WorkflowCard.vue'
 import { fetchWorkflows } from '@/api/workflows'
 import { useFailureDetailsStore } from '@/stores/failureDetails'
+import type { Filter } from '@/utils/filters'
 import {
-  emptyFilters,
-  LABEL_CATEGORY,
-  LABEL_MATURITY,
-  LABEL_PROVIDER,
-  labelValues,
-  type WorkflowFilters,
+  matchesWorkflow,
+  WORKFLOW_SORT_OPTIONS,
+  workflowFilterKeys,
+  workflowFilterValues,
+  type WorkflowSort,
 } from '@/utils/labels'
 import { notifyFailure } from '@/utils/notify'
 import type { Workflow } from '@/types/schemas'
@@ -121,14 +105,9 @@ const loading = ref(false)
 const hasLoaded = ref(false)
 const loadError = ref<ApiErrorInfo | null>(null)
 
-const showFilters = ref(false)
-const filters = ref<WorkflowFilters>(emptyFilters())
-
-const sortOptions = [
-  { value: 'name-asc', label: 'Name A–Z' },
-  { value: 'name-desc', label: 'Name Z–A' },
-] as const
-const selectedSort = ref<(typeof sortOptions)[number]>(sortOptions[0])
+const appliedFilters = ref<Filter[]>([])
+const searchText = ref('')
+const sort = ref<WorkflowSort>({ field: 'name', direction: 'asc' })
 
 // Every revision of a workflow is its own entry; one card shows all of them,
 // newest first.
@@ -142,27 +121,20 @@ const groupedWorkflows = computed(() => {
   return map
 })
 
-function matchesAny(selected: string[], workflow: Workflow, key: string) {
-  return selected.length === 0 || labelValues(workflow, key).some((v) => selected.includes(v))
-}
+const latestWorkflows = computed(() => [...groupedWorkflows.value.values()].map((g) => g[0]))
+const filterKeys = computed(() => workflowFilterKeys(latestWorkflows.value))
 
 const filteredAndSortedWorkflows = computed(() => {
-  const search = filters.value.search.trim().toLowerCase()
-  const result: [string, Workflow[]][] = []
-  groupedWorkflows.value.forEach((group, title) => {
-    const latest = group[0]
-    if (search && !title.toLowerCase().includes(search)) return
-    if (!matchesAny(filters.value.categories, latest, LABEL_CATEGORY)) return
-    if (!matchesAny(filters.value.providers, latest, LABEL_PROVIDER)) return
-    if (!matchesAny(filters.value.maturity, latest, LABEL_MATURITY)) return
-    result.push([title, group])
-  })
-  const direction = selectedSort.value.value === 'name-asc' ? 1 : -1
+  const result = [...groupedWorkflows.value].filter(([, group]) =>
+    matchesWorkflow(group[0], appliedFilters.value, searchText.value),
+  )
+  const direction = sort.value.direction === 'asc' ? 1 : -1
   return result.sort(([a], [b]) => direction * a.localeCompare(b))
 })
 
 function clearFilters() {
-  filters.value = emptyFilters()
+  appliedFilters.value = []
+  searchText.value = ''
 }
 
 function showLoadErrorDetails() {

@@ -143,15 +143,13 @@
                         <v-icon>{{ kaapanaIcons.start }}</v-icon>
                       </v-btn>
                     </template>
-                    <v-defaults-provider :defaults="underlinedFieldDefaults">
-                      <WorkflowExecution
-                        :onlyLocal="true"
-                        kind_of_dags="import"
-                        :isDialog="true"
-                        @successful="() => (workflowDialog = false)"
-                        @cancel="() => (workflowDialog = false)"
-                      />
-                    </v-defaults-provider>
+                    <WorkflowExecution
+                      :onlyLocal="true"
+                      kind_of_dags="import"
+                      :isDialog="true"
+                      @successful="() => (workflowDialog = false)"
+                      @cancel="() => (workflowDialog = false)"
+                    />
                   </v-dialog>
                 </div>
               </li>
@@ -186,18 +184,6 @@ const { selectedProject } = storeToRefs(projectStore)
 const isArchived = computed(() => selectedProject.value.is_archived === true)
 // Until the project is known, the example uses the placeholder of the user guide.
 const projectShortId = computed(() => selectedProject.value.short_id ?? '<project-short-id>')
-
-// This view standardizes the workflow form on underlined fields; supplied via a
-// defaults-provider around the shared WorkflowExecution (which carries no inline
-// variants). Covers both the native template fields and the vjsf-rendered ones.
-const underlinedFieldDefaults = {
-  VTextField: { variant: 'underlined' },
-  VSelect: { variant: 'underlined' },
-  VAutocomplete: { variant: 'underlined' },
-  VCombobox: { variant: 'underlined' },
-  VTextarea: { variant: 'underlined' },
-  VNumberInput: { variant: 'underlined' },
-}
 
 const workflowDialog = ref(false)
 const infoDialog = ref(false)

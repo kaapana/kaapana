@@ -4,7 +4,7 @@
       <div>
         <h1 class="text-h4">Workflow runs</h1>
         <p class="text-body-2 text-medium-emphasis mt-1">
-          Follow, cancel, retry and delete the workflow runs of this project.
+          Manage the workflow runs of this project.
           <template v-if="polling">The list updates automatically while runs are active.</template>
         </p>
       </div>

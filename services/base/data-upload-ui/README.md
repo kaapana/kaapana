@@ -11,23 +11,38 @@ and project-scoped through the `/project/<short_id>/` document URL prefix.
 
 Single view (`src/views/DataUpload.vue`), two upload paths:
 
-- **Option 1 — DICOM receiver port (preferred).** Static instructions with a
-  ready-to-copy `dcmsend` example; the selected project's `short_id` is baked into
-  the `--call kp-<short_id>` AE title and `window.location.hostname` into the host.
-- **Option 2 — browser upload (experimental).** A FilePond dropzone
-  (`src/components/Upload.vue`) doing **chunked uploads** (1 MiB chunks, `chunkForce`):
-  a POST returns a transfer id, then one PATCH per chunk, DELETE reverts an uploaded
-  file ("Remove from list"), HEAD is the resume probe. `beforeAddFile` stamps a
-  `filepath` metadata field (relative path or filename). Accepts any file type;
-  `multiple` uploads allowed.
-- **Info dialog** explaining the expected zip layout for DICOM and NIfTI data.
-- **Import workflow dialog** — the shared `WorkflowExecution` component from
-  `@kaapana/base-ui/workflow-execution`, opened by "Import the data", pinned to
-  `onlyLocal` + `kind_of_dags="import"`. Fields are restyled to the `underlined`
-  variant via a local `v-defaults-provider`. On success the dropzone is remounted
-  (`componentKey` bump) so a new batch can be uploaded.
+- **Option 1 — DICOM receiver port (preferred).** Instructions with a `dcmsend`
+  example in a code block with a "Copy command" button. The selected project's
+  `short_id` is baked into the `--call kp-<short_id>` AE title and
+  `window.location.hostname` into the host; until the project is known, the example
+  shows `kp-<project-short-id>`. Hints state that `11112` is the default receiver
+  port and that the dataset name can have at most 13 characters after `kp-`.
+- **Option 2 — browser upload (experimental).** Three numbered steps. A FilePond
+  drop zone (`src/components/Upload.vue`) does **chunked uploads** (1 MiB chunks,
+  `chunkForce`): a POST returns a transfer id, then one PATCH per chunk; DELETE is
+  sent by "Remove from list"; HEAD is the resume probe. `beforeAddFile` stamps a
+  `filepath` metadata field (relative path, else the file name). Accepts any file
+  type; multiple files are allowed. The drop zone's colours and font are
+  mapped onto the Vuetify theme roles.
+- **Unsaved uploads.** `Upload.vue` emits `uploading` while any file is queued or
+  uploading; the view forwards it to `postViewDirty`, so the shell warns before a
+  project switch or refresh reloads the view.
+- **Info dialog** (600 px) explaining the expected zip layout for DICOM and NIfTI
+  data, with a link to the NIfTI section of the user guide.
+- **Import workflow dialog** (600 px) — the shared `WorkflowExecution` component
+  from `@kaapana/base-ui/workflow-execution`, opened by "Import the data", pinned to
+  `onlyLocal` + `kind_of_dags="import"`. The button stays enabled while uploads
+  run. The dialog content unmounts when the dialog closes, so each opening loads
+  the current list of uploaded files. Fields use the `outlined` variant, set in
+  `src/plugins/vuetify.ts`.
 - **Archived project → read-only.** When `selectedProject.is_archived`, a warning
-  alert shows and the browser-upload card is disabled (the DICOM-port card stays).
+  alert shows, and the drop zone and the import button are disabled (the
+  DICOM-port card stays).
+- **Project lookup failure.** An inline error alert with "Try again" and "Details"
+  (the shared `ErrorDetailsDialog`).
+
+Vuetify is created with `createKaapanaVuetify()`, and `main.ts` imports
+`@kaapana/base-ui/style.css`. Icons for actions come from `kaapanaIcons`.
 
 ## Backend endpoints
 
@@ -42,15 +57,14 @@ sent as-is.
 | GET | `/oauth2/userinfo` | Auth gate (`useAuthStore.checkAuth`, run in `router.beforeEach`); dev fallback `/jsons/testingAuthenticationToken.json` when not `PROD` | unscoped |
 | GET | `/aii/users/current` | Current user id + realm roles (project store `getSelectedProject`) | unscoped |
 | GET | `/aii/projects` (admin) or `/aii/users/<id>/projects` (non-admin) | Project list; the URL slug is resolved against it, else the document is redirected onto the first project | unscoped |
-| POST | `/kaapana-backend/client/file` | FilePond: request a transfer id (carries `Upload-Length` + `filepath`) | scoped (manual prefix — see note) |
-| PATCH | `/kaapana-backend/client/file?patch=<id>` | FilePond: upload one chunk (tus-style `Upload-Offset`/`Upload-Name`) | scoped (manual prefix) |
-| DELETE | `/kaapana-backend/client/file` | FilePond: revert an uploaded file (transfer id in body) | scoped (manual prefix) |
-| HEAD | `/kaapana-backend/client/file` | FilePond: resume probe | scoped (manual prefix) |
+| POST | `/kaapana-backend/client/file` | FilePond: request a transfer id (carries `Upload-Length` + `filepath`) | prefixed by `Upload.vue` (see note) |
+| PATCH | `/kaapana-backend/client/file?patch=<id>` | FilePond: upload one chunk (tus-style `Upload-Offset`/`Upload-Name`) | prefixed by `Upload.vue` |
+| DELETE | `/kaapana-backend/client/file` | FilePond "Remove from list" (transfer id in body); the backend deletes only the partial upload data of that transfer | prefixed by `Upload.vue` |
+| HEAD | `/kaapana-backend/client/file` | FilePond: resume probe | prefixed by `Upload.vue` |
 | POST | `/kaapana-backend/client/get-kaapana-instances` | Import dialog: list runner instances (`onlyLocal` keeps the local one) | scoped |
 | POST | `/kaapana-backend/client/get-dags` | Import dialog: importable dags (`kind_of_dags="import"`) | scoped |
 | POST | `/kaapana-backend/client/get-ui-form-schemas` | Import dialog: per-dag vjsf form schemas | scoped |
 | POST | `/kaapana-backend/client/workflow` | Import dialog: submit the workflow | scoped |
-| GET | `/kaapana-backend<backend-route>` | Import dialog, **conditional**: only when a dag's schema declares `backend_form["backend-route"]` — fetches file-tree items (optional `?prefix=` for children) | scoped |
 
 The `oauth2`/`aii` and `client/*` calls go through `@kaapana/base-ui` (`AuthService`,
 the project store, and `WorkflowExecution` via `kaapanaApiService`). This app **owns
@@ -59,13 +73,9 @@ shell no longer does).
 
 > **Note — FilePond bypasses `httpClient`.** FilePond issues its own XHR, so the
 > axios interceptor never sees the upload requests; `Upload.vue` applies the
-> `/project/<short_id>` document prefix itself via `getProjectBase()` (same
-> pattern as extensions-ui). Asserted in `tests/e2e/upload.spec.ts` (exact
+> `/project/<short_id>` document prefix itself via `getProjectBase()` to its
+> `UPLOAD_URL` (same pattern as extensions-ui). Asserted in `tests/e2e/upload.spec.ts` (exact
 > `pathname` `/project/admin/kaapana-backend/client/file`).
-
-(`.env` defines `VITE_KAAPANA_BACKEND_ENDPOINT` / `VITE_NOTIFICATIONS_API_ENDPOINT`,
-but nothing in `src/` reads `import.meta.env` — they are inert; the upload URL is
-hardcoded in `Upload.vue`.)
 
 ## Development
 
@@ -109,6 +119,12 @@ the production build. Rebuild `@kaapana/base-ui` (`npm run build`) after any cha
 to its `src/` before running tests — consumers otherwise import the stale `dist/`
 through the npm symlink and nothing errors, the change is just missing.
 
-Suites: `render`, `upload` (chunked protocol, error state, revert), `import`
-(workflow load/submit, error, cancel, data_form dataset lift), `project-scope`
-(URL-derived scoping + redirect).
+Suites: `render` (both upload options, info dialog, `dcmsend` hints and copy,
+archived project, project lookup failure and retry), `upload` (chunked protocol
+incl. multi-chunk files, `filepath` metadata, error state, revert), `import`
+(workflow load/submit, error, cancel, data_form dataset lift), `upload-import`
+(an open import form keeps its input when an upload finishes; reopening reloads
+the file list), `view-dirty` (`kaapana:view-dirty` for running, finished, failed,
+aborted and parallel uploads), `guidelines` (typeface, type scale, icons, width,
+dialog sizes and focus, field variant, theme roles and drop zone colours in both
+themes), `project-scope` (URL-derived scoping + redirect).

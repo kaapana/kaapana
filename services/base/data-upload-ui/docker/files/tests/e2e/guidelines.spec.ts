@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import { installMockBackend, VIEW_PATH } from './fixtures/mock-backend'
 
 // Cross-cutting rules of the Kaapana frontend design guidelines that no single
@@ -63,5 +63,43 @@ test.describe('layout', () => {
     await expect(steps).toHaveCount(3)
     await expect(steps.nth(1).locator('.filepond--root')).toBeVisible()
     await expect(steps.nth(2).getByRole('button', { name: /Import the data/ })).toBeVisible()
+  })
+})
+
+test.describe('dialogs', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 })
+  })
+
+  // The dialog role sits on the full-screen overlay; the card is its content.
+  const dialogContent = (page: Page) => page.locator('.v-overlay--active .v-overlay__content')
+
+  test('the info dialog has the medium width and returns focus to its button', async ({ page }) => {
+    // An icon-only control needs an accessible name.
+    const infoButton = page.getByRole('button', { name: 'How should the uploaded data look?' })
+    await infoButton.click()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible()
+    // Poll: the dialog scales in, so its box grows during the transition.
+    await expect.poll(async () => (await dialogContent(page).boundingBox())?.width).toBe(600)
+
+    await page.keyboard.press('Escape')
+    await expect(dialog).toBeHidden()
+    await expect(infoButton).toBeFocused()
+  })
+
+  test('the import dialog has the medium width and returns focus to its button', async ({
+    page,
+  }) => {
+    const importButton = page.getByRole('button', { name: /Import the data/ })
+    await importButton.click()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog.getByRole('heading', { name: 'Workflow Execution' })).toBeVisible()
+    // Poll: the dialog scales in, so its box grows during the transition.
+    await expect.poll(async () => (await dialogContent(page).boundingBox())?.width).toBe(600)
+
+    await page.keyboard.press('Escape')
+    await expect(dialog).toBeHidden()
+    await expect(importButton).toBeFocused()
   })
 })

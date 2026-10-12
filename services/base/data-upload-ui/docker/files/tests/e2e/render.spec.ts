@@ -48,10 +48,7 @@ test('info dialog explains the expected upload format', async ({ page }) => {
   await page.goto(VIEW_PATH)
 
   await page.locator('.filepond--root').scrollIntoViewIfNeeded()
-  await page
-    .getByRole('button')
-    .filter({ has: page.locator('.mdi-information') })
-    .click()
+  await page.getByRole('button', { name: 'How should the uploaded data look?' }).click()
   await expect(page.getByText('How should the uploaded data look?')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Upload DICOM data' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Upload NIfTI data' })).toBeVisible()

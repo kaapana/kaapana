@@ -1,5 +1,5 @@
 <template>
-  <v-container fluid class="text-left">
+  <v-container fluid class="text-left data-upload-view">
     <h1>Data upload</h1>
     <v-alert v-if="projectLoadError" type="error" variant="tonal" class="mb-4">
       {{ projectLoadErrorText }}
@@ -32,17 +32,17 @@
             Option 1 (preferred): Using the DICOM receiver port.
           </v-card-title>
           <v-card-text>
-            If you have images locally you can use e.g. DCMTK. However, any tool that sends images
-            to a DICOM receiver can be used. Here is an example of sending images with DCMTK:
-            <br />
-            <br />
+            <p class="mb-4">
+              If you have images locally you can use e.g. DCMTK. However, any tool that sends images
+              to a DICOM receiver can be used. Here is an example of sending images with DCMTK:
+            </p>
             <code>
               dcmsend -v {{ hostname }} 11112 --scan-directories --aetitle kp-{{
                 '<'
               }}dataset-name{{ '>' }} --call kp-{{ projectShortId }} --scan-pattern '*.dcm'
               --recurse {{ '<' }}data-dir-of-DICOM-images{{ '>' }}
             </code>
-            <p class="mt-4">
+            <p class="mt-4 mb-2">
               11112 is the default port of the DICOM receiver. Your administrator may have
               configured a different port for this platform.
             </p>
@@ -60,12 +60,44 @@
             Option 2: Upload the data via the browser(experimental).
           </v-card-title>
           <v-card-text>
-            <v-icon class="my-2" size="large">mdi-numeric-1-circle</v-icon>&nbsp; Make sure your
-            data is correctly formatted for the upload.
-            <v-btn color="primary" icon variant="text" @click.stop="infoDialog = true">
-              <v-icon color="primary"> mdi-information </v-icon>
-            </v-btn>
-            <br />
+            <ol class="upload-steps">
+              <li class="d-flex align-center ga-3 mb-4">
+                <v-icon size="large">mdi-numeric-1-circle</v-icon>
+                <div class="d-flex align-center flex-grow-1">
+                  Make sure your data is correctly formatted for the upload.
+                  <v-btn color="primary" icon variant="text" @click.stop="infoDialog = true">
+                    <v-icon color="primary"> mdi-information </v-icon>
+                  </v-btn>
+                </div>
+              </li>
+              <li class="d-flex ga-3 mb-4">
+                <v-icon size="large">mdi-numeric-2-circle</v-icon>
+                <div class="flex-grow-1">
+                  <p class="mb-2">
+                    Upload DICOMS, NIfTIs or any data you want to use in a workflow as a zip file
+                    via the dropzone.
+                  </p>
+                  <Upload
+                    label-idle="Dicoms, ITK images or any other data"
+                    :disabled="isArchived"
+                    @uploading="postViewDirty"
+                  ></Upload>
+                </div>
+              </li>
+              <li class="d-flex align-center ga-3">
+                <v-icon size="large">mdi-numeric-3-circle</v-icon>
+                <div class="flex-grow-1">
+                  <v-btn
+                    color="primary"
+                    :disabled="isArchived"
+                    @click="() => (workflowDialog = true)"
+                  >
+                    Import the data
+                    <v-icon>mdi-play-outline</v-icon>
+                  </v-btn>
+                </div>
+              </li>
+            </ol>
 
             <v-dialog v-model="infoDialog" width="60vw">
               <v-card>
@@ -103,20 +135,6 @@
                 </v-card-actions>
               </v-card>
             </v-dialog>
-
-            <v-icon class="my-2" size="large">mdi-numeric-2-circle</v-icon>&nbsp; Upload DICOMS,
-            NIfTIs or any data you want to use in a workflow as a zip file via the dropzone.
-            <Upload
-              label-idle="Dicoms, ITK images or any other data"
-              :disabled="isArchived"
-              @uploading="postViewDirty"
-            ></Upload>
-            <br />
-            <v-icon size="large">mdi-numeric-3-circle</v-icon>&nbsp;
-            <v-btn color="primary" :disabled="isArchived" @click="() => (workflowDialog = true)">
-              Import the data
-              <v-icon>mdi-play-outline</v-icon>
-            </v-btn>
           </v-card-text>
         </v-card>
       </v-col>
@@ -212,3 +230,17 @@ if (!localStorage['settings']) {
   localStorage['settings'] = JSON.stringify(defaultSettings)
 }
 </script>
+
+<style scoped>
+/* The page is mostly text and one form, so it does not need the full width
+   of a wide display. The container centres itself in the space beyond. */
+.data-upload-view {
+  max-width: 1200px;
+}
+
+/* The numbered icons mark the steps, so the list needs no markers of its own. */
+.upload-steps {
+  list-style: none;
+  padding-left: 0;
+}
+</style>

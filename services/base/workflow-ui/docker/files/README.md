@@ -25,6 +25,8 @@ pattern.
 | `workflow-api`    | Workflows, tasks, workflow runs and their actions, logs       |
 | `kaapana-backend` | `GET /client/datasets` for the dataset picker of the run form |
 
+The versioned `workflow-api` base path is `WORKFLOW_API_URL` in `src/api/config.ts`.
+
 The dataset picker is the only remaining call to the legacy kaapana-backend. data-api offers no dataset endpoint yet;
 move the call there once it does.
 

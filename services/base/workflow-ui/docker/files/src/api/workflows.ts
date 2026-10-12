@@ -1,7 +1,8 @@
 import { httpClient } from '@kaapana/base-ui'
+import { WORKFLOW_API_URL } from '@/api/config'
 import type { Task, Workflow } from '@/types/schemas'
 
-const API_BASE = '/workflow-api/v1/workflows'
+const API_BASE = `${WORKFLOW_API_URL}/workflows`
 
 export async function fetchWorkflows(): Promise<Workflow[]> {
   const response = await httpClient.get<Workflow[]>(API_BASE)

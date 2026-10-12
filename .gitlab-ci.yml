@@ -13,7 +13,7 @@ spec:
     exec_lint:
       default: true
       type: boolean
-      description: "[exec] unittest stage: lint matrix (ruff, eslint, hadolint, helmlint): enforced rules + advisory code quality report"
+      description: "[exec] unittest stage: format, validate (blocking rules) and lint (advisory code quality report) jobs for ruff, prettier, eslint, hadolint and helm"
     exec_mr_review:
       default: true
       type: boolean

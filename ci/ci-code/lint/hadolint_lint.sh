@@ -17,5 +17,17 @@ if [[ "$(hadolint --version 2>/dev/null || true)" != *"$HADOLINT_VERSION"* ]]; t
 fi
 
 mapfile -d '' dockerfiles < <(git ls-files -z -- '*Dockerfile')
-hadolint --no-fail -f gitlab_codeclimate "${dockerfiles[@]}" > gl-code-quality-report.json
-hadolint "${dockerfiles[@]}"
+
+case "${1:-}" in
+validate)
+    hadolint "${dockerfiles[@]}"
+    ;;
+lint)
+    hadolint --config ci/ci-code/lint/hadolint-quality.yaml --no-fail -f gitlab_codeclimate "${dockerfiles[@]}" > gl-code-quality-report.json
+    hadolint --config ci/ci-code/lint/hadolint-quality.yaml --no-fail "${dockerfiles[@]}"
+    ;;
+*)
+    echo "usage: $0 validate|lint" >&2
+    exit 2
+    ;;
+esac

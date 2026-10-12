@@ -1,6 +1,6 @@
 FROM local-only/base-python-cpu:latest
 
-LABEL IMAGE="classification-preprocessing"
+LABEL IMAGE="classification-preprocessing-task"
 LABEL VERSION="0.1.0"
 LABEL BUILD_IGNORE="False"
 

@@ -1,6 +1,6 @@
 FROM local-only/base-python-gpu:latest
 
-LABEL IMAGE="classification-training"
+LABEL IMAGE="classification-training-task"
 LABEL VERSION="0.2.1"
 LABEL BUILD_IGNORE="False"
 

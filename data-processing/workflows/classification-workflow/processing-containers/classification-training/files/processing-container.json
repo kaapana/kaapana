@@ -1,5 +1,5 @@
 {
-    "name": "classification-training",
+    "name": "classification-training-task",
     "description": "Processing container for training a classification model on preprocessed numpy volumes",
     "api_version": 1,
     "templates": [

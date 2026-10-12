@@ -1,5 +1,5 @@
 {
-    "name": "classification-preprocessing",
+    "name": "classification-preprocessing-task",
     "description": "Processing container for preprocessing nrrd images for classification training/inference",
     "api_version": 1,
     "templates": [

@@ -1,5 +1,5 @@
 {
-    "name": "classification-inference",
+    "name": "classification-inference-task",
     "description": "Processing container for running inference with a trained classification model on preprocessed numpy volumes",
     "api_version": 1,
     "templates": [

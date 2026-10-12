@@ -12,4 +12,10 @@ extend-exclude = [
 force-exclude = true
 
 [lint]
-select = ["E4", "E7", "E9", "F", "I"]
+select = [
+    "E4", # pycodestyle imports: multiple imports on one line, imports not at the top of the file
+    "E7", # pycodestyle statements: comparisons to None/True/False with ==, bare except, lambda assignment, ambiguous names like l
+    "E9", # pycodestyle runtime: syntax errors and files that cannot be read
+    "F",  # Pyflakes: undefined names, unused imports and variables, redefinitions, invalid format strings
+    "I",  # isort: imports sorted and grouped (standard library, third party, first party)
+]

@@ -1,11 +1,12 @@
 {
   "name": "kaapana-lint",
   "private": true,
-  "description": "ESLint and Prettier for every TypeScript/Vue file in the repository",
+  "description": "ESLint and Prettier for every JavaScript, TypeScript and Vue file, and Prettier for every Markdown, JSON and YAML file in the repository",
   "engines": {
     "node": ">=20.19"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@vitest/eslint-plugin": "^1.6.27",
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/eslint-config-typescript": "^14.9.0",
@@ -13,6 +14,7 @@
     "eslint-formatter-gitlab": "^7.2.0",
     "eslint-plugin-playwright": "^2.12.0",
     "eslint-plugin-vue": "^10.11.0",
+    "globals": "^17.13.0",
     "prettier": "3.9.8",
     "typescript": "~5.8.0"
   },
@@ -20,7 +22,7 @@
     "lint": "eslint --fix .",
     "lint:check": "eslint .",
     "lint:quality": "eslint --config ci/ci-code/lint/eslint-quality.config.mjs .",
-    "format": "prettier --write \"**/*.{ts,mts,tsx,vue}\"",
-    "format:check": "prettier --check \"**/*.{ts,mts,tsx,vue}\""
+    "format": "prettier --write \"**/*.{js,mjs,cjs,jsx,ts,mts,tsx,vue,md,json,yaml,yml}\"",
+    "format:check": "prettier --check \"**/*.{js,mjs,cjs,jsx,ts,mts,tsx,vue,md,json,yaml,yml}\""
   }
 }

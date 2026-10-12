@@ -2,15 +2,16 @@ import { globalIgnores } from 'eslint/config'
 import { defineConfigWithVueTs, vueTsConfigs } from '@vue/eslint-config-typescript'
 import pluginVue from 'eslint-plugin-vue'
 import skipFormatting from '@vue/eslint-config-prettier/skip-formatting'
+import globals from 'globals'
 
 export const setup = [
   {
     name: 'kaapana/files-to-lint',
-    files: ['**/*.{ts,mts,tsx,vue}'],
+    files: ['**/*.{js,mjs,cjs,jsx,ts,mts,tsx,vue}'],
   },
 
   globalIgnores([
-    '**/*.{js,cjs,mjs,jsx}',
+    '**/*.min.js',
     '**/node_modules/**',
     '**/.venv/**',
     '**/test-results/**',
@@ -26,33 +27,31 @@ export const setup = [
     'services/kaapana-admin/maintenance-page/**',
   ]),
 
+  {
+    name: 'kaapana/javascript-globals',
+    files: ['**/*.{js,mjs,cjs,jsx}'],
+    languageOptions: {
+      globals: { ...globals.browser, ...globals.node },
+    },
+  },
+
+  // TypeScript parser for .ts files and <script lang="ts"> in .vue files, no rules
   vueTsConfigs.base,
 ]
 
 const enforced = {
   name: 'kaapana/enforced',
-  linterOptions: {
-    reportUnusedDisableDirectives: 'off',
-  },
   rules: {
-    'vue/block-lang': 'off',
+    // v-slot must be valid; modifiers are allowed because Vuetify uses slot names like item.name
     'vue/valid-v-slot': ['error', { allowModifiers: true }],
-    'vue/multi-word-component-names': 'off',
-    'vue/no-unused-components': 'off',
-    'vue/no-unused-vars': 'off',
-    'no-debugger': 'error',
-    'no-dupe-else-if': 'error',
-    'no-duplicate-case': 'error',
-    'no-self-assign': 'error',
-    'no-unsafe-finally': 'error',
-    'use-isnan': 'error',
-    'valid-typeof': 'error',
   },
 }
 
 export default defineConfigWithVueTs(
   ...setup,
+  // Vue essential: templates and components that are invalid or break at runtime
   pluginVue.configs['flat/essential'],
   enforced,
+  // turns off every rule that Prettier already handles
   skipFormatting,
 )

@@ -3,6 +3,7 @@
     allow-multiple="true"
     credits="false"
     :label-idle="labelIdle"
+    :disabled="disabled"
     label-tap-to-undo="Remove from list"
   />
 </template>
@@ -21,6 +22,7 @@ type UploadFile = FilePondFile & { relativePath?: string }
 
 const props = defineProps<{
   labelIdle?: string
+  disabled?: boolean
   onProcessFile?: (error: FilePondErrorDescription | null, file: FilePondFile) => void
 }>()
 

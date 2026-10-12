@@ -1,6 +1,26 @@
 <template>
   <v-container fluid class="text-left">
     <h1>Data upload</h1>
+    <v-alert v-if="projectLoadError" type="error" variant="tonal" class="mb-4">
+      {{ projectLoadErrorText }}
+      <template #append>
+        <v-btn
+          variant="text"
+          :prepend-icon="kaapanaIcons.refresh"
+          :loading="retryingProjectLoad"
+          @click="retryProjectLoad"
+        >
+          Try again
+        </v-btn>
+        <v-btn variant="text" @click="projectLoadDetails = true">Details</v-btn>
+      </template>
+    </v-alert>
+    <ErrorDetailsDialog
+      v-model="projectLoadDetails"
+      title="Could not load the project"
+      :text="projectLoadErrorText"
+      :error="projectLoadError ? apiErrorInfo(projectLoadError) : null"
+    />
     <v-alert v-if="isArchived" type="warning" prominent class="mb-4" icon="mdi-archive">
       This project is archived and is read-only. Data upload is disabled. Unarchive the project to
       enable uploads again.
@@ -19,8 +39,8 @@
             <code>
               dcmsend -v {{ hostname }} 11112 --scan-directories --aetitle kp-{{
                 '<'
-              }}dataset-name{{ '>' }} --call kp-{{ selectedProject.short_id }} --scan-pattern
-              '*.dcm' --recurse {{ '<' }}data-dir-of-DICOM-images{{ '>' }}
+              }}dataset-name{{ '>' }} --call kp-{{ projectShortId }} --scan-pattern '*.dcm'
+              --recurse {{ '<' }}data-dir-of-DICOM-images{{ '>' }}
             </code>
             <p class="mt-4">
               11112 is the default port of the DICOM receiver. Your administrator may have
@@ -121,11 +141,17 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
-import { notify } from '@kyvg/vue3-notification'
 import Upload from '@/components/Upload.vue'
 import { WorkflowExecution } from '@kaapana/base-ui/workflow-execution'
 import '@kaapana/base-ui/workflow-execution.css'
-import { postViewDirty, useProjectStore } from '@kaapana/base-ui'
+import {
+  ErrorDetailsDialog,
+  apiErrorInfo,
+  apiErrorText,
+  kaapanaIcons,
+  postViewDirty,
+  useProjectStore,
+} from '@kaapana/base-ui'
 import { settings as defaultSettings } from '@/static/defaultUIConfig'
 
 const projectStore = useProjectStore()
@@ -133,6 +159,8 @@ const { selectedProject } = storeToRefs(projectStore)
 // A disabled card only blocks the pointer, so each control is disabled too.
 // Otherwise the keyboard still reaches them.
 const isArchived = computed(() => selectedProject.value.is_archived === true)
+// Until the project is known, the example uses the placeholder of the user guide.
+const projectShortId = computed(() => selectedProject.value.short_id ?? '<project-short-id>')
 
 // This view standardizes the workflow form on underlined fields; supplied via a
 // defaults-provider around the shared WorkflowExecution (which carries no inline
@@ -150,14 +178,34 @@ const workflowDialog = ref(false)
 const infoDialog = ref(false)
 const hostname = window.location.hostname
 
-// selectedProject drives the archived guard and the dcmsend example.
-projectStore.getSelectedProject().catch((error: any) => {
-  notify({
-    title: 'Error',
-    text: error.response?.data?.detail ?? error.message,
-    type: 'error',
+// selectedProject drives the archived guard and the dcmsend example, so a failed
+// lookup stays visible on the page instead of in a notification that disappears.
+const projectLoadError = ref<unknown>(null)
+const projectLoadDetails = ref(false)
+const retryingProjectLoad = ref(false)
+const projectLoadErrorText = computed(() =>
+  projectLoadError.value ? apiErrorText(projectLoadError.value, 'Could not load the project.') : '',
+)
+
+function loadProject() {
+  return projectStore
+    .getSelectedProject()
+    .then(() => {
+      projectLoadError.value = null
+    })
+    .catch((error: unknown) => {
+      projectLoadError.value = error
+    })
+}
+
+function retryProjectLoad() {
+  retryingProjectLoad.value = true
+  loadProject().finally(() => {
+    retryingProjectLoad.value = false
   })
-})
+}
+
+loadProject()
 // WorkflowExecution reads localStorage["settings"] directly; seed it for
 // standalone boots the shell never touched.
 if (!localStorage['settings']) {

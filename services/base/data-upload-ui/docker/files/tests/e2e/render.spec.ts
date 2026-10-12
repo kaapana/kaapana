@@ -114,12 +114,14 @@ test('archived project: the keyboard cannot reach the upload controls', async ({
 })
 
 // base-ui's project store rejects when the project lookup fails; the view must
-// report it instead of leaking an unhandled rejection.
-test('a failing project lookup is reported and the view still renders', async ({ page }) => {
+// report it on the page instead of leaking an unhandled rejection.
+const PROJECTS = /\/aii\/(projects|users\/[^/]+\/projects)$/
+
+test('a failing project lookup is shown inline and the view still renders', async ({ page }) => {
   await installMockBackend(page)
   const pageErrors: string[] = []
   page.on('pageerror', (e) => pageErrors.push(String(e)))
-  await page.route(/\/aii\/(projects|users\/[^/]+\/projects)$/, (r) =>
+  await page.route(PROJECTS, (r) =>
     r.fulfill({
       status: 500,
       contentType: 'application/json',
@@ -128,7 +130,38 @@ test('a failing project lookup is reported and the view still renders', async ({
   )
   await page.goto(VIEW_PATH)
 
-  await expect(page.getByText('Projects unavailable')).toBeVisible()
+  const alert = page.locator('.v-alert', { hasText: 'Could not load the project.' })
+  await expect(alert).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Data upload' })).toBeVisible()
+  // Without a project the example keeps a placeholder instead of an empty AE title.
+  await expect(page.getByText(/--call kp-<project-short-id>/)).toBeVisible()
   expect(pageErrors).toHaveLength(0)
+
+  // The technical detail is available on demand.
+  await alert.getByRole('button', { name: 'Details' }).click()
+  const details = page.getByRole('dialog')
+  await expect(details).toContainText('Could not load the project')
+  await expect(details).toContainText('500')
+  await expect(details).toContainText('Projects unavailable')
+  await details.getByRole('button', { name: 'Close' }).click()
+  await expect(details).toBeHidden()
+})
+
+test('trying the project lookup again recovers the view', async ({ page }) => {
+  await installMockBackend(page)
+  let failures = 1
+  await page.route(PROJECTS, (r) => {
+    if (failures-- > 0) {
+      return r.fulfill({ status: 503, contentType: 'application/json', body: '{}' })
+    }
+    return r.fallback()
+  })
+  await page.goto(VIEW_PATH)
+
+  const alert = page.locator('.v-alert', { hasText: 'Could not load the project.' })
+  await expect(alert).toBeVisible()
+  await alert.getByRole('button', { name: 'Try again' }).click()
+
+  await expect(alert).toBeHidden()
+  await expect(page.getByText(/--call kp-admin/)).toBeVisible()
 })

@@ -424,8 +424,8 @@ async function downloadAll() {
     )
     if (failed.length) {
       notifyWarning(
-        'Some logs are missing',
-        `The logs of ${failed.join(', ')} could not be fetched. The download contains the other logs.`,
+        'Download missing logs',
+        `Logs for tasks ${failed.join(', ')} could not be found for download.`,
       )
     }
   } finally {

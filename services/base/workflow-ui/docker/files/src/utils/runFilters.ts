@@ -1,56 +1,68 @@
 import { kaapanaIcons } from '@kaapana/base-ui'
 import type { WorkflowRun } from '@/types/schemas'
-
-export type RunFilterOperator = '=' | '!='
-
-export interface RunFilter {
-  field: string
-  operator: RunFilterOperator
-  value: string
-}
-
-export const RUN_FILTER_OPERATORS: { value: RunFilterOperator; label: string }[] = [
-  { value: '=', label: 'is' },
-  { value: '!=', label: 'is not' },
-]
+import {
+  ALL_OPERATORS,
+  DATE_OPERATORS,
+  matchesFilters,
+  nextDay,
+  parseSearchDate,
+  type Filter,
+  type FilterKey,
+  type Sort,
+  type SortOption,
+} from '@/utils/filters'
 
 export type RunSortField = 'created_at' | 'status' | 'workflow'
+export type RunSort = Sort<RunSortField>
 
-export interface RunSort {
-  field: RunSortField
-  direction: 'asc' | 'desc'
-}
+export const RUN_SORT_OPTIONS: SortOption<RunSortField>[] = [
+  { field: 'created_at', label: 'Created' },
+  { field: 'status', label: 'Status' },
+  { field: 'workflow', label: 'Workflow' },
+]
 
-export interface RunFilterField {
-  key: string
-  label: string
-  icon: string
-  /** Placeholder of the value input for fields without a fixed value list. */
-  placeholder?: string
-}
+const DATE_PLACEHOLDER = 'YYYY-MM-DD'
 
-export const RUN_FILTER_FIELDS: RunFilterField[] = [
-  { key: 'status', label: 'Status', icon: 'mdi-list-status' },
-  { key: 'workflow', label: 'Workflow', icon: kaapanaIcons.workflow },
-  { key: 'task', label: 'Task', icon: kaapanaIcons.task },
-  { key: 'id', label: 'Run ID', icon: 'mdi-pound', placeholder: 'Enter a run ID' },
+export const RUN_FILTER_KEYS: FilterKey[] = [
+  { key: 'status', label: 'Status', icon: 'mdi-list-status', operators: ALL_OPERATORS },
+  { key: 'workflow', label: 'Workflow', icon: kaapanaIcons.workflow, operators: ALL_OPERATORS },
+  {
+    key: 'id',
+    label: 'Run ID',
+    icon: 'mdi-pound',
+    placeholder: 'Enter a run ID',
+    operators: ALL_OPERATORS,
+  },
   {
     key: 'external_id',
     label: 'External ID',
     icon: 'mdi-identifier',
     placeholder: 'Enter an external ID',
+    operators: ALL_OPERATORS,
   },
   {
-    key: 'created_at',
+    key: 'created_before',
+    label: 'Created before',
+    icon: 'mdi-calendar-end',
+    placeholder: DATE_PLACEHOLDER,
+    operators: DATE_OPERATORS,
+    date: true,
+  },
+  {
+    key: 'created_on',
     label: 'Created on',
     icon: 'mdi-calendar',
-    placeholder: 'YYYY-MM-DD or DD.MM.YYYY',
+    placeholder: DATE_PLACEHOLDER,
+    operators: DATE_OPERATORS,
+    date: true,
   },
   {
-    key: 'created_since',
-    label: 'Created since',
+    key: 'created_after',
+    label: 'Created after',
     icon: 'mdi-calendar-start',
-    placeholder: 'YYYY-MM-DD or DD.MM.YYYY',
+    placeholder: DATE_PLACEHOLDER,
+    operators: DATE_OPERATORS,
+    date: true,
   },
 ]
 
@@ -64,99 +76,52 @@ export const RUN_STATUS_VALUES = [
   'Canceled',
 ]
 
-export function runFilterField(key: string): RunFilterField | undefined {
-  return RUN_FILTER_FIELDS.find((f) => f.key === key)
-}
-
-/** The fixed values offered for a field, or [] when the value is typed. */
-export function runFilterValues(field: string, runs: WorkflowRun[]): string[] {
-  if (field === 'status') return RUN_STATUS_VALUES
-  if (field === 'workflow')
+export function runFilterValues(key: string, runs: WorkflowRun[]): string[] {
+  if (key === 'status') return RUN_STATUS_VALUES
+  if (key === 'workflow')
     return [...new Set(runs.map((r) => r.workflow?.title).filter(Boolean) as string[])].sort()
-  if (field === 'task') {
-    return [
-      ...new Set(runs.flatMap((r) => r.task_runs?.map((t) => t.task_title) ?? []).filter(Boolean)),
-    ].sort()
-  }
   return []
 }
 
-function startOfDay(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
-}
-
-function validLocalDate(year: number, month: number, day: number): Date | null {
-  const date = new Date(year, month - 1, day)
-  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day)
-    return null
-  return startOfDay(date)
-}
-
-export function parseSearchDate(value: string): Date | null {
-  const input = value.trim()
-  const iso = input.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
-  if (iso) return validLocalDate(Number(iso[1]), Number(iso[2]), Number(iso[3]))
-
-  const german = input.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2}|\d{4})$/)
-  if (german) {
-    let year = Number(german[3])
-    if (year < 100) year += year >= 70 ? 1900 : 2000
-    return validLocalDate(year, Number(german[2]), Number(german[1]))
-  }
-  return null
-}
-
-function matches(run: WorkflowRun, filter: RunFilter): boolean {
+function matches(run: WorkflowRun, filter: Filter): boolean {
   const value = filter.value.toLowerCase()
-  switch (filter.field) {
+  switch (filter.key) {
     case 'status':
       return (run.lifecycle_status || '').toLowerCase() === value
     case 'workflow':
       return (run.workflow?.title || '').toLowerCase().includes(value)
-    case 'task':
-      return run.task_runs?.some((t) => (t.task_title || '').toLowerCase().includes(value)) ?? false
     case 'id':
       return String(run.id) === filter.value.trim()
     case 'external_id':
       return (run.external_id || '').toLowerCase().includes(value)
-    case 'created_at': {
+    case 'created_before': {
+      const day = parseSearchDate(filter.value)
+      return !!day && new Date(run.created_at) < day
+    }
+    case 'created_on': {
       const day = parseSearchDate(filter.value)
       if (!day) return false
-      const next = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1)
       const created = new Date(run.created_at)
-      return created >= day && created < next
+      return created >= day && created < nextDay(day)
     }
-    case 'created_since': {
+    case 'created_after': {
       const day = parseSearchDate(filter.value)
-      return !!day && new Date(run.created_at) >= day
+      return !!day && new Date(run.created_at) >= nextDay(day)
     }
     default:
       return true
   }
 }
 
-/**
- * Filters of the same field are alternatives (status = Error or status =
- * Canceled), and a run must match none of the field's != filters; filters of
- * different fields must all match. The free text searches title, external ID,
- * status and run ID.
- */
 export function filterAndSortRuns(
   runs: WorkflowRun[],
-  filters: RunFilter[],
+  filters: Filter[],
   text: string,
   sort: RunSort,
 ): WorkflowRun[] {
-  const byField = new Map<string, RunFilter[]>()
-  for (const f of filters) byField.set(f.field, [...(byField.get(f.field) ?? []), f])
-
   const query = text.trim().toLowerCase()
   const result = runs.filter((run) => {
-    for (const group of byField.values()) {
-      const included = group.filter((f) => f.operator === '=')
-      if (included.length && !included.some((f) => matches(run, f))) return false
-      if (group.some((f) => f.operator === '!=' && matches(run, f))) return false
-    }
+    if (!matchesFilters(filters, (filter) => matches(run, filter))) return false
     if (!query) return true
     return [run.workflow?.title, run.external_id, run.lifecycle_status, String(run.id)]
       .join(' ')

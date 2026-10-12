@@ -45,31 +45,47 @@ test.describe('workflow list', () => {
     await expect(registration.getByRole('button', { name: 'Start' })).toBeEnabled()
   })
 
-  test('sorting switches between A–Z and Z–A', async ({ page }) => {
+  test('sorting switches between ascending and descending', async ({ page }) => {
     await openWorkflows(page)
     const titles = page.getByTestId('workflow-card').locator('.v-card-title')
     await expect(titles).toHaveText(['Anonymization', 'Registration', 'Segmentation'])
-    await page.getByRole('button', { name: /Sort:/ }).click()
-    await page.getByText('Name Z–A', { exact: true }).click()
+    await page.getByRole('button', { name: /Sort workflows, currently by Name/ }).click()
+    await page.getByText('Ascending', { exact: true }).click()
     await expect(titles).toHaveText(['Segmentation', 'Registration', 'Anonymization'])
   })
 
-  test('filters narrow the cards and can be reset', async ({ page }) => {
+  test('the filter keys come from the kaapana-ui labels', async ({ page }) => {
     await openWorkflows(page)
-    await page.getByRole('button', { name: 'Show filters' }).click()
-    const panel = page.locator('#workflow-filters')
-    await panel.getByText('Partner', { exact: true }).click()
+    await page.getByRole('search').getByRole('textbox').click()
+    const menu = page.locator('.v-overlay--active')
+    await expect(menu.locator('.v-list-item-title')).toHaveText([
+      'Category',
+      'Maturity',
+      'Provider',
+    ])
+  })
+
+  test('label filters narrow the cards and can be cleared', async ({ page }) => {
+    await openWorkflows(page)
+    const input = page.getByRole('search').getByRole('textbox')
+    const menu = page.locator('.v-overlay--active')
+    await input.click()
+    await menu.getByText('Provider', { exact: true }).click()
+    await menu.getByText('=', { exact: true }).click()
+    await menu.getByText('Partner', { exact: true }).click()
+    await page.getByRole('button', { name: 'Search', exact: true }).click()
     await expect(page.getByTestId('workflow-card')).toHaveCount(1)
     await expect(card(page, 'Registration')).toBeVisible()
 
-    await panel.getByRole('button', { name: 'Reset filters' }).click()
+    await page.getByRole('button', { name: 'Clear all filters' }).click()
     await expect(page.getByTestId('workflow-card')).toHaveCount(3)
   })
 
   test('a search without matches says so and offers to clear the filters', async ({ page }) => {
     await openWorkflows(page)
-    await page.getByRole('button', { name: 'Show filters' }).click()
-    await page.getByRole('textbox', { name: 'Search workflows' }).fill('does-not-exist')
+    const input = page.getByRole('search').getByRole('textbox')
+    await input.fill('does-not-exist')
+    await input.press('Enter')
     const state = page.getByTestId('collection-state')
     await expect(state).toContainText('No workflows match the current filters')
     await state.getByRole('button', { name: 'Clear filters' }).click()

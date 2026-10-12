@@ -9,6 +9,27 @@ The Workflows V2 views on top of `workflow-api`. The platform menu shows them in
   log download. The list updates every 15 s while a run is active.
 - **Logs** (`/workflow-ui/runs/<id>/logs`): the parameters one run was started with and its task logs, with search across all tasks and a severity filter.
 
+## Filtering runs and workflows
+
+The query builder of the runs list and the workflow list follows the GitLab Pajamas
+[filter component](https://design.gitlab.com/components/filter)
+([Storybook](https://design-system-pages-2b622b.gitlab.io/storybook/?path=%2Fstory%2Fbase-filtered-search--with-terms-as-tokens)):
+a filter has a key, an operator and a value; the filters apply on Enter or the search button; selecting the key or
+the operator of a filter asks for the value again; the clear button removes all filters at once and keeps the search
+field focused; the search button sits after a divider at the end of the field. Like the date tokens in GitLab, the
+date keys (Created before, on, after) only have `=`, which is filled in, and take the value from a calendar or as
+YYYY-MM-DD. A key with a single operator always skips the operator step.
+
+The filter keys of the workflow list are not fixed: every `kaapana-ui.<name>` label of a workflow becomes the key
+`<Name>`, except `kaapana-ui.description`.
+
+It deviates from Pajamas in these points:
+
+- Filters are joined with AND, and the AND between two filters can be switched to OR. Pajamas has no connectors and
+  allows one filter per key.
+- The operator of a filter shows as `=` or `!=`, and the operator list adds "is" and "is not".
+- Free text stays text and does not become a token.
+
 ## Shared code
 
 The app consumes `@kaapana/base-ui` for the theme, the shared HTTP client with the project prefix, `ConfirmDialog`,

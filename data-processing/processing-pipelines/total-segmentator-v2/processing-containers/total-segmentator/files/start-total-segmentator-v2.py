@@ -21,6 +21,12 @@ def process_input_file(input_path, output_path):
         total_output_path = join(output_path, f"total-segmentator-{task}-ml.nii.gz")
     if task not in ['total', 'total_mr']: # disable fast for all sub tasks
         fast = False
+        # roi_subset only makes sense against the base "total"/"total_mr"
+        # task's own structure names - a sub task like liver_segments has
+        # its own, differently-named structures, so passing the same
+        # roi_subset through would just silently filter its output to
+        # nothing instead of being ignored.
+        roi_subset = None
     try:
         totalsegmentator(
             input=input_path,
@@ -137,8 +143,12 @@ if __name__ == "__main__":
     nora_tag = nora_tag if nora_tag.lower() != "none" else None
 
     # Define a subset of classes to save (space separated list of class names). If running 1.5mm model, will only run the appropriate models for these rois.")
+    # TotalSegmentatorV2Operator.py encodes a roi_subset list as a single
+    # space-joined string (`" ".join(roi_subset)`) for the env var - split it
+    # back into an actual list here, since totalsegmentator()'s own
+    # roi_subset parameter expects a list of class names, not one string.
     roi_subset = getenv("ROI_SUBSET", "None")
-    roi_subset = roi_subset if roi_subset.lower() != "none" else None
+    roi_subset = roi_subset.split() if roi_subset.lower() != "none" else None
 
     cuda_available = getenv("CUDA_VISIBLE_DEVICES", "None")
     cuda_available = True if cuda_available.lower() != "none" else False

@@ -5,7 +5,7 @@ import shutil
 from io import BytesIO
 import zipfile
 
-from app.datasets import utils
+from app.datasets import body_part_matching, utils
 from app.dependencies import (
     get_minio,
     get_opensearch,
@@ -239,6 +239,33 @@ async def get_data(
         return thumbnail_src
 
     return JSONResponse(dict(metadata=metadata, thumbnail_src=thumbnail_src))
+
+
+@router.get("/matching-sm-series")
+def get_matching_sm_series(
+    study_instance_uid: str = Query(...),
+    label: str = Query(None),
+    dcmweb_helper=Depends(get_dcmweb_helper),
+):
+    """
+    Finds the pathology (SM) series for the same patient as
+    `study_instance_uid` whose own DICOM metadata resolves to the same organ
+    as `label` (the label of a segment clicked in OHIF's SEG viewport).
+    Returns {} if nothing matches - only the specific organ a pathology slide
+    actually exists for should be clickable, not every segmented organ.
+
+    A radiology/pathology pair whose association was lost (different
+    PatientID, or a pathology slide missing a body-part tag) is expected to
+    have been repaired beforehand by the wsi-mapping-pipeline DAG, which
+    rewrites the actual DICOM tags and re-imports the data - so this always
+    resolves purely from DICOM metadata, with no separate side channel here.
+    """
+    result = body_part_matching.find_matching_sm_series(dcmweb_helper, study_instance_uid, label)
+    logger.info(
+        "matching-sm-series: study_instance_uid=%s label=%r -> %r",
+        study_instance_uid, label, result,
+    )
+    return result
 
 
 # This should actually be a get request but since the body is too large for a get request

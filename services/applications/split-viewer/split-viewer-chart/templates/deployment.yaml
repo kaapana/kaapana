@@ -1,0 +1,43 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: split-viewer
+  namespace: {{ .Values.global.services_namespace }}
+  labels:
+    app.kubernetes.io/name: split-viewer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: split-viewer
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: split-viewer
+    spec:
+      containers:
+      - name: split-viewer-container
+        image: "{{ .Values.global.registry_url }}/split-viewer:{{ .Values.global.kaapana_build_version }}"
+        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+        ports:
+          - containerPort: 3001
+        env:
+        - name: DICOM_WEB_FILTER_URL
+          value: "http://dicom-web-filter-service.{{ .Values.global.services_namespace }}.svc:8080"
+        - name: KAAPANA_BACKEND_URL
+          value: "http://kaapana-backend-service.{{ .Values.global.services_namespace }}.svc:5000"
+        - name: APPLICATION_ROOT
+          value: "{{ .Values.global.split_viewer_prefix }}"
+        resources:
+          requests:
+            memory: "250Mi"
+          limits:
+            memory: "500Mi"
+      imagePullSecrets:
+        {{- range .Values.global.image_pull_secrets }}
+        - name: {{ . }}
+        {{- end }}
+---

@@ -34,6 +34,7 @@
   },
   "devDependencies": {
     "@mdi/font": "7.4.47",
+    "@types/node": "20.19.0",
     "@types/chai": "4.3.16",
     "@types/mocha": "10.0.9",
     "@vue/cli-plugin-babel": "5.0.8",

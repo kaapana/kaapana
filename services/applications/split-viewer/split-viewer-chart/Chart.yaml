@@ -1,0 +1,10 @@
+---
+apiVersion: v1
+appVersion: "0.1.0"
+description: "Split-screen viewer linking a radiology study (OHIF) to its matching pathology slide (SLIM), with click-to-segment organ linking"
+name: split-viewer-chart
+version: "0.0.0"
+keywords:
+- kaapanaapplication
+annotations:
+  ui-visible-name: "Split Viewer"

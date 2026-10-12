@@ -172,6 +172,17 @@ ui_forms = {
                 "default": True,
                 "readOnly": True,
             },
+            "roi_subset": {
+                "title": "--roi_subset",
+                "description": "Restrict the 'total'/'total_mr' task's output to a space-"
+                "separated subset of its structure names (e.g. 'liver' or 'kidney_left "
+                "kidney_right') instead of all 117/50 structures. Ignored for every other "
+                "task, since their own structures use different names. Leave empty for no "
+                "restriction.",
+                "type": "string",
+                "default": "",
+                "readOnly": False,
+            },
         },
         "required": ["nr_thr_resamp", "nr_thr_saving", "input"]
     },

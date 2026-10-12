@@ -1,0 +1,9 @@
+---
+global:
+    pull_policy_pods: "IfNotPresent"
+    split_viewer_prefix: /split-viewer
+    # Override with --set global.image_pull_secrets={registry-secret,<your-extra-secret>}
+    # for a personal/custom registry during development - the default here is
+    # what a real deployment against the platform's own registry needs.
+    image_pull_secrets:
+      - registry-secret

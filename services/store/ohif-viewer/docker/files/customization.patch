@@ -1,5 +1,5 @@
 diff --git a/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx b/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx
-index 19cf891d0..f0c32550e 100644
+index 19cf891d09..f0c32550ec 100644
 --- a/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx
 +++ b/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx
 @@ -157,18 +157,10 @@ function OHIFCornerstoneRTViewport(props: withAppTypes) {
@@ -26,10 +26,79 @@ index 19cf891d0..f0c32550e 100644
  
    useEffect(() => {
 diff --git a/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx b/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx
-index 2d7ae9105..0fcb8a73f 100644
+index 2d7ae91053..d72cc56dc2 100644
 --- a/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx
 +++ b/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx
-@@ -170,18 +170,10 @@ function OHIFCornerstoneSEGViewport(props: withAppTypes) {
+@@ -8,6 +8,8 @@ import _getStatusComponent from './_getStatusComponent';
+ import { usePositionPresentationStore } from '@ohif/extension-cornerstone';
+ import { SegmentationRepresentations } from '@cornerstonejs/tools/enums';
+ import { utils } from '@ohif/extension-cornerstone';
++import { getEnabledElement } from '@cornerstonejs/core';
++import { utilities as cstUtils } from '@cornerstonejs/tools';
+ 
+ const SEG_TOOLGROUP_BASE_NAME = 'SEGToolGroup';
+ 
+@@ -96,6 +98,59 @@ function OHIFCornerstoneSEGViewport(props: withAppTypes) {
+     setElement(null);
+   };
+ 
++  // KAAPANA CUSTOMIZATION: notify an embedding page (e.g. a combined
++  // radiology/pathology split-screen viewer) which segment was clicked, using
++  // Cornerstone3D's own labelmap/contour hit-testing (getSegmentIndexAtWorldPoint)
++  // rather than guessing from rendered pixel colors - this is the real segment
++  // identity, not an approximation, and works regardless of segmentation color.
++  useEffect(() => {
++    if (!element) {
++      return;
++    }
++
++    const handleSegmentClick = evt => {
++      const enabledElement = getEnabledElement(element);
++      if (!enabledElement) {
++        return;
++      }
++      const { viewport } = enabledElement;
++
++      const rect = element.getBoundingClientRect();
++      const canvasPos = [evt.clientX - rect.left, evt.clientY - rect.top];
++      const worldPos = viewport.canvasToWorld(canvasPos);
++
++      const segmentationId = segDisplaySet.displaySetInstanceUID;
++      const segmentIndex = cstUtils.segmentation.getSegmentIndexAtWorldPoint(
++        segmentationId,
++        worldPos,
++        { viewport }
++      );
++
++      // 0 / undefined -> background / no segment at this point.
++      if (!segmentIndex) {
++        return;
++      }
++
++      const segmentation = segmentationService.getSegmentation(segmentationId);
++      const segment = segmentation?.segments?.[segmentIndex];
++
++      window.parent.postMessage(
++        {
++          type: 'ohif-segment-click',
++          segmentationId,
++          segmentIndex,
++          label: segment?.label ?? null,
++        },
++        window.location.origin
++      );
++    };
++
++    element.addEventListener('click', handleSegmentClick);
++    return () => {
++      element.removeEventListener('click', handleSegmentClick);
++    };
++  }, [element, segDisplaySet, segmentationService]);
++
+   const storePresentationState = useCallback(() => {
+     viewportGrid?.viewports.forEach(({ viewportId }) => {
+       commandsManager.runCommand('storePresentation', {
+@@ -170,18 +225,10 @@ function OHIFCornerstoneSEGViewport(props: withAppTypes) {
      if (segIsLoading) {
        return;
      }
@@ -53,7 +122,7 @@ index 2d7ae9105..0fcb8a73f 100644
  
    useEffect(() => {
 diff --git a/extensions/default/src/ViewerLayout/ViewerHeader.tsx b/extensions/default/src/ViewerLayout/ViewerHeader.tsx
-index 6e1afb651..24f790292 100644
+index 6e1afb6517..24f7902921 100644
 --- a/extensions/default/src/ViewerLayout/ViewerHeader.tsx
 +++ b/extensions/default/src/ViewerLayout/ViewerHeader.tsx
 @@ -75,52 +75,58 @@ function ViewerHeader({ appConfig }: withAppTypes<{ appConfig: AppTypes.Config }
@@ -159,7 +228,7 @@ index 6e1afb651..24f790292 100644
  }
  
 diff --git a/extensions/default/src/ViewerLayout/index.tsx b/extensions/default/src/ViewerLayout/index.tsx
-index b29afdf07..bcface035 100644
+index b29afdf079..bcface0358 100644
 --- a/extensions/default/src/ViewerLayout/index.tsx
 +++ b/extensions/default/src/ViewerLayout/index.tsx
 @@ -151,13 +151,17 @@ function ViewerLayout({

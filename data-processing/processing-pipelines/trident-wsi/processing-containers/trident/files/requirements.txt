@@ -1,0 +1,12 @@
+# torch / torchvision / torchaudio are already provided (CUDA 11.8 build) by the local-only/base-python-gpu
+# base image - do NOT list them here, otherwise pip may try to resolve a conflicting version.
+
+# Installed BEFORE `pip install -e /opt/trident` (see Dockerfile) so this exact pin wins over
+# TRIDENT's own wider ">=0.9.16,<2" constraint. TRIDENT's own README explicitly warns timm==1.x
+# breaks most patch/slide encoders.
+timm==0.9.16
+
+# New DICOM-WSI reader backend dependency (not part of upstream TRIDENT - everything else TRIDENT
+# itself needs is resolved automatically by `pip install -e /opt/trident` from its own pyproject.toml).
+wsidicom
+pydicom

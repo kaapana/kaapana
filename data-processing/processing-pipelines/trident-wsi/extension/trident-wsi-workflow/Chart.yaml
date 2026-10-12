@@ -1,0 +1,10 @@
+---
+apiVersion: v1
+appVersion: "0.6.1"
+description: "TRIDENT whole-slide-image pipeline: tissue segmentation (visualized in SLIM as a Comprehensive 3D SR) and foundation-model feature extraction"
+name: trident-wsi-workflow
+version: "0.0.0"
+keywords:
+- kaapanaworkflow
+annotations:
+  ui-visible-name: "TRIDENT WSI"

@@ -1,0 +1,10 @@
+---
+apiVersion: v1
+appVersion: "0.1.0"
+description: "Infer the body part covered by a radiology series from its matching pathology (SM) study, then run TotalSegmentator v2 accordingly"
+name: auto-segmentation-pipeline-workflow
+version: "0.0.0"
+keywords:
+- kaapanaworkflow
+annotations:
+  ui-visible-name: "Auto Segmentation Pipeline"

@@ -3,11 +3,11 @@ import { setup } from '@storybook/vue3-vite'
 import { h } from 'vue'
 import { VApp } from 'vuetify/components'
 import { createPinia } from 'pinia'
-import NotificationsPlugin, { Notifications } from '@kyvg/vue3-notification'
 import 'vuetify/styles'
 import '@mdi/font/css/materialdesignicons.css'
 // createKaapanaVuetify() injects the platform typeface, just as it does for a view.
 import { createKaapanaVuetify } from '../src/utils/createKaapanaVuetify'
+import { KaapanaNotifications, kaapanaNotifications } from '../src/utils/notifications'
 import { KAAPANA_THEME_DARK, KAAPANA_THEME_LIGHT } from '../src/utils/vuetifyTheme'
 
 const vuetify = createKaapanaVuetify()
@@ -17,7 +17,7 @@ setup((app) => {
   app.use(createPinia())
   // The views report transient outcomes through this library — kaapanaApiService
   // already does — so the reference has to use it rather than a stand-in.
-  app.use(NotificationsPlugin)
+  app.use(kaapanaNotifications)
 })
 
 const preview: Preview = {
@@ -62,10 +62,7 @@ const preview: Preview = {
       vuetify.theme.global.name.value = context.globals.theme ?? KAAPANA_THEME_LIGHT
       return () =>
         h(VApp, null, {
-          default: () => [
-            h('div', { class: 'pa-6' }, [h(story())]),
-            h(Notifications, { position: 'bottom right', width: '20%', duration: 5000 }),
-          ],
+          default: () => [h('div', { class: 'pa-6' }, [h(story())]), h(KaapanaNotifications)],
         })
     },
   ],

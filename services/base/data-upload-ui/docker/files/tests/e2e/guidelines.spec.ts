@@ -73,6 +73,16 @@ test.describe('layout', () => {
   })
 })
 
+test.describe('forms', () => {
+  test('the import form uses outlined fields like workflow-execution-ui', async ({ page }) => {
+    await page.getByRole('button', { name: /Import the data/ }).click()
+    const form = page.locator('.v-overlay--active')
+    await expect(form.getByLabel('Workflow name')).toBeVisible()
+    await expect(form.locator('.v-field--variant-outlined').first()).toBeVisible()
+    await expect(form.locator('.v-field--variant-underlined')).toHaveCount(0)
+  })
+})
+
 test.describe('dialogs', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 })

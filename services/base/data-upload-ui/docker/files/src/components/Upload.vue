@@ -5,6 +5,11 @@
     :label-idle="labelIdle"
     :disabled="disabled"
     label-tap-to-undo="Remove from list"
+    @addfile="(error: unknown, file: FilePondFile) => !error && track(file, true)"
+    @processfilestart="(file: FilePondFile) => track(file, true)"
+    @processfile="(_error: unknown, file: FilePondFile) => track(file, false)"
+    @processfileabort="(file: FilePondFile) => track(file, false)"
+    @removefile="(_error: unknown, file: FilePondFile) => track(file, false)"
   />
 </template>
 
@@ -24,6 +29,25 @@ defineProps<{
   labelIdle?: string
   disabled?: boolean
 }>()
+
+const emit = defineEmits<{
+  uploading: [active: boolean]
+}>()
+
+// Files that are queued or still uploading. A reload of the page would abort them.
+const activeFiles = new Set<string>()
+
+function track(file: FilePondFile, active: boolean) {
+  const wasUploading = activeFiles.size > 0
+  if (active) {
+    activeFiles.add(file.id)
+  } else {
+    activeFiles.delete(file.id)
+  }
+  if (wasUploading !== activeFiles.size > 0) {
+    emit('uploading', activeFiles.size > 0)
+  }
+}
 
 const FilePond = vueFilePond()
 

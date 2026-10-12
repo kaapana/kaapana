@@ -81,6 +81,7 @@
             <Upload
               label-idle="Dicoms, ITK images or any other data"
               :disabled="isArchived"
+              @uploading="postViewDirty"
             ></Upload>
             <br />
             <v-icon size="large">mdi-numeric-3-circle</v-icon>&nbsp;
@@ -116,7 +117,7 @@ import { notify } from '@kyvg/vue3-notification'
 import Upload from '@/components/Upload.vue'
 import { WorkflowExecution } from '@kaapana/base-ui/workflow-execution'
 import '@kaapana/base-ui/workflow-execution.css'
-import { useProjectStore } from '@kaapana/base-ui'
+import { postViewDirty, useProjectStore } from '@kaapana/base-ui'
 import { settings as defaultSettings } from '@/static/defaultUIConfig'
 
 const projectStore = useProjectStore()

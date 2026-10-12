@@ -102,6 +102,20 @@ test.describe('run list', () => {
   })
 })
 
+test.describe('run parameters', () => {
+  test('the row opens the parameters of the run read-only', async ({ page }) => {
+    await openRuns(page)
+    await runRow(page, 1).getByRole('button', { name: 'View parameters' }).click()
+    const dialog = page.getByTestId('run-parameters-dialog')
+    await expect(dialog).toContainText('Parameters of run 1')
+    await dialog.getByRole('button', { name: /segment/ }).click()
+    await expect(dialog.locator('dt', { hasText: 'Threshold' }).locator('+ dd')).toContainText('7')
+    await expect(dialog.locator('input, select, textarea')).toHaveCount(0)
+    await dialog.getByRole('button', { name: 'Close' }).click()
+    await expect(dialog).toBeHidden()
+  })
+})
+
 test.describe('run actions', () => {
   test('cancelling asks first, with the safe action focused', async ({ page }) => {
     await openRuns(page)

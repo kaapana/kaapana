@@ -37,7 +37,12 @@
     </v-empty-state>
 
     <template v-else-if="run">
-      <RunParameters :run="run" />
+      <v-card :elevation="2" class="mb-4">
+        <v-card-title class="text-h6">Parameters</v-card-title>
+        <v-card-text>
+          <RunParameters :run="run" />
+        </v-card-text>
+      </v-card>
       <LogViewer :run="run" />
     </template>
   </v-container>

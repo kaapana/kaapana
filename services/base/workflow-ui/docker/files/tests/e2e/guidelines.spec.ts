@@ -66,7 +66,13 @@ test.describe('visual language', () => {
 test.describe('accessibility', () => {
   test('icon-only row actions carry accessible names', async ({ page }) => {
     await openRuns(page)
-    for (const name of ['View logs', 'Download all logs (ZIP)', 'Clean run data', 'Delete run']) {
+    for (const name of [
+      'View parameters',
+      'View logs',
+      'Download all logs (ZIP)',
+      'Clean run data',
+      'Delete run',
+    ]) {
       await expect(runRow(page, 1).getByRole('button', { name, exact: true })).toBeVisible()
     }
     await expect(runRow(page, 3).getByRole('button', { name: 'Retry run' })).toBeVisible()

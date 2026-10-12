@@ -386,15 +386,19 @@ Linting
 - One ESLint/Prettier toolchain at the repository root covers every app — see
   :ref:`code_formatting` for installation, editor setup and the rules. The
   apps carry no lint configuration or lint dependencies of their own.
-- One script, ``ci/ci-code/lint/ui_lint.sh``, runs both the ``lint: [ui]`` CI
-  job and the ``ui-lint`` pre-commit hook. It lints every committed
-  ``.ts``/``.mts``/``.tsx``/``.vue`` file — unlike ``ui_e2e_tests``, there's no
-  list to update for a new app.
+- ``ci/ci-code/lint/ui_lint.sh`` runs the ``validate: [ui]`` and
+  ``lint: [ui]`` CI jobs and the ``ui-lint`` pre-commit hook.
+  ``ci/ci-code/lint/prettier_lint.sh`` runs ``format: [prettier]`` and the manual
+  ``prettier`` hook. They check every committed JavaScript, TypeScript and Vue
+  file — unlike ``ui_e2e_tests``, there's no list to update for a new app.
 
 .. code-block:: bash
 
-   ci/ci-code/lint/ui_lint.sh                     # CI: quality report, eslint + prettier --check, every committed file
-   ci/ci-code/lint/ui_lint.sh <file> [<file> ...]  # pre-commit: eslint --fix + prettier --write, these files
+   ci/ci-code/lint/ui_lint.sh validate                         # CI: blocking ESLint rules, every committed file
+   ci/ci-code/lint/ui_lint.sh lint                             # CI: advisory Code Quality report
+   ci/ci-code/lint/prettier_lint.sh format                     # CI: prettier --check, every committed file
+   ci/ci-code/lint/ui_lint.sh validate <file> [<file> ...]     # pre-commit: eslint --fix, these files
+   ci/ci-code/lint/prettier_lint.sh format <file> [<file> ...] # pre-commit: prettier --write, these files
 
 
 .. _ui_testing:

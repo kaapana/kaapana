@@ -3,516 +3,474 @@
 Code Formatting
 **********************************
 
-Kaapana checks every Python, TypeScript and Vue file and every Dockerfile
-with two kinds of tools.
-Every one of them follows the same pattern: one configuration at the
-repository root, one pinned tool version, a pre-commit hook that fixes what it
-can on commit, and a CI job that checks the whole repository with the same
-tool and configuration.
+Python, TypeScript/Vue, Markdown/JSON/YAML, Dockerfiles and Helm charts are
+checked by a pre-commit hook on every commit and by CI jobs. Both use the
+same configuration and the same pinned tool versions.
 
-Formatter and linter
----------------------
+Every check belongs to one of three kinds:
 
-A **formatter** decides how code looks: indentation, line breaks, quotes,
-semicolons, trailing commas. It rewrites the file and never changes what the
-code does, so everything it reports is fixed automatically. There is nothing
-to discuss in review: the formatter's output is the style.
-
-A **linter** decides whether code is likely wrong or hard to maintain: an
-unused variable or import, an undefined name, :code:`any` where a type belongs,
-a Vue template that cannot work. Some findings are fixed automatically (for
-example sorting imports or :code:`let` → :code:`const`); the rest must be
-fixed by hand.
+- **Format**: layout only, fixed by the formatter, pre-commit hook does that automatically. The pre-commit hook and the
+  :code:`format` CI job fail on it.
+- **Validate** (blocking): syntax errors and the blocking rulesets. The
+  pre-commit hook and the :code:`validate` CI job fail on them.
+- **Lint** (advisory): the stricter rulesets. The :code:`lint` CI job
+  publishes their findings in the merge request Code Quality widget and never
+  fails. Pre-commit hook does not run them.
 
 .. list-table::
    :header-rows: 1
 
-   * -
-     - Python
-     - TypeScript / Vue
-     - Dockerfile
-     - Helm chart
-   * - Formatter
+   * - Tool
+     - Format
+     - Validate
+     - Lint
+   * - Ruff
      - :code:`ruff format`
-     - Prettier
-     - none
-     - none
-   * - Linter
-     - :code:`ruff check`
-     - ESLint
-     - hadolint
-     - :code:`helm lint`, kubeconform
-   * - Configuration
      - :code:`ruff.toml`
-     - :code:`.prettierrc.json`, :code:`eslint.config.mjs`
+     - :code:`ruff-quality.toml`
+   * - Prettier
+     - :code:`.prettierrc.json`
+     -
+     -
+   * - ESLint
+     -
+     - :code:`eslint.config.mjs`
+     - :code:`eslint-quality.config.mjs`
+   * - hadolint
+     -
      - :code:`.hadolint.yaml`
-     - :code:`build_cli/build_cli/configs/fake-values.yaml`
-   * - Code quality report
-     - :code:`ci/ci-code/lint/ruff-quality.toml`
-     - :code:`ci/ci-code/lint/eslint-quality.config.mjs`
-     - :code:`.hadolint.yaml`
-     - none, JUnit test report instead
-   * - Pre-commit hook
-     - :code:`ruff-check`, :code:`ruff-format`
-     - :code:`ui-lint`
-     - :code:`hadolint`
-     - :code:`helm-lint`
-   * - CI job
-     - :code:`lint: [ruff]`
-     - :code:`lint: [ui]`
-     - :code:`lint: [hadolint]`
-     - :code:`lint: [helm]`
+     - :code:`hadolint-quality.yaml`
+   * - Helm
+     -
+     - helm lint, kubeconform
+     - :code:`kube-linter-quality.yaml`
 
-The linters leave formatting to the formatters: ESLint's formatting rules are
-switched off, so ESLint and Prettier never disagree.
+The advisory configs are in :code:`ci/ci-code/lint/`. Each tool has one
+script there, :code:`ci/ci-code/lint/<linter>_lint.sh format|validate|lint`, which
+installs the tool and runs exactly what the CI job runs.
 
-Every linter has two rulesets. The **enforced** ruleset holds the rules whose
-findings are bugs; the pre-commit hook and CI fail on it. The **advisory**
-ruleset adds the rules the codebase does not meet yet; CI reports its findings
-in the merge request Code Quality widget and never fails on them. Formatting
-is always enforced.
+Setup
+-----
 
-One-time setup
----------------
 From the repository root:
 
 .. code-block:: bash
 
     pip install ruff pre-commit
-    npm ci                  # ESLint and Prettier, into the root node_modules
-    pre-commit install      # run the hooks on every commit
-
-Ruff
----------------------
-
-All Python code in Kaapana is formatted and linted with `Ruff <https://docs.astral.sh/ruff/>`_,
-which replaced Black, isort and flake8. One file at the repository root,
-:code:`ruff.toml`, holds the whole configuration: 120 character lines,
-Black-compatible formatting, isort-compatible import sorting.
-
-Installation
---------------
+    npm ci                  # ESLint and Prettier, needs Node.js 20.19 or newer
+    pre-commit install
 
 .. code-block:: bash
 
-    pip install ruff
-
-VS Code
---------
-
-Install the `Ruff extension <https://marketplace.visualstudio.com/items?itemName=charliermarsh.ruff>`_
-(:code:`charliermarsh.ruff`), then in your :code:`.vscode/settings.json`:
-
-.. code-block:: json
-
-    {
-      "[python]": {
-        "editor.defaultFormatter": "charliermarsh.ruff",
-        "editor.formatOnSave": true,
-        "editor.codeActionsOnSave": {
-          "source.organizeImports.ruff": "explicit"
-        }
-      }
-    }
-
-The extension reads :code:`ruff.toml` from the repository root, so the editor
-formats exactly the way the pre-commit hook and the :code:`lint: [ruff]` job do.
-
-The whole codebase
--------------------
-Format and lint the whole repository from its root:
-
-.. code-block:: bash
-
-    ruff format .          # formatter: rewrite files
-    ruff check --fix .     # linter: sort imports, drop unused ones, report the rest
-
-    ruff format --check --diff .   # what CI runs: report, change nothing
-    ruff check .
-
-All are safe to run repeatedly. Pass a path to limit them to one file or
-directory.
-
-Helm charts
-------------
-Check the chart tree the way the :code:`lint: [helm]` job does: :code:`helm lint`,
-then a render with fake values validated by kubeconform. Both always run, and any
-lint warning or invalid manifest fails the CI job:
-
-.. code-block:: bash
-
-    kaapana-build --lint-only
-
-:code:`ci/ci-code/lint/helm_lint.sh` runs the same and downloads
-`kubeconform <https://github.com/yannh/kubeconform/releases>`_ when it is
-missing, so it also works from the pre-commit hook.
-
-Pre-commit hooks
------------------
-
-.. important::
-  Install the hooks before committing — CI runs the same checks and fails the
-  pipeline on any finding:
-
-  .. code-block:: bash
-
-      pip install pre-commit && pre-commit install
-
-The hooks live in :code:`.pre-commit-config.yaml`. On commit they run one
-after the other:
-
-1. **ruff** pins the same Ruff version the CI job uses. On commit it formats
-   the staged files and applies the safe lint fixes. When it changes
-   something, review the result and commit again.
-
-2. **helm-lint** runs :code:`kaapana-build --lint-only` when the commit
-   changes a chart. It lints and validates the platform chart tree, exactly
-   what the :code:`lint: [helm]` CI job does. It needs :code:`helm`, the same as a local build; :code:`build_cli` is installed
-   into the hook's own environment the first time it runs.
-
-The commits that migrated the codebase to Ruff are listed in
-:code:`.git-blame-ignore-revs`, so :code:`git blame` skips them. To make your
-local git use that list:
-
-.. code-block:: bash
-
-    git config blame.ignoreRevsFile .git-blame-ignore-revs
-
-Rules
-------
-:code:`ruff check` enforces pycodestyle errors, pyflakes (unused imports and
-variables, undefined names) and import order.
-
-Code quality report
---------------------
-The :code:`lint: [ruff]` job also runs a wider ruleset,
-:code:`ci/ci-code/lint/ruff-quality.toml`, that never fails a pipeline, and reports it in
-the merge request Code Quality widget. The same run locally:
-
-.. code-block:: bash
-
-    ruff check --config ci/ci-code/lint/ruff-quality.toml --statistics .   # counts per rule
-    ruff check --config ci/ci-code/lint/ruff-quality.toml .                # the findings
-    ruff check --config ci/ci-code/lint/ruff-quality.toml --select UP006 --fix .   # one rule
-
-ESLint / Prettier
----------------------
-
-All TypeScript and Vue code in Kaapana is formatted with
-`Prettier <https://prettier.io/>`_ and linted with
-`ESLint <https://eslint.org/>`_. The repository root holds the whole
-toolchain, the same way :code:`ruff.toml` does for Python:
-
-- :code:`package.json` and :code:`package-lock.json` pin Prettier, ESLint and
-  the ESLint plugins. They hold nothing else; no app depends on them.
-- :code:`.prettierrc.json` is the one Prettier style: no semicolons, single
-  quotes, 100 character lines.
-- :code:`eslint.config.mjs` is the one ESLint configuration for every app.
-- :code:`.prettierignore` and the ignores in :code:`eslint.config.mjs` keep
-  build output and third-party code out.
-
-The apps carry no lint configuration or lint dependencies of their own, so a
-new app is covered as soon as its files are committed.
-
-Installation
---------------
-From the repository root, once and again after every change to
-:code:`package-lock.json`:
-
-.. code-block:: bash
-
-    npm ci
-
-This needs Node.js 20.19 or newer. The pre-commit hook and
-:code:`ci/ci-code/lint/ui_lint.sh` run :code:`npm ci` themselves when
-:code:`node_modules` is missing or older than the lockfile.
-
-VS Code
---------
-
-Install the `Prettier <https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode>`_
-(:code:`esbenp.prettier-vscode`),
-`ESLint <https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint>`_
-(:code:`dbaeumer.vscode-eslint`) and
-`Vue (Official) <https://marketplace.visualstudio.com/items?itemName=Vue.volar>`_
-(:code:`Vue.volar`) extensions, then in your :code:`.vscode/settings.json`:
-
-.. code-block:: json
-
-    {
-      "[typescript][vue]": {
-        "editor.defaultFormatter": "esbenp.prettier-vscode",
-        "editor.formatOnSave": true,
-        "editor.codeActionsOnSave": {
-          "source.fixAll.eslint": "explicit"
-        }
-      }
-    }
-
-On save, Prettier formats the file and ESLint applies its automatic fixes; the
-remaining ESLint findings are underlined in the editor. Open the repository
-root as the workspace folder and run :code:`npm ci` there first: both
-extensions take their configuration and their tool version from the root, so
-the editor formats and lints exactly the way the pre-commit hook and the
-:code:`lint: [ui]` job do.
-
-The whole codebase
--------------------
-Format and lint the whole repository from its root:
-
-.. code-block:: bash
-
-    npm run format         # formatter: prettier --write on every .ts/.mts/.tsx/.vue file
-    npm run lint           # linter: eslint --fix, fixes what it safely can, reports the rest
-
-    npm run format:check   # report, change nothing
-    npm run lint:check
-    npm run lint:quality   # the advisory ruleset, never enforced
-    ci/ci-code/lint/ui_lint.sh   # exactly what CI runs: both checks on the committed files
-
-All are safe to run repeatedly. For one file or directory, call the tools
-directly:
-
-.. code-block:: bash
-
-    npx prettier --write "services/base/portal-ui/**/*.{ts,mts,tsx,vue}"
-    npx eslint --fix services/base/portal-ui
-
-.. note::
-  Do not run :code:`npx prettier --write .`: without a file pattern Prettier
-  also rewrites every YAML, JSON and Markdown file in the repository.
-  :code:`npm run format` limits it to TypeScript and Vue.
-
-Rules
-------
-:code:`eslint.config.mjs` enforces the rules whose findings are bugs:
-
-- :code:`eslint-plugin-vue` *essential*: errors that break a Vue component,
-  such as an invalid :code:`v-for`, a mutated prop or a :code:`ref` used
-  without :code:`.value`. :code:`valid-v-slot` allows Vuetify's
-  :code:`#item.<key>` slot names. Unused components and template variables and
-  single-word component names are left to the advisory ruleset.
-- A few ESLint core rules: :code:`no-debugger`, :code:`no-dupe-else-if`,
-  :code:`no-duplicate-case`, :code:`no-self-assign`,
-  :code:`no-unsafe-finally`, :code:`use-isnan`, :code:`valid-typeof`.
-- Formatting rules are off: Prettier owns formatting.
-
-Code quality report
---------------------
-The :code:`lint: [ui]` job also runs a wider ruleset,
-:code:`ci/ci-code/lint/eslint-quality.config.mjs`, that never fails a pipeline, and
-reports it in the merge request Code Quality widget. It adds:
-
-- :code:`typescript-eslint` *recommended*: unused variables, :code:`any`,
-  :code:`prefer-const` and similar. No rule needs type information, so ESLint
-  never resolves an app's dependencies.
-- :code:`@vitest/eslint-plugin` for :code:`src/**/__tests__` and
-  :code:`eslint-plugin-playwright` for :code:`e2e/` and :code:`tests/ui`.
-
-The same run locally:
-
-.. code-block:: bash
-
-    npm run lint:quality
-    npx eslint --config ci/ci-code/lint/eslint-quality.config.mjs services/base/portal-ui
-
-Each rule is documented on its own page, linked from the Code Quality widget.
-
-Hadolint
----------------------
-
-Every Dockerfile in Kaapana is linted with
-`hadolint <https://github.com/hadolint/hadolint>`_. It checks Dockerfile best
-practice (pinned package versions, :code:`WORKDIR` instead of :code:`cd`,
-:code:`--no-install-recommends`, :code:`COPY` instead of :code:`ADD`) and runs
-`ShellCheck <https://www.shellcheck.net/>`_ over the shell in every
-:code:`RUN`. There is no established Dockerfile formatter, so there is no
-formatting check. One file at the repository root, :code:`.hadolint.yaml`,
-holds the whole configuration.
-
-Installation
---------------
-The pre-commit hook installs hadolint itself. For the editor and for running
-it by hand:
-
-.. code-block:: bash
-
-    pip install hadolint-py     # or download the binary from the hadolint releases page
-
-VS Code
---------
-
-Install the `hadolint extension <https://marketplace.visualstudio.com/items?itemName=exiasr.hadolint>`_
-(:code:`exiasr.hadolint`). It runs the :code:`hadolint` on your :code:`PATH`
-and reads :code:`.hadolint.yaml` from the repository root, so findings are
-underlined in the editor exactly as the pre-commit hook and the
-:code:`lint: [hadolint]` job report them.
-
-The whole codebase
--------------------
-From the repository root:
-
-.. code-block:: bash
-
-    pre-commit run hadolint --all-files                # no installation needed
-    git ls-files -z -- '*Dockerfile' | xargs -0 hadolint   # with hadolint on your PATH
-
-Pass a path to check one Dockerfile: :code:`hadolint services/base/portal-ui/docker/Dockerfile`.
-
-Rules
-------
-All of hadolint's rules apply, except three that Kaapana's build conventions
-trigger on every image; :code:`.hadolint.yaml` ignores them:
-
-- :code:`DL3007`: :code:`FROM local-only/<image>:latest` is an image
-  :code:`kaapana-build` produces in the same build, not a floating upstream tag.
-- :code:`DL3022`: :code:`COPY --from=constraints` (and :code:`lib`,
-  :code:`charts`) are build contexts :code:`kaapana-build` passes in, not
-  stages.
-- :code:`DL3048`: :code:`LABEL IMAGE`, :code:`VERSION` and
-  :code:`BUILD_IGNORE` are the uppercase keys :code:`kaapana-build` reads.
-
-:code:`.hadolint.yaml` sets :code:`failure-threshold: error` and raises the
-rules that catch a broken Dockerfile to *error*; only these fail the
-pre-commit hook and :code:`lint: [hadolint]`:
-
-- :code:`DL1000`: the Dockerfile cannot be parsed.
-- :code:`DL3000`: :code:`WORKDIR` is not an absolute path.
-- :code:`DL3011`: an :code:`EXPOSE` port is out of range.
-- :code:`DL3012`, :code:`DL4003`, :code:`DL4004`: more than one
-  :code:`HEALTHCHECK`, :code:`CMD` or :code:`ENTRYPOINT`; only the last one
-  takes effect.
-- :code:`DL3021`: :code:`COPY` with several sources to a destination not
-  ending in :code:`/`.
-- :code:`DL3023`: :code:`COPY --from` refers to its own stage.
-- :code:`DL3024`: two stages share a name.
-- :code:`DL3044`: an :code:`ENV` refers to itself.
-- :code:`DL3061`: an instruction comes before :code:`FROM` or :code:`ARG`.
-
-ShellCheck findings of level *error* (shell in a :code:`RUN` that cannot be
-parsed) fail as well. Every other rule is advisory: hadolint's own *error*
-rules that are not in this list (:code:`DL3004`, :code:`DL3020`,
-:code:`DL3026`, :code:`DL3043`, :code:`DL4000`) are lowered to *warning*, and
-all findings are published to the merge request Code Quality widget. To
-silence one finding where it is intended, put :code:`# hadolint ignore=DL3008`
-on the line above the instruction.
-
-Pre-commit hooks
------------------
-
-.. important::
-  Install the hooks before committing — CI runs the same checks and the
-  :code:`lint` job fails on any difference:
-
-  .. code-block:: bash
-
-      pip install pre-commit && pre-commit install
-
-The hooks live in :code:`.pre-commit-config.yaml` and run on the staged files
-only:
-
-- **ruff-check** and **ruff-format** lint and format Python files.
-  :code:`ruff-check` applies the safe fixes of the enforced ruleset.
-  pre-commit installs the pinned Ruff version into its own environment.
-- **ui-lint** runs :code:`ci/ci-code/lint/ui_lint.sh` on staged TypeScript
-  and Vue files: :code:`eslint --fix`, then :code:`prettier --write`. It
-  needs :code:`node` and :code:`npm` on your :code:`PATH`; the script
-  installs the root toolchain on first use.
-- **helm-lint** runs :code:`ci/ci-code/lint/helm_lint.sh` on the staged chart
-  files. It always lints and validates the whole chart tree, but only findings
-  in the charts you changed fail the commit; warnings in other charts are only
-  counted (the full list is in :code:`helm-reports/helm-lint.xml`). Invalid
-  manifests fail wherever they are. It needs :code:`helm`; the script downloads
-  kubeconform.
-- **hadolint** lints staged Dockerfiles and fails on the enforced (error) rules.
-  pre-commit installs the pinned hadolint version into its own environment.
-
-Loose and strict hooks
-^^^^^^^^^^^^^^^^^^^^^^
-
-Formatting and automatic fixes come first; the advanced rulesets are enforced
-only after that. The default hooks above are the loose set. The strict set is
-:code:`.pre-commit-config.strict.yaml`: ruff and ESLint with their advisory
-rulesets (with fixes applied), hadolint failing on every finding, and helm lint
-failing on warnings. Both files pin the same tool versions.
-
-The strict hooks are meant for commits: they run on the staged files only and keep
-new code-quality findings out of the repository, so the backlog shrinks file by file
-as files are touched. Do not run them over the whole repository; clean the backlog
-with the loose hooks and the fixes they apply.
-
-.. code-block:: bash
-
-    pre-commit run --all-files                            # loose: fix and list the essential issues
-    pre-commit install -c .pre-commit-config.strict.yaml  # strict hooks on every commit
-    pre-commit install                                    # back to the loose hooks
+    pre-commit run --all-files               # all hooks on the whole repository
+    pre-commit run ui-lint --all-files       # one hook
+    SKIP=hadolint,helm-lint git commit ...   # skip hooks for one commit
 
 When a hook changes a file, the commit stops: review the change, stage it and
-commit again. When a hook reports a linter finding it cannot fix, fix it by
-hand and commit again.
+commit again.
 
-Run the hooks without committing:
+Scope
+-----
+
+- **Pre-commit** checks the staged files only. Helm is the exception (see
+  :ref:`code_formatting_helm`).
+- **CI** checks the whole repository. The job log lists every finding. The
+  Code Quality widget shows only the findings that are new or resolved
+  compared with the target branch.
+- A failing :code:`format: [ruff]`, :code:`validate: [ruff]` or
+  :code:`validate: [hadolint]` job fails the pipeline.
+  :code:`format: [prettier]`, :code:`validate: [ui]` and
+  :code:`validate: [helm]` are allowed to fail until the existing findings
+  are fixed, so they only warn. :code:`lint` jobs never fail.
+
+Ruff
+----
+
+Python is formatted and linted with `Ruff <https://docs.astral.sh/ruff/>`_.
+Configuration: :code:`ruff.toml` (blocking) and
+:code:`ci/ci-code/lint/ruff-quality.toml` (advisory).
+Rule reference: `Ruff rules <https://docs.astral.sh/ruff/rules/>`_.
 
 .. code-block:: bash
 
-    pre-commit run                     # on the staged files
-    pre-commit run --all-files         # on the whole repository
-    pre-commit run ui-lint --all-files # one hook only
+    ruff format . && ruff check --fix .   # fix the whole repository
+    ci/ci-code/lint/ruff_lint.sh format   # format: [ruff]
+    ci/ci-code/lint/ruff_lint.sh validate # validate: [ruff]
+    ci/ci-code/lint/ruff_lint.sh lint     # lint: [ruff], advisory
 
-Skip hooks for a single commit with :code:`SKIP`, a comma-separated list of hook
-ids:
+Scope
+^^^^^
+
+- Pre-commit: staged :code:`.py`, :code:`.pyi` and :code:`.ipynb` files.
+- CI: the whole repository.
+- Some vendored third-party files are excluded in :code:`ruff.toml`.
+
+Blocking
+^^^^^^^^
+
+The pre-commit hook applies safe automatic fixes and fails. CI applies no fixes
+and fails.
+
+- **Formatter** (:code:`format`): code must match Ruff's Black-compatible
+  style, with 120 character lines.
+- :code:`E4`: import placement, such as several imports on one line.
+- :code:`E7`: statement errors, such as a bare :code:`except:` or
+  :code:`== None`.
+- :code:`E9`: syntax errors and files that cannot be read.
+- :code:`F` (pyflakes): unused imports and variables, undefined names.
+- :code:`I` (isort): import order and grouping.
+
+Advisory
+^^^^^^^^
+
+- :code:`E`, :code:`W` (pycodestyle): all style errors and warnings, such as
+  whitespace and blank lines.
+- :code:`B` (flake8-bugbear): likely bugs, such as mutable default arguments.
+- :code:`C4` (flake8-comprehensions): unnecessary comprehensions and
+  :code:`list()` or :code:`dict()` calls.
+- :code:`SIM` (flake8-simplify): code that can be written more simply.
+- :code:`UP` (pyupgrade): syntax that Python 3.12 can express more simply,
+  such as :code:`X | None`.
+- :code:`RUF`: Ruff's own rules, such as mutable class defaults.
+- :code:`S` (flake8-bandit): security problems, such as :code:`shell=True`,
+  requests without a timeout or :code:`verify=False`.
+- :code:`BLE` (flake8-blind-except): :code:`except Exception:` that hides every
+  error.
+- :code:`ASYNC`: blocking calls, such as :code:`open()` or :code:`requests`,
+  inside :code:`async` functions.
+- :code:`DTZ` (flake8-datetimez): :code:`datetime` without a timezone.
+- :code:`PERF` (Perflint): slow loop patterns.
+- :code:`FAST`: FastAPI mistakes, such as dependencies without
+  :code:`Annotated`.
+- :code:`C90` (mccabe): functions that are too complex.
+- :code:`ANN` (flake8-annotations): missing type annotations.
+- :code:`T20` (flake8-print): :code:`print()` instead of logging.
+- :code:`PTH` (flake8-use-pathlib): :code:`os.path` and :code:`open()` that
+  :code:`pathlib` replaces.
+- :code:`PL` (Pylint): too many arguments or branches, magic numbers and more.
+- :code:`N` (pep8-naming): naming conventions.
+- :code:`TRY`, :code:`G`, :code:`LOG`: exception handling and logging style,
+  such as f-strings in logging calls.
+- :code:`RET`, :code:`ARG`: return statement style, unused arguments.
+- :code:`FBT` (flake8-boolean-trap): boolean positional arguments.
+- :code:`ERA` (eradicate): commented-out code.
+
+The advisory ruleset also reports :code:`E501` (lines the formatter cannot
+shorten, such as long strings and comments) and :code:`B008` (including
+FastAPI's :code:`Depends()` in default arguments). :code:`S101`
+(:code:`assert`) is ignored in tests, where pytest relies on it.
+
+Not selected
+^^^^^^^^^^^^
+
+- :code:`D` (pydocstyle): docstrings, left out for now.
+
+ESLint
+------
+
+JavaScript, TypeScript and Vue are linted with `ESLint <https://eslint.org/>`_
+and formatted with Prettier (see `Prettier`_).
+Configuration: :code:`eslint.config.mjs` (blocking) and
+:code:`ci/ci-code/lint/eslint-quality.config.mjs` (advisory).
+Rule reference: `ESLint <https://eslint.org/docs/latest/rules/>`_,
+`eslint-plugin-vue <https://eslint.vuejs.org/rules/>`_,
+`typescript-eslint <https://typescript-eslint.io/rules/>`_,
+`Vitest <https://github.com/vitest-dev/eslint-plugin-vitest#rules>`_,
+`Playwright <https://github.com/playwright-community/eslint-plugin-playwright#rules>`_.
 
 .. code-block:: bash
 
-    SKIP=hadolint,helm-lint git commit -m "..."
+    npm run lint                       # fix the whole repository
+    ci/ci-code/lint/ui_lint.sh validate # validate: [ui]
+    ci/ci-code/lint/ui_lint.sh lint     # lint: [ui], advisory
 
-:code:`SKIP` applies to :code:`pre-commit run` too. :code:`git commit --no-verify`
-skips every hook, but CI still runs the enforced checks.
+Scope
+^^^^^
 
-CI
----
-The :code:`lint` job in :code:`ci/pipeline/lint.yml` is a matrix with one
-entry per linter, shown as one :code:`lint` group in the pipeline. Each entry
-publishes its advisory findings to the merge request Code Quality widget;
-GitLab merges the reports of all entries into one widget. Each entry fails
-the pipeline on formatting drift or an enforced rule.
+- Pre-commit (hook :code:`ui-lint`): staged :code:`.js`, :code:`.mjs`,
+  :code:`.cjs`, :code:`.jsx`, :code:`.ts`, :code:`.mts`, :code:`.tsx` and
+  :code:`.vue` files.
+- CI (:code:`validate: [ui]`, :code:`lint: [ui]`): all tracked files
+  of these types.
+- Excluded: minified :code:`*.min.js` files, build output, generated
+  :code:`.d.ts` files, :code:`os-dashboards` and :code:`maintenance-page`.
+- JavaScript files get the browser and Node.js globals.
 
-Until the TypeScript/Vue codebase is formatted and meets the enforced ruleset,
-:code:`lint: [ui]` is allowed to fail and only warns. :code:`lint: [helm]` is
-allowed to fail until the existing chart warnings are fixed.
+Blocking
+^^^^^^^^
 
-.. list-table::
-   :header-rows: 1
+The pre-commit hook applies the fixes it can and fails. CI fixes nothing.
 
-   * - Job
-     - Checks
-     - Code Quality report
-     - Run it locally
-   * - :code:`lint: [ruff]`
-     - :code:`ruff format --check`, :code:`ruff check`
-     - the wider :code:`ci/ci-code/lint/ruff-quality.toml` ruleset, advisory
-     - :code:`ruff format --check --diff . && ruff check .`
-   * - :code:`lint: [ui]`
-     - :code:`prettier --check`, :code:`eslint`
-     - the wider :code:`ci/ci-code/lint/eslint-quality.config.mjs` ruleset, advisory
-     - :code:`ci/ci-code/lint/ui_lint.sh`
-   * - :code:`lint: [hadolint]`
-     - :code:`hadolint`, *error* level only
-     - the hadolint findings, all levels, advisory
-     - :code:`pre-commit run hadolint --all-files`
-   * - :code:`lint: [helm]`
-     - :code:`helm lint` (warnings fail), kubeconform
-     - none; JUnit reports in the merge request test tab
-     - :code:`ci/ci-code/lint/helm_lint.sh`
+- **eslint-plugin-vue** `essential <https://eslint.vuejs.org/rules/#priority-a-essential-error-prevention>`__:
+  errors that break a Vue component, such
+  as an invalid :code:`v-for`, a mutated prop, a :code:`ref` used without
+  :code:`.value`, a single-word component name or an unused component.
+- `vue/valid-v-slot <https://eslint.vuejs.org/rules/valid-v-slot.html>`__: :code:`v-slot` must be valid. Modifiers are
+  allowed for Vuetify's :code:`#item.<key>` slots.
+- `vue/block-lang <https://eslint.vuejs.org/rules/block-lang.html>`__: :code:`<script>` blocks must use
+  :code:`lang="ts"`.
 
-Every entry runs :code:`ci/ci-code/lint/<linter>_lint.sh`, which installs its own
-tool (into :code:`~/.cache/kaapana-ci`, or as a pip or npm package) and runs the
-same checks locally and in CI. The versions cannot drift between your machine
-and CI: the ruff and hadolint scripts check that their :code:`RUFF_VERSION` and
-:code:`HADOLINT_VERSION` match the :code:`rev` of
-their hooks in :code:`.pre-commit-config.yaml`, and ESLint and Prettier come from the root
-:code:`package-lock.json` everywhere.
+Advisory
+^^^^^^^^
 
-To add a linter, add its name to the :code:`LINTER` matrix and a matching
-:code:`ci/ci-code/lint/<linter>_lint.sh`; if the tool can produce a Code Quality
-report, write it to :code:`gl-code-quality-report.json`.
+Every *recommended* preset of the installed plugins:
+
+- **ESLint** *recommended*: likely bugs in plain JavaScript, such as useless
+  :code:`catch` blocks or :code:`hasOwnProperty` called on the object.
+- **eslint-plugin-vue** *recommended*: essential plus the
+  `strongly recommended <https://eslint.vuejs.org/rules/#priority-b-strongly-recommended-improving-readability>`__
+  and `recommended <https://eslint.vuejs.org/rules/#priority-c-recommended-potentially-dangerous-patterns>`__
+  rules: component conventions, such as attribute order, prop defaults and
+  :code:`v-html`.
+- **typescript-eslint** *recommended*: such as :code:`any`, unused variables
+  and :code:`prefer-const`. The type-checked variant is not used: it needs
+  more than 4 GB of memory for the whole repository.
+- **Vitest** *recommended*: test files in :code:`src/**/__tests__`.
+- **Playwright** *recommended*: test files in :code:`e2e/` and
+  :code:`tests/ui`.
+
+Prettier
+--------
+
+JavaScript, TypeScript, Vue, Markdown, JSON and YAML files are formatted with
+`Prettier <https://prettier.io/>`__.
+Configuration: :code:`.prettierrc.json`, :code:`.prettierignore`.
+Rule reference: `Prettier options <https://prettier.io/docs/options>`_.
+
+.. code-block:: bash
+
+    npm run format                          # fix the whole repository
+    ci/ci-code/lint/prettier_lint.sh format # format: [prettier]
+
+Scope
+^^^^^
+
+- Pre-commit (hook :code:`prettier`): staged files of these types. The hook is
+  manual until the repository is formatted once:
+  :code:`pre-commit run --hook-stage manual prettier`.
+- CI (:code:`format: [prettier]`): all tracked files of these types.
+- Excluded: Helm :code:`templates/` directories and the Helm-templated
+  :code:`kaapana-realm.json`, which are Go templates, and
+  :code:`package-lock.json` files. Helm templates have no formatter.
+
+Blocking
+^^^^^^^^
+
+The pre-commit hook rewrites the files and fails. CI fixes nothing.
+
+- **Markdown, JSON and YAML**: Prettier's default style.
+- **JavaScript, TypeScript and Vue**: no semicolons, single quotes and 100
+  character lines, the style the UI apps are written in.
+
+Prettier never changes what a file means: it only changes indentation, quotes,
+line breaks and spacing.
+
+Hadolint
+--------
+
+Dockerfiles are linted with `hadolint <https://github.com/hadolint/hadolint>`_,
+which also runs `ShellCheck <https://www.shellcheck.net/>`_ over every
+:code:`RUN`. There is no formatter.
+Configuration: :code:`.hadolint.yaml` (blocking) and
+:code:`ci/ci-code/lint/hadolint-quality.yaml` (advisory).
+Rule reference: `hadolint rules <https://github.com/hadolint/hadolint#rules>`_,
+`ShellCheck checks <https://www.shellcheck.net/wiki/>`_.
+
+.. code-block:: bash
+
+    hadolint path/to/Dockerfile                                            # blocking
+    hadolint -c ci/ci-code/lint/hadolint-quality.yaml path/to/Dockerfile # advisory
+    ci/ci-code/lint/hadolint_lint.sh validate                            # validate: [hadolint]
+    ci/ci-code/lint/hadolint_lint.sh lint                                # lint: [hadolint]
+
+Scope
+^^^^^
+
+- Pre-commit: staged Dockerfiles.
+- CI: all tracked :code:`*Dockerfile` files.
+
+Blocking
+^^^^^^^^
+
+Only findings that stop the Dockerfile from building. hadolint only parses the
+file. It never builds it or pulls an image. :code:`.hadolint.yaml` fails on
+level *error* and lowers every other rule that hadolint ships as *error* to
+*warning*, so these remain:
+
+- :code:`DL1000`: the Dockerfile cannot be parsed.
+- :code:`DL3061`: an instruction before the first :code:`FROM`.
+- :code:`DL3023`: :code:`COPY --from` refers to its own stage.
+- :code:`DL3011`: an :code:`EXPOSE` port outside 0-65535.
+- ShellCheck findings of level *error* in a :code:`RUN`.
+
+When you bump hadolint, check its rule list for new *error* rules and lower
+them in :code:`.hadolint.yaml` unless they stop a build.
+
+Advisory
+^^^^^^^^
+
+Every finding, with each rule at the level hadolint gives it.
+:code:`ci/ci-code/lint/hadolint-quality.yaml` sets :code:`trustedRegistries`, which turns on
+:code:`DL3026` (base images only from :code:`docker.io`, :code:`quay.io`,
+:code:`registry.k8s.io`, :code:`registry.hzdr.de` and the in-cluster
+:code:`local-registry.services.svc.cluster.local:5000`). To silence an
+intended finding, put :code:`# hadolint ignore=DL3008` on the line above the
+instruction.
+
+Ignored
+^^^^^^^
+
+- :code:`DL3007`: the :code:`latest` tag. :code:`local-only/<image>:latest`
+  is built in the same build.
+- :code:`DL3022`: :code:`COPY --from` an unknown stage. :code:`constraints`,
+  :code:`lib` and :code:`charts` are build contexts from kaapana-build.
+- :code:`DL3048`: label key format. kaapana-build reads the uppercase
+  :code:`IMAGE`, :code:`VERSION` and :code:`BUILD_IGNORE` labels.
+
+.. _code_formatting_helm:
+
+Helm charts
+-----------
+
+Charts are linted with `helm lint <https://helm.sh/docs/helm/helm_lint/>`_,
+rendered with fake values and validated by
+`kubeconform <https://github.com/yannh/kubeconform>`_, all by
+:code:`kaapana-build --lint-only`. Chart dependencies are resolved by name, so
+:code:`kaapana-build` first assembles the chart tree into
+:code:`build/helm-lint/`. The advisory
+`kube-linter <https://github.com/stackrox/kube-linter>`_ runs only in the
+:code:`lint` mode of :code:`helm_lint.sh`: :code:`kaapana-build --lint-only --no-linting`
+assembles the tree, the script renders it into :code:`build/helm-lint/rendered/`
+and runs kube-linter on it. A regular :code:`kaapana-build` runs helm lint and
+kubeconform too, before packaging, unless :code:`--no-linting` is given. There,
+only errors fail.
+Configuration: :code:`build_cli/build_cli/configs/fake-values.yaml` and
+:code:`ci/ci-code/lint/kube-linter-quality.yaml` (advisory).
+Rule reference: `helm lint rules <https://github.com/helm/helm/tree/v4.3.0/pkg/chart/v2/lint/rules>`_
+(source code, as :code:`helm lint` has no rule IDs and no rule list),
+`kubeconform <https://github.com/yannh/kubeconform#overview>`_,
+`kube-linter checks <https://docs.kubelinter.io/#/generated/checks>`_.
+
+.. code-block:: bash
+
+    ci/ci-code/lint/helm_lint.sh validate # validate: [helm]
+    ci/ci-code/lint/helm_lint.sh lint     # lint: [helm], advisory
+    kube-linter checks list               # every kube-linter check
+
+Scope
+^^^^^
+
+- Pre-commit: starts when a staged :code:`Chart.yaml`,
+  :code:`requirements.yaml`, :code:`values.yaml` or :code:`templates/` file
+  changes. It then checks the whole chart tree, the platform chart and every
+  extension collection, but fails only on findings in the charts that contain
+  the staged files.
+- CI (:code:`validate: [helm]` and :code:`lint: [helm]`): the whole chart
+  tree. Each job assembles and renders the tree itself.
+- Charts with :code:`ignore_linting: true` in :code:`Chart.yaml` are skipped.
+
+What each tool checks
+^^^^^^^^^^^^^^^^^^^^^
+
+- **helm lint** checks each chart's source, before rendering. Every rule has
+  a fixed level, error or warning:
+
+  - :code:`Chart.yaml` (:code:`chartfile.go`): errors for a missing or
+    invalid name, version (SemVer), :code:`apiVersion`, chart type,
+    maintainer, source or icon URL, or dependencies in an apiVersion v1
+    chart. Warnings for unknown or duplicate fields and a version that is
+    not strict SemVer 2.
+  - :code:`values.yaml` (:code:`values.go`): error if it does not parse or
+    does not match :code:`values.schema.json`.
+  - Templates (:code:`template.go`, :code:`deprecations.go`): errors for a
+    template that does not render, a file with a wrong extension, YAML that
+    does not parse, a workload without :code:`selector.matchLabels`, and a
+    list in :code:`metadata.annotations`. Warnings for a missing
+    :code:`templates/` directory, wrong top-level indentation, a resource name
+    that breaks the Kubernetes naming rules, and a deprecated or removed
+    Kubernetes API.
+  - Dependencies (:code:`dependencies.go`): errors for a dependency that is
+    listed twice or present in :code:`charts/` but not in
+    :code:`Chart.yaml`. Warning for a dependency missing from
+    :code:`charts/`.
+  - CRDs (:code:`crds.go`): errors for an invalid :code:`crds/` directory or a
+    file that is not a valid :code:`apiextensions.k8s.io`
+    CustomResourceDefinition.
+
+- **kubeconform** has no rules: it validates every rendered resource against
+  the JSON schema of its kind, the Kubernetes schemas for built-in kinds and
+  the `CRDs-catalog <https://github.com/datreeio/CRDs-catalog>`_ for custom
+  resources. A resource fails for a missing required field, a wrong type or
+  value, and, with :code:`-strict`, an unknown field or a duplicate key. A
+  kind with no schema fails. :code:`KUBECONFORM_SKIP_KINDS` (comma-separated
+  kinds) skips it.
+
+- **kube-linter** checks what the schema cannot: whether the rendered
+  resources fit together and follow good practice. It has 63 checks. The
+  lists below say which ones Kaapana uses. It is advisory only.
+
+Blocking
+^^^^^^^^
+
+Pre-commit fails only on the charts that contain the staged files. CI fails
+on every chart.
+
+- :code:`helm lint` errors and warnings.
+- kubeconform: every invalid resource.
+
+A :code:`helm lint` run that crashes, or a chart that cannot be rendered with
+the fake values, fails in every chart, also in pre-commit.
+
+Advisory
+^^^^^^^^
+
+- kube-linter: its 31 default checks, exactly as kube-linter ships them,
+  such as missing CPU and memory requests, containers running as root, a
+  writable root file system, a probe on a port the container does not expose,
+  a Service that selects no pod, a duplicate environment variable or the
+  :code:`latest` tag. kube-linter defines this list. Run
+  :code:`kube-linter checks list` and look for "Enabled by default: true".
+- kube-linter checks that are off by default:
+
+  - Likely bugs: :code:`dangling-ingress`,
+    :code:`dangling-horizontalpodautoscaler`,
+    :code:`dangling-servicemonitor`, :code:`dangling-networkpolicy`,
+    :code:`dangling-networkpolicypeer-podselector`, and
+    :code:`env-value-from` (a Secret or ConfigMap that is not part of the
+    chart, though it may still be created at runtime).
+  - Security: :code:`privileged-ports`, :code:`read-secret-from-env-var`,
+    :code:`writable-host-mount`, :code:`unsafe-proc-mount`,
+    :code:`exposed-services` (NodePort or LoadBalancer),
+    :code:`use-namespace` (the :code:`default` namespace), and the RBAC
+    checks :code:`cluster-admin-role-binding`, :code:`access-to-secrets`,
+    :code:`access-to-create-pods` and :code:`wildcard-in-rules`.
+
+To accept a kube-linter finding for one resource, annotate it with
+:code:`ignore-check.kube-linter.io/<check>: "<reason>"`.
+
+:code:`lint: [helm]` writes the kube-linter findings to the Code Quality report.
+Each finding points to the source template. :code:`validate: [helm]` publishes
+the :code:`helm lint` errors and kubeconform results to the merge request test
+tab as JUnit reports.
+
+Not selected
+^^^^^^^^^^^^
+
+These kube-linter checks are off by default and not used, because they assume
+a multi-node production cluster or a specific organisation's policy, or
+duplicate another tool:
+
+- :code:`minimum-three-replicas`, :code:`hpa-minimum-three-replicas`,
+  :code:`no-node-affinity`, :code:`no-rolling-update-strategy`,
+  :code:`priority-class-name`, :code:`dnsconfig-options`: high-availability
+  and scheduling setup. Kaapana usually runs on one node.
+- :code:`non-isolated-pod`, :code:`default-service-account`,
+  :code:`restart-policy`: cluster policy choices.
+- :code:`no-liveness-probe`, :code:`no-readiness-probe`: most Kaapana
+  containers have no probes yet. A probe on a wrong port is still reported.
+- :code:`required-annotation-email`, :code:`required-label-owner`: examples
+  for organisation-specific metadata.
+- :code:`sorted-keys`: key order is decided by Helm's rendering, not by the
+  templates.
+- :code:`schema-validation`: kubeconform already validates the schemas.
+- :code:`scc-deny-privileged-container`: OpenShift only.

@@ -121,6 +121,36 @@ test.describe('dialogs', () => {
   })
 })
 
+// The theme roles of the design guidelines, per theme.
+const themeRoles = [
+  {
+    name: 'light',
+    darkMode: false,
+    background: 'rgb(238, 238, 238)',
+    surface: 'rgb(255, 255, 255)',
+  },
+  { name: 'dark', darkMode: true, background: 'rgb(18, 18, 18)', surface: 'rgb(30, 30, 30)' },
+]
+
+for (const theme of themeRoles) {
+  test(`the view renders with the ${theme.name} theme roles`, async ({ page, context }) => {
+    await context.addInitScript((darkMode) => {
+      const settings = JSON.parse(localStorage.getItem('settings') || '{}')
+      settings.darkMode = darkMode
+      localStorage.setItem('settings', JSON.stringify(settings))
+    }, theme.darkMode)
+    // Reload, so that the theme setting applies from the start.
+    await page.goto(VIEW_PATH)
+
+    await expect(page.locator('.v-application')).toHaveCSS('background-color', theme.background)
+    const cards = page.locator('.v-container > .v-row > .v-col > .v-card')
+    await expect(cards).toHaveCount(2)
+    for (const card of await cards.all()) {
+      await expect(card).toHaveCSS('background-color', theme.surface)
+    }
+  })
+}
+
 // FilePond ships its own light palette. Its surfaces must follow the theme roles.
 const filepondThemes = [
   {

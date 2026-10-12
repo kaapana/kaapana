@@ -357,6 +357,30 @@ Task API workflows
 
 .. _extensions_classification:
 
+| **classification-training** and **classification-inference**
+| Task API version of the classification workflows. They are installed as one extension with the experimental :ref:`Extension Manager <experimental_extension_manager>`.
+| Their containers are not part of a platform build. The build steps are described in ``data-processing/workflows/classification-workflow/README.md``.
+
+| **classification-training**
+| 1) Download the selected dataset
+| 2) Convert the DICOM images to nrrd
+| 3) Resize every image to the patch size and normalize it
+| 4) Train a ResNet18 classifier. The classes are tags of the series, which can be added in the Datasets view.
+| 5) Store the model in the models volume of the project and add it to the list of installed models
+
+| **Input data:**
+| A dataset with DICOM images and at least two tags that represent the classes.
+| The model name gets a timestamp, so every run creates a new model.
+
+| **classification-inference**
+| 1) Download the selected dataset and copy the selected model
+| 2) Convert the DICOM images to nrrd
+| 3) Resize every image to the patch size of the model and normalize it
+| 4) Predict a class for every series and add it as a tag
+
+| **Input data:**
+| A dataset with DICOM images and a model that classification-training created in the same project.
+
 
 .. _extensions_applications:
 

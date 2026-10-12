@@ -1,10 +1,10 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { getProjectBase } from '@kaapana/base-ui'
 import WorkflowRuns from '../views/WorkflowRuns.vue'
 import WorkflowRunLogs from '../views/WorkflowRunLogs.vue'
 import Workflows from '../views/Workflows.vue'
 
-const routes = [
+const routes: RouteRecordRaw[] = [
   { path: '/', redirect: '/workflows' },
   {
     path: '/workflows',
@@ -25,6 +25,11 @@ const routes = [
     props: (route: { params: { runId: string } }) => ({ runId: Number(route.params.runId) }),
     meta: { title: 'Workflow Run Details' },
   },
+  {
+    path: '/runs/:runId(\\d+)',
+    redirect: (to) => `/runs/${to.params.runId}/logs`,
+  },
+  { path: '/:pathMatch(.*)*', redirect: '/workflows' },
 ]
 
 // BASE_URL is the build-time "/workflow-ui/"; the shell serves the bundle at

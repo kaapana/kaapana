@@ -1,0 +1,18 @@
+checks:
+  include:
+    - access-to-create-pods
+    - access-to-secrets
+    - cluster-admin-role-binding
+    - dangling-horizontalpodautoscaler
+    - dangling-ingress
+    - dangling-networkpolicy
+    - dangling-networkpolicypeer-podselector
+    - dangling-servicemonitor
+    - env-value-from
+    - exposed-services
+    - privileged-ports
+    - read-secret-from-env-var
+    - unsafe-proc-mount
+    - use-namespace
+    - wildcard-in-rules
+    - writable-host-mount

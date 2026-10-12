@@ -44,12 +44,12 @@ global:
   login_institution_logo: ""
   dev_mode: false
   kaapana_init_password: "placeholder"
-  pacs_memory_limit: "placeholder"
-  airflow_memory_limit: "placeholder"
-  opensearch_memory_limit: "placeholder"
-  pacs_memory_request: "placeholder"
-  airflow_memory_request: "placeholder"
-  opensearch_memory_request: "placeholder"
+  pacs_memory_limit: "1024"
+  airflow_memory_limit: "1024"
+  opensearch_memory_limit: "1024"
+  pacs_memory_request: "1024"
+  airflow_memory_request: "1024"
+  opensearch_memory_request: "1024"
   airflow_parallelism: "50"
   smtp_host: 11113
   smtp_port: 11113

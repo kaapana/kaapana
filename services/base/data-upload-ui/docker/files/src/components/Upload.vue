@@ -69,3 +69,56 @@ onMounted(() => {
   })
 })
 </script>
+
+<style scoped>
+/* FilePond ships its own light palette; its surfaces are mapped onto the
+   theme roles so the drop zone follows dark mode. */
+:deep(.filepond--root) {
+  font-family: inherit;
+  margin-bottom: 0;
+}
+
+:deep(.filepond--panel-root) {
+  background-color: rgb(var(--v-theme-surface-light));
+  border: 1px dashed rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 8px;
+}
+
+:deep(.filepond--drop-label),
+:deep(.filepond--drop-label label) {
+  color: rgb(var(--v-theme-on-surface));
+  font-size: inherit;
+}
+
+:deep(.filepond--label-action) {
+  text-decoration-color: rgb(var(--v-theme-primary));
+}
+
+:deep(.filepond--item-panel) {
+  background-color: rgb(var(--v-theme-surface-variant));
+}
+
+:deep(.filepond--file) {
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+/* The rules above also cover finished and failed files. Their colour carries
+   meaning, so it maps to the success and error roles of the theme. */
+:deep([data-filepond-item-state='processing-complete'] .filepond--item-panel) {
+  background-color: rgb(var(--v-theme-success));
+}
+
+:deep([data-filepond-item-state='processing-complete'] .filepond--file) {
+  color: rgb(var(--v-theme-on-success));
+}
+
+:deep([data-filepond-item-state*='error'] .filepond--item-panel),
+:deep([data-filepond-item-state*='invalid'] .filepond--item-panel) {
+  background-color: rgb(var(--v-theme-error));
+}
+
+:deep([data-filepond-item-state*='error'] .filepond--file),
+:deep([data-filepond-item-state*='invalid'] .filepond--file) {
+  color: rgb(var(--v-theme-on-error));
+}
+</style>

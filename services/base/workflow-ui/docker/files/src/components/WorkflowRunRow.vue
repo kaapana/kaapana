@@ -62,6 +62,7 @@
           </template>
         </v-tooltip>
       </div>
+      <RunParametersDialog v-model="showParameters" :run="run" />
     </td>
   </tr>
 </template>
@@ -69,6 +70,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { kaapanaIcons } from '@kaapana/base-ui'
+import RunParametersDialog from '@/components/RunParametersDialog.vue'
 import { downloadRunLogs } from '@/utils/logDownload'
 import { notifySuccess, notifyWarning } from '@/utils/notify'
 import {
@@ -85,7 +87,6 @@ import type { WorkflowRun } from '@/types/schemas'
 
 const props = defineProps<{
   run: WorkflowRun
-  /** The action currently running for this run, if any. */
   busy: RunAction | null
 }>()
 const emit = defineEmits<{
@@ -93,6 +94,7 @@ const emit = defineEmits<{
 }>()
 
 const downloading = ref(false)
+const showParameters = ref(false)
 
 const actions = computed(() => {
   const list: {
@@ -122,6 +124,13 @@ const actions = computed(() => {
       run: () => emit('retry', props.run),
     })
   }
+  list.push({
+    key: 'parameters',
+    label: 'View parameters',
+    icon: 'mdi-tune-variant',
+    loading: false,
+    run: () => (showParameters.value = true),
+  })
   list.push({
     key: 'logs',
     label: 'View logs',

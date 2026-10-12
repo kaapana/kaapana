@@ -73,20 +73,24 @@ test.describe('logs page', () => {
   test('the parameters the run was started with are shown per task', async ({ page }) => {
     await openLogs(page, 1)
     const panel = page.getByTestId('run-parameters')
-    await panel.getByRole('button', { name: /Parameters/ }).click()
+    await panel.getByRole('button', { name: 'Expand all' }).click()
+    await panel.getByRole('button', { name: 'Run', exact: true }).click()
 
-    await expect(panel).toContainText('segment')
-    await expect(panel.locator('dt', { hasText: 'Dataset' }).locator('+ dd')).toHaveText('lung-ct')
-    await expect(panel.locator('dt', { hasText: 'Threshold' }).locator('+ dd')).toHaveText('7')
-    await expect(panel.locator('dt', { hasText: 'Format' }).locator('+ dd')).toHaveText('Not set')
+    await expect(
+      panel.locator('dt', { hasText: 'Dataset' }).locator('+ dd [data-testid=parameter-value]'),
+    ).toHaveText('lung-ct')
+    await expect(
+      panel.locator('dt', { hasText: 'Threshold' }).locator('+ dd [data-testid=parameter-value]'),
+    ).toHaveText('7')
+    await expect(
+      panel.locator('dt', { hasText: 'Format' }).locator('+ dd [data-testid=parameter-value]'),
+    ).toHaveText('Not set')
     await expect(panel).toContainText('When the run completes successfully')
   })
 
   test('a run without parameters says so', async ({ page }) => {
     await openLogs(page, 3)
     const panel = page.getByTestId('run-parameters')
-    await expect(panel).toContainText('(none)')
-    await panel.getByRole('button', { name: /Parameters/ }).click()
     await expect(panel).toContainText('This run was started without parameters.')
   })
 

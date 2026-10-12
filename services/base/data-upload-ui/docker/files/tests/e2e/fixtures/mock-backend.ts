@@ -7,7 +7,7 @@ export const UNSCOPED_VIEW_PATH = '/data-upload-ui/'
 // prefix IS the project selection (vite.config.ts strips it like traefik).
 export const VIEW_PATH = '/project/admin/data-upload-ui/'
 
-// The upload endpoint FilePond posts to (see components/Upload.vue default).
+// The upload endpoint FilePond posts to (see UPLOAD_URL in components/Upload.vue).
 export const UPLOAD_URL = '/kaapana-backend/client/file'
 
 // Minimal shapes mirroring what the view consumes (the app defines these

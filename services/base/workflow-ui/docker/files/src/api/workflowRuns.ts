@@ -1,7 +1,8 @@
 import { httpClient } from '@kaapana/base-ui'
+import { WORKFLOW_API_URL } from '@/api/config'
 import type { LogLine, WorkflowRun, WorkflowRunCreate } from '@/types/schemas'
 
-const API_BASE = '/workflow-api/v1/workflow-runs'
+const API_BASE = `${WORKFLOW_API_URL}/workflow-runs`
 
 export const workflowRunsApi = {
   async create(workflowRunCreate: WorkflowRunCreate): Promise<WorkflowRun> {

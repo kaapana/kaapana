@@ -28,3 +28,29 @@ test.describe('visual language', () => {
     expect(fonts.button).toContain('Roboto')
   })
 })
+
+test.describe('layout', () => {
+  test('the view stays within a readable width on a wide display', async ({ page }) => {
+    await page.setViewportSize({ width: 2560, height: 1200 })
+    const box = (await page.locator('.v-container').boundingBox())!
+    expect(box.width).toBeLessThanOrEqual(1200)
+    // Centred: equal margins on both sides.
+    expect(Math.abs(box.x - (2560 - box.width - box.x))).toBeLessThan(2)
+  })
+
+  test('a narrow window does not scroll sideways', async ({ page }) => {
+    await page.setViewportSize({ width: 420, height: 900 })
+    const widths = await page.evaluate(() => ({
+      scroll: document.documentElement.scrollWidth,
+      client: document.documentElement.clientWidth,
+    }))
+    expect(widths.scroll).toBeLessThanOrEqual(widths.client)
+  })
+
+  test('the upload steps are an ordered list', async ({ page }) => {
+    const steps = page.locator('ol.upload-steps > li')
+    await expect(steps).toHaveCount(3)
+    await expect(steps.nth(1).locator('.filepond--root')).toBeVisible()
+    await expect(steps.nth(2).getByRole('button', { name: /Import the data/ })).toBeVisible()
+  })
+})

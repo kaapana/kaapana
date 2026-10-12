@@ -19,6 +19,17 @@ test.describe('visual language', () => {
     expect(robotoFaces).toBeGreaterThan(0)
   })
 
+  test('titles use the platform type scale', async ({ page }) => {
+    await expect(page.getByRole('heading', { level: 1, name: 'Data upload' })).toHaveClass(
+      /text-h4/,
+    )
+    const sections = page.getByRole('heading', { level: 2 })
+    await expect(sections).toHaveCount(2)
+    for (const section of await sections.all()) {
+      await expect(section).toHaveClass(/text-h5/)
+    }
+  })
+
   test('no local font rule overrides the platform typeface', async ({ page }) => {
     const fonts = await page.evaluate(() => ({
       app: getComputedStyle(document.querySelector('#app')!).fontFamily,

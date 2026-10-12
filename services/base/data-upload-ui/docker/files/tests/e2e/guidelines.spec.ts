@@ -110,3 +110,60 @@ test.describe('dialogs', () => {
     await expect(importButton).toBeFocused()
   })
 })
+
+// FilePond ships its own light palette. Its surfaces must follow the theme roles.
+const filepondThemes = [
+  {
+    name: 'light',
+    darkMode: false,
+    surfaceLight: 'rgb(245, 245, 245)',
+    onSurface: 'rgb(0, 0, 0)',
+    success: 'rgb(46, 125, 50)',
+    error: 'rgb(198, 40, 40)',
+  },
+  {
+    name: 'dark',
+    darkMode: true,
+    surfaceLight: 'rgb(56, 56, 56)',
+    onSurface: 'rgb(255, 255, 255)',
+    success: 'rgb(102, 187, 106)',
+    error: 'rgb(239, 83, 80)',
+  },
+]
+
+for (const theme of filepondThemes) {
+  test(`the drop zone follows the ${theme.name} theme`, async ({ page, context }) => {
+    await context.addInitScript((darkMode) => {
+      const settings = JSON.parse(localStorage.getItem('settings') || '{}')
+      settings.darkMode = darkMode
+      localStorage.setItem('settings', JSON.stringify(settings))
+    }, theme.darkMode)
+    // Reload, so that the theme setting applies from the start.
+    await page.goto(VIEW_PATH)
+
+    await expect(page.locator('.filepond--panel-center.filepond--panel-root')).toHaveCSS(
+      'background-color',
+      theme.surfaceLight,
+    )
+    await expect(page.locator('.filepond--drop-label')).toHaveCSS('color', theme.onSurface)
+    await expect(page.locator('.filepond--root')).toHaveCSS('font-family', /Roboto/)
+
+    const file = { mimeType: 'application/zip', buffer: Buffer.from('PK mock') }
+    await page.locator('input[type="file"]').setInputFiles({ ...file, name: 'ok.zip' })
+    const finished = page.locator('[data-filepond-item-state="processing-complete"]')
+    await expect(finished.locator('.filepond--panel-center.filepond--item-panel')).toHaveCSS(
+      'background-color',
+      theme.success,
+    )
+
+    await page.route(/\/kaapana-backend\/client\/file(\?|$)/, (r) =>
+      r.fulfill({ status: 500, contentType: 'text/plain', body: 'boom' }),
+    )
+    await page.locator('input[type="file"]').setInputFiles({ ...file, name: 'bad.zip' })
+    const failed = page.locator('[data-filepond-item-state*="error"]')
+    await expect(failed.locator('.filepond--panel-center.filepond--item-panel')).toHaveCSS(
+      'background-color',
+      theme.error,
+    )
+  })
+}

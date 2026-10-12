@@ -65,9 +65,55 @@
                 <v-icon size="large">mdi-numeric-1-circle</v-icon>
                 <div class="d-flex align-center flex-grow-1">
                   Make sure your data is correctly formatted for the upload.
-                  <v-btn color="primary" icon variant="text" @click.stop="infoDialog = true">
-                    <v-icon color="primary"> mdi-information </v-icon>
-                  </v-btn>
+                  <!-- Opening through the activator lets Vuetify return focus to the button. -->
+                  <v-dialog v-model="infoDialog" max-width="600">
+                    <template #activator="{ props: activatorProps }">
+                      <v-btn
+                        v-bind="activatorProps"
+                        color="primary"
+                        icon
+                        variant="text"
+                        aria-label="How should the uploaded data look?"
+                      >
+                        <v-icon color="primary"> mdi-information </v-icon>
+                      </v-btn>
+                    </template>
+                    <v-card>
+                      <v-card-title tag="h2" class="text-h5">
+                        How should the uploaded data look?
+                      </v-card-title>
+                      <v-card-text>
+                        <h3 class="text-h6 mb-2">Upload DICOM data</h3>
+                        <p class="mb-4">
+                          DICOM data should be uploaded in a single compressed zip file containing
+                          folder(s) with DICOM files.
+                        </p>
+                        <h3 class="text-h6 mb-2">Upload NIfTI data</h3>
+                        <p class="mb-2">
+                          Since the platform works with the DICOM standard, NIfTI data is converted
+                          to DICOM by triggering the workflow
+                          <code>import-niftis-from-data-upload</code>. If you have only NIfTI files
+                          without segmentations, the files with file endings <code>.nii.gz</code> or
+                          <code>.nii</code> can be uploaded in a compressed zip file.
+                        </p>
+                        <p>
+                          For NIfTI data, Kaapana supports multiple ways to specify metadata for
+                          volumes and segmentations. Depending on the use case, the data has to be
+                          formatted in one of the directory structures described in the
+                          <a
+                            href="https://kaapana.readthedocs.io/en/stable/user_guide/workflow_management_system/data_upload.html#nifti-data"
+                            target="_blank"
+                            >Kaapana documentation</a
+                          >.
+                        </p>
+                      </v-card-text>
+
+                      <v-card-actions>
+                        <v-spacer></v-spacer>
+                        <v-btn color="primary" @click="() => (infoDialog = false)"> Got it! </v-btn>
+                      </v-card-actions>
+                    </v-card>
+                  </v-dialog>
                 </div>
               </li>
               <li class="d-flex ga-3 mb-4">
@@ -87,72 +133,32 @@
               <li class="d-flex align-center ga-3">
                 <v-icon size="large">mdi-numeric-3-circle</v-icon>
                 <div class="flex-grow-1">
-                  <v-btn
-                    color="primary"
-                    :disabled="isArchived"
-                    @click="() => (workflowDialog = true)"
-                  >
-                    Import the data
-                    <v-icon>mdi-play-outline</v-icon>
-                  </v-btn>
+                  <!-- The dialog unmounts its content when it closes, so every opening loads
+                       the current list of uploaded files. A forced remount would discard the
+                       user's input. -->
+                  <v-dialog v-model="workflowDialog" max-width="600">
+                    <template #activator="{ props: activatorProps }">
+                      <v-btn v-bind="activatorProps" color="primary" :disabled="isArchived">
+                        Import the data
+                        <v-icon>mdi-play-outline</v-icon>
+                      </v-btn>
+                    </template>
+                    <v-defaults-provider :defaults="underlinedFieldDefaults">
+                      <WorkflowExecution
+                        :onlyLocal="true"
+                        kind_of_dags="import"
+                        :isDialog="true"
+                        @successful="() => (workflowDialog = false)"
+                        @cancel="() => (workflowDialog = false)"
+                      />
+                    </v-defaults-provider>
+                  </v-dialog>
                 </div>
               </li>
             </ol>
-
-            <v-dialog v-model="infoDialog" width="60vw">
-              <v-card>
-                <v-card-title tag="h2" class="text-h5">
-                  How should the uploaded data look?
-                </v-card-title>
-                <v-card-text>
-                  <h3 class="text-h6 mb-2">Upload DICOM data</h3>
-                  <p class="mb-4">
-                    DICOM data should be uploaded in a single compressed zip file containing
-                    folder(s) with DICOM files.
-                  </p>
-                  <h3 class="text-h6 mb-2">Upload NIfTI data</h3>
-                  <p class="mb-2">
-                    Since the platform works with the DICOM standard, NIfTI data is converted to
-                    DICOM by triggering the workflow <code>import-niftis-from-data-upload</code>. If
-                    you have only NIfTI files without segmentations, the files with file endings
-                    <code>.nii.gz</code> or <code>.nii</code> can be uploaded in a compressed zip
-                    file.
-                  </p>
-                  <p>
-                    For NIfTI data, Kaapana supports multiple ways to specify metadata for volumes
-                    and segmentations. Depending on the use case, the data has to be formatted in
-                    one of the directory structures described in the
-                    <a
-                      href="https://kaapana.readthedocs.io/en/stable/user_guide/workflow_management_system/data_upload.html#nifti-data"
-                      target="_blank"
-                      >Kaapana documentation</a
-                    >.
-                  </p>
-                </v-card-text>
-
-                <v-card-actions>
-                  <v-spacer></v-spacer>
-                  <v-btn color="primary" @click="() => (infoDialog = false)"> Got it! </v-btn>
-                </v-card-actions>
-              </v-card>
-            </v-dialog>
           </v-card-text>
         </v-card>
       </v-col>
-
-      <!-- The dialog unmounts its content when it closes, so every opening loads the
-           current list of uploaded files. A forced remount would discard the user's input. -->
-      <v-dialog v-model="workflowDialog" width="500">
-        <v-defaults-provider :defaults="underlinedFieldDefaults">
-          <WorkflowExecution
-            :onlyLocal="true"
-            kind_of_dags="import"
-            :isDialog="true"
-            @successful="() => (workflowDialog = false)"
-            @cancel="() => (workflowDialog = false)"
-          />
-        </v-defaults-provider>
-      </v-dialog>
     </v-row>
   </v-container>
 </template>

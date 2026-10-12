@@ -195,7 +195,8 @@
                                                 :label="param.ui_form.title + (param.ui_form.required ? ' *' : '')"
                                                 :hint="param.ui_form.description"
                                                 :items="modelOptionsByKind[modelKind(param)] || []"
-                                                item-title="friendly_name" item-value="task_ids" density="comfortable"
+                                                item-title="friendly_name" item-value="task_ids"
+                                                :item-props="modelItemProps" density="comfortable"
                                                 variant="outlined" class="parameter-field"
                                                 :rules="getRequiredRules(param.ui_form)"
                                                 :required="param.ui_form.required" validate-on="blur"
@@ -435,19 +436,24 @@ async function loadModels(kind: string) {
     }
 }
 
+// Trained models can have similar names. The description and the target classes help to tell them apart.
+function modelItemProps(model: InstalledModel) {
+    const targets = (model.targets ?? []).filter(target => target !== 'N/A').join(', ')
+    return { subtitle: [model.description, targets].filter(Boolean).join(' · ') }
+}
+
 // Distinct kinds needed by this workflow's model-type parameters
 const modelKindsNeeded = computed(() => {
     const workflowParams: WorkflowParameter[] = (props.workflow as any).workflow_parameters || []
     return [...new Set(workflowParams.filter(p => p.ui_form.type === 'model').map(modelKind))]
 })
 
-// Load models when dialog opens if there are model parameters, one request per distinct kind
+// Reload the models every time the dialog opens, because a training run can register
+// a new model while the page stays open.
 watch(isOpen, (newValue) => {
     if (!newValue) return
     for (const kind of modelKindsNeeded.value) {
-        if (!(kind in modelOptionsByKind.value)) {
-            loadModels(kind)
-        }
+        loadModels(kind)
     }
 })
 

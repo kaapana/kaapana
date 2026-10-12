@@ -1,13 +1,7 @@
 <template>
   <v-container fluid class="text-left">
     <h1>Data upload</h1>
-    <v-alert
-      v-if="selectedProject && selectedProject.is_archived"
-      type="warning"
-      prominent
-      class="mb-4"
-      icon="mdi-archive"
-    >
+    <v-alert v-if="isArchived" type="warning" prominent class="mb-4" icon="mdi-archive">
       This project is archived and is read-only. Data upload is disabled. Unarchive the project to
       enable uploads again.
     </v-alert>
@@ -32,7 +26,7 @@
         </v-card>
       </v-col>
       <v-col cols="12">
-        <v-card :disabled="selectedProject && selectedProject.is_archived">
+        <v-card :disabled="isArchived">
           <v-card-title class="text-h5">
             Option 2: Upload the data via the browser(experimental).
           </v-card-title>
@@ -86,11 +80,12 @@
             NIfTIs or any data you want to use in a workflow as a zip file via the dropzone.
             <Upload
               label-idle="Dicoms, ITK images or any other data"
+              :disabled="isArchived"
               :on-process-file="fileComplete"
             ></Upload>
             <br />
             <v-icon size="large">mdi-numeric-3-circle</v-icon>&nbsp;
-            <v-btn color="primary" @click="() => (workflowDialog = true)">
+            <v-btn color="primary" :disabled="isArchived" @click="() => (workflowDialog = true)">
               Import the data
               <v-icon>mdi-play-outline</v-icon>
             </v-btn>
@@ -115,7 +110,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { notify } from '@kyvg/vue3-notification'
 import Upload from '@/components/Upload.vue'
@@ -126,6 +121,9 @@ import { settings as defaultSettings } from '@/static/defaultUIConfig'
 
 const projectStore = useProjectStore()
 const { selectedProject } = storeToRefs(projectStore)
+// A disabled card only blocks the pointer, so each control is disabled too.
+// Otherwise the keyboard still reaches them.
+const isArchived = computed(() => selectedProject.value.is_archived === true)
 
 // This view standardizes the workflow form on underlined fields; supplied via a
 // defaults-provider around the shared WorkflowExecution (which carries no inline

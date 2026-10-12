@@ -53,7 +53,7 @@ test('auth check failure still mounts the view', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Data upload' })).toBeVisible()
 })
 
-test('archived project is read-only: warning shown, upload card disabled', async ({ page }) => {
+test('archived project is read-only: warning shown, upload controls disabled', async ({ page }) => {
   const projects = [
     { ...defaultMockData.projects[0], is_archived: true },
     defaultMockData.projects[1],
@@ -64,6 +64,35 @@ test('archived project is read-only: warning shown, upload card disabled', async
   await expect(page.getByText('This project is archived and is read-only.')).toBeVisible()
   // Vuetify renders a :disabled v-card with the .v-card--disabled modifier.
   await expect(page.locator('.v-card--disabled')).toBeVisible()
+  // The card only blocks the pointer, so the controls must be disabled as well.
+  // A disabled FilePond removes its file input instead of disabling it.
+  await expect(page.locator('.filepond--root')).toHaveAttribute('data-disabled', 'disabled')
+  await expect(page.locator('input[type="file"]')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Import the data/ })).toBeDisabled()
+})
+
+test('archived project: the keyboard cannot reach the upload controls', async ({ page }) => {
+  const projects = [
+    { ...defaultMockData.projects[0], is_archived: true },
+    defaultMockData.projects[1],
+  ]
+  await installMockBackend(page, { ...defaultMockData, projects })
+  await page.goto(VIEW_PATH)
+  await expect(page.getByText('This project is archived and is read-only.')).toBeVisible()
+
+  const reached: string[] = []
+  for (let i = 0; i < 6; i++) {
+    await page.keyboard.press('Tab')
+    reached.push(
+      await page.evaluate(() => {
+        const el = document.activeElement as HTMLElement
+        if (el === document.body) return 'BODY'
+        return `${el.tagName} ${el.className} ${el.textContent ?? ''}`
+      }),
+    )
+  }
+  expect(reached.join('\n')).not.toContain('filepond--browser')
+  expect(reached.join('\n')).not.toContain('Import the data')
 })
 
 // base-ui's project store rejects when the project lookup fails; the view must

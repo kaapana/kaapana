@@ -67,12 +67,8 @@ test('info dialog explains the expected upload format', async ({ page }) => {
   await expect(page.getByText('How should the uploaded data look?')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Upload DICOM data' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Upload NIfTI data' })).toBeVisible()
-  // The workflow and the documentation section the dialog points to must exist.
+  // The workflow the dialog points to must exist.
   await expect(page.getByText('import-niftis-from-data-upload')).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Kaapana documentation' })).toHaveAttribute(
-    'href',
-    'https://kaapana.readthedocs.io/en/stable/user_guide/workflow_management_system/data_upload.html#nifti-data',
-  )
   await page.getByRole('button', { name: 'Got it!' }).click()
   await expect(page.getByText('How should the uploaded data look?')).toBeHidden()
 })

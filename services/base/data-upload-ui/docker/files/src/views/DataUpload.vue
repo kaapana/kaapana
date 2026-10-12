@@ -106,7 +106,7 @@
                           volumes and segmentations. Depending on the use case, the data has to be
                           formatted in one of the directory structures described in the
                           <a
-                            href="https://kaapana.readthedocs.io/en/stable/user_guide/workflow_management_system/data_upload.html#nifti-data"
+                            href="/docs/user_guide/workflow_management_system/data_upload.html#nifti-data"
                             target="_blank"
                             >Kaapana documentation</a
                           >.

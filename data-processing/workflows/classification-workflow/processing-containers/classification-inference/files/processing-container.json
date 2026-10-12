@@ -10,7 +10,7 @@
                 {
                     "name": "TAG_POSTFIX",
                     "value": "False",
-                    "description": "If 'True', append the training workflow id/fold/checkpoint kind to the predicted tag."
+                    "description": "If 'true' (not case-sensitive), append the model name, the fold and the checkpoint kind (best or end) to the predicted tag."
                 },
                 {
                     "name": "KAAPANA_PROJECT_IDENTIFIER",

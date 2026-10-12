@@ -248,21 +248,6 @@ if __name__ == "__main__":
         num_classes=NUM_CLASSES,
     )
 
-    # Load pretrained weights
-
-    if os.environ.get("PRETRAINED_WEIGHTS"):
-        path_to_checkpoint_file = os.path.join(
-            "/models/classification-training-workflow", os.environ["PRETRAINED_WEIGHTS"]
-        )
-
-        # load weights
-        # using weights_only=False for backwards compatability to keep torch <2.6 behavior
-        # TODO: get rid of it via
-        # Option 1 : updating the model saving to ensure all checkpoint objects are native Python types instead of NumPy types before torch.save()
-        # Option 2: using safe_globals to whitelist the specific numpy scalar type found in legacy checkpoints
-        checkpoint = torch.load(path_to_checkpoint_file, map_location=DEVICE, weights_only=False)
-        model.load_state_dict(checkpoint["state_dict"], strict=False)
-
     model = model.to(DEVICE)
 
     logger.debug("Load model on gpu")

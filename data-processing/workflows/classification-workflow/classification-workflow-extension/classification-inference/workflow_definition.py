@@ -43,9 +43,8 @@ with DAG("{{ dag_id }}", default_args=args) as dag:
         image=f"{DEFAULT_REGISTRY}/classification-preprocessing:{KAAPANA_BUILD_VERSION}",
         taskTemplate="preprocess",
         env=[
-            pc_models.BaseEnv(name="PATCH_SIZE", value="(128, 128, 128)"),
-            # WORKFLOW_NAME is read by the container's inference-only branch (see
-            # migration-notes.md); hardcoded here since it's statically known per DAG.
+            # The preprocessing container is shared by both DAGs. WORKFLOW_NAME tells it whether to read the
+            # patch size from the selected model.
             pc_models.BaseEnv(name="WORKFLOW_NAME", value="classification-inference"),
         ],
         iochannel_maps=[
@@ -60,16 +59,12 @@ with DAG("{{ dag_id }}", default_args=args) as dag:
                 input_channel="model",
             ),
         ],
-        labels={"network-access-opensearch": "true"},
     )
 
     inference = KaapanaTaskOperator(
         task_id="inference",
         image=f"{DEFAULT_REGISTRY}/classification-inference:{KAAPANA_BUILD_VERSION}",
         taskTemplate="infer",
-        env=[
-            pc_models.BaseEnv(name="TAG_POSTFIX", value="False"),
-        ],
         iochannel_maps=[
             IOMapping(
                 upstream_operator=preprocessing,

@@ -97,11 +97,10 @@ test.describe('logs page', () => {
     await expect(page.getByText('No tasks have started yet')).toBeVisible()
   })
 
-  test('an unknown run says so and leads back to the list', async ({ page }) => {
+  test('an unknown run returns to the list and reports the failure', async ({ page }) => {
     await openLogs(page, 404)
-    await expect(page.getByText('Run 404 does not exist')).toBeVisible()
-    await page.getByRole('link', { name: 'Back to workflow runs' }).click()
     await expect(page).toHaveURL(/\/workflow-ui\/runs$/)
+    await expect(toasts(page)).toContainText('Run 404 does not exist')
   })
 
   test('every toolbar control has an accessible name', async ({ page }) => {

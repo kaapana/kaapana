@@ -24,24 +24,14 @@
       :icon="kaapanaIcons.error"
       color="error"
       size="56"
-      :title="notFound ? `Run ${runId} does not exist` : `Could not load run ${runId}`"
-      :text="
-        notFound
-          ? 'It may belong to another project. Go back to the workflow runs to choose one.'
-          : 'The workflow service could not be reached or reported an error. Try again, or contact your administrator if it persists.'
-      "
+      :title="`Could not load run ${runId}`"
+      text="The workflow service could not be reached or reported an error. Try again, or contact your administrator if it persists."
     >
       <template #actions>
-        <v-btn
-          v-if="!notFound"
-          color="primary"
-          variant="text"
-          :prepend-icon="kaapanaIcons.refresh"
-          @click="loadRun"
-        >
+        <v-btn color="primary" variant="text" :prepend-icon="kaapanaIcons.refresh" @click="loadRun">
           Try again
         </v-btn>
-        <v-btn v-if="!notFound" variant="text" @click="showLoadErrorDetails">Details</v-btn>
+        <v-btn variant="text" @click="showLoadErrorDetails">Details</v-btn>
         <v-btn variant="text" :to="{ name: 'WorkflowRuns' }">Back to workflow runs</v-btn>
       </template>
     </v-empty-state>
@@ -55,21 +45,23 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { apiErrorInfo, kaapanaIcons, type ApiErrorInfo } from '@kaapana/base-ui'
 import LogViewer from '@/components/LogViewer.vue'
 import RunParameters from '@/components/RunParameters.vue'
 import { workflowRunsApi } from '@/api/workflowRuns'
 import { useFailureDetailsStore } from '@/stores/failureDetails'
+import { notifyFailure } from '@/utils/notify'
 import { statusColor } from '@/utils/status'
 import type { WorkflowRun } from '@/types/schemas'
 
 const props = defineProps<{ runId: number }>()
 
+const router = useRouter()
 const failureDetails = useFailureDetailsStore()
 const run = ref<WorkflowRun | null>(null)
 const loading = ref(false)
 const loadError = ref<ApiErrorInfo | null>(null)
-const notFound = computed(() => loadError.value?.status === 404)
 const heading = computed(() =>
   run.value
     ? `Details of ${run.value.workflow?.title ?? 'Unknown workflow'} v${run.value.workflow?.increment}`
@@ -83,6 +75,15 @@ async function loadRun() {
     loadError.value = null
   } catch (err) {
     run.value = null
+    if (apiErrorInfo(err).status === 404) {
+      notifyFailure(
+        `Run ${props.runId} does not exist`,
+        'It may have been deleted or belong to another project.',
+        err,
+      )
+      router.replace({ name: 'WorkflowRuns' })
+      return
+    }
     loadError.value = apiErrorInfo(err)
   } finally {
     loading.value = false

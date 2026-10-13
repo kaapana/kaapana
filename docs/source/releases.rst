@@ -3,6 +3,33 @@
 Changelog
 #########
 
+.. _release-unreleased:
+
+------------------------
+
+********************
+Unreleased
+********************
+
+Default Extension Repository
+----------------------------
+
+* Every online platform registers the repository ``kaapana-default`` in the Extension Manager. It points to ``https://<registry>/extensions`` in the registry that the platform was deployed from, and it uses the registry credentials of the deployment. The repository always uses HTTPS, so platforms that were deployed with ``kaapanactl.sh --plain-http`` cannot reach it. Offline platforms do not register it.
+* A full platform build publishes every workflow in ``data-processing/workflows`` as an OCI extension to ``<registry>/extensions``, together with the processing containers that the workflow uses. The build never changes a published version, so increase the ``version`` in ``extension_manifest.json`` when the content changes.
+* The catalog of the Extension Manager still shows the extensions of the other repositories when one repository fails.
+
+Removed
+-------
+
+* The Helm chart packaging of the Task API workflows: the charts ``kaapana-workflows-core`` and ``workflow-helpers``, and the ``workflow-installer`` image. ``dummy-workflow`` and ``registration-workflow`` are no longer preinstalled. Install them from ``kaapana-default`` in the Extension Manager.
+* The workflow CLI (``lib/workflow_cli``). Use ``extensionctl`` from ``lib/kaapana_extensions`` to build and push workflow extensions.
+
+Upgrade Notes
+-------------
+
+* Platforms that were deployed with an earlier version still have the workflows ``dummy-workflow`` and ``registration-workflow`` in the Workflow API. Installing their extensions fails, because workflows with these titles already exist. Delete the old workflows first with ``DELETE /workflow-api/v1/workflows/<id>``, for example from the Workflow API documentation at ``/workflow-api/docs``.
+* The build CLI needs the extension libraries of the repository. Install them together: ``pip install -e lib/kaapana_containers -e lib/kaapana_extensions -e build_cli/``.
+
 .. _release-0.7.0:
 
 ------------------------

@@ -1787,6 +1787,16 @@ function run_migration_chart() {
     local FROM_VERSION="$1"
     local TO_VERSION="$2"
 
+    # Under another release name, helm would refuse the platform's objects only
+    # after the migration, and a retry would migrate again.
+    local admin_owner
+    admin_owner=$($KUBECTL_EXECUTABLE get namespace "$ADMIN_NAMESPACE" \
+        -o jsonpath='{.metadata.annotations.meta\.helm\.sh/release-name}' 2>/dev/null || true)
+    if [[ -n "$admin_owner" && "$admin_owner" != "$PLATFORM_RELEASE_NAME" ]]; then
+        echo -e "${RED}The platform belongs to release '$admin_owner', not '$PLATFORM_RELEASE_NAME'. Not migrating.${NC}"
+        exit 1
+    fi
+
     echo -e "${YELLOW}Deploying migration chart: $FROM_VERSION -> $TO_VERSION${NC}"
 
     WORKDIR=$(mktemp -d)

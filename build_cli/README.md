@@ -1,10 +1,22 @@
 # Installation
 
-`build_cli` is a pip-installable package. Install it (editable is recommended,
-since the tool builds the repository it lives in):
+`build_cli` is a pip-installable package. Install it together with the
+extension libraries of this repository. `build_cli` uses them to validate the
+workflow extensions. An editable install is recommended, because the tool builds
+the repository it lives in:
 
 ```
-pip install -e build_cli/
+pip install -e lib/kaapana_containers -e lib/kaapana_extensions -e build_cli/
+```
+
+The libraries are not on PyPI, so pip cannot install them as dependencies of
+`build_cli`.
+
+The unit tests need the `test` extra:
+
+```
+pip install -e "build_cli/[test]"
+pytest build_cli/tests
 ```
 
 This installs the `kaapana-build` console command.
@@ -61,6 +73,10 @@ The package lives at `build_cli/build_cli/`. `cli.py` is the entry point
 │   ├── container_helper.py
 │   ├── coordinator.py
 │   └── worker.py
+├── extension
+│   ├── __init__.py
+│   ├── extension.py
+│   └── extension_helper.py
 ├── helm
 │   ├── __init__.py
 │   ├── helm_chart.py
@@ -142,6 +158,17 @@ Pure singleton class -> classes that are never initialized and have only class a
 #### worker.py
 - BuildWorker - thread worker that builds and pushes a single container (`process_container`) and emits build events back to the coordinator.
 
+## extension
+- Workflow extensions in `data-processing/workflows`, each defined by an `extension_manifest.json`
+
+#### extension.py
+- Extension - parsed and validated manifest, the images its DAG files use, and the containers of these images
+- The manifest must have a UUID `id`, a list of `dependencies` and only `workflow-v1` contents, because the extension manager rejects everything else
+
+#### extension_helper.py
+- Pure singleton class
+- Collects and validates the extensions, links them to their containers and selects the extensions of a build
+
 ## helm
 #### helm_chart.py
 - HelmChart parsed from chartfile and adjacent .yaml files
@@ -162,7 +189,7 @@ Pure singleton class -> classes that are never initialized and have only class a
 #### logger.py 
 - Universal logger utility -> get_logger() by default return build logger
 #### path_ignore.py
-- should_ignore_path() - matches a path against build_ignore_patterns (wildcards); used when collecting Dockerfiles and charts.
+- should_ignore_path() - matches a path against build_ignore_patterns (wildcards); used when collecting Dockerfiles, charts and extension manifests.
 
 # Build Architecture
 
@@ -184,9 +211,14 @@ Pure singleton class -> classes that are never initialized and have only class a
    4. Changes to the HelmChart are propagates similar to point 3 from Collect containers seen above 
    5. Platform charts (should be only 1) have additionally collections and parse deployment_config.yaml file
 
+3a. Collect extensions
+   1. Parse `data-processing/workflows` for `extension_manifest.json` files (except git-ignored files and build_ignore_patterns) and validate them. An invalid manifest is an error issue and the extension is skipped.
+   2. Images in the DAG files with the version `{KAAPANA_BUILD_VERSION}` are resolved into Containers. Images with a fixed version are not built (warning). With `--lint-only`, no containers are collected, so this step is skipped.
+
 4. Determine build targets
    1. platform_chart = BuildHelper.get_platform_chart()
    2. BuildHelper.generate_build_graph(platform_chart)
+      1. Extensions are nodes below the platform chart. Their containers and the whole chain of local base images are nodes below the extension.
    3. BuildHelper.generate_build_tree(platform_chart)
     
 5. Build ALL helm charts
@@ -211,6 +243,7 @@ Pure singleton class -> classes that are never initialized and have only class a
       1. In case of charts directly used containers and containers used as a dependency are used.
       2. In case of container names only those are built
    3. Base images for selected containers also need to be in the selected containers. (utomatic expand is happening)
+   4. An extension is selected when all its images are selected containers. An extension without images is only selected when no containers or charts were selected explicitly. So a build never selects an extension whose images it did not try to build.
 
 7. Build and push containers
 8. Process:

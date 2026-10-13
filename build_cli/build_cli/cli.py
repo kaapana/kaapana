@@ -17,6 +17,7 @@ from build_cli.build import (
 )
 from build_cli.container import ContainerHelper
 from build_cli.container.coordinator import BuildCoordinator
+from build_cli.extension import ExtensionHelper
 from build_cli.helm import HelmChartHelper
 from build_cli.utils.logger import get_logger, init_logger, set_console_level
 
@@ -515,6 +516,7 @@ def run_build(build_config: BuildConfig):
     ContainerHelper.init(build_config=build_config, build_state=build_state)
     HelmChartHelper.init(build_config=build_config, build_state=build_state)
     BuildHelper.init(build_config=build_config, build_state=build_state)
+    ExtensionHelper.init(build_config=build_config, build_state=build_state)
     if not build_config.lint_only:
         ContainerHelper.verify_container_engine_installed()
         ContainerHelper.ensure_buildx_builder()
@@ -541,6 +543,8 @@ def run_build(build_config: BuildConfig):
     HelmChartHelper.resolve_chart_dependencies()
     HelmChartHelper.resolve_kaapana_collections()
     HelmChartHelper.resolve_preinstall_extensions()
+    ExtensionHelper.collect_extensions()
+    ExtensionHelper.resolve_extension_containers()
 
     platform_chart = BuildHelper.get_platform_chart()
     BuildHelper.generate_build_graph(platform_chart)

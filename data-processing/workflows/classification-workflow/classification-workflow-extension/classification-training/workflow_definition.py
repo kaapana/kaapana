@@ -36,11 +36,6 @@ with DAG("{{ dag_id }}", default_args=args) as dag:
         task_id="preprocessing",
         image=f"{DEFAULT_REGISTRY}/classification-task:{KAAPANA_BUILD_VERSION}",
         taskTemplate="preprocess",
-        env=[
-            # The preprocessing template is shared by both DAGs. WORKFLOW_NAME tells it whether to read the
-            # patch size from the selected model.
-            pc_models.BaseEnv(name="WORKFLOW_NAME", value="classification-training"),
-        ],
         iochannel_maps=[
             IOMapping(
                 upstream_operator=convert,

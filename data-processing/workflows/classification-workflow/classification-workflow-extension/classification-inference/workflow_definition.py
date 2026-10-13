@@ -3,7 +3,6 @@ from kaapana.blueprints.kaapana_global_variables import (
     DEFAULT_REGISTRY,
     KAAPANA_BUILD_VERSION,
 )
-from task_api.processing_container import pc_models
 from task_api_operators.KaapanaTaskOperator import IOMapping, KaapanaTaskOperator
 
 args = {
@@ -41,12 +40,7 @@ with DAG("{{ dag_id }}", default_args=args) as dag:
     preprocessing = KaapanaTaskOperator(
         task_id="preprocessing",
         image=f"{DEFAULT_REGISTRY}/classification-task:{KAAPANA_BUILD_VERSION}",
-        taskTemplate="preprocess",
-        env=[
-            # The preprocessing template is shared by both DAGs. WORKFLOW_NAME tells it whether to read the
-            # patch size from the selected model.
-            pc_models.BaseEnv(name="WORKFLOW_NAME", value="classification-inference"),
-        ],
+        taskTemplate="preprocess-for-inference",
         iochannel_maps=[
             IOMapping(
                 upstream_operator=convert,

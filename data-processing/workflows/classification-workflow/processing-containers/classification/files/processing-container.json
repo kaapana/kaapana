@@ -11,11 +11,6 @@
                     "name": "PATCH_SIZE",
                     "value": "(128, 128, 128)",
                     "description": "Target shape (as a Python tuple literal string, e.g. '(128, 128, 128)') the input volume is resampled to before normalization."
-                },
-                {
-                    "name": "WORKFLOW_NAME",
-                    "value": "classification-training",
-                    "description": "Name of the DAG that runs the task. If the name contains 'inference', the patch size is read from config.json of the \"model\" input instead of PATCH_SIZE."
                 }
             ],
             "inputs": [
@@ -23,11 +18,6 @@
                     "name": "nrrd",
                     "mounted_path": "/kaapana/app/nrrd",
                     "description": "Expects one subdirectory per case, named after the case identifier, containing a single <identifier>.nrrd file."
-                },
-                {
-                    "name": "model",
-                    "mounted_path": "/kaapana/app/model",
-                    "description": "The config.json of the selected model, which contains the patch size used for training. The task reads it only if WORKFLOW_NAME contains 'inference'. The training DAG does not connect this input."
                 }
             ],
             "outputs": [
@@ -38,6 +28,39 @@
                 }
             ],
             "command": ["python3", "-u", "/kaapana/preprocess.py"],
+            "resources": {
+                "requests": {
+                    "memory": "4000Mi"
+                },
+                "limits": {
+                    "memory": "8000Mi"
+                }
+            }
+        },
+        {
+            "identifier": "preprocess-for-inference",
+            "description": "Resample and z-score normalize nrrd images into numpy arrays with the patch size of the selected model",
+            "env": [],
+            "inputs": [
+                {
+                    "name": "nrrd",
+                    "mounted_path": "/kaapana/app/nrrd",
+                    "description": "Expects one subdirectory per case, named after the case identifier, containing a single <identifier>.nrrd file."
+                },
+                {
+                    "name": "model",
+                    "mounted_path": "/kaapana/app/model",
+                    "description": "The selected model's config.json, provided by the model-download task. Every image is resized to the patch size in this file, which is the patch size used for training."
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "preprocessed",
+                    "mounted_path": "/kaapana/app/preprocessed",
+                    "description": "Creates for each input case a subdirectory with the same identifier containing a single <identifier>.npy file."
+                }
+            ],
+            "command": ["python3", "-u", "/kaapana/preprocess.py", "--patch-size-from-model"],
             "resources": {
                 "requests": {
                     "memory": "4000Mi"

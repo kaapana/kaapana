@@ -1,3 +1,4 @@
+import argparse
 import ast
 import json
 import logging
@@ -20,18 +21,21 @@ c_handler.setFormatter(c_format)
 # Add handlers to the logger
 logger.addHandler(c_handler)
 
-# Fixed mount paths, defined by this container's processing-container.json
-# ("preprocess" template: "nrrd"/"model" input channels, "preprocessed" output channel).
+# The input and output channels in processing-container.json define these paths.
 NRRD_MOUNT = "/kaapana/app/nrrd"
 PREPROCESSED_MOUNT = "/kaapana/app/preprocessed"
 MODEL_MOUNT = "/kaapana/app/model"
 
-if "inference" in os.environ["WORKFLOW_NAME"]:
-    # Only the inference DAG wires the "model" input channel (from the model-download
-    # task); the training DAG never takes this branch, so the channel being unmounted
-    # there is fine.
-    with open(os.path.join(MODEL_MOUNT, "config.json"), "r") as file:
-        os.environ["PATCH_SIZE"] = json.load(file)["PATCH_SIZE"]
+
+def read_patch_size_from_model() -> str:
+    # Inference must resize every image to the patch size that the model was trained with.
+    config_path = os.path.join(MODEL_MOUNT, "config.json")
+    if not os.path.isfile(config_path):
+        raise FileNotFoundError(
+            f"{config_path} does not exist. Connect the model input to the output of the model-download task."
+        )
+    with open(config_path, "r") as file:
+        return json.load(file)["PATCH_SIZE"]
 
 
 class ZScoreNormalizer:
@@ -67,6 +71,15 @@ def resample_image(patient, order=3):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--patch-size-from-model",
+        action="store_true",
+        help="Read the patch size from config.json of the model input instead of PATCH_SIZE.",
+    )
+    if parser.parse_args().patch_size_from_model:
+        os.environ["PATCH_SIZE"] = read_patch_size_from_model()
+
     batch = {}
 
     for patient in os.listdir(NRRD_MOUNT):

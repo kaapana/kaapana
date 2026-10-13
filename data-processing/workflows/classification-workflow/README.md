@@ -29,7 +29,7 @@ model-download ──(model)──────┴──────────�
 |---|---|---|---|
 | `download` | `get-input-task` | `dicom-download` | Downloads the DICOM series of the selected dataset. |
 | `convert` | `mitk-tools` | `convert` | Converts every series to nrrd. |
-| `preprocessing` | `classification-task` | `preprocess` | Resizes every image to the patch size and normalizes it. |
+| `preprocessing` | `classification-task` | `preprocess` (training), `preprocess-for-inference` (inference) | Resizes every image to the patch size and normalizes it. |
 | `training` | `classification-task` | `train` | Trains the model with the tags from OpenSearch as labels. |
 | `persist-model` | `persist-model` | `persist` | Stores the model in the models volume and registers it in kaapana-backend. |
 | `model-download` | `model-download` | `download` | Copies the selected model from the models volume. |
@@ -49,7 +49,8 @@ the models volume directly.
 3. The model picker in the workflow UI lists the registered models (`GET /client/installed_models`). The selected
    value is the `task_ids` of the model, for example `resnet18-20261012-142233-fold-0/model-best.pth.tar`.
 4. `model-download` checks the value and copies `config.json` and the checkpoint to its `model` output.
-   `preprocessing` reads the patch size from `config.json`, and `inference` loads the checkpoint.
+   `preprocessing` uses the template `preprocess-for-inference`, which reads the patch size from `config.json`.
+   `inference` loads the checkpoint.
 
 The models and TensorBoard volumes belong to the project namespace, so every project sees only its own models.
 Both tasks that access OpenSearch resolve the index of the project from `KAAPANA_PROJECT_IDENTIFIER`.

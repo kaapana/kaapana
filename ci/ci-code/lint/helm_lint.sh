@@ -15,7 +15,7 @@ if ! command -v kubeconform >/dev/null; then
 fi
 
 if ! (cd / && python -c 'import build_cli.cli' 2>/dev/null); then
-    python -m pip install -q -e build_cli
+    python -m pip install -q -e lib/kaapana_containers -e lib/kaapana_extensions -e build_cli
 fi
 
 log_level="${HELM_LINT_LOG_LEVEL:-WARN}"

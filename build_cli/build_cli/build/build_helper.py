@@ -1,6 +1,6 @@
 import hashlib
 import json
-from typing import Set
+from typing import Collection, Set
 
 import networkx as nx
 from InquirerPy import inquirer
@@ -8,6 +8,7 @@ from treelib.tree import Tree
 
 from build_cli.build import BuildConfig, BuildState, IssueTracker
 from build_cli.container import Container, ContainerHelper
+from build_cli.extension import Extension, ExtensionHelper
 from build_cli.helm import HelmChart, HelmChartHelper
 from build_cli.ui.selector import interactive_select
 from build_cli.utils import get_logger
@@ -99,26 +100,41 @@ class BuildHelper:
         return NotImplemented
 
     @classmethod
+    def report_available_extensions(cls):
+        logger.debug("\nCollect all extensions:\n")
+        extensions_json_path = cls._build_config.build_dir / "extensions_available.json"
+
+        with open(extensions_json_path, "w") as fp:
+            json.dump(
+                [e.to_dict() for e in sorted(cls._build_state.extensions_available, key=lambda e: e.name)],
+                fp,
+                indent=4,
+            )
+
+    @classmethod
     def generate_report(cls):
         BuildHelper.report_unused_containers()
         BuildHelper.report_used_base_images()
         BuildHelper.report_available_containers()
         BuildHelper.report_available_charts()
         BuildHelper.report_unused_charts()
+        BuildHelper.report_available_extensions()
 
         if cls._build_config.enable_image_stats:
             BuildHelper.report_image_stats()
 
     @classmethod
     def generate_build_graph(cls, platform_chart: HelmChart):
-        build_graph = cls._build_graph(platform_chart)
+        build_graph = cls._build_graph(platform_chart, cls._build_state.extensions_available)
         cls._build_state.build_graph = build_graph
 
     @classmethod
     def generate_build_tree(cls, platform_chart: HelmChart):
         build_tree_file = cls._build_config.build_dir / platform_chart.name / f"tree-{platform_chart.name}.txt"
         build_tree_file.parent.mkdir(parents=True, exist_ok=True)
-        build_tree = cls._build_tree(platform_chart, include_containers=True)
+        build_tree = cls._build_tree(
+            platform_chart, include_containers=True, extensions=cls._build_state.extensions_available
+        )
 
         # Save tree to files
         build_tree.save2file(str(build_tree_file))
@@ -167,10 +183,13 @@ class BuildHelper:
             if cls._build_config.containers_to_build:
                 selected_container_names = cls._build_config.containers_to_build
 
+        explicit_selection = bool(selected_container_names or selected_chart_names)
+
         # If any containers are specified, we do not resolve charts.
         if selected_container_names:
             containers = {ContainerHelper.get_container(name) for name in selected_container_names}
             cls._build_state.selected_containers = ContainerHelper.collect_all_local_base_containers(containers)
+            ExtensionHelper.select_extensions(cls._build_state.selected_containers, explicit_selection)
             return None
 
         G = cls._build_state.build_graph
@@ -185,6 +204,7 @@ class BuildHelper:
             containers_from_charts = {n for n, _ in G.nodes(data=True) if isinstance(n, Container)}
         cls._build_state.selected_charts = charts
         cls._build_state.selected_containers = containers_from_charts
+        ExtensionHelper.select_extensions(containers_from_charts, explicit_selection)
 
     @classmethod
     def collect_chart_containers(cls, chart: HelmChart) -> Set[Container]:
@@ -213,9 +233,20 @@ class BuildHelper:
         return containers
 
     @staticmethod
-    def _build_graph(root_chart: HelmChart) -> nx.DiGraph:
+    def _build_graph(root_chart: HelmChart, extensions: Collection[Extension] = ()) -> nx.DiGraph:
         G = nx.DiGraph()
         visited = set()  # Track fully processed charts
+        expanded: set[Container] = set()
+
+        def add_base_images(container: Container):
+            if container in expanded:
+                return
+            expanded.add(container)
+            for base in container.base_images:
+                G.add_node(base, type="container")
+                G.add_edge(container, base, type="base-image")
+                if isinstance(base, Container):
+                    add_base_images(base)
 
         def add_chart(chart: HelmChart):
             if chart in visited:  # Only skip if fully processed
@@ -245,10 +276,21 @@ class BuildHelper:
 
         # Start recursion from root
         add_chart(root_chart)
+
+        # Extensions hang below the platform chart, so that a full build also builds their containers.
+        # A container only starts when all its local base images are built, so the whole chain is added.
+        for extension in extensions:
+            G.add_node(extension, type="extension")
+            G.add_edge(root_chart, extension, type="extension")
+            for container in extension.containers:
+                G.add_node(container, type="container")
+                G.add_edge(extension, container, type="produces")
+                add_base_images(container)
+
         return G
 
     @staticmethod
-    def _build_tree(root_chart: HelmChart, include_containers=False):
+    def _build_tree(root_chart: HelmChart, include_containers=False, extensions: Collection[Extension] = ()):
         """
         Generate a Tree() from a list of root charts.
         Optionally include containers and their base images.
@@ -302,6 +344,20 @@ class BuildHelper:
                     add_chart(dep, subcharts_id, path_prefix=current_path)
 
         add_chart(root_chart, "ROOT")
+
+        if extensions:
+            root_path = f"/{root_chart.name}"
+            extensions_path = f"{root_path}/extensions"
+            extensions_id = BuildHelper.hash_id(extensions_path)
+            build_tree.create_node("extensions", extensions_id, parent=BuildHelper.hash_id(root_path))
+            for extension in sorted(extensions, key=lambda e: (e.name, e.version)):
+                extension_path = f"{extensions_path}/{extension.id}"
+                extension_id = BuildHelper.hash_id(extension_path)
+                build_tree.create_node(f"{extension.name}:{extension.version}", extension_id, parent=extensions_id)
+                if include_containers:
+                    for container in sorted(extension.containers):
+                        container_id = BuildHelper.hash_id(f"{extension_path}/{container.tag}")
+                        build_tree.create_node(container.tag, container_id, parent=extension_id)
 
         return build_tree
 

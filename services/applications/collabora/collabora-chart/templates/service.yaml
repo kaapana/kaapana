@@ -101,6 +101,7 @@ metadata:
     kaapana.ai/ui.section: "store"
     kaapana.ai/ui.order: "40"
     kaapana.ai/ui.path: "{{ .Values.global.collabora_prefix }}-wopi/"
+    kaapana.ai/ui.project: "path"
 spec:
   rules:
   - host: 
@@ -114,3 +115,23 @@ spec:
             port:
               name: http
 ---
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: "{{ .Release.Name }}-wopi-project-ingressroute"
+  namespace: "{{ tpl .Values.global.namespace . }}"
+  labels:
+    app.kubernetes.io/name: {{ .Release.Name }}
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: PathRegexp(`^/project/[^/]+{{ .Values.global.collabora_prefix }}-wopi(/|$)`)
+      middlewares:
+        - name: strip-project-prefix
+        - name: strip-prefix-{{ .Release.Name }}-wopi
+      services:
+        - name: "{{ .Release.Name }}-wopi"
+          port: 5000

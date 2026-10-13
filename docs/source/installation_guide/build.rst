@@ -50,7 +50,7 @@ You should also have the following packages installed on your build-system.
 
 #. Install the build CLI (provides the ``kaapana-build`` command)
 
-   :code:`python3 -m pip install -e kaapana/build_cli`
+   :code:`python3 -m pip install -e kaapana/lib/kaapana_containers -e kaapana/lib/kaapana_extensions -e kaapana/build_cli`
 
    .. tip::
 

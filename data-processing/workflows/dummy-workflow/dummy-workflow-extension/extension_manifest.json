@@ -1,0 +1,20 @@
+{
+  "name": "dummy-workflow-extension",
+  "id": "ed091c23-8582-4592-be5f-6c514ea52395",
+  "version": "0.1.0",
+  "contents": [
+    {
+      "name": "dummy-workflow",
+      "contentType": "workflow-v1",
+      "files": [
+        {
+          "path": "workflow_definition.py"
+        },
+        {
+          "path": "workflow.json"
+        }
+      ]
+    }
+  ],
+  "dependencies": []
+}

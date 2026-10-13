@@ -22,8 +22,7 @@ from batchgenerators.transforms.spatial_transforms import (
     SpatialTransform,
 )
 
-# Fixed mount path, defined by this container's processing-container.json
-# ("train" template: "preprocessed" input channel).
+# The "preprocessed" input channel in processing-container.json defines this path.
 PREPROCESSED_MOUNT = "/kaapana/app/preprocessed"
 
 
@@ -88,11 +87,11 @@ class ClassificationDataset(DataLoader):
         self.seed_for_shuffle = seed_for_shuffle
         self.num_classes = num_classes
 
-        # Check if all uids have a tag
-
-        for uid in self._data:
-            if uid not in self.uid_to_tag_mapping:
-                raise ValueError(f"UID {uid} not found in tag mapping")
+        # Training needs a tag for every case. Inference has no tags, so it passes no mapping.
+        if self.uid_to_tag_mapping is not None:
+            for uid in self._data:
+                if uid not in self.uid_to_tag_mapping:
+                    raise ValueError(f"UID {uid} not found in tag mapping")
 
     def __len__(self):
         return len(self._data)
@@ -104,24 +103,31 @@ class ClassificationDataset(DataLoader):
         # initialize empty array for data and seg
         data = np.zeros((self.batch_size, self.num_modalities, *self.patch_size), dtype=np.float32)
         seg = np.zeros((self.batch_size, self.num_classes), dtype="int16")
+        samples = {}
 
         for i, j in enumerate(patients_for_batch):
             input_image_path = os.path.join(PREPROCESSED_MOUNT, j, j + ".npy")
             input_image = np.load(input_image_path, mmap_mode="r")
 
-            if os.environ["TASK"] == "binary":
-                seg[i] = np.array(self.uid_to_tag_mapping[j])
-            else:
-                # Convert to one-hot encoding
-                one_hot_np = np.eye(self.num_classes)[np.array(self.uid_to_tag_mapping[j])]
+            if self.uid_to_tag_mapping is not None:
+                if os.environ["TASK"] == "binary":
+                    seg[i] = np.array(self.uid_to_tag_mapping[j])
+                else:
+                    # Convert to one-hot encoding
+                    one_hot_np = np.eye(self.num_classes)[np.array(self.uid_to_tag_mapping[j])]
 
-                # Apply logical OR operation along the first dimension
-                combined_one_hot = one_hot_np.any(axis=0).astype(int)
-                seg[i] = combined_one_hot
+                    # Apply logical OR operation along the first dimension
+                    combined_one_hot = one_hot_np.any(axis=0).astype(int)
+                    seg[i] = combined_one_hot
 
             data[i] = input_image
+            samples[i] = j
 
-        return {"data": data, "class": seg, "sample": j}
+        # Inference writes one tag per case, so it needs the case of every batch entry.
+        batch = {"data": data, "samples": samples}
+        if self.uid_to_tag_mapping is not None:
+            batch["class"] = seg
+        return batch
 
     @staticmethod
     def get_train_transform(patch_size):

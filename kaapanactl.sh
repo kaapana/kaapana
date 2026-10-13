@@ -1473,8 +1473,6 @@ function load_kaapana_config {
 
     # dev-mode -> containers will always be re-downloaded after pod-restart
     DEV_MODE=true
-    # on platform boot, PATCH existing workflows when the title already exists with different content
-    PATCH_WORKFLOWS_IF_CONFLICT=true
     GPU_SUPPORT=false
     # Adjust enable nvidia command if using GPU Operator below v25.10.0+
     GPU_OPERATOR_VERSION="v25.10.0"
@@ -2446,7 +2444,6 @@ function deploy_chart {
     --set-string global.login_institution_name="$LOGIN_INSTITUTION_NAME" \
     --set-string global.login_institution_logo="$LOGIN_INSTITUTION_LOGO" \
     --set global.dev_mode=$DEV_MODE \
-    --set global.patch_workflows_if_conflict=$PATCH_WORKFLOWS_IF_CONFLICT \
     --set-string global.kaapana_init_password="$KAAPANA_INIT_PASSWORD" \
     --set-string global.pacs_memory_limit="$PACS_MEMORY_LIMIT" \
     --set-string global.airflow_memory_limit="$AIRFLOW_MEMORY_LIMIT" \

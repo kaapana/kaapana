@@ -343,7 +343,11 @@ MITK Flow
 
 Task API workflows
 -------------------
-| **register-dicoms**
+| The Task API workflows are packaged as OCI extensions. Every full platform build publishes them, together with their containers, to the repository that the platform knows as ``kaapana-default``.
+| They are not installed by default. Install them from the **Catalog** of the experimental :ref:`Extension Manager <experimental_extension_manager>`.
+
+| **registration-workflow**
+| Extension: ``registration-workflow-extension``
 | 1) Download dataset with the target image
 | 2) Download dataset with the moving images that will be registerd to the target image
 | 3) Convert dicom images to nrrd
@@ -352,14 +356,16 @@ Task API workflows
 | 6) Send registered images to the internal CTP server
 
 
-| **test-task-operator:**
+| **dummy-workflow**
+| Extension: ``dummy-workflow-extension``
 | Minimal workflow to test the Task API and the KaapanaTaskOperator
 
 .. _extensions_classification:
 
 | **classification-training** and **classification-inference**
-| Task API version of the classification workflows. They are installed as one extension with the experimental :ref:`Extension Manager <experimental_extension_manager>`.
-| Every full platform build publishes the extension to the default repository ``kaapana-default``, together with its containers. The build steps are described in ``data-processing/workflows/classification-workflow/README.md``.
+| Task API version of the classification workflows.
+| Extension: ``classification-workflow-extension`` (both workflows)
+| The build steps are described in ``data-processing/workflows/classification-workflow/README.md``.
 
 | **classification-training**
 | 1) Download the selected dataset

@@ -32,6 +32,7 @@ global:
   pull_policy_pods: "Always"
   registry_url: "placeholder"
   release_name: "placeholder"
+  platform_name: "placeholder"
   deployment_timestamp: "placeholder"
   mount_points_to_monitor: "placeholder"
   slow_data_dir: "placeholder"

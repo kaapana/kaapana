@@ -6,7 +6,7 @@ data:
       "name": "Kaapana",
       "shortName": "Kaapana",
       "infoText": "Welcome to Kaapana",
-      "version": "{{ .Values.global.release_name }}:{{ .Values.global.kaapana_build_version }} | Build-Timestamp: {{ .Values.global.build_timestamp }} | Build-Branch: {{ .Values.global.platform_build_branch }} - {{ .Values.global.platform_last_commit_timestamp }}"
+      "version": "{{ .Values.global.platform_name | default .Values.global.release_name }}:{{ .Values.global.kaapana_build_version }} | Build-Timestamp: {{ .Values.global.build_timestamp }} | Build-Branch: {{ .Values.global.platform_build_branch }} - {{ .Values.global.platform_last_commit_timestamp }}"
     }
   defaultExternalWebpages.json: |-
     {

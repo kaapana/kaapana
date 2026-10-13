@@ -212,25 +212,25 @@ function validate_platform_prefix() {
     echo -e "${GREEN}Using PLATFORM_PREFIX: $PLATFORM_PREFIX${NC}"
 }
 
-# Recover PLATFORM_PREFIX from the already-deployed kaapana-admin-chart release
-# (global.platform_prefix) instead of asking the operator, e.g. when undeploying
-# without --platform-prefix. Returns 1 without setting PLATFORM_PREFIX if the
-# release or the value cannot be found.
+# Recover PLATFORM_PREFIX from the already-deployed platform (global.platform_prefix)
+# instead of asking the operator, e.g. when undeploying without --platform-prefix.
+# Tries PLATFORM_RELEASE_NAME first, then the other releases in HELM_NAMESPACE,
+# which covers a platform deployed under another release name. Returns 1
+# without setting PLATFORM_PREFIX if no release has the value.
 function get_platform_prefix_from_release() {
-    local release="kaapana-admin-chart"
     local namespace="$HELM_NAMESPACE"
-    local values_json
-    values_json=$($HELM_EXECUTABLE get values "$release" -n "$namespace" -o json 2>/dev/null)
-    if [ -z "$values_json" ]; then
-        return 1
-    fi
+    local release
     local prefix
-    prefix=$(printf '%s' "$values_json" | jq -r '.global.platform_prefix // empty' 2>/dev/null)
-    if [ -z "$prefix" ]; then
-        return 1
-    fi
-    PLATFORM_PREFIX="$prefix"
-    echo -e "${GREEN}Read PLATFORM_PREFIX from release '$release' (namespace '$namespace'): $PLATFORM_PREFIX${NC}"
+    for release in "$PLATFORM_RELEASE_NAME" $($HELM_EXECUTABLE -n "$namespace" ls --short 2>/dev/null); do
+        prefix=$($HELM_EXECUTABLE get values "$release" -n "$namespace" -o json 2>/dev/null \
+            | jq -r '.global.platform_prefix // empty' 2>/dev/null || true)
+        if [ -n "$prefix" ]; then
+            PLATFORM_PREFIX="$prefix"
+            echo -e "${GREEN}Read PLATFORM_PREFIX from release '$release' (namespace '$namespace'): $PLATFORM_PREFIX${NC}"
+            return 0
+        fi
+    done
+    return 1
 }
 
 # Keycloak production policy: >=8 chars, 1 upper, 1 lower, 1 digit, 1 special.
@@ -348,6 +348,9 @@ function deploy() {
 
     PLATFORM_NAME="${PLATFORM_NAME:-}"
     PLATFORM_VERSION="${PLATFORM_VERSION:-}"
+    # Helm release name of the platform. Independent of the chart name, so
+    # a renamed platform chart (e.g. a distribution) is the same release.
+    PLATFORM_RELEASE_NAME="${PLATFORM_RELEASE_NAME:-kaapana-admin-chart}"
     CONTAINER_REGISTRY_URL="${CONTAINER_REGISTRY_URL:-}"
     CONTAINER_REGISTRY_USERNAME="${CONTAINER_REGISTRY_USERNAME:-}"
     CONTAINER_REGISTRY_PASSWORD="${CONTAINER_REGISTRY_PASSWORD:-}"
@@ -381,12 +384,13 @@ function deploy() {
     _Flag: --quiet, meaning non-interactive operation
     _Flag: --offline, using prebuilt tarball and chart (--chart-path required!)
     _Flag: --no-migration, disable automatic migration between versions
-    _Flag: --check-system, check health of all resources in kaapana-admin-chart and kaapana-platform-chart
+    _Flag: --check-system, check health of all resources in the platform release and kaapana-platform-chart
     _Flag: --report, create a report of the state of the microk8s cluster
     _Flag: --plain-http, use insecure HTTP when talking to the registry (default HTTPS, use --no-plain-http to force it)
 
     _Argument: --chart [registry/path/chart:version]
     _Argument: --platform-name [Helm chart name]
+    _Argument: --release-name [Helm release name of the platform, default: kaapana-admin-chart]
     _Argument: --platform-version [Helm chart version]
     _Argument: --platform-prefix [Prefix for project namespaces, required]
     _Argument: --registry-url [OCI registry URL]
@@ -424,6 +428,13 @@ function deploy() {
             --platform-name)
                 PLATFORM_NAME="$2"
                 echo -e "${GREEN}SET PLATFORM_NAME: $PLATFORM_NAME ${NC}"
+                shift
+                shift
+            ;;
+
+            --release-name)
+                PLATFORM_RELEASE_NAME="$2"
+                echo -e "${GREEN}SET PLATFORM_RELEASE_NAME: $PLATFORM_RELEASE_NAME ${NC}"
                 shift
                 shift
             ;;
@@ -622,7 +633,7 @@ function deploy() {
 
     if [ "$DO_CHECK_SYSTEM" = "true" ]; then
         validate_platform_prefix
-        check_system kaapana-admin-chart default
+        check_system "$PLATFORM_RELEASE_NAME" default
         check_system kaapana-platform-chart default
         check_system "${PLATFORM_PREFIX}-project-admin" admin
         exit 0
@@ -701,8 +712,8 @@ function deploy() {
     echo "Current deployments: "
     echo $deployments
 
-    if [[ $deployments == *"$PLATFORM_NAME"* ]] && [[ ! $QUIET = true ]];then
-        echo -e "${YELLOW}$PLATFORM_NAME already deployed!${NC}"
+    if grep -qxF "$PLATFORM_RELEASE_NAME" <<< "$deployments" && [[ ! $QUIET = true ]];then
+        echo -e "${YELLOW}$PLATFORM_RELEASE_NAME already deployed!${NC}"
         PS3='select option: '
         options=("Un- and Re-deploy" "Undeploy" "Quit")
         select opt in "${options[@]}"
@@ -726,7 +737,7 @@ function deploy() {
                 *) echo "invalid option $REPLY";;
             esac
         done
-    elif [[ $deployments == *"$PLATFORM_NAME"* ]] && [[ $QUIET = true ]];then
+    elif grep -qxF "$PLATFORM_RELEASE_NAME" <<< "$deployments" && [[ $QUIET = true ]];then
         echo -e "${RED}Project already deployed!${NC}"
         echo -e "${RED}abort.${NC}"
         exit 1
@@ -1631,7 +1642,7 @@ function delete_deployment {
         if get_platform_prefix_from_release; then
             validate_platform_prefix
         else
-            echo -e "${YELLOW}Could not determine PLATFORM_PREFIX from release 'kaapana-admin-chart' in namespace '$HELM_NAMESPACE'; project namespace cleanup will be skipped.${NC}"
+            echo -e "${YELLOW}Could not determine PLATFORM_PREFIX from the releases in namespace '$HELM_NAMESPACE'; project namespace cleanup will be skipped.${NC}"
         fi
     fi
 
@@ -2360,7 +2371,7 @@ function deploy_chart {
     fi
     # ---------------------------------------------------------------------------
 
-    echo "${GREEN}Deploying $PLATFORM_NAME:$PLATFORM_VERSION${NC}"
+    echo "${GREEN}Deploying $PLATFORM_NAME:$PLATFORM_VERSION as release $PLATFORM_RELEASE_NAME${NC}"
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
 
     local -a kube_helm_timeout_args=()
@@ -2420,7 +2431,8 @@ function deploy_chart {
     --set-string global.pull_policy_jobs="$PULL_POLICY_IMAGES" \
     --set-string global.pull_policy_pods="$PULL_POLICY_IMAGES" \
     --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
-    --set-string global.release_name="$PLATFORM_NAME" \
+    --set-string global.release_name="$PLATFORM_RELEASE_NAME" \
+    --set-string global.platform_name="$PLATFORM_NAME" \
     --set-string global.platform_prefix="$PLATFORM_PREFIX" \
     --set-string global.deployment_timestamp="$DEPLOYMENT_TIMESTAMP" \
     --set-string global.mount_points_to_monitor="$MOUNT_POINTS_TO_MONITOR" \
@@ -2456,7 +2468,7 @@ function deploy_chart {
     --set-string global.volume_slow_data="$VOLUME_SLOW_DATA" \
     --set-string global.storage_node="$STORAGE_NODE" \
     "${kube_helm_timeout_args[@]}" \
-    --name-template "$PLATFORM_NAME"
+    --name-template "$PLATFORM_RELEASE_NAME"
 
     echo -e ""
     echo -e "${YELLOW}══════════════════════════════════════════════════${NC}"
@@ -3083,7 +3095,7 @@ modinfo nvidia | grep ^version
 nvidia-smi
 
 --- "Resource Health"
-check_system kaapana-admin-chart default
+check_system "${PLATFORM_RELEASE_NAME:-kaapana-admin-chart}" default
 check_system kaapana-platform-chart default
 check_system "${PLATFORM_PREFIX}-project-admin" admin
 

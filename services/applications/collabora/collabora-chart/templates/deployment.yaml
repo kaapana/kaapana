@@ -74,6 +74,8 @@ spec:
           # value: http://collabora-chart-wopi.services:5000/collabora-wopi
           # Workaround till double backslash urls are supported by oauth2-proxy
           value: "{{ .Release.Name }}-wopi.{{ tpl .Values.global.namespace . }}:5000"
+        - name: MINIO_URL
+          value: "minio-service.{{ .Values.global.services_namespace }}.svc:9000"
         - name: DEV_MODE
           value: "false"
         volumeMounts:

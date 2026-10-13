@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     document_path_ignore_regex: str = r"(.*\.minio\.sys)|(.*thumbnail)"
     # Endpoint for Collabra to acess WOPI API
     wopi_api_endpoint: str = "localhost:5000"
+    minio_url: str
     discovery_interval_seconds: float = 60
     discovery_retry_seconds: float = 5
     ui_directory: str = "ui/dist"

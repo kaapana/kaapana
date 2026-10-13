@@ -19,6 +19,7 @@ const repositories = ref<Repository[]>([])
 const entries = ref<CatalogEntry[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
+const repositoryErrors = ref<string[]>([])
 const selectedCatalogEntryGroup = ref<CatalogEntryGroup | null>(null)
 const selectedCatalogEntry = ref<CatalogEntry | null>(null)
 const installingSelectedCatalogEntry = ref(false)
@@ -68,27 +69,41 @@ async function installSelectedCatalogEntry() {
   }
 }
 
+async function loadRepositoryEntries(
+  repository: Repository,
+): Promise<{ entries: CatalogEntry[]; error: string | null }> {
+  try {
+    const manifests = await fetchRepositoryExtensionManifests(repository.id)
+
+    return {
+      entries: manifests.map((extensionManifestResponse) => ({
+        repository,
+        tag: extensionManifestResponse.tag,
+        manifest: extensionManifestResponse.manifest,
+      })),
+      error: null,
+    }
+  } catch (err) {
+    // One failing repository must not hide the extensions of the other repositories.
+    console.error(err)
+    const message = getApiErrorMessage(err, 'Failed to fetch its extensions.')
+    return { entries: [], error: `${repository.name}: ${message}` }
+  }
+}
+
 async function loadCatalog() {
   loading.value = true
   error.value = null
+  repositoryErrors.value = []
 
   try {
     const loadedRepositories = await fetchRepositories()
     repositories.value = loadedRepositories
 
-    const manifestsByRepository = await Promise.all(
-      loadedRepositories.map(async (repository) => {
-        const manifests = await fetchRepositoryExtensionManifests(repository.id)
+    const results = await Promise.all(loadedRepositories.map(loadRepositoryEntries))
 
-        return manifests.map((extensionManifestResponse) => ({
-          repository,
-          tag: extensionManifestResponse.tag,
-          manifest: extensionManifestResponse.manifest,
-        }))
-      }),
-    )
-
-    entries.value = manifestsByRepository.flat()
+    entries.value = results.flatMap((result) => result.entries)
+    repositoryErrors.value = results.flatMap((result) => (result.error ? [result.error] : []))
     clearSelectedCatalogEntryGroup()
   } catch (err) {
     console.error(err)
@@ -135,6 +150,15 @@ onMounted(loadCatalog)
         @clear-selected-catalog-entry-group="clearSelectedCatalogEntryGroup"
         @install-selected-catalog-entry="installSelectedCatalogEntry"
       />
+      <v-alert
+        v-for="repositoryError in repositoryErrors"
+        :key="repositoryError"
+        type="error"
+        density="compact"
+        class="mb-4"
+      >
+        {{ repositoryError }}
+      </v-alert>
       <ExtensionCatalogIterator
         :catalog-entry-groups="catalogEntryGroups"
         :loading="loading"

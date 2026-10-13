@@ -36,7 +36,7 @@ A task template can declare several named input and output channels, and ``Kaapa
 See :ref:`processing_container_dev_guide` for the full schema and how to build a compliant container.
 
 In practice, ``KaapanaBaseOperator`` now uses the Task API's Kubernetes runner internally to start its pods, so every existing DAG already benefits from it indirectly.
-Kaapana is moving toward writing new DAGs directly against the Task API through ``KaapanaTaskOperator``: the ``register-dicoms`` and ``test-task-operator`` example workflows already use it this way, with more DAGs adopting the same pattern going forward.
+Kaapana is moving toward writing new DAGs directly against the Task API through ``KaapanaTaskOperator``: the ``registration-workflow`` and ``dummy-workflow`` example workflows already use it this way, with more DAGs adopting the same pattern going forward.
 
 Workflow API
 =================================================

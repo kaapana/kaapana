@@ -4,13 +4,18 @@ import datetime
 import io
 import logging
 import re
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Iterable, Optional
 
 from fastapi import HTTPException
 from minio import Minio
+from minio.error import S3Error
 
 log = logging.getLogger("uvicorn.error")
+
+NOT_FOUND_CODES = {"NoSuchKey", "NoSuchBucket", "NoSuchObject"}
+FORBIDDEN_CODES = {"AccessDenied", "AllAccessDisabled"}
 
 
 @dataclass
@@ -46,6 +51,19 @@ def extension_of(path: str) -> str:
     return name.rsplit(".", 1)[-1].lower() if "." in name else ""
 
 
+@contextmanager
+def minio_errors():
+    try:
+        yield
+    except S3Error as error:
+        if error.code in NOT_FOUND_CODES:
+            raise HTTPException(404)
+        if error.code in FORBIDDEN_CODES:
+            raise HTTPException(403)
+        log.error("MinIO request failed: %s", error)
+        raise HTTPException(502, "Object storage request failed")
+
+
 def find_documents(
     minio: Minio, bucket: str, extensions: Iterable[str], ignore_regex: Optional[str] = None
 ) -> list[MinioDocument]:
@@ -55,28 +73,30 @@ def find_documents(
     extensions = set(extensions)
     ignore_re = re.compile(ignore_regex) if ignore_regex else None
     docs = []
-    for obj in minio.list_objects(bucket, recursive=True):
-        if obj.is_dir:
-            continue
-        extension = extension_of(obj.object_name)
-        if extension not in extensions or (ignore_re and ignore_re.match(obj.object_name)):
-            continue
-        docs.append(
-            MinioDocument(
-                bucket=bucket,
-                path=obj.object_name,
-                extension=extension,
-                modification_time=obj.last_modified,
-                size=obj.size,
-                version=obj.etag,
+    with minio_errors():
+        for obj in minio.list_objects(bucket, recursive=True):
+            if obj.is_dir:
+                continue
+            extension = extension_of(obj.object_name)
+            if extension not in extensions or (ignore_re and ignore_re.match(obj.object_name)):
+                continue
+            docs.append(
+                MinioDocument(
+                    bucket=bucket,
+                    path=obj.object_name,
+                    extension=extension,
+                    modification_time=obj.last_modified,
+                    size=obj.size,
+                    version=obj.etag,
+                )
             )
-        )
     log.info("Found %i documents in %s", len(docs), bucket)
     return docs
 
 
 def stat_document(minio: Minio, bucket: str, path: str) -> MinioDocument:
-    obj = minio.stat_object(bucket, path)
+    with minio_errors():
+        obj = minio.stat_object(bucket, path)
     return MinioDocument(
         bucket=bucket,
         path=path,
@@ -87,15 +107,12 @@ def stat_document(minio: Minio, bucket: str, path: str) -> MinioDocument:
     )
 
 
-def read_document(minio: Minio, bucket: str, path: str) -> bytes:
-    response = minio.get_object(bucket, path)
-    try:
-        return response.read()
-    finally:
-        response.close()
-        response.release_conn()
+def open_document(minio: Minio, bucket: str, path: str):
+    with minio_errors():
+        return minio.get_object(bucket, path)
 
 
 def write_document(minio: Minio, bucket: str, path: str, body: bytes) -> MinioDocument:
-    minio.put_object(bucket, path, data=io.BytesIO(body), length=len(body))
+    with minio_errors():
+        minio.put_object(bucket, path, data=io.BytesIO(body), length=len(body))
     return stat_document(minio, bucket, path)

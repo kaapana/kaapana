@@ -22,6 +22,13 @@ The web UI has three views:
 - **Catalog**: browse the extensions available in those registries.
 - **Extensions**: install / uninstall extensions and see their state.
 
+Each platform comes with the repository ``kaapana-default``. It points to
+``https://<registry>/extensions``, where ``<registry>`` is the registry the
+platform was deployed from. It is meant for the extensions that are published
+with the platform. The Extension Manager registers it on every start and
+resets its URL and credentials. It is not registered in offline mode. See
+:ref:`extension_manager` for the rules that apply to this repository.
+
 Packaging an extension
 **********************
 

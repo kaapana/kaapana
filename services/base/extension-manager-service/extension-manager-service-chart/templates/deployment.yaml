@@ -18,6 +18,9 @@ spec:
         app.kubernetes.io/name: extension-manager
         app.kubernetes.io/component: api
         network-access-external-ips: "true"
+      annotations:
+        # The default repository is only updated at start-up, so new credentials need a new pod
+        checksum/default-repository: {{ include (print $.Template.BasePath "/default_repository_secret.yaml") . | sha256sum }}
     spec:
       containers:
       - name: extension-manager-api
@@ -45,6 +48,21 @@ spec:
               secretKeyRef:
                 name: extension-manager-fernet-key
                 key: CREDENTIAL_ENCRYPTION_KEY
+{{- /* offline_mode arrives as a bool or as a string, and the string "false" is true in an if */}}
+{{- if and .Values.global.registry_url (ne (toString .Values.global.offline_mode) "true") }}
+          - name: DEFAULT_EXTENSION_REPOSITORY_URL
+            value: "https://{{ .Values.global.registry_url }}/extensions"
+          - name: DEFAULT_EXTENSION_REPOSITORY_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: extension-manager-default-repository
+                key: username
+          - name: DEFAULT_EXTENSION_REPOSITORY_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: extension-manager-default-repository
+                key: password
+{{- end }}
 {{- if .Values.global.dev_files }}
           - name: DEV_FILES
             value: "True"

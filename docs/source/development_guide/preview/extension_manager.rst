@@ -13,6 +13,31 @@ This guide walks through registering a repository, browsing the catalog, and
 managing installations.
 
 
+The Default Repository
+----------------------
+
+Every online platform registers the repository ``kaapana-default`` when the
+Extension Manager starts. It points to ``https://<registry>/extensions``, where
+``<registry>`` is the registry the platform was deployed from. The Extension
+Manager uses the registry credentials of the deployment to access it.
+
+- The repository is created again on the next start of the Extension Manager
+  if it is missing. Its URL and credentials are reset to the deployment values.
+  Changes to the URL or the credentials in the **Repositories** tab are
+  therefore lost on the next start.
+- The name ``kaapana-default`` is reserved. A repository that you add with
+  this name is changed into the default repository on the next start.
+- Do not rename the repository. On the next start, a second repository with
+  the same URL is created.
+- Do not delete the repository while extensions from it are installed. The
+  Extension Manager forgets these extensions, but their workflows stay
+  installed. After the next start, the repository exists again, but these
+  extensions cannot be installed again, because their workflows already exist.
+- The URL always uses HTTPS. Platforms that were deployed with
+  ``kaapanactl.sh --plain-http`` cannot reach it.
+- In offline mode, no default repository is registered.
+
+
 Adding a Repository
 --------------------
 

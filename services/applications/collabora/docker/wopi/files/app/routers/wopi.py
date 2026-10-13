@@ -1,6 +1,6 @@
 import datetime
 
-from app.dependencies import get_connection_manager, get_minio_client, get_username
+from app.dependencies import can_write, get_access_token, get_connection_manager, get_minio_client, get_username
 from app.model.documents import decode_file_id, open_document, stat_document, write_document
 from app.model.websockets import ConnectionManager
 from fastapi import APIRouter, Depends, Header, Request
@@ -25,9 +25,11 @@ def check_file_info(
     file_id: str,
     minio=Depends(get_minio_client),
     username=Depends(get_username),
+    access_token=Depends(get_access_token),
 ):
     bucket, path = decode_file_id(file_id)
     doc = stat_document(minio, bucket, path)
+    writable = can_write(access_token, bucket)
     return {
         "BaseFileName": path.split("/")[-1],  # Only the accutal filename instead of the filepath
         "OwnerId": bucket,
@@ -36,9 +38,10 @@ def check_file_info(
         "UserFriendlyName": username or "Unknown user",
         "Version": doc.version,
         "LastModifiedTime": wopi_timestamp(doc.modification_time),
-        "UserCanWrite": True,
+        "UserCanWrite": writable,
+        "ReadOnly": not writable,
         "UserCanNotWriteRelative": True,
-        "SupportsUpdate": True,
+        "SupportsUpdate": writable,
     }
 
 

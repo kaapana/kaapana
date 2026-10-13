@@ -15,6 +15,9 @@ from minio import Minio
 log = logging.getLogger("uvicorn.error")
 
 STS_NAMESPACE = "{https://sts.amazonaws.com/doc/2011-06-15/}"
+BUCKET_PREFIX = "project-"
+WRITE_POLICY = "admin_project"
+ADMIN_POLICY = "consoleAdmin"
 
 
 @functools.lru_cache()
@@ -94,6 +97,31 @@ def token_claims(access_token: Optional[str]) -> dict:
         return jwt.decode(access_token, algorithms=["RS256"], options={"verify_signature": False})
     except jwt.PyJWTError:
         return {}
+
+
+def project_id_of_bucket(bucket: str) -> Optional[str]:
+    if not bucket.startswith(BUCKET_PREFIX):
+        return None
+    try:
+        response = requests.get(f"{get_settings().aii_url}/projects/{bucket.removeprefix(BUCKET_PREFIX)}", timeout=5)
+        response.raise_for_status()
+        project = response.json()
+    except (requests.RequestException, ValueError) as error:
+        log.warning("Project of bucket %s could not be resolved: %s", bucket, error)
+        return None
+    if not isinstance(project, dict) or project.get("s3_bucket") != bucket:
+        return None
+    return project.get("id")
+
+
+def can_write(access_token: Optional[str], bucket: str) -> bool:
+    policies = token_claims(access_token).get("policy") or []
+    if isinstance(policies, str):
+        policies = [policies]
+    if ADMIN_POLICY in policies:
+        return True
+    project_id = project_id_of_bucket(bucket)
+    return project_id is not None and f"{WRITE_POLICY}_{project_id}" in policies
 
 
 def parse_project(project_header: Optional[str]) -> dict:

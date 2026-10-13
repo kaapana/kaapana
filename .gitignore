@@ -42,7 +42,6 @@ tests/venv/*
 *.egg-info
 *.db
 .env
-lib/workflow_cli/build/
 migration_status
 ci.env
 .coverage

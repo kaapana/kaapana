@@ -7,5 +7,4 @@ kaapana_collections:
 preinstall_extensions:
 - name: kaapana-platform-chart
 - name: code-server-chart
-- name: kaapana-workflows-core
 

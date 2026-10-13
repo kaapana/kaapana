@@ -6,8 +6,6 @@ dependencies:
     version: 0.0.0
   - name: code-server-chart
     version: 0.0.0
-  - name: kaapana-workflows-core
-    version: 0.0.0
   - name: edk
     version: 0.0.0
   - name: jupyterlab-chart

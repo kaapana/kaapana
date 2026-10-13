@@ -156,6 +156,10 @@ service_tests:
       when: on_success
       variables:
         SERVICE_ROOT: services/base/kaapana-backend/docker/files
+    - if: '"$[[ inputs.exec_unit_tests ]]" == "true" && $SERVICE == "collabora-wopi"'
+      when: on_success
+      variables:
+        SERVICE_ROOT: services/applications/collabora/docker/wopi/files
     - when: never
   parallel:
     matrix:
@@ -164,6 +168,7 @@ service_tests:
           - notification-service
           - dicom-web-filter
           - kaapana-backend
+          - collabora-wopi
   script:
     - pip install -r $KAAPANA_DIR/$SERVICE_ROOT/tests/requirements.txt
     - pytest $KAAPANA_DIR/$SERVICE_ROOT/tests --junitxml=service_report.xml

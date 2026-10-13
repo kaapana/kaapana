@@ -77,8 +77,9 @@
   value: "{{ .Values.global.http_proxy }}"
 - name: https_proxy
   value: "{{ .Values.global.http_proxy }}"
+# The kube API server is reached by IP; without it here, kubernetes exec/attach websockets get routed via https_proxy.
 - name: no_proxy
-  value: ".svc,.svc.cluster,.svc.cluster.local,{{ .Values.global.hostname }}"
+  value: ".svc,.svc.cluster,.svc.cluster.local,{{ .Values.global.hostname }},$(KUBERNETES_SERVICE_HOST)"
 - name: SMTP_HOST
   value: "{{ .Values.global.smtp_host }}"
 - name: SMTP_PORT

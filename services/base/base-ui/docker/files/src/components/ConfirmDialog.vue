@@ -3,6 +3,7 @@
     :model-value="modelValue"
     max-width="400"
     @update:model-value="onUpdate"
+    @after-enter="cancelButton?.$el?.focus()"
     @after-leave="restoreFocus"
   >
     <v-card :elevation="5">
@@ -18,10 +19,16 @@
 </template>
 
 <script setup lang="ts">
-// Escape and a backdrop click close the dialog through update:modelValue, like
-// Cancel, so every dismissal emits `cancel`.
-import { nextTick, ref, watch } from 'vue'
-import { VBtn, VCard, VCardActions, VCardText, VCardTitle, VDialog, VSpacer } from 'vuetify/components'
+import { ref, watch } from 'vue'
+import {
+  VBtn,
+  VCard,
+  VCardActions,
+  VCardText,
+  VCardTitle,
+  VDialog,
+  VSpacer,
+} from 'vuetify/components'
 
 const props = withDefaults(
   defineProps<{
@@ -49,11 +56,9 @@ let opener: HTMLElement | null = null
 // confirming. The `autofocus` attribute does not achieve that here.
 watch(
   () => props.modelValue,
-  async (open) => {
+  (open) => {
     if (!open) return
     opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    await nextTick()
-    cancelButton.value?.$el?.focus()
   },
 )
 

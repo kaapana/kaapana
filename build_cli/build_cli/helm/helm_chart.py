@@ -28,9 +28,7 @@ class KaapanaType(StrEnum):
     RUNTIME_ONLY = "runtime-only"  # pull-docker-images, update-collections
 
     KAAPANA_WORKFLOW = "kaapanaworkflow"  # old style workflows (v1)
-    KAAPANA_WORKFLOW_V2 = "kaapanaworkflow-v2"  # new style workflows with processingContainers
     KAAPANA_APPLICATION = "kaapanaapplication"  # code-server-chart
-    LIBRARY_HELPER = "library"  # has library type in Chart.yaml (e.g. workflow-helpers)
 
     EXTENSION_COLLECTION = "extension-collection"
 
@@ -165,20 +163,12 @@ class HelmChart:
         if yaml_type:
             return KaapanaType(yaml_type.lower())
 
-        chart_type = chart_yaml.get("type")
-        if chart_type == "library":
-            return KaapanaType("library")
-
         # Check keywords for workflow type
         keywords = chart_yaml.get("keywords", [])
 
         # Check DAG or v1 workflows
         if is_dag or "kaapanaworkflow" in keywords:
             return KaapanaType("kaapanaworkflow")
-
-        # Check for v2 workflows
-        if "kaapanaworkflow-v2" in keywords:
-            return KaapanaType("kaapanaworkflow-v2")
 
         if "kaapanaapplication" in keywords:
             return KaapanaType("kaapanaapplication")
@@ -300,18 +290,6 @@ class HelmChart:
                 version=version,
             )
             chart_containers |= operator_containers
-
-        # Workflow v2 - uses processingContainers list from values.yaml
-        if kaapana_type == KaapanaType.KAAPANA_WORKFLOW_V2 and values:
-            # Check for workflow v2 style (processingContainers list)
-            processing_containers = values.get("processingContainers", [])
-            for container_name in processing_containers:
-                processing_container = ContainerHelper.get_container(
-                    registry=build_config.default_registry,
-                    image_name=container_name,
-                    version=version,
-                )
-                chart_containers.add(processing_container)
 
         templates_containers = HelmChart.extract_images_from_templates(
             chartfile=chartfile,

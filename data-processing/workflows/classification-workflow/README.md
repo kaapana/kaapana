@@ -73,21 +73,21 @@ Both tasks that access OpenSearch resolve the index of the project from `KAAPANA
 
 ## Build and install
 
-The platform build only builds containers that a Helm chart references. This extension has no Helm chart, so a
-platform build or release does not contain its containers. Build and push them by hand, then publish the
-extension.
+The platform build finds this extension through its `extension_manifest.json` and builds the containers that its
+DAGs use: `classification-task`, `persist-model`, `model-download`, `get-input-task` and `mitk-tools`. So every
+full platform build and every release contains them. The extension itself is published by hand.
 
-1. Build the three processing containers and push them to the registry of the platform. Use the same commit as the
-   platform build, because the DAGs pull `<registry>/<image>:<platform build version>`.
+1. To build only these containers, name them. Use the same commit as the platform build, because the DAGs pull
+   `<registry>/<image>:<platform build version>`.
 
    ```bash
    kaapana-build --default-registry <registry> \
      --containers-to-build classification-task \
      --containers-to-build persist-model \
-     --containers-to-build model-download
+     --containers-to-build model-download \
+     --containers-to-build get-input-task \
+     --containers-to-build mitk-tools
    ```
-
-   The workflows also use `get-input-task` and `mitk-tools`. These containers are part of every platform build.
 
 2. Build the extension and push it to an OCI registry with `extensionctl` (see `lib/kaapana_extensions/README.md`):
 

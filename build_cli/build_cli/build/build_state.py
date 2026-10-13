@@ -8,6 +8,7 @@ import networkx as nx
 
 if TYPE_CHECKING:
     from build_cli.container import BaseImage, Container
+    from build_cli.extension import Extension
     from build_cli.helm import HelmChart
 
 from build_cli.utils.logger import get_logger
@@ -46,6 +47,10 @@ class BuildState:
         self.charts_available_by_name: dict[str, HelmChart] = {}
         self.selected_charts: set[HelmChart] = set()
         self.chart_used: set[HelmChart] = set()
+
+        # Extensions
+        self.extensions_available: set[Extension] = set()
+        self.selected_extensions: set[Extension] = set()
 
         self.build_graph: nx.DiGraph = None  # type: ignore
 
@@ -106,4 +111,7 @@ class BuildState:
         self.charts_available_by_name[chart.name] = chart
 
     def __repr__(self) -> str:
-        return f"<BuildState containers={len(self.containers_available)}, charts={len(self.charts_available)}>"
+        return (
+            f"<BuildState containers={len(self.containers_available)}, charts={len(self.charts_available)}, "
+            f"extensions={len(self.extensions_available)}>"
+        )

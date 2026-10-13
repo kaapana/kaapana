@@ -29,6 +29,11 @@ dependencies = [
     "typer==0.20.0",
 ]
 
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0",
+]
+
 [project.scripts]
 kaapana-build = "build_cli.cli:main"
 

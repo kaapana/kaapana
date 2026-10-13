@@ -359,7 +359,7 @@ Task API workflows
 
 | **classification-training** and **classification-inference**
 | Task API version of the classification workflows. They are installed as one extension with the experimental :ref:`Extension Manager <experimental_extension_manager>`.
-| Their containers are not part of a platform build. The build steps are described in ``data-processing/workflows/classification-workflow/README.md``.
+| Their containers are part of every full platform build. How to publish the extension is described in ``data-processing/workflows/classification-workflow/README.md``.
 
 | **classification-training**
 | 1) Download the selected dataset

@@ -173,8 +173,6 @@ import {
 } from '@/utils/status'
 import type { WorkflowRun } from '@/types/schemas'
 
-// workflow-api syncs run states from the engine every 30 s, so polling more
-// often than this shows nothing new.
 const POLL_INTERVAL_MS = 15_000
 const LOAD_ERROR_TEXT = 'The workflow runs could not be loaded.'
 

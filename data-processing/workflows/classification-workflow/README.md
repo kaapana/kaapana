@@ -29,11 +29,11 @@ model-download ──(model)──────┴──────────�
 |---|---|---|---|
 | `download` | `get-input-task` | `dicom-download` | Downloads the DICOM series of the selected dataset. |
 | `convert` | `mitk-tools` | `convert` | Converts every series to nrrd. |
-| `preprocessing` | `classification-preprocessing-task` | `preprocess` | Resizes every image to the patch size and normalizes it. |
-| `training` | `classification-training-task` | `train` | Trains the model with the tags from OpenSearch as labels. |
+| `preprocessing` | `classification-task` | `preprocess` | Resizes every image to the patch size and normalizes it. |
+| `training` | `classification-task` | `train` | Trains the model with the tags from OpenSearch as labels. |
 | `persist-model` | `persist-model` | `persist` | Stores the model in the models volume and registers it in kaapana-backend. |
 | `model-download` | `model-download` | `download` | Copies the selected model from the models volume. |
-| `inference` | `classification-inference-task` | `infer` | Predicts a class for every series and adds it as a tag in OpenSearch. |
+| `inference` | `classification-task` | `infer` | Predicts a class for every series and adds it as a tag in OpenSearch. |
 
 The tasks pass data through Task API input and output channels. Only `persist-model` and `model-download` access
 the models volume directly.
@@ -52,7 +52,7 @@ the models volume directly.
    `preprocessing` reads the patch size from `config.json`, and `inference` loads the checkpoint.
 
 The models and TensorBoard volumes belong to the project namespace, so every project sees only its own models.
-Both containers that access OpenSearch resolve the index of the project from `KAAPANA_PROJECT_IDENTIFIER`.
+Both tasks that access OpenSearch resolve the index of the project from `KAAPANA_PROJECT_IDENTIFIER`.
 
 ## Parameters
 
@@ -76,14 +76,12 @@ The platform build only builds containers that a Helm chart references. This ext
 platform build or release does not contain its containers. Build and push them by hand, then publish the
 extension.
 
-1. Build the five processing containers and push them to the registry of the platform. Use the same commit as the
+1. Build the three processing containers and push them to the registry of the platform. Use the same commit as the
    platform build, because the DAGs pull `<registry>/<image>:<platform build version>`.
 
    ```bash
    kaapana-build --default-registry <registry> \
-     --containers-to-build classification-preprocessing-task \
-     --containers-to-build classification-training-task \
-     --containers-to-build classification-inference-task \
+     --containers-to-build classification-task \
      --containers-to-build persist-model \
      --containers-to-build model-download
    ```
@@ -107,7 +105,8 @@ extension.
 - `KaapanaTaskOperator` mounts the `models-pv-claim` and `tensorboard-pv-claim` volumes of the project into every
   task pod. A task pod in a namespace without these volumes stays `Pending`.
 - No GPU is requested for `training` and `inference`. The GPU base image sets `NVIDIA_VISIBLE_DEVICES=all`, so the
-  pods can use all GPUs of the node, and the platform does not assign GPUs to runs.
+  pods can use all GPUs of the node, and the platform does not assign GPUs to runs. `preprocessing` runs in the same
+  image, so it can also see the GPUs, but it does not use them.
 - kaapana-backend requires unique model names across all projects. The timestamp makes a collision unlikely.
 - `inference` uses the first output of the network for every task type. Results for `multiclass` and `multilabel`
   models are therefore not correct.

@@ -9,3 +9,6 @@ matplotlib
 numpy
 opensearch-py
 requests
+pynrrd
+scikit-image
+SimpleITK

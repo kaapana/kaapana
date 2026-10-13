@@ -34,10 +34,10 @@ with DAG("{{ dag_id }}", default_args=args) as dag:
 
     preprocessing = KaapanaTaskOperator(
         task_id="preprocessing",
-        image=f"{DEFAULT_REGISTRY}/classification-preprocessing-task:{KAAPANA_BUILD_VERSION}",
+        image=f"{DEFAULT_REGISTRY}/classification-task:{KAAPANA_BUILD_VERSION}",
         taskTemplate="preprocess",
         env=[
-            # The preprocessing container is shared by both DAGs. WORKFLOW_NAME tells it whether to read the
+            # The preprocessing template is shared by both DAGs. WORKFLOW_NAME tells it whether to read the
             # patch size from the selected model.
             pc_models.BaseEnv(name="WORKFLOW_NAME", value="classification-training"),
         ],
@@ -52,7 +52,7 @@ with DAG("{{ dag_id }}", default_args=args) as dag:
 
     training = KaapanaTaskOperator(
         task_id="training",
-        image=f"{DEFAULT_REGISTRY}/classification-training-task:{KAAPANA_BUILD_VERSION}",
+        image=f"{DEFAULT_REGISTRY}/classification-task:{KAAPANA_BUILD_VERSION}",
         taskTemplate="train",
         iochannel_maps=[
             IOMapping(

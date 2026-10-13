@@ -135,7 +135,7 @@
         </div>
         <v-divider />
 
-        <div v-if="logSeverities.length > 1" class="px-3 py-2 d-flex align-center ga-1 flex-wrap">
+        <div v-if="logSeverities.length" class="px-3 py-2 d-flex align-center ga-1 flex-wrap">
           <span class="text-caption text-medium-emphasis me-1">Severity:</span>
           <v-chip
             v-for="sev in logSeverities"
@@ -149,7 +149,7 @@
             {{ sev }} · {{ severityCounts.get(sev) }}
           </v-chip>
         </div>
-        <v-divider v-if="logSeverities.length > 1" />
+        <v-divider v-if="logSeverities.length" />
 
         <div ref="logPanelContentRef" class="log-panel-content" data-testid="log-output">
           <v-alert v-if="logError" type="error" variant="tonal" class="ma-4">
@@ -257,10 +257,9 @@ const severityCounts = computed(() => {
   return m
 })
 
-const filteredLogLines = computed(() => {
-  if (!activeSeverities.value.size) return logLines.value
-  return logLines.value.filter((l) => activeSeverities.value.has(l.severity.toUpperCase()))
-})
+const filteredLogLines = computed(() =>
+  logLines.value.filter((l) => activeSeverities.value.has(l.severity.toUpperCase())),
+)
 
 const matchLinesInLog = computed(() => {
   const q = logSearch.value?.trim().toLowerCase()
@@ -475,9 +474,10 @@ async function searchAllLogs(query: string) {
     const counts = new Map<number, number>()
     for (const task of props.run.task_runs) {
       const lines = logCache.value.get(task.id) ?? []
-      const relevant = activeSeverities.value.size
-        ? lines.filter((l) => activeSeverities.value.has(l.severity.toUpperCase()))
-        : lines
+      const relevant = lines.filter((l) => {
+        const sev = l.severity.toUpperCase()
+        return activeSeverities.value.has(sev) || !logSeverities.value.includes(sev)
+      })
       const content = relevant
         .map((l) => l.message)
         .join('\n')

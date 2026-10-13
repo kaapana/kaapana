@@ -18,6 +18,16 @@ test.describe('logs page', () => {
     await expect(output).not.toContainText('Loading dataset')
   })
 
+  test('deselecting every severity hides all lines', async ({ page }) => {
+    await openLogs(page, 1)
+    const output = page.getByTestId('log-output')
+    await page.getByText('INFO · 2').click()
+    await page.getByText('WARNING · 1').click()
+    await expect(output).toContainText('No line has one of the selected severities.')
+    await expect(output).not.toContainText('Low contrast in slice 12')
+    await expect(output).not.toContainText('Loading dataset')
+  })
+
   test('searching all logs counts matches per task and jumps to them', async ({ page }) => {
     await openLogs(page, 1)
     await page.getByRole('textbox', { name: 'Search all logs' }).fill('export')

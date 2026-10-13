@@ -1,6 +1,9 @@
 global:
   services_namespace: "services"
   registry_url: ""
+  credentials_registry_username: ""
+  credentials_registry_password: ""
+  offline_mode: false
   hostname: ""
   http_proxy: ""
   kaapana_build_version: ""

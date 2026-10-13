@@ -1,9 +1,15 @@
+import asyncio
+import hashlib
 from collections import defaultdict
 from pathlib import Path
+from typing import Any
+
+import httpx
+from kaapana_containers.registries.registry import OCIError
 
 from build_cli.build import BuildConfig, BuildState, IssueTracker
-from build_cli.container import Container
-from build_cli.extension.extension import Extension, ExtensionManifestError
+from build_cli.container import Container, Status
+from build_cli.extension.extension import Extension, ExtensionManifestError, ExtensionUtilityLibrary
 from build_cli.utils import get_logger, git_ignored, should_ignore_path
 
 logger = get_logger()
@@ -119,6 +125,144 @@ class ExtensionHelper:
             if extension.containers <= selected_containers:
                 selected.add(extension)
         cls._build_state.selected_extensions = selected
+
+    @classmethod
+    def build_and_push_extensions(cls) -> None:
+        """Package the selected extensions and push them to the extensions repository of the default registry."""
+        extensions = sorted(cls._build_state.selected_extensions, key=lambda e: (e.name, e.version))
+        if not extensions:
+            return
+        logger.info("")
+        logger.info(f"-> Packaging {len(extensions)} extensions")
+
+        archives: list[tuple[Extension, Path]] = []
+        for extension in extensions:
+            not_ready = sorted(c.tag for c in extension.containers if c.status not in cls._ready_states())
+            if not_ready:
+                cls._extension_issue(
+                    name=extension.name,
+                    path=extension.manifest_path,
+                    msg=f"The extension is not published, because these images are not ready: {', '.join(not_ready)}.",
+                )
+                continue
+            try:
+                ((_, archive),) = ExtensionUtilityLibrary.build(
+                    extension.source_dir, output=cls._build_config.build_dir / "extensions"
+                )
+            except (ValueError, RuntimeError, OSError) as error:
+                cls._extension_issue(name=extension.name, path=extension.manifest_path, msg=str(error))
+                continue
+            logger.info(f"{extension.name}:{extension.version}: packaged to {archive}")
+            archives.append((extension, archive))
+
+        if cls._build_config.build_only:
+            logger.info("Build-only: the extensions are packaged, but not pushed.")
+            return
+        if cls._build_config.push_to_microk8s:
+            logger.info("The images were imported into microk8s and not pushed, so the extensions are not pushed.")
+            return
+        if archives:
+            asyncio.run(cls._push_extensions(archives))
+
+    @classmethod
+    def registry_location(cls) -> tuple[str, str]:
+        """Return the registry URL and the repository for the extensions, derived from the default registry."""
+        registry = cls._build_config.default_registry.rstrip("/")
+        scheme = "http" if cls._build_config.plain_http else "https"
+        if "://" in registry:
+            scheme, registry = registry.split("://", 1)
+        host, _, prefix = registry.partition("/")
+        repository = f"{prefix}/extensions" if prefix else "extensions"
+        return f"{scheme}://{host}", repository
+
+    @classmethod
+    def _ready_states(cls) -> set[Status]:
+        # After the container push, an image is PUSHED, or NOTHING_CHANGED if its immutable tag already exists.
+        # Images that an aborted build never processed stay NOT_BUILT.
+        # A worker that crashes between build and push can leave NOTHING_CHANGED behind without a push.
+        # The container states cannot tell this case apart.
+        states = {Status.PUSHED, Status.NOTHING_CHANGED}
+        if cls._build_config.build_only:
+            states |= {Status.BUILT, Status.BUILT_ONLY}
+        return states
+
+    @classmethod
+    async def _push_extensions(cls, archives: list[tuple[Extension, Path]]) -> None:
+        url, repository = cls.registry_location()
+        username = cls._build_config.registry_username or ""
+        password = cls._build_config.registry_password or ""
+        anonymous = not (username and password)
+
+        async with ExtensionUtilityLibrary(url, repository, username, password) as client:
+            for extension, archive in archives:
+                try:
+                    await cls._push_extension(client, extension, archive)
+                except (OCIError, httpx.HTTPError, httpx.InvalidURL, ValueError, RuntimeError, OSError) as error:
+                    # Without credentials, the user may rely on a docker login, which the OCI client cannot use.
+                    if anonymous and cls._is_auth_error(error):
+                        logger.warning(
+                            f"{extension.name}: the registry rejected the push without credentials ({error}). "
+                            f"Push it by hand: extensionctl push {archive} --registry {url} --repo {repository} "
+                            "--user <user> --password <password>"
+                        )
+                        continue
+                    cls._extension_issue(
+                        name=extension.name,
+                        path=extension.manifest_path,
+                        msg=f"The extension could not be pushed to {url}/{repository}: {error}",
+                    )
+
+    @classmethod
+    async def _push_extension(cls, client: ExtensionUtilityLibrary, extension: Extension, archive: Path) -> None:
+        # The tag is read directly, because a tag list can be split into pages.
+        try:
+            published = await client.get(extension.tag)
+        except OCIError as error:
+            if not cls._is_not_found(error):
+                raise
+            published = None
+
+        if published is not None:
+            # The build never changes a published version, but rebuilding the same content is fine.
+            if cls._has_same_content(extension, published):
+                logger.info(f"{extension.name}:{extension.version}: already published as {extension.tag}")
+                return
+            cls._extension_issue(
+                name=extension.name,
+                path=extension.manifest_path,
+                msg=f"The registry already has {extension.tag} with other content. Increase the version in the manifest.",
+            )
+            return
+
+        await client.push(archive)
+        logger.info(f"{extension.name}:{extension.version}: pushed as {extension.tag}")
+
+    @staticmethod
+    def _has_same_content(extension: Extension, published: dict[str, Any]) -> bool:
+        local_files = {}
+        for content in extension.manifest["contents"]:
+            for file_entry in content["files"]:
+                path = f"{content['name']}/{file_entry['path']}" if content["name"] else file_entry["path"]
+                digest = hashlib.sha256((extension.source_dir / path).read_bytes()).hexdigest()
+                local_files[path] = f"sha256:{digest}"
+        try:
+            published_files = {entry["filename"]: entry["digest"] for entry in published.get("files", [])}
+            published_manifest = published.get("user_metadata", {}).get("extension_manifest")
+        except (AttributeError, KeyError, TypeError):
+            # Metadata in another format cannot be the same content.
+            return False
+        return published_manifest == extension.manifest and published_files == local_files
+
+    @staticmethod
+    def _is_not_found(error: OCIError) -> bool:
+        # A missing tag, or a repository that the first push creates.
+        return error.code in {"MANIFEST_UNKNOWN", "NAME_UNKNOWN"} or str(error).startswith("HTTP 404")
+
+    @staticmethod
+    def _is_auth_error(error: Exception) -> bool:
+        if isinstance(error, OCIError):
+            return error.code in {"UNAUTHORIZED", "DENIED"} or str(error).startswith(("HTTP 401", "HTTP 403"))
+        return False
 
     @staticmethod
     def _extension_issue(name: str, path: Path, msg: str) -> None:

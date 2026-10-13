@@ -195,3 +195,24 @@ List extensions in the registry to confirm the push succeeded:
 This prints each extension's name, version, and content types. The published
 extension can now be added to any Kaapana deployment via the Extension Manager
 (see :doc:`extension_manager`).
+
+
+Extensions in the Kaapana Repository
+-------------------------------------
+
+A full platform build publishes every extension in ``data-processing/workflows``.
+It finds an extension by its ``extension_manifest.json`` and pushes it to the
+repository ``<default-registry>/extensions``. This is the
+:ref:`default repository <extension_manager>` of the platforms that are
+deployed from this registry. The same build builds and pushes the processing
+containers of the extension. For these extensions:
+
+- The ``id`` must be a UUID, and it must be committed. The build does not
+  generate it.
+- ``dependencies`` must be a list, for example ``[]``.
+- Increase the ``version`` whenever the content changes. If the registry
+  already has the tag with other content, the build does not overwrite it and
+  reports an error. Rebuilding the same content is fine.
+- The DAG must pull its images in the platform build version, for example
+  ``image=f"{DEFAULT_REGISTRY}/<image>:{KAAPANA_BUILD_VERSION}"``. The build
+  only publishes an extension after all of its images were built and pushed.

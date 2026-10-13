@@ -73,12 +73,15 @@ Both tasks that access OpenSearch resolve the index of the project from `KAAPANA
 
 ## Build and install
 
-The platform build finds this extension through its `extension_manifest.json` and builds the containers that its
-DAGs use: `classification-task`, `persist-model`, `model-download`, `get-input-task` and `mitk-tools`. So every
-full platform build and every release contains them. The extension itself is published by hand.
+The platform build finds this extension through its `extension_manifest.json`. It builds the containers that the
+DAGs use: `classification-task`, `persist-model`, `model-download`, `get-input-task` and `mitk-tools`. Then it
+publishes the extension to `<registry>/extensions`. This is the default repository `kaapana-default` of the
+platforms that are deployed from this registry. So every full platform build and every release contains the
+extension.
 
-1. To build only these containers, name them. Use the same commit as the platform build, because the DAGs pull
-   `<registry>/<image>:<platform build version>`.
+1. To build and publish only this extension, name its containers. Use the same commit as the platform build, because
+   the DAGs pull `<registry>/<image>:<platform build version>`. The build publishes the extension after all of these
+   containers were built and pushed.
 
    ```bash
    kaapana-build --default-registry <registry> \
@@ -89,15 +92,11 @@ full platform build and every release contains them. The extension itself is pub
      --containers-to-build mitk-tools
    ```
 
-2. Build the extension and push it to an OCI registry with `extensionctl` (see `lib/kaapana_extensions/README.md`):
+2. In the extension manager, install `classification-workflow-extension` from the **Catalog**. It is listed under the
+   repository `kaapana-default`.
 
-   ```bash
-   extensionctl login --registry <url> --repo <repo> --user <user> --password <password>
-   extensionctl build data-processing/workflows/classification-workflow/classification-workflow-extension --push
-   ```
-
-3. In the extension manager, add the registry under **Repositories**. Then install
-   `classification-workflow-extension` from the **Catalog**.
+Increase the `version` in `extension_manifest.json` whenever the DAGs or `workflow.json` change. The build does not
+overwrite a published version with other content.
 
 ## Known limitations
 

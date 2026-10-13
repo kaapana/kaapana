@@ -3,13 +3,12 @@ import logging
 from contextlib import asynccontextmanager
 
 from app.config import get_settings
-from app.dependencies import get_connection_manager, get_wopi
-from app.model.websockets import ConnectionManager
+from app.dependencies import get_connection_manager, get_wopi, parse_project
 from app.model.wopi import WOPI
 from app.routers.documents import router as document
 from app.routers.wopi import router as wopi
 from app.routers.wopi_control import router as wopi_control
-from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, status
 from fastapi.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
 
@@ -58,16 +57,19 @@ app.include_router(document, prefix="/documents")
 
 
 @app.websocket("/ws")
-async def websocket_endpoint(
-    websocket: WebSocket,
-    con_mgr: ConnectionManager = Depends(get_connection_manager),
-):
-    await con_mgr.connect(websocket)
+async def websocket_endpoint(websocket: WebSocket):
+    try:
+        bucket = parse_project(websocket.headers.get("Project"))["s3_bucket"]
+    except HTTPException:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+    con_mgr = get_connection_manager()
+    await con_mgr.connect(websocket, bucket)
     try:
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
-        con_mgr.disconnect(websocket)
+        con_mgr.disconnect(websocket, bucket)
 
 
 app.mount("/", StaticFiles(directory=get_settings().ui_directory, html=True, check_dir=False), name="static")

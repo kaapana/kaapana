@@ -1,13 +1,13 @@
 import base64
+import binascii
 import datetime
 import io
 import logging
 import re
 from dataclasses import dataclass
-from typing import List
+from typing import Iterable, Optional
 
 from fastapi import HTTPException
-from fastapi.responses import FileResponse, PlainTextResponse
 from minio import Minio
 
 log = logging.getLogger("uvicorn.error")
@@ -19,119 +19,83 @@ class MinioDocument:
     path: str
     extension: str
     modification_time: datetime.datetime
-    creation_time: datetime.datetime
     size: int
+    version: Optional[str] = None
 
 
-class DocumentStore:
+def encode_file_id(bucket: str, path: str) -> str:
     """
-    A class to provide MinIO objects as MinioDocuments and to read and write files from and to MinIO
+    Return the url-safe base64 encoded bucket and path as the id
     """
+    return base64.urlsafe_b64encode(f"{bucket}/{path}".encode("utf-8")).decode("ascii").rstrip("=")
 
-    def __init__(
-        self,
-    ):
-        self.doc_lookup = {}
-        self.docs: list[MinioDocument] = []
 
-    def _file_id_to_path(func):
-        """
-        Decorator to call a function with path from file_id
-        """
+def decode_file_id(file_id: str) -> tuple[str, str]:
+    try:
+        raw = base64.urlsafe_b64decode(file_id + "=" * (-len(file_id) % 4)).decode("utf-8")
+    except (binascii.Error, ValueError):
+        raise HTTPException(404)
+    bucket, separator, path = raw.partition("/")
+    if not bucket or not separator or not path:
+        raise HTTPException(404)
+    return bucket, path
 
-        def wrapper(self, file_id: str, *args, **kwargs):
-            return func(self, *args, path=self.path(file_id), **kwargs)
 
-        return wrapper
+def extension_of(path: str) -> str:
+    name = path.rsplit("/", 1)[-1]
+    return name.rsplit(".", 1)[-1].lower() if "." in name else ""
 
-    def get_file_id(self, file_path: str):
-        """
-        Return the base64 encoded file_path as the id
-        """
-        path_bytes = file_path.encode("utf-8")
-        base64_bytes = base64.b64encode(path_bytes)
-        return base64_bytes.decode("ascii")
 
-    def path(self, file_id: str):
-        """
-        Return path by file_id
-        """
-        if file_id not in self.doc_lookup:
-            raise HTTPException(404)
-        path = self.doc_lookup.get(file_id)
-        return path
+def find_documents(
+    minio: Minio, bucket: str, extensions: Iterable[str], ignore_regex: Optional[str] = None
+) -> list[MinioDocument]:
+    """
+    Find all documents in a MinIO bucket with matching extension and not matching ignore_regex.
+    """
+    extensions = set(extensions)
+    ignore_re = re.compile(ignore_regex) if ignore_regex else None
+    docs = []
+    for obj in minio.list_objects(bucket, recursive=True):
+        if obj.is_dir:
+            continue
+        extension = extension_of(obj.object_name)
+        if extension not in extensions or (ignore_re and ignore_re.match(obj.object_name)):
+            continue
+        docs.append(
+            MinioDocument(
+                bucket=bucket,
+                path=obj.object_name,
+                extension=extension,
+                modification_time=obj.last_modified,
+                size=obj.size,
+                version=obj.etag,
+            )
+        )
+    log.info("Found %i documents in %s", len(docs), bucket)
+    return docs
 
-    def find_documents(self, minio: Minio, extension_list: List[str], ignore_regex: str = None):
-        """
-        Find all documents in MinIO with matching extension and not matching ignore_regex.
-        Populate self.docs and self.doc_lookup
-        """
-        extension_list = [ext for ext in extension_list]
-        docs = []
-        ignore_re = re.compile(ignore_regex) if ignore_regex else None
-        for bucket in minio.list_buckets():
-            for object in minio.list_objects(bucket.name, recursive=True):
-                extension = object.object_name.split(".")[-1]
-                if extension not in extension_list or (ignore_re and ignore_re.match(object.object_name)):
-                    continue
-                docs.append(
-                    MinioDocument(
-                        path=object.object_name,
-                        bucket=bucket.name,
-                        extension=extension,
-                        modification_time=object.last_modified,
-                        creation_time=object.last_modified,
-                        size=object.size,
-                    )
-                )
-        log.info("Found %i documents", len(docs))
-        self.docs = docs
-        self.doc_lookup.clear()
-        # Populate hash lookup
-        for doc in self.docs:
-            self.doc_lookup[self.get_file_id(doc.path)] = doc
 
-    #### WOPI
-    def get_document(self, minio: Minio, file_id) -> FileResponse:
-        """
-        Return the file from MinIO by its id.
-        """
-        if file_id not in self.doc_lookup:
-            raise HTTPException(404)
-        doc = self.doc_lookup.get(file_id)
-        object = minio.get_object(doc.bucket, doc.path, length=doc.size)
-        return PlainTextResponse(object.data)
+def stat_document(minio: Minio, bucket: str, path: str) -> MinioDocument:
+    obj = minio.stat_object(bucket, path)
+    return MinioDocument(
+        bucket=bucket,
+        path=path,
+        extension=extension_of(path),
+        modification_time=obj.last_modified,
+        size=obj.size,
+        version=obj.etag,
+    )
 
-    def write(self, minio: Minio, file_id, body):
-        """
-        Write a file to MinIO.
-        """
-        if file_id not in self.doc_lookup:
-            raise HTTPException(404)
-        doc = self.doc_lookup.get(file_id)
-        data = io.BytesIO(body)
-        return minio.put_object(doc.bucket, doc.path, data=data, length=len(body))
 
-    def filename(self, file_id: str):
-        """
-        Return the name of a file given its id.
-        """
-        if file_id not in self.doc_lookup:
-            raise HTTPException(404)
-        return self.doc_lookup.get(file_id).path
+def read_document(minio: Minio, bucket: str, path: str) -> bytes:
+    response = minio.get_object(bucket, path)
+    try:
+        return response.read()
+    finally:
+        response.close()
+        response.release_conn()
 
-    def size(self, file_id):
-        """
-        Return the size of the file given its id.
-        """
-        if file_id not in self.doc_lookup:
-            raise HTTPException(404)
-        return self.doc_lookup.get(file_id).size
 
-    def writable(self, file_id):
-        """
-        Return whether the file is writable given its id.
-        """
-        if file_id not in self.doc_lookup:
-            raise HTTPException(404)
-        return True
+def write_document(minio: Minio, bucket: str, path: str, body: bytes) -> MinioDocument:
+    minio.put_object(bucket, path, data=io.BytesIO(body), length=len(body))
+    return stat_document(minio, bucket, path)

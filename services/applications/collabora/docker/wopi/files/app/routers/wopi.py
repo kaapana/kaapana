@@ -1,6 +1,9 @@
-from app.dependencies import get_document_store, get_minio_client
-from app.model.documents import DocumentStore
+from app.dependencies import get_connection_manager, get_minio_client
+from app.model.documents import decode_file_id, read_document, stat_document, write_document
+from app.model.websockets import ConnectionManager
 from fastapi import APIRouter, Body, Depends, Header
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import PlainTextResponse
 
 # WOPI REST API Reference
 # https://learn.microsoft.com/en-us/microsoft-365/cloud-storage-partner-program/rest/
@@ -8,12 +11,9 @@ router = APIRouter(tags=["wopi"])
 
 
 @router.get("/files/{file_id}/contents")
-async def read_file_conent(
-    file_id: str,
-    doc_store: DocumentStore = Depends(get_document_store),
-    minio=Depends(get_minio_client),
-):
-    return doc_store.get_document(minio, file_id)
+def read_file_conent(file_id: str, minio=Depends(get_minio_client)):
+    bucket, path = decode_file_id(file_id)
+    return PlainTextResponse(read_document(minio, bucket, path))
 
 
 @router.post("/files/{file_id}/contents")
@@ -21,16 +21,20 @@ async def store_file_meta(
     file_id: str,
     body=Body(...),
     content_type: str = Header(...),
-    doc_store: DocumentStore = Depends(get_document_store),
     minio=Depends(get_minio_client),
+    con_mgr: ConnectionManager = Depends(get_connection_manager),
 ):
-    return doc_store.write(minio, file_id, body=body)
+    bucket, path = decode_file_id(file_id)
+    await run_in_threadpool(write_document, minio, bucket, path, body)
+    await con_mgr.announce_documents(bucket)
 
 
 @router.get("/files/{file_id}")
-async def read_file_meta(file_id: str, doc_store: DocumentStore = Depends(get_document_store)):
+def read_file_meta(file_id: str, minio=Depends(get_minio_client)):
+    bucket, path = decode_file_id(file_id)
+    doc = stat_document(minio, bucket, path)
     return {
-        "BaseFileName": doc_store.filename(file_id).split("/")[-1],  # Only the accutal filename instead of the filepath
-        "Size": doc_store.size(file_id),
-        "UserCanWrite": doc_store.writable(file_id),
+        "BaseFileName": path.split("/")[-1],  # Only the accutal filename instead of the filepath
+        "Size": doc.size,
+        "UserCanWrite": True,
     }

@@ -1,13 +1,14 @@
 import functools
+import json
 import xml.etree.ElementTree as ET
+from typing import Optional
 
 import jwt
 import requests
 from app.config import get_settings
-from app.model.documents import DocumentStore
 from app.model.websockets import ConnectionManager
 from app.model.wopi import WOPI
-from fastapi import Depends, Request
+from fastapi import Depends, HTTPException, Request
 from kaapanapy.logger import get_logger
 from minio import Minio
 
@@ -80,7 +81,21 @@ def get_username(request: Request):
     return username
 
 
-@functools.lru_cache()
-def get_document_store(username: str = Depends(get_username)) -> DocumentStore:
-    # def get_document_store() -> DocumentStore:
-    return DocumentStore()
+def parse_project(project_header: Optional[str]) -> dict:
+    if not project_header:
+        raise HTTPException(400, "Missing Project header")
+    try:
+        project = json.loads(project_header)
+    except json.JSONDecodeError:
+        raise HTTPException(400, "Invalid Project header")
+    if not isinstance(project, dict) or not project.get("s3_bucket"):
+        raise HTTPException(400, "Invalid Project header")
+    return project
+
+
+def get_project(request: Request) -> dict:
+    return parse_project(request.headers.get("Project"))
+
+
+def get_project_bucket(project: dict = Depends(get_project)) -> str:
+    return project["s3_bucket"]

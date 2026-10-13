@@ -253,11 +253,19 @@ Pure singleton class -> classes that are never initialized and have only class a
    4. Finishes when all tasks are finished.
    5. Every container is built using `docker build`; by default it is pushed afterwards with a separate `docker push`. With `--cache-from`/`--cache-to` (registry build cache, docker only) build and push happen together via `docker buildx build --push --builder kaapana-buildx`, and local-only base images are pushed to the registry too so the isolated builder can pull them back in. Every build also mounts the repo's `constraints/` dir as a build-context for pinning pip installs.
    
-9. OfflineInstaller
+9. Package and push extensions
+   1. Runs after the container build. After an `--exit-on-error` abort, the containers that were never processed stay NOT_BUILT, so their extensions are not published.
+   2. An extension is only packaged if all its images ended as PUSHED or NOTHING_CHANGED (with `--build-only` also BUILT or BUILT_ONLY). Otherwise it is an error issue.
+   3. The archive is written to `<build-dir>/extensions/`.
+   4. With `--build-only` or `--push-to-microk8s`, nothing is pushed. Otherwise the archive is pushed to `<default-registry>/extensions` with the library behind `extensionctl`, with `REGISTRY_USER` and `REGISTRY_PW`. `--plain-http` selects HTTP.
+   5. If the tag `<id>-v<version>` already exists, the manifest and the file digests are compared. The same content is skipped. Other content is an error issue, because the build never changes a published version.
+   6. Without credentials, a push that the registry rejects is only a warning, which shows the command for a manual push.
+
+10. OfflineInstaller
    - Just adapted, downloads snap, helm and containers into .tgz and .tar.
 
-10. Stop build time, generate report about used images, charts, etc.
-11. Run Security Reporting if flag enabled. I adapted the code but didn't included multi-threading as it was too complicated:
+11. Stop build time, generate report about used images, charts, etc.
+12. Run Security Reporting if flag enabled. I adapted the code but didn't included multi-threading as it was too complicated:
     1.  Configuration Check
     2.  sboms
     3.  Vulnerability Check

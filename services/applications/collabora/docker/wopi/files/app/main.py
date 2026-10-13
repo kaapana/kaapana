@@ -1,16 +1,16 @@
 import asyncio
 import logging
+from contextlib import asynccontextmanager
 
 from app.config import get_settings
-from app.dependencies import (
-    get_connection_manager,
-    get_wopi,
-)
+from app.dependencies import get_connection_manager, get_wopi
 from app.model.websockets import ConnectionManager
+from app.model.wopi import WOPI
 from app.routers.documents import router as document
 from app.routers.wopi import router as wopi
 from app.routers.wopi_control import router as wopi_control
 from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
 
 log = logging.getLogger("uvicorn.error")
@@ -21,44 +21,35 @@ else:
     log.setLevel(logging.INFO)
 
 
-app = FastAPI()
+async def wopi_discovery_task(wopi_srv: WOPI) -> None:
+    settings = get_settings()
+    while True:
+        try:
+            await run_in_threadpool(wopi_srv.fetch_apps)
+        except Exception as error:
+            log.warning("WOPI discovery failed: %s", error)
+        await asyncio.sleep(settings.discovery_interval_seconds if wopi_srv.apps else settings.discovery_retry_seconds)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    discovery = asyncio.create_task(wopi_discovery_task(get_wopi()))
+    yield
+    discovery.cancel()
+
+
+app = FastAPI(lifespan=lifespan)
 
 if get_settings().dev_mode:
     from fastapi.middleware.cors import CORSMiddleware
 
-    origins = [
-        "*",
-    ]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=origins,
+        allow_origin_regex=".*",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
-
-@app.on_event("startup")
-async def startup():
-    log.info("Initalization started")
-    wopi_srv = get_wopi()
-    wopi_srv.fetch_apps()
-    con_mgr = get_connection_manager()
-    await con_mgr.announce_documents()
-    log.info("Initalization complete")
-
-
-@app.on_event("startup")
-async def register_jobs():
-    wopi_srv = get_wopi()
-
-    async def wopi_discovery_task() -> None:
-        while True:
-            log.info("Autmatic WOPI Discovery update")
-            wopi_srv.fetch_apps()
-            await asyncio.sleep(60)  # Refresh every 1 Minute
-
-    asyncio.ensure_future(wopi_discovery_task())
 
 
 app.include_router(wopi, prefix="/wopi")
@@ -79,4 +70,4 @@ async def websocket_endpoint(
         con_mgr.disconnect(websocket)
 
 
-app.mount("/", StaticFiles(directory="ui/dist", html=True), name="static")
+app.mount("/", StaticFiles(directory=get_settings().ui_directory, html=True, check_dir=False), name="static")

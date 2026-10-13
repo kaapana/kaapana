@@ -6,7 +6,8 @@ from app.dependencies import (
     get_wopi,
 )
 from app.model.documents import DocumentStore
-from fastapi import APIRouter, Depends
+from app.model.wopi import WOPI, editor_url
+from fastapi import APIRouter, Depends, HTTPException
 
 router = APIRouter(tags=["docs"])
 
@@ -29,28 +30,25 @@ async def refresh_documents(
 @router.get("/")
 async def read_documents(
     doc_store: DocumentStore = Depends(get_document_store),
-    wopi_srv=Depends(get_wopi),
+    wopi_srv: WOPI = Depends(get_wopi),
 ):
+    if not wopi_srv.apps:
+        raise HTTPException(503, "Collabora is not available yet, no document editor was discovered")
+
     result = []
     for doc in doc_store.docs:
-        # log.debug("Found document %s, with extension %s", doc.path, doc.extension)
-
-        apps = list(wopi_srv.get_apps_actions_for_files(doc.extension))
-
-        # TODO allow multiple applications per file
+        match = wopi_srv.match(doc.extension)
+        if match is None:
+            continue
         file_id = doc_store.get_file_id(doc.path)
         result.append(
             {
                 "file_id": file_id,
                 "file": doc,
-                "favicon": apps[0].favicon,
-                "app_name": apps[0].name,
-                "action_name": apps[0].actions[0].name,
-                "url": apps[0].actions[0].url
-                + "WOPISrc="
-                + get_settings().wopi_api_endpoint
-                + "/wopi/files/"
-                + file_id,
+                "favicon": match.app.favicon,
+                "app_name": match.app.name,
+                "action_name": match.action.name,
+                "url": editor_url(match.action.url, f"{get_settings().wopi_api_endpoint}/wopi/files/{file_id}"),
             }
         )
     return result

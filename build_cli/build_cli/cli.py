@@ -572,6 +572,8 @@ def run_build(build_config: BuildConfig):
             coordinator = BuildCoordinator(containers)
             coordinator.start()
 
+            ExtensionHelper.build_and_push_extensions()
+
             if build_config.create_offline_installation or build_config.publish_offline_installer:
                 OfflineInstallerHelper.init(build_config=build_config, build_state=build_state)
                 OfflineInstallerHelper.handle_offline_installation(platform_chart)

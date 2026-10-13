@@ -5,9 +5,6 @@ description: "Core collection of Kaapana workflows that depend on workflow-api"
 version: "0.0.0"
 keywords:
   - kaapanaworkflow-v2
-dependencies:
-  - name: registration-workflow
-    version: "0.0.0"
 
 annotations:
   documentation: "user_guide/extensions.html#task-api-workflows"

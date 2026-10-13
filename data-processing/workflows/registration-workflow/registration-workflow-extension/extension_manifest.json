@@ -1,0 +1,20 @@
+{
+  "name": "registration-workflow-extension",
+  "id": "6666db2d-2f32-4424-af11-e2cf2695d70b",
+  "version": "0.1.0",
+  "contents": [
+    {
+      "name": "registration-workflow",
+      "contentType": "workflow-v1",
+      "files": [
+        {
+          "path": "workflow_definition.py"
+        },
+        {
+          "path": "workflow.json"
+        }
+      ]
+    }
+  ],
+  "dependencies": []
+}

@@ -6,8 +6,6 @@ version: "0.0.0"
 keywords:
   - kaapanaworkflow-v2
 dependencies:
-  - name: dummy-workflow
-    version: "0.0.0"
   - name: registration-workflow
     version: "0.0.0"
 

@@ -3,8 +3,6 @@ FROM local-only/base-python-gpu:latest
 LABEL IMAGE="classification-task"
 LABEL BUILD_IGNORE="False"
 
-RUN apt-get update && apt-get install -y xvfb
-
 COPY files/requirements.txt /kaapana/requirements.txt
 COPY --from=constraints 0.7.0.txt /constraints.txt
 RUN pip3 install --upgrade pip && pip install -c /constraints.txt --no-cache-dir -r /kaapana/requirements.txt

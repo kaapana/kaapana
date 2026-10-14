@@ -175,7 +175,7 @@ test.describe('while the confirmed action runs', () => {
 
     await downloadButton(page).click()
     await confirmAction(page, 'Download')
-    const button = page.locator('button:has(.mdi-download-circle)')
+    const button = page.locator('button:has(.mdi-download)')
     await expect(button).toBeFocused()
     await expect(button).toHaveClass(/v-btn--loading/)
     expect(await asksAgain(page, button, 'Download series?')).toBe(false)

@@ -2,7 +2,7 @@
 import { computed, onBeforeMount, onBeforeUnmount, ref } from 'vue'
 import { ConfirmDialog, apiErrorInfo, type ApiErrorInfo } from '@kaapana/base-ui'
 import { downloadDatasets } from '@/common/api.service'
-import { galleryIcons } from '@/utils/galleryIcons'
+import { kaapanaIcons } from '@/utils/galleryIcons'
 import { notifyFailure } from '@/utils/notifyFailure'
 
 const MAX_DOWNLOADABLE_ITEM = 20
@@ -86,7 +86,7 @@ onBeforeUnmount(() => {
            reason is reachable by keyboard. -->
       <span v-bind="activator" :tabindex="canDownload ? undefined : 0">
         <v-btn
-          :icon="galleryIcons.download"
+          :icon="kaapanaIcons.download"
           :aria-label="status"
           variant="text"
           color="primary"

@@ -28,7 +28,7 @@
             <Chip :items="[modality]" />
             <v-spacer></v-spacer>
             <v-btn
-              :icon="galleryIcons.preview"
+              :icon="kaapanaIcons.preview"
               aria-label="Show series details"
               density="compact"
               variant="text"
@@ -57,7 +57,7 @@
               @click.stop="triggerValidationResultDetails"
             >
               {{ validationResults['warnings'] }}
-              <v-icon :icon="galleryIcons.warning" class="ml-1" color="warning" />
+              <v-icon :icon="kaapanaIcons.warning" class="ml-1" color="warning" />
             </v-btn>
             <v-btn
               size="small"

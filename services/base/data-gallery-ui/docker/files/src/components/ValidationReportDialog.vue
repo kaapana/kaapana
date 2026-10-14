@@ -14,7 +14,7 @@
           <template v-slot:activator="{ props: activator }">
             <v-btn
               v-bind="activator"
-              :icon="galleryIcons.more"
+              :icon="kaapanaIcons.more"
               aria-label="Report actions"
               variant="text"
             />

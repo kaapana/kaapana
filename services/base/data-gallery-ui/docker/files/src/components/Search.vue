@@ -56,7 +56,7 @@
           <template v-slot:activator="{ props: activator }">
             <v-btn
               v-bind="activator"
-              :icon="galleryIcons.copy"
+              :icon="kaapanaIcons.copy"
               aria-label="Copy query URL to clipboard"
               variant="text"
               @click="copyQueryToClipboard"

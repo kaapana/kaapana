@@ -19,7 +19,9 @@ export const kaapanaIcons = {
   apiDocs: 'mdi-api',
   close: 'mdi-close',
   confirm: 'mdi-check',
+  copy: 'mdi-content-copy',
   delete: 'mdi-delete',
+  download: 'mdi-download',
   edit: 'mdi-pencil',
   error: 'mdi-alert-circle',
   expand: 'mdi-chevron-down',
@@ -27,8 +29,10 @@ export const kaapanaIcons = {
   help: 'mdi-help-circle-outline',
   info: 'mdi-information',
   logout: 'mdi-exit-to-app',
+  more: 'mdi-dots-vertical',
   notifications: 'mdi-bell-outline',
   notificationsUnread: 'mdi-bell-ring',
+  preview: 'mdi-eye',
   refresh: 'mdi-refresh',
   restart: 'mdi-restart',
   save: 'mdi-content-save',
@@ -38,6 +42,8 @@ export const kaapanaIcons = {
   start: 'mdi-play',
   stop: 'mdi-stop-circle-outline',
   success: 'mdi-check-circle',
+  // Not `error` (mdi-alert-circle): a warning must not look like an error.
+  warning: 'mdi-alert',
 } as const
 
 export type KaapanaIconName = keyof typeof kaapanaIcons

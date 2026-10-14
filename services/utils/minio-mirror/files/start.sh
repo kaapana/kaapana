@@ -1,6 +1,12 @@
 #!/bin/bash
 set -eu
 
+# Runs before anything touches LOCAL_PATH: with REQUIRED_HOST_FS_TYPE set, a
+# missing host share must not be filled from below. Waiting here would not help,
+# because the bind into this container is fixed at its start; exiting lets
+# Kubernetes restart the container, which binds the share once it is back.
+/usr/bin/bash /kaapana/app/check_host_filesystem.sh
+
 MINIO_BUCKET=$(echo "${MINIO_PATH}/" | cut -d'/' -f1)
 mc alias set minio http://${MINIO_SERVICE} ${MINIO_USER} ${MINIO_PASSWORD}
 mc mb --ignore-existing minio/${MINIO_BUCKET}

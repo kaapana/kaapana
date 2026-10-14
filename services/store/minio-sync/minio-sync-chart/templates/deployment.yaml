@@ -48,6 +48,22 @@ spec:
             value: {{ .Values.global.credentials_minio_username  | default "" }}
           - name: MINIO_PASSWORD
             value: {{ .Values.global.credentials_minio_password | default ""}}
+          - name: REQUIRED_HOST_FS_TYPE
+            value: {{ .Values.global.required_host_fs_type | default "" | quote }}
+          {{- if .Values.global.required_host_fs_type }}
+          # The host directory is bound into the container when it starts and
+          # never re-bound while it runs (no mount propagation). A share that
+          # goes stale therefore needs a container restart, which binds whatever
+          # the host has mounted by then; start.sh refuses to sync until that is
+          # the share again.
+          livenessProbe:
+            exec:
+              command: ["/usr/bin/bash", "/kaapana/app/check_host_filesystem.sh"]
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            timeoutSeconds: 30
+            failureThreshold: 3
+          {{- end }}
           volumeMounts:
             - name: {{ .Release.Name }}-host-path
               mountPath: /host

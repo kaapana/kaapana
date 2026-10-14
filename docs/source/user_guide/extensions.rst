@@ -536,6 +536,17 @@ MinIO Sync
 * Host2Minio: Syncs files undirectional form host into minio
 * Minio2Host: Syncs files undirectional from MINIO to the host
 
+**Host directory on a separately mounted share.**
+If the host directory lies on a network share that the host mounts itself (e.g. a Windows share), set *Required filesystem type* to the share's type, e.g. ``cifs`` (``nfs4`` for NFS).
+Without it, a sync that starts while the share is not mounted writes into the local directory underneath the mount point; these files fill the local disk and are hidden once the share is mounted again.
+With it, the sync refuses to start until the host directory is on that filesystem, and restarts when the share stops answering.
+It resumes by itself once the share is back, after at most a few minutes (Kubernetes' restart back-off).
+
+Two settings on the host help in addition:
+
+* Make the empty mount point immutable while the share is unmounted (``sudo chattr +i <mount point>``), so nothing can write into it while the share is missing.
+* Mount the share before Kubernetes starts at boot, e.g. with the fstab options ``_netdev,nofail,x-systemd.before=snap.microk8s.daemon-kubelite.service``.
+
 .. _extensions_mitk_workbench:
 
 MITK Workbench

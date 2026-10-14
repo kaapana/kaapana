@@ -6,6 +6,7 @@ global:
   sync_strategy: ""
   uid: ""
   gid: ""
+  required_host_fs_type: ""
 
 extension_params:
   doc:
@@ -76,3 +77,16 @@ extension_params:
     type: "string"
     value: ""
     default: "1000"
+
+  required_host_fs_type:
+    definition: "Required filesystem type of the host directory"
+    help: >
+      <h1>Required filesystem type</h1><br/>
+      <p>Set this when the host directory lies on a share the host mounts separately, e.g. "cifs" for
+      a Windows share or "nfs4" for NFS (comma-separated for several). The sync then refuses to run
+      while the host directory is on any other filesystem, so files are never written into the local
+      directory underneath an unmounted share, and it restarts when the share stops answering. It
+      resumes by itself once the share is mounted again. Leave empty to sync without this check.</p>
+    type: "string"
+    value: ""
+    default: ""

@@ -29,3 +29,8 @@ export function tagColor(tag: string): TagColor {
   const text = contrastingColor(background)
   return { background, text }
 }
+
+export function tagChipStyle(tag: string): { backgroundColor: string; color: string } {
+  const { background, text } = tagColor(tag)
+  return { backgroundColor: background, color: text }
+}

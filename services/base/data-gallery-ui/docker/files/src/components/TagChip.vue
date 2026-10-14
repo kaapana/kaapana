@@ -7,7 +7,7 @@
       size="x-small"
       variant="flat"
       closable
-      :style="chipStyle(item)"
+      :style="tagChipStyle(item)"
       :close-label="`Remove tag ${item}`"
       @update:model-value="() => {}"
       @click:close="emit('deleteTag', item)"
@@ -19,7 +19,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { tagColor } from '@/utils/tagColors'
+import { tagChipStyle } from '@/utils/tagColors'
 
 const props = withDefaults(defineProps<{ items?: string[] }>(), {
   items: () => [],
@@ -28,9 +28,4 @@ const props = withDefaults(defineProps<{ items?: string[] }>(), {
 const emit = defineEmits<{ deleteTag: [tag: string] }>()
 
 const sortedItems = computed(() => [...props.items].sort())
-
-function chipStyle(item: string) {
-  const { background, text } = tagColor(item)
-  return { backgroundColor: background, color: text }
-}
 </script>

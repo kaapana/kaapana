@@ -5,7 +5,7 @@
       :key="item"
       size="x-small"
       variant="flat"
-      :style="chipStyle(item)"
+      :style="tagChipStyle(item)"
     >
       {{ item }}
     </v-chip>
@@ -14,16 +14,11 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { tagColor } from '@/utils/tagColors'
+import { tagChipStyle } from '@/utils/tagColors'
 
 const props = withDefaults(defineProps<{ items?: string[] }>(), {
   items: () => [],
 })
 
 const sortedItems = computed(() => [...props.items].sort())
-
-function chipStyle(item: string) {
-  const { background, text } = tagColor(item)
-  return { backgroundColor: background, color: text }
-}
 </script>

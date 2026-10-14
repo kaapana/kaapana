@@ -21,7 +21,7 @@
         :disabled="disabledTagBar"
       >
         <template v-slot:chip="{ props: chipProps, item }">
-          <v-chip v-bind="chipProps" variant="flat" :style="chipStyle(item.raw)" />
+          <v-chip v-bind="chipProps" variant="flat" :style="tagChipStyle(item.raw)" />
         </template>
       </v-combobox>
     </v-col>
@@ -117,7 +117,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { loadValues } from '@/common/api.service'
-import { tagColor } from '@/utils/tagColors'
+import { tagChipStyle, tagColor } from '@/utils/tagColors'
 import { notifyFailure } from '@/utils/notifyFailure'
 import { kaapanaIcons, galleryIcons } from '@/utils/galleryIcons'
 import { readSettings, settings as defaultSettings } from '@/static/defaultUIConfig'
@@ -190,11 +190,6 @@ const editToggleHint = computed(() => {
 })
 
 const saveUnavailable = computed(() => tags.value.length === 0 || disabledTagBar.value)
-
-function chipStyle(tag: string) {
-  const { background, text } = tagColor(tag)
-  return { backgroundColor: background, color: text }
-}
 
 watch(multiple, () => {
   selection.value = multiple.value ? [] : null

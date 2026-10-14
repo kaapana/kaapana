@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { notify } from '@kyvg/vue3-notification'
+import { notifyFailure } from '@/utils/notifyFailure'
 import {
   fetchNotifications,
   readNotification,
@@ -18,6 +19,9 @@ export const useNotificationsStore = defineStore('notifications', {
     hasMore: true,
     total: 0,
     loading: false,
+    // The last page load failed, so the dialog can tell "could not load" apart
+    // from "nothing to show".
+    error: false,
     refreshId: 0,
     ws: null as NotificationWebsocket | null,
   }),
@@ -49,6 +53,7 @@ export const useNotificationsStore = defineStore('notifications', {
       this.cursor = null
       this.hasMore = true
       this.loading = false
+      this.error = false
       await this.loadMore()
     },
     async loadMore() {
@@ -67,13 +72,15 @@ export const useNotificationsStore = defineStore('notifications', {
         this.cursor = meta.nextCursor
         this.hasMore = meta.hasMore
         this.total = meta.total
+        this.error = false
       } catch (err) {
+        this.error = true
         console.error('Failed to load notifications', err)
-        notify({
-          type: 'error',
-          title: 'Could not load notifications',
-          text: 'The notification list could not be loaded. Please try again later.',
-        })
+        notifyFailure(
+          'Could not load notifications',
+          'The notification list could not be loaded. Please try again later.',
+          err,
+        )
       } finally {
         // Only release the guard if we still own it; a superseding refresh's
         // load owns it now and must stay protected from concurrent scrolls.

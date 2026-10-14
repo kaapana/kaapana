@@ -138,3 +138,65 @@ describe('http response interceptor (expired session)', () => {
     })
   })
 })
+
+// The project comes from the document URL, not from localStorage. Another tab
+// writes localStorage["project"] when it switches projects.
+describe('http request interceptor (project prefix)', () => {
+  const realLocation = window.location
+
+  function setPathname(pathname: string) {
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...realLocation, pathname, href: `http://localhost${pathname}`, reload: vi.fn() },
+    })
+  }
+
+  afterEach(() => {
+    Object.defineProperty(window, 'location', { configurable: true, value: realLocation })
+    localStorage.clear()
+  })
+
+  async function requestedUrl(url: string): Promise<string> {
+    vi.resetModules()
+    const http = (await import('@/api/http')).default
+    let seen = ''
+    http.defaults.adapter = async (config) => {
+      seen = config.url ?? ''
+      return { data: {}, status: 200, statusText: 'OK', headers: {}, config } as never
+    }
+    await http.get(url)
+    return seen
+  }
+
+  it.each(['kaapana-backend', 'kube-helm-api', 'workflow-api', 'dicom-web-filter'])(
+    'prefixes /%s/… with the project of the document URL',
+    async (service) => {
+      setPathname('/project/resb/workflows/datasets')
+      expect(await requestedUrl(`/${service}/x/y`)).toBe(`/project/resb/${service}/x/y`)
+    },
+  )
+
+  it.each([
+    '/aii/users/current',
+    '/portal-api/menu',
+    '/notifications/v2/',
+    '/jsons/commonData.json',
+  ])('leaves %s untouched', async (url) => {
+    setPathname('/project/resb/workflows/datasets')
+    expect(await requestedUrl(url)).toBe(url)
+  })
+
+  it('takes the slug from the path, never from localStorage', async () => {
+    localStorage['project'] = JSON.stringify({ id: 9, name: 'other', short_id: 'other' })
+    setPathname('/project/resb')
+    expect(await requestedUrl('/kaapana-backend/settings')).toBe(
+      '/project/resb/kaapana-backend/settings',
+    )
+  })
+
+  it('sends the call unscoped when the document URL carries no project', async () => {
+    localStorage['project'] = JSON.stringify({ id: 9, name: 'other', short_id: 'other' })
+    setPathname('/')
+    expect(await requestedUrl('/kaapana-backend/settings')).toBe('/kaapana-backend/settings')
+  })
+})

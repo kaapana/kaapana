@@ -36,7 +36,7 @@
               @click.stop="showDetails()"
             />
           </v-toolbar>
-          <div v-if="Object.keys(validationResults).length > 0" class="result-container">
+          <div v-if="Object.keys(validationResults).length > 0" class="result-container on-image rounded">
             <v-btn
               size="small"
               variant="text"
@@ -281,12 +281,16 @@ get_data()
   pointer-events: none;
   z-index: 2;
 }
-/* The details button sits on the thumbnail, whose colours can be anything.
-   A white icon on its own dark backdrop stays readable on every image, which
-   no theme colour can guarantee. */
+/* Vuetify pins medium-emphasis text to on-background; follow the card's colour instead. */
+.selected .text-medium-emphasis {
+  color: inherit !important;
+}
+/* The details button and validation badges sit on the thumbnail, whose colours
+   can be anything. White on its own 60 % black backdrop stays readable on every
+   image, which no theme colour can guarantee. */
 .on-image {
   color: #fff;
-  background: rgb(0 0 0 / 45%);
+  background: rgb(0 0 0 / 60%);
 }
 .validation-badge {
   min-width: 50px !important;

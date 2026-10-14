@@ -32,7 +32,7 @@ const confirmText = computed(
 )
 
 const status = computed(() => {
-  if (downloading.value) return `Downloading ${count.value} series…`
+  if (downloading.value) return `Downloading ${pending.value.length} series…`
   if (count.value === 0) return 'Select at least one series to download'
   if (tooManyItems.value) {
     return `Too many series selected (${count.value}). Download at most ${MAX_DOWNLOADABLE_ITEM} at a time, or use the "download-selected-files" workflow for larger amounts.`

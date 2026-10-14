@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeMount, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeMount, onBeforeUnmount, ref, watch } from 'vue'
 import { ConfirmDialog, apiErrorInfo, type ApiErrorInfo } from '@kaapana/base-ui'
 import { downloadDatasets } from '@/common/api.service'
 import { kaapanaIcons } from '@/utils/galleryIcons'
@@ -10,6 +10,8 @@ const MAX_DOWNLOADABLE_ITEM = 20
 const props = withDefaults(defineProps<{ selectedSeries?: string[] | null }>(), {
   selectedSeries: () => [],
 })
+
+const emit = defineEmits<{ 'update:dirty': [dirty: boolean] }>()
 
 const downloading = ref(false)
 const confirmDialog = ref(false)
@@ -62,6 +64,10 @@ function downloadFailureText({ status }: ApiErrorInfo): string {
   }
   return 'The download could not be completed.'
 }
+
+// Leaving the view drops the download, so the shell should ask first, as it
+// does for unsaved input.
+watch(downloading, (value) => emit('update:dirty', value))
 
 function preventReload(event: BeforeUnloadEvent) {
   if (downloading.value) {

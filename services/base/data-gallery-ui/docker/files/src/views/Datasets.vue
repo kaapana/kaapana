@@ -177,7 +177,10 @@
                           </span>
                         </template>
                       </v-tooltip>
-                      <DownloadDatasetBtn :selected-series="identifiersOfInterest" />
+                      <DownloadDatasetBtn
+                        :selected-series="identifiersOfInterest"
+                        @update:dirty="(dirty) => (downloadDirty = dirty)"
+                      />
                     </v-col>
                   </v-row>
                 </v-card-title>
@@ -352,6 +355,7 @@ const datasetSelector = ref<{ focus: () => void } | null>(null)
 const emptyStateRef = ref<InstanceType<typeof GalleryEmptyState> | null>(null)
 const searchDirty = ref(false)
 const saveDialogDirty = ref(false)
+const downloadDirty = ref(false)
 const queryParams: Record<string, any> = { ...route.query }
 // The deeplink's parameters as they arrived. Search removes them from the address
 // once applied, so a redirect to another project needs the copy.
@@ -802,7 +806,7 @@ function runWorkflowOnSeries(dag: string, seriesInstanceUID: string | null) {
 /* ------------------------------------------------------------- lifecycle -- */
 
 watch(
-  () => searchDirty.value || saveDialogDirty.value,
+  () => searchDirty.value || saveDialogDirty.value || downloadDirty.value,
   (dirty) => postViewDirty(dirty),
 )
 

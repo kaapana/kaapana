@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { lastDirty, openGallery, trackDirty } from './fixtures/helpers'
+import { confirmAction, delayRoute, lastDirty, openGallery, trackDirty } from './fixtures/helpers'
 
 // The view posts kaapana:view-dirty to its parent, so the shell can ask before
 // leaving or reloading the view. Standalone, the window is its own parent
@@ -52,4 +52,18 @@ test('a free-text query reports the view dirty; clearing it reports clean', asyn
 
   await page.getByLabel('Search').first().fill('')
   await expect.poll(() => lastDirty(page)).toBe(false)
+})
+
+// The download runs inside the view, so leaving it drops the download: the shell
+// must ask while it runs, and stop asking once it is done.
+test('a running download reports the view dirty; a finished one reports clean', async ({ page }) => {
+  await trackDirty(page)
+  await openGallery(page)
+  await delayRoute(page, /\/kaapana-backend\/dataset\/download\?/, 1_500)
+
+  await page.getByRole('button', { name: /^Download \d+ series$/ }).click()
+  await confirmAction(page, 'Download')
+  await expect.poll(() => lastDirty(page)).toBe(true)
+
+  await expect.poll(() => lastDirty(page), { timeout: 10_000 }).toBe(false)
 })

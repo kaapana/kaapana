@@ -9,6 +9,7 @@ import {
 import {
   collectPageErrors,
   delayRoute,
+  dialog,
   isSeriesListRequest,
   nextRequest,
   openGallery,
@@ -59,7 +60,7 @@ test('a search the user starts spins the Search button until its results arrive'
   await expect(searchButton(page)).not.toHaveClass(/v-btn--loading/)
 })
 
-// "Make every failed operation visible": the link is in the message, to copy by hand.
+// "Make every failed operation visible": the link is offered selected in a dialog, to copy by hand.
 const clipboardCases: { name: string; stub: () => void }[] = [
   {
     name: 'there is no Clipboard API',
@@ -81,11 +82,20 @@ for (const c of clipboardCases) {
     await openGallery(page)
     await page.getByLabel('Search').first().fill('Thorax')
 
-    await page.getByRole('button', { name: 'Copy query URL to clipboard' }).click()
-    const toast = toasts(page).filter({ hasText: 'Link not copied' })
-    await expect(toast).toHaveCount(1)
-    await expect(toast).toContainText(/http:\/\/localhost:\d+\/project\/admin\/data-gallery-ui\/\?query_string=Thorax/)
+    const copyButton = page.getByRole('button', { name: 'Copy query URL to clipboard' })
+    await copyButton.click()
+    const fallback = dialog(page, 'Link not copied')
+    const link = fallback.getByLabel('Search link')
+    await expect(link).toHaveValue(/http:\/\/localhost:\d+\/project\/admin\/data-gallery-ui\/\?query_string=Thorax/)
+    await expect(link).toBeFocused()
+    expect(await link.evaluate((el: HTMLInputElement) => el.selectionEnd! - el.selectionStart!)).toBe(
+      (await link.inputValue()).length,
+    )
     expect(await toasts(page).filter({ hasText: 'Search URL copied' }).count()).toBe(0)
+
+    await page.keyboard.press('Escape')
+    await expect(fallback).toHaveCount(0)
+    await expect(copyButton).toBeFocused()
     expect(pageErrors).toEqual([])
   })
 }

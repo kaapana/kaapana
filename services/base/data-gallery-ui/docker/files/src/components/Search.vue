@@ -170,6 +170,31 @@
         <v-spacer />
       </v-row>
     </div>
+    <v-dialog
+      v-model="copyFallbackOpen"
+      max-width="600"
+      @after-enter="copyFallbackField?.focus()"
+      @after-leave="restoreCopyFocus"
+    >
+      <v-card :elevation="5">
+        <v-card-title class="text-h6">Link not copied</v-card-title>
+        <v-card-text>
+          <p class="mb-4">The clipboard is not available here. Copy the link below.</p>
+          <v-text-field
+            ref="copyFallbackField"
+            :model-value="copyFallbackUrl"
+            label="Search link"
+            readonly
+            hide-details
+            @focus="(event: FocusEvent) => (event.target as HTMLInputElement).select()"
+          />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn @click="copyFallbackOpen = false">Close</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -186,6 +211,7 @@ import {
 } from '@/common/api.service'
 import { apiErrorInfo, useProjectStore, type ApiErrorInfo } from '@kaapana/base-ui'
 import { useFailureDetailsStore } from '@/stores/failureDetails'
+import { useFocusReturn } from '@/composables/useFocusReturn'
 import { kaapanaIcons, galleryIcons } from '@/utils/galleryIcons'
 import { notifyFailure } from '@/utils/notifyFailure'
 import type { Dataset } from '@/types'
@@ -702,6 +728,11 @@ function assembleQueryUrl() {
 
 // The clipboard fails on plain HTTP (no Clipboard API) and in an iframe
 // without permission. In that case, show the link to copy by hand.
+const copyFallbackOpen = ref(false)
+const copyFallbackUrl = ref('')
+const copyFallbackField = ref<{ focus: () => void } | null>(null)
+const { restoreFocus: restoreCopyFocus } = useFocusReturn(() => copyFallbackOpen.value)
+
 async function copyQueryToClipboard() {
   const queryUrl = assembleQueryUrl()
   try {
@@ -712,12 +743,8 @@ async function copyQueryToClipboard() {
       type: 'success',
     })
   } catch {
-    notify({
-      title: 'Link not copied',
-      text: `The clipboard is not available here. Copy the link by hand: ${queryUrl}`,
-      type: 'error',
-      duration: 15_000,
-    })
+    copyFallbackUrl.value = queryUrl
+    copyFallbackOpen.value = true
   }
 }
 

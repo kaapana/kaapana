@@ -1,4 +1,5 @@
 import type { RouteLocationNormalizedGeneric } from 'vue-router'
+import { kaapanaIcons } from '@kaapana/base-ui'
 import { useMenuStore } from '@/stores/menu'
 import type { MenuEntry } from '@/types/menu'
 
@@ -13,7 +14,7 @@ export const HELP_ENTRY: MenuEntry = {
   type: 'entry',
   id: 'help',
   label: 'Help',
-  icon: 'mdi-help-circle',
+  icon: kaapanaIcons.help,
   path: '/docs/faq_root.html',
   target: 'iframe',
   project: 'none',

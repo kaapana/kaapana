@@ -127,7 +127,9 @@ test('kaapana:navigate to an unknown view reports it instead of bouncing home', 
   await expect(page.getByText('/web/workflows/not-installed')).toBeVisible()
   expect(page.url()).toBe(before)
 
-  await page.getByRole('button', { name: 'Close' }).click()
+  // Close holds the initial focus, so Enter dismisses the dialog.
+  await expect(page.getByRole('button', { name: 'Close' })).toBeFocused()
+  await page.keyboard.press('Enter')
   await expect(page.getByText('View unavailable')).toHaveCount(0)
 })
 
@@ -145,6 +147,38 @@ test('kaapana:navigate honours the unsaved-changes guard', async ({ page }) => {
   await expect(page.getByText('Unsaved changes', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Stay' }).click()
   expect(page.url()).toBe(before)
+})
+
+test('a message from a foreign origin is ignored', async ({ page }) => {
+  await installMockBackend(page)
+  await stubView(page, '/data-gallery-ui')
+  await stubView(page, '/workflow-list-ui')
+  // Served from another origin by the route, so its postMessage arrives with a
+  // foreign event.origin; a same-origin copy of it would navigate the shell.
+  await page.route('http://foreign.test/**', (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body:
+        `<!doctype html><html><body><script>` +
+        `parent.postMessage({type:'kaapana:navigate',path:'/web/workflows/workflows'},'*')` +
+        `</script></body></html>`,
+    }),
+  )
+  await page.goto('/')
+  await expect(page).toHaveURL(/\/project\//)
+  const before = page.url()
+
+  await page.evaluate(() => {
+    const frame = document.createElement('iframe')
+    frame.src = 'http://foreign.test/poster.html'
+    document.body.appendChild(frame)
+  })
+  // Nothing observable happens on purpose; give the message time to arrive.
+  await page.waitForTimeout(500)
+
+  expect(page.url()).toBe(before)
+  await expect(page.getByText('View unavailable')).toHaveCount(0)
 })
 
 test('kaapana:project-switch swaps the prefix and keeps the route', async ({ page }) => {

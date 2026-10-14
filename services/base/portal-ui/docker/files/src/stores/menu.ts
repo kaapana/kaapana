@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import http from '@/api/http'
 import { fetchMenu } from '@/api/menu'
 import { fetchPolicyData } from '@/api/auth'
-import { checkAuthR, type PolicyData } from '@/utils/opa'
+import { apiErrorInfo, checkAuthR, type ApiErrorInfo, type PolicyData } from '@kaapana/base-ui'
 import type { DevLink, MenuEntry, MenuItem, MenuSection } from '@/types/menu'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
@@ -20,7 +20,9 @@ export const useMenuStore = defineStore('menu', {
     loaded: false,
     // Last refresh failed, so the drawer can tell "backend unreachable" apart
     // from "nothing to show". Set in refresh() because the poll swallows rejections.
+    // lastError feeds the drawer's Details dialog.
     error: false,
+    lastError: null as ApiErrorInfo | null,
     pollTimer: null as ReturnType<typeof setInterval> | null,
     // Badge counts for entries declaring a badgePath, keyed by entry.path
     // (unique per ingress).
@@ -97,17 +99,6 @@ export const useMenuStore = defineStore('menu', {
     badgeCount(): (entry: MenuEntry) => number {
       return (entry) => this.badgeCounts[entry.path] ?? 0
     },
-    /** Section slug an entry lives under, NO_SECTION for top-level entries. */
-    sectionOf(): (entry: MenuEntry) => string {
-      return (entry) => {
-        for (const item of this.items) {
-          if (item.type === 'section' && item.entries.some((e) => e.id === entry.id)) {
-            return item.id
-          }
-        }
-        return NO_SECTION
-      }
-    },
   },
   actions: {
     async ensureLoaded() {
@@ -120,6 +111,7 @@ export const useMenuStore = defineStore('menu', {
       const [menu, policyData] = await Promise.all([fetchMenu(fresh), fetchPolicyData()]).catch(
         (err) => {
           this.error = true
+          this.lastError = apiErrorInfo(err)
           throw err
         },
       )

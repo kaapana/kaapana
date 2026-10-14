@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { kaapanaIcons } from '@kaapana/base-ui'
 import { useRoute } from 'vue-router'
 import { useProjectStore, projectSlug } from '@/stores/project'
 import { useViewStateStore } from '@/stores/viewState'
@@ -14,8 +15,8 @@ const viewState = useViewStateStore()
 const idleLogout = useIdleLogout()
 
 const iframeRef = ref<HTMLIFrameElement | null>(null)
-// Last URL seen inside the iframe, so "refresh" reloads the page the user is
-// actually on, not the entry's start page.
+// Last URL seen inside the iframe on load. "Reload view" and "Open view in a
+// new tab" fall back to it when the current address cannot be read.
 const trackedUrl = ref('')
 
 // Entry resolution and src computation live in utils/iframeSrc so the router
@@ -59,22 +60,56 @@ function onLoad() {
   }
 }
 
+// A single-page view changes its address without a new load event, so the
+// address is read at the moment it is needed. A cross-origin view cannot be
+// read; the last address seen on load is the best guess there.
+function currentViewUrl(): string {
+  try {
+    const href = iframeRef.value?.contentWindow?.location.href
+    if (href && href !== 'about:blank') return href
+  } catch {
+    // Cross-origin iframe content.
+  }
+  return trackedUrl.value || src.value
+}
+
 async function refreshIframe() {
   if (!iframeRef.value || !trackedUrl.value) return
   // Reloading discards the view's in-memory state just like a navigation does;
   // confirm first when the view reported unsaved changes.
   if (!(await viewState.confirmLeave())) return
   loading.value = true
-  iframeRef.value.src = trackedUrl.value
+  iframeRef.value.src = currentViewUrl()
 }
 
 function openExternalPage() {
-  window.open(trackedUrl.value || src.value, '_blank')
+  window.open(currentViewUrl(), '_blank')
 }
 </script>
 
 <template>
   <div v-if="entry" class="kaapana-iframe-container">
+    <!-- Before the iframe, so Tab reaches these buttons before the view. -->
+    <!-- The hotspot must stay before the overlay, or hover stops working. -->
+    <div class="overlay-hotspot"></div>
+    <div class="iframe-overlay">
+      <v-btn
+        :icon="kaapanaIcons.refresh"
+        variant="text"
+        size="small"
+        color="white"
+        title="Reload view"
+        @click="refreshIframe()"
+      ></v-btn>
+      <v-btn
+        :icon="kaapanaIcons.externalLink"
+        variant="text"
+        size="small"
+        color="white"
+        title="Open view in a new tab"
+        @click="openExternalPage()"
+      ></v-btn>
+    </div>
     <iframe
       ref="iframeRef"
       :key="entry.id"
@@ -84,16 +119,6 @@ function openExternalPage() {
     ></iframe>
     <div v-if="loading" class="iframe-loading">
       <v-progress-circular indeterminate color="primary" size="48" />
-    </div>
-    <!-- hotspot must precede the overlay: the reveal rule uses a sibling selector -->
-    <div class="overlay-hotspot"></div>
-    <div class="iframe-overlay">
-      <a @click="refreshIframe()">
-        <v-icon color="white">mdi-refresh</v-icon>
-      </a>
-      <a @click="openExternalPage()">
-        <v-icon color="white">mdi-open-in-new</v-icon>
-      </a>
     </div>
   </div>
   <!-- No entry resolves for this route (empty or unreachable menu, so not even
@@ -142,7 +167,8 @@ function openExternalPage() {
 }
 
 /* Invisible trigger zone in the very corner; small on purpose so the
-   controls never cover iframe content unless deliberately sought out. */
+   controls never cover iframe content unless deliberately sought out. The
+   controls also appear while one of them holds keyboard focus. */
 .overlay-hotspot {
   position: absolute;
   bottom: 0;
@@ -166,17 +192,9 @@ function openExternalPage() {
 }
 
 .overlay-hotspot:hover ~ .iframe-overlay,
-.iframe-overlay:hover {
+.iframe-overlay:hover,
+.iframe-overlay:focus-within {
   opacity: 1;
   pointer-events: auto;
-}
-
-.iframe-overlay > a {
-  line-height: 0px;
-  cursor: pointer;
-}
-
-.iframe-overlay > a > i {
-  margin: 2px;
 }
 </style>

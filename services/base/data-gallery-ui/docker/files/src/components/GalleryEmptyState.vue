@@ -43,8 +43,8 @@ const presentation = computed(() => {
         icon: undefined,
         color: undefined,
         title: 'This dataset contains no series yet',
-        text: 'Series you add to it with “Add to dataset” appear here. Show all series to pick some.',
-        action: 'Show all series',
+        text: 'Series you add to it with “Add to dataset” appear here. Reset the dataset selection to pick some.',
+        action: 'Reset dataset selection',
         onAction: () => emit('showAll'),
       }
     case 'error':

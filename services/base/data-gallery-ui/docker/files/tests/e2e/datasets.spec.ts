@@ -48,7 +48,7 @@ test('an empty dataset shows no series and says the dataset is empty', async ({ 
   await expect(page.getByRole('button', { name: /^Remove \d+ series/ })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /^Download \d+ series/ })).toHaveCount(0)
 
-  await page.getByRole('button', { name: 'Show all series' }).click()
+  await page.getByRole('button', { name: 'Reset dataset selection' }).click()
   await expect(page.getByText('CT Thorax')).toBeVisible()
   await expect(page.getByLabel('Select Dataset').first()).toHaveValue('')
 })

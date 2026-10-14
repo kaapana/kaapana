@@ -68,7 +68,7 @@ The adapter is responsible for all communication with external engines:
 - Validating workflow definitions.  
 - Scheduling workflow runs.  
 - Fetching state of workflows and task runs.  
-- Cancelling or retrying executions.  
+- Cancelling, retrying and deleting executions.  
 
 #### Adapter Interface (simplified)
 ```python
@@ -79,8 +79,19 @@ class WorkflowEngineAdapter(ABC):
     async def get_workflow_run_status(self, external_id: str) -> WorkflowRunStatus: ...
     async def cancel_workflow_run(self, external_id: str) -> WorkflowRunStatus: ...
     async def retry_workflow_run(self, external_id: str) -> WorkflowRunStatus: ...
+    async def delete_workflow_run(self, external_id: str) -> None: ...
     async def get_task_run_logs(self, external_id: str) -> str: ...
 ```
+
+### Run actions
+
+| Action | Allowed for                                                                    | Effect                                                                                  |
+| ------ | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| Cancel | Created, Pending, Scheduled, Running                                           | A Created run is canceled in the database only; the submission to the engine skips it. |
+| Retry  | Error, Canceled, if the run reached the engine and its data was not cleaned    | The engine re-runs the tasks that did not complete. The run keeps its id.               |
+| Delete | Completed, Error, Canceled, unless a cleanup is pending or running. Admins only | Removes the run data, the engine run and the database records. Cannot be undone.        |
+
+Requests outside these states answer 409 with `{"detail": "<reason>"}`.
 
 ---
 

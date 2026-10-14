@@ -66,7 +66,7 @@ test('a search that matches nothing inside a dataset is not "dataset empty"', as
   await page.getByLabel('Search').first().fill('nothing-matches-this')
   await page.getByRole('button', { name: 'Search', exact: true }).click()
 
-  await expect(page.getByText('No series match the current search')).toBeVisible()
+  await expect(page.getByText('No results found')).toBeVisible()
   await expect(page.getByText('This dataset contains no series yet')).toHaveCount(0)
 })
 
@@ -81,7 +81,7 @@ test('clearing the search inside a dataset searches once, without the dataset', 
   )
   await page.getByLabel('Search').first().fill('nothing-matches-this')
   await page.getByRole('button', { name: 'Search', exact: true }).click()
-  await expect(page.getByText('No series match the current search')).toBeVisible()
+  await expect(page.getByText('No results found')).toBeVisible()
 
   const counts = countRequests(page, /\/dataset\/aggregatedSeriesNum$/, 'POST')
   const unscoped = page.waitForRequest(

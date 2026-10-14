@@ -33,8 +33,8 @@ const presentation = computed(() => {
       return {
         icon: kaapanaIcons.search,
         color: undefined,
-        title: 'No series match the current search',
-        text: 'The search text and filters together exclude every series in this scope. Widen or remove them to see results.',
+        title: 'No results found',
+        text: 'Change the search text or filters to see more series.',
         action: 'Clear search and filters',
         onAction: () => emit('clear'),
       }

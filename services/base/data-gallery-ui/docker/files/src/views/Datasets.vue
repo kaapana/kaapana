@@ -255,7 +255,7 @@
         @save="addToDataset"
         @menu="onDatasetMenu"
       />
-      <v-dialog v-model="workflowDialog" max-width="600" @after-leave="restoreWorkflowFocus">
+      <v-dialog v-model="workflowDialog" max-width="600" @after-leave="onWorkflowDialogClosed">
         <WorkflowExecution
           :identifiers="identifiersOfInterest"
           :onlyLocal="true"
@@ -791,9 +791,11 @@ const { restoreFocus: restoreWorkflowFocus } = useFocusReturn(() => workflowDial
 
 function onWorkflowSubmit() {
   workflowDialog.value = false
-  if (filteredDags.value.length > 0) {
-    filteredDags.value = []
-  }
+}
+
+function onWorkflowDialogClosed() {
+  restoreWorkflowFocus()
+  filteredDags.value = []
 }
 
 function runWorkflowOnSeries(dag: string, seriesInstanceUID: string | null) {

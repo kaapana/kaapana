@@ -98,12 +98,12 @@ class GetRefSeriesOperator:
 
         Args:
             opensearch_index (str): The opensearch index to search for series metadata.
-            search_policy (str, optional): The search policy to filter the series. Can be "reference_uid", "study_uid" or "search_query". Defaults to "reference_uid". "reference_uid" downloads the reference series of a SEG or RTSTRUCT, "study_uid" downloads all series of a study, "search_query" downloads all series based on a search query.
+            search_policy (str, optional): The search policy to filter the series. Can be "reference_uid", "study_uid", "patient_uid" or "search_query". Defaults to "reference_uid". "reference_uid" downloads the reference series of a SEG or RTSTRUCT, "study_uid" downloads all series of a study, "patient_uid" downloads all series of the patient across studies, "search_query" downloads all series based on a search query.
             data_type (str, optional): The type of data to download. Can be "dicom" or "json". Defaults to "dicom".
             search_query (list, optional): The search query for opensearch. Syntax must be the same as for opensearch. Defaults to {}. Must be a bool query (https://opensearch.org/docs/latest/query-dsl/compound/bool).
             parallel_downloads (int, optional): Number of parallel downloads. Defaults to 3.
-            modalities (list, optional): List of modalities to filter the series. Defaults to []. Cant be used together with search_query. Only makes sense in conjunction with search_policy="study_uid".
-            custom_tags (list, optional): List of custom tags to filter the series. Defaults to []. Cant be used together with search_query. Only makes sense in conjunction with search_policy="study_uid".
+            modalities (list, optional): List of modalities to filter the series. Defaults to []. Cant be used together with search_query. Only makes sense in conjunction with search_policy="study_uid" or "patient_uid".
+            custom_tags (list, optional): List of custom tags to filter the series. Defaults to []. Cant be used together with search_query. Only makes sense in conjunction with search_policy="study_uid" or "patient_uid".
             skip_empty_ref_dir (bool, optional): Skip empty reference directories. Defaults to False.
 
         """
@@ -114,12 +114,13 @@ class GetRefSeriesOperator:
         assert search_policy in [
             "reference_uid",
             "study_uid",
+            "patient_uid",
             "search_query",
         ], "Unknown search policy!"
 
         if search_policy == "reference_uid":
             self.prepare_download_function = self.prepare_download_of_ref_series
-        elif search_policy == "study_uid":
+        elif search_policy in ["study_uid", "patient_uid"]:
             self.prepare_download_function = self.prepare_download_of_study_series
 
         assert (
@@ -244,8 +245,8 @@ class GetRefSeriesOperator:
         batch_name: str,
         operator_out_dir: str,
     ) -> DownloadSeries:
-        """Prepare the download of all series of a study. Means:
-        - Find all series of the given study in OpenSearch.
+        """Prepare the download of all series of a study, or of a patient. Means:
+        - Find all series of the given study (or patient) in OpenSearch.
         - Create the target directories for the download.
         - Return a list of DownloadSeries objects, which contains the information needed for the download.
 
@@ -270,25 +271,26 @@ class GetRefSeriesOperator:
 
         logger.info(f"Study instance uid: {study_instance_uid}")
 
+        # "patient_uid" widens the lookup to all studies of the patient. PatientID is
+        # free text, so it is matched exactly on .keyword, not on the analysed field.
+        if self.search_policy == "patient_uid":
+            scope = {"00100020 PatientID_keyword.keyword": ds.PatientID}
+        else:
+            scope = {"0020000D StudyInstanceUID_keyword": study_instance_uid}
+
         # Check if search query is set
         if self.search_query != {}:
             # Check if "must" is set in search query
             if not "must" in self.search_query["bool"]:
                 self.search_query["bool"]["must"] = []
 
-            # Add study_instance_uid to search query
-            self.search_query["bool"]["must"].append(
-                {"term": {"0020000D StudyInstanceUID_keyword": study_instance_uid}}
-            )
+            # Add the study or patient filter to search query
+            self.search_query["bool"]["must"].append({"term": scope})
 
             query = self.search_query
         else:
-            # Take all series of the given study
-            query = {
-                "term": {
-                    "0020000D StudyInstanceUID_keyword": study_instance_uid,
-                }
-            }
+            # Take all series of the given study or patient
+            query = {"term": scope}
 
         logger.info(f"Search query: {query}")
 
@@ -296,15 +298,18 @@ class GetRefSeriesOperator:
             index=self.opensearch_index, query=query
         )
 
-        # Extract SeriesInstanceUID from each study
-        series_instance_uids = [
-            study["_source"]["0020000E SeriesInstanceUID_keyword"]
+        # Extract SeriesInstanceUID and StudyInstanceUID, as "patient_uid" spans studies
+        series_and_study_uids = [
+            (
+                study["_source"]["0020000E SeriesInstanceUID_keyword"],
+                study["_source"]["0020000D StudyInstanceUID_keyword"],
+            )
             for study in series_of_study
         ]
 
         list_of_series = []
 
-        for series_instance_uid in series_instance_uids:
+        for series_instance_uid, series_study_uid in series_and_study_uids:
 
             # Dont download the reference series again
             if series_instance_uid == reference_series_instance_uid:
@@ -324,7 +329,7 @@ class GetRefSeriesOperator:
                 DownloadSeries(
                     series_instance_uid=series_instance_uid,
                     reference_series_uid=series_instance_uid,
-                    study_instance_uid=study_instance_uid,
+                    study_instance_uid=series_study_uid,
                     target_dir=target_dir,
                 )
             )
@@ -478,7 +483,7 @@ class GetRefSeriesOperator:
 
         download_series_list = []
 
-        if self.search_policy == "reference_uid" or self.search_policy == "study_uid":
+        if self.search_policy != "search_query":
             # Prepare the download
             with ThreadPoolExecutor(max_workers=self.parallel_downloads) as executor:
                 futures = []

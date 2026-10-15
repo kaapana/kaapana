@@ -506,6 +506,28 @@ async def update_workflow_run(
     return db_workflow_run
 
 
+async def update_workflow_run_if_status(
+    db: AsyncSession,
+    run_id: int,
+    expected_status: schemas.WorkflowRunStatus,
+    workflow_run_update: schemas.WorkflowRunUpdate,
+) -> bool:
+    """Apply `workflow_run_update` only while the run is still in `expected_status`.
+
+    Returns True iff the row was updated. Lets a background step detect that a
+    request changed the run in the meantime, for example a cancel during submission.
+    """
+    stmt = (
+        update(models.WorkflowRun)
+        .where(models.WorkflowRun.id == run_id)
+        .where(models.WorkflowRun.lifecycle_status == expected_status)
+        .values(**workflow_run_update.model_dump(exclude_unset=True))
+    )
+    result = await db.execute(stmt)
+    await db.commit()
+    return (result.rowcount or 0) == 1
+
+
 # Task
 
 

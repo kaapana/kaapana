@@ -35,6 +35,8 @@ test.describe('visual language', () => {
     await expect(info.locator('.v-icon')).toHaveClass(/(^|\s)mdi-information(\s|$)/)
     const start = page.getByRole('button', { name: /Import the data/ })
     await expect(start.locator('.v-icon')).toHaveClass(/(^|\s)mdi-play(\s|$)/)
+    const copy = page.getByRole('button', { name: 'Copy command' })
+    await expect(copy.locator('.v-icon')).toHaveClass(/(^|\s)mdi-content-copy(\s|$)/)
   })
 
   test('no local font rule overrides the platform typeface', async ({ page }) => {

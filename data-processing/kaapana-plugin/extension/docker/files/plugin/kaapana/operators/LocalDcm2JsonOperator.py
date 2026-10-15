@@ -31,7 +31,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
     * exit_on_error: exit with error, when some key/values are missing or mismatching.
     * delete_pixel_data: uses dcmtk's dcmodify to remove some specific to be known private tags
-    * bulk: process all files of a series or only the first one (default)
+    * bulk: process all files, writing one json per input subfolder, or only the first one (default)
 
     **Outputs:**
 
@@ -125,7 +125,15 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
                 target_dir: Path = batch_element_dir / self.operator_out_dir
                 target_dir.mkdir(exist_ok=True)
-                json_file_path = target_dir / f"{batch_element_dir.name}.json"
+                # In bulk mode one batch element can hold several series, each in
+                # its own subfolder (e.g. get-ref-series with search_policy
+                # "study_uid"). One JSON per subfolder keeps them from all being
+                # written to the same file, where only the last one would survive.
+                json_name = batch_element_dir.name
+                in_dir = batch_element_dir / self.operator_in_dir
+                if self.bulk and dcm_file_path.parent != in_dir:
+                    json_name = dcm_file_path.parent.name
+                json_file_path = target_dir / f"{json_name}.json"
                 if self.data_type == "dcm":
                     dcm = pydicom.read_file(dcm_file_path, stop_before_pixels=True)
                     if self.delete_pixel_data:

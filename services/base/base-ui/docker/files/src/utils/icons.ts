@@ -15,8 +15,10 @@
 // constant across views.
 export const kaapanaIcons = {
   add: 'mdi-plus',
+  archive: 'mdi-archive-arrow-down',
   close: 'mdi-close',
   confirm: 'mdi-check',
+  copy: 'mdi-content-copy',
   delete: 'mdi-delete',
   edit: 'mdi-pencil',
   error: 'mdi-alert-circle',

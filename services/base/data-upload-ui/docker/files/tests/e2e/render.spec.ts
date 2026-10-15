@@ -29,8 +29,16 @@ test('the dcmsend example can be copied', async ({ page, context }) => {
   await page.goto(VIEW_PATH)
 
   const copy = page.getByRole('button', { name: 'Copy command' })
+  const before = (await copy.boundingBox())!
+  await copy.hover()
+  await expect(page.locator('.v-tooltip')).toContainText('Copy command')
   await copy.click()
-  await expect(page.getByRole('button', { name: 'Copied' })).toBeVisible()
+  await expect(copy.locator('.v-icon')).toHaveClass(/(^|\s)mdi-check-circle(\s|$)/)
+  await expect(copy).toHaveClass(/text-success/)
+  await expect(page.getByText('Command copied')).toHaveAttribute('aria-live', 'polite')
+  // The button keeps its size, so the command next to it does not move.
+  const after = (await copy.boundingBox())!
+  expect(after.width).toBe(before.width)
   const copied = await page.evaluate(() => navigator.clipboard.readText())
   expect(copied).toBe(
     `dcmsend -v localhost 11112 --scan-directories --aetitle kp-<dataset-name> ` +

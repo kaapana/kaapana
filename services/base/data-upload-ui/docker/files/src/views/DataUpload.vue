@@ -41,14 +41,23 @@
               <code class="flex-grow-1 text-pre overflow-x-auto" tabindex="0">{{
                 dcmsendCommand
               }}</code>
-              <v-btn
-                variant="text"
-                size="small"
-                :prepend-icon="commandCopied ? kaapanaIcons.success : undefined"
-                @click="copyCommand"
-              >
-                {{ commandCopied ? 'Copied' : 'Copy command' }}
-              </v-btn>
+              <v-tooltip text="Copy command" location="top">
+                <template #activator="{ props: tooltipProps }">
+                  <v-btn
+                    v-bind="tooltipProps"
+                    :icon="commandCopied ? kaapanaIcons.success : kaapanaIcons.copy"
+                    :color="commandCopied ? 'success' : undefined"
+                    variant="text"
+                    size="small"
+                    aria-label="Copy command"
+                    @click="copyCommand"
+                  />
+                </template>
+              </v-tooltip>
+              <!-- Screen readers do not announce the change of the icon. -->
+              <span class="d-sr-only" aria-live="polite">
+                {{ commandCopied ? 'Command copied' : '' }}
+              </span>
             </div>
             <p class="mt-4 mb-2">
               11112 is the default port of the DICOM receiver. Your administrator may have

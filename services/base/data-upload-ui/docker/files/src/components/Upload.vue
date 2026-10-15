@@ -89,8 +89,30 @@ onMounted(() => {
   font-size: inherit;
 }
 
+/* Colour and weight mark the action, so it needs no underline. */
 :deep(.filepond--label-action) {
-  text-decoration-color: rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-primary));
+  font-weight: 500;
+  text-decoration: none;
+}
+
+/* A click anywhere in the drop area opens the file chooser, so the area shows
+   that it is clickable. Keyboard focus gets the same highlight as the pointer. */
+:deep(.filepond--drop-label),
+:deep(.filepond--drop-label label) {
+  cursor: pointer;
+}
+
+:deep(.filepond--root:has(.filepond--drop-label:hover) .filepond--panel-root),
+:deep(.filepond--root:has(.filepond--browser:focus-visible) .filepond--panel-root) {
+  border-color: rgb(var(--v-theme-primary));
+  /* FilePond fills the seams between its panel parts with an inherited
+     background colour, so the tint must be part of that colour. */
+  background-color: color-mix(
+    in srgb,
+    rgb(var(--v-theme-on-surface)) calc(var(--v-hover-opacity) * 100%),
+    rgb(var(--v-theme-surface-light))
+  );
 }
 
 :deep(.filepond--item-panel) {

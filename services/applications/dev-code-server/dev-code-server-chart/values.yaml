@@ -2,6 +2,14 @@
 global:
   ingress_path: "applications/project/{{ .Values.global.project_id }}/release/{{ .Release.Name }}/"
   namespace: "{{ .Values.global.services_namespace }}"
+  # Shared ollama-chart endpoint. Every model named here must also be preloaded in
+  # the ollama image (OLLAMA_PRELOAD_MODELS); offline platforms cannot pull it.
+  ollama_api_base: "http://ollama-service.{{ .Values.global.services_namespace }}.svc:11434"
+  ollama_model: "qwen2.5-coder:7b"
+  # Autocomplete runs on every keystroke pause on a CPU-only service, so it uses a
+  # small fill-in-the-middle model; the 7b model often exceeds Continue's timeout.
+  ollama_autocomplete_model: "qwen2.5-coder:1.5b"
+  ollama_keep_alive: "10m"
   dynamicVolumes:
     - name: dev-code-server
       mount_path: /kaapana/minio/

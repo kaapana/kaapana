@@ -54,11 +54,19 @@ spec:
       - name: code-server
         image: "{{ .Values.global.registry_url }}/dev-code-server:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy: {{ .Values.global.pull_policy_images }}
-        command: ["sh", "-c", "code-server --disable-workspace-trust --auth none --bind-addr 0.0.0.0:8080 ${WORKSPACE}"]
+        # The image entrypoint warms the autocomplete model before code-server starts.
+        command: ["/entrypoint.sh"]
         env:
 {{ include "dynamicEnvs" $ | indent 8 }}
+        # .svc keeps Continue's requests to the shared Ollama service off the proxy.
         - name: no_proxy
-          value: "traefik-{{ .Values.global.instance_uid | default 0 }}.{{ .Values.global.helm_namespace }}.svc"
+          value: "traefik-{{ .Values.global.instance_uid | default 0 }}.{{ .Values.global.helm_namespace }}.svc,.svc,.svc.cluster.local,localhost,127.0.0.1"
+        - name: OLLAMA_API_BASE
+          value: {{ tpl .Values.global.ollama_api_base . | quote }}
+        - name: OLLAMA_WARMUP_MODEL
+          value: {{ .Values.global.ollama_autocomplete_model | quote }}
+        - name: OLLAMA_KEEP_ALIVE
+          value: {{ .Values.global.ollama_keep_alive | quote }}
         - name: http_proxy
           value: {{ .Values.global.http_proxy }}
         - name: https_proxy
@@ -81,6 +89,9 @@ spec:
           - name: configs
             mountPath: /root/.local/share/code-server/User/settings.json
             subPath: settings.json
+          - name: configs
+            mountPath: /root/.continue/config.yaml
+            subPath: continue-config.yaml
 {{ include "dynamicVolumeMounts" $ | indent 10 }}
           - name: dshm
             mountPath: /dev/shm
@@ -93,6 +104,8 @@ spec:
             path: keybindings.json
           - key: user_settings.json
             path: settings.json
+          - key: continue_config.yaml
+            path: continue-config.yaml
 {{ include "dynamicVolumes" $ | indent 6 }}
       - name: dshm
         emptyDir:

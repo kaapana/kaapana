@@ -29,6 +29,15 @@ RUN code-server --install-extension ms-toolsai.jupyter && \
     code-server --install-extension ms-toolsai.jupyter-keymap && \
     code-server --install-extension ms-toolsai.jupyter-renderers
 
+# Continue AI assistant, pinned because the patch below edits its bundled code.
+# Its autocomplete reads the clipboard for context, which never returns in
+# code-server's browser setup, so every completion would hang until cancelled.
+# The grep fails the build when a new Continue version no longer matches.
+RUN code-server --install-extension Continue.continue@1.2.16 && \
+    ext=$(ls /root/.local/share/code-server/extensions/continue.continue-*/out/extension.js) && \
+    sed -i 's/getClipboardSnippets = async (ide) => {/getClipboardSnippets = async (ide) => { return [];/' "$ext" && \
+    grep -q 'getClipboardSnippets = async (ide) => { return \[\];' "$ext"
+
 # Create workspace & entrypoint
 WORKDIR /kaapana
 EXPOSE 8080

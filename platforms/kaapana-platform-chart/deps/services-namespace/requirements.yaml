@@ -21,6 +21,10 @@ dependencies:
     version: 0.0.0
   - name: extension-manager-ui
     version: 0.0.0
+  # One shared model endpoint for every dev-code-server instance; a per-instance
+  # copy would load the multi-GiB models once per launched application.
+  - name: ollama-chart
+    version: 0.0.0
 # MONITORING
   - name: prometheus-chart
     version: 0.0.0

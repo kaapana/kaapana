@@ -402,11 +402,11 @@ Overview
 
 This extension is designed for users who need an interactive coding environment similar to JupyterLab, but with the additional flexibility of VS Code. 
 It utilizes `code-server <https://github.com/coder/code-server>`_ to bring VSCode in the browser.
-Note that this extension is intended to be used with online deployments. If the container can not access the internet, an `OFFLINE_WARNING.txt` will appear next to this `README.md` file.
 The environment includes:
 
 - Python 3 and R support
 - Preinstalled Python, R, and Jupyter extensions in VSCode
+- AI autocomplete and chat that run inside the platform (see :ref:`extensions_dev_code_server_ai`)
 - Access to the project’s MinIO storage
 - Ability to install additional Python or R packages
 
@@ -439,6 +439,21 @@ Preinstalled Components
   - `REditorSupport.r`
   - `ms-toolsai.jupyter-keymap`
   - `ms-toolsai.jupyter-renderers`
+  - `Continue.continue` (AI assistant, pinned to 1.2.16)
+
+.. _extensions_dev_code_server_ai:
+
+AI Autocomplete and Chat
+*************************
+
+The `Continue <https://continue.dev>`_ extension uses the platform's shared Ollama service (:code:`ollama-service` in the services namespace).
+No request leaves the platform, so it also works on offline platforms.
+
+- **Autocomplete** (:code:`qwen2.5-coder:1.5b`): suggestions appear as grey text while typing; accept with :code:`Tab`. :code:`Ctrl+Alt+Space` asks for one explicitly.
+- **Chat, edit and apply** (:code:`qwen2.5-coder:7b`): in the Continue sidebar.
+
+The models run on the CPU and are shared by all users of the platform, so answers can take a few seconds.
+The Continue sidebar only loads when the browser trusts the platform's TLS certificate.
 
 Project Storage and Data Access
 *********************************

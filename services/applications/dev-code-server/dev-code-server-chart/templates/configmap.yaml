@@ -1,3 +1,4 @@
+{{- $ollamaApiBase := tpl .Values.global.ollama_api_base . -}}
 apiVersion: v1
 data:
   keybindings.json: |-
@@ -42,8 +43,54 @@ data:
             "key": "ctrl+shift+k",
             "command": "-editor.action.deleteLines",
             "when": "textInputFocus && !editorReadonly"
+        },
+        {
+            // Keep VS Code's native Ctrl+Space completion and expose Continue's
+            // manual trigger on Ctrl+Alt+Space.
+            "key": "ctrl+alt+space",
+            "command": "continue.forceAutocomplete",
+            "when": "editorTextFocus && !editorHasSelection && !editorReadOnly && !inSnippetMode"
         }
     ]
+  # Continue reads ~/.continue/config.yaml (strict schema in 1.2.x). Both roles use
+  # the shared ollama-chart service, so no request leaves the cluster.
+  continue_config.yaml: |-
+    name: Local Config
+    version: 1.0.0
+    schema: v1
+    models:
+      - name: Local chat
+        provider: ollama
+        model: {{ .Values.global.ollama_model | quote }}
+        apiBase: {{ $ollamaApiBase | quote }}
+        defaultCompletionOptions:
+          maxTokens: 1024
+          contextLength: 8192
+        roles:
+          - chat
+          - edit
+          - apply
+          - summarize
+          - subagent
+      - name: Local autocomplete
+        provider: ollama
+        model: {{ .Values.global.ollama_autocomplete_model | quote }}
+        apiBase: {{ $ollamaApiBase | quote }}
+        defaultCompletionOptions:
+          maxTokens: 96
+          contextLength: 8192
+          temperature: 0.2
+        # CPU inference answers in seconds, not milliseconds: wait long enough
+        # that inline suggestions are not dropped before Ollama answers.
+        autocompleteOptions:
+          modelTimeout: 5000
+          debounceDelay: 350
+          maxPromptTokens: 1024
+          # Continue's post-processing filters out valid local-model completions.
+          transform: false
+          useCache: false
+        roles:
+          - autocomplete
   user_settings.json: |-
     {
         "security.workspace.trust.enabled": false,
@@ -51,9 +98,25 @@ data:
         "security.workspace.trust.untrustedFiles": "open",
         "extensions.supportUntrustedWorkspaces": true,
         "workbench.colorTheme": "Default Dark+",
-        "chat.disableAIFeatures": true,
+        // true also blocks third-party inline completion providers such as
+        // Continue (VS Code 1.105+); the built-in chat stays off via chat.agent.
+        "chat.disableAIFeatures": false,
         "editor.aiStats.enabled": false,
         "chat.agent.enabled": false,
+        // No outbound telemetry, experiments or GitHub login on offline platforms.
+        "telemetry.telemetryLevel": "off",
+        "workbench.enableExperiments": false,
+        "github.gitAuthentication": false,
+        "continue.telemetryEnabled": false,
+        "continue.enableTabAutocomplete": true,
+        // Next Edit falls back to remote providers that an offline cluster cannot reach.
+        "continue.enableNextEdit": false,
+        "editor.inlineSuggest.enabled": true,
+        "editor.inlineSuggest.suppressSuggestions": false,
+        // The image pins and patches Continue; an auto-update would replace it.
+        "extensions.autoCheckUpdates": false,
+        "extensions.autoUpdate": false,
+        "update.mode": "none",
         "python.defaultInterpreterPath": "/opt/venv/bin/python",
         "r.rterm.linux": "/usr/bin/R",
         "r.alwaysUseActiveTerminal": true,

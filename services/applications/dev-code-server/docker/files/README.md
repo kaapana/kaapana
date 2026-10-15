@@ -6,11 +6,10 @@ This extension provides a VS Code Server environment within the Kaapana platform
 
 This extension is designed for users who need an interactive coding environment similar to JupyterLab, but with the additional flexibility of VS Code. It utilizes [`code-server`]([https://](https://github.com/coder/code-server)) to bring VSCode in the browser.
 
-⚠️ Note that this extension is intended to be used with online deployments. If the container can not access the internet, an `OFFLINE_WARNING.txt` will appear next to this `README.md` file.
-
 The environment includes:
 * Python 3 and R support
 * Preinstalled Python, R, and Jupyter extensions in VSCode
+* AI autocomplete and chat that run inside the platform (see below)
 * Access to the project’s MinIO storage
 * Ability to install additional Python or R packages
 
@@ -44,6 +43,22 @@ Extension
 * `REditorSupport.r`
 * `ms-toolsai.jupyter-keymap`
 * `ms-toolsai.jupyter-renderers`
+* `Continue.continue` (AI assistant, pinned to 1.2.16)
+
+## AI Autocomplete and Chat
+
+The [Continue](https://continue.dev) extension uses the platform's shared Ollama service (`ollama-service` in the services namespace). No request leaves the platform, so it also works offline.
+
+* **Autocomplete** (`qwen2.5-coder:1.5b`): suggestions appear as grey text while typing; accept with `Tab`. `Ctrl+Alt+Space` asks for one explicitly.
+* **Chat, edit and apply** (`qwen2.5-coder:7b`): in the Continue sidebar.
+
+The models run on the CPU and are shared by all users of the platform, so answers can take a few seconds.
+
+The Continue sidebar is a web view, and web views only load when the browser trusts the platform's TLS certificate. If the sidebar stays empty, import the platform certificate into the browser:
+
+```bash
+microk8s.kubectl -n services get secret certificate -o jsonpath='{.data.tls\.crt}' | base64 -d > kaapana.crt
+```
 
 ## Project Storage and Data Access
 
@@ -65,13 +80,6 @@ This is a known issue with `code-server`: https://github.com/coder/code-server/i
 
 * The Jupyter extension does not automatically select the correct Python environment, therefore the users must manually choose `/opt/venv/bin/python` as the interpreter each time they open a notebook.
 
-* The AI chat/agent sidebar introduced in newer `code-server` versions cannot currently be turned off via settings.
-Even with configuration options such as:
-```
-"chat.disableAIFeatures": true,
-"chat.agent.enabled": false
-```
-
-the panel still appears in the beginning and must be manually closed.
+* The built-in AI chat/agent sidebar of newer `code-server` versions (not Continue) cannot be turned off via settings; it appears at the start and must be closed manually.
 
 This is a known issue of `code-server`: https://github.com/coder/code-server/issues/754

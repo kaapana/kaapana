@@ -1,0 +1,18 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama-service
+  namespace: "{{ .Values.global.services_namespace }}"
+  labels:
+    app.kubernetes.io/name: ollama-service
+    app.kubernetes.io/component: llm
+spec:
+  selector:
+    app.kubernetes.io/name: ollama-service
+    app.kubernetes.io/component: llm
+  ports:
+    - name: http
+      protocol: TCP
+      port: 11434
+      targetPort: 11434

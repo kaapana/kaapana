@@ -380,8 +380,14 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
         try:
             await self._request(
                 "POST",
-                f"/dags/{dag_id}/dagRuns/{run_id}/clear",
-                json={"dry_run": False},
+                f"/dags/{dag_id}/clearTaskInstances",
+                json={
+                    "dag_run_id": run_id,
+                    "dry_run": False,
+                    "only_failed": True,
+                    "include_downstream": True,
+                    "reset_dag_runs": True,
+                },
             )
         except FileNotFoundError:
             raise RuntimeError("Could not retry workflow. Run not found.")

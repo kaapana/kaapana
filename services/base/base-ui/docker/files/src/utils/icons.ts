@@ -18,6 +18,7 @@ export const kaapanaIcons = {
   add: 'mdi-plus',
   apiDocs: 'mdi-api',
   cleanup: 'mdi-broom',
+  archive: 'mdi-archive-arrow-down',
   close: 'mdi-close',
   confirm: 'mdi-check',
   copy: 'mdi-content-copy',

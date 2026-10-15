@@ -56,6 +56,11 @@ TERMINAL_STATES = {
     schemas.WorkflowRunStatus.CANCELED,
 }
 
+RETRYABLE_STATES = {
+    schemas.WorkflowRunStatus.ERROR,
+    schemas.WorkflowRunStatus.CANCELED,
+}
+
 
 def _should_clean(policy: schemas.CleanupPolicy, status: schemas.WorkflowRunStatus) -> bool:
     """Decide whether a workflow run in `status` is eligible for cleanup under `policy`."""
@@ -337,26 +342,28 @@ async def cancel_workflow_run(db: AsyncSession, workflow_run_id: int) -> schemas
 
 async def retry_workflow_run(db: AsyncSession, workflow_run_id: int) -> schemas.WorkflowRun:
     """
-    Retry a workflow run in the engine and persist the new lifecycle status.
-    Returns the existing schema if the run is in a terminal state or in CREATED."""
+    Retry a failed or canceled workflow run in the engine and persist the new lifecycle status.
+    The engine re-runs only the tasks that did not complete, so the run's data must still exist.
+    Raises ConflictError for every other state, for a run that never reached the engine,
+    and for a run whose data was cleaned or is being cleaned.
+    """
     db_run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
     if not db_run:
         logger.error(f"No workflow runs found to retry {workflow_run_id}")
         raise NotFoundError("Workflow run not found")
 
-    if db_run.lifecycle_status in [
-        schemas.WorkflowRunStatus.COMPLETED,
-        schemas.WorkflowRunStatus.ERROR,
-        schemas.WorkflowRunStatus.CANCELED,
-        schemas.WorkflowRunStatus.CREATED,
-    ]:
-        logger.info(
-            f"Workflow run {workflow_run_id} is already in terminal state or in CREATED state:"
-            f"{db_run.lifecycle_status.value} - returning existing state"
+    if db_run.lifecycle_status not in RETRYABLE_STATES:
+        raise ConflictError(
+            f"Only failed or canceled workflow runs can be retried. This run is {db_run.lifecycle_status.value}."
         )
-        return _workflow_run_to_schema(db_run)
-
-    assert db_run.external_id is not None, "external_id must exist for non-CREATED runs"
+    if db_run.external_id is None:
+        raise ConflictError("This workflow run was canceled before it started, so there is nothing to retry.")
+    if db_run.cleanup_status in {
+        schemas.CleanupStatus.PENDING,
+        schemas.CleanupStatus.RUNNING,
+        schemas.CleanupStatus.CLEANED,
+    }:
+        raise ConflictError("The data of this workflow run was cleaned or is being cleaned, so it cannot be retried.")
 
     engine = get_workflow_engine(db_run.workflow_revision.workflow.workflow_engine)
     new_run_status = await engine.retry_workflow_run(db_run.external_id)

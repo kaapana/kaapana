@@ -311,21 +311,32 @@ async def get_workflow_run_by_id(db: AsyncSession, workflow_run_id: int) -> sche
 
 async def cancel_workflow_run(db: AsyncSession, workflow_run_id: int) -> schemas.WorkflowRun:
     """
-    Cancel a workflow run in the engine and persist the CANCELED state.
-    Returns the existing schema if the run is already in a terminal state or still in CREATED.
+    Cancel a workflow run and persist the CANCELED state.
+    A run still in CREATED has not reached the engine; it is canceled in the
+    database only, and the background submission skips it.
+    Raises ConflictError if the run is already finished.
     """
     db_run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
     if not db_run:
         logger.error(f"No workflow runs found to cancel {workflow_run_id}")
         raise NotFoundError("Workflow run not found")
 
-    if db_run.lifecycle_status in [
-        schemas.WorkflowRunStatus.COMPLETED,
-        schemas.WorkflowRunStatus.ERROR,
-        schemas.WorkflowRunStatus.CANCELED,
-        schemas.WorkflowRunStatus.CREATED,
-    ]:
-        return _workflow_run_to_schema(db_run)
+    if db_run.lifecycle_status in TERMINAL_STATES:
+        raise ConflictError(f"Only active workflow runs can be canceled. This run is {db_run.lifecycle_status.value}.")
+
+    if db_run.lifecycle_status == schemas.WorkflowRunStatus.CREATED:
+        canceled = await crud.update_workflow_run_if_status(
+            db,
+            workflow_run_id,
+            expected_status=schemas.WorkflowRunStatus.CREATED,
+            workflow_run_update=schemas.WorkflowRunUpdate(lifecycle_status=schemas.WorkflowRunStatus.CANCELED),
+        )
+        if canceled:
+            db_updated = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
+            assert db_updated is not None
+            await db.refresh(db_updated)
+            return _workflow_run_to_schema(db_updated)
+        await db.refresh(db_run)
 
     assert db_run.external_id is not None, "external_id must exist for non-CREATED runs"
 
@@ -476,13 +487,34 @@ async def _submit_workflow_run_to_engine(
     workflow_engine: WorkflowEngineAdapter,
     project_id: str,
 ) -> None:
-    """Background task that submits a created workflow run to the engine and persists the engine-assigned `external_id` + initial lifecycle status."""
+    """Background task that submits a created workflow run to the engine and persists the engine-assigned `external_id` + initial lifecycle status.
+
+    Skips runs that were canceled before submission. A run canceled during
+    submission is canceled in the engine right away.
+    """
+    db_run = await crud.get_workflow_run(db, filters={"id": workflow_run.id})
+    if db_run is None or db_run.lifecycle_status != schemas.WorkflowRunStatus.CREATED:
+        logger.info(f"WorkflowRun {workflow_run.id} is no longer CREATED; not submitting it to the engine.")
+        return
+
     wf_run_update = await workflow_engine.submit_workflow_run(workflow_run, project_id=project_id)
     logger.info(f"Submitted WorkflowRun {workflow_run.id} to engine, received update: {wf_run_update}")
     if wf_run_update.external_id is None:
         logger.error(f"Workflow engine did not return an external_id for workflow run {workflow_run.id}")
         raise InternalError("Workflow engine did not return an external_id")
-    await crud.update_workflow_run(db, workflow_run.id, wf_run_update)
+
+    submitted = await crud.update_workflow_run_if_status(
+        db,
+        workflow_run.id,
+        expected_status=schemas.WorkflowRunStatus.CREATED,
+        workflow_run_update=wf_run_update,
+    )
+    if not submitted:
+        logger.info(f"WorkflowRun {workflow_run.id} was canceled during submission; canceling it in the engine.")
+        await workflow_engine.cancel_workflow_run(wf_run_update.external_id)
+        await crud.update_workflow_run(
+            db, workflow_run.id, schemas.WorkflowRunUpdate(external_id=wf_run_update.external_id)
+        )
 
 
 async def _sync_single_workflow_run(db: AsyncSession, run: models.WorkflowRun) -> None:

@@ -797,19 +797,15 @@ async def test_retry_workflow_run_from_any_status(
 
 
 @pytest.mark.parametrize(
-    "initial_status, expected_status_after_cancel, expect_external_id",
+    "initial_status, expected_code, expected_status, expect_external_id",
     [
-        (schemas.WorkflowRunStatus.RUNNING, schemas.WorkflowRunStatus.CANCELED, True),
-        (schemas.WorkflowRunStatus.PENDING, schemas.WorkflowRunStatus.CANCELED, True),
-        (schemas.WorkflowRunStatus.SCHEDULED, schemas.WorkflowRunStatus.CANCELED, True),
-        (schemas.WorkflowRunStatus.CANCELED, schemas.WorkflowRunStatus.CANCELED, True),
-        (
-            schemas.WorkflowRunStatus.COMPLETED,
-            schemas.WorkflowRunStatus.COMPLETED,
-            True,
-        ),
-        (schemas.WorkflowRunStatus.ERROR, schemas.WorkflowRunStatus.ERROR, True),
-        (schemas.WorkflowRunStatus.CREATED, schemas.WorkflowRunStatus.CREATED, False),
+        (schemas.WorkflowRunStatus.RUNNING, 200, schemas.WorkflowRunStatus.CANCELED, True),
+        (schemas.WorkflowRunStatus.PENDING, 200, schemas.WorkflowRunStatus.CANCELED, True),
+        (schemas.WorkflowRunStatus.SCHEDULED, 200, schemas.WorkflowRunStatus.CANCELED, True),
+        (schemas.WorkflowRunStatus.CREATED, 200, schemas.WorkflowRunStatus.CANCELED, False),
+        (schemas.WorkflowRunStatus.CANCELED, 409, None, True),
+        (schemas.WorkflowRunStatus.COMPLETED, 409, None, True),
+        (schemas.WorkflowRunStatus.ERROR, 409, None, True),
     ],
 )
 @pytest.mark.asyncio
@@ -817,7 +813,8 @@ async def test_cancel_workflow_run_from_any_status(
     session: AsyncSession,
     client: AsyncClient,
     initial_status: schemas.WorkflowRunStatus,
-    expected_status_after_cancel: schemas.WorkflowRunStatus,
+    expected_code: int,
+    expected_status: schemas.WorkflowRunStatus | None,
     expect_external_id: bool,
 ):
     _r = await client.post(
@@ -845,8 +842,11 @@ async def test_cancel_workflow_run_from_any_status(
 
     response = await client.put(f"/v1/workflow-runs/{run.id}/cancel")
     data = response.json()
-    assert response.status_code == 200
-    assert data["lifecycle_status"] == expected_status_after_cancel.value
+    assert response.status_code == expected_code, response.text
+    if expected_status is None:
+        assert data["detail"]
+        return
+    assert data["lifecycle_status"] == expected_status.value
     if expect_external_id:
         assert data["external_id"] is not None
     else:

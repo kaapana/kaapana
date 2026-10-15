@@ -735,19 +735,20 @@ async def test_get_task_run_logs_workflow_run_not_found(client: AsyncClient):
 
 
 @pytest.mark.parametrize(
-    "initial_status, expected_status_after_retry, expect_external_id",
+    "initial_status, cleanup_status, external_id, expected_code, expected_status",
     [
-        (schemas.WorkflowRunStatus.RUNNING, schemas.WorkflowRunStatus.PENDING, True),
-        (schemas.WorkflowRunStatus.PENDING, schemas.WorkflowRunStatus.PENDING, True),
-        (schemas.WorkflowRunStatus.SCHEDULED, schemas.WorkflowRunStatus.PENDING, True),
-        (schemas.WorkflowRunStatus.CANCELED, schemas.WorkflowRunStatus.CANCELED, True),
-        (
-            schemas.WorkflowRunStatus.COMPLETED,
-            schemas.WorkflowRunStatus.COMPLETED,
-            True,
-        ),
-        (schemas.WorkflowRunStatus.ERROR, schemas.WorkflowRunStatus.ERROR, True),
-        (schemas.WorkflowRunStatus.CREATED, schemas.WorkflowRunStatus.CREATED, False),
+        (schemas.WorkflowRunStatus.ERROR, schemas.CleanupStatus.NOT_REQUIRED, "ext", 200, "Pending"),
+        (schemas.WorkflowRunStatus.CANCELED, schemas.CleanupStatus.NOT_REQUIRED, "ext", 200, "Pending"),
+        (schemas.WorkflowRunStatus.COMPLETED, schemas.CleanupStatus.NOT_REQUIRED, "ext", 409, None),
+        (schemas.WorkflowRunStatus.RUNNING, schemas.CleanupStatus.NOT_REQUIRED, "ext", 409, None),
+        (schemas.WorkflowRunStatus.PENDING, schemas.CleanupStatus.NOT_REQUIRED, "ext", 409, None),
+        (schemas.WorkflowRunStatus.SCHEDULED, schemas.CleanupStatus.NOT_REQUIRED, "ext", 409, None),
+        (schemas.WorkflowRunStatus.CREATED, schemas.CleanupStatus.NOT_REQUIRED, None, 409, None),
+        (schemas.WorkflowRunStatus.CANCELED, schemas.CleanupStatus.NOT_REQUIRED, None, 409, None),
+        (schemas.WorkflowRunStatus.ERROR, schemas.CleanupStatus.CLEANED, "ext", 409, None),
+        (schemas.WorkflowRunStatus.ERROR, schemas.CleanupStatus.PENDING, "ext", 409, None),
+        (schemas.WorkflowRunStatus.ERROR, schemas.CleanupStatus.RUNNING, "ext", 409, None),
+        (schemas.WorkflowRunStatus.ERROR, schemas.CleanupStatus.FAILED, "ext", 200, "Pending"),
     ],
 )
 @pytest.mark.asyncio
@@ -755,9 +756,12 @@ async def test_retry_workflow_run_from_any_status(
     session: AsyncSession,
     client: AsyncClient,
     initial_status: schemas.WorkflowRunStatus,
-    expected_status_after_retry: schemas.WorkflowRunStatus,
-    expect_external_id: bool,
+    cleanup_status: schemas.CleanupStatus,
+    external_id: str | None,
+    expected_code: int,
+    expected_status: str | None,
 ):
+    """Only failed or canceled runs that reached the engine and still have their data can be retried."""
     _r = await client.post(
         "/v1/workflows",
         json={
@@ -774,22 +778,22 @@ async def test_retry_workflow_run_from_any_status(
     wf = _r.json()
     run = models.WorkflowRun(
         workflow_revision_id=await _first_revision_id(client, wf),
-        external_id="test-external-id" if expect_external_id else None,
+        external_id=external_id,
         lifecycle_status=initial_status,
+        cleanup_status=cleanup_status,
     )
     session.add(run)
     await session.commit()
     await session.refresh(run)
 
     response = await client.put(f"/v1/workflow-runs/{run.id}/retry")
-    data = response.json()
-    assert response.status_code == 200
-    assert data["lifecycle_status"] == expected_status_after_retry.value
-
-    if expect_external_id:
-        assert data["external_id"] is not None
+    assert response.status_code == expected_code, response.text
+    if expected_status is not None:
+        data = response.json()
+        assert data["lifecycle_status"] == expected_status
+        assert data["external_id"] == external_id
     else:
-        assert data["external_id"] is None
+        assert response.json()["detail"]
 
 
 @pytest.mark.parametrize(

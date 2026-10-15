@@ -39,6 +39,31 @@ test.describe('visual language', () => {
     await expect(copy.locator('.v-icon')).toHaveClass(/(^|\s)mdi-content-copy(\s|$)/)
   })
 
+  test('the drop zone shows that it opens the file chooser', async ({ page }) => {
+    const dropLabel = page.locator('.filepond--drop-label')
+    const panel = page.locator('.filepond--panel-center')
+    await expect(dropLabel.locator('label')).toHaveCSS('cursor', 'pointer')
+    const idleBorder = await panel.evaluate((el) => getComputedStyle(el).borderLeftColor)
+    await dropLabel.hover()
+    await expect(panel).not.toHaveCSS('border-left-color', idleBorder)
+    // Colour and weight mark the browse action instead of an underline.
+    const browse = page.locator('.filepond--label-action')
+    await expect(browse).toHaveCSS('text-decoration-line', 'none')
+    await expect(browse).toHaveCSS('font-weight', '500')
+  })
+
+  test('keyboard focus on the drop zone is visible', async ({ page }) => {
+    const input = page.locator('.filepond--browser')
+    const panel = page.locator('.filepond--panel-center')
+    const idleBorder = await panel.evaluate((el) => getComputedStyle(el).borderLeftColor)
+    for (let i = 0; i < 10; i++) {
+      await page.keyboard.press('Tab')
+      if (await input.evaluate((el) => el === document.activeElement)) break
+    }
+    await expect(input).toBeFocused()
+    await expect(panel).not.toHaveCSS('border-left-color', idleBorder)
+  })
+
   test('no local font rule overrides the platform typeface', async ({ page }) => {
     const fonts = await page.evaluate(() => ({
       app: getComputedStyle(document.querySelector('#app')!).fontFamily,

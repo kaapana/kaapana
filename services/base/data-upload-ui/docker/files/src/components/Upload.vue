@@ -19,8 +19,7 @@ import vueFilePond, { setOptions } from 'vue-filepond'
 import type { FilePondFile } from 'filepond'
 import 'filepond/dist/filepond.min.css'
 import { getProjectBase } from '@kaapana/base-ui'
-
-const UPLOAD_URL = '/kaapana-backend/client/file'
+import { UPLOAD_URL } from '@/api/config'
 
 // FilePond provides relativePath at runtime, but its type definitions omit it.
 type UploadFile = FilePondFile & { relativePath?: string }

@@ -7,6 +7,7 @@ Routes covered:
 - GET /v1/workflow-runs/{workflow_run_id}
 - PUT /v1/workflow-runs/{workflow_run_id}/cancel
 - PUT /v1/workflow-runs/{workflow_run_id}/retry
+- DELETE /v1/workflow-runs/{workflow_run_id}
 - GET /v1/workflow-runs/{workflow_run_id}/task-runs
 - GET /v1/workflow-runs/{workflow_run_id}/task-runs/{task_run_id}
 - GET /v1/workflow-runs/{workflow_run_id}/task-runs/{task_run_id}/logs

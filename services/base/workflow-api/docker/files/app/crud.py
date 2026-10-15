@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple, Type
 
 from fastapi.encoders import jsonable_encoder
-from sqlalchemy import Select, select, update
+from sqlalchemy import Select, delete, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -526,6 +526,17 @@ async def update_workflow_run_if_status(
     result = await db.execute(stmt)
     await db.commit()
     return (result.rowcount or 0) == 1
+
+
+async def delete_workflow_run(db: AsyncSession, run_id: int) -> None:
+    """Permanently delete a workflow run with its task runs and label links.
+
+    The labels themselves are shared with other runs and revisions and stay.
+    """
+    await db.execute(delete(models.TaskRun).where(models.TaskRun.workflow_run_id == run_id))
+    await db.execute(delete(models.workflowrun_label).where(models.workflowrun_label.c.workflowrun_id == run_id))
+    await db.execute(delete(models.WorkflowRun).where(models.WorkflowRun.id == run_id))
+    await db.commit()
 
 
 # Task

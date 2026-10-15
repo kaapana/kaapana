@@ -151,6 +151,8 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
             if resp.status_code == 404:
                 raise FileNotFoundError(f"Resource not found at {url}")
             resp.raise_for_status()
+            if resp.status_code == 204:
+                return None
 
             content_type = resp.headers.get("content-type", "").split(";")[0].strip()
 
@@ -392,6 +394,13 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
         except FileNotFoundError:
             raise RuntimeError("Could not retry workflow. Run not found.")
         return schemas.WorkflowRunStatus.PENDING
+
+    async def delete_workflow_run(self, workflow_run_external_id: str) -> None:
+        dag_id, run_id = self._parse_composite_id(workflow_run_external_id)
+        try:
+            await self._request("DELETE", f"/dags/{dag_id}/dagRuns/{run_id}")
+        except FileNotFoundError:
+            self.logger.info(f"DAG run {workflow_run_external_id} is already gone from Airflow.")
 
     async def get_task_run_logs(self, task_run_external_id: str) -> list[schemas.LogLine]:
         raw_log = await self._fetch_raw_logs(task_run_external_id)

@@ -658,6 +658,15 @@ export default Vue.extend({
         this.popUpItem = item;
         for (let key of Object.keys(item["extension_params"])) {
           this.popUpExtension[key] = item["extension_params"][key]["default"];
+          // "-" means "no name", so every instance of a multi-installable app is listed under
+          // the same ui-visible-name; prefill <prefix>-<project>-<user>-<date> instead. Spaces
+          // become dashes because kube-helm strips them from --set values.
+          if (key === "display_name" && this.popUpExtension[key] === "-") {
+            const prefix = item.annotations?.["launch-name-prefix"] ?? item.annotations?.["ui-visible-name"] ?? item.name;
+            const today = new Date().toISOString().split("T")[0];
+            this.popUpExtension[key] = [prefix.replace(/\s+/g, "-"), this.$store.getters.selectedProject?.name,
+              this.$store.getters.currentUser?.username, today].filter(Boolean).join("-");
+          }
         }
       } else {
         this.installChart(item);

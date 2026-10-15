@@ -10,3 +10,4 @@ keywords:
 annotations:
   documentation: "user_guide/extensions.html#code-server-for-development"
   ui-visible-name: "Code Server for Development"
+  launch-name-prefix: "DevCodeServer"

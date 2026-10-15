@@ -109,6 +109,18 @@ class WorkflowEngineAdapter(ABC):
         pass
 
     @abstractmethod
+    async def delete_workflow_run(self, workflow_run_external_id: str) -> None:
+        """
+        Deletes a finished workflow run and its history from the engine.
+
+        Must be idempotent: a no-op if the engine no longer knows the run.
+
+        Args:
+            workflow_run_external_id (str): The ID of the workflow run in the engine.
+        """
+        pass
+
+    @abstractmethod
     async def get_task_run_logs(self, task_run_external_id: str) -> list[schemas.LogLine]:
         """
         Gets the parsed, structured logs of a task run from the engine.

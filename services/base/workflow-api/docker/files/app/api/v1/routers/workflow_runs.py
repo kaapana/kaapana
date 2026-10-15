@@ -79,6 +79,23 @@ async def retry_workflow_run(
     return await service.retry_workflow_run(db, workflow_run_id)
 
 
+@router.delete("/workflow-runs/{workflow_run_id}", status_code=204)
+async def delete_workflow_run(
+    workflow_run_id: int,
+    db: AsyncSession = Depends(get_async_db),
+):
+    """
+    Permanently delete a finished workflow run with its task runs, its data and its engine run.
+    Only admins can delete workflow runs. The gateway enforces this, because only the admin role can reach this API.
+
+    Errors:
+      - 404 if the run does not exist.
+      - 409 if the run is not finished or its data is being cleaned.
+      - 503 if the data or the engine run could not be deleted; the run is kept.
+    """
+    await service.delete_workflow_run(db, workflow_run_id)
+
+
 @router.get("/workflow-runs/{workflow_run_id}/task-runs", response_model=List[schemas.TaskRun])
 async def get_workflow_run_task_runs(
     workflow_run_id: int,

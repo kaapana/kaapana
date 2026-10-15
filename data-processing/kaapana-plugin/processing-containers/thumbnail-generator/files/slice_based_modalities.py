@@ -66,19 +66,32 @@ def generate_thumbnail_for_middle_slice(
         logger.info("No series metadata found -> Not generating a thumbnail")
         return None
 
-    if not series_metadata.is_series_complete:
-        logger.info("Not updating thumbnail using incomplete series.")
-        return None
-
     middle_instance_number = (
         series_metadata.min_instance_number + series_metadata.max_instance_number
     ) // 2
 
-    instance_uid = _get_instance_uid_from_local(
-        operator_in_dir=operator_in_dir,
-        operator_out_dir=operator_out_dir,
-        middle_instance_number=middle_instance_number,
-    )
+    instance_uid = None
+    if (
+        not series_metadata.is_series_complete
+        and series_metadata.thumbnail_instance_uid
+    ):
+        # Rebuild the existing thumbnail from its stored slice, since returning None
+        # fails the task. dcm-send runs before this task, so the slice is in PACS.
+        logger.info("Not updating thumbnail using incomplete series.")
+        instance_uid = series_metadata.thumbnail_instance_uid
+        HelperDcmWeb().download_instance(
+            study_uid=study_uid,
+            series_uid=series_uid,
+            instance_uid=instance_uid,
+            target_dir=str(operator_out_dir),
+        )
+
+    if not instance_uid:
+        instance_uid = _get_instance_uid_from_local(
+            operator_in_dir=operator_in_dir,
+            operator_out_dir=operator_out_dir,
+            middle_instance_number=middle_instance_number,
+        )
 
     if not instance_uid:
         instance_uid = _get_instance_uid_from_pacs(
@@ -86,6 +99,21 @@ def generate_thumbnail_for_middle_slice(
             middle_instance_number=middle_instance_number,
             study_uid=study_uid,
             series_uid=series_uid,
+        )
+
+    if not instance_uid:
+        # The middle slice is missing locally and in PACS: not yet arrived for an
+        # incomplete series, or gone although OpenSearch reports the series complete.
+        local_numbers = [
+            pydicom.dcmread(f, stop_before_pixels=True).InstanceNumber
+            for f in operator_in_dir.iterdir()
+        ]
+        instance_uid = _get_instance_uid_from_local(
+            operator_in_dir=operator_in_dir,
+            operator_out_dir=operator_out_dir,
+            middle_instance_number=min(
+                local_numbers, key=lambda n: abs(n - middle_instance_number)
+            ),
         )
 
     if not instance_uid:
@@ -156,7 +184,8 @@ def _get_instance_uid_from_pacs(
 
     if len(instances) == 1:
         instance = instances[0]
-        instance_uid = instance["00080018"]
+        # QIDO-RS answers in DICOM JSON, where each tag is {"vr": ..., "Value": [...]}.
+        instance_uid = instance["00080018"]["Value"][0]
 
         dcmweb_helper.download_instance(
             study_uid=study_uid,

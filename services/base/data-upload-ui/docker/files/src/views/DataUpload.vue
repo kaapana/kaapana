@@ -36,8 +36,11 @@
               If you have images locally you can use e.g. DCMTK. However, any tool that sends images
               to a DICOM receiver can be used. Here is an example of sending images with DCMTK:
             </p>
-            <div class="d-flex align-start ga-2 bg-surface-light rounded pa-3">
-              <code class="flex-grow-1 dcmsend-command">{{ dcmsendCommand }}</code>
+            <div class="d-flex align-center ga-2 bg-surface-light rounded pa-3">
+              <!-- The command scrolls sideways, so the keyboard must be able to reach it. -->
+              <code class="flex-grow-1 text-pre overflow-x-auto" tabindex="0">{{
+                dcmsendCommand
+              }}</code>
               <v-btn
                 variant="text"
                 size="small"
@@ -250,12 +253,6 @@ if (!localStorage['settings']) {
 </script>
 
 <style scoped>
-/* Long paths and placeholders must wrap instead of widening the card. */
-.dcmsend-command {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
 /* The numbered icons mark the steps, so the list needs no markers of its own. */
 .upload-steps {
   list-style: none;

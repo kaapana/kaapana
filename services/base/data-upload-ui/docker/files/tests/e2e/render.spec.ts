@@ -38,6 +38,31 @@ test('the dcmsend example can be copied', async ({ page, context }) => {
   )
 })
 
+test('the dcmsend example is one line that scrolls sideways', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await installMockBackend(page)
+  await page.goto(VIEW_PATH)
+
+  const command = page.locator('code', { hasText: 'dcmsend -v' })
+  const layout = await command.evaluate((el) => {
+    const text = document.createRange()
+    text.selectNodeContents(el)
+    return {
+      lines: text.getClientRects().length,
+      scrollWidth: el.scrollWidth,
+      clientWidth: el.clientWidth,
+    }
+  })
+  expect(layout.lines).toBe(1)
+  expect(layout.scrollWidth).toBeGreaterThan(layout.clientWidth)
+
+  // Keyboard users can reach the command and scroll it.
+  await page.keyboard.press('Tab')
+  await expect(command).toBeFocused()
+  await page.keyboard.press('ArrowRight')
+  await expect.poll(() => command.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0)
+})
+
 test('the dcmsend example explains the default port and the dataset name limit', async ({
   page,
 }) => {

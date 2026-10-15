@@ -283,7 +283,7 @@ get_data()
 }
 /* Vuetify pins medium-emphasis text to on-background; follow the card's colour instead. */
 .selected .text-medium-emphasis {
-  color: inherit !important;
+  color: rgba(var(--v-theme-on-primary), 0.8) !important;
 }
 /* The details button and validation badges sit on the thumbnail, whose colours
    can be anything. White on its own 60 % black backdrop stays readable on every

@@ -11,6 +11,7 @@ _MOCKED_RUN_STATUSES: dict[str, schemas.WorkflowRunStatus] = {}
 # cleanup to raise, and inspect which runs were cleaned.
 _MOCKED_CLEAN_RAISES: set[str] = set()
 _CLEANED_RUNS: set[str] = set()
+_DELETED_RUNS: set[str] = set()
 
 
 class DummyAdapter(WorkflowEngineAdapter):
@@ -132,6 +133,13 @@ class DummyAdapter(WorkflowEngineAdapter):
         """
         return schemas.WorkflowRunStatus.PENDING
 
+    @staticmethod
+    def was_deleted(external_id: str) -> bool:
+        return external_id in _DELETED_RUNS
+
+    async def delete_workflow_run(self, workflow_run_external_id: str) -> None:
+        _DELETED_RUNS.add(workflow_run_external_id)
+
     async def get_task_run_logs(self, task_run_external_id: str) -> list[schemas.LogLine]:
         raw_log = await self._fetch_raw_logs(task_run_external_id)
         return self._parse_task_run_logs(raw_log)
@@ -168,6 +176,7 @@ class DummyAdapter(WorkflowEngineAdapter):
     def reset_cleanup_state() -> None:
         _MOCKED_CLEAN_RAISES.clear()
         _CLEANED_RUNS.clear()
+        _DELETED_RUNS.clear()
 
     @staticmethod
     def was_cleaned(external_id: str) -> bool:

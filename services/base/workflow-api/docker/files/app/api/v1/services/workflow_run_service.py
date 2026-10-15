@@ -8,6 +8,7 @@ from app import crud, models, schemas
 from app.adapters import WorkflowEngineAdapter, get_workflow_engine
 from app.api.v1.services.errors import (
     ConflictError,
+    DependencyError,
     InternalError,
     NotFoundError,
     ValidationError,
@@ -601,6 +602,49 @@ async def trigger_cleanup(db: AsyncSession, workflow_run_id: int) -> schemas.Wor
     db_run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
     assert db_run is not None
     return _workflow_run_to_schema(db_run)
+
+
+async def delete_workflow_run(db: AsyncSession, workflow_run_id: int) -> None:
+    """
+    Permanently delete a finished workflow run: its data, its engine run and its records.
+
+    Raises ConflictError while the run is active or its data is being cleaned.
+    The records are removed only after the data and the engine run are gone,
+    so a failure leaves a run that can be deleted again.
+    """
+    db_run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
+    if not db_run:
+        raise NotFoundError("Workflow run not found")
+
+    if db_run.lifecycle_status not in TERMINAL_STATES:
+        raise ConflictError("Only finished workflow runs can be deleted. Cancel the run first.")
+    if db_run.cleanup_status in {
+        schemas.CleanupStatus.PENDING,
+        schemas.CleanupStatus.RUNNING,
+    }:
+        raise ConflictError("The data of this workflow run is being cleaned. Delete it once the cleanup has finished.")
+
+    if db_run.external_id is not None:
+        engine = get_workflow_engine(db_run.workflow_revision.workflow.workflow_engine)
+        if db_run.cleanup_status != schemas.CleanupStatus.CLEANED:
+            project_id = _project_id_from_run(db_run)
+            if project_id is None:
+                raise ConflictError(
+                    "The data of this workflow run cannot be located because it has no project label. "
+                    "It was not deleted."
+                )
+            try:
+                await engine.clean_workflow_run_data(db_run.external_id, project_id)
+            except Exception as e:
+                logger.exception(f"Deleting the data of workflow run {workflow_run_id} failed")
+                raise DependencyError(f"The data of this workflow run could not be deleted: {e}") from e
+        try:
+            await engine.delete_workflow_run(db_run.external_id)
+        except Exception as e:
+            logger.exception(f"Deleting workflow run {workflow_run_id} in the engine failed")
+            raise DependencyError(f"The workflow run could not be deleted in the workflow engine: {e}") from e
+
+    await crud.delete_workflow_run(db, workflow_run_id)
 
 
 async def sync_active_runs(db: AsyncSession):

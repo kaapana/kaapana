@@ -59,15 +59,17 @@
                 {{ commandCopied ? 'Command copied' : '' }}
               </span>
             </div>
-            <p class="mt-4 mb-2">
-              11112 is the default port of the DICOM receiver. Your administrator may have
-              configured a different port for this platform.
-            </p>
-            <p>
-              Replace {{ '<' }}dataset-name{{ '>' }} with the dataset that should receive the
-              images. DICOM AE titles have at most 16 characters, so the dataset name can have at
-              most 13 characters after the kp- prefix.
-            </p>
+            <div class="mt-2 text-caption text-medium-emphasis">
+              <p class="mb-1">
+                11112 is the default port of the DICOM receiver. Your administrator may have
+                configured a different port for this platform.
+              </p>
+              <p>
+                Replace {{ '<' }}dataset-name{{ '>' }} with the dataset that should receive the
+                images. DICOM AE titles have at most 16 characters, so the dataset name can have at
+                most 13 characters after the kp- prefix.
+              </p>
+            </div>
           </v-card-text>
         </v-card>
       </v-col>

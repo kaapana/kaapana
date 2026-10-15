@@ -81,6 +81,11 @@ test('the dcmsend example explains the default port and the dataset name limit',
   await expect(page.getByText('11112 is the default port of the DICOM receiver.')).toBeVisible()
   // The calling AE title carries the dataset name and is limited to 16 characters.
   await expect(page.getByText(/at most 13 characters after the kp- prefix/)).toBeVisible()
+  // Both notes support the command, so they share the helper text style.
+  const notes = page.locator('.text-caption.text-medium-emphasis', {
+    hasText: '11112 is the default port',
+  })
+  await expect(notes).toContainText('at most 13 characters')
 })
 
 test('empty state: dropzone idle with no file rows', async ({ page }) => {

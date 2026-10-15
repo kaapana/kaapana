@@ -36,7 +36,7 @@ class MinioOperatorArguments(BaseSettings):
     The string zip_files is converted to a boolean.
     """
 
-    action: str
+    action: str = Field(validation_alias="MINIO_ACTION")
     bucket_name: str = Field("", validation_alias="BUCKET_NAME")
     minio_prefix: str = Field("", validation_alias="MINIO_PREFIX")
     zip_files: bool = Field(True)

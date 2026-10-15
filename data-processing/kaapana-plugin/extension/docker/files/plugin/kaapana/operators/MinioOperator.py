@@ -74,7 +74,10 @@ class MinioOperator(KaapanaBaseOperator):
         env_vars = {}
 
         envs = {
-            "ACTION": action.lower(),
+            # Not plain ACTION: KaapanaBaseOperator.execute() copies every
+            # workflow_form key upper-cased into the container env, so a form field
+            # "action" (e.g. LocalTaggingOperator's "add") would replace "put"/"get".
+            "MINIO_ACTION": action.lower(),
             "BUCKET_NAME": str(bucket_name),
             "MINIO_PREFIX": minio_prefix,
             "SOURCE_FILES": ",".join(source_files),

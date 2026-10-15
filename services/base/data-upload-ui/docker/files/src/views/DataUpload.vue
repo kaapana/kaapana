@@ -21,7 +21,7 @@
       :text="projectLoadErrorText"
       :error="projectLoadError ? apiErrorInfo(projectLoadError) : null"
     />
-    <v-alert v-if="isArchived" type="warning" prominent class="mb-4" icon="mdi-archive">
+    <v-alert v-if="isArchived" type="warning" prominent class="mb-4" :icon="kaapanaIcons.archive">
       This project is archived and is read-only. Data upload is disabled. Unarchive the project to
       enable uploads again.
     </v-alert>

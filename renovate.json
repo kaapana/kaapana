@@ -205,7 +205,8 @@
         "services/base/results-ui/**",
         "services/base/federated-ui/**",
         "services/base/workflow-execution-ui/**",
-        "services/base/workflow-list-ui/**"
+        "services/base/workflow-list-ui/**",
+        "services/applications/collabora/docker/wopi/files/ui/**"
       ],
       "matchManagers": ["npm"],
       "addLabels": ["Coverage: e2e"],

@@ -162,7 +162,7 @@ changed file in its description.
 | Label | Meaning | Components |
 | --- | --- | --- |
 | `Coverage: unit` | Unit tests run in the `unittest` stage | `lib/*`, `workflow-api`, `portal-api`, `kaapana-backend`, `extension-manager-service`, `notification-service`, `auth-backend`, `keycloak-setup`, `dicom-web-filter`, `access-information-interface`, `kaapana-plugin` |
-| `Coverage: e2e` | Playwright tests against a mocked backend in `ui_e2e_tests` | `base-ui` and the 10 UIs in the `ui_e2e_tests` matrix |
+| `Coverage: e2e` | Playwright tests against a mocked backend in `ui_e2e_tests` | `base-ui` and the 11 UIs in the `ui_e2e_tests` matrix |
 | `Coverage: integration` | The workflow runs in `run_workflows`. The job may fail, so check it. | processing pipelines with a `ci-config/` directory |
 | `Coverage: pipeline` | The MR pipeline uses the dependency itself | `ci/`, `.gitlab-ci.yml`, `.pre-commit-config.yaml`, `tests/` |
 | `Coverage: none` | Only the build and the deployment | everything else |

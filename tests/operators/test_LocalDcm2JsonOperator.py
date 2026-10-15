@@ -159,6 +159,19 @@ def test_plus_timezone_datetime(op):
         op.start()
 
 
+# Bulk mode with several series in one batch element, one subfolder each
+def test_bulk_writes_one_json_per_series_folder(op, tmp_path):
+    op.bulk = True
+    op.airflow_workflow_dir = str(tmp_path)
+    element_dir = tmp_path / DAG_RUN_ID / BATCH_NAME / "ref"
+    generate_ct(element_dir / OPERATOR_IN_DIR / "series-a" / "ct.dcm", {})
+    generate_ct(element_dir / OPERATOR_IN_DIR / "series-b" / "ct.dcm", {})
+    op.start()
+
+    out_files = (element_dir / OPERATOR_OUT_DIR).glob("*.json")
+    assert sorted(f.name for f in out_files) == ["series-a.json", "series-b.json"]
+
+
 @pytest.mark.parametrize(
     "input_age, expected_output",
     [

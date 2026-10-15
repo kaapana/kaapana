@@ -1,4 +1,5 @@
 import logging
+from urllib.parse import quote
 from uuid import UUID
 
 import httpx
@@ -77,6 +78,46 @@ async def delete_instance_dcm4chee(
         )
 
         return Response(content=response.content, status_code=response.status_code)
+
+
+async def proxy_patients_dcm4chee(method: str, path: str, request: Request):
+    # Patient records are not mapped to projects, so these routes would list and
+    # change every project's patients; only admins may reach them.
+    if request.scope.get("admin") is not True:
+        return Response(status_code=403)
+
+    async with httpx.AsyncClient() as client:
+        response = await client.request(
+            method,
+            f"{DICOMWEB_BASE_URL}/patients{path}",
+            params=request.query_params,
+            headers=dict(request.headers),
+        )
+
+    return Response(
+        content=response.content,
+        status_code=response.status_code,
+        media_type=response.headers.get("content-type"),
+    )
+
+
+@router.get("/patients", tags=["Custom"])
+async def get_patients(request: Request):
+    return await proxy_patients_dcm4chee("GET", "", request)
+
+
+@router.post("/patients/issuer/{issuer}", tags=["Custom"])
+async def update_patient_issuer(issuer: str, request: Request):
+    return await proxy_patients_dcm4chee("POST", f"/issuer/{issuer}", request)
+
+
+# A PatientID may contain "/", which arrives here already decoded: ":path" keeps it
+# in one parameter and quote() re-escapes it, so dcm4chee sees a single segment.
+@router.delete("/patients/{patient_id:path}", tags=["Custom"])
+async def delete_patient(patient_id: str, request: Request):
+    return await proxy_patients_dcm4chee(
+        "DELETE", f"/{quote(patient_id, safe='')}", request
+    )
 
 
 @router.delete("/projects/{project_id}/studies/{study}", tags=["Custom"])

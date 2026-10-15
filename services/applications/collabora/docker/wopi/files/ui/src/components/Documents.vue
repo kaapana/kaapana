@@ -40,49 +40,106 @@
     </div>
 
     <template v-else-if="loaded">
-      <v-card v-if="visibleDocuments.length">
-        <v-list lines="two">
-          <v-list-item
-            v-for="doc in visibleDocuments"
-            :key="`${doc.file.bucket}/${doc.file.path}`"
-            :href="doc.url"
-            target="_blank"
-            rel="noopener"
-            :title="doc.file.path"
-            :subtitle="`${doc.file.bucket} · Modified ${formatDate(doc.file.modification_time)}`"
-            :aria-label="`${doc.file.path}: ${doc.action_name} in ${doc.app_name} (opens in a new tab)`"
-          >
-            <template #prepend>
-              <v-avatar rounded="0">
-                <v-img v-if="doc.favicon" :src="doc.favicon" alt="" />
-                <v-icon v-else icon="mdi-file-document-outline" />
-              </v-avatar>
-            </template>
-            <template #append>
-              <v-icon :icon="kaapanaIcons.externalLink" size="small" />
-            </template>
-          </v-list-item>
-        </v-list>
-      </v-card>
-
       <v-empty-state
-        v-else-if="documents.length"
-        :icon="kaapanaIcons.search"
-        size="56"
-        title="No matching documents"
-        :text="`No document path contains “${filter}”.`"
-      >
-        <template #actions>
-          <v-btn color="primary" variant="text" @click="filter = ''">Clear search</v-btn>
-        </template>
-      </v-empty-state>
-
-      <v-empty-state
-        v-else
+        v-if="!documents.length"
         size="56"
         title="No documents yet"
         text="Office documents in the MinIO bucket of this project appear here."
       />
+
+      <template v-else>
+        <nav v-if="!searching" class="documents__crumbs mb-2" aria-label="Folder">
+          <template v-for="(crumb, index) in crumbs" :key="index">
+            <v-icon v-if="index > 0" :icon="folderIcons.separator" size="small" />
+            <span
+              v-if="index === crumbs.length - 1"
+              class="documents__crumb documents__crumb--current"
+              aria-current="location"
+            >
+              {{ crumb.title }}
+            </span>
+            <v-btn
+              v-else
+              variant="text"
+              size="small"
+              class="documents__crumb"
+              @click="folder = crumb.path"
+            >
+              {{ crumb.title }}
+            </v-btn>
+          </template>
+        </nav>
+        <p v-else class="text-body-2 text-medium-emphasis mb-2" role="status">
+          {{ rows.length }} {{ rows.length === 1 ? 'document' : 'documents' }} in all folders
+        </p>
+
+        <v-card v-if="rows.length">
+          <v-table class="documents__table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th class="d-none d-sm-table-cell">Modified</th>
+                <th class="d-none d-sm-table-cell text-end">Size</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template v-for="row in rows" :key="rowKey(row)">
+                <tr v-if="row.kind === 'folder'" class="documents__row" @click="folder = row.path">
+                  <td>
+                    <button
+                      type="button"
+                      class="documents__name"
+                      :aria-label="`Open folder ${row.name}`"
+                      @click.stop="folder = row.path"
+                    >
+                      <v-avatar rounded="0" size="24">
+                        <v-icon :icon="folderIcons.folder" color="primary" />
+                      </v-avatar>
+                      <span>{{ row.name }}</span>
+                    </button>
+                  </td>
+                  <td class="d-none d-sm-table-cell">{{ formatDate(row.modified) }}</td>
+                  <td class="d-none d-sm-table-cell text-end text-medium-emphasis">
+                    {{ row.count }} {{ row.count === 1 ? 'document' : 'documents' }}
+                  </td>
+                </tr>
+                <tr v-else class="documents__row">
+                  <td>
+                    <a
+                      class="documents__name"
+                      :href="row.doc.url"
+                      target="_blank"
+                      rel="noopener"
+                      :aria-label="`${row.doc.file.path}: ${row.doc.action_name} in ${row.doc.app_name} (opens in a new tab)`"
+                    >
+                      <v-avatar rounded="0" size="24">
+                        <v-img v-if="row.doc.favicon" :src="row.doc.favicon" alt="" />
+                        <v-icon v-else :icon="folderIcons.file" />
+                      </v-avatar>
+                      <span>{{ row.name }}</span>
+                      <v-icon :icon="kaapanaIcons.externalLink" size="x-small" />
+                    </a>
+                  </td>
+                  <td class="d-none d-sm-table-cell">{{ formatDate(row.modified) }}</td>
+                  <td class="d-none d-sm-table-cell text-end">{{ formatSize(row.size) }}</td>
+                </tr>
+              </template>
+            </tbody>
+          </v-table>
+        </v-card>
+
+        <v-empty-state
+          v-else
+          :icon="kaapanaIcons.search"
+          size="56"
+          title="No matching documents"
+          :text="`No document path contains “${filter}”.`"
+        >
+          <template #actions>
+            <v-btn color="primary" variant="text" @click="filter = ''">Clear search</v-btn>
+          </template>
+        </v-empty-state>
+      </template>
     </template>
 
     <ErrorDetailsDialog
@@ -104,14 +161,27 @@ import {
   type ApiErrorInfo,
 } from '@kaapana/base-ui'
 import { documentUpdatesUrl, fetchDocuments, type DocumentEntry } from '@/api/documents'
+import {
+  closestFolder,
+  folderRows,
+  formatSize,
+  searchRows,
+  sortRows,
+  type Row,
+  type SortKey,
+} from '@/utils/documentTree'
 
-type SortKey = 'path' | 'modification_time'
+const folderIcons = {
+  folder: 'mdi-folder',
+  file: 'mdi-file-document-outline',
+  separator: 'mdi-chevron-right',
+}
 
 const RECONNECT_DELAY_MS = 5000
 
 const sortOptions: { value: SortKey; title: string }[] = [
-  { value: 'modification_time', title: 'Last modified' },
-  { value: 'path', title: 'Path' },
+  { value: 'name', title: 'Name' },
+  { value: 'modified', title: 'Last modified' },
 ]
 
 const documents = ref<DocumentEntry[]>([])
@@ -121,15 +191,30 @@ const refreshing = ref(false)
 const failure = ref<{ text: string; info: ApiErrorInfo } | null>(null)
 const detailsOpen = ref(false)
 const filter = ref<string | null>('')
-const sortKey = ref<SortKey>('modification_time')
+const sortKey = ref<SortKey>('name')
+const folder = ref<string[]>([])
 
-const visibleDocuments = computed(() => {
-  const needle = (filter.value ?? '').toLowerCase()
-  const matching = documents.value.filter((doc) => doc.file.path.toLowerCase().includes(needle))
-  return sortKey.value === 'path'
-    ? matching.sort((a, b) => a.file.path.localeCompare(b.file.path))
-    : matching.sort((a, b) => b.file.modification_time.localeCompare(a.file.modification_time))
-})
+const searching = computed(() => !!filter.value?.trim())
+
+const rows = computed<Row[]>(() =>
+  sortRows(
+    searching.value
+      ? searchRows(documents.value, filter.value!.trim())
+      : folderRows(documents.value, folder.value),
+    sortKey.value,
+  ),
+)
+
+const crumbs = computed(() => [
+  { title: 'Documents', path: [] as string[] },
+  ...folder.value.map((name, i) => ({ title: name, path: folder.value.slice(0, i + 1) })),
+])
+
+function rowKey(row: Row): string {
+  return row.kind === 'folder'
+    ? `folder:${row.path.join('/')}`
+    : `file:${row.doc.file.bucket}/${row.doc.file.path}`
+}
 
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 
@@ -149,6 +234,7 @@ async function load() {
     const result = await fetchDocuments()
     if (request !== latestLoad) return
     documents.value = result
+    folder.value = closestFolder(result, folder.value)
     loaded.value = true
     failure.value = null
   } catch (err) {
@@ -212,5 +298,41 @@ onBeforeUnmount(() => {
 
 .documents__sort {
   flex: 0 1 200px;
+}
+
+.documents__crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.documents__crumb {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.documents__crumb--current {
+  padding: 0 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.documents__row {
+  cursor: pointer;
+}
+
+.documents__name {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: inherit;
+  text-decoration: none;
+  text-align: start;
+  word-break: break-word;
+}
+
+.documents__name:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: 2px;
 }
 </style>

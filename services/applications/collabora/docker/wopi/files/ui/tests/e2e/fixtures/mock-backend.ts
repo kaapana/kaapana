@@ -6,7 +6,7 @@ export const DOCUMENTS = '**/documents/'
 export function documentEntry(
   path: string,
   modified: string,
-  bucket = 'project-admin',
+  bucket = 'project-2f0c5a1e',
 ): DocumentEntry {
   return {
     file_id: btoa(path),
@@ -26,8 +26,9 @@ export function documentEntry(
 
 export const defaultDocuments: DocumentEntry[] = [
   documentEntry('reports/summary.docx', '2026-10-01T09:00:00+00:00'),
+  documentEntry('reports/2026/q3.xlsx', '2026-09-30T16:45:00+00:00'),
   documentEntry('notes/protocol.odt', '2026-10-05T14:30:00+00:00'),
-  documentEntry('analysis/volumes.xlsx', '2026-09-20T08:15:00+00:00', 'project-lung'),
+  documentEntry('welcome.odt', '2026-09-20T08:15:00+00:00'),
 ]
 
 export interface MockBackend {

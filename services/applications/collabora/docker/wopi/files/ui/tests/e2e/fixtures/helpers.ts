@@ -17,8 +17,20 @@ export function serverError(detail: string, status = 500) {
   return { status, contentType: 'application/json', body: JSON.stringify({ detail }) }
 }
 
+export function rows(page: Page) {
+  return page.locator('.documents__table tbody tr')
+}
+
 export function documentLinks(page: Page) {
-  return page.locator('a.v-list-item')
+  return page.locator('a.documents__name')
+}
+
+export function folder(page: Page, name: string) {
+  return page.getByRole('button', { name: `Open folder ${name}` })
+}
+
+export function breadcrumbs(page: Page) {
+  return page.getByRole('navigation', { name: 'Folder' })
 }
 
 export function collectPageErrors(page: Page): string[] {

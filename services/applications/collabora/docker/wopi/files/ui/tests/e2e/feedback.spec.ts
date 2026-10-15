@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { documentLinks, openView, serverError } from './fixtures/helpers'
+import { openView, rows, serverError } from './fixtures/helpers'
 import { documentEntry, installMockBackend } from './fixtures/mock-backend'
 
 test('a failed load explains itself and offers the details', async ({ page }) => {
@@ -32,7 +32,7 @@ test('trying again after a failure recovers the list', async ({ page }) => {
   await page.getByRole('alert').getByRole('button', { name: 'Try again' }).click()
 
   await expect(page.getByRole('alert')).toBeHidden()
-  await expect(documentLinks(page)).toHaveCount(3)
+  await expect(rows(page)).toHaveCount(3)
 })
 
 test('the refresh button shows progress while the list reloads', async ({ page }) => {
@@ -56,10 +56,10 @@ test('reloads the list when the backend announces an update', async ({ page }) =
   const backend = await openView(page)
   await expect.poll(() => backend.socket()).not.toBeNull()
 
-  backend.documents.push(documentEntry('new/letter.docx', '2026-10-08T10:00:00+00:00'))
+  backend.documents.push(documentEntry('agenda.docx', '2026-10-08T10:00:00+00:00'))
   backend.socket()!.send(JSON.stringify({ type: 'update' }))
 
-  await expect(documentLinks(page).first()).toContainText('new/letter.docx')
+  await expect(rows(page)).toContainText(['notes', 'reports', 'agenda.docx', 'welcome.odt'])
 })
 
 test('connects the update socket next to the document, without query or hash', async ({ page }) => {

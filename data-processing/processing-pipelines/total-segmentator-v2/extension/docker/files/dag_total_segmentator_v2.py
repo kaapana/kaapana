@@ -88,13 +88,6 @@ ui_forms = {
                 "default": ["total"],
                 "readOnly": False
             },
-            "input": {
-                "title": "Input",
-                "description": "Input-data modality",
-                "type": "string",
-                "enum": ["CT", "MR"],
-                "readOnly": False,
-            },
             "fast": {
                 "title": "--fast",
                 "description": "Run faster lower resolution model.",
@@ -173,7 +166,7 @@ ui_forms = {
                 "readOnly": True,
             },
         },
-        "required": ["nr_thr_resamp", "nr_thr_saving", "input"]
+        "required": ["nr_thr_resamp", "nr_thr_saving"]
     },
 }
 
@@ -215,7 +208,11 @@ for subtask in list(task_dict):
         model_dir=model_dir,
         task_ids=task_dict[subtask]
     )
+    # The child's get-input checks each series against workflow_form "input". Each
+    # sub-task's model takes one modality (MR tasks end in "_mr"), so it is set here
+    # per sub-task; one user-chosen value fails every task of the other modality.
     args = {'workflow_form': {'TASK': subtask,
+                              'input': "MR" if subtask.endswith("_mr") else "CT",
                               'minio_prefix': f'radiomics-totalseg-v2-{subtask}'}}
     subtask_dag = LocalDagTriggerOperator(
         dag=dag,

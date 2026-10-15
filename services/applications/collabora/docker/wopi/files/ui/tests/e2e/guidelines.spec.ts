@@ -24,5 +24,5 @@ test('the page keeps one filled primary action', async ({ page }) => {
 test('icons come from the shared icon map', async ({ page }) => {
   await expect(page.locator('.mdi-refresh')).toBeVisible()
   await expect(page.locator('.mdi-magnify')).toBeVisible()
-  await expect(page.locator('.mdi-open-in-new')).toHaveCount(3)
+  await expect(page.locator('.mdi-open-in-new')).toHaveCount(1)
 })

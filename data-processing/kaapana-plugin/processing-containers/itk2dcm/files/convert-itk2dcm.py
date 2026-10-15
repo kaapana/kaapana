@@ -494,9 +494,14 @@ class nnUNetDatasetParser:
 
 
 if __name__ == "__main__":
-    for root, dirs, files in os.walk(
-        Path(os.environ["WORKFLOW_DIR"]) / os.environ["OPERATOR_IN_DIR"]
-    ):
+    workflow_dir = Path(os.environ["WORKFLOW_DIR"])
+    in_dir = os.environ["OPERATOR_IN_DIR"]
+    # The input operator writes either once per run (WORKFLOW_DIR/OPERATOR_IN_DIR) or,
+    # like most operators, once per batch element (BATCH_NAME/<series>/OPERATOR_IN_DIR).
+    # os.walk() yields nothing for a missing directory, so both layouts are walked.
+    in_dirs = [workflow_dir / in_dir]
+    in_dirs += sorted(workflow_dir.glob(f"{os.environ['BATCH_NAME']}/*/{in_dir}"))
+    for root, dirs, files in (entry for d in in_dirs for entry in os.walk(d)):
         parser = None
         dataset_json = Path(root) / "dataset.json"
         if dataset_json.is_file():

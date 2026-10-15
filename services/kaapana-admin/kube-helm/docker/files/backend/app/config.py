@@ -34,6 +34,15 @@ class Settings(BaseSettings):
     aii_service_url: str = os.getenv(
         "AII_SERVICE_URL", "http://aii-service.services.svc:8080"
     )
+    # Read by the per-project reconciler in auto_launch.py: JSON list of
+    # {name, version, extension_params}, and JSON list of project-name globs to skip.
+    auto_launch_project_apps: str = os.getenv("AUTO_LAUNCH_PROJECT_APPS", "[]")
+    auto_launch_exclude_projects: str = os.getenv("AUTO_LAUNCH_EXCLUDE_PROJECTS", "[]")
+    auto_launch_interval_seconds: int = int(
+        os.getenv("AUTO_LAUNCH_INTERVAL_SECONDS", "300")
+    )
+    # Chart version for auto-launched apps whose entry has no "version".
+    kaapana_build_version: str = os.getenv("KAAPANA_BUILD_VERSION", "")
 
     offline_mode: bool = (
         True if os.environ.get("OFFLINE_MODE", None) in ["true", "True"] else False

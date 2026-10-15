@@ -57,6 +57,13 @@ spec:
           value: '[{{- range $extension := $.Values.global.preinstall_extensions }}{"name": "{{ $extension.name }}", "version": "{{ $extension.version }}"},{{- end }}]'
         - name: PREFETCH_EXTENSIONS
           value: "{{ $.Values.global.prefetch_extensions }}"
+        # Multi-installable apps kept running once per project (app/auto_launch.py)
+        - name: AUTO_LAUNCH_PROJECT_APPS
+          value: {{ $.Values.global.auto_launch_project_apps | default list | toJson | quote }}
+        - name: AUTO_LAUNCH_EXCLUDE_PROJECTS
+          value: {{ $.Values.global.auto_launch_exclude_projects | default list | toJson | quote }}
+        - name: AUTO_LAUNCH_INTERVAL_SECONDS
+          value: "{{ $.Values.global.auto_launch_interval_seconds | default 300 }}"
 {{- if $.Values.global.http_proxy }}
         - name: http_proxy
           value: {{ .Values.global.http_proxy }}

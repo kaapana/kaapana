@@ -1464,6 +1464,14 @@ function load_kaapana_config {
     # Adjust enable nvidia command if using GPU Operator below v25.10.0+
     GPU_OPERATOR_VERSION="v25.10.0"
     PREFETCH_EXTENSIONS=false
+    # Multi-installable apps kube-helm keeps running once per project, including
+    # after a redeploy and for new projects. JSON list of {name, version,
+    # extension_params}; version defaults to the platform version. Example:
+    # export AUTO_LAUNCH_PROJECT_APPS='[{"name":"jupyterlab-chart"}]'
+    AUTO_LAUNCH_PROJECT_APPS="${AUTO_LAUNCH_PROJECT_APPS:-[]}"
+    # JSON list of project-name glob patterns that get no auto-launched apps.
+    AUTO_LAUNCH_EXCLUDE_PROJECTS="${AUTO_LAUNCH_EXCLUDE_PROJECTS:-[\"admin\"]}"
+    AUTO_LAUNCH_INTERVAL_SECONDS="${AUTO_LAUNCH_INTERVAL_SECONDS:-300}"
     CHART_PATH=""
     NO_HOOKS=""
     AUTO_NO_HOOKS=false
@@ -2455,6 +2463,9 @@ function deploy_chart {
     --set-string global.main_node_name="$MAIN_NODE_NAME" \
     --set-string global.volume_slow_data="$VOLUME_SLOW_DATA" \
     --set-string global.storage_node="$STORAGE_NODE" \
+    --set-json global.auto_launch_project_apps="$AUTO_LAUNCH_PROJECT_APPS" \
+    --set-json global.auto_launch_exclude_projects="$AUTO_LAUNCH_EXCLUDE_PROJECTS" \
+    --set global.auto_launch_interval_seconds="$AUTO_LAUNCH_INTERVAL_SECONDS" \
     "${kube_helm_timeout_args[@]}" \
     --name-template "$PLATFORM_NAME"
 

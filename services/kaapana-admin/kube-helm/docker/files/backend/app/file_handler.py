@@ -229,6 +229,9 @@ def check_file_namespace(filename: str) -> bool:
             default_sets[f"global.{k}"] = v
     default_sets.pop("global.preinstall_extensions", None)
     default_sets.pop("global.kaapana_collections", None)
+    # kube-helm's own settings; the list join below cannot serialize their dicts.
+    default_sets.pop("global.auto_launch_project_apps", None)
+    default_sets.pop("global.auto_launch_exclude_projects", None)
     logger.debug(f"{default_sets=}")
 
     helm_sets = ""

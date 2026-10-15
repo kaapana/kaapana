@@ -1,5 +1,5 @@
 <template>
-  <v-container fluid class="text-left data-upload-view">
+  <v-container fluid max-width="1200" class="text-left">
     <h1 class="text-h4 mb-4">Data upload</h1>
     <v-alert v-if="projectLoadError" type="error" variant="tonal" class="mb-4">
       {{ projectLoadErrorText }}
@@ -250,12 +250,6 @@ if (!localStorage['settings']) {
 </script>
 
 <style scoped>
-/* The page is mostly text and one form, so it does not need the full width
-   of a wide display. The container centres itself in the space beyond. */
-.data-upload-view {
-  max-width: 1200px;
-}
-
 /* Long paths and placeholders must wrap instead of widening the card. */
 .dcmsend-command {
   white-space: pre-wrap;

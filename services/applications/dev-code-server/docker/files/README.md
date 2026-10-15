@@ -47,12 +47,11 @@ Extension
 
 ## Project Storage and Data Access
 
-The MinIO folder of the project (that was selected while the extension is installed in the UI) is automatically mounted within the workspace.
-It supports unilateral sync:
+The directory of the project bucket that was selected when the application was launched is mounted at `/kaapana/minio`.
+Files are read from and written to MinIO directly, nothing is copied in advance:
 
-* Input data from MinIO: /kaapana/minio/input
-* Output data to MinIO : /kaapana/minio/output
-* Project MinIO bucket: project-<project_name>
+* Files saved here are in MinIO as soon as they are written.
+* Changes made in MinIO (e.g. by a workflow) appear here after up to 30 seconds; refresh the explorer to see them.
 
 
 ## Known Limitations of The Environment

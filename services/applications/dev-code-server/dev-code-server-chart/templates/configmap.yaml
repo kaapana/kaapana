@@ -51,6 +51,10 @@ data:
         "security.workspace.trust.untrustedFiles": "open",
         "extensions.supportUntrustedWorkspaces": true,
         "workbench.colorTheme": "Default Dark+",
+        // The workspace /kaapana contains the hidden FUSE mount of the project
+        // bucket; watching or indexing it would list the whole bucket from MinIO.
+        "files.exclude": { "**/.minio-share": true },
+        "files.watcherExclude": { "**/.minio-share/**": true },
         "chat.disableAIFeatures": true,
         "editor.aiStats.enabled": false,
         "chat.agent.enabled": false,

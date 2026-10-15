@@ -22,39 +22,51 @@ spec:
         securityContext:
           runAsUser: 0
         image: "{{ .Values.global.registry_url }}/busybox:{{ .Values.global.kaapana_build_version  }}"
-        command: ["chown", "-R" , "1000:1000", "/kaapana/minio"]
+        command:
+        - sh
+        - -c
+        - mkdir -p /kaapana/.minio-share/mount && chown -R 1000:1000 /kaapana/.minio-share
         volumeMounts:
 {{ include "dynamicVolumeMounts" $ | indent 10 }}
       containers:
-      - name: minio-sync
+      # Mounts the selected bucket directory as a FUSE filesystem, as in the
+      # jupyterlab chart: privileged for FUSE, Bidirectional so code-server sees it.
+      - name: minio-mount
         image: "{{ .Values.global.registry_url }}/minio-mirror:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy: {{ .Values.global.pull_policy_images }}
+        securityContext:
+          runAsUser: 0
+          runAsGroup: 0
+          privileged: true
         resources:
           requests:
             memory: "100Mi"
           limits:
-            memory: "300Mi"
+            memory: "500Mi"
         env:
         - name: ACTION
-          value: "SYNC"
+          value: "MOUNT"
         - name: MINIO_SERVICE
           value: "minio-service.{{ .Values.global.services_namespace }}.svc:9000"
         - name: LOCAL_PATH
-          value: /kaapana/minio/
+          value: /kaapana/.minio-share/mount/
         - name: MINIO_PATH
           value: project-{{ .Values.global.project_short_id }}/{{ .Values.global.minio_prefix }}
         - name: MINIO_USER
           value: {{ .Values.global.credentials_minio_username  | default "" }}
         - name: MINIO_PASSWORD
           value: {{ .Values.global.credentials_minio_password | default ""}}
-        - name: EXCLUDE
-          value: "{{ .Values.global.exclude_patterns }}"
+        - name: RCLONE_CACHE_DIR
+          value: /kaapana/cache
         volumeMounts:
-{{ include "dynamicVolumeMounts" $ | indent 10 }}
+          - name: rclone-cache
+            mountPath: /kaapana/cache
+{{ include "dynamicVolumeMounts" (dict "root" $ "mountPropagation" "Bidirectional") | indent 10 }}
       - name: code-server
         image: "{{ .Values.global.registry_url }}/dev-code-server:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy: {{ .Values.global.pull_policy_images }}
-        command: ["sh", "-c", "code-server --disable-workspace-trust --auth none --bind-addr 0.0.0.0:8080 ${WORKSPACE}"]
+        # /kaapana/minio is the user-facing path of the FUSE mount.
+        command: ["sh", "-c", "ln -sfn /kaapana/.minio-share/mount /kaapana/minio && code-server --disable-workspace-trust --auth none --bind-addr 0.0.0.0:8080 ${WORKSPACE}"]
         env:
 {{ include "dynamicEnvs" $ | indent 8 }}
         - name: no_proxy
@@ -81,7 +93,7 @@ spec:
           - name: configs
             mountPath: /root/.local/share/code-server/User/settings.json
             subPath: settings.json
-{{ include "dynamicVolumeMounts" $ | indent 10 }}
+{{ include "dynamicVolumeMounts" (dict "root" $ "mountPropagation" "HostToContainer") | indent 10 }}
           - name: dshm
             mountPath: /dev/shm
       volumes:
@@ -97,5 +109,7 @@ spec:
       - name: dshm
         emptyDir:
           medium: Memory
+      - name: rclone-cache
+        emptyDir: {}
       imagePullSecrets:
       - name: registry-secret

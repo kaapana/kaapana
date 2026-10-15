@@ -444,16 +444,14 @@ Project Storage and Data Access
 *********************************
 
 You can launch multiple instances of Code-Server simultaneously for different usecases.
-Upon launching of a new application you can specify a directory within the project-bucket in MinIO that is periodically synced to the file-system of the Code Server at :code:`/kaapana/minio/`.
-You can also specify a comma-separated list of patterns that should be excluded during the syncing process.
-The sync interval is 20 seconds.
-If a file is simultaneously changed in MinIO and Code-Server, rclone will resolve this conflict during the next syncronisation.
+Upon launching of a new application you can specify a directory within the project-bucket in MinIO.
+This directory is mounted directly into the Code Server at :code:`/kaapana/minio/` as a FUSE filesystem (via `rclone mount <https://rclone.org/commands/rclone_mount/>`_),
+so files are read from and written to MinIO on demand instead of being copied to the instance.
 
-* It does not overwrite either side.
-* It renames one version with a .conflict suffix.
-* The file changed in MinIO keeps the original filename.
-* The file changed in Jupyterlab gets the conflict rename.
-* For more information check the `rclone manual <https://rclone.org/bisync/>`_.
+* Changes made in the Code Server are visible in MinIO as soon as the file is written.
+* Changes made directly in MinIO (e.g. by a workflow) become visible in the Code Server after the directory cache expires (30 seconds); refresh the explorer to see them.
+* Only files currently being written are buffered locally; reads are streamed from MinIO, so even very large buckets can be accessed.
+* A full-text search over :code:`/kaapana/minio/` reads every file it searches from MinIO.
 
 Known Limitations of The Environment
 **************************************

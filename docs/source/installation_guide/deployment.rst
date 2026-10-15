@@ -36,7 +36,7 @@ The platform is deployed using the script :code:`kaapanactl.sh` also used during
            - :code:`KAAPANA_ADMIN_CHART` referes to the platform chart which is about to be installed. It has the form :code:`<registry>/<chart>:<version>` (e.g. :code:`localhost:5000/kaapana-admin-chart:0.5.3-latest`)`
            - :code:`REGISTRY_USERNAME` and :code:`REGISTRY_PASSWORD` refere to the username and password used to access the private registry.
            - Hint: If your registry is plain HTTP (e.g. when you use a local registry) use the :code:`--plain-http` flag to enable pulling from plain HTTP registries.
-           - Hint: The helm release is named ``kaapana-admin-chart`` by default, also when the chart itself has a different name (see ``PLATFORM_RELEASE_NAME`` :ref:`below<platform_config>`).
+           - Hint: The helm release is named ``kaapana-admin-chart`` by default, also when the chart itself has a different name (see ``HELM_RELEASE_NAME`` :ref:`below<platform_config>`).
 
       .. tab:: Tarball
 
@@ -137,10 +137,10 @@ Deployment configurations
      - ``"false"``
      - string
      - If true, installs extensions listed in ``deployment_config.yaml`` under ``preinstall_extensions``.
-   * - ``PLATFORM_RELEASE_NAME``
+   * - ``HELM_RELEASE_NAME``
      - ``"kaapana-admin-chart"``
      - string
-     - Helm release name of the platform, independent of the chart name. A platform chart under a different name (e.g. a downstream distribution) is deployed as the same release, so it is recognised as the platform that is already deployed instead of being installed next to it. Set via ``--release-name`` or the ``PLATFORM_RELEASE_NAME`` env var. If the platform runs under another release name (e.g. deployed by an older :code:`kaapanactl.sh`, which used the chart name), the installation fails on the objects that release owns: pass ``--release-name <name>`` to keep that name. Moving an undeployed platform to another release name needs manual work: the objects it kept (``helm.sh/resource-policy: keep``, e.g. the admin namespace, secrets and persistent volume claims) still name the old release, and the installation fails on them until they are removed or re-annotated. A deployment that would also run a version migration stops before the migration instead.
+     - Helm release name of the platform, independent of the chart name. A platform chart under a different name (e.g. a downstream distribution) is deployed as the same release, so it is recognised as the platform that is already deployed instead of being installed next to it. Set via ``--release-name`` or the ``HELM_RELEASE_NAME`` env var. If the platform runs under another release name (e.g. deployed by an older :code:`kaapanactl.sh`, which used the chart name), the installation fails on the objects that release owns: pass ``--release-name <name>`` to keep that name. Moving an undeployed platform to another release name needs manual work: the objects it kept (``helm.sh/resource-policy: keep``, e.g. the admin namespace, secrets and persistent volume claims) still name the old release, and the installation fails on them until they are removed or re-annotated. A deployment that would also run a version migration stops before the migration instead.
    * - ``CHART_PATH``
      - ``""``
      - string

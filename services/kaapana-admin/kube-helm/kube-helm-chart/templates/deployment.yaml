@@ -42,7 +42,7 @@ spec:
         - name: HELM_PATH
           value: "/usr/local/bin/helm"
         - name: RELEASE_NAME
-          value: {{ $.Values.global.release_name }}
+          value: {{ $.Values.global.helm_release_name }}
         - name: HELM_NAMESPACE
           value: {{ $.Values.global.helm_namespace }}
         - name: REGISTRY_URL

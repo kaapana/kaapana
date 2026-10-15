@@ -214,14 +214,14 @@ function validate_platform_prefix() {
 
 # Recover PLATFORM_PREFIX from the already-deployed platform (global.platform_prefix)
 # instead of asking the operator, e.g. when undeploying without --platform-prefix.
-# Tries PLATFORM_RELEASE_NAME first, then the other releases in HELM_NAMESPACE,
+# Tries HELM_RELEASE_NAME first, then the other releases in HELM_NAMESPACE,
 # which covers a platform deployed under another release name. Returns 1
 # without setting PLATFORM_PREFIX if no release has the value.
 function get_platform_prefix_from_release() {
     local namespace="$HELM_NAMESPACE"
     local release
     local prefix
-    for release in "$PLATFORM_RELEASE_NAME" $($HELM_EXECUTABLE -n "$namespace" ls --short 2>/dev/null); do
+    for release in "$HELM_RELEASE_NAME" $($HELM_EXECUTABLE -n "$namespace" ls --short 2>/dev/null); do
         prefix=$($HELM_EXECUTABLE get values "$release" -n "$namespace" -o json 2>/dev/null \
             | jq -r '.global.platform_prefix // empty' 2>/dev/null || true)
         if [ -n "$prefix" ]; then
@@ -350,7 +350,7 @@ function deploy() {
     PLATFORM_VERSION="${PLATFORM_VERSION:-}"
     # Helm release name of the platform. Independent of the chart name, so
     # a renamed platform chart (e.g. a distribution) is the same release.
-    PLATFORM_RELEASE_NAME="${PLATFORM_RELEASE_NAME:-kaapana-admin-chart}"
+    HELM_RELEASE_NAME="${HELM_RELEASE_NAME:-kaapana-admin-chart}"
     CONTAINER_REGISTRY_URL="${CONTAINER_REGISTRY_URL:-}"
     CONTAINER_REGISTRY_USERNAME="${CONTAINER_REGISTRY_USERNAME:-}"
     CONTAINER_REGISTRY_PASSWORD="${CONTAINER_REGISTRY_PASSWORD:-}"
@@ -433,8 +433,8 @@ function deploy() {
             ;;
 
             --release-name)
-                PLATFORM_RELEASE_NAME="$2"
-                echo -e "${GREEN}SET PLATFORM_RELEASE_NAME: $PLATFORM_RELEASE_NAME ${NC}"
+                HELM_RELEASE_NAME="$2"
+                echo -e "${GREEN}SET HELM_RELEASE_NAME: $HELM_RELEASE_NAME ${NC}"
                 shift
                 shift
             ;;
@@ -633,7 +633,7 @@ function deploy() {
 
     if [ "$DO_CHECK_SYSTEM" = "true" ]; then
         validate_platform_prefix
-        check_system "$PLATFORM_RELEASE_NAME" default
+        check_system "$HELM_RELEASE_NAME" default
         check_system kaapana-platform-chart default
         check_system "${PLATFORM_PREFIX}-project-admin" admin
         exit 0
@@ -712,8 +712,8 @@ function deploy() {
     echo "Current deployments: "
     echo $deployments
 
-    if grep -qxF "$PLATFORM_RELEASE_NAME" <<< "$deployments" && [[ ! $QUIET = true ]];then
-        echo -e "${YELLOW}$PLATFORM_RELEASE_NAME already deployed!${NC}"
+    if grep -qxF "$HELM_RELEASE_NAME" <<< "$deployments" && [[ ! $QUIET = true ]];then
+        echo -e "${YELLOW}$HELM_RELEASE_NAME already deployed!${NC}"
         PS3='select option: '
         options=("Un- and Re-deploy" "Undeploy" "Quit")
         select opt in "${options[@]}"
@@ -737,7 +737,7 @@ function deploy() {
                 *) echo "invalid option $REPLY";;
             esac
         done
-    elif grep -qxF "$PLATFORM_RELEASE_NAME" <<< "$deployments" && [[ $QUIET = true ]];then
+    elif grep -qxF "$HELM_RELEASE_NAME" <<< "$deployments" && [[ $QUIET = true ]];then
         echo -e "${RED}Project already deployed!${NC}"
         echo -e "${RED}abort.${NC}"
         exit 1
@@ -1792,8 +1792,8 @@ function run_migration_chart() {
     local admin_owner
     admin_owner=$($KUBECTL_EXECUTABLE get namespace "$ADMIN_NAMESPACE" \
         -o jsonpath='{.metadata.annotations.meta\.helm\.sh/release-name}' 2>/dev/null || true)
-    if [[ -n "$admin_owner" && "$admin_owner" != "$PLATFORM_RELEASE_NAME" ]]; then
-        echo -e "${RED}The platform belongs to release '$admin_owner', not '$PLATFORM_RELEASE_NAME'. Not migrating.${NC}"
+    if [[ -n "$admin_owner" && "$admin_owner" != "$HELM_RELEASE_NAME" ]]; then
+        echo -e "${RED}The platform belongs to release '$admin_owner', not '$HELM_RELEASE_NAME'. Not migrating.${NC}"
         exit 1
     fi
 
@@ -2381,7 +2381,7 @@ function deploy_chart {
     fi
     # ---------------------------------------------------------------------------
 
-    echo "${GREEN}Deploying $PLATFORM_NAME:$PLATFORM_VERSION as release $PLATFORM_RELEASE_NAME${NC}"
+    echo "${GREEN}Deploying $PLATFORM_NAME:$PLATFORM_VERSION as release $HELM_RELEASE_NAME${NC}"
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
 
     local -a kube_helm_timeout_args=()
@@ -2441,8 +2441,8 @@ function deploy_chart {
     --set-string global.pull_policy_jobs="$PULL_POLICY_IMAGES" \
     --set-string global.pull_policy_pods="$PULL_POLICY_IMAGES" \
     --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
-    --set-string global.release_name="$PLATFORM_RELEASE_NAME" \
-    --set-string global.platform_name="$PLATFORM_NAME" \
+    --set-string global.helm_release_name="$HELM_RELEASE_NAME" \
+    --set-string global.helm_chart_name="$PLATFORM_NAME" \
     --set-string global.platform_prefix="$PLATFORM_PREFIX" \
     --set-string global.deployment_timestamp="$DEPLOYMENT_TIMESTAMP" \
     --set-string global.mount_points_to_monitor="$MOUNT_POINTS_TO_MONITOR" \
@@ -2478,7 +2478,7 @@ function deploy_chart {
     --set-string global.volume_slow_data="$VOLUME_SLOW_DATA" \
     --set-string global.storage_node="$STORAGE_NODE" \
     "${kube_helm_timeout_args[@]}" \
-    --name-template "$PLATFORM_RELEASE_NAME"
+    --name-template "$HELM_RELEASE_NAME"
 
     echo -e ""
     echo -e "${YELLOW}══════════════════════════════════════════════════${NC}"
@@ -3105,7 +3105,7 @@ modinfo nvidia | grep ^version
 nvidia-smi
 
 --- "Resource Health"
-check_system "${PLATFORM_RELEASE_NAME:-kaapana-admin-chart}" default
+check_system "${HELM_RELEASE_NAME:-kaapana-admin-chart}" default
 check_system kaapana-platform-chart default
 check_system "${PLATFORM_PREFIX}-project-admin" admin
 

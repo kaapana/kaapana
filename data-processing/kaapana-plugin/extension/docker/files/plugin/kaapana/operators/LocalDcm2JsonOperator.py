@@ -2,6 +2,7 @@
 # If you have a custom Local Operator, it should be migrated to a processing container based operator.
 import json
 import logging
+import math
 import os
 import traceback
 from datetime import datetime
@@ -17,6 +18,8 @@ from kaapanapy.settings import KaapanaSettings
 from pydicom.tag import Tag
 
 TIMEZONE = KaapanaSettings().timezone
+# Largest value a 32-bit OpenSearch float field stores without becoming Infinity.
+OPENSEARCH_FLOAT_MAX = 3.4028234663852886e38
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -130,7 +133,10 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                     dcm = pydicom.read_file(dcm_file_path, stop_before_pixels=True)
                     if self.delete_pixel_data:
                         dcm = self._delete_pixel_data(dcm)
-                    json_dict = dcm.to_json_dict()
+                    # pydicom raises on a DS or IS value that is no number (e.g.
+                    # "1,5"); suppressing drops and logs that one tag instead of
+                    # failing the extraction for the whole series.
+                    json_dict = dcm.to_json_dict(suppress_invalid_tags=True)
                     del dcm
                 elif self.data_type == "json":
                     with open(dcm_file_path, "r", encoding="utf-8") as f:
@@ -317,7 +323,17 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
         elif vr in ("DS", "FL", "FD", "OD", "OF"):
             checked_val = convert(value_str, float)
-            if checked_val is not None:
+            # meta-init maps *_float fields to 32-bit OpenSearch floats. A larger FD, OD
+            # or DS value, NaN or Infinity makes OpenSearch reject the whole series
+            # document in json2meta, so such a tag is skipped like "nan" values are.
+            values = checked_val if isinstance(checked_val, list) else [checked_val]
+            if any(
+                isinstance(v, float)
+                and (not math.isfinite(v) or abs(v) > OPENSEARCH_FLOAT_MAX)
+                for v in values
+            ):
+                logger.warning(f"Skipping {new_tag}: {value_str} exceeds float range.")
+            elif checked_val is not None:
                 new_tag += "_float"
                 metadata[new_tag] = checked_val
 

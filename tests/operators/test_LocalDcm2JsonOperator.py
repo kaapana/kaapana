@@ -307,6 +307,18 @@ def test_normalize_tag_personname(op, vr, value_str, expected_value, expected_ty
     assert metadata[f"{new_tag}_{expected_type}"] == expected_value
 
 
+@pytest.mark.params({"TagAngleFirstAxis": 7.23e75, "SliceThickness": "0.625"})
+def test_unstorable_numbers_are_skipped(op):
+    # An OpenSearch float field cannot hold 7.23e+75 and pydicom cannot read
+    # "0,625": both tags are left out and the rest of the series is extracted.
+    ct_path = RUN_DIR / BATCH_NAME / "ct" / OPERATOR_IN_DIR / "ct.dcm"
+    ct_path.write_bytes(ct_path.read_bytes().replace(b"0.625 ", b"0,625 "))
+    op.start()
+    json_ct = read_ct()
+    assert "00189019 TagAngleFirstAxis_float" not in json_ct
+    assert "00180050 SliceThickness_float" not in json_ct
+
+
 # @pytest.mark.parametrize(
 #     "vr, value_str, expected_value, expected_type",
 #     [

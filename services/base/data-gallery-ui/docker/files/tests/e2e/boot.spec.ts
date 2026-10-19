@@ -5,13 +5,13 @@ import {
   makeDefaultMockData,
   VIEW_PATH,
 } from './fixtures/mock-backend'
+import { collectPageErrors, expectNoToast, failRoute, openGallery } from './fixtures/helpers'
 
 // Every other spec seeds localStorage["settings"], so only this one sees a fresh
 // profile — where the view's bare JSON.parse(undefined) at setup blanked the
 // whole document.
 test('renders on a fresh profile, with no shell-seeded settings', async ({ page }) => {
-  const pageErrors: string[] = []
-  page.on('pageerror', (error) => pageErrors.push(error.message))
+  const pageErrors = collectPageErrors(page)
 
   await installMockBackend(page, makeDefaultMockData())
   await page.goto(VIEW_PATH)
@@ -29,8 +29,7 @@ test('renders on a fresh profile, with no shell-seeded settings', async ({ page 
 // The tag bar re-reads localStorage["settings"] to persist its controls —
 // reachable only by interacting, so the boot test above does not cover it.
 test('the tag bar persists its settings on a fresh profile', async ({ page }) => {
-  const pageErrors: string[] = []
-  page.on('pageerror', (error) => pageErrors.push(error.message))
+  const pageErrors = collectPageErrors(page)
 
   await installMockBackend(page, makeDefaultMockData())
   await page.goto(VIEW_PATH)
@@ -45,41 +44,71 @@ test('the tag bar persists its settings on a fresh profile', async ({ page }) =>
 })
 
 test('renders the series gallery from typical data', async ({ page }) => {
-  await bootGallery(page, makeDefaultMockData())
+  await openGallery(page)
 
   // First card renders eagerly with its DICOM metadata (later cards are v-lazy).
-  await expect(page.getByText('CT Thorax')).toBeVisible()
   await expect(page.locator('.seriesCard').first()).toBeVisible()
   // Toolbar reflects the loaded series count (all loaded series are "of interest").
   await expect(page.getByText('3 selected')).toBeVisible()
 })
 
-test('shows the empty-state message when no series match', async ({ page }) => {
+// base-ui ships its component styles as one stylesheet each view must import;
+// a missing import throws nothing, it just leaves base-ui components unstyled.
+// The error-details grid rule stands in for the whole sheet.
+test("loads base-ui's component stylesheet", async ({ page }) => {
+  await openGallery(page)
+  const loaded = await page.evaluate(() =>
+    [...document.styleSheets].some((sheet) =>
+      [...sheet.cssRules].some(
+        (rule) =>
+          rule instanceof CSSStyleRule &&
+          rule.selectorText.startsWith('.kaapana-error-details') &&
+          rule.style.display === 'grid',
+      ),
+    ),
+  )
+  expect(loaded, "src/main.ts must import '@kaapana/base-ui/style.css'").toBe(true)
+})
+
+test('series cards fill their grid column', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 1000 })
+  await openGallery(page)
+  const cards = page.locator('.seriesCard')
+  await expect(cards).toHaveCount(3)
+
+  const ratios = () =>
+    cards.evaluateAll((els) =>
+      els.map((card) => {
+        const column = card.closest('.v-col')!
+        return card.getBoundingClientRect().width / column.getBoundingClientRect().width
+      }),
+    )
+  await expect.poll(async () => Math.min(...(await ratios()))).toBeGreaterThanOrEqual(0.9)
+})
+
+test('shows the "nothing yet" empty state when the project has no series', async ({ page }) => {
   const data = makeDefaultMockData()
   data.seriesUids = []
   data.aggregatedSeriesNum = 0
   await bootGallery(page, data)
 
-  await expect(page.getByText('No data found.')).toBeVisible()
+  await expect(page.getByText('No imaging data in this project yet')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Go to Data Upload' })).toBeVisible()
   await expect(page.locator('.seriesCard')).toHaveCount(0)
 })
 
-test('surfaces a backend error as a notification', async ({ page }) => {
-  const data = makeDefaultMockData()
-  await bootGallery(page, data)
+test('a failed series count is reported once, as a failure', async ({ page }) => {
+  await bootGallery(page, makeDefaultMockData())
   // Later route wins: fail the aggregated-count call the view issues on load.
-  await page.route(/\/dataset\/aggregatedSeriesNum$/, (r) =>
-    r.fulfill({
-      status: 500,
-      contentType: 'application/json',
-      body: JSON.stringify({ detail: 'Boom' }),
-    }),
-  )
+  await failRoute(page, /\/dataset\/aggregatedSeriesNum$/, 'Boom')
   // Re-trigger a load by reloading with the failing route in place.
   await page.reload()
 
-  await expect(page.getByText('Boom')).toBeVisible()
+  await expect(page.getByText('Could not load the series')).toHaveCount(1)
+  await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible()
   // The failed load must also clear the loading state — the skeleton loader
   // used to spin forever because the promise chain had no catch.
   await expect(page.locator('.v-skeleton-loader')).toHaveCount(0)
+  await expect(page.getByText('Boom')).toHaveCount(0)
+  await expectNoToast(page)
 })

@@ -1,19 +1,8 @@
-import { notify } from '@kyvg/vue3-notification'
-import { httpClient, httpClientWithoutTimeout, useAuthStore } from '@kaapana/base-ui'
+import { httpClient, httpClientWithoutTimeout } from '@kaapana/base-ui'
 import type { Dataset } from '@/types'
+import { isAxiosError } from 'axios'
 
 const KAAPANA_BACKEND_ENDPOINT = import.meta.env.VITE_KAAPANA_BACKEND_ENDPOINT
-
-const notifyError = (error: any) => {
-  notify({
-    title: 'Error',
-    text:
-      error.response && error.response.data && error.response.data.detail
-        ? error.response.data.detail
-        : error,
-    type: 'error',
-  })
-}
 
 const updateDataset = async (body: any) => {
   return await httpClient.put(KAAPANA_BACKEND_ENDPOINT + 'client/dataset', body)
@@ -23,109 +12,60 @@ const createDataset = async (body: any) => {
   return await httpClient.post(KAAPANA_BACKEND_ENDPOINT + 'client/dataset', body)
 }
 
-const deleteDataset = async (datasetName: string) => {
-  try {
-    const res = await httpClient.delete(
-      KAAPANA_BACKEND_ENDPOINT + `client/dataset?name=${encodeURIComponent(datasetName)}`,
-    )
-    return res.data['ok']
-  } catch (error: any) {
-    notifyError(error)
-    throw error
-  }
+const deleteDataset = async (datasetName: string, accessLevel: string) => {
+  const res = await httpClient.delete(KAAPANA_BACKEND_ENDPOINT + 'client/dataset', {
+    params: { name: datasetName, access_level: accessLevel },
+  })
+  return res.data['ok']
 }
 
 const loadDatasetByName = async (datasetName: string, access_level = 'project') => {
-  try {
-    const dataset = (
-      await httpClient.get(
-        KAAPANA_BACKEND_ENDPOINT +
-          `client/dataset?name=${encodeURIComponent(datasetName)}&access_level=${encodeURIComponent(access_level)}`,
-      )
-    ).data
-    return dataset
-  } catch (error: any) {
-    notifyError(error)
-    throw error
-  }
+  return (
+    await httpClient.get(
+      KAAPANA_BACKEND_ENDPOINT +
+        `client/dataset?name=${encodeURIComponent(datasetName)}&access_level=${encodeURIComponent(access_level)}`,
+    )
+  ).data
 }
 
 const loadDatasets = async (skipIdentifiers = true): Promise<Dataset[]> => {
-  try {
-    const datasets = await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'client/datasets', {
-      params: skipIdentifiers ? { skip_identifiers: true } : {},
-    })
-    return datasets.data
-  } catch (error: any) {
-    notifyError(error)
-    throw error
-  }
+  const datasets = await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'client/datasets', {
+    params: skipIdentifiers ? { skip_identifiers: true } : {},
+  })
+  return datasets.data
 }
 
 const loadSeriesData = async (seriesInstanceUID: string) => {
-  try {
-    const response = await httpClient.get(
-      KAAPANA_BACKEND_ENDPOINT + `dataset/series/${seriesInstanceUID}`,
-    )
-    return response.data
-  } catch (error: any) {
-    notifyError(error)
-    throw error
-  }
+  const response = await httpClient.get(
+    KAAPANA_BACKEND_ENDPOINT + `dataset/series/${seriesInstanceUID}`,
+  )
+  return response.data
 }
 
 const loadPatients = async (data: any) => {
-  try {
-    const res = await httpClient.post(KAAPANA_BACKEND_ENDPOINT + 'dataset/series', data)
-    return res.data
-  } catch (error: any) {
-    notifyError(error)
-    throw error
-  }
+  const res = await httpClient.post(KAAPANA_BACKEND_ENDPOINT + 'dataset/series', data)
+  return res.data
 }
 
 const getAggregatedSeriesNum = async (data: any) => {
-  try {
-    const res = await httpClient.post(
-      KAAPANA_BACKEND_ENDPOINT + 'dataset/aggregatedSeriesNum',
-      data,
-    )
-    return res.data
-  } catch (error: any) {
-    notifyError(error)
-    throw error
-  }
+  const res = await httpClient.post(KAAPANA_BACKEND_ENDPOINT + 'dataset/aggregatedSeriesNum', data)
+  return res.data
 }
 
 const loadFieldNames = async () => {
-  try {
-    return await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'dataset/field_names')
-  } catch (error: any) {
-    notifyError(error)
-    throw error
-  }
+  return await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'dataset/field_names')
 }
 
 const loadValues = async (key: string, query: any = {}) => {
-  try {
-    return await httpClient.post(
-      KAAPANA_BACKEND_ENDPOINT + `dataset/query_values/${encodeURIComponent(key)}`,
-      query,
-    )
-  } catch (error: any) {
-    notifyError(error)
-    throw error
-  }
+  return await httpClient.post(
+    KAAPANA_BACKEND_ENDPOINT + `dataset/query_values/${encodeURIComponent(key)}`,
+    query,
+  )
 }
 
 const loadSearchFields = async () => {
-  try {
-    const response = await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'dataset/search_fields')
-    return response.data
-  } catch (error: any) {
-    notifyError(error)
-    throw error
-  }
+  const response = await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'dataset/search_fields')
+  return response.data
 }
 
 const updateTags = async (data: any) => {
@@ -145,10 +85,6 @@ const loadDashboard = async (
       query: query,
     })
   ).data
-}
-
-const loadDicomTagMapping = async () => {
-  return (await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'dataset/fields')).data
 }
 
 const downloadDatasets = async (concatenatedSeriesUIDs: string) => {
@@ -176,43 +112,17 @@ const downloadDatasets = async (concatenatedSeriesUIDs: string) => {
 
     URL.revokeObjectURL(link.href)
     document.body.removeChild(link)
-  } catch (error: any) {
-    if (error.response && error.response.data) {
-      // The error body is also a Blob (responseType 'blob'), so read it first.
-      const reader = new FileReader()
-      reader.onload = function () {
-        let errorText = ''
-        try {
-          const errorJson = JSON.parse(reader.result as string)
-          errorText = 'Download failed:' + errorJson.detail
-        } catch (parseError) {
-          errorText = 'Failed to parse error response:' + parseError
-        }
-        notify({
-          title: 'Download Error',
-          text: errorText,
-          type: 'error',
-        })
+  } catch (error: unknown) {
+    // With responseType 'blob' the error body is a Blob too.
+    // Parse it so the caller can read the error message.
+    const response = isAxiosError(error) ? error.response : undefined
+    if (response?.data instanceof Blob) {
+      try {
+        response.data = JSON.parse(await response.data.text())
+      } catch {
+        // No valid JSON.
       }
-      reader.readAsText(error.response.data)
-    } else {
-      console.error('Unexpected error:', error)
     }
-
-    throw error
-  }
-}
-
-const fetchProjects = async () => {
-  const currentUser = useAuthStore().currentUser
-  try {
-    if (currentUser.roles.includes('admin')) {
-      return (await httpClient.get('/aii/projects')).data
-    } else {
-      return (await httpClient.get('/aii/users/' + currentUser.id + '/projects')).data
-    }
-  } catch (error: any) {
-    notifyError(error)
     throw error
   }
 }
@@ -227,11 +137,9 @@ export {
   loadDatasets,
   loadDatasetByName,
   loadDashboard,
-  loadDicomTagMapping,
   loadFieldNames,
   loadValues,
   loadSearchFields,
   getAggregatedSeriesNum,
-  fetchProjects,
   downloadDatasets,
 }

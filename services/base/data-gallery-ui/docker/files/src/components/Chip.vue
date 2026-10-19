@@ -1,13 +1,11 @@
 <template>
-  <div>
+  <div class="d-flex flex-wrap ga-1">
     <v-chip
       v-for="item in sortedItems"
       :key="item"
-      :color="stringToColour(item)"
-      :class="[sortedItems.length > 1 ? 'multiple-items' : '']"
-      style="margin-left: 1px; margin-right: 1px"
       size="x-small"
       variant="flat"
+      :style="tagChipStyle(item)"
     >
       {{ item }}
     </v-chip>
@@ -16,7 +14,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { stringToColour } from '@/utils/utils'
+import { tagChipStyle } from '@/utils/tagColors'
 
 const props = withDefaults(defineProps<{ items?: string[] }>(), {
   items: () => [],
@@ -24,10 +22,3 @@ const props = withDefaults(defineProps<{ items?: string[] }>(), {
 
 const sortedItems = computed(() => [...props.items].sort())
 </script>
-
-<style scoped>
-.multiple-items {
-  margin-left: 1px;
-  margin-right: 1px;
-}
-</style>

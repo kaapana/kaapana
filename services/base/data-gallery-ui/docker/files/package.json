@@ -22,7 +22,6 @@
     "@mdi/font": "^7.4.47",
     "apexcharts": "^6.5.0",
     "axios": "^1.12.2",
-    "keycon": "^1.4.0",
     "pinia": "^2.2.6",
     "selecto": "^1.26.3",
     "splitpanes": "^4.0.0",

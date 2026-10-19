@@ -1,25 +1,9 @@
-<template>
-  <v-tooltip location="bottom">
-    <template v-slot:activator="{ props: activator }">
-      <span v-bind="activator">
-        <v-btn icon variant="text" v-if="!downloading" :disabled="!canDownload">
-          <v-icon color="primary" @click="startDownload"> mdi-download-circle </v-icon>
-        </v-btn>
-        <v-progress-circular
-          :width="3"
-          color="green"
-          indeterminate
-          v-if="downloading"
-        ></v-progress-circular>
-      </span>
-    </template>
-    <span>{{ status }}</span>
-  </v-tooltip>
-</template>
-
 <script setup lang="ts">
-import { onBeforeMount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeMount, onBeforeUnmount, ref, watch } from 'vue'
+import { ConfirmDialog, apiErrorInfo, type ApiErrorInfo } from '@kaapana/base-ui'
 import { downloadDatasets } from '@/common/api.service'
+import { kaapanaIcons } from '@/utils/galleryIcons'
+import { notifyFailure } from '@/utils/notifyFailure'
 
 const MAX_DOWNLOADABLE_ITEM = 20
 
@@ -27,58 +11,64 @@ const props = withDefaults(defineProps<{ selectedSeries?: string[] | null }>(), 
   selectedSeries: () => [],
 })
 
+const emit = defineEmits<{ 'update:dirty': [dirty: boolean] }>()
+
 const downloading = ref(false)
-const downloadCompleted = ref(false)
-const status = ref('Download')
-const canDownload = ref(true)
+const confirmDialog = ref(false)
+// The series the confirmation describes, copied when it opens: the download
+// then takes exactly what the dialog counted, even if the selection changes
+// meanwhile.
+const pending = ref<string[]>([])
 
-function startDownload() {
-  if (props.selectedSeries) {
-    const series_joined = props.selectedSeries.join(';')
-    downloading.value = true
-    canDownload.value = false
-    status.value = `Downloading ${props.selectedSeries.length} items`
-    downloadDatasets(series_joined)
-      .then(() => {
-        downloading.value = false
-        downloadCompleted.value = true
-        status.value = 'Ready to Download'
-        canDownload.value = false
-        setTimeout(resetState, 2000)
-      })
-      .catch((error) => {
-        downloading.value = false
-        status.value = 'Error on Download'
-        canDownload.value = false
-        setTimeout(resetState, 2000)
-        console.log(error)
-      })
+const count = computed(() => props.selectedSeries?.length ?? 0)
+const tooManyItems = computed(() => count.value > MAX_DOWNLOADABLE_ITEM)
+const canDownload = computed(() => count.value > 0 && !tooManyItems.value)
+const confirmText = computed(
+  () =>
+    `${pending.value.length} series are packaged into a single zip file before the download starts, which may take several minutes. ` +
+    'Downloads have a size limit; for larger amounts, use the "download-selected-files" workflow. ' +
+    'The transfer uses network bandwidth and local storage for as long as it runs. ' +
+    'Reloading or closing this view while the download runs cancels it.',
+)
+
+const status = computed(() => {
+  if (downloading.value) return `Downloading ${pending.value.length} series…`
+  if (count.value === 0) return 'Select at least one series to download'
+  if (tooManyItems.value) {
+    return `Too many series selected (${count.value}). Download at most ${MAX_DOWNLOADABLE_ITEM} at a time, or use the "download-selected-files" workflow for larger amounts.`
+  }
+  return `Download ${count.value} series`
+})
+
+function askDownload() {
+  if (downloading.value || !props.selectedSeries?.length) return
+  pending.value = [...props.selectedSeries]
+  confirmDialog.value = true
+}
+
+async function startDownload() {
+  if (downloading.value || !pending.value.length) return
+  downloading.value = true
+  try {
+    await downloadDatasets(pending.value.join(';'))
+  } catch (error: unknown) {
+    notifyFailure('Download failed', downloadFailureText(apiErrorInfo(error)), error)
+  } finally {
+    downloading.value = false
   }
 }
 
-function resetState() {
-  downloading.value = false
-  downloadCompleted.value = false
-  canDownload.value = true
-  if (props.selectedSeries) {
-    updateStatusFromSeries(props.selectedSeries)
-  } else {
-    status.value = 'Download'
+function downloadFailureText({ status }: ApiErrorInfo): string {
+  if (status === null) {
+    return 'The download could not be completed: the server could not be reached.'
   }
+  return 'The download could not be completed.'
 }
 
-function updateStatusFromSeries(newSeries: string[]) {
-  if (newSeries.length > MAX_DOWNLOADABLE_ITEM) {
-    status.value =
-      'Too many items selected to download. Please use "download-selected-files" to download large amount of files'
-    canDownload.value = false
-  } else {
-    status.value = `Download ${newSeries.length} items`
-    canDownload.value = true
-  }
-}
+// Leaving the view drops the download, so the shell should ask first, as it
+// does for unsaved input.
+watch(downloading, (value) => emit('update:dirty', value))
 
-// Prevent reloading the window while downloading
 function preventReload(event: BeforeUnloadEvent) {
   if (downloading.value) {
     event.preventDefault()
@@ -86,22 +76,40 @@ function preventReload(event: BeforeUnloadEvent) {
   }
 }
 
-watch(
-  () => props.selectedSeries,
-  (newval) => {
-    if (newval) updateStatusFromSeries(newval)
-  },
-)
-
 onBeforeMount(() => {
   window.addEventListener('beforeunload', preventReload)
 })
 
-onMounted(() => {
-  if (props.selectedSeries) {
-    updateStatusFromSeries(props.selectedSeries)
-  }
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', preventReload)
 })
 </script>
 
-<style scoped></style>
+<template>
+  <v-tooltip location="bottom" :text="status">
+    <template v-slot:activator="{ props: activator }">
+      <!-- While the button is disabled its wrapper takes the focus, so the
+           reason is reachable by keyboard. -->
+      <span v-bind="activator" :tabindex="canDownload ? undefined : 0">
+        <v-btn
+          :icon="kaapanaIcons.download"
+          :aria-label="status"
+          variant="text"
+          color="primary"
+          :disabled="!canDownload"
+          :loading="downloading"
+          @click="askDownload"
+        />
+      </span>
+    </template>
+  </v-tooltip>
+
+  <ConfirmDialog
+    v-model="confirmDialog"
+    title="Download series?"
+    :text="confirmText"
+    confirm-text="Download"
+    color="primary"
+    @confirm="startDownload"
+  />
+</template>

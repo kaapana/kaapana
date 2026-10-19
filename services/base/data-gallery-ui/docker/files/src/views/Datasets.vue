@@ -1,51 +1,68 @@
 <template>
   <div>
-    <splitpanes :class="isDark ? 'dark-theme' : ''">
+    <splitpanes>
       <pane class="main side-navigation" size="70" min-size="30">
         <v-container class="pa-0" fluid>
-          <v-card class="rounded-0">
-            <div style="padding: 10px 10px 10px 10px">
+          <v-card class="rounded-0" :elevation="0">
+            <div class="pa-3">
               <v-row dense align="center">
                 <v-col cols="1" align="center">
-                  <v-icon>mdi-folder</v-icon>
+                  <v-icon :icon="galleryIcons.dataset" />
                 </v-col>
                 <v-col cols="10">
                   <v-autocomplete
+                    ref="datasetSelector"
                     v-model="selectedDataset"
                     :items="datasets"
                     :item-title="datasetLabel"
                     label="Select Dataset"
+                    v-model:search="datasetSearch"
                     clearable
                     hide-details
                     return-object
                     single-line
                     density="compact"
+                    :loading="datasetsLoading || datasetPending"
+                    :no-data-text="datasetNoDataText"
                     @click:clear="selectedDataset = null"
+                    @update:menu="onDatasetMenu"
                   >
                   </v-autocomplete>
                 </v-col>
-                <v-col cols="1" align="center" @click="editDatasetsDialog = true">
-                  <v-icon>mdi-folder-edit-outline</v-icon>
+                <v-col cols="1" align="center">
+                  <v-tooltip location="bottom" text="Manage datasets">
+                    <template v-slot:activator="{ props: activator }">
+                      <v-btn
+                        v-bind="activator"
+                        :icon="galleryIcons.datasetEdit"
+                        aria-label="Manage datasets"
+                        variant="text"
+                        density="comfortable"
+                        @click="editDatasetsDialog = true"
+                      />
+                    </template>
+                  </v-tooltip>
                 </v-col>
               </v-row>
               <Search
                 ref="searchRef"
                 :selectedDataset="selectedDataset"
-                @search="(query) => updateData(query)"
+                :loading="isLoading"
+                @search="(query, refresh) => updateData(query, false, refresh)"
+                @dataset="onScopeDataset"
+                @update:dirty="(dirty) => (searchDirty = dirty)"
               />
             </div>
           </v-card>
-          <v-card class="rounded-0 elevation-0">
+          <v-card class="rounded-0" :elevation="0">
             <v-divider></v-divider>
-            <div style="padding-left: 10px; padding-right: 10px">
+            <div class="px-3">
               <TagBar />
             </div>
             <v-divider></v-divider>
           </v-card>
           <div class="d-flex flex-column pa-0" style="height: 100%">
             <Paginate
-              align="right"
-              ref="paginateRef"
               :pageLength="settings.datasets.itemsPerPagePagination"
               :aggregatedSeriesNum="aggregatedSeriesNum"
               :executeSlicedSearch="settings.datasets.executeSlicedSearch"
@@ -56,20 +73,32 @@
         </v-container>
         <!-- Gallery View -->
         <v-container fluid class="pa-0">
-          <v-skeleton-loader v-if="isLoading" class="mx-auto" type="list-item@100">
-          </v-skeleton-loader>
+          <v-container v-if="isLoading" fluid class="pa-2">
+            <v-row>
+              <v-col v-for="n in 8" :key="n" cols="3">
+                <v-skeleton-loader type="image, list-item-two-line" />
+              </v-col>
+            </v-row>
+          </v-container>
 
           <!-- Data available -->
-          <v-container
-            fluid
-            class="pa-0"
-            v-else-if="
-              (!isLoading &&
-                Object.entries(patients).length > 0 &&
-                settings.datasets.structured) ||
-              (!isLoading && seriesInstanceUIDs.length > 0 && !settings.datasets.structured)
-            "
-          >
+          <v-container fluid class="pa-0" v-else-if="hasResults">
+            <v-alert
+              v-if="loadFailure"
+              type="warning"
+              variant="tonal"
+              density="compact"
+              class="ma-2"
+              data-testid="stale-results-alert"
+            >
+              Could not load the results of this search — showing the previous results.
+              <template #append>
+                <v-btn variant="text" size="small" @click="updateData(searchQuery, true)">
+                  Try again
+                </v-btn>
+                <v-btn variant="text" size="small" @click="showLoadFailureDetails">Details</v-btn>
+              </template>
+            </v-alert>
             <VueSelecto
               dragContainer=".elements"
               :selectableTargets="['.selecto-area .seriesCard']"
@@ -84,64 +113,74 @@
             >
             </VueSelecto>
             <v-container fluid class="pa-0">
-              <v-card class="rounded-0 elevation-0">
-                <v-card-title style="padding-left: 30px; padding-right: 30px">
-                  <v-row class="pa-0">
-                    <v-col class="pa-0" align="right">
-                      {{ displaySelectedItems }}
-                      <v-tooltip location="bottom">
-                        <template v-slot:activator="{ props: activator }">
-                          <span v-bind="activator">
-                            <v-btn :disabled="identifiersOfInterest.length == 0" icon variant="text">
-                              <v-icon color="blue" @click="saveAsDatasetDialog = true">
-                                mdi-plus
-                              </v-icon>
-                            </v-btn>
-                          </span>
-                        </template>
-                        <span>Save as Dataset</span>
-                      </v-tooltip>
-                      <v-tooltip location="bottom">
-                        <template v-slot:activator="{ props: activator }">
-                          <span v-bind="activator">
-                            <v-btn :disabled="identifiersOfInterest.length == 0" icon variant="text">
-                              <v-icon color="green" @click="addToDatasetDialog = true">
-                                mdi-folder-plus-outline
-                              </v-icon>
-                            </v-btn>
-                          </span>
-                        </template>
-                        <span>Add to Dataset</span>
-                      </v-tooltip>
-                      <v-tooltip location="bottom">
+              <v-card class="rounded-0" :elevation="0">
+                <v-card-title class="px-6">
+                  <v-row class="pa-0" align="center">
+                    <v-col class="pa-0 text-right" data-testid="selection-toolbar">
+                      <span class="text-body-2 text-medium-emphasis mr-2">
+                        {{ displaySelectedItems }}
+                      </span>
+                      <!-- A disabled button cannot take focus, so Remove's wrapper does. The
+                           others are unavailable only without series, which hides this toolbar. -->
+                      <v-tooltip location="bottom" :text="saveAsHint">
                         <template v-slot:activator="{ props: activator }">
                           <span v-bind="activator">
                             <v-btn
-                              :disabled="identifiersOfInterest.length == 0 || !selectedDataset"
-                              icon
+                              :icon="kaapanaIcons.add"
+                              :aria-label="saveAsHint"
                               variant="text"
-                            >
-                              <v-icon color="red" @click="removeFromDatasetDialog = true">
-                                mdi-folder-minus-outline
-                              </v-icon>
-                            </v-btn>
+                              :disabled="nothingSelected"
+                              @click="saveAsDatasetDialog = true"
+                            />
                           </span>
                         </template>
-                        <span>Remove from Dataset</span>
                       </v-tooltip>
-                      <v-tooltip location="bottom">
+                      <v-tooltip location="bottom" :text="addToHint">
                         <template v-slot:activator="{ props: activator }">
                           <span v-bind="activator">
-                            <v-btn :disabled="identifiersOfInterest.length == 0" icon variant="text">
-                              <v-icon color="primary" @click="workflowDialog = true">
-                                mdi-play
-                              </v-icon>
-                            </v-btn>
+                            <v-btn
+                              :icon="galleryIcons.datasetAdd"
+                              :aria-label="addToHint"
+                              variant="text"
+                              :disabled="nothingSelected"
+                              @click="addToDatasetDialog = true"
+                            />
                           </span>
                         </template>
-                        <span>Start Workflow</span>
                       </v-tooltip>
-                      <DownloadDatasetBtn :selected-series="identifiersOfInterest" />
+                      <v-tooltip location="bottom" :text="removeFromHint">
+                        <template v-slot:activator="{ props: activator }">
+                          <span v-bind="activator" :tabindex="removeUnavailable ? 0 : undefined">
+                            <v-btn
+                              :icon="galleryIcons.datasetRemove"
+                              :aria-label="removeFromHint"
+                              variant="text"
+                              color="error"
+                              :disabled="removeUnavailable"
+                              :loading="removingFromDataset"
+                              @click="askRemoveFromDataset"
+                            />
+                          </span>
+                        </template>
+                      </v-tooltip>
+                      <v-tooltip location="bottom" :text="startWorkflowHint">
+                        <template v-slot:activator="{ props: activator }">
+                          <span v-bind="activator">
+                            <v-btn
+                              :icon="kaapanaIcons.start"
+                              :aria-label="startWorkflowHint"
+                              variant="text"
+                              color="primary"
+                              :disabled="nothingSelected"
+                              @click="workflowDialog = true"
+                            />
+                          </span>
+                        </template>
+                      </v-tooltip>
+                      <DownloadDatasetBtn
+                        :selected-series="identifiersOfInterest"
+                        @update:dirty="(dirty) => (downloadDirty = dirty)"
+                      />
                     </v-col>
                   </v-row>
                 </v-card-title>
@@ -153,31 +192,23 @@
               class="overflow-auto rounded-0 v-card v-sheet pa-0 elements selecto-area gallery-side-navigation"
             >
               <StructuredGallery
-                v-if="
-                  !isLoading &&
-                  Object.entries(patients).length > 0 &&
-                  settings.datasets.structured
-                "
+                v-if="settings.datasets.structured"
                 v-model:patients="patients"
               />
               <!-- seriesInstanceUIDs deliberately not two-way bound: breaks the Gallery embedded in StructuredGallery -->
-              <Gallery
-                v-else-if="
-                  !isLoading && seriesInstanceUIDs.length > 0 && !settings.datasets.structured
-                "
-                :seriesInstanceUIDs="seriesInstanceUIDs"
-              />
+              <Gallery v-else :seriesInstanceUIDs="seriesInstanceUIDs" />
             </v-container>
           </v-container>
 
-          <!-- No data available or error -->
-          <v-container fluid class="pa-0" v-else>
-            <v-card class="rounded-0">
-              <v-card-text>
-                <h3>{{ message }}</h3>
-              </v-card-text>
-            </v-card>
-          </v-container>
+          <GalleryEmptyState
+            v-else
+            ref="emptyStateRef"
+            :state="emptyState"
+            @retry="updateData(searchQuery, true)"
+            @show-details="showLoadFailureDetails"
+            @clear="resetSearch"
+            @show-all="selectedDataset = null"
+          />
         </v-container>
       </pane>
       <pane class="sidebar side-navigation" size="30" min-size="25">
@@ -191,50 +222,40 @@
           :allPatients="allPatients"
           :fields="dashboardFields"
           :searchQuery="searchQuery"
+          :series-loading="isLoading"
           @dataPointSelection="(d) => addFilterToSearch(d)"
         />
       </pane>
     </splitpanes>
     <div>
-      <ConfirmationDialog
-        v-model:show="removeFromDatasetDialog"
-        title="Remove from Dataset"
+      <ConfirmDialog
+        v-model="removeFromDatasetDialog"
+        title="Remove series from dataset?"
+        :text="removal?.text ?? ''"
+        confirm-text="Remove"
+        color="error"
         @confirm="removeFromDataset"
-        @cancel="removeFromDatasetDialog = false"
-      >
-        Are you sure you want to remove
-        <b>{{ identifiersOfInterest.length }} items</b> from the dataset
-        <b>{{ datasetName }}</b
-        >?
-      </ConfirmationDialog>
+        @after-leave="keepFocusInGallery"
+      />
       <SaveDatasetDialog
         v-model="saveAsDatasetDialog"
+        :item-count="identifiersOfInterest.length"
+        :existing-datasets="datasets"
+        :busy="savingDataset"
         @save="(name, access_level) => saveDatasetFromDialog(name, access_level)"
-        @cancel="saveAsDatasetDialog = false"
+        @update:dirty="(dirty) => (saveDialogDirty = dirty)"
       />
-      <v-dialog v-model="addToDatasetDialog" width="500">
-        <v-card>
-          <v-card-title> Add to Dataset </v-card-title>
-          <v-card-text>
-            <v-select
-              v-model="datasetToAddTo"
-              :items="datasets"
-              :item-title="datasetLabel"
-              return-object
-              label="Dataset"
-            ></v-select>
-          </v-card-text>
-          <v-divider></v-divider>
-          <v-card-actions>
-            <v-spacer></v-spacer>
-            <v-btn color="primary" :disabled="!datasetToAddTo" @click.stop="addToDataset">
-              Save
-            </v-btn>
-            <v-btn @click.stop="addToDatasetDialog = false">Cancel</v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-dialog>
-      <v-dialog v-model="workflowDialog" width="500">
+      <AddToDatasetDialog
+        v-model="addToDatasetDialog"
+        :datasets="datasets"
+        :datasets-loading="datasetsLoading"
+        :datasets-load-failed="datasetsLoadFailed"
+        :item-count="identifiersOfInterest.length"
+        :busy="addingToDataset"
+        @save="addToDataset"
+        @menu="onDatasetMenu"
+      />
+      <v-dialog v-model="workflowDialog" max-width="600" @after-leave="onWorkflowDialogClosed">
         <WorkflowExecution
           :identifiers="identifiersOfInterest"
           :onlyLocal="true"
@@ -250,87 +271,17 @@
         v-model="editDatasetsDialog"
         @close="(reloadDatasets) => editedDatasets(reloadDatasets)"
       />
-      <v-dialog
-        :model-value="datasets_store.showValidationResults"
-        width="850"
-        persistent
-        @click:outside="onValidationResultClose"
-        @keydown.esc="onValidationResultClose"
-      >
-        <v-card>
-          <v-toolbar flat color="rgba(0, 0, 0, 0)">
-            <v-toolbar-title class="text-h6 text-white pl-0"> Reports </v-toolbar-title>
-            <v-spacer></v-spacer>
-            <v-menu location="bottom end">
-              <template v-slot:activator="{ props: activator }">
-                <v-btn icon v-bind="activator" :disabled="false">
-                  <v-icon>mdi-dots-vertical</v-icon>
-                </v-btn>
-              </template>
-              <v-list>
-                <v-list-item @click="runValidationWorkflow(validationResultItem)">
-                  <v-list-item-title>Rerun Validation</v-list-item-title>
-                  <template #append>
-                    <v-icon class="mt-4">mdi-play</v-icon>
-                  </template>
-                </v-list-item>
-                <v-list-item @click="deleteValidationResult(validationResultItem)">
-                  <v-list-item-title>Delete Report</v-list-item-title>
-                  <template #append>
-                    <v-icon class="mt-4">mdi-delete-empty</v-icon>
-                  </template>
-                </v-list-item>
-                <v-list-item @click="downloadValidationResult(validationResultItem)">
-                  <v-list-item-title>Download Report</v-list-item-title>
-                  <template #append>
-                    <v-icon class="mt-4">mdi-file-download</v-icon>
-                  </template>
-                </v-list-item>
-              </v-list>
-            </v-menu>
-          </v-toolbar>
-          <v-card-text v-if="validationResultItem != null">
-            <v-progress-circular
-              v-if="validationResultLookup.loading"
-              indeterminate
-              color="primary"
-            />
-            <ElementsFromHTML v-else-if="validationResultUrl" :rawHtmlURL="validationResultUrl" />
-            <div class="container" v-else>
-              <h1 class="pb-5">Validation Report</h1>
-              <p class="text-primary">
-                Report not found, or earlier report has been deleted from workflow results.
-                Please re-run the dicom validation workflow to have up-to-date report.
-              </p>
-              <v-btn
-                class="ma-2 ml-0"
-                variant="outlined"
-                color="light"
-                @click="runValidationWorkflow(validationResultItem)"
-              >
-                <v-icon start>mdi-cog-play</v-icon>
-                Re-run Validation
-              </v-btn>
-            </div>
-            <v-card-actions>
-              <v-spacer></v-spacer>
-              <v-btn color="primary" @click="onValidationResultClose"> Close </v-btn>
-            </v-card-actions>
-          </v-card-text>
-        </v-card>
-      </v-dialog>
+      <ValidationReportDialog @run-workflow="runWorkflowOnSeries" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { useTheme } from 'vuetify'
 import { notify } from '@kyvg/vue3-notification'
 import { Splitpanes, Pane } from 'splitpanes'
 import 'splitpanes/dist/splitpanes.css'
-import KeyController from 'keycon'
 import DetailView from '@/components/DetailView.vue'
 import StructuredGallery from '@/components/StructuredGallery.vue'
 import Gallery from '@/components/Gallery.vue'
@@ -338,13 +289,14 @@ import Search from '@/components/Search.vue'
 import TagBar from '@/components/TagBar.vue'
 import Dashboard from '@/components/Dashboard.vue'
 import SaveDatasetDialog from '@/components/SaveDatasetDialog.vue'
+import AddToDatasetDialog from '@/components/AddToDatasetDialog.vue'
+import ValidationReportDialog from '@/components/ValidationReportDialog.vue'
 import { WorkflowExecution } from '@kaapana/base-ui/workflow-execution'
 import '@kaapana/base-ui/workflow-execution.css'
-import ConfirmationDialog from '@/components/ConfirmationDialog.vue'
+import GalleryEmptyState from '@/components/GalleryEmptyState.vue'
 import EditDatasetsDialog from '@/components/EditDatasetsDialog.vue'
 import DownloadDatasetBtn from '@/components/DownloadDatasetBtn.vue'
 import VueSelecto from '@/components/VueSelecto.vue'
-import ElementsFromHTML from '@/components/ElementsFromHTML.vue'
 import Paginate from '@/components/Paginate.vue'
 import {
   createDataset,
@@ -352,57 +304,224 @@ import {
   loadDatasets,
   loadPatients,
   getAggregatedSeriesNum,
-  fetchProjects,
 } from '@/common/api.service'
-import { kaapanaApiService } from '@kaapana/base-ui'
+import { apiErrorInfo, type ApiErrorInfo } from '@kaapana/base-ui'
 import { readSettings, settings as defaultSettings } from '@/static/defaultUIConfig'
 import { debounce } from '@/utils/utils'
-import { getProjectSlug, useProjectStore } from '@kaapana/base-ui'
+import { ConfirmDialog, getProjectSlug, postViewDirty, useProjectStore } from '@kaapana/base-ui'
 import { useDatasetsStore } from '@/stores/datasets'
+import { useFailureDetailsStore } from '@/stores/failureDetails'
+import { kaapanaIcons, galleryIcons } from '@/utils/galleryIcons'
+import { datasetLabel, datasetListNoDataText, sameDataset } from '@/utils/datasets'
+import { notifyFailure } from '@/utils/notifyFailure'
+import { hasVisibleFocus, useFocusReturn } from '@/composables/useFocusReturn'
 import type { Dataset, Patients } from '@/types'
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const keycon = new KeyController()
-
 const route = useRoute()
-const theme = useTheme()
 const projectStore = useProjectStore()
+const failureDetails = useFailureDetailsStore()
 const datasets_store = useDatasetsStore()
 
-const isDark = computed(() => theme.global.current.value.dark)
-
 const searchRef = ref<InstanceType<typeof Search> | null>(null)
-const paginateRef = ref<InstanceType<typeof Paginate> | null>(null)
 
 const seriesInstanceUIDs = ref<string[]>([])
 const patients = ref<Patients>({})
 const selectedSeriesInstanceUIDs = ref<string[]>([])
 const isLoading = ref(true)
-const message = ref<any>('Loading...')
+const loadFailure = ref<ApiErrorInfo | null>(null)
 const settings = ref<any>(defaultSettings)
-const datasetNames = ref<string[]>([])
 const datasets = ref<Dataset[]>([])
+const datasetsLoading = ref(true)
+const datasetsLoadFailed = ref(false)
+const datasetSearch = ref<string>()
 const selectedDataset = ref<Dataset | null>(null)
-const datasetName = ref<string | null>(null)
+const scopeDataset = ref<Dataset | null>(null)
 const saveAsDatasetDialog = ref(false)
 const addToDatasetDialog = ref(false)
 const workflowDialog = ref(false)
 const removeFromDatasetDialog = ref(false)
 const editDatasetsDialog = ref(false)
-const datasetToAddTo = ref<Dataset | null>(null)
 const debouncedIdentifiers = ref<string[]>([])
-const resultPaths = ref<Record<string, any>>({})
-const resultLookupState = ref<Record<string, any>>({})
 const filteredDags = ref<string[]>([])
 const aggregatedSeriesNum = ref<number>(100)
 const pageIndex = ref(1)
 const searchQuery = ref<any>({})
 const allPatients = ref(true)
+const savingDataset = ref(false)
+const addingToDataset = ref(false)
+const removingFromDataset = ref(false)
+const removal = ref<{ dataset: Dataset; identifiers: string[]; text: string } | null>(null)
+const datasetSelector = ref<{ focus: () => void } | null>(null)
+const emptyStateRef = ref<InstanceType<typeof GalleryEmptyState> | null>(null)
+const searchDirty = ref(false)
+const saveDialogDirty = ref(false)
+const downloadDirty = ref(false)
 const queryParams: Record<string, any> = { ...route.query }
+// The deeplink's parameters as they arrived. Search removes them from the address
+// once applied, so a redirect to another project needs the copy.
+const linkSearch = window.location.search
 
-function datasetLabel(item: Dataset) {
-  return `${item.name} (${item.access_level})`
+/* -------------------------------------------------------------- datasets -- */
+
+/** The search reports the dataset it actually uses. It can differ from the one
+ *  shown in the selector (a deep link's, or the previous one after a failed
+ *  load). Then the selector is set to match, so it shows what the gallery shows. */
+function onScopeDataset(dataset: Dataset | null) {
+  scopeDataset.value = dataset
+  if (sameDataset(selectedDataset.value, dataset) || (!dataset && !selectedDataset.value)) return
+  selectedDataset.value = dataset
+    ? (datasets.value.find((d) => sameDataset(d, dataset)) ?? dataset)
+    : null
 }
+
+/** Picked in the selector but not yet loaded by Search: the gallery still shows
+ *  the earlier results. Used so actions on the dataset can wait until it has loaded. */
+const datasetPending = computed(
+  () => !!selectedDataset.value && !sameDataset(scopeDataset.value, selectedDataset.value),
+)
+
+async function updateDatasetNames() {
+  datasetsLoading.value = true
+  try {
+    const _datasets = await loadDatasets()
+    datasetsLoadFailed.value = false
+    datasets.value = _datasets
+    const selected = selectedDataset.value
+    if (selected) selectedDataset.value = _datasets.find((d) => sameDataset(d, selected)) ?? selected
+  } catch (error) {
+    datasetsLoadFailed.value = true
+    throw error
+  } finally {
+    datasetsLoading.value = false
+  }
+}
+
+function onDatasetMenu(open: boolean) {
+  if (open && datasetsLoadFailed.value && !datasetsLoading.value) {
+    updateDatasetNames().catch(() => {})
+  }
+}
+
+function editedDatasets(reloadDatasets: boolean) {
+  if (reloadDatasets) {
+    updateDatasetNames()
+      .then(() => {
+        if (selectedDataset.value && !datasets.value.some((d) => sameDataset(d, selectedDataset.value))) {
+          selectedDataset.value = null
+        }
+      })
+      .catch(() => {})
+  }
+  editDatasetsDialog.value = false
+}
+
+const datasetLabelOfSelected = computed(() => selectedDataset.value?.name ?? '')
+
+const datasetNoDataText = computed(() =>
+  datasetListNoDataText(
+    {
+      loading: datasetsLoading.value,
+      failed: datasetsLoadFailed.value,
+      count: datasets.value.length,
+      search: datasetSearch.value,
+    },
+    'No datasets in this project yet. Save a selection as a dataset to create one.',
+  ),
+)
+
+/* ---------------------------------------------------------------- search -- */
+
+// Monotonic id so out-of-order responses can't clobber a newer search: each
+// call captures an id and a resolving chain discards its results if a newer
+// call has since started.
+let updateDataRequestId = 0
+/** `refresh` keeps the results mounted while loading, and with them the focus. */
+async function updateData(query: any = {}, useLastquery = false, refresh = false) {
+  const requestId = ++updateDataRequestId
+  if (!useLastquery) {
+    searchQuery.value = { ...query }
+  }
+  if (!refresh) isLoading.value = true
+  loadFailure.value = null
+  selectedSeriesInstanceUIDs.value = []
+  datasets_store.setSelectedItems(selectedSeriesInstanceUIDs.value)
+  datasets_store.resetDetailViewItem()
+  getAggregatedSeriesNum({
+    query: searchQuery.value,
+  })
+    .then((data) => {
+      if (requestId !== updateDataRequestId) return
+      aggregatedSeriesNum.value = data
+      allPatients.value =
+        aggregatedSeriesNum.value > settings.value.datasets.itemsPerPagePagination
+      loadPatients({
+        structured: settings.value.datasets.structured,
+        executeSlicedSearch: settings.value.datasets.executeSlicedSearch,
+        query: searchQuery.value,
+        sort: settings.value.datasets.sort,
+        sortDirection: settings.value.datasets.sortDirection,
+        pageIndex: pageIndex.value,
+        pageLength: settings.value.datasets.itemsPerPagePagination,
+        aggregatedSeriesNum: aggregatedSeriesNum.value,
+      })
+        .then((data) => {
+          if (requestId !== updateDataRequestId) return
+          if (settings.value.datasets.structured) {
+            patients.value = data
+            seriesInstanceUIDs.value = Object.values(patients.value)
+              .map((studies) => Object.values(studies))
+              .flat(Infinity) as string[]
+          } else {
+            seriesInstanceUIDs.value = data
+          }
+          loadFailure.value = null
+          isLoading.value = false
+        })
+        .catch((error) => {
+          if (requestId !== updateDataRequestId) return
+          loadFailure.value = apiErrorInfo(error)
+          isLoading.value = false
+        })
+    })
+    .catch((error) => {
+      if (requestId !== updateDataRequestId) return
+      loadFailure.value = apiErrorInfo(error)
+      isLoading.value = false
+    })
+}
+
+function showLoadFailureDetails() {
+  if (!loadFailure.value) return
+  failureDetails.show({
+    title: 'Could not load the series',
+    text: 'The series matching the search could not be loaded.',
+    error: loadFailure.value,
+  })
+}
+
+function onPageIndexChange(newPageIndex: number) {
+  pageIndex.value = newPageIndex
+}
+
+function addFilterToSearch(selectedFilterItem: { key: string; value: string }) {
+  const { key, value } = selectedFilterItem
+  searchRef.value
+    ?.addFilterItem(key, value)
+    .catch((error: unknown) =>
+      notifyFailure('Filter not added', `The filter “${key}: ${value}” could not be added.`, error),
+    )
+}
+
+function resetSearch() {
+  selectedDataset.value = null
+  searchRef.value?.resetSearch()
+}
+
+const dashboardFields = computed(() =>
+  settings.value.datasets.props.filter((i: any) => i.dashboard).map((i: any) => i.name),
+)
+
+/* ------------------------------------------------------------- selection -- */
 
 function keyDownEventListener(event: KeyboardEvent) {
   if (
@@ -438,154 +557,86 @@ function onSelect(e: any) {
   })
   debouncedIdentifiers.value = e.selected.map((el: HTMLElement) => el.id)
 }
-function onValidationResultClose() {
-  datasets_store.setShowValidationResults(false)
-  datasets_store.setValidationResultItem(null)
-}
-function onWorkflowSubmit() {
-  workflowDialog.value = false
-  if (filteredDags.value.length > 0) {
-    filteredDags.value = []
-  }
-}
-function addFilterToSearch(selectedFilterItem: { key: string; value: string }) {
-  // addFilterItem reports its own failures; the filter is simply not added.
-  searchRef.value
-    ?.addFilterItem(selectedFilterItem['key'], selectedFilterItem['value'])
-    .catch(() => {})
-}
-// Monotonic id so out-of-order responses can't clobber a newer search: each
-// call captures an id and a resolving chain discards its results if a newer
-// call has since started.
-let updateDataRequestId = 0
-async function updateData(query: any = {}, useLastquery = false) {
-  const requestId = ++updateDataRequestId
-  if (!useLastquery) {
-    searchQuery.value = { ...query }
-  }
-  isLoading.value = true
-  selectedSeriesInstanceUIDs.value = []
-  datasets_store.setSelectedItems(selectedSeriesInstanceUIDs.value)
-  datasets_store.resetDetailViewItem()
-  getAggregatedSeriesNum({
-    query: searchQuery.value,
-  })
-    .then((data) => {
-      if (requestId !== updateDataRequestId) return
-      aggregatedSeriesNum.value = data
-      allPatients.value =
-        aggregatedSeriesNum.value > settings.value.datasets.itemsPerPagePagination
-      loadPatients({
-        structured: settings.value.datasets.structured,
-        executeSlicedSearch: settings.value.datasets.executeSlicedSearch,
-        query: searchQuery.value,
-        sort: settings.value.datasets.sort,
-        sortDirection: settings.value.datasets.sortDirection,
-        pageIndex: pageIndex.value,
-        pageLength: settings.value.datasets.itemsPerPagePagination,
-        aggregatedSeriesNum: aggregatedSeriesNum.value,
-      })
-        .then((data) => {
-          if (requestId !== updateDataRequestId) return
-          // TODO: this is not ideal...
-          if (settings.value.datasets.structured) {
-            patients.value = data
-            seriesInstanceUIDs.value = Object.values(patients.value)
-              .map((studies) => Object.values(studies))
-              .flat(Infinity) as string[]
-          } else {
-            seriesInstanceUIDs.value = data
-          }
-          if (seriesInstanceUIDs.value.length === 0) message.value = 'No data found.'
-          isLoading.value = false
-        })
-        .catch((e) => {
-          if (requestId !== updateDataRequestId) return
-          message.value = e
-          isLoading.value = false
-        })
-    })
-    // api.service already notifies on error; without this catch isLoading
-    // stays true and the skeleton loader never clears.
-    .catch(() => {
-      if (requestId !== updateDataRequestId) return
-      isLoading.value = false
-    })
-}
-async function updateDatasetNames() {
-  const _datasets = await loadDatasets()
-  datasets.value = _datasets
-  datasetNames.value = _datasets.map((dataset) => dataset.name)
-}
-async function ensureValidationResultLoaded(resultItemID: string | null) {
-  if (!resultItemID) {
-    return null
-  }
 
-  const cachedResult = resultLookupState.value[resultItemID]
-  if (cachedResult && (cachedResult.loading || cachedResult.loaded)) {
-    return cachedResult.url
+watch(
+  debouncedIdentifiers,
+  debounce((val: string[]) => {
+    selectedSeriesInstanceUIDs.value = val
+    datasets_store.setSelectedItems(selectedSeriesInstanceUIDs.value)
+  }, 200),
+)
+
+const identifiersOfInterest = computed(() => {
+  if (selectedSeriesInstanceUIDs.value.length > 0) {
+    allPatients.value = false
+    return selectedSeriesInstanceUIDs.value
   }
+  return seriesInstanceUIDs.value
+})
 
-  resultLookupState.value[resultItemID] = {
-    loading: true,
-    loaded: false,
-    found: false,
-    url: null,
-    object_name: null,
+const continueSelectKey = computed(() =>
+  window.navigator.userAgent.indexOf('Mac') !== -1 ? ['meta'] : ['ctrl'],
+)
+
+const displaySelectedItems = computed(() => {
+  if (aggregatedSeriesNum.value > 0 && aggregatedSeriesNum.value > identifiersOfInterest.value.length) {
+    return `${identifiersOfInterest.value.length} selected of ${aggregatedSeriesNum.value}`
+  } else {
+    return `${identifiersOfInterest.value.length} selected`
   }
+})
 
-  try {
-    const response: any = await kaapanaApiService.kaapanaApiGet(
-      '/get-static-website-result-reports',
-      { series_id: resultItemID },
-    )
-    const lookupResult =
-      response && response.data && response.data.results && response.data.results[resultItemID]
-        ? response.data.results[resultItemID]
-        : { found: false, url: null, object_name: null }
+/* --------------------------------------------------------------- results -- */
 
-    resultLookupState.value[resultItemID] = {
-      loading: false,
-      loaded: true,
-      found: lookupResult.found,
-      url: lookupResult.url,
-      object_name: lookupResult.object_name,
-    }
+const hasResults = computed(() =>
+  settings.value.datasets.structured
+    ? Object.keys(patients.value).length > 0
+    : seriesInstanceUIDs.value.length > 0,
+)
 
-    if (lookupResult.found && lookupResult.url) {
-      resultPaths.value[resultItemID] = lookupResult.url
-    } else if (resultItemID in resultPaths.value) {
-      delete resultPaths.value[resultItemID]
-    }
+const emptyState = computed<'empty' | 'no-results' | 'dataset-empty' | 'error'>(() => {
+  if (loadFailure.value) return 'error'
+  if (selectedDataset.value && scopeDataset.value?.identifiers.length === 0) return 'dataset-empty'
+  if (searchDirty.value || selectedDataset.value) return 'no-results'
+  return 'empty'
+})
 
-    return lookupResult.url
-  } catch (error: any) {
-    notify({
-      title: 'Error',
-      text: error.response?.data?.detail ?? error.message,
-      type: 'error',
-    })
-    // Don't cache the failure as "loaded, not found" — a retry must refetch.
-    delete resultLookupState.value[resultItemID]
-    if (resultItemID in resultPaths.value) {
-      delete resultPaths.value[resultItemID]
-    }
-    return null
-  }
+/** Removing the last series takes the toolbar, and the focused button, with it. */
+async function keepFocusInGallery() {
+  await nextTick()
+  if (hasVisibleFocus()) return
+  if (emptyStateRef.value) emptyStateRef.value.focus()
+  else datasetSelector.value?.focus()
 }
-function invalidateValidationResultCache(resultItemID: string | null) {
-  if (!resultItemID) {
-    return
-  }
 
-  if (resultItemID in resultLookupState.value) {
-    delete resultLookupState.value[resultItemID]
-  }
-  if (resultItemID in resultPaths.value) {
-    delete resultPaths.value[resultItemID]
-  }
-}
+/* ------------------------------------------------------- dataset actions -- */
+
+const nothingSelected = computed(() => identifiersOfInterest.value.length === 0)
+const removeUnavailable = computed(
+  () => nothingSelected.value || !selectedDataset.value || datasetPending.value,
+)
+const saveAsHint = computed(() =>
+  nothingSelected.value
+    ? 'Select at least one series to save as a dataset'
+    : `Save ${identifiersOfInterest.value.length} series as a new dataset`,
+)
+const addToHint = computed(() =>
+  nothingSelected.value
+    ? 'Select at least one series to add to a dataset'
+    : `Add ${identifiersOfInterest.value.length} series to a dataset`,
+)
+const removeFromHint = computed(() => {
+  if (!selectedDataset.value) return 'Select a dataset first to remove series from it'
+  if (datasetPending.value) return 'Loading the dataset…'
+  if (nothingSelected.value) return 'Select at least one series to remove from the dataset'
+  return `Remove ${identifiersOfInterest.value.length} series from “${datasetLabelOfSelected.value}”`
+})
+const startWorkflowHint = computed(() =>
+  nothingSelected.value
+    ? 'Select at least one series to run a workflow on'
+    : `Start a workflow on ${identifiersOfInterest.value.length} series`,
+)
+
 async function updateDataset(
   name: string,
   identifiers: string[],
@@ -601,49 +652,70 @@ async function updateDataset(
     }
     await apiUpdateDataset(body)
     notify({
-      title: `Dataset updated`,
-      text: `Successfully updated dataset ${name} (${access_level}).`,
+      title: 'Dataset updated',
+      text: `The dataset “${name}” (${access_level}) was updated.`,
       type: 'success',
     })
     return true
-  } catch (error: any) {
-    notify({
-      title: 'Network/Server error',
-      text: error,
-      type: 'error',
-    })
+  } catch (error: unknown) {
+    notifyFailure('Dataset not updated', `The dataset “${name}” could not be updated.`, error)
     return false
   }
 }
-async function addToDataset() {
-  const successful = await updateDataset(
-    datasetToAddTo.value!.name,
-    identifiersOfInterest.value,
-    'ADD',
-    datasetToAddTo.value!.access_level,
-  )
-  if (successful) {
-    addToDatasetDialog.value = false
+
+async function addToDataset(dataset: Dataset) {
+  if (addingToDataset.value) return
+  addingToDataset.value = true
+  try {
+    const successful = await updateDataset(
+      dataset.name,
+      identifiersOfInterest.value,
+      'ADD',
+      dataset.access_level,
+    )
+    if (successful) {
+      addToDatasetDialog.value = false
+    }
+  } finally {
+    addingToDataset.value = false
   }
 }
+
+function askRemoveFromDataset() {
+  if (removingFromDataset.value || !selectedDataset.value) return
+  const dataset = selectedDataset.value
+  const identifiers = [...identifiersOfInterest.value]
+  removal.value = {
+    dataset,
+    identifiers,
+    text:
+      `${identifiers.length} series are removed from the dataset “${dataset.name}” (${dataset.access_level}). ` +
+      'The series themselves stay in the project; only their membership in this dataset ends. ' +
+      'Adding them back means selecting them again.',
+  }
+  removeFromDatasetDialog.value = true
+}
+
 async function removeFromDataset() {
-  const successful = await updateDataset(
-    selectedDataset.value!.name,
-    identifiersOfInterest.value,
-    'DELETE',
-    selectedDataset.value!.access_level,
-  )
+  if (removingFromDataset.value || !removal.value) return
+  const { dataset, identifiers } = removal.value
+  removingFromDataset.value = true
+  let successful = false
+  try {
+    successful = await updateDataset(dataset.name, identifiers, 'DELETE', dataset.access_level)
+  } finally {
+    removingFromDataset.value = false
+  }
 
-  removeFromDatasetDialog.value = false
-
-  if (!successful) {
+  // A dataset picked meanwhile has its own search.
+  if (!successful || !sameDataset(selectedDataset.value, dataset)) {
     return
   }
   if (patients.value) {
     Object.keys(patients.value).forEach((patient) => {
       Object.keys(patients.value[patient]).forEach((study) => {
         const filtered_study = patients.value[patient][study].filter(
-          (series) => !identifiersOfInterest.value.includes(series),
+          (series) => !identifiers.includes(series),
         )
         if (filtered_study.length === 0) {
           delete patients.value[patient][study]
@@ -660,24 +732,38 @@ async function removeFromDataset() {
     })
   }
   seriesInstanceUIDs.value = seriesInstanceUIDs.value.filter(
-    (series) => !identifiersOfInterest.value.includes(series),
+    (series) => !identifiers.includes(series),
   )
 
-  // Reload manually: only the identifiers changed, not the dataset name, so no
-  // watcher in Search.vue fires.
-  // loadDatasetByName already reported; the search stays on the previous scope.
-  searchRef.value?.reloadDataset().catch(() => {})
+  // Reload and search again manually: only the identifiers changed, not the
+  // dataset name, so no watcher in Search.vue fires.
+  searchRef.value
+    ?.reloadDataset()
+    .catch((error: unknown) =>
+      notifyFailure(
+        'Dataset not reloaded',
+        `The dataset “${dataset.name}” could not be reloaded; its list of series may be out of date.`,
+        error,
+      ),
+    )
   selectedSeriesInstanceUIDs.value = []
   datasets_store.setSelectedItems(selectedSeriesInstanceUIDs.value)
-
-  if (seriesInstanceUIDs.value.length === 0) message.value = 'No data found.'
+  await keepFocusInGallery()
 }
+
 async function saveDatasetFromDialog(name: string, access_level: string) {
-  const successful = await saveDataset(name, identifiersOfInterest.value, access_level)
-  if (successful) {
-    saveAsDatasetDialog.value = false
+  if (savingDataset.value) return
+  savingDataset.value = true
+  try {
+    const successful = await saveDataset(name, identifiersOfInterest.value, access_level)
+    if (successful) {
+      saveAsDatasetDialog.value = false
+    }
+  } finally {
+    savingDataset.value = false
   }
 }
+
 async function saveDataset(name: string, identifiers: string[], access_level: string) {
   try {
     const body = {
@@ -688,140 +774,51 @@ async function saveDataset(name: string, identifiers: string[], access_level: st
     await createDataset(body)
     notify({
       title: 'Dataset created',
-      text: `Successfully new dataset ${name}.`,
+      text: `The dataset “${name}” now holds ${identifiers.length} series.`,
       type: 'success',
     })
-    await updateDatasetNames()
+    updateDatasetNames().catch(() => {})
     return true
-  } catch (error: any) {
-    notify({
-      title: 'Error',
-      text:
-        error.response && error.response.data && error.response.data.detail
-          ? error.response.data.detail
-          : error,
-      type: 'error',
-    })
+  } catch (error: unknown) {
+    notifyFailure('Dataset not created', `The dataset “${name}” could not be created.`, error)
     return false
   }
 }
-function onPageIndexChange(newPageIndex: number) {
-  pageIndex.value = newPageIndex
-}
-function editedDatasets(reloadDatasets: boolean) {
-  if (reloadDatasets) {
-    loadDatasets()
-      .then((_datasets) => {
-        datasets.value = _datasets
-        datasetNames.value = _datasets.map((d) => d.name)
-        if (datasetName.value && !datasetNames.value.includes(datasetName.value)) {
-          datasetName.value = null
-        }
-      })
-      // loadDatasets already reported; keep the list from the last good load.
-      .catch(() => {})
-  }
-  editDatasetsDialog.value = false
-}
-function runValidationWorkflow(resultItemID: string | null) {
-  invalidateValidationResultCache(resultItemID)
-  selectedSeriesInstanceUIDs.value = resultItemID ? [resultItemID] : []
-  datasets_store.setSelectedItems(selectedSeriesInstanceUIDs.value)
-  filteredDags.value = ['validate-dicoms']
-  onValidationResultClose()
-  workflowDialog.value = true
-}
-function deleteValidationResult(resultItemID: string | null) {
-  invalidateValidationResultCache(resultItemID)
-  selectedSeriesInstanceUIDs.value = resultItemID ? [resultItemID] : []
-  datasets_store.setSelectedItems(selectedSeriesInstanceUIDs.value)
-  filteredDags.value = ['clear-validation-results']
-  onValidationResultClose()
-  workflowDialog.value = true
-}
-async function downloadValidationResult(resultItemID: string | null) {
-  const resultUri = await ensureValidationResultLoaded(resultItemID)
-  if (!resultUri) {
-    notify({
-      title: 'Validation report not found',
-      text: 'No workflow report could be resolved for the selected series.',
-      type: 'warning',
-    })
-    return
-  }
-  const link: HTMLAnchorElement | null = document.createElement('a')
-  link.download = resultItemID + '.html'
-  link.href = resultUri
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
+
+/* ------------------------------------------------------------- workflows -- */
+
+const { restoreFocus: restoreWorkflowFocus } = useFocusReturn(() => workflowDialog.value)
+
+function onWorkflowSubmit() {
+  workflowDialog.value = false
 }
 
-const identifiersOfInterest = computed(() => {
-  if (selectedSeriesInstanceUIDs.value.length > 0) {
-    allPatients.value = false
-    return selectedSeriesInstanceUIDs.value
-  }
-  return seriesInstanceUIDs.value
-})
-const continueSelectKey = computed(() =>
-  window.navigator.userAgent.indexOf('Mac') !== -1 ? ['meta'] : ['ctrl'],
-)
-const dashboardFields = computed(() =>
-  settings.value.datasets.props.filter((i: any) => i.dashboard).map((i: any) => i.name),
-)
-const validationResultItem = computed(() => datasets_store.validationResultItem)
-const validationResultLookup = computed(() => {
-  if (!validationResultItem.value) {
-    return {
-      loading: false,
-      loaded: false,
-      found: false,
-      url: null,
-      object_name: null,
-    }
-  }
+function onWorkflowDialogClosed() {
+  restoreWorkflowFocus()
+  filteredDags.value = []
+}
 
-  return (
-    resultLookupState.value[validationResultItem.value] || {
-      loading: false,
-      loaded: false,
-      found: false,
-      url: null,
-      object_name: null,
-    }
-  )
-})
-const validationResultUrl = computed(() => validationResultLookup.value.url)
-const displaySelectedItems = computed(() => {
-  if (aggregatedSeriesNum.value > 0 && aggregatedSeriesNum.value > identifiersOfInterest.value.length) {
-    return `${identifiersOfInterest.value.length} selected of ${aggregatedSeriesNum.value}`
-  } else {
-    return `${identifiersOfInterest.value.length} selected`
-  }
-})
+function runWorkflowOnSeries(dag: string, seriesInstanceUID: string | null) {
+  selectedSeriesInstanceUIDs.value = seriesInstanceUID ? [seriesInstanceUID] : []
+  datasets_store.setSelectedItems(selectedSeriesInstanceUIDs.value)
+  filteredDags.value = [dag]
+  workflowDialog.value = true
+}
+
+/* ------------------------------------------------------------- lifecycle -- */
 
 watch(
-  debouncedIdentifiers,
-  debounce((val: string[]) => {
-    selectedSeriesInstanceUIDs.value = val
-    datasets_store.setSelectedItems(selectedSeriesInstanceUIDs.value)
-  }, 200),
+  () => searchDirty.value || saveDialogDirty.value || downloadDirty.value,
+  (dirty) => postViewDirty(dirty),
 )
-watch(validationResultItem, (value) => {
-  if (value) {
-    ensureValidationResultLoaded(value)
-  }
-})
 
-// Search.vue scopes queries by selectedProject, so resolve it before the first search.
-// Requests are scoped by the document URL prefix, so the view stays usable.
-projectStore.getSelectedProject().catch((error: any) => {
-  notify({
-    title: 'Error',
-    text: error.response?.data?.detail ?? error.message,
-    type: 'error',
-  })
+const projectLookup = projectStore.getSelectedProject()
+projectLookup.catch((error: unknown) => {
+  notifyFailure(
+    'Project unavailable',
+    'The current project could not be resolved. Searches still use the project in the address bar.',
+    error,
+  )
 })
 settings.value = readSettings()
 
@@ -831,18 +828,17 @@ onMounted(async () => {
 
   if (queryParams.project_name) {
     let project: any
-    try {
-      const projects = await fetchProjects()
-      project = projects.find((p: any) => p.name === queryParams.project_name)
+    // On a failed lookup the view stays in the URL's project.
+    const resolved = await projectLookup.catch(() => false)
+    if (resolved) {
+      project = projectStore.availableProjects.find((p) => p.name === queryParams.project_name)
       if (!project) {
         notify({
-          title: 'Error',
-          text: `Project with name ${queryParams.project_name} doesn't exist or you don't have access.`,
+          title: 'Project not found',
+          text: `No project named “${queryParams.project_name}” exists, or you do not have access to it. The view stayed in the current project.`,
           type: 'error',
         })
       }
-    } catch {
-      // fetchProjects already reported the failure; stay on the URL's project.
     }
 
     // Deep links may target another project: the selection lives in the
@@ -851,36 +847,19 @@ onMounted(async () => {
     const slug = project?.short_id ?? project?.id
     if (project && String(slug) !== getProjectSlug()) {
       const rest = window.location.pathname.replace(/^\/project\/[^/]+/, '')
-      window.location.replace(`/project/${slug}${rest}${window.location.search}${window.location.hash}`)
+      window.location.replace(`/project/${slug}${rest}${linkSearch}${window.location.hash}`)
       return
     }
   }
 
   // Depends on the selected project, so it must run after the resolution above.
-  try {
-    await updateDatasetNames()
-  } catch {
-    // loadDatasets already reported; without the names the check below would
-    // report a misleading "not found" for a dataset that may well exist.
-    return
-  }
-  if (queryParams.dataset_name) {
-    if (!datasetNames.value.includes(queryParams.dataset_name)) {
-      notify({
-        title: 'Error',
-        text: `Dataset with name ${queryParams.dataset_name} not found.`,
-        type: 'error',
-      })
-    } else {
-      // TODO: We somehow have to ensure that the dataset update is finished before we add the other queryParameters
-      datasetName.value = queryParams.dataset_name
-    }
-  }
+  await updateDatasetNames().catch(() => {})
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', keyDownEventListener)
   window.removeEventListener('keyup', keyUpEventListener)
+  postViewDirty(false)
 })
 </script>
 <style scoped>
@@ -900,90 +879,12 @@ onBeforeUnmount(() => {
 .gallery-side-navigation {
   height: calc(100vh - 180px);
 }
-
-/* The validation report ships its CSS in <head>, which ElementsFromHTML
-   strips, and otherwise relies on Vuetify 2 global classes (.row/.col-*,
-   .error/.warning) that no longer exist in Vuetify 3 — mirror them here. */
-:deep(.container h1) {
-  font-size: 24px;
-  margin-bottom: 20px;
-}
-
-:deep(.container .attribute) {
-  font-size: 18px;
-  margin-bottom: 8px;
-}
-
-:deep(.validation-item.row) {
-  display: flex;
-  flex-wrap: wrap;
-  margin: -12px;
-}
-
-:deep(.validation-item .col) {
-  padding: 12px;
-}
-
-:deep(.validation-item .col-2) {
-  flex: 0 0 15%;
-  max-width: 15%;
-}
-
-:deep(.validation-item .col-10) {
-  flex: 0 0 78%;
-  max-width: 78%;
-}
-
-:deep(.item-label.error),
-:deep(.item-count-label.error) {
-  color: red;
-  background: rgb(255 119 119 / 50%);
-}
-
-:deep(.item-label.warning),
-:deep(.item-count-label.warning) {
-  color: #975300;
-  background: rgb(255 190 109 / 50%);
-}
-
-:deep(.item-label) {
-  line-height: 20px;
-  max-width: 100%;
-  outline: none;
-  overflow: hidden;
-  padding: 2px 12px;
-  position: relative;
-  border-radius: 12px;
-  margin-right: 4px;
-  text-align: center;
-}
-
-:deep(.item-count-label) {
-  padding: 2px 16px;
-  border-radius: 15px;
-  margin-left: 8px;
-}
-
-:deep(.incomplete-alert) {
-  padding: 15px;
-  background-color: #f44336;
-  color: white;
-  margin-bottom: 10px;
-  border-radius: 5px;
-}
-:deep(.hidden) {
-  display: none;
-}
 </style>
 
 <style>
 .splitpanes--vertical > .splitpanes__splitter {
   min-width: 3px;
   cursor: col-resize;
-  background-color: rgba(0, 0, 0, 0.12);
-}
-
-.splitpanes--vertical.dark-theme > .splitpanes__splitter {
-  background-color: hsla(0, 0%, 100%, 0.12);
+  background-color: rgba(var(--v-border-color), var(--v-border-opacity));
 }
 </style>

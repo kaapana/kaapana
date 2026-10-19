@@ -1,5 +1,5 @@
 <template>
-  <div align="right" :class="{ 'pagination-container': true, hidden: !showPagination }">
+  <div :class="{ 'pagination-container': true, hidden: !showPagination }">
     <v-pagination v-if="showPagination" :length="computedLength" v-model="pageIndex"> </v-pagination>
   </div>
 </template>
@@ -81,8 +81,7 @@ updatePaginationVisibility()
 .pagination-container {
   display: flex;
   flex-direction: column;
-  align-items: left;
-  margin-right: 10px;
+  margin-right: 8px;
   padding: 0;
 }
 

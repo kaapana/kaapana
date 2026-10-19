@@ -1,15 +1,23 @@
-import { test, expect, type Request } from '@playwright/test'
-import { bootGallery, makeDefaultMockData, VIEW_PATH } from './fixtures/mock-backend'
-
-// POST that fetches the series list (loadPatients), as opposed to the GET
-// single-series metadata calls.
-function isSeriesListRequest(req: Request): boolean {
-  return req.method() === 'POST' && /\/dataset\/series$/.test(req.url())
-}
+import { test, expect, type Page } from '@playwright/test'
+import {
+  bootGallery,
+  installMockBackend,
+  makeDefaultMockData,
+  seedShellState,
+  VIEW_PATH,
+} from './fixtures/mock-backend'
+import {
+  collectPageErrors,
+  delayRoute,
+  dialog,
+  isSeriesListRequest,
+  nextRequest,
+  openGallery,
+  toasts,
+} from './fixtures/helpers'
 
 test('free-text search puts the query string into the outgoing series query', async ({ page }) => {
-  await bootGallery(page, makeDefaultMockData())
-  await expect(page.getByText('CT Thorax')).toBeVisible()
+  await openGallery(page)
 
   const seriesReq = page.waitForRequest(isSeriesListRequest)
   await page.getByLabel('Search').first().fill('Thorax')
@@ -17,6 +25,96 @@ test('free-text search puts the query string into the outgoing series query', as
 
   const body = (await seriesReq).postDataJSON()
   expect(JSON.stringify(body.query)).toContain('"query":"Thorax"')
+})
+
+// Located by its text: while loading, Vuetify hides the label from the accessible name.
+const searchButton = (page: Page) => page.locator('button.v-btn').filter({ hasText: /^\s*Search\s*$/ })
+const SERIES = /\/kaapana-backend\/dataset\/series$/
+
+/** Read ONCE while the list loads: a retrying not.toHaveClass would wait for the load to end. */
+async function spinsDuringLoad(page: Page) {
+  const skeleton = page.locator('.v-skeleton-loader').first()
+  await expect(skeleton).toBeVisible()
+  const spinning = /v-btn--loading/.test((await searchButton(page).getAttribute('class')) ?? '')
+  expect(await skeleton.isVisible(), 'the load ended before the read').toBe(true)
+  return spinning
+}
+
+test('the initial load does not spin the Search button', async ({ page }) => {
+  const data = makeDefaultMockData()
+  await installMockBackend(page, data)
+  await seedShellState(page, data)
+  await delayRoute(page, SERIES, 2_000)
+  await page.goto(VIEW_PATH)
+
+  expect(await spinsDuringLoad(page)).toBe(false)
+})
+
+test('a search the user starts spins the Search button until its results arrive', async ({ page }) => {
+  await openGallery(page)
+  await delayRoute(page, SERIES, 2_000)
+
+  await searchButton(page).click()
+  await expect(searchButton(page)).toHaveClass(/v-btn--loading/)
+  await expect(page.getByText('CT Thorax')).toBeVisible()
+  await expect(searchButton(page)).not.toHaveClass(/v-btn--loading/)
+})
+
+// "Make every failed operation visible": the link is offered selected in a dialog, to copy by hand.
+const clipboardCases: { name: string; stub: () => void }[] = [
+  {
+    name: 'there is no Clipboard API',
+    stub: () => Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true }),
+  },
+  {
+    name: 'the clipboard refuses the write',
+    stub: () => {
+      navigator.clipboard.writeText = () =>
+        Promise.reject(new DOMException('Write permission denied.', 'NotAllowedError'))
+    },
+  },
+]
+
+for (const c of clipboardCases) {
+  test(`copying the query link says so when ${c.name}`, async ({ page }) => {
+    const pageErrors = collectPageErrors(page)
+    await page.addInitScript(c.stub)
+    await openGallery(page)
+    await page.getByLabel('Search').first().fill('Thorax')
+
+    const copyButton = page.getByRole('button', { name: 'Copy query URL to clipboard' })
+    await copyButton.click()
+    const fallback = dialog(page, 'Link not copied')
+    const link = fallback.getByLabel('Search link')
+    await expect(link).toHaveValue(/http:\/\/localhost:\d+\/project\/admin\/data-gallery-ui\/\?query_string=Thorax/)
+    await expect(link).toBeFocused()
+    expect(await link.evaluate((el: HTMLInputElement) => el.selectionEnd! - el.selectionStart!)).toBe(
+      (await link.inputValue()).length,
+    )
+    expect(await toasts(page).filter({ hasText: 'Search URL copied' }).count()).toBe(0)
+
+    await page.keyboard.press('Escape')
+    await expect(fallback).toHaveCount(0)
+    await expect(copyButton).toBeFocused()
+    expect(pageErrors).toEqual([])
+  })
+}
+
+// "Avoid generic “No data available” text when the application knows more."
+test('the Values list says when no series in the dataset has a value for the field', async ({ page }) => {
+  const data = makeDefaultMockData()
+  data.datasets.push({ ...data.datasets[0], name: 'empty-ds', identifiers: [] })
+  await openGallery(page, data)
+  await page.getByLabel('Select Dataset').first().click()
+  await page.getByRole('option', { name: 'empty-ds (project)' }).click()
+  await expect(page.getByText('This dataset contains no series yet')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Add filter' }).click()
+  await page.getByLabel('Field').first().click()
+  await page.getByRole('option', { name: 'Modality', exact: true }).click()
+  await page.getByLabel('Values').first().click()
+  await expect(page.getByText('No series in this dataset has a value for “Modality”.')).toBeVisible()
+  await expect(page.getByText('No data available')).toHaveCount(0)
 })
 
 test('a query-param filter is composed into a match clause and its values are fetched', async ({ page }) => {
@@ -27,9 +125,7 @@ test('a query-param filter is composed into a match clause and its values are fe
       isSeriesListRequest(req) &&
       (req.postData() ?? '').includes('00080060 Modality_keyword'),
   )
-  const valuesReq = page.waitForRequest(
-    (req) => req.method() === 'POST' && /\/dataset\/query_values\/Modality$/.test(req.url()),
-  )
+  const valuesReq = nextRequest(page, /\/dataset\/query_values\/Modality$/, 'POST')
 
   await bootGallery(page, data, VIEW_PATH + '?Modality=CT')
 

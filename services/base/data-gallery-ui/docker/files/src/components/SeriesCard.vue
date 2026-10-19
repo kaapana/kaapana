@@ -1,23 +1,22 @@
 <template>
-  <v-container class="pa-0" fluid style="height: 100%">
+  <v-container class="pa-0 h-100" fluid>
     <v-card @click="onClick" height="100%" :id="seriesInstanceUID" class="seriesCard">
-      <v-img :src="src" aspect-ratio="1" @error="img_loading_error = true">
+      <v-img :src="src" aspect-ratio="1" class="thumbnail" @error="img_loading_error = true">
         <template v-slot:placeholder>
           <v-row
             class="fill-height ma-0"
             align="center"
             justify="center"
-            :style="img_loading_error ? 'background-color: darkgray' : ''"
+            :class="img_loading_error || metadataFailed ? 'bg-surface-light' : ''"
           >
             <v-progress-circular
-              v-if="!img_loading_error"
+              v-if="!img_loading_error && !metadataFailed"
               indeterminate
-              color="#0088cc"
-            ></v-progress-circular>
-            <div v-else style="text-align: center">
-              <p></p>
-              <v-icon>mdi-alert-circle-outline</v-icon>
-              <p>Thumbnail unavailable</p>
+              color="primary"
+            />
+            <div v-else class="text-center text-caption text-medium-emphasis">
+              <v-icon :icon="kaapanaIcons.error" class="d-block mx-auto mb-1" />
+              {{ metadataFailed ? 'Metadata unavailable' : 'Thumbnail unavailable' }}
             </div>
           </v-row>
         </template>
@@ -25,80 +24,81 @@
         <v-row class="fill-height ma-0 pa-0">
           <!-- v-app-bar/v-bottom-navigation are app-layout components in Vuetify 3
                (fixed position + v-main padding), so plain elements are used here. -->
-          <v-toolbar flat density="compact" color="rgba(0, 0, 0, 0)" class="card-toolbar">
+          <v-toolbar flat density="compact" color="transparent" class="card-toolbar">
             <Chip :items="[modality]" />
             <v-spacer></v-spacer>
-            <v-btn icon density="compact" @click.stop="showDetails()" color="white">
-              <v-icon>mdi-eye</v-icon>
-            </v-btn>
+            <v-btn
+              :icon="kaapanaIcons.preview"
+              aria-label="Show series details"
+              density="compact"
+              variant="text"
+              class="on-image"
+              @click.stop="showDetails()"
+            />
           </v-toolbar>
-          <div v-if="Object.keys(validationResults).length > 0" class="result-container">
+          <div v-if="Object.keys(validationResults).length > 0" class="result-container on-image rounded">
             <v-btn
               size="small"
               variant="text"
-              class="v-btn--error-rslt pa-0"
+              class="validation-badge pa-0"
               v-if="'errors' in validationResults && validationResults['errors'] != 0 && isSeriesComplete"
-              @click="triggerValidationResultDetails"
+              :aria-label="`${validationResults['errors']} validation errors — open report`"
+              @click.stop="triggerValidationResultDetails"
             >
               {{ validationResults['errors'] }}
-              <v-icon class="mr-1" color="error">mdi-close-circle</v-icon>
+              <v-icon :icon="kaapanaIcons.error" class="ml-1" color="error" />
             </v-btn>
             <v-btn
               size="small"
               variant="text"
-              class="v-btn--error-rslt pa-0"
+              class="validation-badge pa-0"
               v-if="'warnings' in validationResults && validationResults['warnings'] != 0 && isSeriesComplete"
-              @click="triggerValidationResultDetails"
+              :aria-label="`${validationResults['warnings']} validation warnings — open report`"
+              @click.stop="triggerValidationResultDetails"
             >
               {{ validationResults['warnings'] }}
-              <v-icon class="mr-1" color="warning">mdi-alert-circle</v-icon>
+              <v-icon :icon="kaapanaIcons.warning" class="ml-1" color="warning" />
             </v-btn>
             <v-btn
               size="small"
               variant="text"
               class="pa-0"
               v-if="!isSeriesComplete"
-              @click="triggerValidationResultDetails"
+              aria-label="Series is incomplete — open report"
+              @click.stop="triggerValidationResultDetails"
             >
-              Broken <v-icon class="mr-1" color="warning">mdi-format-page-break</v-icon>
+              Broken
+              <v-icon :icon="galleryIcons.incomplete" class="ml-1" color="warning" />
             </v-btn>
           </div>
         </v-row>
       </v-img>
-      <v-card-text v-if="settings.datasets.cardText">
+      <v-card-text v-if="settings.datasets.cardText" class="pa-2">
         <div
           v-for="prop in settings.datasets.props.filter((prop: any) => prop.display)"
           :key="prop.name"
+          class="mb-1"
         >
-          <v-row no-gutters style="font-size: x-small">
-            <v-col style="margin-bottom: -5px">
-              {{ prop['name'] }}
-            </v-col>
-          </v-row>
-          <v-row no-gutters style="font-size: small; padding-top: 0" align="start">
-            <v-col>
-              <div :class="prop['truncate'] ? 'text-truncate' : ''">
-                {{ seriesData[prop['name']] || 'N/A' }}
-              </div>
-            </v-col>
-          </v-row>
+          <div class="text-caption text-medium-emphasis">{{ prop['name'] }}</div>
+          <div class="text-body-2" :class="prop['truncate'] ? 'text-truncate' : ''">
+            {{ seriesData[prop['name']] || 'N/A' }}
+          </div>
         </div>
-        <v-row v-if="tags" no-gutters>
-          <TagChip :items="tags" @deleteTag="(tag) => deleteTag(tag)" />
-        </v-row>
+        <TagChip v-if="tags" :items="tags" @deleteTag="(tag) => deleteTag(tag)" />
       </v-card-text>
     </v-card>
   </v-container>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 import Chip from './Chip.vue'
 import TagChip from './TagChip.vue'
 import { loadSeriesData, updateTags } from '@/common/api.service'
-import { notify } from '@kyvg/vue3-notification'
 import { readSettings, settings as defaultSettings } from '@/static/defaultUIConfig'
 import { useDatasetsStore } from '@/stores/datasets'
+import { kaapanaIcons, galleryIcons } from '@/utils/galleryIcons'
+import { notifyFailure } from '@/utils/notifyFailure'
 
 const props = defineProps<{ seriesInstanceUID?: string }>()
 
@@ -112,6 +112,7 @@ const tags = ref<string[]>([])
 const settings = ref<any>(defaultSettings)
 const isSeriesComplete = ref(true)
 const img_loading_error = ref(false)
+const metadataFailed = ref(false)
 
 // only required for double-click-event
 let clicks = 0
@@ -121,6 +122,7 @@ settings.value = readSettings()
 
 function get_data() {
   if (props.seriesInstanceUID !== '') {
+    metadataFailed.value = false
     loadSeriesData(props.seriesInstanceUID as string)
       .then((data) => {
         if (data !== undefined) {
@@ -129,16 +131,14 @@ function get_data() {
           seriesData.value = data['metadata'] || {}
           tags.value = data['metadata']['Tags'] || []
           isSeriesComplete.value = data?.metadata?.['Is Series Complete'] ?? true
-          if (!isSeriesComplete.value) {
-            console.log(props.seriesInstanceUID)
-          }
           if ('Validation Results' in seriesData.value) {
             processValidationResults(seriesData.value['Validation Results'])
           }
         }
       })
-      // loadSeriesData already reported; the card keeps its placeholder.
-      .catch(() => {})
+      .catch(() => {
+        metadataFailed.value = true
+      })
   }
 }
 
@@ -153,9 +153,8 @@ async function deleteTag(tag: string) {
   ]
   updateTags(request_body)
     .then(() => (tags.value = tags.value.filter((_tag) => _tag !== tag)))
-    // updateTags does not report; the chip stays until the server confirms.
-    .catch((error: any) =>
-      notify({ title: 'Error', text: error.response?.data?.detail ?? error.message, type: 'error' }),
+    .catch((error: unknown) =>
+      notifyFailure('Tag not removed', `The tag “${tag}” could not be removed from this series.`, error),
     )
 }
 
@@ -215,9 +214,8 @@ function modifyTags() {
         ? tags.value.filter((tag) => !activeTags.includes(tag))
         : Array.from(new Set([...tags.value, ...activeTags]))
     })
-    // updateTags does not report; the chips stay until the server confirms.
-    .catch((error: any) =>
-      notify({ title: 'Error', text: error.response?.data?.detail ?? error.message, type: 'error' }),
+    .catch((error: unknown) =>
+      notifyFailure('Tags not updated', 'The tags on this series could not be updated.', error),
     )
 }
 
@@ -257,25 +255,47 @@ function showDetails() {
   datasets.setDetailViewItem(props.seriesInstanceUID ?? null)
 }
 
+onBeforeUnmount(() => {
+  if (timer) clearTimeout(timer)
+})
+
 watch(() => props.seriesInstanceUID, get_data)
 get_data()
 </script>
 
 <style lang="scss" scoped>
+/* Thumbnails differ in shape, so the background behind them can show. Adjusting it to black, the thumbnails own background color, hides this. */
+.thumbnail {
+  background: #000;
+}
 .selected {
-  /*TODO: This should be aligned with theme*/
-  color: #fff !important;
-  background: #4af !important;
+  background: rgb(var(--v-theme-primary)) !important;
+  color: rgb(var(--v-theme-on-primary)) !important;
 }
-.v-card__text {
-  padding: 8px;
+.selected::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 3px solid rgb(var(--v-theme-primary));
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 2;
 }
-.v-btn--error-rslt {
+/* Vuetify pins medium-emphasis text to on-background; follow the card's colour instead. */
+.selected .text-medium-emphasis {
+  color: rgba(var(--v-theme-on-primary), 0.8) !important;
+}
+/* The details button and validation badges sit on the thumbnail, whose colours
+   can be anything. White on its own 60 % black backdrop stays readable on every
+   image, which no theme colour can guarantee. */
+.on-image {
+  color: #fff;
+  background: rgb(0 0 0 / 60%);
+}
+.validation-badge {
   min-width: 50px !important;
 }
-/* V2 used a `dense` v-app-bar whose content carried side padding, seating the
-   modality chip and eye button symmetrically in the corners. V3's v-toolbar
-   content has no side padding; 8px restores the symmetric inset. */
+/* v-toolbar__content has no side padding of its own. */
 .card-toolbar :deep(.v-toolbar__content) {
   padding: 0 8px;
 }

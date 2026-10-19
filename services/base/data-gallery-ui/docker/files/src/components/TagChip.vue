@@ -1,13 +1,15 @@
 <template>
-  <div>
+  <div class="d-flex flex-wrap ga-1">
     <v-chip
       v-for="item in sortedItems"
       :key="item"
-      :color="stringToColour(item)"
-      style="margin-left: 1px; margin-right: 1px"
+      :model-value="true"
       size="x-small"
-      closable
       variant="flat"
+      closable
+      :style="tagChipStyle(item)"
+      :close-label="`Remove tag ${item}`"
+      @update:model-value="() => {}"
       @click:close="emit('deleteTag', item)"
     >
       {{ item }}
@@ -17,7 +19,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { stringToColour } from '@/utils/utils'
+import { tagChipStyle } from '@/utils/tagColors'
 
 const props = withDefaults(defineProps<{ items?: string[] }>(), {
   items: () => [],
@@ -27,5 +29,3 @@ const emit = defineEmits<{ deleteTag: [tag: string] }>()
 
 const sortedItems = computed(() => [...props.items].sort())
 </script>
-
-<style scoped></style>

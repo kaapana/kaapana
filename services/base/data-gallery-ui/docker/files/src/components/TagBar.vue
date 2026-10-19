@@ -1,10 +1,10 @@
 <template>
-  <!--  edit Mode-->
+  <!--  Edit mode -->
   <v-row v-if="editMode" dense align="center">
     <v-col cols="1" align="center">
-      <v-icon>mdi-tag-outline</v-icon>
+      <v-icon :icon="galleryIcons.tag" />
     </v-col>
-    <v-col cols="7" style="padding-top: 8px; padding-bottom: 11px">
+    <v-col cols="7" class="py-2">
       <v-combobox
         label="Tags"
         v-model="tags"
@@ -21,20 +21,27 @@
         :disabled="disabledTagBar"
       >
         <template v-slot:chip="{ props: chipProps, item }">
-          <v-chip v-bind="chipProps" variant="flat" :color="stringToColour(item.raw)" />
+          <v-chip v-bind="chipProps" variant="flat" :style="tagChipStyle(item.raw)" />
         </template>
       </v-combobox>
     </v-col>
     <v-col cols="1" align="center">
-      <v-btn
-        @click="editMode = !editMode"
-        size="small"
-        icon
-        variant="text"
-        :disabled="tags.length === 0 || disabledTagBar"
-      >
-        <v-icon>mdi-content-save</v-icon>
-      </v-btn>
+      <v-tooltip location="bottom" :text="editToggleHint">
+        <template v-slot:activator="{ props: activator }">
+          <!-- While the button is disabled its wrapper takes the focus, so the
+               reason is reachable by keyboard. -->
+          <span v-bind="activator" :tabindex="saveUnavailable ? 0 : undefined">
+            <v-btn
+              size="small"
+              variant="text"
+              :icon="kaapanaIcons.save"
+              :aria-label="editToggleHint"
+              :disabled="saveUnavailable"
+              @click="editMode = !editMode"
+            />
+          </span>
+        </template>
+      </v-tooltip>
     </v-col>
     <v-col cols="3" align="center" justify="center">
       <v-switch
@@ -42,15 +49,15 @@
         label="Multiple Tags"
         density="compact"
         hide-details
-        style="margin-top: 0"
+        class="mt-0"
         :disabled="disabledTagBar"
       ></v-switch>
     </v-col>
   </v-row>
-  <!--  Tagging Mode-->
+  <!--  Tagging mode -->
   <v-row v-else dense align="center">
     <v-col cols="1" align="center">
-      <v-icon>mdi-tag-outline</v-icon>
+      <v-icon :icon="galleryIcons.tag" />
     </v-col>
     <v-col cols="7" align="center">
       <v-chip-group
@@ -60,23 +67,38 @@
         @update:model-value="onChangeSelection"
         :disabled="disabledTagBar"
       >
-        <!-- base-color: inside a group, VChip only applies `color` while selected -->
+        <!-- base-color: inside a group, VChip only applies `color` while selected.
+             The chip renders a span, so aria-pressed needs the button role. -->
         <v-chip
-          v-for="tag in tags"
+          v-for="(tag, index) in tags"
           :key="tag"
           size="small"
           variant="flat"
-          :base-color="stringToColour(tag)"
+          :base-color="tagColor(tag).background"
+          :style="{ color: tagColor(tag).text }"
           :disabled="disabledTagBar"
+          role="button"
+          :aria-pressed="String(isSelected(index))"
         >
           {{ tag }}
         </v-chip>
       </v-chip-group>
     </v-col>
     <v-col cols="1" align="center">
-      <v-btn @click="editMode = !editMode" size="small" icon variant="text" :disabled="disabledTagBar">
-        <v-icon>mdi-application-edit-outline</v-icon>
-      </v-btn>
+      <v-tooltip location="bottom" :text="editToggleHint">
+        <template v-slot:activator="{ props: activator }">
+          <span v-bind="activator" :tabindex="disabledTagBar ? 0 : undefined">
+            <v-btn
+              size="small"
+              variant="text"
+              :icon="kaapanaIcons.edit"
+              :aria-label="editToggleHint"
+              :disabled="disabledTagBar"
+              @click="editMode = !editMode"
+            />
+          </span>
+        </template>
+      </v-tooltip>
     </v-col>
     <v-spacer></v-spacer>
     <v-col cols="3" align="center">
@@ -85,7 +107,7 @@
         label="Multiple Tags"
         density="compact"
         hide-details
-        style="margin-top: 0"
+        class="mt-0"
         :disabled="disabledTagBar"
       ></v-switch>
     </v-col>
@@ -95,7 +117,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { loadValues } from '@/common/api.service'
-import { stringToColour } from '@/utils/utils'
+import { tagChipStyle, tagColor } from '@/utils/tagColors'
+import { notifyFailure } from '@/utils/notifyFailure'
+import { kaapanaIcons, galleryIcons } from '@/utils/galleryIcons'
 import { readSettings, settings as defaultSettings } from '@/static/defaultUIConfig'
 import { useDatasetsStore } from '@/stores/datasets'
 
@@ -144,12 +168,28 @@ function keypressListener(e: KeyboardEvent) {
   }
 }
 
+function isSelected(index: number): boolean {
+  const current = selection.value
+  return multiple.value ? Array.isArray(current) && current.includes(index) : current === index
+}
+
 const disabledTagBar = computed(
   () =>
     !settings.value.datasets.cardText ||
     datasets.multiSelectKeyPressed ||
     datasets.selectedItems.length > 1,
 )
+
+const editToggleHint = computed(() => {
+  if (!settings.value.datasets.cardText) return 'Tagging needs card text enabled in the settings'
+  if (datasets.multiSelectKeyPressed || datasets.selectedItems.length > 1) {
+    return 'Tagging applies to a single series — clear the multi-selection first'
+  }
+  if (editMode.value && tags.value.length === 0) return 'Add at least one tag to save the tag list'
+  return editMode.value ? 'Save tag list' : 'Edit tag list'
+})
+
+const saveUnavailable = computed(() => tags.value.length === 0 || disabledTagBar.value)
 
 watch(multiple, () => {
   selection.value = multiple.value ? [] : null
@@ -178,8 +218,13 @@ onMounted(() => {
         (availableTags.value =
           'items' in res.data ? res.data['items'].map((i: any) => i['value']) : []),
     )
-    // loadValues already reported; the tag suggestions just stay empty.
-    .catch(() => {})
+    .catch((error: unknown) =>
+      notifyFailure(
+        'Tag suggestions not loaded',
+        'The tags already in use could not be loaded, so the tag list offers no suggestions.',
+        error,
+      ),
+    )
 
   window.addEventListener('keypress', keypressListener)
 })
@@ -189,5 +234,3 @@ onBeforeUnmount(() => {
   datasets.setActiveTags([])
 })
 </script>
-
-<style scoped></style>

@@ -1,25 +1,17 @@
 <template>
-  <v-card elevation="5" style="margin: 5px">
-    <v-card-title style="padding: 10px">
-      <v-container>
-        <v-row>
-          <v-col v-for="prop in patientProps" :key="prop" cols="3" style="margin-bottom: -5px">
-            <v-row style="font-size: x-small; padding-bottom: 0">
-              {{ prop }}
-            </v-row>
-            <v-row
-              v-for="data in getMetaData(prop)"
-              :key="data"
-              style="font-size: small; padding-top: 0; margin-top: 0"
-            >
-              {{ data }}
-            </v-row>
-          </v-col>
-        </v-row>
-      </v-container>
+  <v-card :elevation="2" class="ma-1">
+    <v-card-title class="pa-3">
+      <v-row no-gutters>
+        <v-col v-for="prop in patientProps" :key="prop" cols="3">
+          <div class="text-caption text-medium-emphasis">{{ prop }}</div>
+          <div v-for="data in getMetaData(prop)" :key="data" class="text-body-2">
+            {{ data }}
+          </div>
+        </v-col>
+      </v-row>
     </v-card-title>
     <v-divider></v-divider>
-    <v-card-text style="padding: 10px">
+    <v-card-text class="pa-3">
       <StudyView
         v-for="seriesInstanceUIDs in studies"
         :key="JSON.stringify(seriesInstanceUIDs)"
@@ -44,6 +36,7 @@ const props = withDefaults(defineProps<{ studies?: Studies }>(), {
 const settings = ref<any>(defaultSettings)
 const patientProps = ref<string[]>([])
 const patientMetaData = ref<Record<string, string[]>>({})
+const failed = ref(false)
 
 settings.value = readSettings()
 patientProps.value = settings.value.datasets.props
@@ -51,23 +44,26 @@ patientProps.value = settings.value.datasets.props
   .map((prop: any) => prop.name)
 
 function getMetaData(prop: string): string[] {
+  if (failed.value) return ['Unavailable']
   return (patientMetaData.value && patientMetaData.value[prop]) || ['N/A']
 }
 
 function loadMetaDataForPatient() {
   const patientSeriesInstanceUIDs = Object.values(props.studies).flat(Infinity) as string[]
 
-  loadDashboard(patientSeriesInstanceUIDs, patientProps.value).then((res) => {
-    patientMetaData.value = Object.fromEntries(
-      Object.entries(res.histograms).map(([key, value]: [string, any]) => [
-        key,
-        Object.keys(value.items),
-      ]),
-    )
-  })
+  loadDashboard(patientSeriesInstanceUIDs, patientProps.value)
+    .then((res) => {
+      patientMetaData.value = Object.fromEntries(
+        Object.entries(res.histograms).map(([key, value]: [string, any]) => [
+          key,
+          Object.keys(value.items),
+        ]),
+      )
+    })
+    .catch(() => {
+      failed.value = true
+    })
 }
 
 onMounted(loadMetaDataForPatient)
 </script>
-
-<style></style>

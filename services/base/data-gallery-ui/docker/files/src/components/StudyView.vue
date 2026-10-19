@@ -1,25 +1,17 @@
 <template>
-  <v-card elevation="5" style="margin-bottom: 10px">
-    <v-card-title style="padding: 10px">
-      <v-container>
-        <v-row>
-          <v-col v-for="prop in studyProps" :key="prop" cols="3" style="margin-bottom: -5px">
-            <v-row style="font-size: x-small; padding-bottom: 0">
-              {{ prop }}
-            </v-row>
-            <v-row
-              v-for="data in getMetaData(prop)"
-              :key="data"
-              style="font-size: small; padding-top: 0; margin-top: 0"
-            >
-              {{ data }}
-            </v-row>
-          </v-col>
-        </v-row>
-      </v-container>
+  <v-card :elevation="0" border class="mb-2">
+    <v-card-title class="pa-3">
+      <v-row no-gutters>
+        <v-col v-for="prop in studyProps" :key="prop" cols="3">
+          <div class="text-caption text-medium-emphasis">{{ prop }}</div>
+          <div v-for="data in getMetaData(prop)" :key="data" class="text-body-2">
+            {{ data }}
+          </div>
+        </v-col>
+      </v-row>
     </v-card-title>
     <v-divider></v-divider>
-    <v-card-text style="padding: 10px">
+    <v-card-text class="pa-3">
       <Gallery :seriesInstanceUIDs="seriesInstanceUIDs" />
     </v-card-text>
   </v-card>
@@ -38,6 +30,7 @@ const props = withDefaults(defineProps<{ seriesInstanceUIDs?: string[] }>(), {
 const settings = ref<any>(defaultSettings)
 const studyProps = ref<string[]>([])
 const studyMetaData = ref<Record<string, string[]>>({})
+const failed = ref(false)
 
 settings.value = readSettings()
 studyProps.value = settings.value.datasets.props
@@ -45,21 +38,24 @@ studyProps.value = settings.value.datasets.props
   .map((prop: any) => prop.name)
 
 function getMetaData(prop: string): string[] {
+  if (failed.value) return ['Unavailable']
   return (studyMetaData.value && studyMetaData.value[prop]) || ['N/A']
 }
 
 function loadMetaDataForStudy() {
-  loadDashboard(props.seriesInstanceUIDs, studyProps.value).then((res) => {
-    studyMetaData.value = Object.fromEntries(
-      Object.entries(res.histograms).map(([key, value]: [string, any]) => [
-        key,
-        Object.keys(value.items),
-      ]),
-    )
-  })
+  loadDashboard(props.seriesInstanceUIDs, studyProps.value)
+    .then((res) => {
+      studyMetaData.value = Object.fromEntries(
+        Object.entries(res.histograms).map(([key, value]: [string, any]) => [
+          key,
+          Object.keys(value.items),
+        ]),
+      )
+    })
+    .catch(() => {
+      failed.value = true
+    })
 }
 
 onMounted(loadMetaDataForStudy)
 </script>
-
-<style></style>

@@ -1,46 +1,40 @@
 <template>
-  <div :class="fullSize ? 'kaapana-iframe-container-side-navigation' : ''">
+  <div>
     <iframe
       ref="iframe"
       :width="width"
       :height="height"
       :style="customStyle"
-      :class="fullSize ? 'kaapana-side-navigation' : ''"
       class="no-border"
       :src="iFrameUrl"
-      @load="setIframeUrl"
+      @load="onLoad"
     ></iframe>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onBeforeUnmount, ref } from 'vue'
 
 withDefaults(
   defineProps<{
     iFrameUrl: string
-    fullSize?: boolean
     width?: string
     height?: string
     customStyle?: string
   }>(),
   {
-    fullSize: true,
     width: '100%',
     height: '100%',
     customStyle: '',
   },
 )
 
-const emit = defineEmits<{ load: []; ready: [] }>()
+const emit = defineEmits<{ ready: [] }>()
 
 const iframe = ref<HTMLIFrameElement | null>(null)
-const trackedUrl = ref('')
 let readyTimer: ReturnType<typeof setInterval> | null = null
 
-function setIframeUrl() {
-  trackedUrl.value = iframe.value?.contentWindow?.location.href ?? ''
-  emit('load')
+function onLoad() {
   // "load" fires when the embedded app's document is parsed, long before e.g.
   // OHIF paints anything. For same-origin content, report ready once a canvas
   // is rendered; fall back to ready on timeout or cross-origin frames.
@@ -61,15 +55,10 @@ function setIframeUrl() {
   }, 300)
 }
 
-function refreshIFrame() {
-  if (iframe.value) iframe.value.src = trackedUrl.value
-}
-
-function getIframeUrl() {
-  return iframe.value?.contentWindow?.location
-}
-
-defineExpose({ refreshIFrame, getIframeUrl })
+onBeforeUnmount(() => {
+  if (readyTimer) clearInterval(readyTimer)
+  readyTimer = null
+})
 </script>
 
 <style scoped lang="scss">

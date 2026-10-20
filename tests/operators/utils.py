@@ -9,6 +9,7 @@ def mock_modules():
     sys.modules["kaapana.blueprints"] = MagicMock()
     sys.modules["kaapana.blueprints.kaapana_utils"] = MagicMock()
     sys.modules["kaapana.blueprints.kaapana_global_variables"] = MagicMock()
+    sys.modules["kaapana.blueprints.kaapana_registry"] = MagicMock()
 
     # Caching and intercommunication
     sys.modules["kaapana.operators.HelperMinio"] = MagicMock()

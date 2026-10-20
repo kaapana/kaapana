@@ -201,6 +201,25 @@ class DatasetUIForm(BaseUIForm):
     type: Literal["dataset"] = "dataset"
 
 
+class ModelUIForm(BaseUIForm):
+    """
+    Model selection form element.
+
+    Allows the user to select a model that has been installed into the Kaapana backend.
+
+    Attributes:
+        type (Literal["model"]): Discriminator identifying this as a model selector.
+        kind (Optional[str]): Restricts selectable models to a specific installed-model kind
+            (e.g. "classification", "nnunet").
+    """
+
+    type: Literal["model"] = "model"
+    kind: Optional[str] = Field(
+        None,
+        description="Restrict selectable models to this installed-model kind (e.g. 'classification').",
+    )
+
+
 class DataEntitiesUIForm(BaseUIForm):
     """
     Data entity selection form element.
@@ -261,6 +280,7 @@ UIForm = Union[
     FloatUIForm,
     ListUIForm,
     DatasetUIForm,
+    ModelUIForm,
     DataEntitiesUIForm,
     FileUIForm,
     TermsUIForm,

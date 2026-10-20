@@ -1,0 +1,124 @@
+{
+    "title": "classification-training",
+    "workflow_engine": "airflow",
+    "labels": [
+        {
+            "key": "category",
+            "value": "classification"
+        },
+        {
+            "key": "gpu",
+            "value": "required"
+        },
+        {
+            "key": "provider",
+            "value": "dkfz-mic"
+        }
+    ],
+    "workflow_parameters": [
+        {
+            "task_title": "download",
+            "env_variable_name": "DATASET",
+            "ui_form": {
+                "type": "dataset",
+                "title": "Dataset",
+                "description": "Select the dataset for training",
+                "required": true
+            }
+        },
+        {
+            "task_title": "training",
+            "env_variable_name": "TAG_TO_CLASS_MAPPING_JSON",
+            "ui_form": {
+                "type": "str",
+                "title": "Tags for mapping classes",
+                "description": "Specify the labels as tags (e.g. tag0,tag1)",
+                "regex_pattern": ".*",
+                "default": "tag1,tag2",
+                "required": true
+            }
+        },
+        {
+            "task_title": "training",
+            "env_variable_name": "TASK",
+            "ui_form": {
+                "type": "list",
+                "title": "Classification task",
+                "description": "Choose which classification task you want to train",
+                "options": [
+                    "binary",
+                    "multiclass",
+                    "multilabel"
+                ],
+                "default": "binary",
+                "multiselectable": false,
+                "required": true
+            }
+        },
+        {
+            "task_title": "training",
+            "env_variable_name": "DIMENSIONS",
+            "ui_form": {
+                "type": "list",
+                "title": "Dimensions",
+                "description": "Choose which input dimension you want to train",
+                "options": [
+                    "2D",
+                    "3D"
+                ],
+                "default": "3D",
+                "multiselectable": false,
+                "required": true
+            }
+        },
+        {
+            "task_title": "preprocessing",
+            "env_variable_name": "PATCH_SIZE",
+            "ui_form": {
+                "type": "str",
+                "title": "Patch size",
+                "description": "Shape that every image is resized to, e.g. (128, 128, 128). Training uses the same shape.",
+                "regex_pattern": ".*",
+                "default": "(128, 128, 128)",
+                "required": true
+            }
+        },
+        {
+            "task_title": "training",
+            "env_variable_name": "BATCH_SIZE",
+            "ui_form": {
+                "type": "str",
+                "title": "Batch size",
+                "description": "Specify the batch size used for training",
+                "regex_pattern": ".*",
+                "default": "1",
+                "required": true
+            }
+        },
+        {
+            "task_title": "training",
+            "env_variable_name": "NUM_EPOCHS",
+            "ui_form": {
+                "type": "str",
+                "title": "Number of epochs",
+                "description": "Specify the number of epochs used for training",
+                "regex_pattern": ".*",
+                "default": "1600",
+                "required": true
+            }
+        },
+        {
+            "task_title": "training",
+            "env_variable_name": "MODEL_CHECKPOINT_NAME",
+            "ui_form": {
+                "type": "str",
+                "title": "Model name",
+                "description": "Name of the trained model. A timestamp is added to make the name unique.",
+                "help": "Use lowercase letters, digits, '-' and '_'. In classification-inference, the model appears as classification_<name>-<timestamp>_fold_0.",
+                "regex_pattern": "^[a-z0-9][a-z0-9_-]*$",
+                "default": "resnet18",
+                "required": true
+            }
+        }
+    ]
+}

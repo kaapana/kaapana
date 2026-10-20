@@ -1,0 +1,40 @@
+{
+    "name": "persist-model",
+    "description": "Processing container for persisting a newly trained classification model into the shared models volume and syncing it into the kaapana-backend database",
+    "api_version": 1,
+    "templates": [
+        {
+            "identifier": "persist",
+            "description": "Store a training run's model output in the shared /models volume, then sync all installed classification models for the DAG into the kaapana-backend",
+            "env": [
+                {
+                    "name": "DAG_ID",
+                    "value": "classification-training",
+                    "description": "Subdirectory of the models volume that stores the models of the training DAG."
+                },
+                {
+                    "name": "KAAPANA_PROJECT_IDENTIFIER",
+                    "value": "",
+                    "description": "Identifier of the project that started the run. The workflow-api sets it for every task. It is used to look up the project in the access-information-interface, because kaapana-backend needs the project in the Project header of the model sync request."
+                }
+            ],
+            "inputs": [
+                {
+                    "name": "model",
+                    "mounted_path": "/kaapana/app/model",
+                    "description": "The training task's output: checkpoint(s), config.json, and training.log for this run."
+                }
+            ],
+            "outputs": [],
+            "command": ["python3", "-u", "/kaapana/persist_model.py"],
+            "resources": {
+                "requests": {
+                    "memory": "500Mi"
+                },
+                "limits": {
+                    "memory": "1000Mi"
+                }
+            }
+        }
+    ]
+}

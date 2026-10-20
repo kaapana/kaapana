@@ -1,0 +1,13 @@
+torch
+batchgenerators
+# No script imports torchvision. This line keeps the torch version of the base image, because the
+# torchvision of the base image requires it. Without this line, pip upgrades torch to install a newer monai release.
+torchvision
+monai
+torchmetrics
+tensorboard==2.16.2
+numpy
+opensearch-py
+requests
+scikit-image
+SimpleITK

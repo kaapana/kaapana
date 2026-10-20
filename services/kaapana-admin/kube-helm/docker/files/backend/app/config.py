@@ -35,7 +35,8 @@ class Settings(BaseSettings):
         "AII_SERVICE_URL", "http://aii-service.services.svc:8080"
     )
     # Read by the per-project reconciler in auto_launch.py: JSON list of
-    # {name, version, extension_params}, and JSON list of project-name globs to skip.
+    # {name, version, extension_params, exclude_projects}, and JSON list of
+    # project-name globs to skip for apps without their own exclude_projects.
     auto_launch_project_apps: str = os.getenv("AUTO_LAUNCH_PROJECT_APPS", "[]")
     auto_launch_exclude_projects: str = os.getenv("AUTO_LAUNCH_EXCLUDE_PROJECTS", "[]")
     auto_launch_interval_seconds: int = int(

@@ -1466,10 +1466,12 @@ function load_kaapana_config {
     PREFETCH_EXTENSIONS=false
     # Multi-installable apps kube-helm keeps running once per project, including
     # after a redeploy and for new projects. JSON list of {name, version,
-    # extension_params}; version defaults to the platform version. Example:
+    # extension_params, exclude_projects}; version defaults to the platform version,
+    # exclude_projects to AUTO_LAUNCH_EXCLUDE_PROJECTS. Example:
     # export AUTO_LAUNCH_PROJECT_APPS='[{"name":"jupyterlab-chart"}]'
     AUTO_LAUNCH_PROJECT_APPS="${AUTO_LAUNCH_PROJECT_APPS:-[]}"
-    # JSON list of project-name glob patterns that get no auto-launched apps.
+    # JSON list of project-name glob patterns that get no auto-launched apps, for every
+    # app without its own exclude_projects.
     AUTO_LAUNCH_EXCLUDE_PROJECTS="${AUTO_LAUNCH_EXCLUDE_PROJECTS:-[\"admin\"]}"
     AUTO_LAUNCH_INTERVAL_SECONDS="${AUTO_LAUNCH_INTERVAL_SECONDS:-300}"
     CHART_PATH=""

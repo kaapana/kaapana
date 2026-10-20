@@ -3,7 +3,8 @@
 AUTO_LAUNCH_PROJECT_APPS (rendered from global.auto_launch_project_apps) lists the
 apps. A periodic reconciler installs each of them for every project that has no
 instance yet, so they come back after a redeploy and new projects get them without
-a manual launch from the UI.
+a manual launch from the UI. AUTO_LAUNCH_EXCLUDE_PROJECTS names the projects that
+get none; an app's own "exclude_projects" replaces that list for this app.
 """
 
 import fnmatch
@@ -35,8 +36,11 @@ def reconcile_project_apps():
         for chart_releases in utils.collect_helm_deployments().values()
         for release in chart_releases
     }
-    excluded = json.loads(settings.auto_launch_exclude_projects)
+    default_excluded = json.loads(settings.auto_launch_exclude_projects)
     for app in json.loads(settings.auto_launch_project_apps):
+        # Per app, because apps differ in where they belong: one may have to reach
+        # the admin project that the default list keeps the others out of.
+        excluded = app.get("exclude_projects", default_excluded)
         version = app.get("version") or settings.kaapana_build_version
         chart = helm_helper.helm_show_chart(name=app["name"], version=version)
         label = chart.get("annotations", {}).get("ui-visible-name", app["name"])

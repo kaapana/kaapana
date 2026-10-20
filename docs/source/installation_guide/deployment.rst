@@ -126,7 +126,7 @@ Deployment configurations
    * - ``DEV_MODE``
      - ``"true"``
      - string
-     - If true, sets ``imagePullPolicy: "Always"``; images are re-downloaded on pod restart. If false, uses ``"IfNotPresent"`` and pre-configures password policies in Keycloak.
+     - If true, sets ``imagePullPolicy: "Always"``; images are re-downloaded on pod restart. Workflow pods (Airflow task pods and processing containers) check first whether the registry answers and fall back to the image already on the node when it does not, with a warning in the scheduler or task log. If false, uses ``"IfNotPresent"`` and pre-configures password policies in Keycloak.
        **NOTE:** If ``OFFLINE_MODE="true"``, ``imagePullPolicy="IfNotPresent"`` regardless of ``DEV_MODE``.
    * - ``GPU_SUPPORT``
      - ``"false"``

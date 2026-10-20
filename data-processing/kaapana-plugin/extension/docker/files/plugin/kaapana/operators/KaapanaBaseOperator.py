@@ -29,6 +29,7 @@ from kaapana.blueprints.kaapana_global_variables import (
     PROCESSING_WORKFLOW_DIR,
     PULL_POLICY_IMAGES,
 )
+from kaapana.blueprints.kaapana_registry import effective_pull_policy
 from kaapana.blueprints.kaapana_utils import cure_invalid_name, get_release_name
 from kaapana.operators import HelperSendEmailService
 from kaapana.operators.HelperCaching import cache_operator_output
@@ -994,7 +995,13 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                     volume_mounts=self.volume_mounts,
                     labels=self.labels,
                     annotations=self.annotations,
-                    imagePullPolicy=self.image_pull_policy,
+                    # With "Always" the pod would not start while the registry is down,
+                    # although the image is on the node (kaapana#2149). Probes the
+                    # registry of this image through the proxy; the project namespace
+                    # lets worker pods reach the proxy for exactly this.
+                    imagePullPolicy=effective_pull_policy(
+                        self.image_pull_policy, self.image
+                    ),
                 ),
             )
         )

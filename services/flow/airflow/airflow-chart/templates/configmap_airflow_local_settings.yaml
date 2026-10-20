@@ -268,6 +268,37 @@ data:
         ]
 
 
+    _registry_helper_missing_logged = False
+
+
+    def set_pull_policy(pod):
+        """Pull policy of the worker pod's own containers (kaapana#2149): with "Always" the
+        pod would not start while the registry is down, although its image is on the node.
+        The operators inside the pod decide for their processing containers themselves."""
+        global _registry_helper_missing_logged
+        try:
+            from kaapana.blueprints.kaapana_registry import effective_pull_policy
+        except Exception as e:
+            # Chart and plugin ship in different images: an older plugin has no such module
+            # (ImportError). The import also runs kaapana/blueprints/__init__.py, which pulls
+            # in the Flask webserver and env-dependent globals, so it can fail otherwise
+            # too. Either way the pod keeps the policy the template gave it, which is
+            # today's behaviour; raising here would fail every task instead.
+            if not _registry_helper_missing_logged:
+                log.warning("kaapana_registry not importable from the plugins folder (%s), pull policy left unchanged", e)
+                _registry_helper_missing_logged = True
+            return
+
+        configured = os.getenv("PULL_POLICY_IMAGES", "IfNotPresent")
+        policy = effective_pull_policy(configured, os.getenv("DEFAULT_REGISTRY", ""))
+        if policy == configured:
+            # Only the fallback is written; while the registry answers, the template's and
+            # a task's pod_override values stay as they are.
+            return
+        for container in (pod.spec.containers or []) + (pod.spec.init_containers or []):
+            container.image_pull_policy = policy
+
+
     def pod_mutation_hook(pod):
         dagrun = get_dagrun_from_pod(pod)
 
@@ -284,6 +315,7 @@ data:
         pod.metadata.labels["kaapana.ai/type"] = "processing-container"
         pod.metadata.labels["kaapana.type"] = "processing-container"
 
+        set_pull_policy(pod)
 
         pod.spec.volumes = pod.spec.volumes or []
         pod.spec.volumes.extend(define_volumes_and_mounts())

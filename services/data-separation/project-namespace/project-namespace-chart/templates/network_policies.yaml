@@ -363,3 +363,16 @@ spec:
     ports:
     - protocol: TCP
       port: 5432
+  # The proxy only, so the operators in a worker pod can probe their image's registry
+  # before starting a processing container and fall back to the image on the node while
+  # it does not answer (kaapana#2149). Processing containers themselves stay cut off.
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.global.admin_namespace }}
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: squid-proxy
+    ports:
+    - protocol: TCP
+      port: 3128

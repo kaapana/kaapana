@@ -1,5 +1,3 @@
-import type { Repository } from '@/shared/types/apiSchemas'
-
 export interface RepositoryFormState {
   name: string
   description: string
@@ -7,5 +5,3 @@ export interface RepositoryFormState {
   username: string
   password: string
 }
-
-export type RepositoryDict = Record<string, Repository>

@@ -1,27 +1,51 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { fetchExtensionById, fetchExtensions, uninstallExtension } from '@/features/extensions/api'
-import InstalledExtensionIterator from '@/features/extensions/components/InstalledExtensionIterator.vue'
-import SelectedInstalledExtension from '@/features/extensions/components/SelectedInstalledExtension.vue'
-import { fetchRepositories, fetchRepositoryById } from '@/features/repositories/api'
-import type { RepositoryDict } from '@/features/repositories/types'
+import { apiErrorInfo, kaapanaIcons } from '@kaapana/base-ui'
+import { fetchExtensions, uninstallExtension } from '@/features/extensions/api'
+import InstalledExtensionDialog from '@/features/extensions/components/InstalledExtensionDialog.vue'
+import { fetchRepositories } from '@/features/repositories/api'
+import BaseCardIterator from '@/shared/components/BaseCardIterator.vue'
+import StatusIndicator from '@/shared/components/StatusIndicator.vue'
+import { usePolling } from '@/shared/composables/usePolling'
+import { useFailureDetailsStore, type FailureDetails } from '@/shared/stores/failureDetails'
 import type { InstalledExtension, Repository } from '@/shared/types/apiSchemas'
-import { getApiErrorMessage } from '@/shared/utils/apiErrors'
+import { notifyFailure, notifySuccess } from '@/shared/utils/notify'
+import { isChanging, plural, presentExtensionStatus } from '@/shared/utils/status'
+
+const failureDetails = useFailureDetailsStore()
 
 const installedExtensions = ref<InstalledExtension[]>([])
-const loadingInstalledExtensions = ref(false)
-const installedExtensionsError = ref<string | null>(null)
-const selectedInstalledExtension = ref<InstalledExtension | null>(null)
-const loadingSelectedInstalledExtension = ref(false)
-const uninstallingSelectedInstalledExtension = ref(false)
-const installedExtensionActionError = ref<string | null>(null)
-const repositories = ref<RepositoryDict>({})
+const repositories = ref<Record<string, Repository>>({})
+const loading = ref(false)
+const loaded = ref(false)
+const loadFailure = ref<FailureDetails | null>(null)
+const selectedId = ref<string | null>(null)
+const uninstalling = ref(false)
 
-const selectedInstalledExtensionRepository = computed<Repository | null>(() => {
-  const extension = selectedInstalledExtension.value
-  if (!extension) return null
-  return repositories.value[extension.repository_id] ?? null
-})
+const selectedExtension = computed(
+  () => installedExtensions.value.find((extension) => extension.id === selectedId.value) ?? null,
+)
+const selectedRepository = computed(() =>
+  selectedExtension.value
+    ? (repositories.value[selectedExtension.value.repository_id] ?? null)
+    : null,
+)
+const activeCount = computed(
+  () => installedExtensions.value.filter((extension) => extension.status !== 'uninstalled').length,
+)
+const anyTransitional = computed(() =>
+  installedExtensions.value.some((extension) => isChanging(extension.status)),
+)
+
+usePolling(() => loadInstalledExtensions(), anyTransitional)
+
+function repositoryName(repositoryId: string): string {
+  return repositories.value[repositoryId]?.name ?? repositoryId
+}
+
+function showLoadFailure() {
+  if (loadFailure.value) failureDetails.show(loadFailure.value)
+}
 
 async function loadRepositories() {
   try {
@@ -29,154 +53,152 @@ async function loadRepositories() {
     repositories.value = Object.fromEntries(
       fetched.map((repository) => [repository.id, repository]),
     )
-  } catch (err) {
-    console.error(err)
+  } catch {
     repositories.value = {}
   }
 }
 
-function clearSelectedInstalledExtension() {
-  selectedInstalledExtension.value = null
-  installedExtensionActionError.value = null
-}
-
-function updateSelectedInstalledExtensionFromList() {
-  if (!selectedInstalledExtension.value) return
-
-  selectedInstalledExtension.value =
-    installedExtensions.value.find(
-      (installedExtension) => installedExtension.id === selectedInstalledExtension.value?.id,
-    ) ?? null
-}
-
 async function loadInstalledExtensions() {
-  loadingInstalledExtensions.value = true
-  installedExtensionsError.value = null
-
   try {
     installedExtensions.value = await fetchExtensions()
-    updateSelectedInstalledExtensionFromList()
+    loadFailure.value = null
   } catch (err) {
-    console.error(err)
-    installedExtensionsError.value = getApiErrorMessage(err, 'Failed to fetch managed extensions.')
-    installedExtensions.value = []
-  } finally {
-    loadingInstalledExtensions.value = false
-  }
-}
-
-async function refreshSelectedInstalledExtension() {
-  if (!selectedInstalledExtension.value) return
-
-  loadingSelectedInstalledExtension.value = true
-  installedExtensionActionError.value = null
-
-  try {
-    selectedInstalledExtension.value = await fetchExtensionById(selectedInstalledExtension.value.id)
-  } catch (err) {
-    console.error(err)
-    installedExtensionActionError.value = getApiErrorMessage(
-      err,
-      'Failed to fetch extension details.',
-    )
-  } finally {
-    loadingSelectedInstalledExtension.value = false
-  }
-}
-
-async function refreshSelectedInstalledExtensionRepository() {
-  const extension = selectedInstalledExtension.value
-  if (!extension) return
-
-  try {
-    const repository = await fetchRepositoryById(extension.repository_id)
-    repositories.value = { ...repositories.value, [repository.id]: repository }
-  } catch (err) {
-    console.error(err)
-  }
-}
-
-async function selectInstalledExtension(installedExtension: InstalledExtension) {
-  selectedInstalledExtension.value = installedExtension
-  installedExtensionActionError.value = null
-  await refreshSelectedInstalledExtension()
-}
-
-async function uninstallSelectedInstalledExtension() {
-  if (!selectedInstalledExtension.value) return
-
-  const selectedInstalledExtensionId = selectedInstalledExtension.value.id
-  uninstallingSelectedInstalledExtension.value = true
-  installedExtensionActionError.value = null
-
-  try {
-    await uninstallExtension(selectedInstalledExtensionId)
-    await loadInstalledExtensions()
-
-    const matchingInstalledExtension = installedExtensions.value.find(
-      (installedExtension) => installedExtension.id === selectedInstalledExtensionId,
-    )
-
-    if (matchingInstalledExtension) {
-      selectedInstalledExtension.value = matchingInstalledExtension
-      await refreshSelectedInstalledExtension()
-    } else {
-      clearSelectedInstalledExtension()
+    loadFailure.value = {
+      title: installedExtensions.value.length
+        ? 'Could not refresh the extensions'
+        : 'Could not load the extensions',
+      text: 'The extension manager could not be reached or reported an error.',
+      error: apiErrorInfo(err),
     }
-  } catch (err) {
-    console.error(err)
-    installedExtensionActionError.value = getApiErrorMessage(err, 'Failed to uninstall extension.')
-  } finally {
-    uninstallingSelectedInstalledExtension.value = false
   }
 }
 
-function refreshAll() {
-  loadInstalledExtensions()
-  loadRepositories()
+async function refreshAll() {
+  loading.value = true
+  try {
+    await Promise.all([loadInstalledExtensions(), loadRepositories()])
+  } finally {
+    loading.value = false
+    loaded.value = true
+  }
+}
+
+async function uninstallSelectedExtension() {
+  const extension = selectedExtension.value
+  if (!extension || uninstalling.value) return
+
+  const label = `${extension.manifest.name} ${extension.manifest.version}`
+  uninstalling.value = true
+  try {
+    await uninstallExtension(extension.id)
+    notifySuccess('Uninstall started', `${label} is being uninstalled.`)
+    await loadInstalledExtensions()
+  } catch (err) {
+    notifyFailure('Uninstall failed to start', `Could not start uninstalling ${label}.`, err)
+  } finally {
+    uninstalling.value = false
+  }
 }
 
 onMounted(refreshAll)
 </script>
 
 <template>
-  <v-container fluid>
-    <v-container class="pad-lg">
-      <div class="d-flex flex-wrap align-center justify-space-between ga-3 mb-4">
-        <div>
-          <h1 class="text-h5 mb-1">Extension Management</h1>
-          <div class="text-body-2 text-medium-emphasis">
-            {{ installedExtensions.length }} extensions with platform state
-          </div>
-        </div>
-
-        <v-btn color="primary" :loading="loadingInstalledExtensions" @click="refreshAll">
-          <v-icon start>mdi-refresh</v-icon>
-          Refresh
-        </v-btn>
+  <div>
+    <div class="d-flex flex-wrap align-center justify-space-between ga-3 mb-4">
+      <div class="text-body-2 text-medium-emphasis">
+        {{ plural(activeCount, 'extension') }} on the platform
       </div>
+      <v-btn
+        variant="text"
+        color="primary"
+        :prepend-icon="kaapanaIcons.refresh"
+        :loading="loading"
+        :disabled="loading"
+        @click="refreshAll"
+      >
+        Refresh
+      </v-btn>
+    </div>
 
-      <SelectedInstalledExtension
-        :selected-installed-extension="selectedInstalledExtension"
-        :selected-installed-extension-repository="selectedInstalledExtensionRepository"
-        :loading-selected-installed-extension="loadingSelectedInstalledExtension"
-        :uninstalling-selected-installed-extension="uninstallingSelectedInstalledExtension"
-        :installed-extension-action-error="installedExtensionActionError"
-        @clear-selected-installed-extension="clearSelectedInstalledExtension"
-        @refresh-selected-installed-extension="refreshSelectedInstalledExtension"
-        @refresh-selected-installed-extension-repository="
-          refreshSelectedInstalledExtensionRepository
-        "
-        @uninstall-selected-installed-extension="uninstallSelectedInstalledExtension"
-      />
+    <v-alert
+      v-if="loadFailure && installedExtensions.length"
+      type="warning"
+      variant="tonal"
+      class="mb-4"
+      data-testid="stale-alert"
+    >
+      Could not refresh the extensions. The list shows their last known state.
+      <template #append>
+        <v-btn variant="text" @click="showLoadFailure">Details</v-btn>
+      </template>
+    </v-alert>
 
-      <InstalledExtensionIterator
-        :installed-extensions="installedExtensions"
-        :repositories="repositories"
-        :loading-installed-extensions="loadingInstalledExtensions"
-        :installed-extensions-error="installedExtensionsError"
-        @select-installed-extension="selectInstalledExtension"
-      />
-    </v-container>
-  </v-container>
+    <BaseCardIterator
+      :items="installedExtensions"
+      :loading="loading || !loaded"
+      :item-key="(extension) => extension.id"
+      :card-label="
+        (extension) => `Show details of ${extension.manifest.name} ${extension.manifest.version}`
+      "
+      @select="selectedId = $event.id"
+    >
+      <template #card="{ item }">
+        <v-card-title class="text-wrap">{{ item.manifest.name }}</v-card-title>
+        <v-card-subtitle>{{ repositoryName(item.repository_id) }}</v-card-subtitle>
+        <v-card-text class="flex-grow-1 text-body-2 text-medium-emphasis">{{
+          item.tag
+        }}</v-card-text>
+        <v-card-actions class="px-4 text-body-2">
+          <StatusIndicator :status="presentExtensionStatus(item.status)" />
+          <v-spacer />
+          <span class="text-medium-emphasis">{{ item.manifest.version }}</span>
+        </v-card-actions>
+      </template>
+
+      <template #empty>
+        <div data-testid="empty-state">
+          <v-empty-state
+            v-if="loadFailure"
+            :icon="kaapanaIcons.error"
+            color="error"
+            size="56"
+            title="Could not load the extensions"
+            text="The extension manager could not be reached or reported an error. Try again, or contact your administrator if it persists."
+          >
+            <template #actions>
+              <v-btn
+                color="primary"
+                variant="text"
+                :prepend-icon="kaapanaIcons.refresh"
+                @click="refreshAll"
+              >
+                Try again
+              </v-btn>
+              <v-btn variant="text" @click="showLoadFailure">Details</v-btn>
+            </template>
+          </v-empty-state>
+
+          <v-empty-state
+            v-else
+            size="56"
+            title="No extensions installed yet"
+            text="Extensions you install from the catalog appear here, together with their installation state."
+          >
+            <template #actions>
+              <v-btn color="primary" variant="text" to="/catalog">Browse the catalog</v-btn>
+            </template>
+          </v-empty-state>
+        </div>
+      </template>
+    </BaseCardIterator>
+
+    <InstalledExtensionDialog
+      :extension="selectedExtension"
+      :repository="selectedRepository"
+      :uninstalling="uninstalling"
+      @close="selectedId = null"
+      @uninstall="uninstallSelectedExtension"
+    />
+  </div>
 </template>

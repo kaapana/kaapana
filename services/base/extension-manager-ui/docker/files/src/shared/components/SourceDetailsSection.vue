@@ -13,29 +13,27 @@ const props = defineProps<{
 
 const showMore = ref(false)
 
-const hasAdvanced = computed(() => Boolean(props.advancedRows && props.advancedRows.length > 0))
+const visibleRows = computed(() =>
+  showMore.value ? [...props.rows, ...(props.advancedRows ?? [])] : props.rows,
+)
+const hasAdvanced = computed(() => Boolean(props.advancedRows?.length))
 </script>
 
 <template>
   <section>
-    <div class="section-title">About</div>
-    <div class="source-details-grid">
-      <template v-for="row in props.rows" :key="row.label">
-        <div class="source-details-label">{{ row.label }}</div>
-        <div class="source-details-value">{{ row.value }}</div>
+    <h3 class="text-subtitle-1 mb-2">About</h3>
+    <dl class="source-details text-body-2">
+      <template v-for="row in visibleRows" :key="row.label">
+        <dt class="text-medium-emphasis">{{ row.label }}</dt>
+        <dd>{{ row.value }}</dd>
       </template>
-      <template v-if="showMore && props.advancedRows">
-        <template v-for="row in props.advancedRows" :key="row.label">
-          <div class="source-details-label">{{ row.label }}</div>
-          <div class="source-details-value">{{ row.value }}</div>
-        </template>
-      </template>
-    </div>
+    </dl>
     <v-btn
       v-if="hasAdvanced"
       variant="text"
       size="small"
-      class="source-details-toggle"
+      class="mt-1 ms-n2"
+      :aria-expanded="showMore"
       @click="showMore = !showMore"
     >
       {{ showMore ? 'Show less' : 'Show more' }}
@@ -44,33 +42,17 @@ const hasAdvanced = computed(() => Boolean(props.advancedRows && props.advancedR
 </template>
 
 <style scoped>
-.section-title {
-  font-weight: 500;
-  margin-bottom: 8px;
-}
-
-.source-details-grid {
+.source-details {
   display: grid;
-  grid-template-columns: 120px 1fr;
-  row-gap: 6px;
-  column-gap: 12px;
+  grid-template-columns: max-content 1fr;
+  column-gap: 16px;
+  row-gap: 4px;
+  margin: 0;
 }
 
-.source-details-label {
-  opacity: 0.6;
-  font-size: 13px;
-}
-
-.source-details-value {
-  font-size: 13px;
+.source-details dd {
+  margin: 0;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.source-details-toggle {
-  margin-top: 4px;
-  margin-left: -8px;
+  overflow-wrap: anywhere;
 }
 </style>

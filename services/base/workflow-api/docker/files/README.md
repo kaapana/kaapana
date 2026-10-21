@@ -130,10 +130,12 @@ class WorkflowEngineAdapter(ABC):
   - If run state is **active** → fetch fresh state from engine via adapter, update DB, return updated value.  
 
 ### Periodic sync
-- A cron job runs periodically:  
-  1. Selects all workflow runs with status != `COMPLETED`.  
-  2. Queries engine via adapter for latest status.  
+- A background loop in the API process runs every 30 seconds:  
+  1. Selects all workflow runs with a status other than `CREATED`, `COMPLETED`, `ERROR` and `CANCELED`.  
+  2. Queries engine via adapter for latest status and task runs.  
   3. Updates DB with current workflow and task run states.  
+- Every Uvicorn worker starts this loop, but only the worker that holds a Postgres advisory lock runs the sync. The other workers retry the lock in every interval and take over when the lock holder stops.  
+- `POST /v1/workflow-runs/sync` triggers the same sync manually.  
 
 This ensures eventual consistency even if inline updates fail.  
 

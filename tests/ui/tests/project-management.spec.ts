@@ -18,7 +18,15 @@ const TEST_PROJECT = 'pw-testproj';
 
 async function gotoProjectsList(page: Page) {
   await page.goto(PROJECTS_UI);
-  await expect(page.getByText('Available Projects')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole('heading', { name: 'Projects', level: 1 })).toBeVisible({
+    timeout: 20_000,
+  });
+}
+
+/** Cancels the create dialog and discards what the test typed into it. */
+async function discardCreateDialog(page: Page) {
+  await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
+  await page.getByRole('button', { name: 'Discard changes' }).click();
 }
 
 /**
@@ -37,14 +45,15 @@ async function cleanupTestProject(browser: Browser): Promise<void> {
     if ((await row.count()) === 0) return;
 
     // If archived, unarchive first so the delete button is reachable
-    if (await row.locator('button:has(.mdi-archive-arrow-up)').count() > 0) {
-      await row.locator('button:has(.mdi-archive-arrow-up)').click();
+    const unarchive = row.getByRole('button', { name: `Unarchive ${TEST_PROJECT}` });
+    if (await unarchive.count() > 0) {
+      await unarchive.click();
       await page.waitForLoadState('networkidle');
     }
 
-    await row.locator('button:has(.mdi-trash-can)').click();
+    await row.getByRole('button', { name: `Delete ${TEST_PROJECT}`, exact: true }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
-    await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Delete project' }).click();
     await page.waitForLoadState('networkidle');
   } finally {
     await ctx.close();
@@ -71,35 +80,38 @@ test.describe('Project Management UI', () => {
   test('projects list page renders', async ({ page }) => {
     await gotoProjectsList(page);
 
-    await expect(page.getByText('Available Projects')).toBeVisible();
     // The built-in 'admin' project must always exist
     await expect(page.locator('tr').filter({ hasText: /^admin/ }).first()).toBeVisible();
-    // Admin user sees the Create New Project button
-    await expect(page.getByRole('button', { name: 'Create New Project' })).toBeVisible();
+    // Admin user sees the Create new project button
+    await expect(page.getByRole('button', { name: 'Create new project' })).toBeVisible();
   });
 
   // ── 2. Create project ──────────────────────────────────────────────────────
 
   test('create a new project', async ({ page }) => {
     await gotoProjectsList(page);
-    await page.getByRole('button', { name: 'Create New Project' }).click();
+    await page.getByRole('button', { name: 'Create new project' }).click();
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
 
-    await dialog.getByRole('textbox', { name: 'Project Name' }).fill(TEST_PROJECT);
+    await dialog.getByRole('textbox', { name: 'Project name' }).fill(TEST_PROJECT);
     await dialog.getByRole('textbox', { name: 'Description' }).fill('Playwright test project');
-    await dialog.getByRole('button', { name: 'Create' }).click();
+    await dialog.getByRole('button', { name: 'Create project' }).click();
 
-    // Wait for the dialog to close (happens for both success and API error).
-    await expect(dialog).not.toBeVisible({ timeout: 5_000 });
-
-    // When the backend returns an error the table is not auto-refreshed, but
-    // the project may still have been created (e.g. the MinIO/K8s setup timed
-    // out but the DB record was committed). Reload to get a fresh table state.
-    if (await page.getByText('Project could not be created').isVisible()) {
+    // On success the dialog closes. On a backend error it stays open with the
+    // error, but the project may still have been created (e.g. the MinIO/K8s
+    // setup timed out but the DB record was committed). Reload to get a fresh
+    // table state.
+    const failure = dialog.getByText('Project not created');
+    await expect(failure.or(page.getByText(`Project "${TEST_PROJECT}" created.`))).toBeVisible({
+      timeout: 25_000,
+    });
+    if (await failure.isVisible()) {
       await page.reload();
-      await expect(page.getByText('Available Projects')).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByRole('heading', { name: 'Projects', level: 1 })).toBeVisible({
+        timeout: 20_000,
+      });
     }
 
     await expect(page.locator('tr').filter({ hasText: TEST_PROJECT }).first()).toBeVisible({
@@ -109,44 +121,46 @@ test.describe('Project Management UI', () => {
 
   // ── 3. Name validation ─────────────────────────────────────────────────────
 
+  // The dialog checks the form on submit and stays open while a rule fails.
+
   test('rejects a project name longer than 13 characters', async ({ page }) => {
     await gotoProjectsList(page);
-    await page.getByRole('button', { name: 'Create New Project' }).click();
+    await page.getByRole('button', { name: 'Create new project' }).click();
 
     const dialog = page.getByRole('dialog');
-    await dialog.getByRole('textbox', { name: 'Project Name' }).fill('toolongname1234');
+    await dialog.getByRole('textbox', { name: 'Project name' }).fill('toolongname1234');
+    await dialog.getByRole('button', { name: 'Create project' }).click();
 
-    await expect(dialog.getByText('Max 13 characters')).toBeVisible();
-    await expect(dialog.getByRole('button', { name: 'Create' })).toBeDisabled();
+    await expect(dialog.getByText('Use at most 13 characters')).toBeVisible();
 
-    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    await discardCreateDialog(page);
   });
 
   test('rejects uppercase project names', async ({ page }) => {
     await gotoProjectsList(page);
-    await page.getByRole('button', { name: 'Create New Project' }).click();
+    await page.getByRole('button', { name: 'Create new project' }).click();
 
     const dialog = page.getByRole('dialog');
-    await dialog.getByRole('textbox', { name: 'Project Name' }).fill('InvalidName');
+    await dialog.getByRole('textbox', { name: 'Project name' }).fill('InvalidName');
+    await dialog.getByRole('button', { name: 'Create project' }).click();
 
-    await expect(dialog.getByText('Only lowercase characters are supported')).toBeVisible();
-    await expect(dialog.getByRole('button', { name: 'Create' })).toBeDisabled();
+    await expect(dialog.getByText('Use lowercase')).toBeVisible();
 
-    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    await discardCreateDialog(page);
   });
 
   test('rejects the reserved name "admin"', async ({ page }) => {
     await gotoProjectsList(page);
-    await page.getByRole('button', { name: 'Create New Project' }).click();
+    await page.getByRole('button', { name: 'Create new project' }).click();
 
     const dialog = page.getByRole('dialog');
-    await dialog.getByRole('textbox', { name: 'Project Name' }).fill('admin');
+    await dialog.getByRole('textbox', { name: 'Project name' }).fill('admin');
     await dialog.getByRole('textbox', { name: 'Description' }).fill('should be blocked');
+    await dialog.getByRole('button', { name: 'Create project' }).click();
 
-    await expect(dialog.getByText('Name "admin" is reserved')).toBeVisible();
-    await expect(dialog.getByRole('button', { name: 'Create' })).toBeDisabled();
+    await expect(dialog.getByText('The name "admin" is reserved')).toBeVisible();
 
-    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    await discardCreateDialog(page);
   });
 
   // ── 4. View project detail ─────────────────────────────────────────────────
@@ -157,10 +171,9 @@ test.describe('Project Management UI', () => {
     const row = page.locator('tr').filter({ hasText: TEST_PROJECT }).first();
     await row.getByRole('button', { name: 'View' }).click();
 
-    // Project detail page shows the project name in the header heading.
-    // exact:true avoids matching the "Selected project: ..." snackbar that also
-    // contains the name as a substring.
-    await expect(page.getByText(TEST_PROJECT, { exact: true })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('heading', { name: TEST_PROJECT, level: 1 })).toBeVisible({
+      timeout: 10_000,
+    });
     await expect(page.getByRole('button', { name: 'Projects' })).toBeVisible();
   });
 
@@ -170,7 +183,7 @@ test.describe('Project Management UI', () => {
     await gotoProjectsList(page);
 
     const row = page.locator('tr').filter({ hasText: TEST_PROJECT }).first();
-    await row.locator('button:has(.mdi-pencil)').click();
+    await row.getByRole('button', { name: `Edit ${TEST_PROJECT}` }).click();
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
@@ -180,7 +193,7 @@ test.describe('Project Management UI', () => {
     await descField.fill('Updated by Playwright');
     await dialog.getByRole('button', { name: 'Save' }).click();
 
-    await expect(page.getByText('Project updated successfully')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('Project updated.')).toBeVisible({ timeout: 10_000 });
   });
 
   // ── 6. Archive / unarchive ─────────────────────────────────────────────────
@@ -189,11 +202,11 @@ test.describe('Project Management UI', () => {
     await gotoProjectsList(page);
 
     const row = page.locator('tr').filter({ hasText: TEST_PROJECT }).first();
-    await row.locator('button:has(.mdi-archive-arrow-down)').click();
+    await row.getByRole('button', { name: `Archive ${TEST_PROJECT}`, exact: true }).click();
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
-    await dialog.getByRole('button', { name: 'Archive' }).click();
+    await dialog.getByRole('button', { name: 'Archive project' }).click();
 
     // The 'Archived' chip should appear in the project row
     await expect(
@@ -205,7 +218,7 @@ test.describe('Project Management UI', () => {
     await gotoProjectsList(page);
 
     const row = page.locator('tr').filter({ hasText: TEST_PROJECT }).first();
-    await row.locator('button:has(.mdi-archive-arrow-up)').click();
+    await row.getByRole('button', { name: `Unarchive ${TEST_PROJECT}` }).click();
 
     // The 'Archived' chip should disappear
     await expect(
@@ -219,11 +232,11 @@ test.describe('Project Management UI', () => {
     await gotoProjectsList(page);
 
     const row = page.locator('tr').filter({ hasText: TEST_PROJECT }).first();
-    await row.locator('button:has(.mdi-trash-can)').click();
+    await row.getByRole('button', { name: `Delete ${TEST_PROJECT}`, exact: true }).click();
 
     const dialog = page.getByRole('dialog');
-    await expect(dialog.getByText('Are you sure you want to delete')).toBeVisible();
-    await dialog.getByRole('button', { name: 'Delete' }).click();
+    await expect(dialog.getByText(`Delete "${TEST_PROJECT}"?`)).toBeVisible();
+    await dialog.getByRole('button', { name: 'Delete project' }).click();
 
     // The row must disappear from the table
     await expect(

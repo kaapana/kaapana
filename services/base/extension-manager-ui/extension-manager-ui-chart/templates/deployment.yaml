@@ -42,7 +42,7 @@ spec:
         volumeMounts:
 {{- if .Values.global.dev_files }}
           - name: dev-files
-            mountPath: /app
+            mountPath: /kaapana/extension-manager-ui/docker/files
 {{- end }}
           - name: tmp
             mountPath: /tmp

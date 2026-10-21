@@ -569,7 +569,7 @@ async def sync_active_runs(db: AsyncSession):
     Periodic sweep over all non-terminal workflow runs.
     Pulls engine state for each and updates lifecycle/task-run rows.
     """
-    logger.info("Starting periodic sync of active workflow runs...")
+    logger.debug("Starting sync of active workflow runs...")
     active_runs = await crud.get_active_workflow_runs(db)
     if not active_runs:
         logger.debug("No active runs to sync.")
@@ -577,4 +577,4 @@ async def sync_active_runs(db: AsyncSession):
     logger.info(f"Found {len(active_runs)} active runs. Syncing...")
     for run in active_runs:
         await _sync_single_workflow_run(db, run)
-    logger.info("Periodic sync finished.")
+    logger.info("Sync of active workflow runs finished.")

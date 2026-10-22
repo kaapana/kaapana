@@ -14,10 +14,10 @@ server {
 	root /usr/share/selkies/selkies-dashboard/;
 	index index.html;
 
-	# Selkies data websocket (pixelflux stripes). The client connects to "<base>websockets";
-	# match that suffix (singular or plural) under any ingress prefix. Selkies accepts the
-	# upgrade on any path, so no rewrite is needed. This regex location is evaluated before
-	# the prefix locations.
+	# Selkies data websocket. The client connects to "<base>api/websockets"; match that suffix
+	# under any ingress prefix and pass the full path on: selkies serves the route under the
+	# same prefix (SELKIES_SUBFOLDER, set in startup.sh). This regex location is evaluated
+	# before the prefix locations.
 	location ~ /websockets?$ {
 		proxy_connect_timeout       7d;
 		proxy_send_timeout          7d;

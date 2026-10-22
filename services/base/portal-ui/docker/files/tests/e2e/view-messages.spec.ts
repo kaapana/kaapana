@@ -1,5 +1,11 @@
 import { test, expect, type Page } from '@playwright/test'
-import { defaultMockData, freezeClock, installMockBackend, stubView } from './fixtures/mock-backend'
+import {
+  defaultMockData,
+  freezeClock,
+  installMockBackend,
+  stubView,
+  waitForBoot,
+} from './fixtures/mock-backend'
 import type { Project } from '../../src/api/projects'
 import type { MenuEntry, MenuResponse } from '../../src/types/menu'
 
@@ -335,6 +341,7 @@ test('the periodic menu poll does not bypass the backend cache', async ({ page }
   await stubView(page, '/data-gallery-ui')
   await page.goto('/')
   await expect(page).toHaveURL(/\/project\/admin/)
+  await waitForBoot(page)
 
   const reads: string[] = []
   page.on('request', (r) => {

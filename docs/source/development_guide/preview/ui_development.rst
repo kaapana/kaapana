@@ -249,20 +249,6 @@ and inside the Docker build:
      }
    }
 
-A view outside ``services/base`` goes up one more directory and into
-``base``:
-
-.. code-block:: json
-
-   {
-     "dependencies": {
-       "@kaapana/base-ui": "file:../../../../base/base-ui/docker/files"
-     }
-   }
-
-Its Dockerfile puts the library at the matching path in the image (see
-:ref:`ui_docker_build_chain`).
-
 ``npm install`` creates a symlink in ``node_modules``, and imports work as for
 any package:
 
@@ -315,8 +301,6 @@ authoritative list lives in ``services/base/base-ui/docker/files/README.md``.
    ``docker/files`` with the container-pinned ``npm@11.16.0``, add it to the
    ``dedupe`` list and commit both alongside the ``base-ui`` change.
 
-.. _ui_docker_build_chain:
-
 Docker build chain
 ------------------
 
@@ -332,10 +316,7 @@ Consumer Dockerfiles start with
 and copy the built library (``package.json`` + ``dist/``) into the image at
 the same ``/kaapana/base-ui/docker/files`` path it has relative to the repo,
 so the ``file:`` dependency resolves identically in-image and in the source
-tree. A view in another service domain mirrors one level more: it builds in
-``/kaapana/<domain>/<view>-ui/docker/files`` and copies the library to
-``/kaapana/base/base-ui/docker/files``, so its longer ``file:`` path
-resolves in the image too.
+tree.
 
 ``kaapana-build`` reads the ``FROM`` line, recognizes the ``local-only``
 dependency, and builds ``base-ui`` first automatically. When building a

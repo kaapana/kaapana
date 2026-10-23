@@ -189,6 +189,10 @@ test.describe('creating a project', () => {
     await expect(form.getByText('Enter a description.')).toBeVisible()
     await form.getByLabel('Project name').fill('liver_ct')
     await expect(form.getByText('Use only lowercase letters, digits and hyphens.')).toBeVisible()
+    await form.getByLabel('Project name').fill('liver-ct-cohort')
+    await expect(form.getByText('Use at most 13 characters; this name has 15.')).toBeVisible()
+    await form.getByLabel('Project name').fill('admin')
+    await expect(form.getByText('The name "admin" is reserved; choose another name.')).toBeVisible()
     expect(sent).toEqual([])
   })
 

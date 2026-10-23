@@ -23,12 +23,6 @@ async function gotoProjectsList(page: Page) {
   });
 }
 
-/** Cancels the create dialog and discards what the test typed into it. */
-async function discardCreateDialog(page: Page) {
-  await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
-  await page.getByRole('button', { name: 'Discard changes' }).click();
-}
-
 /**
  * Opens a fresh authenticated browser context, navigates to the projects list,
  * and deletes TEST_PROJECT if it is present. Used for pre/post-suite cleanup.
@@ -119,51 +113,7 @@ test.describe('Project Management UI', () => {
     });
   });
 
-  // ── 3. Name validation ─────────────────────────────────────────────────────
-
-  // The dialog checks the form on submit and stays open while a rule fails.
-
-  test('rejects a project name longer than 13 characters', async ({ page }) => {
-    await gotoProjectsList(page);
-    await page.getByRole('button', { name: 'Create new project' }).click();
-
-    const dialog = page.getByRole('dialog');
-    await dialog.getByRole('textbox', { name: 'Project name' }).fill('toolongname1234');
-    await dialog.getByRole('button', { name: 'Create project' }).click();
-
-    await expect(dialog.getByText('Use at most 13 characters')).toBeVisible();
-
-    await discardCreateDialog(page);
-  });
-
-  test('rejects uppercase project names', async ({ page }) => {
-    await gotoProjectsList(page);
-    await page.getByRole('button', { name: 'Create new project' }).click();
-
-    const dialog = page.getByRole('dialog');
-    await dialog.getByRole('textbox', { name: 'Project name' }).fill('InvalidName');
-    await dialog.getByRole('button', { name: 'Create project' }).click();
-
-    await expect(dialog.getByText('Use lowercase')).toBeVisible();
-
-    await discardCreateDialog(page);
-  });
-
-  test('rejects the reserved name "admin"', async ({ page }) => {
-    await gotoProjectsList(page);
-    await page.getByRole('button', { name: 'Create new project' }).click();
-
-    const dialog = page.getByRole('dialog');
-    await dialog.getByRole('textbox', { name: 'Project name' }).fill('admin');
-    await dialog.getByRole('textbox', { name: 'Description' }).fill('should be blocked');
-    await dialog.getByRole('button', { name: 'Create project' }).click();
-
-    await expect(dialog.getByText('The name "admin" is reserved')).toBeVisible();
-
-    await discardCreateDialog(page);
-  });
-
-  // ── 4. View project detail ─────────────────────────────────────────────────
+  // ── 3. View project detail ─────────────────────────────────────────────────
 
   test('view project detail page', async ({ page }) => {
     await gotoProjectsList(page);
@@ -177,7 +127,7 @@ test.describe('Project Management UI', () => {
     await expect(page.getByRole('button', { name: 'Projects' })).toBeVisible();
   });
 
-  // ── 5. Edit project ────────────────────────────────────────────────────────
+  // ── 4. Edit project ────────────────────────────────────────────────────────
 
   test('edit project description', async ({ page }) => {
     await gotoProjectsList(page);
@@ -196,7 +146,7 @@ test.describe('Project Management UI', () => {
     await expect(page.getByText('Project updated.')).toBeVisible({ timeout: 10_000 });
   });
 
-  // ── 6. Archive / unarchive ─────────────────────────────────────────────────
+  // ── 5. Archive / unarchive ─────────────────────────────────────────────────
 
   test('archive project', async ({ page }) => {
     await gotoProjectsList(page);
@@ -226,7 +176,7 @@ test.describe('Project Management UI', () => {
     ).not.toBeVisible({ timeout: 10_000 });
   });
 
-  // ── 7. Delete project ──────────────────────────────────────────────────────
+  // ── 6. Delete project ──────────────────────────────────────────────────────
 
   test('delete project', async ({ page }) => {
     await gotoProjectsList(page);

@@ -116,12 +116,12 @@ The page talks to three backends:
   applications.
 - **kaapana-backend**: the list of workflows and the gateway's policy data.
 
-kube-helm and kaapana-backend are deprecated since 0.7.0. The Extension
+kube-helm and kaapana-backend are marked for deprecation. The Extension
 Manager and the Workflow, Data and Task APIs will replace them (see
 `docs/source/releases.rst` and
 `docs/source/concepts/platform_architecture/architecture.rst`). These do not
 offer what this page needs yet, so the calls stay for now. The tables list
-every call. For the deprecated backends, the last column says why the call
+every call. For these two backends, the last column says why the call
 stays.
 
 ### AII (`/aii/`, no project prefix)
@@ -141,7 +141,7 @@ stays.
 | GET · POST · DELETE | `/aii/projects/rights` · `/rights/<id>` · POST `/rights/reset` | The list of rights. |
 | GET · POST · DELETE | `/aii/projects/roles/<rid>/rights` · `/rights/<right_id>` | Which role has which right. |
 
-### kube-helm (`/project/<short_id>/kube-helm-api/`, deprecated)
+### kube-helm (`/project/<short_id>/kube-helm-api/`, marked for deprecation)
 
 | Method | Endpoint | Purpose | Why it stays |
 | --- | --- | --- | --- |
@@ -150,7 +150,7 @@ stays.
 | GET | `active-applications` | Running applications, filtered to the project. | Planned for the Workflow API, not there yet. |
 | POST | `helm-delete-chart` | Uninstall an application. | Same as for launching. |
 
-### kaapana-backend (deprecated)
+### kaapana-backend (marked for deprecation)
 
 | Method | Endpoint | Purpose | Why it stays |
 | --- | --- | --- | --- |

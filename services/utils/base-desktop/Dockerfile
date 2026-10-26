@@ -1,7 +1,7 @@
 # Pinned selkies commit — the single source of truth for BOTH the web dashboard (built from
 # source in the selkies-frontend stage below) and the python server (pip-installed in the final
 # stage). Bump this one value to move the whole streaming stack.
-ARG SELKIES_COMMIT=0d134b6e1ffe42a579bc66363b0e7159ab22aacc
+ARG SELKIES_COMMIT=1b9f7395db1c3ea48655a94134b4b391f70e782c
 
 # Build the Selkies web dashboard (React/Vite SPA) from ${SELKIES_COMMIT}. The SPA is not part of
 # the pip package and is not published as a release artifact, so it must be built from source
@@ -150,36 +150,26 @@ COPY --from=libva-builder /libva.so.2.real /usr/lib/x86_64-linux-gnu/libva.so.2.
 RUN ln -sf libva.so.2.2200.0 /usr/lib/x86_64-linux-gnu/libva.so.2 && ldconfig
 
 # Selkies server (pixelflux/websocket mode), installed from the same ${SELKIES_COMMIT} that built
-# the dashboard above. flux versions are pinned separately because selkies' pyproject leaves them
-# unpinned. evdev + xkbcommon are sdist-only, so install the dev headers to build them and purge
-# again in the same layer (build-essential is already in the base).
+# the dashboard above; selkies' pyproject pins pixelflux and pcmflux. evdev + xkbcommon are
+# sdist-only, so install the dev headers to build them and purge again in the same layer
+# (build-essential is already in the base).
 ARG SELKIES_COMMIT
 RUN apt-get update \
     && apt-get install -y --no-install-recommends python3-dev libxkbcommon-dev pkg-config \
     && python3 -m pip install --no-cache-dir \
         "selkies @ git+https://github.com/selkies-project/selkies.git@${SELKIES_COMMIT}" \
-        pixelflux==1.6.2 \
-        pcmflux==1.0.8 \
     && apt-get purge -y python3-dev libxkbcommon-dev pkg-config \
     && apt-get autoremove -y && apt-get autoclean -y && rm -rf /var/lib/apt/lists/*
-
-# The Selkies web client sends the display DPI as 96 * devicePixelRatio (e.g. 192 on a retina
-# client). We always run with --use-css-scaling, which already applies the devicePixelRatio via a
-# stretched canvas, so honouring that DPI double-scales and every toolkit renders 2x-oversized
-# fonts. Pin the applied DPI to 96 (correct for css-scaling on any client; a no-op at DPR 1) by
-# forcing it in set_dpi(), the single chokepoint every DPI path funnels through (both the client
-# "s," message and the client-settings handler) — this covers xrdb, xsettingsd and xfconf at once.
-# The trailing grep is a guard: if the sed target ever stops matching, the build fails loudly
-# instead of silently shipping oversized fonts.
-RUN SELKIES_PY="$(python3 -c 'import selkies, os; print(os.path.join(os.path.dirname(selkies.__file__), "selkies.py"))')" \
-    && sed -i 's|        dpi_value = int(str(dpi_setting))|        dpi_value = 96  # Kaapana: css-scaling already applies devicePixelRatio; pin 96 to avoid double-scaled fonts|' "$SELKIES_PY" \
-    && grep -q 'dpi_value = 96  # Kaapana' "$SELKIES_PY"
 
 # pixelflux uses hardware H.264 (NVENC) when it can dlopen libnvidia-encode, which the NVIDIA
 # container runtime only injects when the "video" driver capability is requested. The GPU base
 # image sets only compute,utility, so widen it here to include video; startup.sh then switches
 # selkies to the NVENC encoder when a GPU is present. No effect on CPU-only launches.
 ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
+
+# Without a cursor size, libXcursor derives one from the screen height (Xvfb starts at 5120x2880,
+# see xvfb.sh), so every app loads the 64 px cursor, which the browser then shows as it is.
+ENV XCURSOR_SIZE=24
 
 # Default text editor (mousepad) + PDF viewer (qpdfview) for the desktop, installed explicitly
 # rather than relying on a transitive dependency, so the .txt / .pdf handlers wired in

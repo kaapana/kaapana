@@ -9,21 +9,20 @@ if [ -n "$OPENBOX_ARGS" ]; then
 fi
 
 # Selkies encoder selection. The container is sometimes started with an NVIDIA GPU and sometimes
-# not, so pick the encoder per launch: with an NVENC-capable GPU use hardware full-frame H.264
-# (pixelflux offloads to NVENC), otherwise keep the CPU striped encoder (only changed stripes are
-# encoded — far cheaper on CPU for a mostly-static desktop). Detection mirrors pixelflux: it
+# not, so pick the encoder per launch: with an NVENC-capable GPU pixelflux offloads H.264 to
+# NVENC, otherwise it stays on the CPU. Detection mirrors pixelflux: it
 # dlopens libnvidia-encode.so, which is only present when the pod has a GPU and the "video" driver
 # capability. Fail open: if detection or the swap misses, we stay on the CPU default in the conf.
 SELKIES_CONF=/etc/supervisor/conf.d/supervisord.conf
 if ldconfig -p 2>/dev/null | grep -q 'libnvidia-encode\.so'; then
-    if grep -q -- '--encoder=x264enc-striped --use-cpu=true' "$SELKIES_CONF"; then
-        sed -i 's|--encoder=x264enc-striped --use-cpu=true|--encoder=x264enc --use-cpu=false|' "$SELKIES_CONF"
+    if grep -q -- '--encoder=h264enc --use-cpu=true' "$SELKIES_CONF"; then
+        sed -i 's|--encoder=h264enc --use-cpu=true|--encoder=h264enc --use-cpu=false|' "$SELKIES_CONF"
         log "selkies: NVENC-capable GPU detected -> hardware full-frame H.264 encoder"
     else
         log "selkies: WARN NVENC GPU detected but expected CPU encoder flags not found; leaving conf as-is"
     fi
 else
-    log "selkies: no NVENC GPU detected -> CPU striped H.264 encoder"
+    log "selkies: no NVENC GPU detected -> CPU H.264 encoder"
 fi
 
 USER=${USER:-root}
@@ -85,6 +84,8 @@ if [ -n "$RELATIVE_URL_ROOT" ]; then
     log "nginx: enabling RELATIVE_URL_ROOT=$RELATIVE_URL_ROOT"
 	sed -i 's|#_RELATIVE_URL_ROOT_||' /etc/nginx/sites-enabled/default
 	sed -i 's|_RELATIVE_URL_ROOT_|'$RELATIVE_URL_ROOT'|' /etc/nginx/sites-enabled/default
+	# selkies serves its websocket only under its own route, so it needs the same prefix
+	export SELKIES_SUBFOLDER="$RELATIVE_URL_ROOT"
 fi
 
 # browser-tab title: the Selkies dashboard sets document.title from manifest.json's "name"

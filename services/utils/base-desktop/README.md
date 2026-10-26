@@ -20,12 +20,12 @@ A virtual framebuffer `xvfb` (display `:1`) hosts the desktop. When the containe
 (`files/startup.sh`) `supervisord` launches:
 - `xvfb` / `wm` (openbox) / `tint2` / `pcmanfm`: the X server + LXDE desktop (all as `%USER%`)
 - `pulseaudio`: virtual audio sink for Selkies audio
-- `selkies`: streams display `:1` as H.264/JPEG stripes over a single WebSocket
+- `selkies`: streams display `:1` as H.264 over a single WebSocket
   ([Selkies](https://github.com/selkies-project/selkies) v2 / `pixelflux`, decoded in-browser
   via WebCodecs). Native RANDR resize — no server-side resize workaround needed. The encoder is
   chosen per launch by `startup.sh`: hardware full-frame H.264 (NVENC) when the container has an
-  NVENC-capable GPU, otherwise the CPU striped encoder (only changed stripes — cheap on CPU).
-- `nginx`: serves the prebuilt Selkies web client and proxies the `.../websockets` upgrade to
+  NVENC-capable GPU, otherwise H.264 on the CPU.
+- `nginx`: serves the prebuilt Selkies web client and proxies the `.../api/websockets` upgrade to
   the Selkies server (`:8082`); handles the ingress sub-path (`INGRESS_PATH`) and optional
   HTTP basic auth (`HTTP_PASSWORD`).
 

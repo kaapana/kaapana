@@ -30,7 +30,7 @@ __pycache__
 *~
 history
 build_cli/build-config.yaml
-*del.*
+*.del.*
 platform_config.yaml
 platform_config.json
 request_config.yaml

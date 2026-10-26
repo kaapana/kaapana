@@ -1,5 +1,6 @@
 import logging
 import re
+import asyncio
 from typing import AsyncGenerator, Tuple
 
 import httpx
@@ -17,6 +18,9 @@ router = APIRouter()
 
 # Set logging level
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
+
+WADO_UPSTREAM_RETRY_ATTEMPTS = 5
+WADO_UPSTREAM_RETRY_DELAY_SECONDS = 0.5
 
 
 def replace_boundary(buffer: bytes, old_boundary: bytes, new_boundary: bytes) -> bytes:
@@ -100,22 +104,23 @@ async def stream_passthrough(
     method: str,
     url: str,
     headers: dict,
-) -> Tuple[str, AsyncGenerator[bytes, None]]:
+) -> Tuple[str, AsyncGenerator[bytes, None], int]:
     client = httpx.AsyncClient()
 
-    # 1) Build the request
-    req = client.build_request(method, url, headers=headers)
-    # 2) Send it with streaming turned on
-    response = await client.send(req, stream=True)
+    for attempt in range(WADO_UPSTREAM_RETRY_ATTEMPTS + 1):
+        # 1) Build the request
+        req = client.build_request(method, url, headers=headers)
+        # 2) Send it with streaming turned on
+        response = await client.send(req, stream=True)
 
-    if response.status_code not in (200, 204):
+        if response.status_code != status.HTTP_404_NOT_FOUND:
+            break
+
+        if attempt == WADO_UPSTREAM_RETRY_ATTEMPTS:
+            break
+
         await response.aclose()
-        await client.aclose()
-        raise httpx.HTTPStatusError(
-            f"Upstream returned status {response.status_code} for URL: {url}",
-            request=response.request,
-            response=response,
-        )
+        await asyncio.sleep(WADO_UPSTREAM_RETRY_DELAY_SECONDS)
 
     # Grab the full Content-Type (boundary included)
     content_type = response.headers.get(
@@ -132,7 +137,7 @@ async def stream_passthrough(
             await response.aclose()
             await client.aclose()
 
-    return content_type, generator()
+    return content_type, generator(), response.status_code
 
 
 def stream_study_metadata(study: str, request: Request) -> StreamingResponse:
@@ -207,7 +212,7 @@ async def proxy_series_requests(
             media_type="application/dicom+json",
         )
     else:
-        content_type, body = await stream_passthrough(
+        content_type, body, upstream_status = await stream_passthrough(
             method="GET",
             url=forward_url,
             headers=request.headers,
@@ -218,6 +223,7 @@ async def proxy_series_requests(
                 "Transfer-Encoding": "chunked",
                 "Content-Type": content_type,
             },
+            status_code=upstream_status,
         )
 
 
@@ -325,7 +331,7 @@ async def retrieve_study_or_rendered(
     # If user is admin, stream the entire study or rendered
     if is_unscoped_admin(request):
         forward_url = append_query(f"{DICOMWEB_BASE_URL}/studies/{study}{rendered_path}")
-        content_type, body = await stream_passthrough(
+        content_type, body, upstream_status = await stream_passthrough(
             method="GET",
             url=forward_url,
             headers=request.headers,
@@ -336,6 +342,7 @@ async def retrieve_study_or_rendered(
                 "Transfer-Encoding": "chunked",
                 "Content-Type": content_type,
             },
+            status_code=upstream_status,
         )
 
     # Otherwise, filter series based on project access
@@ -356,7 +363,7 @@ async def retrieve_study_or_rendered(
     # If all series are mapped, stream the entire study or rendered
     if set(mapped_series_uids) == set(all_series):
         forward_url = append_query(f"{DICOMWEB_BASE_URL}/studies/{study}{rendered_path}")
-        content_type, body = await stream_passthrough(
+        content_type, body, upstream_status = await stream_passthrough(
             method="GET",
             url=forward_url,
             headers=request.headers,
@@ -367,6 +374,7 @@ async def retrieve_study_or_rendered(
                 "Transfer-Encoding": "chunked",
                 "Content-Type": content_type,
             },
+            status_code=upstream_status,
         )
 
     # Otherwise, build URL list only for allowed series

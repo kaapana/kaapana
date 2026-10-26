@@ -1,0 +1,49 @@
+{{- $networkPolicy := .Values.networkPolicy | default dict }}
+{{- if and .Values.global.gpu_support ($networkPolicy.enabled | default true) }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: nninteractive-proxy-network-policy
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: nninteractive-proxy
+  policyTypes:
+    - Ingress
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: {{ .Values.nninteractiveProxy.port }}
+      from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ ($networkPolicy.ingressNamespace | default "admin") | quote }}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: traefik
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ohif
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: nninteractive-server-network-policy
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: nninteractive-server
+  policyTypes:
+    - Ingress
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: {{ .Values.nninteractiveServer.port }}
+      from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: nninteractive-proxy
+{{- end }}

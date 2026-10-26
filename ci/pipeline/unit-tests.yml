@@ -135,6 +135,22 @@ kaapana_client_tests:
         - kaapana_client_report.xml
 
 ##############################################
+# Build CLI Tests
+##############################################
+build_cli_tests:
+  extends: .pytest_template
+  script:
+    # build_cli imports both libraries but cannot declare them as dependencies,
+    # because they are not on PyPI.
+    - pip install -e $KAAPANA_DIR/lib/kaapana_containers -e $KAAPANA_DIR/lib/kaapana_extensions -e "$KAAPANA_DIR/build_cli[test]"
+    - pytest $KAAPANA_DIR/build_cli/tests --junitxml=build_cli_report.xml
+        --cov=build_cli/build_cli --cov-report=term --cov-report=xml:coverage.xml
+  artifacts:
+    reports:
+      junit:
+        - build_cli_report.xml
+
+##############################################
 # Service Tests
 ##############################################
 service_tests:

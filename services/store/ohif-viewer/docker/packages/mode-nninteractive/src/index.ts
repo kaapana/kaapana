@@ -62,7 +62,7 @@ const extensionDependencies = {
   '@ohif/extension-cornerstone-dicom-rt': '^3.0.0',
   '@ohif/extension-dicom-pdf': '^3.0.1',
   '@ohif/extension-dicom-video': '^3.0.1',
-  '@kaapana/extension-nninteractive': '^3.10.4',
+  '@kaapana/extension-nninteractive': '^3.13.4',
 };
 
 const HOTKEY_PREFERENCES_VERSION = 'nninteractive-move40-v1';

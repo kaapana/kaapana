@@ -34,7 +34,7 @@ business logic in this package. Those belong in `@kaapana/extension-nninteractiv
 The mode depends on:
 
 ```ts
-'@kaapana/extension-nninteractive': '^3.10.4'
+'@kaapana/extension-nninteractive': '^3.13.4'
 ```
 
 The key panel bridge is:

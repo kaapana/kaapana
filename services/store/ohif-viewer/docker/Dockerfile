@@ -21,6 +21,13 @@ ENV APP_CONFIG="config/kaapana.js"
 COPY files/customization.patch /src/
 RUN git apply --ignore-whitespace customization.patch
 
+# nnInteractive extension + mode as workspace packages, registered in pluginConfig.json.
+# The lockfile patch only adds their two importers, so the install stays frozen.
+COPY packages/extension-nninteractive /src/extensions/nninteractive
+COPY packages/mode-nninteractive /src/modes/nninteractive
+COPY register-nninteractive.js pnpm-lock.nninteractive.patch /src/
+RUN node register-nninteractive.js && git apply pnpm-lock.nninteractive.patch
+
 RUN pnpm install --frozen-lockfile
 RUN pnpm run build
 

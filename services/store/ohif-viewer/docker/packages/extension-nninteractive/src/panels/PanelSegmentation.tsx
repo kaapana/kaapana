@@ -29,9 +29,7 @@ export default function PanelSegmentation({ children }: withAppTypes) {
   }, []);
 
   const { segmentationsWithRepresentations, disabled } =
-    useActiveViewportSegmentationRepresentations({
-      servicesManager,
-    });
+    useActiveViewportSegmentationRepresentations();
 
   const segmentationTableMode = customizationService.getCustomization(
     'panelSegmentation.tableMode'

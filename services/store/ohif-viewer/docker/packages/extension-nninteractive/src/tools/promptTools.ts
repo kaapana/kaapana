@@ -113,7 +113,7 @@ export class RectangleROI2Tool extends RectangleROITool {
     annotation.metadata.viewPlaneNormal = viewPlaneNormal;
     annotation.metadata.viewUp = viewUp;
     markPromptAnnotation(annotation, neg, segmentNumber, segmentationId);
-    (this as any)._calculateCachedStats?.(annotation, renderingEngine, enabledElement);
+    (this as any)._calculateCachedStats?.(annotation, viewPlaneNormal, viewUp, enabledElement);
     cornerstoneAnnotation.state.addAnnotation(annotation, element);
     triggerToolRender(this, element, annotation);
     return annotation;

@@ -1,8 +1,8 @@
-const webpack = require('webpack');
+const webpack = require('@rspack/core');
 const { merge } = require('webpack-merge');
 const path = require('path');
 const webpackCommon = require('./../../../.webpack/webpack.base.js');
-const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+const MiniCssExtractPlugin = webpack.CssExtractRspackPlugin;
 
 const pkg = require('./../package.json');
 
@@ -36,8 +36,10 @@ module.exports = (env, argv) => {
     },
     output: {
       path: ROOT_DIR,
-      library: 'ohif-extension-nninteractive',
-      libraryTarget: 'umd',
+      library: {
+        name: 'ohif-extension-nninteractive',
+        type: 'umd',
+      },
       filename: pkg.main,
     },
     externals: [/\b(vtk.js)/, /\b(dcmjs)/, /\b(gl-matrix)/, /^@ohif/, /^@cornerstonejs/],

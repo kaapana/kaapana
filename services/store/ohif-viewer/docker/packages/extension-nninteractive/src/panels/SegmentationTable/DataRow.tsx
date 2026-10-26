@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import classNames from 'classnames';
-import { Pen, PenOff } from 'lucide-react';
+import { Pen, createLucideIcon } from 'lucide-react';
 import {
   Button,
   DropdownMenu,
@@ -12,6 +12,12 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from '@ohif/ui-next';
+
+// lucide-react 0.379 (OHIF 3.13's pin) has no PenOff: its Pen path with a strike-through.
+const PenOff = createLucideIcon('PenOff', [
+  ['path', { d: 'M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z', key: 'pen' }],
+  ['line', { x1: '2', y1: '2', x2: '22', y2: '22', key: 'strike' }],
+]);
 
 /**
  * DataRow is a complex UI component that displays a selectable, interactive row with hierarchical data.

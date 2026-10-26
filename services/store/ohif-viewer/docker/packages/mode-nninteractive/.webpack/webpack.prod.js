@@ -1,4 +1,4 @@
-const webpack = require('webpack');
+const webpack = require('@rspack/core');
 const { merge } = require('webpack-merge');
 const path = require('path');
 
@@ -33,9 +33,11 @@ module.exports = (env, argv) => {
     },
     output: {
       path: ROOT_DIR,
-      library: 'ohif-mode-nninteractive',
-      libraryTarget: 'umd',
-      libraryExport: 'default',
+      library: {
+        name: 'ohif-mode-nninteractive',
+        type: 'umd',
+        export: 'default',
+      },
       filename: pkg.main,
     },
     externals: [/\b(vtk.js)/, /\b(dcmjs)/, /\b(gl-matrix)/, /^@ohif/, /^@cornerstonejs/],

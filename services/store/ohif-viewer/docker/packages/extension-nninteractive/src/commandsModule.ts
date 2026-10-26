@@ -4,13 +4,7 @@
 // See docs/nninteractive-ohif-ideal-architecture.md §6 (Commands) and §16 (module map).
 
 import dcmjs from 'dcmjs';
-import {
-  BaseVolumeViewport,
-  VolumeViewport3D,
-  cache,
-  eventTarget,
-  metaData,
-} from '@cornerstonejs/core';
+import { cache, eventTarget, metaData } from '@cornerstonejs/core';
 import { Enums as csToolsEnums } from '@cornerstonejs/tools';
 import { adaptersSEG, helpers } from '@cornerstonejs/adapters';
 import { DicomMetadataStore } from '@ohif/core';
@@ -302,16 +296,8 @@ const commandsModule = ({ servicesManager, commandsManager, extensionManager }: 
       return true;
     }
     const holds = objectModel.holdsObject(segmentationId, segmentIndex);
-    const objectDirty = objectModel.isDirty(segmentationId, segmentIndex);
-    const mprDirty = bridge.isMprDirty(segmentationId);
-    const dirty = objectDirty || mprDirty;
-    if (holds && !dirty) {
+    if (holds && !objectModel.isDirty(segmentationId, segmentIndex)) {
       return false;
-    }
-    if (mprDirty) {
-      bridge.flushAuthoritativeLabelmap(servicesManager, segmentationId, 'volumeToStack');
-    } else if (objectDirty) {
-      bridge.flushAuthoritativeLabelmap(servicesManager, segmentationId, 'stackToVolume');
     }
     const mask = bridge.readObjectMask(servicesManager, source, segmentationId, segmentIndex);
     if (mask) {
@@ -471,11 +457,11 @@ const commandsModule = ({ servicesManager, commandsManager, extensionManager }: 
     return submitChain;
   }
 
-  // ── MPR guard + brush dirty tracking ──────────────────────────────────────────────
+  // ── Viewport guard + brush dirty tracking─────────────────────────────────────────────
   let guardQueued = false;
   let guardScheduled = false;
   let guardRunning = false;
-  async function runMprGuard() {
+  async function runViewportGuard() {
     guardScheduled = false;
     if (guardRunning) {
       return;
@@ -484,31 +470,31 @@ const commandsModule = ({ servicesManager, commandsManager, extensionManager }: 
     try {
       do {
         guardQueued = false;
-        await bridge.ensureMprForManagedSegmentations(servicesManager);
+        await bridge.ensureViewportRepresentations(servicesManager);
       } while (guardQueued);
     } catch (e) {
-      console.error('[nninteractive] MPR guard failed:', e);
+      console.error('[nninteractive] viewport guard failed:', e);
       throw e;
     } finally {
       guardRunning = false;
       if (guardQueued) {
-        queueMprGuardRun();
+        queueViewportGuardRun();
       }
     }
   }
-  const queueMprGuardRun = () => {
+  const queueViewportGuardRun = () => {
     if (guardScheduled || guardRunning) {
       return;
     }
     guardScheduled = true;
     setTimeout(() => {
-      void runMprGuard();
+      void runViewportGuard();
     }, 0);
   };
 
-  const scheduleMprGuard = () => {
+  const scheduleViewportGuard = () => {
     guardQueued = true;
-    queueMprGuardRun();
+    queueViewportGuardRun();
   };
 
   if (!subscriptionsInstalled) {
@@ -524,10 +510,6 @@ const commandsModule = ({ servicesManager, commandsManager, extensionManager }: 
       }
       // Manual brush edit → mark the object dirty so the next prompt re-syncs its mask.
       objectModel.markDirty(active.segmentationId, active.segmentIndex);
-      const vp = activeViewport();
-      if (vp instanceof BaseVolumeViewport && !(vp instanceof VolumeViewport3D)) {
-        bridge.markMprDirty(active.segmentationId);
-      }
     });
 
     const subscribeGuard = (service: any, eventKeys: string[]) => {
@@ -538,7 +520,7 @@ const commandsModule = ({ servicesManager, commandsManager, extensionManager }: 
         const event = service.EVENTS[key];
         if (event) {
           try {
-            service.subscribe(event, scheduleMprGuard);
+            service.subscribe(event, scheduleViewportGuard);
           } catch {
             // ignore
           }
@@ -861,7 +843,7 @@ const commandsModule = ({ servicesManager, commandsManager, extensionManager }: 
       await actions.resetNninter();
       const vpId = viewportGridService.getActiveViewportId?.();
       if (vpId) {
-        segmentationService.removeSegmentationRepresentations(vpId, { segmentationId });
+        segmentationService.removeRepresentationsFromViewport(vpId, { segmentationId });
       }
     },
 
@@ -887,9 +869,6 @@ const commandsModule = ({ servicesManager, commandsManager, extensionManager }: 
         return;
       }
 
-      for (const segId of managedIds) {
-        bridge.flushAuthoritativeLabelmap(servicesManager, segId, 'volumeToStack');
-      }
       const options = {
         ...args?.options,
         ...(reportName ? { SeriesDescription: reportName } : {}),
@@ -914,9 +893,6 @@ const commandsModule = ({ servicesManager, commandsManager, extensionManager }: 
       const managedIds = resolveManagedExportSegmentationIds(args);
       if (!managedIds.length) {
         return commandsManager.run('downloadSegmentation', args);
-      }
-      for (const segId of managedIds) {
-        bridge.flushAuthoritativeLabelmap(servicesManager, segId, 'volumeToStack');
       }
       const { generated, label } = buildMergedNninterSegmentation(managedIds, args?.options);
       downloadDICOMData(generated.dataset, label);

@@ -1,6 +1,6 @@
 {
   "name": "@kaapana/mode-nninteractive",
-  "version": "3.10.4",
+  "version": "3.13.4",
   "description": "Kaapana nnInteractive OHIF mode",
   "author": "Kaapana",
   "license": "MIT",
@@ -8,9 +8,7 @@
   "main": "dist/ohif-mode-nninteractive.js",
   "module": "src/index.ts",
   "engines": {
-    "node": ">=18",
-    "npm": ">=6",
-    "yarn": ">=1.20.0"
+    "node": ">=24"
   },
   "files": [
     "dist",
@@ -21,33 +19,31 @@
   ],
   "scripts": {
     "clean": "shx rm -rf dist",
-    "clean:deep": "yarn run clean && shx rm -rf node_modules",
-    "dev": "cross-env NODE_ENV=development webpack --config .webpack/webpack.dev.js --watch --output-pathinfo",
-    "build": "cross-env NODE_ENV=production webpack --config .webpack/webpack.prod.js",
-    "build:package": "yarn run build",
-    "start": "yarn run dev",
-    "test:unit": "jest --watchAll",
-    "test:unit:ci": "jest --ci --runInBand --collectCoverage --passWithNoTests"
+    "clean:deep": "pnpm run clean && shx rm -rf node_modules",
+    "dev": "cross-env NODE_ENV=development rspack build --config .webpack/webpack.dev.js --watch",
+    "build": "cross-env NODE_ENV=production rspack build --config .webpack/webpack.prod.js",
+    "build:package": "pnpm run build",
+    "start": "pnpm run dev"
   },
   "peerDependencies": {
-    "@ohif/core": "3.10.4",
-    "@ohif/extension-cornerstone": "3.10.4",
-    "@ohif/extension-cornerstone-dicom-pmap": "3.10.4",
-    "@ohif/extension-cornerstone-dicom-rt": "3.10.4",
-    "@ohif/extension-cornerstone-dicom-seg": "3.10.4",
-    "@ohif/extension-cornerstone-dicom-sr": "3.10.4",
-    "@ohif/extension-default": "3.10.4",
-    "@ohif/extension-dicom-pdf": "3.10.4",
-    "@ohif/extension-dicom-video": "3.10.4",
-    "@ohif/extension-measurement-tracking": "3.10.4",
-    "@kaapana/extension-nninteractive": "3.10.4"
+    "@ohif/core": "workspace:*",
+    "@ohif/extension-cornerstone": "workspace:*",
+    "@ohif/extension-cornerstone-dicom-pmap": "workspace:*",
+    "@ohif/extension-cornerstone-dicom-rt": "workspace:*",
+    "@ohif/extension-cornerstone-dicom-seg": "workspace:*",
+    "@ohif/extension-cornerstone-dicom-sr": "workspace:*",
+    "@ohif/extension-default": "workspace:*",
+    "@ohif/extension-dicom-pdf": "workspace:*",
+    "@ohif/extension-dicom-video": "workspace:*",
+    "@ohif/extension-measurement-tracking": "workspace:*",
+    "@kaapana/extension-nninteractive": "workspace:*"
   },
   "dependencies": {
-    "@babel/runtime": "^7.20.13",
-    "i18next": "^17.0.3"
+    "@babel/runtime": "7.29.7",
+    "i18next": "17.3.1"
   },
   "devDependencies": {
-    "webpack": "5.104.1",
-    "webpack-merge": "^5.7.3"
+    "cross-env": "7.0.3",
+    "webpack-merge": "5.10.0"
   }
 }

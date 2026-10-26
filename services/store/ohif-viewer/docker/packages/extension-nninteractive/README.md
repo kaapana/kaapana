@@ -36,8 +36,11 @@ planes.
 **One OHIF segmentation per nnInteractive object.** Each object is its own segmentation with a single
 labelmap and segment index 1, so objects overlap natively and render/edit in the stack view and the
 axial/coronal/sagittal MPR views. `model/segmentationBridge.ts` is the only module that reads or
-writes labelmap voxels: it keeps the native labelmap volume authoritative, mirrors it into the stack
-labelmap, assigns each object a palette color, and drives MPR representation setup.
+writes labelmap voxels. The stack labelmap images are the single voxel store: Cornerstone 5 renders
+them in stack viewports and, through an image-backed geometry volume, in MPR viewports, so a write
+(or a brush stroke in either view) shows everywhere after `triggerSegmentationDataModified`. The
+bridge also assigns each object a palette color and keeps its representation in every stack/MPR
+viewport (never in 3D).
 
 **Session & inference.** `sessionModel` owns the backend session lifecycle over the `serverApi`
 facade; `objectModel` tracks the active object and its dirty state. Running the prompts sends them
@@ -71,16 +74,8 @@ These flows share assumptions about segmentation ids, display sets, and the per-
 Prompt tool behavior lives in `src/tools/promptTools.ts`. The subclasses render prompt annotations
 with pending/positive/negative styling and provide `_addNewAnnotationFromIndex(...)`;
 `model/coordinateMapping.ts` converts each prompt annotation's geometry into the IJK payload the
-proxy expects.
-
-The remaining package-level prompt/rendering behavior in `../../node-module-patches` should only move
-here after testing all prompt types:
-
-- positive/negative point
-- positive/negative box
-- positive/negative scribble
-- positive/negative lasso
-- live mode
+proxy expects. There are no Cornerstone package patches; anything prompt-specific belongs in these
+subclasses.
 
 ## Segmentation Table
 
@@ -104,9 +99,8 @@ check whether the change affects:
 - The backend proxy is reachable under `/nninteractive/infer/...`.
 - The proxy keys sessions by study, series, and the OHIF tab's `clientSessionID`.
 - The mode registers the prompt tools in the active tool groups.
-- The app config uses `activateViewportBeforeInteraction:false`; viewport hover activation is patched
-  in `../../patches/30-nninteractive-ui.patch`.
-- Cornerstone/vtk package patches are applied before the app build.
+- Stock OHIF 3.13 / Cornerstone 5: no OHIF source or node-module patches beyond Kaapana's shared
+  `files/customization.patch`. Viewport activation is OHIF's default (click activates first).
 
 ## Smoke Test After Changes
 

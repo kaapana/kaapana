@@ -1,12 +1,33 @@
+{{- $annotations := dict }}
+{{- if .Values.global.external_ingress }}
+{{- if eq .Values.global.external_ingress "traefik" }}
+{{- $_ := set $annotations "traefik.ingress.kubernetes.io/service.serversscheme" "https" }}
+{{- $_ := set $annotations "traefik.ingress.kubernetes.io/service.serverstransport" (printf "%s-oauth2-proxy@kubernetescrd" .Values.global.helm_namespace) }}
+{{- end }}
+{{- /* some controllers read the backend protocol from the service */}}
+{{- $annotations = mergeOverwrite $annotations (.Values.global.external_ingress_annotations | default dict) }}
+{{- end }}
 ---
 kind: Service
 apiVersion: v1
 metadata:
   name: oauth2-proxy-service
   namespace: "{{  .Values.global.helm_namespace  }}"
+{{- with $annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+{{- end }}
 spec:
   selector:
     app.kubernetes.io/name: oauth2-proxy
+{{- if .Values.global.external_ingress }}
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      port: 443
+      targetPort: https
+      name: https-port
+{{- else }}
   type: NodePort
   ports:
     - protocol: TCP
@@ -14,3 +35,4 @@ spec:
       nodePort: {{ .Values.global.https_port }}
       targetPort: https
       name: https-port
+{{- end }}

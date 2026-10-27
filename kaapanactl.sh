@@ -1642,6 +1642,9 @@ function load_kaapana_config {
     MOUNT_POINTS_TO_MONITOR=""
 
     INSTANCE_NAME=""
+    EXTERNAL_INGRESS="" # "" or "nginx" or "traefik": ingress controller in front of kaapana (traefik then isn't exposed via NodePort)
+    EXTERNAL_INGRESS_NAMESPACE="kube-system" # namespace of that controller, the only one allowed to connect to oauth2-proxy; "": no restriction
+    EXTERNAL_INGRESS_ANNOTATIONS='{}' # JSON annotations for oauth2-proxy's ingress and service; other controllers: see the docs
 
     # How the PACS identifies a patient: archive_default (dcm4chee's own behaviour),
     # patient_id_only, fixed_issuer or supplement_issuer; see the deployment guide in the docs.
@@ -2832,6 +2835,9 @@ function deploy_chart {
     --set global.restricted_rbac="$RESTRICTED_RBAC" \
     --set global.is_microk8s="$IS_MICROK8S" \
     --set global.all_managed_namespaces="{${ALL_MANAGED_NAMESPACES}}" \
+    --set-string global.external_ingress="$EXTERNAL_INGRESS" \
+    --set-string global.external_ingress_namespace="$EXTERNAL_INGRESS_NAMESPACE" \
+    --set-json global.external_ingress_annotations="$EXTERNAL_INGRESS_ANNOTATIONS" \
     --name-template "$HELM_RELEASE_NAME"
 
     echo -e ""
@@ -2925,7 +2931,9 @@ function install_certs {
         echo -e "\nUpdating certificate in namespace: ${ns}"
 
         $KUBE delete secret certificate -n "$ns" 2>/dev/null || true
-        $KUBE create secret tls certificate --namespace "$ns" --key ./tls.key --cert ./tls.crt
+        # ca.crt pins the certificate for an external ingress controller connecting to oauth2-proxy
+        $KUBE create secret generic certificate --type=kubernetes.io/tls --namespace "$ns" \
+            --from-file=tls.key=./tls.key --from-file=tls.crt=./tls.crt --from-file=ca.crt=./tls.crt
 
         # restart via the Deployment, so its update strategy applies
         local pods_json deployments="" other_pods rs
@@ -3279,6 +3287,12 @@ function update_coredns_rewrite() {
     # If hostname starts with a number it is considerd an IP and dns rewrite is skipped
     if [[ "$hostname" =~ ^[0-9] ]]; then
         echo "Skipped DNS rewrite because ${hostname} seems to be an IP Adress"
+        return 0
+    fi
+
+    # With an external ingress the hostname has to resolve to it: oauth2-proxy then only serves HTTP inside the cluster
+    if [ -n "$EXTERNAL_INGRESS" ]; then
+        echo "Skipped DNS rewrite because EXTERNAL_INGRESS=$EXTERNAL_INGRESS"
         return 0
     fi
 

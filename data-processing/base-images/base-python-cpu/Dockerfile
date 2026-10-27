@@ -77,6 +77,10 @@ RUN for pkg_spec in \
 COPY files/kaapana_federated /app/kaapana_federated
 RUN python3 -m pip install /app/kaapana_federated
 
+# kaapana_client of this version, used by the kaapanapy shim
+COPY --from=lib kaapana_client /app/kaapana_client
+RUN python3 -m pip install -c /constraints.txt /app/kaapana_client
+
 # Install kaapanapy pip package
 COPY files/kaapanapy-shim /app/kaapanapy-shim
 WORKDIR /app/kaapanapy-shim

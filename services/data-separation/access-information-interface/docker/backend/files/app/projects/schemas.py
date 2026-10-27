@@ -11,6 +11,8 @@ class OrmBaseModel(BaseModel):
 
 
 class CreateProject(OrmBaseModel):
+    # a fixed id makes the project's namespace known in advance
+    id: Optional[UUID] = None
     external_id: Optional[str] = None
     name: str
     description: str

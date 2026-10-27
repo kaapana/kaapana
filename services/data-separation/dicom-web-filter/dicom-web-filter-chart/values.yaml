@@ -8,8 +8,3 @@ kaapana_database:
   postgres_password: Kaapana2020
   postgres_db: kaapanauser
   appName: dicom-web-filter
-
-# WADO-RS reads retry an upstream 404 while a just-stored instance is still being processed.
-wadoUpstreamRetry:
-  attempts: 5
-  delaySeconds: 0.5

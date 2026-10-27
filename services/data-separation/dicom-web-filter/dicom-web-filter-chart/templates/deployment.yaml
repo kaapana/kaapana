@@ -52,10 +52,6 @@ spec:
           value: "kaapana"
         - name: CTP_DICOMWEB_URL
           value: "http://ctp-internal-service.{{  .Values.global.services_namespace  }}.svc:7777"
-        - name: WADO_UPSTREAM_RETRY_ATTEMPTS
-          value: "{{ .Values.wadoUpstreamRetry.attempts }}"
-        - name: WADO_UPSTREAM_RETRY_DELAY_SECONDS
-          value: "{{ .Values.wadoUpstreamRetry.delaySeconds }}"
         - name: http_proxy
           value: "{{ .Values.global.http_proxy }}"
         - name: https_proxy

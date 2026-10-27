@@ -1520,6 +1520,7 @@ function load_kaapana_config {
     EXTENSIONS_NAMESPACE="extensions"
     PREFIX_ALL_NAMESPACES=false
     PUBLIC_PROJECT_ID="" # UUID of the initial "public" project (empty: random); its namespace is <PLATFORM_PREFIX>-project-<first 8 chars>
+    EXTRA_MANAGED_NAMESPACES="" # comma-separated, in addition to the admin project and (with PUBLIC_PROJECT_ID) the public project namespace
     HELM_NAMESPACE="default" # with RESTRICTED_RBAC=true the admin namespace is used
 
     OIDC_CLIENT_SECRET=$(echo $RANDOM | md5sum | base64 | head -c 32)
@@ -2610,7 +2611,7 @@ function deploy_chart {
     fi
     echo "proxy settings: http_proxy=$http_proxy, https_proxy=$https_proxy"
 
-    ALL_MANAGED_NAMESPACES="$EXTENSIONS_NAMESPACE,$SERVICES_NAMESPACE,$ADMIN_NAMESPACE,${INITIAL_PROJECT_NAMESPACES// /,}"
+    ALL_MANAGED_NAMESPACES="$EXTENSIONS_NAMESPACE,$SERVICES_NAMESPACE,$ADMIN_NAMESPACE,${INITIAL_PROJECT_NAMESPACES// /,}${EXTRA_MANAGED_NAMESPACES:+,$EXTRA_MANAGED_NAMESPACES}"
 
     $HELM_INSTALL_CMD $CHART_PATH \
     --set-string global.base_namespace="base" \

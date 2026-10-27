@@ -4,6 +4,19 @@
 # if unusual home dir of user: sudo dpkg-reconfigure apparmor
 set -euf -o pipefail
 
+if command -v kubectl >/dev/null 2>&1; then
+    KUBE="kubectl"
+else
+    KUBE="microk8s.kubectl"
+fi
+
+IS_MICROK8S=true
+# not microk8s if the current kubeconfig context points to another API server (microk8s: port 16443)
+KUBE_SERVER="$($KUBE config view --minify -o jsonpath='{.clusters[0].cluster.server}' 2>/dev/null || true)"
+if [[ -n "$KUBE_SERVER" && "$KUBE_SERVER" != *:16443 ]]; then
+    IS_MICROK8S=false
+fi
+
 function main() {
     init_colors
     local subcommand="help"
@@ -267,7 +280,7 @@ function _generate_keycloak_password() {
 # bootstrap logic (the single source of truth): it authenticates via the
 # kaapana-admin client, so the current admin password is not needed.
 function set_keycloak_admin_password() {
-    KUBECTL_EXECUTABLE="${KUBECTL_EXECUTABLE:-microk8s.kubectl}"
+    KUBECTL_EXECUTABLE="${KUBECTL_EXECUTABLE:-$KUBE}"
     ADMIN_NAMESPACE="${ADMIN_NAMESPACE:-admin}"
     local job_name="keycloak-bootstrap"
 
@@ -364,7 +377,7 @@ function deploy() {
     fi
     export HELM_EXPERIMENTAL_OCI=1
     HELM_EXECUTABLE="${HELM_EXECUTABLE:-helm}"
-    KUBECTL_EXECUTABLE="${KUBECTL_EXECUTABLE:-microk8s.kubectl}"
+    KUBECTL_EXECUTABLE="${KUBECTL_EXECUTABLE:-$KUBE}"
 
     load_kaapana_config
     ### Parsing command line arguments:
@@ -676,7 +689,10 @@ function deploy() {
     echo "SLOW_DATA_DIR: $SLOW_DATA_DIR "
     echo ""
 
-    if command -v nvidia-smi &> /dev/null && nvidia-smi
+    # nvidia-smi shows the GPUs of this machine, which are the cluster's only on microk8s; otherwise GPU_SUPPORT is a setting
+    if [ "$IS_MICROK8S" != true ]; then
+        echo "${YELLOW}Not a local microk8s cluster: GPU_SUPPORT=$GPU_SUPPORT (setting in load_kaapana_config)${NC}"
+    elif command -v nvidia-smi &> /dev/null && nvidia-smi
     then
         echo "${GREEN}Nvidia GPU detected!${NC}"
         GPU_SUPPORT=true
@@ -685,8 +701,9 @@ function deploy() {
         GPU_SUPPORT=false
     fi
 
-    preflight_checks
-
+    if [ "$IS_MICROK8S" = true ]; then
+        preflight_checks
+    fi
     echo -e "${YELLOW}Get helm deployments...${NC}"
     deployments=$(
     # Helm 3 vs Helm 4:
@@ -1505,8 +1522,19 @@ function load_kaapana_config {
     OPENSEARCH_PERCENT="20"
     TOTAL_PERCENT=$((PACS_PERCENT + AIRFLOW_PERCENT + OPENSEARCH_PERCENT))
 
+    # Memory (MiB) and CPU cores Kaapana is sized for. On microk8s Kaapana gets the whole machine. On other clusters it
+    # usually shares the nodes, and this machine isn't part of the cluster; default: the recommended server size.
+    KAAPANA_MEMORY_MB=131072
+    KAAPANA_CPU_CORES=32
+    if [ "$IS_MICROK8S" = true ]; then
+        TOTAL_MEMORY=$(free -m | awk '/^Mem:/{print $2}')
+        CPU_CORES=$(nproc)
+    else
+        TOTAL_MEMORY="$KAAPANA_MEMORY_MB"
+        CPU_CORES="$KAAPANA_CPU_CORES"
+    fi
+
     # Get allocatable RAM (70% of total free memory)
-    TOTAL_MEMORY=$(free -m | awk '/^Mem:/{print $2}')
     ALLOCATABLE_MEMORY=$((TOTAL_MEMORY * 70 / 100))
 
     # Set max memory limits for components
@@ -1519,7 +1547,6 @@ function load_kaapana_config {
     AIRFLOW_MEMORY_REQUEST=$((AIRFLOW_MEMORY_LIMIT / 3))
     OPENSEARCH_MEMORY_REQUEST=$((OPENSEARCH_MEMORY_LIMIT / 3))
 
-    CPU_CORES=$(nproc)
     # LocalExecutor spawns one host process per task (no CPU isolation),
     # Capping at CPU_CORES/2 leaves headroom for platform services
     # (Keycloak, OpenSearch, k8s) and prevents OOM kills under heavy ingestion bursts.
@@ -1577,6 +1604,7 @@ function load_kaapana_config {
     ######################################################
     STORAGE_PROVIDER="hostpath" # e.g. "hostpath" (microk8s) or "longhorn"
     VOLUME_SLOW_DATA="100Gi" # size of volumes in slow data dir (e.g. 100Gi or 100Ti)
+    API_SERVER_CIDR="10.0.0.0/8"
 }
 
 function delete_all_images_docker {
@@ -1694,17 +1722,17 @@ function delete_deployment {
     echo -e "${YELLOW}Cleaning up orphaned pods in Kubernetes namespaces ...${NC}"
 
     # Clean SERVICES_NAMESPACE
-    if microk8s.kubectl get namespace $SERVICES_NAMESPACE &>/dev/null; then
+    if $KUBE get namespace $SERVICES_NAMESPACE &>/dev/null; then
         echo "Deleting all pods in $SERVICES_NAMESPACE"
-        microk8s.kubectl delete pods --all -n $SERVICES_NAMESPACE --grace-period=0 --force 2>/dev/null || true
+        $KUBE delete pods --all -n $SERVICES_NAMESPACE --grace-period=0 --force 2>/dev/null || true
     fi
 
     # Clean all project-* namespaces when the platform prefix is known.
     if [ -n "${PLATFORM_PREFIX:-}" ]; then
-        PROJECT_NAMESPACES=$(microk8s.kubectl get namespaces --no-headers -o custom-columns=NAME:.metadata.name | grep "^${PLATFORM_PREFIX}-project-" || true)
+        PROJECT_NAMESPACES=$($KUBE get namespaces --no-headers -o custom-columns=NAME:.metadata.name | grep "^${PLATFORM_PREFIX}-project-" || true)
         for ns in $PROJECT_NAMESPACES; do
             echo "Deleting all pods in $ns"
-            microk8s.kubectl delete pods --all -n $ns --grace-period=0 --force 2>/dev/null || true
+            $KUBE delete pods --all -n $ns --grace-period=0 --force 2>/dev/null || true
         done
     else
         echo "${YELLOW}Skipping project namespace pod cleanup because PLATFORM_PREFIX is not set.${NC}"
@@ -1750,17 +1778,17 @@ function delete_deployment {
     echo -e "${YELLOW}Note: Kubernetes garbage collection may still be cleaning up remaining objects (e.g. Pods, ReplicaSets, Jobs) in the background.${NC}"
     echo -e "${YELLOW}Please wait until no resources are left before re-deploying the platform. Resources in namespaces default and kube-system are supposed to persist.${NC}"
     echo -e "${YELLOW}You can check the progress with:${NC}"
-    echo -e "${YELLOW}watch microk8s.kubectl get all -A${NC}"
+    echo -e "${YELLOW}watch $KUBE get all -A${NC}"
     echo -e "${GREEN}####################################  UNDEPLOYMENT DONE  ############################################${NC}"
 }
 
 function nuke_pods {
     for namespace in $EXTENSIONS_NAMESPACE $SERVICES_NAMESPACE $ADMIN_NAMESPACE $HELM_NAMESPACE; do
         echo "${RED}Deleting all pods from namespaces: $namespace ...${NC}";
-        for mypod in $(microk8s.kubectl get pods -n $namespace -o jsonpath="{.items[*].metadata.name}");
+        for mypod in $($KUBE get pods -n $namespace -o jsonpath="{.items[*].metadata.name}");
         do
             echo "${RED}Deleting: $mypod ${NC}";
-            microk8s.kubectl delete pod -n $namespace $mypod --grace-period=0 --force
+            $KUBE delete pod -n $namespace $mypod --grace-period=0 --force
         done
     done
 }
@@ -1769,16 +1797,16 @@ function clean_up_kubernetes {
     # for n in $EXTENSIONS_NAMESPACE; # $HELM_NAMESPACE;
     # do
     #     echo "${YELLOW}Deleting namespace ${n} with all its resources ${NC}"
-    #     microk8s.kubectl delete --ignore-not-found namespace $n
+    #     $KUBE delete --ignore-not-found namespace $n
     # done
     echo "${YELLOW}Deleting all deployments in namespace default ${NC}"
-    microk8s.kubectl delete deployments --all
+    $KUBE delete deployments --all
     echo "${YELLOW}Deleting all jobs in namespace default ${NC}"
-    microk8s.kubectl delete jobs --all
+    $KUBE delete jobs --all
     echo "${YELLOW}Removing remove-secret job${NC}"
-    microk8s.kubectl -n $SERVICES_NAMESPACE delete job --ignore-not-found remove-secret
+    $KUBE -n $SERVICES_NAMESPACE delete job --ignore-not-found remove-secret
     #echo "${YELLOW}Removing all volumes in kubernetes ${NC}"
-    #microk8s.kubectl delete volumes -A --all
+    #$KUBE delete volumes -A --all
 }
 
 function import_container_images_tar {
@@ -1841,8 +1869,8 @@ function run_migration_chart() {
 
     echo -e "${YELLOW}Waiting for migration job $JOB_NAME to complete...${NC}"
         while true; do
-        local SUCCEEDED=$(microk8s.kubectl get job "$JOB_NAME" -n "$NAMESPACE" -o jsonpath='{.status.succeeded}')
-        local FAILED=$(microk8s.kubectl get job "$JOB_NAME" -n "$NAMESPACE" -o jsonpath='{.status.failed}')
+        local SUCCEEDED=$($KUBE get job "$JOB_NAME" -n "$NAMESPACE" -o jsonpath='{.status.succeeded}')
+        local FAILED=$($KUBE get job "$JOB_NAME" -n "$NAMESPACE" -o jsonpath='{.status.failed}')
 
         if [[ "${SUCCEEDED:-0}" -ge 1 ]]; then
             echo -e "${GREEN}Migration job completed successfully!${NC}"
@@ -1850,9 +1878,9 @@ function run_migration_chart() {
             # Tell the keycloak chart to create that client (its migration init container).
             # Then the bootstrap job can log in without the old admin password, which we no longer require.
             KEYCLOAK_MIGRATION_BOOTSTRAP=true
-            PODS=$(microk8s.kubectl get pods -n "$NAMESPACE" -l job-name="$JOB_NAME" -o name)
+            PODS=$($KUBE get pods -n "$NAMESPACE" -l job-name="$JOB_NAME" -o name)
             for pod in $PODS; do
-                microk8s.kubectl logs "$pod" -n "$NAMESPACE"
+                $KUBE logs "$pod" -n "$NAMESPACE"
             done
             cleanup
             break
@@ -1894,13 +1922,13 @@ function run_migration_chart() {
                 esac
             else
                 echo -e "${RED}Migration job failed!${NC}"
-                PODS=$(microk8s.kubectl get pods -n "$NAMESPACE" -l job-name="$JOB_NAME" -o name)
+                PODS=$($KUBE get pods -n "$NAMESPACE" -l job-name="$JOB_NAME" -o name)
                 for pod in $PODS; do
-                    microk8s.kubectl logs "$pod" -n "$NAMESPACE"
+                    $KUBE logs "$pod" -n "$NAMESPACE"
                 done
 
-                POD=$(microk8s.kubectl get pods -n "$NAMESPACE" -l job-name="$JOB_NAME" -o jsonpath='{.items[*].metadata.name}')
-                microk8s.kubectl logs "$POD" -n "$NAMESPACE"
+                POD=$($KUBE get pods -n "$NAMESPACE" -l job-name="$JOB_NAME" -o jsonpath='{.items[*].metadata.name}')
+                $KUBE logs "$POD" -n "$NAMESPACE"
                 cleanup
                 exit 1
             fi
@@ -1985,7 +2013,7 @@ function setup_storage_provider() {
     case "${STORAGE_PROVIDER}" in
       "driver.longhorn.io"|"longhorn")
         # Check Longhorn CSI driver
-        if microk8s.kubectl get csidriver driver.longhorn.io &>/dev/null; then
+        if $KUBE get csidriver driver.longhorn.io &>/dev/null; then
           is_provider_installed=true
         fi
         STORAGE_PROVIDER="driver.longhorn.io"
@@ -1993,7 +2021,7 @@ function setup_storage_provider() {
 
       "microk8s.io/hostpath"|"hostpath"|"microk8s")
         # Check hostpath storage class
-        if microk8s.kubectl get storageclass | grep -q "microk8s-hostpath"; then
+        if $KUBE get storageclass | grep -q "microk8s-hostpath"; then
           is_provider_installed=true
         fi
         STORAGE_PROVIDER="microk8s.io/hostpath"
@@ -2069,7 +2097,7 @@ function setup_storage_provider() {
         fi
 
         # Apply the patch
-        microk8s.kubectl patch node.longhorn.io "${MAIN_NODE_NAME}" -n longhorn-system --type merge -p "{\"spec\":$PATCH_DISKS}"
+        $KUBE patch node.longhorn.io "${MAIN_NODE_NAME}" -n longhorn-system --type merge -p "{\"spec\":$PATCH_DISKS}"
 
         if [[ $? -ne 0 ]]; then
             echo "❌ Failed to patch disks for ${MAIN_NODE_NAME}"
@@ -2086,17 +2114,17 @@ function setup_storage_provider() {
             THIN_PROVISIONING="1000000"
         fi
 
-        microk8s.kubectl -n longhorn-system patch setting storage-over-provisioning-percentage \
+        $KUBE -n longhorn-system patch setting storage-over-provisioning-percentage \
         --type=merge -p "{\"value\":\"${THIN_PROVISIONING}\"}"
 
         # Allow scheduling even when less than 5% disk space is free
-        microk8s.kubectl -n longhorn-system patch setting storage-minimal-available-percentage \
+        $KUBE -n longhorn-system patch setting storage-minimal-available-percentage \
           --type=merge -p '{"value":"5"}'
 
         echo "✅ Longhorn overprovisioning settings applied successfully."
 
         # Detect how many Longhorn nodes are schedulable
-        SCHEDULABLE_NODES=$(microk8s.kubectl -n longhorn-system get node.longhorn.io \
+        SCHEDULABLE_NODES=$($KUBE -n longhorn-system get node.longhorn.io \
         -o jsonpath='{range .items[?(@.spec.allowScheduling==true)]}{.metadata.name}{"\n"}{end}' | wc -l)
 
         # Determine replica count based on node count
@@ -2108,6 +2136,10 @@ function setup_storage_provider() {
 }
 
 function migrate() {
+    if [ "$IS_MICROK8S" != true ]; then
+        echo "${YELLOW}Not a local microk8s cluster: skipping the version check and migration (version file not on this machine).${NC}"
+        return
+    fi
     VERSION_FILE="$FAST_DATA_DIR/version"
 
     echo "${YELLOW}Checking ${VERSION_FILE} status...${NC}"
@@ -2218,7 +2250,7 @@ function deploy_chart {
 
     if [ "${GPU_SUPPORT,,}" == true ];then
         echo -e "${GREEN} -> GPU found ...${NC}"
-    else
+    elif [ "$IS_MICROK8S" = true ]; then
         if [ ! "$QUIET" = "true" ];then
             while true; do
                 read -e -p "No Nvidia GPU detected - Enable GPU support anyway?" -i " no" yn
@@ -2234,7 +2266,9 @@ function deploy_chart {
     fi
 
     echo -e "${YELLOW}GPU_SUPPORT: $GPU_SUPPORT ${NC}"
-    if [ "${GPU_SUPPORT,,}" == true ];then
+    if [ "${GPU_SUPPORT,,}" == true ] && [ "$IS_MICROK8S" != true ]; then
+        echo -e "-> GPU support: the NVIDIA GPU operator has to be provided by the cluster"
+    elif [ "${GPU_SUPPORT,,}" == true ];then
         echo -e "-> enabling GPU in Microk8s ..."
         if [[ $deployments == *"gpu-operator"* ]];then
             echo -e "-> gpu-operator chart already exists"
@@ -2275,8 +2309,11 @@ function deploy_chart {
     fi
 
     # configmap kube-public/local-registry-hosting is used by EDK if installed inside Kaapana, therefore should not already exist
-    echo "${YELLOW}Removing configmap kube-public/local-registry-hosting if exists...${NC}"
-    microk8s.kubectl delete configmap -n kube-public local-registry-hosting --ignore-not-found=true
+
+    if [ "$IS_MICROK8S" = true ]; then
+        echo "${YELLOW}Removing configmap kube-public/local-registry-hosting if exists...${NC}"
+        $KUBE delete configmap -n kube-public local-registry-hosting --ignore-not-found=true
+    fi
 
     if [ ! -z "$CHART_PATH" ]; then # Note: OFFLINE_MODE requires CHART_PATH
         echo -e "${YELLOW}We assume that that all images are already presented inside the microk8s.${NC}"
@@ -2325,16 +2362,21 @@ function deploy_chart {
         CHART_PATH="$SCRIPT_PATH/$PLATFORM_NAME-$PLATFORM_VERSION.tgz"
     fi
 
-    # Kubernetes API endpoint
-    INTERNAL_CIDR=$(microk8s.kubectl get endpoints kubernetes -n default -o jsonpath="{.subsets[0].addresses[0].ip}/32")
-    # Server IP
-    if [[ "$DOMAIN" =~ ^(([1-9]?[0-9]|1[0-9][0-9]|2([0-4][0-9]|5[0-5]))\.){3}([1-9]?[0-9]|1[0-9][0-9]|2([0-4][0-9]|5[0-5]))$ ]]; then
-        # external ip can differ from local ip, must be reachable due to keycloak (only in ip deployments)
-        INTERNAL_CIDR="$DOMAIN/32,$INTERNAL_CIDR"
+    if [ "$IS_MICROK8S" = true ]; then
+        # Kubernetes API endpoint
+        INTERNAL_CIDR=$($KUBE get endpoints kubernetes -n default -o jsonpath="{.subsets[0].addresses[0].ip}/32")
+        # Server IP
+        if [[ "$DOMAIN" =~ ^(([1-9]?[0-9]|1[0-9][0-9]|2([0-4][0-9]|5[0-5]))\.){3}([1-9]?[0-9]|1[0-9][0-9]|2([0-4][0-9]|5[0-5]))$ ]]; then
+            # external ip can differ from local ip, must be reachable due to keycloak (only in ip deployments)
+            INTERNAL_CIDR="$DOMAIN/32,$INTERNAL_CIDR"
+        fi
+        SERVER_IP=$(hostname -I | awk -F ' ' '{print $1}')
+        INTERNAL_CIDR="$SERVER_IP/32,$INTERNAL_CIDR"
+    elif [[ -n "$API_SERVER_CIDR" ]]; then
+        INTERNAL_CIDR="$API_SERVER_CIDR"
+    else
+        INTERNAL_CIDR=""
     fi
-    SERVER_IP=$(hostname -I | awk -F ' ' '{print $1}')
-    INTERNAL_CIDR="$SERVER_IP/32,$INTERNAL_CIDR"
-    # MicroK8s https://microk8s.io/docs/change-cidr
     INTERNAL_CIDR="10.152.183.0/24,10.1.0.0/16,$INTERNAL_CIDR"
 
     echo " Installing kaapana strorage class ..."
@@ -2398,6 +2440,39 @@ function deploy_chart {
     if [ "$PLAIN_HTTP" = true ]; then
         HELM_INSTALL_CMD="$HELM_INSTALL_CMD --plain-http"
     fi
+    # The proxy of this host doesn't necessarily apply to a remote cluster
+    if [ "$IS_MICROK8S" != true ]; then
+        echo -e "${CYAN} -> Not a local microk8s cluster ...${NC}"
+
+        if [ ! "$QUIET" = "true" ]; then
+            while true; do
+                read -e -p "Do you want to set a proxy for this deployment?" -i " no" yn
+                case $yn in
+                    [Yy]* )
+                        EXISTING_PROXY=$(grep "http_proxy=" /etc/environment | cut -d'=' -f2 | sed 's/"//g' || echo "")
+                        read -e -p "Enter proxy URL: " -i "$EXISTING_PROXY" user_proxy
+                        http_proxy="$user_proxy"
+                        https_proxy="$user_proxy"
+
+                        echo -e "${GREEN} -> Proxies set for this session.${NC}"
+                        break
+                        ;;
+                    [Nn]* )
+                        echo -e "${YELLOW}SET NO PROXIES${NC}"
+                        http_proxy=""
+                        https_proxy=""
+                        break
+                        ;;
+                    * ) echo "Please answer yes or no.";;
+                esac
+            done
+        else
+            echo -e "${YELLOW}QUIET-MODE active! Defaulting to no proxy.${NC}"
+            http_proxy=""
+            https_proxy=""
+        fi
+    fi
+    echo "proxy settings: http_proxy=$http_proxy, https_proxy=$https_proxy"
 
     $HELM_INSTALL_CMD $CHART_PATH \
     --set-string global.base_namespace="base" \
@@ -2469,6 +2544,7 @@ function deploy_chart {
     --set-string global.volume_slow_data="$VOLUME_SLOW_DATA" \
     --set-string global.storage_node="$STORAGE_NODE" \
     "${kube_helm_timeout_args[@]}" \
+    --set global.is_microk8s="$IS_MICROK8S" \
     --name-template "$PLATFORM_NAME"
 
     echo -e ""
@@ -2561,11 +2637,11 @@ function install_certs {
         local ns=$1
         echo -e "\nUpdating certificate in namespace: ${ns}"
 
-        microk8s.kubectl delete secret certificate -n "$ns" 2>/dev/null || true
-        microk8s.kubectl create secret tls certificate --namespace "$ns" --key ./tls.key --cert ./tls.crt
+        $KUBE delete secret certificate -n "$ns" 2>/dev/null || true
+        $KUBE create secret tls certificate --namespace "$ns" --key ./tls.key --cert ./tls.crt
 
         # get app.kubernetes.io/name of all pods that mount the certificate secret in the namespace
-        local app_labels=$(microk8s.kubectl get pods -n "$ns" -o json | \
+        local app_labels=$($KUBE get pods -n "$ns" -o json | \
             jq -r '.items[] | select(.spec.volumes[]?.secret?.secretName == "certificate") | .metadata.labels."app.kubernetes.io/name" // empty' | sort -u)
 
         if [ -n "$app_labels" ]; then
@@ -2573,7 +2649,7 @@ function install_certs {
             echo -e "$app_labels" | while read label; do
                 if [ -n "$label" ]; then
                     echo -e "  - app.kubernetes.io/name=$label"
-                    if ! microk8s.kubectl -n "$ns" delete pod -l "app.kubernetes.io/name=$label" --grace-period=120 2>/dev/null; then
+                    if ! $KUBE -n "$ns" delete pod -l "app.kubernetes.io/name=$label" --grace-period=120 2>/dev/null; then
                         echo -e "${YELLOW} Warning: Failed to restart pods with label $label${NC}"
                     fi
                 fi
@@ -2601,7 +2677,7 @@ function print_deployment_done {
     print_resource_configs
     echo -e "Please wait till all components have been downloaded and started."
     echo -e "You can check the progress with:"
-    echo -e "watch microk8s.kubectl get pods -A"
+    echo -e "watch $KUBE get pods -A"
     echo -e "When all pod are in the \"running\" or \"completed\" state,${NC}"
 
     if [ -v DOMAIN ];then
@@ -2677,7 +2753,7 @@ function preflight_checks {
 
     SEVERITY+=(300)
     TEST_NAMES+=("Check that kubectl is installed")
-    if ! [ -x $(command -v microk8s.kubectl >/dev/null 2>&1) ]; then
+    if ! [ -x $(command -v $KUBE >/dev/null 2>&1) ]; then
         TEST_FAILDS+=(true)
         RESULT_MSGS+=("Install server dependencies first!")
     else
@@ -2735,7 +2811,7 @@ function preflight_checks {
 
     SEVERITY+=(300)
     TEST_NAMES+=("Check if kubectl is working")
-    microk8s.kubectl get pods --all-namespaces &> /dev/null
+    $KUBE get pods --all-namespaces &> /dev/null
     if [ $? -eq 0 ]; then
         TEST_FAILDS+=(false)
         RESULT_MSGS+=("")
@@ -2866,7 +2942,7 @@ function update_coredns_rewrite() {
     # - Split the Corefile into lines.
     # - If a rewrite rule for our hostname exists, update it.
     # - Otherwise, insert the new rule before the first line starting with "kubernetes"
-    microk8s.kubectl get configmap coredns -n kube-system -o json | jq --arg new_rule "$new_rule" --arg ns "$ADMIN_NAMESPACE"  '
+    $KUBE get configmap coredns -n kube-system -o json | jq --arg new_rule "$new_rule" --arg ns "$ADMIN_NAMESPACE"  '
     .data.Corefile |= (
         # Remove any rewrite lines for oauth2-proxy-service.<namespace>.svc.cluster.local.
         gsub("(?m)^[[:space:]]*rewrite name exact [^\\n]+ oauth2-proxy-service\\." + $ns + "\\.svc\\.cluster\\.local\\.";"") |
@@ -2883,7 +2959,7 @@ function update_coredns_rewrite() {
     ' > /tmp/coredns.json
 
     # Replace the ConfigMap entirely.
-    microk8s.kubectl replace -f /tmp/coredns.json
+    $KUBE replace -f /tmp/coredns.json
     if [ $? -eq 0 ]; then
         echo "CoreDNS ConfigMap updated successfully."
     else
@@ -2892,7 +2968,7 @@ function update_coredns_rewrite() {
     fi
 
     # Restart the CoreDNS deployment to load the new configuration.
-    microk8s.kubectl rollout restart deployment coredns -n kube-system
+    $KUBE rollout restart deployment coredns -n kube-system
     if [ $? -eq 0 ]; then
         echo "CoreDNS deployment restarted successfully."
     else
@@ -2908,7 +2984,7 @@ function check_system() {
     # Extract all resources from the Helm manifest
     resources=$(
     $HELM_EXECUTABLE get manifest "$release" -n "$helm_ns" \
-        | microk8s.kubectl apply --dry-run=client -f - -o json \
+        | $KUBE apply --dry-run=client -f - -o json \
         | jq -r '.items[] | "\(.kind)/\(.metadata.namespace)/\(.metadata.name)"'
     )
 
@@ -2921,26 +2997,26 @@ function check_system() {
 
     case $kind in
         Deployment)
-        if ! microk8s.kubectl rollout status "deployment/$name" -n "$ns"; then
+        if ! $KUBE rollout status "deployment/$name" -n "$ns"; then
             echo "❌ Deployment $name not healthy"
             all_healthy=false
         fi
         ;;
         StatefulSet)
-        if ! microk8s.kubectl rollout status "statefulset/$name" -n "$ns"; then
+        if ! $KUBE rollout status "statefulset/$name" -n "$ns"; then
             echo "❌ StatefulSet $name not healthy"
             all_healthy=false
         fi
         ;;
         Pod)
-        phase=$(microk8s.kubectl get pod "$name" -n "$ns" -o jsonpath='{.status.phase}')
+        phase=$($KUBE get pod "$name" -n "$ns" -o jsonpath='{.status.phase}')
         if [[ "$phase" != "Running" && "$phase" != "Succeeded" ]]; then
             echo "❌ Pod $name is $phase"
             all_healthy=false
         fi
 
         # check readiness condition
-        ready_cond=$(microk8s.kubectl get pod "$name" -n "$ns" \
+        ready_cond=$($KUBE get pod "$name" -n "$ns" \
             -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')
         if [[ "$ready_cond" != "True" ]]; then
             echo "❌ Pod $name is not Ready yet"
@@ -2948,11 +3024,11 @@ function check_system() {
         fi
         ;;
         Job)
-        if ! job=$(microk8s.kubectl get job "$name" -n "$ns" -o json 2>/dev/null); then
+        if ! job=$($KUBE get job "$name" -n "$ns" -o json 2>/dev/null); then
             echo "ℹ️ Job $name already completed and removed"
             continue
         fi
-        succeeded=$(microk8s.kubectl get job "$name" -n "$ns" -o jsonpath='{.status.succeeded}')
+        succeeded=$($KUBE get job "$name" -n "$ns" -o jsonpath='{.status.succeeded}')
         if [[ "$succeeded" != "1" ]]; then
             echo "❌ Job $name not successful"
             all_healthy=false
@@ -3050,7 +3126,7 @@ free
 journalctl --since "2 hours ago"
 
 --- "Pod Status"
-microk8s.kubectl get pods -A
+$KUBE get pods -A
 
 --- "External Internet Access"
 ping -c3 -i 0.2 www.dkfz-heidelberg.de
@@ -3078,13 +3154,13 @@ df -h
 snap list
 
 --- "k8s Pods"
-microk8s.kubectl get pods -A
+$KUBE get pods -A
 
 --- "k8s Describe Pods"
-microk8s.kubectl describe pods -A
+$KUBE describe pods -A
 
 --- "k8s Node Status"
-microk8s.kubectl describe node
+$KUBE describe node
 
 --- "GPU Hardware"
 lshw -C Display

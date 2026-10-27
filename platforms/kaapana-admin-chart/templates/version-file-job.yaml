@@ -1,3 +1,5 @@
+{{- /* the version file is read by kaapanactl.sh from FAST_DATA_DIR of the machine it runs on, i.e. only on microk8s */}}
+{{- if .Values.global.is_microk8s }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -51,3 +53,4 @@ spec:
           type: DirectoryOrCreate
       imagePullSecrets:
       - name: registry-secret
+{{- end }}

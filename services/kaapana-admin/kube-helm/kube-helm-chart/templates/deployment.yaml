@@ -109,17 +109,21 @@ spec:
           - name: helmextensions
             mountPath: "/kaapana/mounted/platforms"
             subPath: platforms
+{{- if .Values.global.is_microk8s }}
           - name: containerd-socket
             mountPath: "/kaapana/mounted/containerd.sock"
+{{- end }}
           - name: tmp
             mountPath: "/tmp"
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
       volumes:
+{{- if .Values.global.is_microk8s }}
       - name: containerd-socket
         hostPath:
           path: /var/snap/microk8s/common/run/containerd.sock
+{{- end }}
       - name: tmp
         emptyDir: {}
       - name: helmextensions

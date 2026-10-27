@@ -33,6 +33,10 @@ spec:
           value: "1"
         - name: LOG_LEVEL
           value: INFO
+{{- if .Values.global.restricted_rbac }}
+        - name: INGRESS_NAMESPACES
+          value: "{{ .Values.global.all_managed_namespaces | join "," }}"
+{{- end }}
         ports:
           - containerPort: 8080
         livenessProbe:

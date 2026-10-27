@@ -7,7 +7,10 @@ nninteractiveProxy:
   dicomwebRoot: ""
   nninteractiveServerUrl: ""
   apiKey: ""
-  maxCachedSessions: 8
+  # Empty: same as nninteractiveServer.maxSessions. Never set it higher than that.
+  maxCachedSessions: ""
+  # Sessions without a browser heartbeat for this long are closed to free a GPU slot.
+  staleSessionSeconds: 120
   maxCachedImages: 2
   memoryRequest: 512Mi
   memoryLimit: 4Gi
@@ -32,6 +35,8 @@ nninteractiveServer:
   port: 1527
   apiKey: ""
   gpuCount: 1
+  # Concurrent sessions (users) on the GPU; passed as --max-sessions.
+  maxSessions: 3
   memoryRequest: 6Gi
   memoryLimit: 16Gi
   extraArgs: []

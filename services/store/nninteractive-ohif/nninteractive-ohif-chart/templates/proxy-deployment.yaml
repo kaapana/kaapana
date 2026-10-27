@@ -28,7 +28,9 @@ spec:
             - name: NNINTERACTIVE_SERVER_URL
               value: "{{ .Values.nninteractiveProxy.nninteractiveServerUrl | default (printf "http://nninteractive-server-service.%s.svc:1527" .Values.global.services_namespace) }}"
             - name: MAX_CACHED_SESSIONS
-              value: "{{ .Values.nninteractiveProxy.maxCachedSessions }}"
+              value: "{{ .Values.nninteractiveProxy.maxCachedSessions | default .Values.nninteractiveServer.maxSessions }}"
+            - name: STALE_SESSION_SECONDS
+              value: "{{ .Values.nninteractiveProxy.staleSessionSeconds }}"
             - name: MAX_CACHED_IMAGES
               value: "{{ .Values.nninteractiveProxy.maxCachedImages }}"
 {{- if .Values.nninteractiveProxy.apiKey }}

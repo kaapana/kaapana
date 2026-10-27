@@ -22,8 +22,11 @@ spec:
         - name: nninteractive-server
           image: "{{ .Values.global.registry_url }}/nninteractive-server:{{ .Values.global.kaapana_build_version }}"
           imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
-{{- if .Values.nninteractiveServer.extraArgs }}
+          # Appended to the image entrypoint's own flags.
           args:
+            - "--max-sessions"
+            - "{{ .Values.nninteractiveServer.maxSessions }}"
+{{- if .Values.nninteractiveServer.extraArgs }}
 {{ toYaml .Values.nninteractiveServer.extraArgs | indent 12 }}
 {{- end }}
           env:

@@ -19,6 +19,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
+SERVICES_NAMESPACE = os.getenv("SERVICES_NAMESPACE", "services")
 
 # Reused across the auth path of every request; httpx.AsyncClient must not
 # serialize the event loop the way blocking `requests` calls would under AII
@@ -61,7 +62,9 @@ async def fetch_project(identifier: str) -> dict | None:
     """
     # Bounded: this runs on the auth path of every project-scoped request, so
     # a hung AII must not hang the whole platform.
-    aii_response = await client.get(f"http://aii-service.services.svc:8080/projects/{identifier}", timeout=5)
+    aii_response = await client.get(
+        f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{identifier}", timeout=5
+    )
     if not aii_response.is_success:
         return None
     project = aii_response.json()

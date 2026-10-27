@@ -5,7 +5,8 @@ import requests
 
 from .schemas import Project
 
-kube_helm_api = "http://kube-helm-service.admin.svc:5000/kube-helm-api"
+admin_namespace = os.getenv("ADMIN_NAMESPACE", "admin")
+kube_helm_api = f"http://kube-helm-service.{admin_namespace}.svc:5000/kube-helm-api"
 
 
 def install_project_helm_chart(project: Project):

@@ -242,7 +242,7 @@ def send_notification(description):
     workflow_config = load_workflow_config()
     project_id = workflow_config.get("project_form", {}).get("id")
     if not project_id:
-        r = requests.get("http://aii-service.services.svc:8080/projects/admin")
+        r = requests.get(f"http://aii-service.{os.getenv('SERVICES_NAMESPACE', 'services')}.svc:8080/projects/admin")
         project_id = r.json().get("id")
     NotificationService.send(project_id=project_id, user_ids=[], notification=note)
 

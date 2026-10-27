@@ -40,7 +40,8 @@ public final class ProjectIdResolver {
         try {
             UserSyncConfig cfg = UserSyncConfigLoader.getConfig();
 
-            URL url = new URL("http://aii-service.services.svc:8080/projects");
+            String servicesNamespace = System.getenv().getOrDefault("SERVICES_NAMESPACE", "services");
+            URL url = new URL("http://aii-service." + servicesNamespace + ".svc:8080/projects");
             HttpURLConnection conn =
                 (HttpURLConnection) url.openConnection();
 

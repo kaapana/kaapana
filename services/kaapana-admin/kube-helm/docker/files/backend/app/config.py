@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     prefetch_extensions: bool = True if os.environ.get("PREFETCH_EXTENSIONS", None) in ["true", "True"] else False
     helm_helpers_cache: str = "/root/helpers"
     helm_namespace: str = os.getenv("HELM_NAMESPACE", None)
+    helm_default_namespace: str = os.getenv("HELM_DEFAULT_NAMESPACE", "default")
     release_name: str = os.getenv("RELEASE_NAME", None)
     registry_url: str = os.getenv("REGISTRY_URL", None)
     aii_service_url: str = os.getenv("AII_SERVICE_URL", "http://aii-service.services.svc:8080")

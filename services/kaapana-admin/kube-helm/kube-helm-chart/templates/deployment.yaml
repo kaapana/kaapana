@@ -139,7 +139,9 @@ spec:
           claimName: {{ .Chart.Name }}-dev-pv-claim
 {{- end }}
       serviceAccountName: kaapana-kube-admin
+{{- if not .Values.global.restricted_rbac }}
       priorityClassName: kaapana-high-priority
+{{- end }}
       imagePullSecrets:
       - name: registry-secret
 ---

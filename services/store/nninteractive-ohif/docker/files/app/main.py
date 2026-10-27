@@ -14,11 +14,11 @@ from email.parser import BytesParser
 from email.policy import default
 from typing import Any
 
+import anyio
 import numpy as np
 import pydicom
 import requests
 import SimpleITK as sitk
-import anyio
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import Response
 from nnInteractive.inference.remote import (
@@ -351,9 +351,7 @@ def _get_cached_image(
         volume_4d, first_sop, last_sop, instance_number_flipped, timings, spacing_zyx = _load_image(
             study_uid, series_uid, dicomweb_headers
         )
-        loaded = CachedImage(
-            volume_4d, first_sop, last_sop, instance_number_flipped, timings, spacing_zyx=spacing_zyx
-        )
+        loaded = CachedImage(volume_4d, first_sop, last_sop, instance_number_flipped, timings, spacing_zyx=spacing_zyx)
         with image_cache_lock:
             image_cache[key] = loaded
             _evict_images_if_needed()
@@ -455,10 +453,7 @@ def _get_series_session(
             total = time.time() - load_start
             timings = {**load_timings, **remote_timings}
             logger.info(
-                (
-                    "Initialized nnInteractive session for %s client=%s in %.3fs; "
-                    "image shape=%s flipped=%s timings=%s"
-                ),
+                ("Initialized nnInteractive session for %s client=%s in %.3fs; image shape=%s flipped=%s timings=%s"),
                 series_uid,
                 client_session_id,
                 total,
@@ -556,9 +551,7 @@ def _slice_id(points_zyx: np.ndarray, flat: int, shape_zyx: tuple[int, int, int]
     return int(np.clip(int(np.rint(float(points_zyx[0, flat]))), 0, shape_zyx[flat] - 1))
 
 
-def _crop_on_plane(
-    plane: np.ndarray, flat: int, sid: int, lo: Any, hi: Any
-) -> tuple[np.ndarray, list[list[int]]]:
+def _crop_on_plane(plane: np.ndarray, flat: int, sid: int, lo: Any, hi: Any) -> tuple[np.ndarray, list[list[int]]]:
     crop_3d = np.expand_dims(plane[lo[0] : hi[0], lo[1] : hi[1]].astype(np.uint8), axis=flat)
     displayed = [d for d in range(3) if d != flat]
     bbox = [[0, 0], [0, 0], [0, 0]]
@@ -745,9 +738,7 @@ def _crop_target_bbox(target_buffer: np.ndarray, bbox: Any) -> Crop:
     """Slice a region ([[z0,z1],[y0,y1],[x0,x1]]) out of the buffer.
     Returns (bytes, offset [z0,y0,x0], full shape, crop shape)."""
     full_shape = [int(x) for x in target_buffer.shape]
-    (z0, z1), (y0, y1), (x0, x1) = (
-        (max(0, int(lo)), min(size, int(hi))) for (lo, hi), size in zip(bbox, full_shape)
-    )
+    (z0, z1), (y0, y1), (x0, x1) = ((max(0, int(lo)), min(size, int(hi))) for (lo, hi), size in zip(bbox, full_shape))
     if z1 <= z0 or y1 <= y0 or x1 <= x0:
         return _empty_crop(target_buffer)
     crop = np.ascontiguousarray(target_buffer[z0:z1, y0:y1, x0:x1])
@@ -768,9 +759,7 @@ def _crop_target(target_buffer: np.ndarray) -> Crop:
 def _multipart(meta: dict[str, Any], seg: bytes) -> Response:
     boundary = f"nninteractive-{uuid.uuid4().hex}"
     body = (
-        f"--{boundary}\r\n"
-        'Content-Disposition: form-data; name="meta"\r\n'
-        "Content-Type: application/json\r\n\r\n"
+        f'--{boundary}\r\nContent-Disposition: form-data; name="meta"\r\nContent-Type: application/json\r\n\r\n'
     ).encode("utf-8")
     body += json.dumps(meta, separators=(",", ":")).encode("utf-8")
     body += (
@@ -801,10 +790,7 @@ def _response(
     }
     if extra:
         meta.update(
-            {
-                key: str(value).lower() if isinstance(value, bool) else str(value)
-                for key, value in extra.items()
-            }
+            {key: str(value).lower() if isinstance(value, bool) else str(value) for key, value in extra.items()}
         )
     return _multipart(meta, seg)
 
@@ -852,7 +838,11 @@ def _run_inference_request(entry: SeriesSession, mode: Any, data: dict[str, Any]
         # remote client's _last_paste_bbox (private, but it mirrors the server response verbatim).
         undo_bbox = getattr(entry.session, "_last_paste_bbox", None) if ran else None
         # Nothing undone / no visible change → empty delta (the client stops at undone=false).
-        crop = _crop_target_bbox(entry.target_buffer, undo_bbox) if undo_bbox is not None else _empty_crop(entry.target_buffer)
+        crop = (
+            _crop_target_bbox(entry.target_buffer, undo_bbox)
+            if undo_bbox is not None
+            else _empty_crop(entry.target_buffer)
+        )
         return _response(entry, crop, start, "undo", {"undone": ran, "pred_scope": "delta"})
 
     if mode == "set_mask":
@@ -1027,9 +1017,7 @@ async def close_session(request: Request) -> dict[str, Any]:
         raise HTTPException(400, "Missing required parameters: image, studyInstanceUID")
     with sessions_lock:
         entry = sessions.get(
-            _session_key(
-                _principal(request), str(study_uid), str(series_uid), _client_session_id(client_session_id)
-            )
+            _session_key(_principal(request), str(study_uid), str(series_uid), _client_session_id(client_session_id))
         )
     if entry is None:
         return {"closed": False}

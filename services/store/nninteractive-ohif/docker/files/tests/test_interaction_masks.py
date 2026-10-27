@@ -35,8 +35,6 @@ def _install_nninteractive_stub() -> None:
 _install_nninteractive_stub()
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from fastapi import HTTPException  # noqa: E402
-
 import base64  # noqa: E402
 import gzip  # noqa: E402
 import json  # noqa: E402
@@ -45,19 +43,20 @@ import time  # noqa: E402
 import app.main as proxy  # noqa: E402
 from app.main import (  # noqa: E402
     CachedImage,
-    _client_session_id,
-    _gunzip_limited,
-    _principal,
-    _reserve_capacity,
-    _validate_shape,
     _apply_prompts,
     _bbox_to_half_open_intervals,
+    _client_session_id,
+    _gunzip_limited,
+    _preferred_brush_size,
     _prepare_lasso,
     _prepare_scribble,
-    _preferred_brush_size,
+    _principal,
     _prompt_points_and_flat_axis,
+    _reserve_capacity,
     _resolve_flip,
+    _validate_shape,
 )
+from fastapi import HTTPException  # noqa: E402
 
 
 class DummyEntry:
@@ -252,8 +251,13 @@ class CapacityTests(unittest.TestCase):
         closed = []
         session = types.SimpleNamespace(close=lambda: closed.append(key))
         entry = types.SimpleNamespace(
-            key=key, series_uid=key, session=session, last_used=seen, last_browser_seen=seen,
-            lock=proxy.threading.RLock(), closed=closed,
+            key=key,
+            series_uid=key,
+            session=session,
+            last_used=seen,
+            last_browser_seen=seen,
+            lock=proxy.threading.RLock(),
+            closed=closed,
         )
         proxy.sessions[key] = entry
         return entry

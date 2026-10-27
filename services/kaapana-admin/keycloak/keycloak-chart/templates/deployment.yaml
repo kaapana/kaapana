@@ -107,6 +107,8 @@ spec:
             value: "/etc/x509/https/tls.crt"
           - name: KC_HTTP_MAX_QUEUED_REQUESTS
             value: "100"
+          - name: SERVICES_NAMESPACE
+            value: "{{ .Values.global.services_namespace }}"
           - name: KC_METRICS_ENABLED
             value: "true"
           - name: KC_HEALTH_ENABLED

@@ -1,4 +1,5 @@
 import functools
+import os
 import xml.etree.ElementTree as ET
 
 import jwt
@@ -10,6 +11,8 @@ from app.model.wopi import WOPI
 from fastapi import Depends, Request
 from kaapanapy.logger import get_logger
 from minio import Minio
+
+SERVICES_NAMESPACE = os.getenv("SERVICES_NAMESPACE", "services")
 
 logger = get_logger(name=__name__)
 
@@ -33,7 +36,7 @@ def get_minio_client(x_auth_token: str = Depends(get_access_token)) -> Minio:
     """
 
     def minio_credentials():
-        url = f"http://minio-service.services.svc:9000?Action=AssumeRoleWithWebIdentity&WebIdentityToken={x_auth_token}&Version=2011-06-15"
+        url = f"http://minio-service.{SERVICES_NAMESPACE}.svc:9000?Action=AssumeRoleWithWebIdentity&WebIdentityToken={x_auth_token}&Version=2011-06-15"
         r = requests.post(url)
         r.raise_for_status()
         xml_response = r.text
@@ -46,7 +49,7 @@ def get_minio_client(x_auth_token: str = Depends(get_access_token)) -> Minio:
 
     access_key, secret_key, session_token = minio_credentials()
 
-    minio_url = "minio-service.services.svc:9000"
+    minio_url = f"minio-service.{SERVICES_NAMESPACE}.svc:9000"
     return Minio(
         minio_url,
         access_key=access_key,

@@ -48,6 +48,7 @@ from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperFederated import federated_sharing_decorator
 
 KAAPANA_SKIP_TASK_RUN_RETURN_CODE = 126
+AII_URL = f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080"
 # Backward compatibility
 default_registry = DEFAULT_REGISTRY
 kaapana_build_version = KAAPANA_BUILD_VERSION
@@ -720,7 +721,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             )
 
         # In case of debugging service_dag there is no self.project
-        response = requests.get("http://aii-service.services.svc:8080/projects/admin")
+        response = requests.get(f"{AII_URL}/projects/admin")
         response.raise_for_status()
         admin_id = response.json().get("id")
         project_id = self.project.get("id") if self.project else admin_id
@@ -1048,7 +1049,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             user_ids = [user_id]
 
         def fetch_default_project_id() -> str:
-            response = requests.get("http://aii-service.services.svc:8080/projects/admin")
+            response = requests.get(f"{AII_URL}/projects/admin")
             response.raise_for_status()
             return response.json().get("id")
 

@@ -29,7 +29,9 @@ class Settings(BaseSettings):
     helm_default_namespace: str = os.getenv("HELM_DEFAULT_NAMESPACE", "default")
     release_name: str = os.getenv("RELEASE_NAME", None)
     registry_url: str = os.getenv("REGISTRY_URL", None)
-    aii_service_url: str = os.getenv("AII_SERVICE_URL", "http://aii-service.services.svc:8080")
+    aii_service_url: str = os.getenv(
+        "AII_SERVICE_URL", f"http://aii-service.{os.getenv('SERVICES_NAMESPACE', 'services')}.svc:8080"
+    )
 
     offline_mode: bool = True if os.environ.get("OFFLINE_MODE", None) in ["true", "True"] else False
     kubectl_path: str = os.getenv("KUBECTL_PATH", None)

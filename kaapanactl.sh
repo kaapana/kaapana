@@ -1519,6 +1519,7 @@ function load_kaapana_config {
     ADMIN_NAMESPACE="admin"
     EXTENSIONS_NAMESPACE="extensions"
     PREFIX_ALL_NAMESPACES=false
+    PUBLIC_PROJECT_ID="" # UUID of the initial "public" project (empty: random); its namespace is <PLATFORM_PREFIX>-project-<first 8 chars>
     HELM_NAMESPACE="default" # with RESTRICTED_RBAC=true the admin namespace is used
 
     OIDC_CLIENT_SECRET=$(echo $RANDOM | md5sum | base64 | head -c 32)
@@ -1625,9 +1626,17 @@ function load_kaapana_config {
     API_SERVER_CIDR="10.0.0.0/8"
 }
 
-# Project namespaces known before deploying: the admin project
+# Project namespaces known before deploying: the admin project and, if its id is set, the public project
 function set_initial_project_namespaces {
     INITIAL_PROJECT_NAMESPACES="${PLATFORM_PREFIX}-project-admin"
+    if [ -n "$PUBLIC_PROJECT_ID" ]; then
+        PUBLIC_PROJECT_ID="${PUBLIC_PROJECT_ID,,}"
+        if ! [[ "$PUBLIC_PROJECT_ID" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
+            echo -e "${RED}PUBLIC_PROJECT_ID '$PUBLIC_PROJECT_ID' is not a valid UUID.${NC}"
+            exit 1
+        fi
+        INITIAL_PROJECT_NAMESPACES="$INITIAL_PROJECT_NAMESPACES ${PLATFORM_PREFIX}-project-${PUBLIC_PROJECT_ID:0:8}"
+    fi
 }
 
 function apply_namespace_config {
@@ -2642,6 +2651,7 @@ function deploy_chart {
     --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
     --set-string global.release_name="$PLATFORM_NAME" \
     --set-string global.platform_prefix="$PLATFORM_PREFIX" \
+    --set-string global.public_project_id="$PUBLIC_PROJECT_ID" \
     --set-string global.deployment_timestamp="$DEPLOYMENT_TIMESTAMP" \
     --set-string global.mount_points_to_monitor="$MOUNT_POINTS_TO_MONITOR" \
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \

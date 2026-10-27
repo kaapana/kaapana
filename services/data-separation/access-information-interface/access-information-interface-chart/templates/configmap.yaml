@@ -92,6 +92,9 @@ data:
         "default": true
       },
       {
+        {{- if .Values.global.public_project_id }}
+        "id": "{{ .Values.global.public_project_id }}",
+        {{- end }}
         "name": "public",
         "description": "Public project. Users are automatically added to this project",
         "default": true

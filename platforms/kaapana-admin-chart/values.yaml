@@ -1,5 +1,6 @@
 ---
 global:
+  is_microk8s: true
   default_admin_limits_mem: "50Mi"
   default_admin_requests_mem: "50Mi"
   # HTTP_PROXY for all pods, defaults to squid proxy if not overwritten

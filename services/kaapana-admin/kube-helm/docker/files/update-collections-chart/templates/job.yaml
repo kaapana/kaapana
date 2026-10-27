@@ -7,8 +7,10 @@ metadata:
 spec:
   template:
     spec:
+      {{- if .Values.global.storage_node }}
       nodeSelector:
         kaapana.io/node: {{ .Values.global.storage_node }}
+      {{- end }}
       containers:
       - name: copy-kube-helm-collections-{{ $uuid }}
         image: "{{ .Values.kube_helm_collection }}"

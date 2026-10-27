@@ -22,7 +22,8 @@ public final class UserAssignmentClient {
             String projectId = ProjectIdResolver.getProjectId();
 
             String url = String.format(
-                "http://aii-service.services.svc:8080/projects/%s/role/%s/user/%s",
+                "http://aii-service.%s.svc:8080/projects/%s/role/%s/user/%s",
+                System.getenv().getOrDefault("SERVICES_NAMESPACE", "services"),
                 projectId,
                 cfg.role_name,
                 userId

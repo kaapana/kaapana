@@ -6,6 +6,7 @@ from app.keycloak_helper import KeycloakHelper, get_keycloak_helper
 from app.schemas import AiiProjectResponse, KeycloakUser, KeycloakUserExtended
 from app.users import crud
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
@@ -19,7 +20,7 @@ logger = logging.getLogger(__name__)
 async def get_users(kc_client: KeycloakHelper = Depends(get_keycloak_helper)):
     """Get all the Users from Keycloak"""
 
-    keycloak_users_json = kc_client.get_users()
+    keycloak_users_json = await run_in_threadpool(kc_client.get_users)
     users = []
 
     for kc_user in keycloak_users_json:
@@ -50,7 +51,7 @@ async def get_keycloak_user_by_name(
 ):
     """Get the specific user by username"""
 
-    keycloak_user_json = kc_client.get_user_by_name(username)
+    keycloak_user_json = await run_in_threadpool(kc_client.get_user_by_name, username)
     if not keycloak_user_json:
         raise HTTPException(status_code=404, detail="User not found")
 
@@ -65,7 +66,7 @@ async def get_keycloak_user_by_id(
 ):
     """Get specific user by keycloak id"""
 
-    keycloak_user_json = kc_client.get_user_by_id(keycloak_id)
+    keycloak_user_json = await run_in_threadpool(kc_client.get_user_by_id, keycloak_id)
     if not keycloak_user_json:
         raise HTTPException(status_code=404, detail="User not found")
 

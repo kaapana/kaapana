@@ -9,6 +9,7 @@ from app.keycloak_helper import KeycloakHelper, get_keycloak_helper
 from app.projects import crud, dicom_data, kubehelm, minio, opensearch, schemas
 from app.schemas import KeycloakUser
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
 from requests.exceptions import HTTPError
 from sqlalchemy.exc import IntegrityError
@@ -389,7 +390,9 @@ async def get_project_users(
     keycloak_users: List[KeycloakUser] = []
     for user in project_users:
         try:
-            keycloak_user_json = kc_client.get_user_by_id(user.keycloak_id)
+            keycloak_user_json = await run_in_threadpool(
+                kc_client.get_user_by_id, user.keycloak_id
+            )
         except HTTPError as e:
             if e.response.status_code == 404:
                 logger.warning(f"{user=} not found in Keycloak database.")
@@ -403,8 +406,8 @@ async def get_project_users(
 
 
 async def get_keycloak_user(keycloak_id: str):
-    kc_client = KeycloakHelper()
-    keycloak_user_json = kc_client.get_user_by_id(keycloak_id)
+    kc_client = await run_in_threadpool(KeycloakHelper)
+    keycloak_user_json = await run_in_threadpool(kc_client.get_user_by_id, keycloak_id)
     if not keycloak_user_json:
         raise HTTPException(status_code=404, detail="User not found")
     user = KeycloakUser(**keycloak_user_json)

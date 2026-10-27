@@ -32,6 +32,9 @@ spec:
       labels:
         app.kubernetes.io/name: airflow
         app.kubernetes.io/component: scheduler
+{{- if .Values.global.no_read_write_many_support }}
+        kaapana.io/rwo-anchor: "true"
+{{- end }}
     spec:
 {{- include "kaapana.nodeSelector" . | indent 6 }}
       initContainers:
@@ -190,6 +193,7 @@ spec:
       - name: modeldata
         persistentVolumeClaim:
           claimName: models-pv-claim
+        # TODO: CTP, UPLOADS,DICOMDIR, have to run on the same node, or need RWx volumes, maybe af-logs can be RWO if scheduler and webserver on same node (affiliation)
       - name: ctpinput
         persistentVolumeClaim:
           claimName: ctp-data-pv-claim

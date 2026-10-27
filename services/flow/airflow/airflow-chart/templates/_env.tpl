@@ -19,6 +19,8 @@
   value: "{{ .Values.global.kaapana_build_version }}"
 - name: PLATFORM_PREFIX
   value: "{{ required `global.platform_prefix is required` .Values.global.platform_prefix }}"
+- name: NO_READ_WRITE_MANY_SUPPORT
+  value: "{{ .Values.global.no_read_write_many_support }}"
 - name: MINIOUSER
   value: "{{ .Values.global.credentials_minio_username }}"
 - name: MINIOPASSWORD

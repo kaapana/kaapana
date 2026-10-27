@@ -5,7 +5,11 @@ from typing import AsyncGenerator, Tuple
 
 import httpx
 from app import crud
-from app.config import DICOMWEB_BASE_URL
+from app.config import (
+    DICOMWEB_BASE_URL,
+    WADO_UPSTREAM_RETRY_ATTEMPTS,
+    WADO_UPSTREAM_RETRY_DELAY_SECONDS,
+)
 from app.database import get_session
 from app.streaming_helpers import metadata_replace_stream
 from app.utils import get_scoped_project_ids, is_unscoped_admin
@@ -18,9 +22,6 @@ router = APIRouter()
 
 # Set logging level
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
-
-WADO_UPSTREAM_RETRY_ATTEMPTS = 5
-WADO_UPSTREAM_RETRY_DELAY_SECONDS = 0.5
 
 
 def replace_boundary(buffer: bytes, old_boundary: bytes, new_boundary: bytes) -> bytes:

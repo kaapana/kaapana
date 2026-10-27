@@ -11,3 +11,7 @@ DWF_IDENTITY_OPENID_CONFIG_URL = os.environ["DWF_IDENTITY_OPENID_CONFIG_URL"]
 DWF_IDENTITY_OPENID_CLIENT_ID = os.environ["DWF_IDENTITY_OPENID_CLIENT_ID"]
 
 CTP_DICOMWEB_URL = os.environ.get("CTP_DICOMWEB_URL", "http://ctp-internal-service.services.svc:7777")
+
+# A just-stored instance answers 404 until process-incoming-dicom has put it into the PACS.
+WADO_UPSTREAM_RETRY_ATTEMPTS = int(os.environ.get("WADO_UPSTREAM_RETRY_ATTEMPTS", "5"))
+WADO_UPSTREAM_RETRY_DELAY_SECONDS = float(os.environ.get("WADO_UPSTREAM_RETRY_DELAY_SECONDS", "0.5"))

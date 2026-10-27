@@ -33,8 +33,8 @@ Manager uses the registry credentials of the deployment to access it.
   Extension Manager forgets these extensions, but their workflows stay
   installed. After the next start, the repository exists again, but these
   extensions cannot be installed again, because their workflows already exist.
-- The URL always uses HTTPS. Platforms that were deployed with
-  ``kaapanactl.sh --plain-http`` cannot reach it.
+- The URL uses HTTPS. If the platform was deployed with
+  ``kaapanactl.sh --plain-http``, it uses HTTP.
 - In offline mode, no default repository is registered.
 
 

@@ -2570,6 +2570,7 @@ function deploy_chart {
     --set-string global.pull_policy_jobs="$PULL_POLICY_IMAGES" \
     --set-string global.pull_policy_pods="$PULL_POLICY_IMAGES" \
     --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
+    --set global.plain_http=$PLAIN_HTTP \
     --set-string global.helm_release_name="$HELM_RELEASE_NAME" \
     --set-string global.helm_chart_name="$PLATFORM_NAME" \
     --set-string global.platform_prefix="$PLATFORM_PREFIX" \

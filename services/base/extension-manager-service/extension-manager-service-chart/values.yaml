@@ -4,6 +4,7 @@ global:
   credentials_registry_username: ""
   credentials_registry_password: ""
   offline_mode: false
+  plain_http: false
   hostname: ""
   http_proxy: ""
   kaapana_build_version: ""

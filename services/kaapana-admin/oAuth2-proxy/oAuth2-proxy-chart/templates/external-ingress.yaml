@@ -1,0 +1,81 @@
+{{- if .Values.global.external_ingress }}
+{{- $extraAnnotations := .Values.global.external_ingress_annotations | default dict }}
+{{- if and (not (has .Values.global.external_ingress (list "traefik" "nginx"))) (empty $extraAnnotations) }}
+{{- fail (printf "external_ingress %q: set external_ingress_annotations so that the controller connects to oauth2-proxy via HTTPS" .Values.global.external_ingress) }}
+{{- end }}
+{{- $annotations := dict }}
+{{- if eq .Values.global.external_ingress "traefik" }}
+{{- $_ := set $annotations "traefik.ingress.kubernetes.io/router.entrypoints" "websecure" }}
+{{- end }}
+{{- if eq .Values.global.external_ingress "nginx" }}
+{{- $_ := set $annotations "nginx.ingress.kubernetes.io/ssl-redirect" "true" }}
+{{- $_ := set $annotations "nginx.ingress.kubernetes.io/proxy-body-size" "0" }}
+{{- /* encrypted, but nginx doesn't verify the certificate of oauth2-proxy */}}
+{{- $_ := set $annotations "nginx.ingress.kubernetes.io/backend-protocol" "HTTPS" }}
+{{- end }}
+{{- $annotations = mergeOverwrite $annotations $extraAnnotations }}
+# Entry point for the external ingress controller of the cluster. TLS is terminated there with the
+# controller's (default) certificate.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: oauth2-proxy-external-ingress
+  namespace: "{{ .Values.global.helm_namespace }}"
+  annotations:
+    {{- toYaml $annotations | nindent 4 }}
+spec:
+  ingressClassName: {{ .Values.global.external_ingress | quote }}
+  rules:
+  - host: {{ required "A valid hostname (or fqdn) is required!" .Values.global.hostname }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: oauth2-proxy-service
+            port:
+              name: https-port
+{{- if eq .Values.global.external_ingress "traefik" }}
+---
+# The cluster's Traefik connects to oauth2-proxy via HTTPS and accepts only Kaapana's certificate (ca.crt of the
+# certificate secret is tls.crt itself).
+apiVersion: traefik.io/v1alpha1
+kind: ServersTransport
+metadata:
+  name: oauth2-proxy
+  namespace: "{{ .Values.global.helm_namespace }}"
+spec:
+  serverName: {{ .Values.global.hostname | quote }}
+  rootCAs:
+    - secret: certificate
+{{- end }}
+{{- if .Values.global.external_ingress_namespace }}
+---
+# Only the external ingress controller may connect to oauth2-proxy, Prometheus only to its metrics.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: oauth2-proxy-ingress
+  namespace: "{{ .Values.global.helm_namespace }}"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: oauth2-proxy
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.global.external_ingress_namespace | quote }}
+      ports:
+        - port: https
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.global.services_namespace | quote }}
+      ports:
+        - port: metrics
+{{- end }}
+{{- end }}

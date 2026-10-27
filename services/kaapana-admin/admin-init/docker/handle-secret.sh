@@ -17,7 +17,9 @@ function install_cert_files {
     KEY_FILE=$2
     if ! kubectl get secret $SECRET_NAME --namespace=$ADMIN_NAMESPACE; then
         echo "Secret $SECRET_NAME not found in namespace $ADMIN_NAMESPACE -> creating new secret ..."
-        if ! kubectl --insecure-skip-tls-verify=true -n $ADMIN_NAMESPACE create secret tls $SECRET_NAME --key $KEY_FILE --cert $CERT_FILE; then
+        # ca.crt pins the certificate for an external ingress controller connecting to oauth2-proxy
+        if ! kubectl --insecure-skip-tls-verify=true -n $ADMIN_NAMESPACE create secret generic $SECRET_NAME --type=kubernetes.io/tls \
+            --from-file=tls.key=$KEY_FILE --from-file=tls.crt=$CERT_FILE --from-file=ca.crt=$CERT_FILE; then
             echo "ERROR creating secret $SECRET_NAME in namespace $ADMIN_NAMESPACE -> maybe already existing?"
         fi
     else
@@ -59,6 +61,9 @@ function copy_cert {
 function install_cert {
     if kubectl -n $SECRET_NAMESPACE get secret $SECRET_NAME; then
         echo "Secret $SECRET_NAME already exist in namespace $SECRET_NAMESPACE... skipping creation"
+        local cert
+        cert=$(kubectl -n $ADMIN_NAMESPACE get secret $SECRET_NAME -o jsonpath='{.data.tls\.crt}')
+        kubectl -n $ADMIN_NAMESPACE patch secret $SECRET_NAME --type merge -p "{\"data\":{\"ca.crt\":\"$cert\"}}" >/dev/null
         return
     fi
 

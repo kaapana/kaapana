@@ -13,6 +13,7 @@ from task_api.processing_container.common import (
 )
 from task_api.processing_container.resources import compute_memory_resources
 from task_api.runners.base import BaseRunner
+from task_api.runners.rwo_anchor import apply_anchor_affinity_to_pod
 
 
 def generate_pod_name(base_name: str) -> str:
@@ -193,6 +194,7 @@ class KubernetesRunner(BaseRunner):
             )
 
         # push pod to Kubernetes
+        pod = apply_anchor_affinity_to_pod(pod)
         cls._logger.info(f"Creating pod '{pod_name}' in namespace '{task_instance.config.namespace}'...")
         pod = cls.api.create_namespaced_pod(namespace=task_instance.config.namespace, body=pod)
         id = pod.metadata.name

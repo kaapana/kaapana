@@ -1625,6 +1625,7 @@ function load_kaapana_config {
     fi
     VOLUME_SLOW_DATA="100Gi" # size of volumes in slow data dir (e.g. 100Gi or 100Ti)
     RESTRICTED_RBAC=false # no cluster-scoped rights (e.g. managed Rancher): no PriorityClasses/LimitRanges/ClusterRoles/CRDs, namespaces must exist
+    NO_READ_WRITE_MANY_SUPPORT=false # storage only supports ReadWriteOnce: pods sharing volumes are scheduled on the same node
     API_SERVER_CIDR="10.0.0.0/8"
 }
 
@@ -2687,6 +2688,7 @@ function deploy_chart {
     --set-string global.storage_class_fast="$STORAGE_CLASS_FAST" \
     --set-string global.storage_class_slow="$STORAGE_CLASS_SLOW" \
     --set-string global.storage_class_workflow="$STORAGE_CLASS_WORKFLOW" \
+    --set global.no_read_write_many_support="$NO_READ_WRITE_MANY_SUPPORT" \
     --set-string global.main_node_name="$MAIN_NODE_NAME" \
     --set-string global.volume_slow_data="$VOLUME_SLOW_DATA" \
     --set-string global.storage_node="$STORAGE_NODE" \

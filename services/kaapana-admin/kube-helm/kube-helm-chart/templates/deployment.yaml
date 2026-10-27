@@ -15,6 +15,9 @@ spec:
       labels:
         app.kubernetes.io/name: kube-helm
         app.kubernetes.io/component: backend
+{{- if .Values.global.no_read_write_many_support }}
+        kaapana.io/rwo-anchor: "true"
+{{- end }}
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "5000"

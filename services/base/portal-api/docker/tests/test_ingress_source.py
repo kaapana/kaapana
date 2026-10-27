@@ -9,6 +9,7 @@ from types import ModuleType, SimpleNamespace
 
 import app.ingress_source as ingress_source
 import pytest
+from app.config import get_settings
 
 
 def rule(paths: list[str] | None) -> SimpleNamespace:
@@ -46,6 +47,9 @@ def fake_k8s(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     class NetworkingV1Api:
         def list_ingress_for_all_namespaces(self) -> SimpleNamespace:
             return SimpleNamespace(items=listed)
+
+        def list_namespaced_ingress(self, namespace: str) -> SimpleNamespace:
+            return SimpleNamespace(items=[item for item in listed if item.metadata.namespace == namespace])
 
     client = ModuleType("kubernetes.client")
     client.NetworkingV1Api = NetworkingV1Api
@@ -115,6 +119,25 @@ def test_kube_config_is_the_fallback_outside_the_cluster(
     monkeypatch.setattr(fake_k8s.config, "load_incluster_config", raise_config_exception)
     ingress_source._list_ingresses_blocking()
     assert fake_k8s.loaded == ["kubeconfig"]
+
+
+def test_all_namespaces_are_listed_without_ingress_namespaces(
+    fake_k8s: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("INGRESS_NAMESPACES", "")
+    get_settings.cache_clear()
+    fake_k8s.listed.extend([ing("a", namespace="services"), ing("b", namespace="other")])
+    assert [info.name for info in ingress_source._list_ingresses_blocking()] == ["a", "b"]
+
+
+def test_only_ingress_namespaces_are_listed_when_set(
+    fake_k8s: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("INGRESS_NAMESPACES", "services, admin")
+    get_settings.cache_clear()
+    fake_k8s.listed.extend([ing("a", namespace="services"), ing("b", namespace="other"), ing("c", namespace="admin")])
+    assert [info.name for info in ingress_source._list_ingresses_blocking()] == ["a", "c"]
+    get_settings.cache_clear()
 
 
 def test_list_ingresses_awaits_the_blocking_client(fake_k8s: SimpleNamespace) -> None:

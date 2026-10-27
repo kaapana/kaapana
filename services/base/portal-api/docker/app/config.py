@@ -8,6 +8,8 @@ class Settings(BaseSettings):
 
     CACHE_TTL_SECONDS: int = 10
     LOG_LEVEL: str = "INFO"
+    # comma-separated; empty: all namespaces (needs a ClusterRole)
+    INGRESS_NAMESPACES: str = ""
 
 
 @lru_cache

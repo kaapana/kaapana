@@ -309,3 +309,26 @@ def test_keycloak_ldap_egress_policy_targets_the_keycloak_pods():
     assert "keycloak_ldap_egress_cidrs: []" in _read(
         ROOT / "platforms/kaapana-admin-chart/values.yaml"
     ), "kaapana-admin-chart must declare the value so a site can set it"
+
+
+# --- Keycloak LDAP CA: the CA bundle reaches the truststore only when it is set ---
+
+
+def test_keycloak_ldap_ca_reaches_the_truststore_only_when_set():
+    # If the CA is not mounted or not in KC_TRUSTSTORE_PATHS, LDAPS fails at the site.
+    # Without the value, the Keycloak deployment must stay exactly as before.
+    chart = ROOT / "services/kaapana-admin/keycloak/keycloak-chart"
+    secret = _read(chart / "templates/ldap_ca_secret.yaml")
+    deployment = _read(chart / "templates/deployment.yaml")
+    gate = "{{- if .Values.global.keycloak_ldap_ca }}"
+    assert secret.startswith(gate), "the Secret must only render when the CA is set"
+    assert "name: keycloak-ldap-ca" in secret and "ca.crt:" in secret
+    assert (
+        deployment.count(gate) == 3
+    ), "env, volumeMount and volume must each be gated on the CA value"
+    assert 'value: "/etc/keycloak-ldap-ca/ca.crt"' in deployment
+    assert "mountPath: /etc/keycloak-ldap-ca" in deployment
+    assert "secretName: keycloak-ldap-ca" in deployment
+    assert 'keycloak_ldap_ca: ""' in _read(
+        ROOT / "platforms/kaapana-admin-chart/values.yaml"
+    ), "kaapana-admin-chart must declare the value so a site can set it"

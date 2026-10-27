@@ -13,6 +13,9 @@ global:
   # List the CIDRs of external LDAP or AD servers that Keycloak needs to reach.
   # The admin namespace blocks traffic to addresses outside the cluster otherwise.
   keycloak_ldap_egress_cidrs: []
+  # This holds a PEM bundle with the CA certificates of these LDAP servers. Keycloak needs them
+  # to verify LDAPS and StartTLS connections. Leave it empty to keep Keycloak's default trust.
+  keycloak_ldap_ca: ""
 
 migration-chart:
   enabled: false

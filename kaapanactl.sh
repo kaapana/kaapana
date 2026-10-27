@@ -1545,6 +1545,9 @@ function load_kaapana_config {
     # List the CIDRs of the site's LDAP or AD servers, separated by commas, e.g. "10.20.30.40/32".
     # Keycloak can only reach servers outside the cluster if they are listed here.
     KEYCLOAK_LDAP_EGRESS_CIDRS=""
+    # Set a PEM file with the CA certificates of these servers. One file can hold several of them.
+    # Keycloak needs them to verify LDAPS and StartTLS connections to a server with an internal CA.
+    KEYCLOAK_LDAP_CA_FILE=""
 
     VERSION_IMAGE_COUNT="20"
     DEPLOYMENT_TIMESTAMP=`date  --iso-8601=seconds`
@@ -2210,6 +2213,20 @@ function deploy_chart {
     done
     KEYCLOAK_LDAP_EGRESS_CIDRS=$(IFS=,; echo "${ldap_cidrs[*]}")
 
+    # The file is stored in a Secret and trusted by Keycloak, so it must contain only certificates.
+    local keycloak_ldap_ca_args=()
+    if [ -n "$KEYCLOAK_LDAP_CA_FILE" ]; then
+        if [ ! -r "$KEYCLOAK_LDAP_CA_FILE" ] || ! grep -q "BEGIN CERTIFICATE" "$KEYCLOAK_LDAP_CA_FILE"; then
+            echo "${RED}ERROR: KEYCLOAK_LDAP_CA_FILE '$KEYCLOAK_LDAP_CA_FILE' is not a readable PEM file with a certificate!${NC}"
+            exit 1
+        fi
+        if grep -q "PRIVATE KEY" "$KEYCLOAK_LDAP_CA_FILE"; then
+            echo "${RED}ERROR: KEYCLOAK_LDAP_CA_FILE '$KEYCLOAK_LDAP_CA_FILE' contains a private key; give only CA certificates!${NC}"
+            exit 1
+        fi
+        keycloak_ldap_ca_args=(--set-file "global.keycloak_ldap_ca=$KEYCLOAK_LDAP_CA_FILE")
+    fi
+
     get_domain
 
     if [ -z "$INSTANCE_NAME" ]; then
@@ -2472,6 +2489,7 @@ function deploy_chart {
     --set-string global.volume_slow_data="$VOLUME_SLOW_DATA" \
     --set-string global.storage_node="$STORAGE_NODE" \
     ${KEYCLOAK_LDAP_EGRESS_CIDRS:+--set global.keycloak_ldap_egress_cidrs="{$KEYCLOAK_LDAP_EGRESS_CIDRS}"} \
+    "${keycloak_ldap_ca_args[@]}" \
     "${kube_helm_timeout_args[@]}" \
     --name-template "$PLATFORM_NAME"
 

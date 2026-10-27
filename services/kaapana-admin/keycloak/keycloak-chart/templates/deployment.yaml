@@ -124,6 +124,11 @@ spec:
             value: {{ .Values.global.login_institution_name | default "" | quote }}
           - name: KC_LOGIN_INSTITUTION_LOGO
             value: {{ .Values.global.login_institution_logo | default "" | quote }}
+          {{- if .Values.global.keycloak_ldap_ca }}
+          # Keycloak needs the site's CA certificates to verify LDAP servers with an internal CA.
+          - name: KC_TRUSTSTORE_PATHS
+            value: "/etc/keycloak-ldap-ca/ca.crt"
+          {{- end }}
           ports:
           - name: http
             containerPort: 8080
@@ -147,6 +152,11 @@ spec:
             - name: default-project-role-user-mapping
               mountPath: /opt/keycloak/config/
               readOnly: true
+            {{- if .Values.global.keycloak_ldap_ca }}
+            - name: ldap-ca
+              mountPath: /etc/keycloak-ldap-ca
+              readOnly: true
+            {{- end }}
           command: 
           - "/opt/keycloak/bin/kc.sh"
           - "--verbose"
@@ -181,6 +191,11 @@ spec:
       - name: default-project-role-user-mapping
         configMap:
           name: default-project-role-user-mapping
+      {{- if .Values.global.keycloak_ldap_ca }}
+      - name: ldap-ca
+        secret:
+          secretName: keycloak-ldap-ca
+      {{- end }}
       priorityClassName: kaapana-high-priority
       imagePullSecrets:
       - name: registry-secret

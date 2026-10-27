@@ -202,7 +202,7 @@ def check_file_namespace(filename: str) -> bool:
     chart = helm_helper.helm_show_chart(package=str(fpath))
 
     # get --set values from admin-chart
-    release_values = helm_helper.helm_get_values(settings.release_name, helm_namespace="default")
+    release_values = helm_helper.helm_get_values(settings.release_name, helm_namespace=settings.helm_default_namespace)
     logger.debug(f"{release_values=}")
     default_sets = {}
     if "global" in release_values:

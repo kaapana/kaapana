@@ -1,7 +1,0 @@
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: {{ .Values.global.services_namespace }}
-  annotations:
-    helm.sh/resource-policy: keep

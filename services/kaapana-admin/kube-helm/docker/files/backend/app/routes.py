@@ -320,7 +320,6 @@ async def helm_install_chart(request: Request):
         blocking = False
         if ("platforms" in payload) and (str(payload["platforms"]).lower() == "true"):
             platforms = True
-            cmd_addons = "--create-namespace"
         if ("blocking" in payload) and (str(payload["blocking"]).lower() == "true"):
             blocking = True
         keywords = payload.get("keywords")

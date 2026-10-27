@@ -53,6 +53,11 @@ function main() {
             server_installation "$@"
             ;;
         report)
+            load_kaapana_config
+            QUIET="${QUIET:-false}"
+            HELM_EXECUTABLE="${HELM_EXECUTABLE:-helm}"
+            apply_namespace_config
+            [ -n "${PLATFORM_PREFIX:-}" ] || get_platform_prefix_from_release || true
             create_report
             ;;
         offline-gpu)
@@ -547,6 +552,10 @@ function deploy() {
             ;;
 
             --install-certs)
+                if [ "$PREFIX_ALL_NAMESPACES" = "true" ] && [ -z "${PLATFORM_PREFIX:-}" ]; then
+                    get_platform_prefix_from_release || true
+                fi
+                apply_namespace_config
                 install_certs
                 exit 0
             ;;
@@ -604,6 +613,8 @@ function deploy() {
             ;;
 
             --report)
+                apply_namespace_config
+                [ -n "${PLATFORM_PREFIX:-}" ] || get_platform_prefix_from_release || true
                 create_report
                 exit 0
             ;;
@@ -628,6 +639,8 @@ function deploy() {
         AUTO_NO_HOOKS=false
     fi
 
+    apply_namespace_config
+
     if [ "$DO_UNDEPLOY" = "true" ]; then
         delete_deployment
         exit 0
@@ -635,9 +648,9 @@ function deploy() {
 
     if [ "$DO_CHECK_SYSTEM" = "true" ]; then
         validate_platform_prefix
-        check_system kaapana-admin-chart default
-        check_system kaapana-platform-chart default
-        check_system "${PLATFORM_PREFIX}-project-admin" admin
+        check_system kaapana-admin-chart "$HELM_NAMESPACE"
+        check_system kaapana-platform-chart "$HELM_NAMESPACE"
+        check_system "${PLATFORM_PREFIX}-project-admin" "$ADMIN_NAMESPACE"
         exit 0
     fi
 
@@ -1505,6 +1518,7 @@ function load_kaapana_config {
     SERVICES_NAMESPACE="services"
     ADMIN_NAMESPACE="admin"
     EXTENSIONS_NAMESPACE="extensions"
+    PREFIX_ALL_NAMESPACES=false
     HELM_NAMESPACE="default"
 
     OIDC_CLIENT_SECRET=$(echo $RANDOM | md5sum | base64 | head -c 32)
@@ -1608,6 +1622,15 @@ function load_kaapana_config {
     fi
     VOLUME_SLOW_DATA="100Gi" # size of volumes in slow data dir (e.g. 100Gi or 100Ti)
     API_SERVER_CIDR="10.0.0.0/8"
+}
+
+function apply_namespace_config {
+    if [ "$PREFIX_ALL_NAMESPACES" = "true" ]; then
+        get_platform_prefix
+        ADMIN_NAMESPACE="${PLATFORM_PREFIX}-admin"
+        SERVICES_NAMESPACE="${PLATFORM_PREFIX}-services"
+        EXTENSIONS_NAMESPACE="${PLATFORM_PREFIX}-extensions"
+    fi
 }
 
 function delete_all_images_docker {
@@ -2269,6 +2292,15 @@ function setup_storage_classes() {
         --set-string global.slow_data_dir="$SLOW_DATA_DIR"
 }
 
+function create_namespaces {
+  local namespaces="$EXTENSIONS_NAMESPACE $SERVICES_NAMESPACE $ADMIN_NAMESPACE $HELM_NAMESPACE"
+
+  for namespace in $namespaces; do
+    $KUBE create namespace "$namespace" --dry-run=client -o yaml | $KUBE apply -f -
+    echo -e "${GREEN}Namespace '$namespace' ensured${NC}"
+  done
+}
+
 function deploy_chart {
     if [ -z "$CONTAINER_REGISTRY_URL" ]; then
         echo "${RED}CONTAINER_REGISTRY_URL needs to be set! -> please adjust the kaapanactl.sh script!${NC}"
@@ -2480,11 +2512,14 @@ function deploy_chart {
         echo "${YELLOW}Applying kube-helm timeout overrides.${NC}"
     fi
 
+    create_namespaces
+
     # Build helm command with optional --plain-http flag
-    HELM_INSTALL_CMD="$HELM_EXECUTABLE -n $HELM_NAMESPACE install --create-namespace"
+    HELM_INSTALL_CMD="$HELM_EXECUTABLE -n $HELM_NAMESPACE install"
     if [ "$PLAIN_HTTP" = true ]; then
         HELM_INSTALL_CMD="$HELM_INSTALL_CMD --plain-http"
     fi
+    DEFAULT_PROXY="http://squid-proxy-service.${ADMIN_NAMESPACE}.svc.cluster.local:3128"
     # The proxy of this host doesn't necessarily apply to a remote cluster
     if [ "$IS_MICROK8S" != true ]; then
         echo -e "${CYAN} -> Not a local microk8s cluster ...${NC}"
@@ -2538,6 +2573,7 @@ function deploy_chart {
     --set-string global.admin_namespace=$ADMIN_NAMESPACE \
     --set global.gpu_support=$GPU_SUPPORT \
     --set-string global.helm_namespace="$ADMIN_NAMESPACE" \
+    --set-string global.helm_default_namespace="$HELM_NAMESPACE" \
     --set global.oidc_client_secret=$OIDC_CLIENT_SECRET \
     --set global.include_reverse_proxy=$INCLUDE_REVERSE_PROXY \
     --set-string global.home_dir="$HOME" \
@@ -2547,6 +2583,8 @@ function deploy_chart {
     --set global.internalCidrs="{$INTERNAL_CIDR}" \
     --set-string squid-proxy.upstreamHttpProxy="$http_proxy" \
     --set-string squid-proxy.upstreamHttpsProxy="$https_proxy" \
+    --set-string global.http_proxy="$DEFAULT_PROXY" \
+    --set-string global.https_proxy="$DEFAULT_PROXY" \
     --set global.offline_mode=$OFFLINE_MODE \
     --set global.prefetch_extensions=$PREFETCH_EXTENSIONS \
     --set-string global.pull_policy_images="$PULL_POLICY_IMAGES" \
@@ -3217,9 +3255,9 @@ modinfo nvidia | grep ^version
 nvidia-smi
 
 --- "Resource Health"
-check_system kaapana-admin-chart default
-check_system kaapana-platform-chart default
-check_system "${PLATFORM_PREFIX}-project-admin" admin
+check_system kaapana-admin-chart "$HELM_NAMESPACE"
+check_system kaapana-platform-chart "$HELM_NAMESPACE"
+check_system "${PLATFORM_PREFIX}-project-admin" "$ADMIN_NAMESPACE"
 
 --- "END"
 }

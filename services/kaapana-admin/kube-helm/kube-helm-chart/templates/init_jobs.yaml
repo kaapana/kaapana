@@ -28,6 +28,8 @@ spec:
           value: "{{ $.Values.global.release_name }}"
         - name: HELM_NAMESPACE
           value: "{{ $.Values.global.helm_namespace }}"
+        - name: HELM_DEFAULT_NAMESPACE
+          value: "{{ $.Values.global.helm_default_namespace }}"
         - name: REGISTRY_URL
           value: "{{ $.Values.global.registry_url }}"
         - name: OFFLINE_MODE
@@ -130,6 +132,8 @@ spec:
           value: {{ $.Values.global.release_name }}
         - name: HELM_NAMESPACE
           value: {{ $.Values.global.helm_namespace }}
+        - name: HELM_DEFAULT_NAMESPACE
+          value: {{ $.Values.global.helm_default_namespace }}
         - name: REGISTRY_URL
           value: {{ $.Values.global.registry_url }}
         - name: OFFLINE_MODE
@@ -196,6 +200,8 @@ spec:
           value: {{ $.Values.global.release_name }}
         - name: HELM_NAMESPACE
           value: {{ $.Values.global.helm_namespace }}
+        - name: HELM_DEFAULT_NAMESPACE
+          value: {{ $.Values.global.helm_default_namespace }}
         - name: REGISTRY_URL
           value: {{ $.Values.global.registry_url }}
         - name: OFFLINE_MODE

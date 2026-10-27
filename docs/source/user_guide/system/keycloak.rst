@@ -82,6 +82,36 @@ Depending on your needs select *ldap* or *kerberos*.
 The necessary configuration you should be able to get from your institution.
 If everything is configured correctly you are able to login with the credentials from the Active Directory.
 
+Allowing access to an external LDAP server
+------------------------------------------
+
+By default Keycloak can only reach addresses inside the cluster, so logins and
+user synchronization against an external LDAP server hang. To open LDAP
+(port 389) and LDAPS (port 636) to your LDAP servers, list them in the
+``kaapanactl.sh`` configuration and redeploy:
+
+.. code-block:: bash
+
+   KEYCLOAK_LDAP_EGRESS_CIDRS="10.20.30.40/32,10.20.31.0/24"
+
+Give IP addresses in CIDR notation, with ``/32`` for a single server. This
+setting does not accept host names. If one host name points to several servers,
+list the IP address of each of them.
+
+In Keycloak's LDAP settings under **User Federation**, use a connection URL with
+``ldaps://`` or turn on *StartTLS*. Otherwise passwords are sent unencrypted.
+In the connection URL, use the host name that the server's certificate is
+issued for.
+
+Keycloak must trust the LDAP server's certificate, otherwise the connection
+fails with ``SSLHandshakeFailed``. If the certificate is issued by an internal
+certificate authority, put that CA in a PEM file and add it to the
+``kaapanactl.sh`` configuration. Several CAs can be concatenated into one file:
+
+.. code-block:: bash
+
+   KEYCLOAK_LDAP_CA_FILE="/path/to/ldap-ca.crt"
+
 .. _keycloak_admin_password:
 
 Administrative access and credentials

@@ -114,8 +114,7 @@ def resolve_install_target(
 
     if platforms:
         # current workaround for avoiding the namespace conflict
-        helm_namespace = "default"
-        helm_command_addons = ""
+        helm_namespace = settings.helm_default_namespace
         # for preinstall, set correct helm_namespace for charts
         if "extension_params" in values and "helm_namespace" in values["extension_params"]:
             eparams = values["extension_params"]
@@ -195,7 +194,7 @@ def build_helm_install_preflight(
     name = payload["name"]
     version = payload["version"]
 
-    release_values = helm_helper.helm_get_values(settings.release_name, helm_namespace="default")
+    release_values = helm_helper.helm_get_values(settings.release_name, helm_namespace=settings.helm_default_namespace)
 
     default_sets = {}
     if "global" in release_values:

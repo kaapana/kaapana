@@ -48,10 +48,10 @@ spec:
               secretKeyRef:
                 name: extension-manager-fernet-key
                 key: CREDENTIAL_ENCRYPTION_KEY
-{{- /* offline_mode arrives as a bool or as a string, and the string "false" is true in an if */}}
+{{- /* offline_mode and plain_http arrive as a bool or as a string, and the string "false" is true in an if */}}
 {{- if and .Values.global.registry_url (ne (toString .Values.global.offline_mode) "true") }}
           - name: DEFAULT_EXTENSION_REPOSITORY_URL
-            value: "https://{{ .Values.global.registry_url }}/extensions"
+            value: "{{ ternary "http" "https" (eq (toString .Values.global.plain_http) "true") }}://{{ .Values.global.registry_url }}/extensions"
           - name: DEFAULT_EXTENSION_REPOSITORY_USERNAME
             valueFrom:
               secretKeyRef:

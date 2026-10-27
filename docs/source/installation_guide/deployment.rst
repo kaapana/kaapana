@@ -37,6 +37,26 @@ The platform is deployed using the script :code:`kaapanactl.sh` also used during
            - :code:`REGISTRY_USERNAME` and :code:`REGISTRY_PASSWORD` refere to the username and password used to access the private registry.
            - Hint: If your registry is plain HTTP (e.g. when you use a local registry) use the :code:`--plain-http` flag to enable pulling from plain HTTP registries.
 
+         .. important::
+
+            | **Plain HTTP registries need a configuration of the container runtime**
+            | The flag :code:`--plain-http` only applies to Helm. The containerd of MicroK8s pulls the images and uses HTTPS by default. If the registry is plain HTTP and is not on :code:`localhost`, all pods fail with ``ImagePullBackOff`` and the event ``http: server gave HTTP response to HTTPS client``.
+            | Run the following commands on the server, where MicroK8s runs. Replace ``<registry>`` by the registry exactly as it appears in the image names, including the port, e.g. ``10.0.0.5:5000``:
+
+            .. code-block:: bash
+
+               REGISTRY=<registry>
+               sudo mkdir -p /var/snap/microk8s/current/args/certs.d/$REGISTRY
+               sudo tee /var/snap/microk8s/current/args/certs.d/$REGISTRY/hosts.toml > /dev/null <<EOF
+               server = "http://$REGISTRY"
+
+               [host."http://$REGISTRY"]
+                 capabilities = ["pull", "resolve"]
+               EOF
+
+            | Containerd reads this file when it pulls an image. If pods still fail, restart MicroK8s with ``sudo snap restart microk8s``.
+            | The registry :code:`localhost:32000` of MicroK8s is already configured this way.
+
       .. tab:: Tarball
 
          #. Copy the files generated during the :ref:`build process<build>` to your target-system (server), i.e.

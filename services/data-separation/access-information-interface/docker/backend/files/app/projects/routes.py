@@ -106,7 +106,9 @@ async def create_right(
     try:
         return await crud.create_rights(session, right)
     except IntegrityError:
-        raise HTTPException(status_code=409, detail=f"Right '{right.name}' already exists.")
+        raise HTTPException(
+            status_code=409, detail=f"Right '{right.name}' already exists."
+        )
 
 
 @router.put("/rights/{right_id}", response_model=schemas.Right, tags=["Projects"])
@@ -169,7 +171,9 @@ async def reset_role_rights(
         for right_name in right_names:
             rights = await crud.get_rights(session, name=right_name)
             if not rights:
-                logger.warning(f"Right '{right_name}' not found after recreation, skipping.")
+                logger.warning(
+                    f"Right '{right_name}' not found after recreation, skipping."
+                )
                 continue
             try:
                 await crud.create_roles_rights_mapping(session, role.id, rights[0].id)
@@ -187,8 +191,9 @@ async def get_roles(
     return await crud.get_roles(session, name=name)
 
 
-
-@router.get("/roles/{role_id}/rights", response_model=List[schemas.Right], tags=["Projects"])
+@router.get(
+    "/roles/{role_id}/rights", response_model=List[schemas.Right], tags=["Projects"]
+)
 async def get_role_rights(
     role_id: int,
     session: AsyncSession = Depends(get_session),

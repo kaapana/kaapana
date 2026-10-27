@@ -13,6 +13,7 @@ from typing import Dict, List, Tuple
 import yaml
 from kaapanapy.logger import get_logger
 from kubernetes import client, config
+from kubernetes.client.rest import ApiException
 
 from . import helm_helper, schemas
 from .config import settings, timeouts
@@ -41,6 +42,17 @@ HELM_TRANSITIONAL_STATUSES = {
 
 charts_cached = None
 charts_hashes = {}
+_k8s_config_loaded = False
+
+
+def ensure_k8s_config():
+    global _k8s_config_loaded
+    if not _k8s_config_loaded:
+        try:
+            config.load_incluster_config()
+        except config.ConfigException:
+            config.load_kube_config()
+        _k8s_config_loaded = True
 
 
 def all_successful(status):
@@ -620,6 +632,60 @@ def pull_docker_image(
     return success, helm_result_dict
 
 
+class NamespaceUnavailableError(Exception):
+    def __init__(self, message: str, status_code: int):
+        super().__init__(message)
+        self.status_code = status_code
+
+
+def create_namespace_if_not_exists(namespace: str):
+    """
+    Create the namespace, or - if the ServiceAccount may not create namespaces -
+    check that it already exists and can be used. Raises NamespaceUnavailableError otherwise.
+    """
+    ensure_k8s_config()
+    v1 = client.CoreV1Api()
+
+    try:
+        v1.create_namespace(client.V1Namespace(metadata=client.V1ObjectMeta(name=namespace)))
+        logger.info(f"Namespace '{namespace}' created")
+        return
+    except ApiException as e:
+        if e.status == 409:
+            logger.info(f"Namespace '{namespace}' already exists")
+            return
+        if e.status != 403:
+            raise
+
+    logger.info(f"Not allowed to create namespace '{namespace}', checking whether it exists and is usable")
+    try:
+        # Listing in a missing namespace returns an empty list; a (dry-run) create fails with 404.
+        v1.create_namespaced_config_map(
+            namespace=namespace,
+            body=client.V1ConfigMap(metadata=client.V1ObjectMeta(name="kaapana-namespace-access-check")),
+            dry_run="All",
+        )
+    except ApiException as e:
+        if e.status == 404:
+            raise NamespaceUnavailableError(
+                f"Namespace '{namespace}' does not exist and the ServiceAccount is not allowed "
+                "to create namespaces. Create it beforehand - e.g. on a managed Kubernetes "
+                "cluster (Rancher) namespaces are usually created via the platform.",
+                404,
+            ) from e
+        if e.status == 403:
+            # RBAC is checked before existence, so a missing namespace also ends up here.
+            raise NamespaceUnavailableError(
+                f"Namespace '{namespace}' is not usable: it does not exist or the ServiceAccount has "
+                "no permissions in it, and the ServiceAccount is not allowed to create namespaces. "
+                "Create projects with utils/create-restricted-rbac-project.sh, which prepares the namespace "
+                "and its Role/RoleBindings.",
+                403,
+            ) from e
+        raise
+    logger.info(f"Namespace '{namespace}' exists and is usable")
+
+
 def helm_install(
     payload,
     helm_namespace=settings.helm_namespace,
@@ -671,6 +737,8 @@ def helm_install(
     helm_command = preflight["helm_command"]
     if not execute_cmd:
         return True, "", keywords, release_name, helm_command
+
+    create_namespace_if_not_exists(preflight["helm_namespace"])
 
     skip_check = False
     if helm_command_suffix != "":
@@ -988,10 +1056,7 @@ def get_active_apps_from_ingresses(
         return ""
 
     # load kube config and get client
-    try:
-        config.load_incluster_config()
-    except Exception:
-        config.load_kube_config()
+    ensure_k8s_config()
 
     networking_v1 = client.NetworkingV1Api()
 

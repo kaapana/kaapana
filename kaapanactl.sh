@@ -2198,6 +2198,18 @@ function deploy_chart {
         exit 1
     fi
 
+    # Helm keeps spaces and empty entries in a list, and the API server rejects them as CIDRs.
+    # A single invalid entry would fail the whole installation, so the input is checked first.
+    local ldap_cidrs=()
+    for cidr in ${KEYCLOAK_LDAP_EGRESS_CIDRS//,/ }; do
+        if [[ "$cidr" != */* ]]; then
+            echo "${RED}ERROR: KEYCLOAK_LDAP_EGRESS_CIDRS entry '$cidr' is not a CIDR (e.g. $cidr/32)!${NC}"
+            exit 1
+        fi
+        ldap_cidrs+=("$cidr")
+    done
+    KEYCLOAK_LDAP_EGRESS_CIDRS=$(IFS=,; echo "${ldap_cidrs[*]}")
+
     get_domain
 
     if [ -z "$INSTANCE_NAME" ]; then

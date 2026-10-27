@@ -2,6 +2,7 @@ from airflow.models import DAG
 from kaapana.blueprints.kaapana_global_variables import (
     DEFAULT_REGISTRY,
     KAAPANA_BUILD_VERSION,
+    SERVICES_NAMESPACE,
 )
 from task_api.processing_container import pc_models
 from task_api_operators.KaapanaTaskOperator import IOMapping, KaapanaTaskOperator
@@ -98,7 +99,7 @@ with DAG("{{ dag_id }}", default_args=args) as dag:
         env=[
             pc_models.BaseEnv(name="DATASET", value="REGISTERED"),
             pc_models.BaseEnv(name="PROJECT_NAME", value="admin"),
-            pc_models.BaseEnv(name="PACS_HOST", value="ctp-dicom-service.services.svc"),
+            pc_models.BaseEnv(name="PACS_HOST", value=f"ctp-dicom-service.{SERVICES_NAMESPACE}.svc"),
             pc_models.BaseEnv(name="PACS_PORT", value="11112"),
         ],
         iochannel_maps=[

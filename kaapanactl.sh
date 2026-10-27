@@ -1602,7 +1602,10 @@ function load_kaapana_config {
     ######################################################
     # Storage
     ######################################################
-    STORAGE_PROVIDER="hostpath" # e.g. "hostpath" (microk8s) or "longhorn"
+    STORAGE_PROVIDER="hostpath" # "hostpath" (microk8s), "longhorn" or "default" (existing storage class of the cluster)
+    if [ "$STORAGE_PROVIDER" = "default" ]; then
+        STORAGE_CLASS="" # STORAGE_PROVIDER="default" only: storage class to use, defaults to the cluster's default storage class
+    fi
     VOLUME_SLOW_DATA="100Gi" # size of volumes in slow data dir (e.g. 100Gi or 100Ti)
     API_SERVER_CIDR="10.0.0.0/8"
 }
@@ -2026,10 +2029,28 @@ function setup_storage_provider() {
         fi
         STORAGE_PROVIDER="microk8s.io/hostpath"
         ;;
+      "default")
+        if [ -n "${STORAGE_CLASS:-}" ]; then
+            DEFAULT_SC="$STORAGE_CLASS"
+        else
+            DEFAULT_SC=$($KUBE get sc -o jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}')
+            if [ "$(wc -w <<< "$DEFAULT_SC")" -gt 1 ]; then
+                echo "ERROR: Several default storage classes found ($DEFAULT_SC), set STORAGE_CLASS to one of them."
+                exit 1
+            fi
+        fi
+        if [ -n "$DEFAULT_SC" ] && $KUBE get sc "$DEFAULT_SC" &>/dev/null; then
+            echo "Using storage class: ${DEFAULT_SC}"
+            is_provider_installed=true
+        else
+            echo "ERROR: Storage class '${DEFAULT_SC}' not found (no default storage class and STORAGE_CLASS not set?)."
+        fi
+        ;;
+
 
       *)
         echo "ERROR: Unknown storage provider '${STORAGE_PROVIDER}'."
-        echo "Supported providers: microk8s.io/hostpath, longhorn"
+        echo "Supported providers: microk8s.io/hostpath, longhorn, default"
         exit 1
         ;;
     esac
@@ -2042,12 +2063,16 @@ function setup_storage_provider() {
     fi
 
     echo "✅ Storage provider '${STORAGE_PROVIDER}' found."
-
-    MAIN_NODE_NAME=$(microk8s.kubectl get pods -n kube-system -o jsonpath='{.items[0].spec.nodeName}')
-    echo "Main node is $MAIN_NODE_NAME"
     STORAGE_NODE="storage"
     REPLICA_COUNT=1
-    microk8s.kubectl label nodes "$MAIN_NODE_NAME" "kaapana.io/node"="$STORAGE_NODE" --overwrite
+    if [ "$IS_MICROK8S" = true ]; then
+        MAIN_NODE_NAME=$($KUBE get pods -n kube-system -o jsonpath='{.items[0].spec.nodeName}')
+        echo "Main node is $MAIN_NODE_NAME"
+    else
+        MAIN_NODE_NAME=$($KUBE get nodes -o jsonpath='{.items[0].metadata.name}')
+        echo "Main node is $MAIN_NODE_NAME"
+    fi
+
     # --- Set storage classes based on provider ---
     case "${STORAGE_PROVIDER}" in
       "microk8s.io/hostpath")
@@ -2057,6 +2082,18 @@ function setup_storage_provider() {
         if [ -z "${VOLUME_SLOW_DATA}" ]; then
             VOLUME_SLOW_DATA="10Gi"
         fi
+        $KUBE label nodes "$MAIN_NODE_NAME" "kaapana.io/node"="$STORAGE_NODE" --overwrite
+        ;;
+    "default")
+        STORAGE_CLASS_SLOW="$DEFAULT_SC"
+        STORAGE_CLASS_FAST="$DEFAULT_SC"
+        STORAGE_CLASS_WORKFLOW="$DEFAULT_SC"
+        if [ -z "${VOLUME_SLOW_DATA}" ]; then
+            echo "VOLUME_SLOW_DATA must be set for the default storage provider."
+            exit 1
+        fi
+
+        STORAGE_NODE=""
         ;;
       "driver.longhorn.io")
         STORAGE_CLASS_SLOW="kaapana-longhorn-slow-data"
@@ -2067,6 +2104,9 @@ function setup_storage_provider() {
             echo "${VOLUME_SLOW_DATA}" must be set for Longhorn storage provider.
             exit 1
         fi
+
+
+        $KUBE label nodes "$MAIN_NODE_NAME" "kaapana.io/node"="$STORAGE_NODE" --overwrite
 
         FSID_DEFAULT=$(stat -fc %i /var/lib/longhorn)
         FSID_FAST=$(stat -fc %i "$(dirname "${FAST_DATA_DIR}")")
@@ -2379,8 +2419,13 @@ function deploy_chart {
     fi
     INTERNAL_CIDR="10.152.183.0/24,10.1.0.0/16,$INTERNAL_CIDR"
 
-    echo " Installing kaapana strorage class ..."
-    setup_storage_classes
+    # kaapana-storage-chart only provides the hostpath and longhorn classes
+    if [[ "$STORAGE_PROVIDER" == "microk8s.io/hostpath" || "$STORAGE_PROVIDER" == "driver.longhorn.io" ]]; then
+        echo " Installing kaapana strorage class ..."
+        setup_storage_classes
+    else
+        echo "${YELLOW}Storage provider '$STORAGE_PROVIDER': using existing storage class '$DEFAULT_SC', skipping kaapana storage classes.${NC}"
+    fi
 
     echo "${GREEN}Checking for version difference and migration options...${NC}"
     # set to true by run_migration_chart when a migration actually runs

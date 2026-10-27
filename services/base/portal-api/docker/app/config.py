@@ -8,6 +8,9 @@ class Settings(BaseSettings):
 
     CACHE_TTL_SECONDS: int = 10
     LOG_LEVEL: str = "INFO"
+    # Comma-separated namespaces to read ingresses from. Empty: all namespaces, which needs a
+    # ClusterRole; set it when the service account may only read ingresses in Kaapana's namespaces.
+    INGRESS_NAMESPACES: str = ""
 
 
 @lru_cache

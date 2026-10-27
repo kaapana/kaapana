@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     helm_helpers_cache: str = "/root/helpers"
     helm_namespace: str = os.getenv("HELM_NAMESPACE", None)
     helm_default_namespace: str = os.getenv("HELM_DEFAULT_NAMESPACE", "default")
+    # Comma-separated namespaces to read application ingresses from. Empty: all namespaces, which needs a
+    # ClusterRole; set it when the service account may only read ingresses in Kaapana's namespaces.
+    ingress_namespaces: str = os.getenv("INGRESS_NAMESPACES", "")
     release_name: str = os.getenv("RELEASE_NAME", None)
     registry_url: str = os.getenv("REGISTRY_URL", None)
     aii_service_url: str = os.getenv(

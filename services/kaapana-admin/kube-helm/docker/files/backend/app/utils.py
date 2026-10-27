@@ -996,7 +996,11 @@ def get_active_apps_from_ingresses(
     networking_v1 = client.NetworkingV1Api()
 
     res: List[schemas.ActiveApplication] = []
-    ingresses = networking_v1.list_ingress_for_all_namespaces().items
+    namespaces = [ns.strip() for ns in settings.ingress_namespaces.split(",") if ns.strip()]
+    if namespaces:
+        ingresses = [i for ns in namespaces for i in networking_v1.list_namespaced_ingress(ns).items]
+    else:
+        ingresses = networking_v1.list_ingress_for_all_namespaces().items
 
     for ingress in ingresses:
         annotations = ingress.metadata.annotations or {}

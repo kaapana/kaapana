@@ -6,6 +6,7 @@ needs neither the package nor a kubeconfig.
 
 import asyncio
 
+from app.config import get_settings
 from app.menu import IngressInfo
 
 _config_loaded = False
@@ -25,12 +26,24 @@ def _load_config() -> None:
         _config_loaded = True
 
 
-def _list_ingresses_blocking() -> list[IngressInfo]:
+def _list_ingress_items() -> list:
+    """Ingress objects of all namespaces, or only of INGRESS_NAMESPACES if it is set."""
     from kubernetes import client
 
+    api = client.NetworkingV1Api()
+    namespaces = [ns.strip() for ns in get_settings().INGRESS_NAMESPACES.split(",") if ns.strip()]
+    if not namespaces:
+        return api.list_ingress_for_all_namespaces().items
+    items = []
+    for namespace in namespaces:
+        items.extend(api.list_namespaced_ingress(namespace).items)
+    return items
+
+
+def _list_ingresses_blocking() -> list[IngressInfo]:
     _load_config()
     infos = []
-    for ingress in client.NetworkingV1Api().list_ingress_for_all_namespaces().items:
+    for ingress in _list_ingress_items():
         first_path = None
         for rule in ingress.spec.rules or []:
             if rule.http and rule.http.paths:

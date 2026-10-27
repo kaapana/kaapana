@@ -4,6 +4,7 @@ kind: ServiceAccount
 metadata:
   name: portal-api
   namespace: "{{ .Values.global.services_namespace }}"
+{{- if not .Values.global.restricted_rbac }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -12,7 +13,7 @@ metadata:
 rules:
 - apiGroups: ["networking.k8s.io"]
   resources: ["ingresses"]
-  # app/ingress_source.py only ever calls list_ingress_for_all_namespaces()
+  # app/ingress_source.py lists the ingresses of all namespaces
   verbs: [ "list" ]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -27,3 +28,32 @@ roleRef:
   kind: ClusterRole
   name: ingress-reader-portal-api
   apiGroup: rbac.authorization.k8s.io
+{{- else }}
+{{- range $namespace := .Values.global.all_managed_namespaces }}
+---
+# Without cluster-scoped rights portal-api only reads the ingresses of Kaapana's namespaces (INGRESS_NAMESPACES)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ingress-reader-portal-api
+  namespace: "{{ $namespace }}"
+rules:
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: [ "list" ]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ingress-reader-portal-api-binding
+  namespace: "{{ $namespace }}"
+subjects:
+- kind: ServiceAccount
+  name: portal-api
+  namespace: "{{ $.Values.global.services_namespace }}"
+roleRef:
+  kind: Role
+  name: ingress-reader-portal-api
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
+{{- end }}

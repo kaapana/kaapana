@@ -5,6 +5,9 @@ global:
     name: "certificate"
     common_name: "kaapana"
     expiration: 365
+  ca_bundle_secret:
+    name: "ca-bundle"
+    key: "ca-bundle.pem"
   namespace: "{{ .Values.global.admin_namespace }}"
   dynamicVolumes:
   - name: tls

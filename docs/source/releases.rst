@@ -3,6 +3,41 @@
 Changelog
 #########
 
+.. _release-unreleased:
+
+------------------------
+
+**************************
+Release Notes (unreleased)
+**************************
+
+---------------------------
+
+Breaking Changes
+----------------
+
+* **Ingress class** ``kaapana``: Kaapana's Traefik only serves Ingresses and IngressRoutes of the class ``kaapana``.
+  This lets Kaapana run on Kubernetes clusters that have their own ingress controller (e.g. Rancher), where neither controller may serve the other's ingresses.
+  The class is required on every platform, including microk8s, so an extension behaves the same everywhere.
+  All Kaapana charts and the examples in ``templates_and_examples`` set it already.
+  **Custom extensions** have to set it on each Ingress and IngressRoute, otherwise they are not reachable after the upgrade:
+
+  .. code-block:: yaml
+
+     # Ingress (networking.k8s.io/v1)
+     metadata:
+       annotations:
+         kubernetes.io/ingress.class: kaapana
+     ---
+     # IngressRoute (traefik.io/v1alpha1)
+     spec:
+       ingressClassName: kaapana
+
+  Ingresses use the annotation, because ``spec.ingressClassName`` of an Ingress needs a cluster-wide IngressClass object.
+  For IngressRoutes Traefik has deprecated the annotation in favour of ``spec.ingressClassName``.
+* **Traefik CRDs**: updated to Traefik v3.7, which adds ``spec.ingressClassName`` to IngressRoutes.
+  ``deploy`` now also updates the CRDs of an existing installation (except with ``RESTRICTED_RBAC``, see :ref:`existing_cluster_restricted_rbac`).
+
 .. _release-0.7.0:
 
 ------------------------

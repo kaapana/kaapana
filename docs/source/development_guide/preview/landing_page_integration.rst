@@ -190,6 +190,7 @@ The following manifests add a fictional application ``my-app`` to the
      name: my-app-ingress
      namespace: services
      annotations:
+       kubernetes.io/ingress.class: kaapana
        traefik.ingress.kubernetes.io/router.entrypoints: websecure
        traefik.ingress.kubernetes.io/router.middlewares: services-strip-prefix-my-app@kubernetescrd
        kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"

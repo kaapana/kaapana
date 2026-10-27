@@ -229,6 +229,7 @@ The Longhorn UI is accessible via ``https://<Kaapana-FQDN>/longhorn/`` after Kaa
      name: longhorn-ui-ingress
      namespace: longhorn-system
      annotations:
+       kubernetes.io/ingress.class: kaapana
        traefik.ingress.kubernetes.io/router.entrypoints: websecure
        traefik.ingress.kubernetes.io/router.middlewares: longhorn-system-strip-prefix-longhorn@kubernetescrd
        traefik.ingress.kubernetes.io/rewrite-target: /

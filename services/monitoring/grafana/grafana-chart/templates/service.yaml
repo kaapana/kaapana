@@ -38,6 +38,7 @@ metadata:
     kaapana.ai/ui.section: "system"
     kaapana.ai/ui.order: "80"
     kaapana.ai/ui.path: "/grafana/dashboards"
+    kubernetes.io/ingress.class: kaapana
 spec:
   rules:
   - host: 

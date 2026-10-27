@@ -2574,6 +2574,9 @@ function deploy_chart {
     # CRDs are cluster-scoped; with RESTRICTED_RBAC they have to be installed by the cluster administrators
     if [ "$RESTRICTED_RBAC" = "true" ]; then
         HELM_INSTALL_CMD="$HELM_INSTALL_CMD --skip-crds"
+    else
+        # Helm does not update existing CRDs
+        $HELM_EXECUTABLE show crds "$CHART_PATH" | $KUBE apply --server-side --force-conflicts -f -
     fi
 
     DEFAULT_PROXY="http://squid-proxy-service.${ADMIN_NAMESPACE}.svc.cluster.local:3128"

@@ -77,6 +77,11 @@ RUN for pkg_spec in \
 COPY files/kaapana_federated /app/kaapana_federated
 RUN python3 -m pip install /app/kaapana_federated
 
+# kaapana_client from this repository (lib/kaapana_client, build context "lib"), required by the kaapanapy shim
+# TODO: temporary, as long as no upstream commit with the namespace-derived URLs of lib/kaapana_client/settings.py can be pinned; then pin kaapana-client again
+COPY --from=lib kaapana_client /app/kaapana_client
+RUN python3 -m pip install -c /constraints.txt /app/kaapana_client
+
 # Install kaapanapy pip package
 COPY files/kaapanapy-shim /app/kaapanapy-shim
 WORKDIR /app/kaapanapy-shim

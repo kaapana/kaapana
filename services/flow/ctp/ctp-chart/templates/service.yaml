@@ -31,7 +31,8 @@ spec:
     app.kubernetes.io/name: ctp
 {{- if ne (.Values.global.dicom_port | default "11112") "0" }}
   type: NodePort
-  externalTrafficPolicy: Local
+  # Local keeps the client IP but only answers on the node running ctp; on microk8s that is the main (storage) node, so on multi-node microk8s DICOM has to be sent to it
+  externalTrafficPolicy: {{ eq (toString .Values.global.is_microk8s) "false" | ternary "Cluster" "Local" }}
   ports:
   - name: ctp-dcm-port
     port: 11112

@@ -47,6 +47,7 @@ metadata:
   name: keycloak-ingress-ip
   namespace: "{{  .Values.global.admin_namespace  }}"
   annotations:
+    kubernetes.io/ingress.class: kaapana
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
 
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"

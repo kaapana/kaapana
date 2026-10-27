@@ -43,6 +43,7 @@ metadata:
   namespace: "{{ .Values.global.services_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    kubernetes.io/ingress.class: kaapana
     traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-strip-prefix-kaapana-backend@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
@@ -67,6 +68,7 @@ metadata:
   name: kaapana-backend-project-ingressroute
   namespace: "{{ .Values.global.services_namespace }}"
 spec:
+  ingressClassName: kaapana
   entryPoints:
     - websecure
   routes:

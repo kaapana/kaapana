@@ -1,9 +1,8 @@
----
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.19.0
   name: ingressroutes.traefik.io
 spec:
   group: traefik.io
@@ -43,10 +42,34 @@ spec:
                 description: |-
                   EntryPoints defines the list of entry point names to bind to.
                   Entry points have to be configured in the static configuration.
-                  More info: https://doc.traefik.io/traefik/v3.2/routing/entrypoints/
+                  More info: https://doc.traefik.io/traefik/v3.7/reference/install-configuration/entrypoints/
                   Default: all.
                 items:
                   type: string
+                type: array
+              ingressClassName:
+                description: IngressClassName defines the name of the IngressClass
+                  cluster resource.
+                type: string
+              parentRefs:
+                description: |-
+                  ParentRefs defines references to parent IngressRoute resources for multi-layer routing.
+                  When set, this IngressRoute's routers will be children of the referenced parent IngressRoute's routers.
+                  More info: https://doc.traefik.io/traefik/v3.7/routing/routers/#parentrefs
+                items:
+                  description: IngressRouteRef is a reference to an IngressRoute resource.
+                  properties:
+                    name:
+                      description: Name defines the name of the referenced IngressRoute
+                        resource.
+                      type: string
+                    namespace:
+                      description: Namespace defines the namespace of the referenced
+                        IngressRoute resource.
+                      type: string
+                  required:
+                  - name
+                  type: object
                 type: array
               routes:
                 description: Routes defines the list of routes.
@@ -57,18 +80,19 @@ spec:
                       description: |-
                         Kind defines the kind of the route.
                         Rule is the only supported kind.
+                        If not defined, defaults to Rule.
                       enum:
                       - Rule
                       type: string
                     match:
                       description: |-
                         Match defines the router's rule.
-                        More info: https://doc.traefik.io/traefik/v3.2/routing/routers/#rule
+                        More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/routing/rules-and-priority/
                       type: string
                     middlewares:
                       description: |-
                         Middlewares defines the list of references to Middleware resources.
-                        More info: https://doc.traefik.io/traefik/v3.2/routing/providers/kubernetes-crd/#kind-middleware
+                        More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/kubernetes/crd/http/middleware/
                       items:
                         description: MiddlewareRef is a reference to a Middleware
                           resource.
@@ -85,10 +109,34 @@ spec:
                         - name
                         type: object
                       type: array
+                    observability:
+                      description: |-
+                        Observability defines the observability configuration for a router.
+                        More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/routing/observability/
+                      properties:
+                        accessLogs:
+                          description: AccessLogs enables access logs for this router.
+                          type: boolean
+                        metrics:
+                          description: Metrics enables metrics for this router.
+                          type: boolean
+                        traceVerbosity:
+                          default: minimal
+                          description: TraceVerbosity defines the verbosity level
+                            of the tracing for this router.
+                          enum:
+                          - minimal
+                          - detailed
+                          type: string
+                        tracing:
+                          description: Tracing enables tracing for this router.
+                          type: boolean
+                      type: object
                     priority:
                       description: |-
                         Priority defines the router's priority.
-                        More info: https://doc.traefik.io/traefik/v3.2/routing/routers/#priority
+                        More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/routing/rules-and-priority/#priority
+                      maximum: 9223372036854775000
                       type: integer
                     services:
                       description: |-
@@ -122,7 +170,7 @@ spec:
                                 - type: integer
                                 - type: string
                                 description: |-
-                                  Interval defines the frequency of the health check calls.
+                                  Interval defines the frequency of the health check calls for healthy targets.
                                   Default: 30s
                                 x-kubernetes-int-or-string: true
                               method:
@@ -158,6 +206,15 @@ spec:
                                   Timeout defines the maximum duration Traefik will wait for a health check request before considering the server unhealthy.
                                   Default: 5s
                                 x-kubernetes-int-or-string: true
+                              unhealthyInterval:
+                                anyOf:
+                                - type: integer
+                                - type: string
+                                description: |-
+                                  UnhealthyInterval defines the frequency of the health check calls for unhealthy targets.
+                                  When UnhealthyInterval is not defined, it defaults to the Interval value.
+                                  Default: 30s
+                                x-kubernetes-int-or-string: true
                             type: object
                           kind:
                             description: Kind defines the kind of the Service.
@@ -165,6 +222,25 @@ spec:
                             - Service
                             - TraefikService
                             type: string
+                          middlewares:
+                            description: Middlewares defines the list of references
+                              to Middleware resources to apply to the service.
+                            items:
+                              description: MiddlewareRef is a reference to a Middleware
+                                resource.
+                              properties:
+                                name:
+                                  description: Name defines the name of the referenced
+                                    Middleware resource.
+                                  type: string
+                                namespace:
+                                  description: Namespace defines the namespace of
+                                    the referenced Middleware resource.
+                                  type: string
+                              required:
+                              - name
+                              type: object
+                            type: array
                           name:
                             description: |-
                               Name defines the name of the referenced Kubernetes Service or TraefikService.
@@ -193,6 +269,25 @@ spec:
                               PassHostHeader defines whether the client Host header is forwarded to the upstream Kubernetes Service.
                               By default, passHostHeader is true.
                             type: boolean
+                          passiveHealthCheck:
+                            description: PassiveHealthCheck defines passive health
+                              checks for ExternalName services.
+                            properties:
+                              failureWindow:
+                                anyOf:
+                                - type: integer
+                                - type: string
+                                description: FailureWindow defines the time window
+                                  during which the failed attempts must occur for
+                                  the server to be marked as unhealthy. It also defines
+                                  for how long the server will be considered unhealthy.
+                                x-kubernetes-int-or-string: true
+                              maxFailedAttempts:
+                                description: MaxFailedAttempts is the number of consecutive
+                                  failed attempts allowed within the failure window
+                                  before marking the server as unhealthy.
+                                type: integer
+                            type: object
                           port:
                             anyOf:
                             - type: integer
@@ -229,11 +324,16 @@ spec:
                           sticky:
                             description: |-
                               Sticky defines the sticky sessions configuration.
-                              More info: https://doc.traefik.io/traefik/v3.2/routing/services/#sticky-sessions
+                              More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/load-balancing/service/#sticky-sessions
                             properties:
                               cookie:
                                 description: Cookie defines the sticky cookie configuration.
                                 properties:
+                                  domain:
+                                    description: |-
+                                      Domain defines the host to which the cookie will be sent.
+                                      More info: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#domaindomain-value
+                                    type: string
                                   httpOnly:
                                     description: HTTPOnly defines whether the cookie
                                       can be accessed by client-side APIs, such as
@@ -241,17 +341,30 @@ spec:
                                     type: boolean
                                   maxAge:
                                     description: |-
-                                      MaxAge indicates the number of seconds until the cookie expires.
+                                      MaxAge defines the number of seconds until the cookie expires.
                                       When set to a negative number, the cookie expires immediately.
                                       When set to zero, the cookie never expires.
                                     type: integer
                                   name:
                                     description: Name defines the Cookie name.
                                     type: string
+                                  path:
+                                    description: |-
+                                      Path defines the path that must exist in the requested URL for the browser to send the Cookie header.
+                                      When not provided the cookie will be sent on every request to the domain.
+                                      More info: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#pathpath-value
+                                    type: string
                                   sameSite:
                                     description: |-
                                       SameSite defines the same site policy.
                                       More info: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite
+                                    enum:
+                                    - none
+                                    - lax
+                                    - strict
+                                    - None
+                                    - Lax
+                                    - Strict
                                     type: string
                                   secure:
                                     description: Secure defines whether the cookie
@@ -263,12 +376,20 @@ spec:
                           strategy:
                             description: |-
                               Strategy defines the load balancing strategy between the servers.
-                              RoundRobin is the only supported value at the moment.
+                              Supported values are: wrr (Weighed round-robin), p2c (Power of two choices), hrw (Highest Random Weight), and leasttime (Least-Time).
+                              RoundRobin value is deprecated and supported for backward compatibility.
+                            enum:
+                            - wrr
+                            - p2c
+                            - hrw
+                            - leasttime
+                            - RoundRobin
                             type: string
                           weight:
                             description: |-
                               Weight defines the weight and should only be specified when Name references a TraefikService object
                               (and to be precise, one that embeds a Weighted Round Robin).
+                            minimum: 0
                             type: integer
                         required:
                         - name
@@ -277,28 +398,29 @@ spec:
                     syntax:
                       description: |-
                         Syntax defines the router's rule syntax.
-                        More info: https://doc.traefik.io/traefik/v3.2/routing/routers/#rulesyntax
+                        More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/routing/rules-and-priority/#rulesyntax
+
+                        Deprecated: Please do not use this field and rewrite the router rules to use the v3 syntax.
                       type: string
                   required:
-                  - kind
                   - match
                   type: object
                 type: array
               tls:
                 description: |-
                   TLS defines the TLS configuration.
-                  More info: https://doc.traefik.io/traefik/v3.2/routing/routers/#tls
+                  More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/routing/router/#tls
                 properties:
                   certResolver:
                     description: |-
                       CertResolver defines the name of the certificate resolver to use.
                       Cert resolvers have to be configured in the static configuration.
-                      More info: https://doc.traefik.io/traefik/v3.2/https/acme/#certificate-resolvers
+                      More info: https://doc.traefik.io/traefik/v3.7/reference/install-configuration/tls/certificate-resolvers/acme/
                     type: string
                   domains:
                     description: |-
                       Domains defines the list of domains that will be used to issue certificates.
-                      More info: https://doc.traefik.io/traefik/v3.2/routing/routers/#domains
+                      More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/tls/tls-certificates/#domains
                     items:
                       description: Domain holds a domain name with SANs.
                       properties:
@@ -317,17 +439,17 @@ spec:
                     description: |-
                       Options defines the reference to a TLSOption, that specifies the parameters of the TLS connection.
                       If not defined, the `default` TLSOption is used.
-                      More info: https://doc.traefik.io/traefik/v3.2/https/tls/#tls-options
+                      More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/tls/tls-options/
                     properties:
                       name:
                         description: |-
                           Name defines the name of the referenced TLSOption.
-                          More info: https://doc.traefik.io/traefik/v3.2/routing/providers/kubernetes-crd/#kind-tlsoption
+                          More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/kubernetes/crd/http/tlsoption/
                         type: string
                       namespace:
                         description: |-
                           Namespace defines the namespace of the referenced TLSOption.
-                          More info: https://doc.traefik.io/traefik/v3.2/routing/providers/kubernetes-crd/#kind-tlsoption
+                          More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/kubernetes/crd/http/tlsoption/
                         type: string
                     required:
                     - name
@@ -344,12 +466,12 @@ spec:
                       name:
                         description: |-
                           Name defines the name of the referenced TLSStore.
-                          More info: https://doc.traefik.io/traefik/v3.2/routing/providers/kubernetes-crd/#kind-tlsstore
+                          More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/kubernetes/crd/http/tlsstore/
                         type: string
                       namespace:
                         description: |-
                           Namespace defines the namespace of the referenced TLSStore.
-                          More info: https://doc.traefik.io/traefik/v3.2/routing/providers/kubernetes-crd/#kind-tlsstore
+                          More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/kubernetes/crd/http/tlsstore/
                         type: string
                     required:
                     - name
@@ -369,7 +491,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.19.0
   name: ingressroutetcps.traefik.io
 spec:
   group: traefik.io
@@ -409,11 +531,15 @@ spec:
                 description: |-
                   EntryPoints defines the list of entry point names to bind to.
                   Entry points have to be configured in the static configuration.
-                  More info: https://doc.traefik.io/traefik/v3.2/routing/entrypoints/
+                  More info: https://doc.traefik.io/traefik/v3.7/reference/install-configuration/entrypoints/
                   Default: all.
                 items:
                   type: string
                 type: array
+              ingressClassName:
+                description: IngressClassName defines the name of the IngressClass
+                  cluster resource.
+                type: string
               routes:
                 description: Routes defines the list of routes.
                 items:
@@ -422,7 +548,7 @@ spec:
                     match:
                       description: |-
                         Match defines the router's rule.
-                        More info: https://doc.traefik.io/traefik/v3.2/routing/routers/#rule_1
+                        More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/tcp/routing/rules-and-priority/
                       type: string
                     middlewares:
                       description: Middlewares defines the list of references to MiddlewareTCP
@@ -446,7 +572,8 @@ spec:
                     priority:
                       description: |-
                         Priority defines the router's priority.
-                        More info: https://doc.traefik.io/traefik/v3.2/routing/routers/#priority_1
+                        More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/tcp/routing/rules-and-priority/#priority
+                      maximum: 9223372036854775000
                       type: integer
                     services:
                       description: Services defines the list of TCP services.
@@ -487,11 +614,15 @@ spec:
                           proxyProtocol:
                             description: |-
                               ProxyProtocol defines the PROXY protocol configuration.
-                              More info: https://doc.traefik.io/traefik/v3.2/routing/services/#proxy-protocol
+                              More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/tcp/service/#proxy-protocol
+
+                              Deprecated: ProxyProtocol will not be supported in future APIVersions, please use ServersTransport to configure ProxyProtocol instead.
                             properties:
                               version:
                                 description: Version defines the PROXY Protocol version
                                   to use.
+                                maximum: 2
+                                minimum: 1
                                 type: integer
                             type: object
                           serversTransport:
@@ -507,6 +638,7 @@ spec:
                               hence fully terminating the connection.
                               It is a duration in milliseconds, defaulting to 100.
                               A negative value means an infinite deadline (i.e. the reading capability is never closed).
+
                               Deprecated: TerminationDelay will not be supported in future APIVersions, please use ServersTransport to configure the TerminationDelay instead.
                             type: integer
                           tls:
@@ -516,6 +648,7 @@ spec:
                           weight:
                             description: Weight defines the weight used when balancing
                               requests between multiple Kubernetes Service.
+                            minimum: 0
                             type: integer
                         required:
                         - name
@@ -525,7 +658,12 @@ spec:
                     syntax:
                       description: |-
                         Syntax defines the router's rule syntax.
-                        More info: https://doc.traefik.io/traefik/v3.2/routing/routers/#rulesyntax_1
+                        More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/tcp/routing/rules-and-priority/#rulesyntax
+
+                        Deprecated: Please do not use this field and rewrite the router rules to use the v3 syntax.
+                      enum:
+                      - v3
+                      - v2
                       type: string
                   required:
                   - match
@@ -534,18 +672,18 @@ spec:
               tls:
                 description: |-
                   TLS defines the TLS configuration on a layer 4 / TCP Route.
-                  More info: https://doc.traefik.io/traefik/v3.2/routing/routers/#tls_1
+                  More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/tcp/routing/router/#tls
                 properties:
                   certResolver:
                     description: |-
                       CertResolver defines the name of the certificate resolver to use.
                       Cert resolvers have to be configured in the static configuration.
-                      More info: https://doc.traefik.io/traefik/v3.2/https/acme/#certificate-resolvers
+                      More info: https://doc.traefik.io/traefik/v3.7/reference/install-configuration/tls/certificate-resolvers/acme/
                     type: string
                   domains:
                     description: |-
                       Domains defines the list of domains that will be used to issue certificates.
-                      More info: https://doc.traefik.io/traefik/v3.2/routing/routers/#domains
+                      More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/tcp/tls/#domains
                     items:
                       description: Domain holds a domain name with SANs.
                       properties:
@@ -564,7 +702,7 @@ spec:
                     description: |-
                       Options defines the reference to a TLSOption, that specifies the parameters of the TLS connection.
                       If not defined, the `default` TLSOption is used.
-                      More info: https://doc.traefik.io/traefik/v3.2/https/tls/#tls-options
+                      More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/tcp/tls/#tls-options
                     properties:
                       name:
                         description: Name defines the name of the referenced Traefik
@@ -616,7 +754,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.19.0
   name: ingressrouteudps.traefik.io
 spec:
   group: traefik.io
@@ -656,11 +794,15 @@ spec:
                 description: |-
                   EntryPoints defines the list of entry point names to bind to.
                   Entry points have to be configured in the static configuration.
-                  More info: https://doc.traefik.io/traefik/v3.2/routing/entrypoints/
+                  More info: https://doc.traefik.io/traefik/v3.7/reference/install-configuration/entrypoints/
                   Default: all.
                 items:
                   type: string
                 type: array
+              ingressClassName:
+                description: IngressClassName defines the name of the IngressClass
+                  cluster resource.
+                type: string
               routes:
                 description: Routes defines the list of routes.
                 items:
@@ -705,6 +847,7 @@ spec:
                           weight:
                             description: Weight defines the weight used when balancing
                               requests between multiple Kubernetes Service.
+                            minimum: 0
                             type: integer
                         required:
                         - name
@@ -727,7 +870,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.19.0
   name: middlewares.traefik.io
 spec:
   group: traefik.io
@@ -743,7 +886,7 @@ spec:
       openAPIV3Schema:
         description: |-
           Middleware is the CRD implementation of a Traefik Middleware.
-          More info: https://doc.traefik.io/traefik/v3.2/middlewares/http/overview/
+          More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/overview/
         properties:
           apiVersion:
             description: |-
@@ -769,24 +912,27 @@ spec:
                 description: |-
                   AddPrefix holds the add prefix middleware configuration.
                   This middleware updates the path of a request before forwarding it.
-                  More info: https://doc.traefik.io/traefik/v3.2/middlewares/http/addprefix/
+                  More info: https://doc.traefik.io/traefik/v3.7/middlewares/http/addprefix/
                 properties:
                   prefix:
                     description: |-
                       Prefix is the string to add before the current path in the requested URL.
                       It should include a leading slash (/).
                     type: string
+                    x-kubernetes-validations:
+                    - message: must start with a '/'
+                      rule: self.startsWith('/')
                 type: object
               basicAuth:
                 description: |-
                   BasicAuth holds the basic auth middleware configuration.
                   This middleware restricts access to your services to known users.
-                  More info: https://doc.traefik.io/traefik/v3.2/middlewares/http/basicauth/
+                  More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/basicauth/
                 properties:
                   headerField:
                     description: |-
                       HeaderField defines a header field to store the authenticated user.
-                      More info: https://doc.traefik.io/traefik/v3.2/middlewares/http/basicauth/#headerfield
+                      More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/basicauth/#headerfield
                     type: string
                   realm:
                     description: |-
@@ -807,7 +953,7 @@ spec:
                 description: |-
                   Buffering holds the buffering middleware configuration.
                   This middleware retries or limits the size of requests that can be forwarded to backends.
-                  More info: https://doc.traefik.io/traefik/v3.2/middlewares/http/buffering/#maxrequestbodybytes
+                  More info: https://doc.traefik.io/traefik/v3.7/middlewares/http/buffering/#maxrequestbodybytes
                 properties:
                   maxRequestBodyBytes:
                     description: |-
@@ -839,14 +985,14 @@ spec:
                     description: |-
                       RetryExpression defines the retry conditions.
                       It is a logical combination of functions with operators AND (&&) and OR (||).
-                      More info: https://doc.traefik.io/traefik/v3.2/middlewares/http/buffering/#retryexpression
+                      More info: https://doc.traefik.io/traefik/v3.7/middlewares/http/buffering/#retryexpression
                     type: string
                 type: object
               chain:
                 description: |-
                   Chain holds the configuration of the chain middleware.
                   This middleware enables to define reusable combinations of other pieces of middleware.
-                  More info: https://doc.traefik.io/traefik/v3.2/middlewares/http/chain/
+                  More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/chain/
                 properties:
                   middlewares:
                     description: Middlewares is the list of MiddlewareRef which composes
@@ -876,6 +1022,7 @@ spec:
                     - type: string
                     description: CheckPeriod is the interval between successive checks
                       of the circuit breaker condition (when in standby state).
+                    pattern: ^([0-9]+(ns|us|µs|ms|s|m|h)?)+$
                     x-kubernetes-int-or-string: true
                   expression:
                     description: Expression is the condition that triggers the tripped
@@ -895,17 +1042,20 @@ spec:
                     description: RecoveryDuration is the duration for which the circuit
                       breaker will try to recover (as soon as it is in recovering
                       state).
+                    pattern: ^([0-9]+(ns|us|µs|ms|s|m|h)?)+$
                     x-kubernetes-int-or-string: true
                   responseCode:
                     description: ResponseCode is the status code that the circuit
                       breaker will return while it is in the open state.
+                    maximum: 599
+                    minimum: 100
                     type: integer
                 type: object
               compress:
                 description: |-
                   Compress holds the compress middleware configuration.
                   This middleware compresses responses before sending them to the client, using gzip, brotli, or zstd compression.
-                  More info: https://doc.traefik.io/traefik/v3.2/middlewares/http/compress/
+                  More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/compress/
                 properties:
                   defaultEncoding:
                     description: DefaultEncoding specifies the default encoding if
@@ -936,6 +1086,7 @@ spec:
                     description: |-
                       MinResponseBodyBytes defines the minimum amount of bytes a response body must have to be compressed.
                       Default: 1024.
+                    minimum: 0
                     type: integer
                 type: object
               contentType:
@@ -947,6 +1098,7 @@ spec:
                     description: |-
                       AutoDetect specifies whether to let the `Content-Type` header, if it has not been set by the backend,
                       be automatically set to a value derived from the contents of the response.
+
                       Deprecated: AutoDetect option is deprecated, Content-Type middleware is only meant to be used to enable the content-type detection, please remove any usage of this option.
                     type: boolean
                 type: object
@@ -954,12 +1106,12 @@ spec:
                 description: |-
                   DigestAuth holds the digest auth middleware configuration.
                   This middleware restricts access to your services to known users.
-                  More info: https://doc.traefik.io/traefik/v3.2/middlewares/http/digestauth/
+                  More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/digestauth/
                 properties:
                   headerField:
                     description: |-
                       HeaderField defines a header field to store the authenticated user.
-                      More info: https://doc.traefik.io/traefik/v3.2/middlewares/http/basicauth/#headerfield
+                      More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/digestauth/#headerfield
                     type: string
                   realm:
                     description: |-
@@ -975,21 +1127,56 @@ spec:
                       containing user credentials.
                     type: string
                 type: object
+              encodedCharacters:
+                description: EncodedCharacters configures which encoded characters
+                  are allowed in the request path.
+                properties:
+                  allowEncodedBackSlash:
+                    description: AllowEncodedBackSlash defines whether requests with
+                      encoded back slash characters in the path are allowed.
+                    type: boolean
+                  allowEncodedHash:
+                    description: AllowEncodedHash defines whether requests with encoded
+                      hash characters in the path are allowed.
+                    type: boolean
+                  allowEncodedNullCharacter:
+                    description: AllowEncodedNullCharacter defines whether requests
+                      with encoded null characters in the path are allowed.
+                    type: boolean
+                  allowEncodedPercent:
+                    description: AllowEncodedPercent defines whether requests with
+                      encoded percent characters in the path are allowed.
+                    type: boolean
+                  allowEncodedQuestionMark:
+                    description: AllowEncodedQuestionMark defines whether requests
+                      with encoded question mark characters in the path are allowed.
+                    type: boolean
+                  allowEncodedSemicolon:
+                    description: AllowEncodedSemicolon defines whether requests with
+                      encoded semicolon characters in the path are allowed.
+                    type: boolean
+                  allowEncodedSlash:
+                    description: AllowEncodedSlash defines whether requests with encoded
+                      slash characters in the path are allowed.
+                    type: boolean
+                type: object
               errors:
                 description: |-
                   ErrorPage holds the custom error middleware configuration.
                   This middleware returns a custom page in lieu of the default, according to configured ranges of HTTP Status codes.
-                  More info: https://doc.traefik.io/traefik/v3.2/middlewares/http/errorpages/
+                  More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/errorpages/
                 properties:
                   query:
                     description: |-
                       Query defines the URL for the error page (hosted by service).
                       The {status} variable can be used in order to insert the status code in the URL.
+                      The {originalStatus} variable can be used in order to insert the upstream status code in the URL.
+                      The {url} variable can be used in order to insert the escaped request URL.
                     type: string
                   service:
                     description: |-
                       Service defines the reference to a Kubernetes Service that will serve the error page.
-                      More info: https://doc.traefik.io/traefik/v3.2/middlewares/http/errorpages/#service
+                      More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/errorpages/#service
                     properties:
                       healthCheck:
                         description: Healthcheck defines health checks for ExternalName
@@ -1015,7 +1202,7 @@ spec:
                             - type: integer
                             - type: string
                             description: |-
-                              Interval defines the frequency of the health check calls.
+                              Interval defines the frequency of the health check calls for healthy targets.
                               Default: 30s
                             x-kubernetes-int-or-string: true
                           method:
@@ -1051,6 +1238,15 @@ spec:
                               Timeout defines the maximum duration Traefik will wait for a health check request before considering the server unhealthy.
                               Default: 5s
                             x-kubernetes-int-or-string: true
+                          unhealthyInterval:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: |-
+                              UnhealthyInterval defines the frequency of the health check calls for unhealthy targets.
+                              When UnhealthyInterval is not defined, it defaults to the Interval value.
+                              Default: 30s
+                            x-kubernetes-int-or-string: true
                         type: object
                       kind:
                         description: Kind defines the kind of the Service.
@@ -1058,6 +1254,25 @@ spec:
                         - Service
                         - TraefikService
                         type: string
+                      middlewares:
+                        description: Middlewares defines the list of references to
+                          Middleware resources to apply to the service.
+                        items:
+                          description: MiddlewareRef is a reference to a Middleware
+                            resource.
+                          properties:
+                            name:
+                              description: Name defines the name of the referenced
+                                Middleware resource.
+                              type: string
+                            namespace:
+                              description: Namespace defines the namespace of the
+                                referenced Middleware resource.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
                       name:
                         description: |-
                           Name defines the name of the referenced Kubernetes Service or TraefikService.
@@ -1086,6 +1301,25 @@ spec:
                           PassHostHeader defines whether the client Host header is forwarded to the upstream Kubernetes Service.
                           By default, passHostHeader is true.
                         type: boolean
+                      passiveHealthCheck:
+                        description: PassiveHealthCheck defines passive health checks
+                          for ExternalName services.
+                        properties:
+                          failureWindow:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: FailureWindow defines the time window during
+                              which the failed attempts must occur for the server
+                              to be marked as unhealthy. It also defines for how long
+                              the server will be considered unhealthy.
+                            x-kubernetes-int-or-string: true
+                          maxFailedAttempts:
+                            description: MaxFailedAttempts is the number of consecutive
+                              failed attempts allowed within the failure window before
+                              marking the server as unhealthy.
+                            type: integer
+                        type: object
                       port:
                         anyOf:
                         - type: integer
@@ -1122,28 +1356,46 @@ spec:
                       sticky:
                         description: |-
                           Sticky defines the sticky sessions configuration.
-                          More info: https://doc.traefik.io/traefik/v3.2/routing/services/#sticky-sessions
+                          More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/load-balancing/service/#sticky-sessions
                         properties:
                           cookie:
                             description: Cookie defines the sticky cookie configuration.
                             properties:
+                              domain:
+                                description: |-
+                                  Domain defines the host to which the cookie will be sent.
+                                  More info: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#domaindomain-value
+                                type: string
                               httpOnly:
                                 description: HTTPOnly defines whether the cookie can
                                   be accessed by client-side APIs, such as JavaScript.
                                 type: boolean
                               maxAge:
                                 description: |-
-                                  MaxAge indicates the number of seconds until the cookie expires.
+                                  MaxAge defines the number of seconds until the cookie expires.
                                   When set to a negative number, the cookie expires immediately.
                                   When set to zero, the cookie never expires.
                                 type: integer
                               name:
                                 description: Name defines the Cookie name.
                                 type: string
+                              path:
+                                description: |-
+                                  Path defines the path that must exist in the requested URL for the browser to send the Cookie header.
+                                  When not provided the cookie will be sent on every request to the domain.
+                                  More info: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#pathpath-value
+                                type: string
                               sameSite:
                                 description: |-
                                   SameSite defines the same site policy.
                                   More info: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite
+                                enum:
+                                - none
+                                - lax
+                                - strict
+                                - None
+                                - Lax
+                                - Strict
                                 type: string
                               secure:
                                 description: Secure defines whether the cookie can
@@ -1155,12 +1407,20 @@ spec:
                       strategy:
                         description: |-
                           Strategy defines the load balancing strategy between the servers.
-                          RoundRobin is the only supported value at the moment.
+                          Supported values are: wrr (Weighed round-robin), p2c (Power of two choices), hrw (Highest Random Weight), and leasttime (Least-Time).
+                          RoundRobin value is deprecated and supported for backward compatibility.
+                        enum:
+                        - wrr
+                        - p2c
+                        - hrw
+                        - leasttime
+                        - RoundRobin
                         type: string
                       weight:
                         description: |-
                           Weight defines the weight and should only be specified when Name references a TraefikService object
                           (and to be precise, one that embeds a Weighted Round Robin).
+                        minimum: 0
                         type: integer
                     required:
                     - name
@@ -1173,14 +1433,22 @@ spec:
                       as ranges by separating two codes with a dash (500-599),
                       or a combination of the two (404,418,500-599).
                     items:
+                      pattern: ^([1-5][0-9]{2}[,-]?)+$
                       type: string
                     type: array
+                  statusRewrites:
+                    additionalProperties:
+                      type: integer
+                    description: |-
+                      StatusRewrites defines a mapping of status codes that should be returned instead of the original error status codes.
+                      For example: "418": 404 or "410-418": 404
+                    type: object
                 type: object
               forwardAuth:
                 description: |-
                   ForwardAuth holds the forward auth middleware configuration.
                   This middleware delegates the request authentication to a Service.
-                  More info: https://doc.traefik.io/traefik/v3.2/middlewares/http/forwardauth/
+                  More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/forwardauth/
                 properties:
                   addAuthCookiesToResponse:
                     description: AddAuthCookiesToResponse defines the list of cookies
@@ -1208,8 +1476,41 @@ spec:
                   authResponseHeadersRegex:
                     description: |-
                       AuthResponseHeadersRegex defines the regex to match headers to copy from the authentication server response and set on forwarded request, after stripping all headers that match the regex.
-                      More info: https://doc.traefik.io/traefik/v3.2/middlewares/http/forwardauth/#authresponseheadersregex
+                      More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/forwardauth/#authresponseheadersregex
                     type: string
+                  authSigninURL:
+                    description: AuthSigninURL specifies the URL to redirect to when
+                      the authentication server returns 401 Unauthorized.
+                    type: string
+                  forwardBody:
+                    description: ForwardBody defines whether to send the request body
+                      to the authentication server.
+                    type: boolean
+                  headerField:
+                    description: |-
+                      HeaderField defines a header field to store the authenticated user.
+                      More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/forwardauth/#headerfield
+                    type: string
+                  maxBodySize:
+                    description: MaxBodySize defines the maximum body size in bytes
+                      allowed to be forwarded to the authentication server.
+                    format: int64
+                    type: integer
+                  maxResponseBodySize:
+                    description: MaxResponseBodySize defines the maximum body size
+                      in bytes allowed in the response from the authentication server.
+                    format: int64
+                    type: integer
+                  preserveLocationHeader:
+                    description: PreserveLocationHeader defines whether to forward
+                      the Location header to the client as is or prefix it with the
+                      domain name of the authentication server.
+                    type: boolean
+                  preserveRequestMethod:
+                    description: PreserveRequestMethod defines whether to preserve
+                      the original request method while forwarding the request to
+                      the authentication server.
+                    type: boolean
                   tls:
                     description: TLS defines the configuration used to secure the
                       connection to the authentication server.
@@ -1234,8 +1535,10 @@ spec:
                         type: boolean
                     type: object
                   trustForwardHeader:
-                    description: 'TrustForwardHeader defines whether to trust (ie:
-                      forward) all X-Forwarded-* headers.'
+                    description: |-
+                      TrustForwardHeader defines whether to trust (ie: forward) all X-Forwarded-* headers.
+
+                      Deprecated: Use forwardedHeaders.trustedIPs at the EntryPoint level instead, and set trustForwardHeader to true on this middleware.
                     type: boolean
                 type: object
               grpcWeb:
@@ -1255,7 +1558,7 @@ spec:
                 description: |-
                   Headers holds the headers middleware configuration.
                   This middleware manages the requests and responses headers.
-                  More info: https://doc.traefik.io/traefik/v3.2/middlewares/http/headers/#customrequestheaders
+                  More info: https://doc.traefik.io/traefik/v3.7/middlewares/http/headers/#customrequestheaders
                 properties:
                   accessControlAllowCredentials:
                     description: AccessControlAllowCredentials defines whether the
@@ -1420,36 +1723,39 @@ spec:
                       STSSeconds defines the max-age of the Strict-Transport-Security header.
                       If set to 0, the header is not set.
                     format: int64
+                    minimum: 0
                     type: integer
                 type: object
               inFlightReq:
                 description: |-
                   InFlightReq holds the in-flight request middleware configuration.
                   This middleware limits the number of requests being processed and served concurrently.
-                  More info: https://doc.traefik.io/traefik/v3.2/middlewares/http/inflightreq/
+                  More info: https://doc.traefik.io/traefik/v3.7/middlewares/http/inflightreq/
                 properties:
                   amount:
                     description: |-
                       Amount defines the maximum amount of allowed simultaneous in-flight request.
                       The middleware responds with HTTP 429 Too Many Requests if there are already amount requests in progress (based on the same sourceCriterion strategy).
                     format: int64
+                    minimum: 0
                     type: integer
                   sourceCriterion:
                     description: |-
                       SourceCriterion defines what criterion is used to group requests as originating from a common source.
                       If several strategies are defined at the same time, an error will be raised.
                       If none are set, the default is to use the requestHost.
-                      More info: https://doc.traefik.io/traefik/v3.2/middlewares/http/inflightreq/#sourcecriterion
+                      More info: https://doc.traefik.io/traefik/v3.7/middlewares/http/inflightreq/#sourcecriterion
                     properties:
                       ipStrategy:
                         description: |-
                           IPStrategy holds the IP strategy configuration used by Traefik to determine the client IP.
-                          More info: https://doc.traefik.io/traefik/v3.2/middlewares/http/ipallowlist/#ipstrategy
+                          More info: https://doc.traefik.io/traefik/v3.7/middlewares/http/ipallowlist/#ipstrategy
                         properties:
                           depth:
                             description: Depth tells Traefik to use the X-Forwarded-For
                               header and take the IP located at the depth position
                               (starting from the right).
+                            minimum: 0
                             type: integer
                           excludedIPs:
                             description: ExcludedIPs configures Traefik to scan the
@@ -1479,17 +1785,18 @@ spec:
                 description: |-
                   IPAllowList holds the IP allowlist middleware configuration.
                   This middleware limits allowed requests based on the client IP.
-                  More info: https://doc.traefik.io/traefik/v3.2/middlewares/http/ipallowlist/
+                  More info: https://doc.traefik.io/traefik/v3.7/middlewares/http/ipallowlist/
                 properties:
                   ipStrategy:
                     description: |-
                       IPStrategy holds the IP strategy configuration used by Traefik to determine the client IP.
-                      More info: https://doc.traefik.io/traefik/v3.2/middlewares/http/ipallowlist/#ipstrategy
+                      More info: https://doc.traefik.io/traefik/v3.7/middlewares/http/ipallowlist/#ipstrategy
                     properties:
                       depth:
                         description: Depth tells Traefik to use the X-Forwarded-For
                           header and take the IP located at the depth position (starting
                           from the right).
+                        minimum: 0
                         type: integer
                       excludedIPs:
                         description: ExcludedIPs configures Traefik to scan the X-Forwarded-For
@@ -1521,12 +1828,13 @@ spec:
                   ipStrategy:
                     description: |-
                       IPStrategy holds the IP strategy configuration used by Traefik to determine the client IP.
-                      More info: https://doc.traefik.io/traefik/v3.2/middlewares/http/ipallowlist/#ipstrategy
+                      More info: https://doc.traefik.io/traefik/v3.7/middlewares/http/ipallowlist/#ipstrategy
                     properties:
                       depth:
                         description: Depth tells Traefik to use the X-Forwarded-For
                           header and take the IP located at the depth position (starting
                           from the right).
+                        minimum: 0
                         type: integer
                       excludedIPs:
                         description: ExcludedIPs configures Traefik to scan the X-Forwarded-For
@@ -1551,7 +1859,7 @@ spec:
                 description: |-
                   PassTLSClientCert holds the pass TLS client cert middleware configuration.
                   This middleware adds the selected data from the passed client TLS certificate to a header.
-                  More info: https://doc.traefik.io/traefik/v3.2/middlewares/http/passtlsclientcert/
+                  More info: https://doc.traefik.io/traefik/v3.7/middlewares/http/passtlsclientcert/
                 properties:
                   info:
                     description: Info selects the specific client certificate details
@@ -1654,13 +1962,13 @@ spec:
                   x-kubernetes-preserve-unknown-fields: true
                 description: |-
                   Plugin defines the middleware plugin configuration.
-                  More info: https://doc.traefik.io/traefik/plugins/
+                  More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/overview/#community-middlewares
                 type: object
               rateLimit:
                 description: |-
                   RateLimit holds the rate limit configuration.
                   This middleware ensures that services will receive a fair amount of requests, and allows one to define what fair is.
-                  More info: https://doc.traefik.io/traefik/v3.2/middlewares/http/ratelimit/
+                  More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/ratelimit/
                 properties:
                   average:
                     description: |-
@@ -1669,12 +1977,14 @@ spec:
                       The rate is actually defined by dividing Average by Period. So for a rate below 1req/s,
                       one needs to define a Period larger than a second.
                     format: int64
+                    minimum: 0
                     type: integer
                   burst:
                     description: |-
                       Burst is the maximum number of requests allowed to arrive in the same arbitrarily small period of time.
                       It defaults to 1.
                     format: int64
+                    minimum: 0
                     type: integer
                   period:
                     anyOf:
@@ -1684,6 +1994,90 @@ spec:
                       Period, in combination with Average, defines the actual maximum rate, such as:
                       r = Average / Period. It defaults to a second.
                     x-kubernetes-int-or-string: true
+                  redis:
+                    description: Redis hold the configs of Redis as bucket in rate
+                      limiter.
+                    properties:
+                      db:
+                        description: DB defines the Redis database that will be selected
+                          after connecting to the server.
+                        type: integer
+                      dialTimeout:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        description: |-
+                          DialTimeout sets the timeout for establishing new connections.
+                          Default value is 5 seconds.
+                        pattern: ^([0-9]+(ns|us|µs|ms|s|m|h)?)+$
+                        x-kubernetes-int-or-string: true
+                      endpoints:
+                        description: |-
+                          Endpoints contains either a single address or a seed list of host:port addresses.
+                          Default value is ["localhost:6379"].
+                        items:
+                          type: string
+                        type: array
+                      maxActiveConns:
+                        description: |-
+                          MaxActiveConns defines the maximum number of connections allocated by the pool at a given time.
+                          Default value is 0, meaning there is no limit.
+                        type: integer
+                      minIdleConns:
+                        description: |-
+                          MinIdleConns defines the minimum number of idle connections.
+                          Default value is 0, and idle connections are not closed by default.
+                        type: integer
+                      poolSize:
+                        description: |-
+                          PoolSize defines the initial number of socket connections.
+                          If the pool runs out of available connections, additional ones will be created beyond PoolSize.
+                          This can be limited using MaxActiveConns.
+                          // Default value is 0, meaning 10 connections per every available CPU as reported by runtime.GOMAXPROCS.
+                        type: integer
+                      readTimeout:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        description: |-
+                          ReadTimeout defines the timeout for socket read operations.
+                          Default value is 3 seconds.
+                        pattern: ^([0-9]+(ns|us|µs|ms|s|m|h)?)+$
+                        x-kubernetes-int-or-string: true
+                      secret:
+                        description: Secret defines the name of the referenced Kubernetes
+                          Secret containing Redis credentials.
+                        type: string
+                      tls:
+                        description: |-
+                          TLS defines TLS-specific configurations, including the CA, certificate, and key,
+                          which can be provided as a file path or file content.
+                        properties:
+                          caSecret:
+                            description: |-
+                              CASecret is the name of the referenced Kubernetes Secret containing the CA to validate the server certificate.
+                              The CA certificate is extracted from key `tls.ca` or `ca.crt`.
+                            type: string
+                          certSecret:
+                            description: |-
+                              CertSecret is the name of the referenced Kubernetes Secret containing the client certificate.
+                              The client certificate is extracted from the keys `tls.crt` and `tls.key`.
+                            type: string
+                          insecureSkipVerify:
+                            description: InsecureSkipVerify defines whether the server
+                              certificates should be validated.
+                            type: boolean
+                        type: object
+                      writeTimeout:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        description: |-
+                          WriteTimeout defines the timeout for socket write operations.
+                          Default value is 3 seconds.
+                        pattern: ^([0-9]+(ns|us|µs|ms|s|m|h)?)+$
+                        x-kubernetes-int-or-string: true
+                    type: object
                   sourceCriterion:
                     description: |-
                       SourceCriterion defines what criterion is used to group requests as originating from a common source.
@@ -1693,12 +2087,13 @@ spec:
                       ipStrategy:
                         description: |-
                           IPStrategy holds the IP strategy configuration used by Traefik to determine the client IP.
-                          More info: https://doc.traefik.io/traefik/v3.2/middlewares/http/ipallowlist/#ipstrategy
+                          More info: https://doc.traefik.io/traefik/v3.7/middlewares/http/ipallowlist/#ipstrategy
                         properties:
                           depth:
                             description: Depth tells Traefik to use the X-Forwarded-For
                               header and take the IP located at the depth position
                               (starting from the right).
+                            minimum: 0
                             type: integer
                           excludedIPs:
                             description: ExcludedIPs configures Traefik to scan the
@@ -1728,11 +2123,11 @@ spec:
                 description: |-
                   RedirectRegex holds the redirect regex middleware configuration.
                   This middleware redirects a request using regex matching and replacement.
-                  More info: https://doc.traefik.io/traefik/v3.2/middlewares/http/redirectregex/#regex
+                  More info: https://doc.traefik.io/traefik/v3.7/middlewares/http/redirectregex/#regex
                 properties:
                   permanent:
                     description: Permanent defines whether the redirection is permanent
-                      (301).
+                      (308).
                     type: boolean
                   regex:
                     description: Regex defines the regex used to match and capture
@@ -1747,11 +2142,12 @@ spec:
                 description: |-
                   RedirectScheme holds the redirect scheme middleware configuration.
                   This middleware redirects requests from a scheme/port to another.
-                  More info: https://doc.traefik.io/traefik/v3.2/middlewares/http/redirectscheme/
+                  More info: https://doc.traefik.io/traefik/v3.7/middlewares/http/redirectscheme/
                 properties:
                   permanent:
-                    description: Permanent defines whether the redirection is permanent
-                      (301).
+                    description: |-
+                      Permanent defines whether the redirection is permanent.
+                      For HTTP GET requests a 301 is returned, otherwise a 308 is returned.
                     type: boolean
                   port:
                     description: Port defines the port of the new URL.
@@ -1764,7 +2160,7 @@ spec:
                 description: |-
                   ReplacePath holds the replace path middleware configuration.
                   This middleware replaces the path of the request URL and store the original path in an X-Replaced-Path header.
-                  More info: https://doc.traefik.io/traefik/v3.2/middlewares/http/replacepath/
+                  More info: https://doc.traefik.io/traefik/v3.7/middlewares/http/replacepath/
                 properties:
                   path:
                     description: Path defines the path to use as replacement in the
@@ -1775,7 +2171,7 @@ spec:
                 description: |-
                   ReplacePathRegex holds the replace path regex middleware configuration.
                   This middleware replaces the path of a URL using regex matching and replacement.
-                  More info: https://doc.traefik.io/traefik/v3.2/middlewares/http/replacepathregex/
+                  More info: https://doc.traefik.io/traefik/v3.7/middlewares/http/replacepathregex/
                 properties:
                   regex:
                     description: Regex defines the regular expression used to match
@@ -1791,12 +2187,18 @@ spec:
                   Retry holds the retry middleware configuration.
                   This middleware reissues requests a given number of times to a backend server if that server does not reply.
                   As soon as the server answers, the middleware stops retrying, regardless of the response status.
-                  More info: https://doc.traefik.io/traefik/v3.2/middlewares/http/retry/
+                  More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/retry/
                 properties:
                   attempts:
                     description: Attempts defines how many times the request should
                       be retried.
+                    minimum: 0
                     type: integer
+                  disableRetryOnNetworkError:
+                    description: DisableRetryOnNetworkError defines whether to disable
+                      the retry if an error occurs when transmitting the request to
+                      the server.
+                    type: boolean
                   initialInterval:
                     anyOf:
                     - type: integer
@@ -1807,13 +2209,42 @@ spec:
                       If unspecified, requests will be retried immediately.
                       The value of initialInterval should be provided in seconds or as a valid duration format,
                       see https://pkg.go.dev/time#ParseDuration.
+                    pattern: ^([0-9]+(ns|us|µs|ms|s|m|h)?)+$
+                    x-kubernetes-int-or-string: true
+                  maxRequestBodyBytes:
+                    description: |-
+                      MaxRequestBodyBytes defines the maximum size for the request body.
+                      Default is `-1`, which means no limit.
+                    format: int64
+                    minimum: -1
+                    type: integer
+                  retryNonIdempotentMethod:
+                    description: RetryNonIdempotentMethod activates the retry for
+                      non-idempotent methods (POST, LOCK, PATCH)
+                    type: boolean
+                  status:
+                    description: Status defines the range of HTTP status codes to
+                      retry on.
+                    items:
+                      pattern: ^([1-5][0-9]{2}[,-]?)+$
+                      type: string
+                    type: array
+                  timeout:
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    description: |-
+                      Timeout defines how much time the middleware is allowed to retry the request.
+                      The value of timeout should be provided in seconds or as a valid duration format,
+                      see https://pkg.go.dev/time#ParseDuration.
+                    pattern: ^([0-9]+(ns|us|µs|ms|s|m|h)?)+$
                     x-kubernetes-int-or-string: true
                 type: object
               stripPrefix:
                 description: |-
                   StripPrefix holds the strip prefix middleware configuration.
                   This middleware removes the specified prefixes from the URL path.
-                  More info: https://doc.traefik.io/traefik/v3.2/middlewares/http/stripprefix/
+                  More info: https://doc.traefik.io/traefik/v3.7/middlewares/http/stripprefix/
                 properties:
                   forceSlash:
                     description: |-
@@ -1832,7 +2263,7 @@ spec:
                 description: |-
                   StripPrefixRegex holds the strip prefix regex middleware configuration.
                   This middleware removes the matching prefixes from the URL path.
-                  More info: https://doc.traefik.io/traefik/v3.2/middlewares/http/stripprefixregex/
+                  More info: https://doc.traefik.io/traefik/v3.7/middlewares/http/stripprefixregex/
                 properties:
                   regex:
                     description: Regex defines the regular expression to match the
@@ -1853,7 +2284,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.19.0
   name: middlewaretcps.traefik.io
 spec:
   group: traefik.io
@@ -1869,7 +2300,7 @@ spec:
       openAPIV3Schema:
         description: |-
           MiddlewareTCP is the CRD implementation of a Traefik TCP middleware.
-          More info: https://doc.traefik.io/traefik/v3.2/middlewares/overview/
+          More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/tcp/middlewares/overview/
         properties:
           apiVersion:
             description: |-
@@ -1899,13 +2330,14 @@ spec:
                       Amount defines the maximum amount of allowed simultaneous connections.
                       The middleware closes the connection if there are already amount connections opened.
                     format: int64
+                    minimum: 0
                     type: integer
                 type: object
               ipAllowList:
                 description: |-
                   IPAllowList defines the IPAllowList middleware configuration.
                   This middleware accepts/refuses connections based on the client IP.
-                  More info: https://doc.traefik.io/traefik/v3.2/middlewares/tcp/ipallowlist/
+                  More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/tcp/middlewares/ipallowlist/
                 properties:
                   sourceRange:
                     description: SourceRange defines the allowed IPs (or ranges of
@@ -1918,8 +2350,9 @@ spec:
                 description: |-
                   IPWhiteList defines the IPWhiteList middleware configuration.
                   This middleware accepts/refuses connections based on the client IP.
+                  More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/tcp/middlewares/ipwhitelist/
+
                   Deprecated: please use IPAllowList instead.
-                  More info: https://doc.traefik.io/traefik/v3.2/middlewares/tcp/ipwhitelist/
                 properties:
                   sourceRange:
                     description: SourceRange defines the allowed IPs (or ranges of
@@ -1940,7 +2373,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.19.0
   name: serverstransports.traefik.io
 spec:
   group: traefik.io
@@ -1958,7 +2391,7 @@ spec:
           ServersTransport is the CRD implementation of a ServersTransport.
           If no serversTransport is specified, the default@internal will be used.
           The default@internal serversTransport is created from the static configuration.
-          More info: https://doc.traefik.io/traefik/v3.2/routing/services/#serverstransport_1
+          More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/load-balancing/serverstransport/
         properties:
           apiVersion:
             description: |-
@@ -1986,6 +2419,12 @@ spec:
                 items:
                   type: string
                 type: array
+              cipherSuites:
+                description: CipherSuites defines the cipher suites to use when contacting
+                  backend servers.
+                items:
+                  type: string
+                type: array
               disableHTTP2:
                 description: DisableHTTP2 disables HTTP/2 for connections with backend
                   servers.
@@ -2000,6 +2439,7 @@ spec:
                     - type: string
                     description: DialTimeout is the amount of time to wait until a
                       connection to a backend server can be established.
+                    pattern: ^([0-9]+(ns|us|µs|ms|s|m|h)?)+$
                     x-kubernetes-int-or-string: true
                   idleConnTimeout:
                     anyOf:
@@ -2008,6 +2448,7 @@ spec:
                     description: IdleConnTimeout is the maximum period for which an
                       idle HTTP keep-alive connection will remain open before closing
                       itself.
+                    pattern: ^([0-9]+(ns|us|µs|ms|s|m|h)?)+$
                     x-kubernetes-int-or-string: true
                   pingTimeout:
                     anyOf:
@@ -2015,6 +2456,7 @@ spec:
                     - type: string
                     description: PingTimeout is the timeout after which the HTTP/2
                       connection will be closed if a response to ping is not received.
+                    pattern: ^([0-9]+(ns|us|µs|ms|s|m|h)?)+$
                     x-kubernetes-int-or-string: true
                   readIdleTimeout:
                     anyOf:
@@ -2023,6 +2465,7 @@ spec:
                     description: ReadIdleTimeout is the timeout after which a health
                       check using ping frame will be carried out if no frame is received
                       on the HTTP/2 connection.
+                    pattern: ^([0-9]+(ns|us|µs|ms|s|m|h)?)+$
                     x-kubernetes-int-or-string: true
                   responseHeaderTimeout:
                     anyOf:
@@ -2031,6 +2474,7 @@ spec:
                     description: ResponseHeaderTimeout is the amount of time to wait
                       for a server's response headers after fully writing the request
                       (including its body, if any).
+                    pattern: ^([0-9]+(ns|us|µs|ms|s|m|h)?)+$
                     x-kubernetes-int-or-string: true
                 type: object
               insecureSkipVerify:
@@ -2039,14 +2483,48 @@ spec:
               maxIdleConnsPerHost:
                 description: MaxIdleConnsPerHost controls the maximum idle (keep-alive)
                   to keep per-host.
+                minimum: -1
                 type: integer
+              maxVersion:
+                description: MaxVersion defines the maximum TLS version to use when
+                  contacting backend servers.
+                type: string
+              minVersion:
+                description: MinVersion defines the minimum TLS version to use when
+                  contacting backend servers.
+                type: string
               peerCertURI:
                 description: PeerCertURI defines the peer cert URI used to match against
                   SAN URI during the peer certificate verification.
                 type: string
+              rootCAs:
+                description: RootCAs defines a list of CA certificate Secrets or ConfigMaps
+                  used to validate server certificates.
+                items:
+                  description: |-
+                    RootCA defines a reference to a Secret or a ConfigMap that holds a CA certificate.
+                    If both a Secret and a ConfigMap reference are defined, the Secret reference takes precedence.
+                  properties:
+                    configMap:
+                      description: |-
+                        ConfigMap defines the name of a ConfigMap that holds a CA certificate.
+                        The referenced ConfigMap must contain a certificate under either a tls.ca or a ca.crt key.
+                      type: string
+                    secret:
+                      description: |-
+                        Secret defines the name of a Secret that holds a CA certificate.
+                        The referenced Secret must contain a certificate under either a tls.ca or a ca.crt key.
+                      type: string
+                  type: object
+                  x-kubernetes-validations:
+                  - message: RootCA cannot have both Secret and ConfigMap defined.
+                    rule: '!has(self.secret) || !has(self.configMap)'
+                type: array
               rootCAsSecrets:
-                description: RootCAsSecrets defines a list of CA secret used to validate
-                  self-signed certificate.
+                description: |-
+                  RootCAsSecrets defines a list of CA secret used to validate self-signed certificate.
+
+                  Deprecated: RootCAsSecrets is deprecated, please use the RootCAs option instead.
                 items:
                   type: string
                 type: array
@@ -2079,7 +2557,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.19.0
   name: serverstransporttcps.traefik.io
 spec:
   group: traefik.io
@@ -2097,7 +2575,7 @@ spec:
           ServersTransportTCP is the CRD implementation of a TCPServersTransport.
           If no tcpServersTransport is specified, a default one named default@internal will be used.
           The default@internal tcpServersTransport can be configured in the static configuration.
-          More info: https://doc.traefik.io/traefik/v3.2/routing/services/#serverstransport_3
+          More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/tcp/serverstransport/
         properties:
           apiVersion:
             description: |-
@@ -2129,6 +2607,7 @@ spec:
                   the protocol and operating system. Network protocols or operating
                   systems that do not support keep-alives ignore this field. If negative,
                   keep-alive probes are disabled.
+                pattern: ^([0-9]+(ns|us|µs|ms|s|m|h)?)+$
                 x-kubernetes-int-or-string: true
               dialTimeout:
                 anyOf:
@@ -2136,7 +2615,17 @@ spec:
                 - type: string
                 description: DialTimeout is the amount of time to wait until a connection
                   to a backend server can be established.
+                pattern: ^([0-9]+(ns|us|µs|ms|s|m|h)?)+$
                 x-kubernetes-int-or-string: true
+              proxyProtocol:
+                description: ProxyProtocol holds the PROXY Protocol configuration.
+                properties:
+                  version:
+                    description: Version defines the PROXY Protocol version to use.
+                    maximum: 2
+                    minimum: 1
+                    type: integer
+                type: object
               terminationDelay:
                 anyOf:
                 - type: integer
@@ -2144,6 +2633,7 @@ spec:
                 description: TerminationDelay defines the delay to wait before fully
                   terminating the connection, after one connected peer has closed
                   its writing capability.
+                pattern: ^([0-9]+(ns|us|µs|ms|s|m|h)?)+$
                 x-kubernetes-int-or-string: true
               tls:
                 description: TLS defines the TLS configuration
@@ -2162,9 +2652,34 @@ spec:
                       MaxIdleConnsPerHost controls the maximum idle (keep-alive) to keep per-host.
                       PeerCertURI defines the peer cert URI used to match against SAN URI during the peer certificate verification.
                     type: string
+                  rootCAs:
+                    description: RootCAs defines a list of CA certificate Secrets
+                      or ConfigMaps used to validate server certificates.
+                    items:
+                      description: |-
+                        RootCA defines a reference to a Secret or a ConfigMap that holds a CA certificate.
+                        If both a Secret and a ConfigMap reference are defined, the Secret reference takes precedence.
+                      properties:
+                        configMap:
+                          description: |-
+                            ConfigMap defines the name of a ConfigMap that holds a CA certificate.
+                            The referenced ConfigMap must contain a certificate under either a tls.ca or a ca.crt key.
+                          type: string
+                        secret:
+                          description: |-
+                            Secret defines the name of a Secret that holds a CA certificate.
+                            The referenced Secret must contain a certificate under either a tls.ca or a ca.crt key.
+                          type: string
+                      type: object
+                      x-kubernetes-validations:
+                      - message: RootCA cannot have both Secret and ConfigMap defined.
+                        rule: '!has(self.secret) || !has(self.configMap)'
+                    type: array
                   rootCAsSecrets:
-                    description: RootCAsSecrets defines a list of CA secret used to
-                      validate self-signed certificates.
+                    description: |-
+                      RootCAsSecrets defines a list of CA secret used to validate self-signed certificate.
+
+                      Deprecated: RootCAsSecrets is deprecated, please use the RootCAs option instead.
                     items:
                       type: string
                     type: array
@@ -2199,7 +2714,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.19.0
   name: tlsoptions.traefik.io
 spec:
   group: traefik.io
@@ -2215,7 +2730,7 @@ spec:
       openAPIV3Schema:
         description: |-
           TLSOption is the CRD implementation of a Traefik TLS Option, allowing to configure some parameters of the TLS connection.
-          More info: https://doc.traefik.io/traefik/v3.2/https/tls/#tls-options
+          More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/tls/tls-certificates/#certificates-stores#tls-options
         properties:
           apiVersion:
             description: |-
@@ -2240,14 +2755,14 @@ spec:
               alpnProtocols:
                 description: |-
                   ALPNProtocols defines the list of supported application level protocols for the TLS handshake, in order of preference.
-                  More info: https://doc.traefik.io/traefik/v3.2/https/tls/#alpn-protocols
+                  More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/tls/tls-certificates/#certificates-stores#alpn-protocols
                 items:
                   type: string
                 type: array
               cipherSuites:
                 description: |-
                   CipherSuites defines the list of supported cipher suites for TLS versions up to TLS 1.2.
-                  More info: https://doc.traefik.io/traefik/v3.2/https/tls/#cipher-suites
+                  More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/tls/tls-certificates/#certificates-stores#cipher-suites
                 items:
                   type: string
                 type: array
@@ -2274,11 +2789,15 @@ spec:
                 type: object
               curvePreferences:
                 description: |-
-                  CurvePreferences defines the preferred elliptic curves in a specific order.
-                  More info: https://doc.traefik.io/traefik/v3.2/https/tls/#curve-preferences
+                  CurvePreferences defines the preferred elliptic curves.
+                  More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/tls/tls-certificates/#certificates-stores#curve-preferences
                 items:
                   type: string
                 type: array
+              disableSessionTickets:
+                description: DisableSessionTickets disables TLS session resumption
+                  via session tickets.
+                type: boolean
               maxVersion:
                 description: |-
                   MaxVersion defines the maximum TLS version that Traefik will accept.
@@ -2295,6 +2814,7 @@ spec:
                 description: |-
                   PreferServerCipherSuites defines whether the server chooses a cipher suite among his own instead of among the client's.
                   It is enabled automatically when minVersion or maxVersion is set.
+
                   Deprecated: https://github.com/golang/go/issues/45430
                 type: boolean
               sniStrict:
@@ -2313,7 +2833,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.19.0
   name: tlsstores.traefik.io
 spec:
   group: traefik.io
@@ -2331,7 +2851,7 @@ spec:
           TLSStore is the CRD implementation of a Traefik TLS Store.
           For the time being, only the TLSStore named default is supported.
           This means that you cannot have two stores that are named default in different Kubernetes namespaces.
-          More info: https://doc.traefik.io/traefik/v3.2/https/tls/#certificates-stores
+          More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/tls/tls-certificates/#certificates-stores#certificates-stores
         properties:
           apiVersion:
             description: |-
@@ -2410,7 +2930,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.19.0
   name: traefikservices.traefik.io
 spec:
   group: traefik.io
@@ -2429,7 +2949,7 @@ spec:
           TraefikService object allows to:
           - Apply weight to Services on load-balancing
           - Mirror traffic on services
-          More info: https://doc.traefik.io/traefik/v3.2/routing/providers/kubernetes-crd/#kind-traefikservice
+          More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/kubernetes/crd/http/traefikservice/
         properties:
           apiVersion:
             description: |-
@@ -2451,93 +2971,542 @@ spec:
           spec:
             description: TraefikServiceSpec defines the desired state of a TraefikService.
             properties:
-              mirroring:
-                description: Mirroring defines the Mirroring service configuration.
+              failover:
+                description: Failover defines the Failover service configuration.
                 properties:
-                  healthCheck:
-                    description: Healthcheck defines health checks for ExternalName
-                      services.
+                  errors:
+                    description: Errors defines which errors should trigger the use
+                      of the fallback service.
                     properties:
-                      followRedirects:
+                      maxRequestBodyBytes:
                         description: |-
-                          FollowRedirects defines whether redirects should be followed during the health check calls.
-                          Default: true
-                        type: boolean
-                      headers:
-                        additionalProperties:
-                          type: string
-                        description: Headers defines custom headers to be sent to
-                          the health check endpoint.
-                        type: object
-                      hostname:
-                        description: Hostname defines the value of hostname in the
-                          Host header of the health check request.
-                        type: string
-                      interval:
-                        anyOf:
-                        - type: integer
-                        - type: string
-                        description: |-
-                          Interval defines the frequency of the health check calls.
-                          Default: 30s
-                        x-kubernetes-int-or-string: true
-                      method:
-                        description: Method defines the healthcheck method.
-                        type: string
-                      mode:
-                        description: |-
-                          Mode defines the health check mode.
-                          If defined to grpc, will use the gRPC health check protocol to probe the server.
-                          Default: http
-                        type: string
-                      path:
-                        description: Path defines the server URL path for the health
-                          check endpoint.
-                        type: string
-                      port:
-                        description: Port defines the server URL port for the health
-                          check endpoint.
+                          MaxRequestBodyBytes defines the maximum size allowed for the body of the request.
+                          Default value is -1, which means unlimited size.
+                        format: int64
                         type: integer
-                      scheme:
-                        description: Scheme replaces the server URL scheme for the
-                          health check endpoint.
-                        type: string
                       status:
-                        description: Status defines the expected HTTP status code
-                          of the response to the health check request.
-                        type: integer
-                      timeout:
+                        description: Status defines the list of status code ranges
+                          for which the fallback service should be used.
+                        items:
+                          type: string
+                        type: array
+                    type: object
+                  fallback:
+                    description: Fallback defines the fallback service to use when
+                      the main service returns an error.
+                    properties:
+                      healthCheck:
+                        description: Healthcheck defines health checks for ExternalName
+                          services.
+                        properties:
+                          followRedirects:
+                            description: |-
+                              FollowRedirects defines whether redirects should be followed during the health check calls.
+                              Default: true
+                            type: boolean
+                          headers:
+                            additionalProperties:
+                              type: string
+                            description: Headers defines custom headers to be sent
+                              to the health check endpoint.
+                            type: object
+                          hostname:
+                            description: Hostname defines the value of hostname in
+                              the Host header of the health check request.
+                            type: string
+                          interval:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: |-
+                              Interval defines the frequency of the health check calls for healthy targets.
+                              Default: 30s
+                            x-kubernetes-int-or-string: true
+                          method:
+                            description: Method defines the healthcheck method.
+                            type: string
+                          mode:
+                            description: |-
+                              Mode defines the health check mode.
+                              If defined to grpc, will use the gRPC health check protocol to probe the server.
+                              Default: http
+                            type: string
+                          path:
+                            description: Path defines the server URL path for the
+                              health check endpoint.
+                            type: string
+                          port:
+                            description: Port defines the server URL port for the
+                              health check endpoint.
+                            type: integer
+                          scheme:
+                            description: Scheme replaces the server URL scheme for
+                              the health check endpoint.
+                            type: string
+                          status:
+                            description: Status defines the expected HTTP status code
+                              of the response to the health check request.
+                            type: integer
+                          timeout:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: |-
+                              Timeout defines the maximum duration Traefik will wait for a health check request before considering the server unhealthy.
+                              Default: 5s
+                            x-kubernetes-int-or-string: true
+                          unhealthyInterval:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: |-
+                              UnhealthyInterval defines the frequency of the health check calls for unhealthy targets.
+                              When UnhealthyInterval is not defined, it defaults to the Interval value.
+                              Default: 30s
+                            x-kubernetes-int-or-string: true
+                        type: object
+                      kind:
+                        description: Kind defines the kind of the Service.
+                        enum:
+                        - Service
+                        - TraefikService
+                        type: string
+                      middlewares:
+                        description: Middlewares defines the list of references to
+                          Middleware resources to apply to the service.
+                        items:
+                          description: MiddlewareRef is a reference to a Middleware
+                            resource.
+                          properties:
+                            name:
+                              description: Name defines the name of the referenced
+                                Middleware resource.
+                              type: string
+                            namespace:
+                              description: Namespace defines the namespace of the
+                                referenced Middleware resource.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
+                      name:
+                        description: |-
+                          Name defines the name of the referenced Kubernetes Service or TraefikService.
+                          The differentiation between the two is specified in the Kind field.
+                        type: string
+                      namespace:
+                        description: Namespace defines the namespace of the referenced
+                          Kubernetes Service or TraefikService.
+                        type: string
+                      nativeLB:
+                        description: |-
+                          NativeLB controls, when creating the load-balancer,
+                          whether the LB's children are directly the pods IPs or if the only child is the Kubernetes Service clusterIP.
+                          The Kubernetes Service itself does load-balance to the pods.
+                          By default, NativeLB is false.
+                        type: boolean
+                      nodePortLB:
+                        description: |-
+                          NodePortLB controls, when creating the load-balancer,
+                          whether the LB's children are directly the nodes internal IPs using the nodePort when the service type is NodePort.
+                          It allows services to be reachable when Traefik runs externally from the Kubernetes cluster but within the same network of the nodes.
+                          By default, NodePortLB is false.
+                        type: boolean
+                      passHostHeader:
+                        description: |-
+                          PassHostHeader defines whether the client Host header is forwarded to the upstream Kubernetes Service.
+                          By default, passHostHeader is true.
+                        type: boolean
+                      passiveHealthCheck:
+                        description: PassiveHealthCheck defines passive health checks
+                          for ExternalName services.
+                        properties:
+                          failureWindow:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: FailureWindow defines the time window during
+                              which the failed attempts must occur for the server
+                              to be marked as unhealthy. It also defines for how long
+                              the server will be considered unhealthy.
+                            x-kubernetes-int-or-string: true
+                          maxFailedAttempts:
+                            description: MaxFailedAttempts is the number of consecutive
+                              failed attempts allowed within the failure window before
+                              marking the server as unhealthy.
+                            type: integer
+                        type: object
+                      port:
                         anyOf:
                         - type: integer
                         - type: string
                         description: |-
-                          Timeout defines the maximum duration Traefik will wait for a health check request before considering the server unhealthy.
-                          Default: 5s
+                          Port defines the port of a Kubernetes Service.
+                          This can be a reference to a named port.
                         x-kubernetes-int-or-string: true
+                      responseForwarding:
+                        description: ResponseForwarding defines how Traefik forwards
+                          the response from the upstream Kubernetes Service to the
+                          client.
+                        properties:
+                          flushInterval:
+                            description: |-
+                              FlushInterval defines the interval, in milliseconds, in between flushes to the client while copying the response body.
+                              A negative value means to flush immediately after each write to the client.
+                              This configuration is ignored when ReverseProxy recognizes a response as a streaming response;
+                              for such responses, writes are flushed to the client immediately.
+                              Default: 100ms
+                            type: string
+                        type: object
+                      scheme:
+                        description: |-
+                          Scheme defines the scheme to use for the request to the upstream Kubernetes Service.
+                          It defaults to https when Kubernetes Service port is 443, http otherwise.
+                        type: string
+                      serversTransport:
+                        description: |-
+                          ServersTransport defines the name of ServersTransport resource to use.
+                          It allows to configure the transport between Traefik and your servers.
+                          Can only be used on a Kubernetes Service.
+                        type: string
+                      sticky:
+                        description: |-
+                          Sticky defines the sticky sessions configuration.
+                          More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/load-balancing/service/#sticky-sessions
+                        properties:
+                          cookie:
+                            description: Cookie defines the sticky cookie configuration.
+                            properties:
+                              domain:
+                                description: |-
+                                  Domain defines the host to which the cookie will be sent.
+                                  More info: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#domaindomain-value
+                                type: string
+                              httpOnly:
+                                description: HTTPOnly defines whether the cookie can
+                                  be accessed by client-side APIs, such as JavaScript.
+                                type: boolean
+                              maxAge:
+                                description: |-
+                                  MaxAge defines the number of seconds until the cookie expires.
+                                  When set to a negative number, the cookie expires immediately.
+                                  When set to zero, the cookie never expires.
+                                type: integer
+                              name:
+                                description: Name defines the Cookie name.
+                                type: string
+                              path:
+                                description: |-
+                                  Path defines the path that must exist in the requested URL for the browser to send the Cookie header.
+                                  When not provided the cookie will be sent on every request to the domain.
+                                  More info: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#pathpath-value
+                                type: string
+                              sameSite:
+                                description: |-
+                                  SameSite defines the same site policy.
+                                  More info: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite
+                                enum:
+                                - none
+                                - lax
+                                - strict
+                                - None
+                                - Lax
+                                - Strict
+                                type: string
+                              secure:
+                                description: Secure defines whether the cookie can
+                                  only be transmitted over an encrypted connection
+                                  (i.e. HTTPS).
+                                type: boolean
+                            type: object
+                        type: object
+                      strategy:
+                        description: |-
+                          Strategy defines the load balancing strategy between the servers.
+                          Supported values are: wrr (Weighed round-robin), p2c (Power of two choices), hrw (Highest Random Weight), and leasttime (Least-Time).
+                          RoundRobin value is deprecated and supported for backward compatibility.
+                        enum:
+                        - wrr
+                        - p2c
+                        - hrw
+                        - leasttime
+                        - RoundRobin
+                        type: string
+                      weight:
+                        description: |-
+                          Weight defines the weight and should only be specified when Name references a TraefikService object
+                          (and to be precise, one that embeds a Weighted Round Robin).
+                        minimum: 0
+                        type: integer
+                    required:
+                    - name
                     type: object
-                  kind:
-                    description: Kind defines the kind of the Service.
-                    enum:
-                    - Service
-                    - TraefikService
-                    type: string
-                  maxBodySize:
-                    description: |-
-                      MaxBodySize defines the maximum size allowed for the body of the request.
-                      If the body is larger, the request is not mirrored.
-                      Default value is -1, which means unlimited size.
-                    format: int64
-                    type: integer
-                  mirrorBody:
-                    description: |-
-                      MirrorBody defines whether the body of the request should be mirrored.
-                      Default value is true.
-                    type: boolean
-                  mirrors:
-                    description: Mirrors defines the list of mirrors where Traefik
-                      will duplicate the traffic.
+                  service:
+                    description: Service defines the main service to use.
+                    properties:
+                      healthCheck:
+                        description: Healthcheck defines health checks for ExternalName
+                          services.
+                        properties:
+                          followRedirects:
+                            description: |-
+                              FollowRedirects defines whether redirects should be followed during the health check calls.
+                              Default: true
+                            type: boolean
+                          headers:
+                            additionalProperties:
+                              type: string
+                            description: Headers defines custom headers to be sent
+                              to the health check endpoint.
+                            type: object
+                          hostname:
+                            description: Hostname defines the value of hostname in
+                              the Host header of the health check request.
+                            type: string
+                          interval:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: |-
+                              Interval defines the frequency of the health check calls for healthy targets.
+                              Default: 30s
+                            x-kubernetes-int-or-string: true
+                          method:
+                            description: Method defines the healthcheck method.
+                            type: string
+                          mode:
+                            description: |-
+                              Mode defines the health check mode.
+                              If defined to grpc, will use the gRPC health check protocol to probe the server.
+                              Default: http
+                            type: string
+                          path:
+                            description: Path defines the server URL path for the
+                              health check endpoint.
+                            type: string
+                          port:
+                            description: Port defines the server URL port for the
+                              health check endpoint.
+                            type: integer
+                          scheme:
+                            description: Scheme replaces the server URL scheme for
+                              the health check endpoint.
+                            type: string
+                          status:
+                            description: Status defines the expected HTTP status code
+                              of the response to the health check request.
+                            type: integer
+                          timeout:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: |-
+                              Timeout defines the maximum duration Traefik will wait for a health check request before considering the server unhealthy.
+                              Default: 5s
+                            x-kubernetes-int-or-string: true
+                          unhealthyInterval:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: |-
+                              UnhealthyInterval defines the frequency of the health check calls for unhealthy targets.
+                              When UnhealthyInterval is not defined, it defaults to the Interval value.
+                              Default: 30s
+                            x-kubernetes-int-or-string: true
+                        type: object
+                      kind:
+                        description: Kind defines the kind of the Service.
+                        enum:
+                        - Service
+                        - TraefikService
+                        type: string
+                      middlewares:
+                        description: Middlewares defines the list of references to
+                          Middleware resources to apply to the service.
+                        items:
+                          description: MiddlewareRef is a reference to a Middleware
+                            resource.
+                          properties:
+                            name:
+                              description: Name defines the name of the referenced
+                                Middleware resource.
+                              type: string
+                            namespace:
+                              description: Namespace defines the namespace of the
+                                referenced Middleware resource.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
+                      name:
+                        description: |-
+                          Name defines the name of the referenced Kubernetes Service or TraefikService.
+                          The differentiation between the two is specified in the Kind field.
+                        type: string
+                      namespace:
+                        description: Namespace defines the namespace of the referenced
+                          Kubernetes Service or TraefikService.
+                        type: string
+                      nativeLB:
+                        description: |-
+                          NativeLB controls, when creating the load-balancer,
+                          whether the LB's children are directly the pods IPs or if the only child is the Kubernetes Service clusterIP.
+                          The Kubernetes Service itself does load-balance to the pods.
+                          By default, NativeLB is false.
+                        type: boolean
+                      nodePortLB:
+                        description: |-
+                          NodePortLB controls, when creating the load-balancer,
+                          whether the LB's children are directly the nodes internal IPs using the nodePort when the service type is NodePort.
+                          It allows services to be reachable when Traefik runs externally from the Kubernetes cluster but within the same network of the nodes.
+                          By default, NodePortLB is false.
+                        type: boolean
+                      passHostHeader:
+                        description: |-
+                          PassHostHeader defines whether the client Host header is forwarded to the upstream Kubernetes Service.
+                          By default, passHostHeader is true.
+                        type: boolean
+                      passiveHealthCheck:
+                        description: PassiveHealthCheck defines passive health checks
+                          for ExternalName services.
+                        properties:
+                          failureWindow:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: FailureWindow defines the time window during
+                              which the failed attempts must occur for the server
+                              to be marked as unhealthy. It also defines for how long
+                              the server will be considered unhealthy.
+                            x-kubernetes-int-or-string: true
+                          maxFailedAttempts:
+                            description: MaxFailedAttempts is the number of consecutive
+                              failed attempts allowed within the failure window before
+                              marking the server as unhealthy.
+                            type: integer
+                        type: object
+                      port:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        description: |-
+                          Port defines the port of a Kubernetes Service.
+                          This can be a reference to a named port.
+                        x-kubernetes-int-or-string: true
+                      responseForwarding:
+                        description: ResponseForwarding defines how Traefik forwards
+                          the response from the upstream Kubernetes Service to the
+                          client.
+                        properties:
+                          flushInterval:
+                            description: |-
+                              FlushInterval defines the interval, in milliseconds, in between flushes to the client while copying the response body.
+                              A negative value means to flush immediately after each write to the client.
+                              This configuration is ignored when ReverseProxy recognizes a response as a streaming response;
+                              for such responses, writes are flushed to the client immediately.
+                              Default: 100ms
+                            type: string
+                        type: object
+                      scheme:
+                        description: |-
+                          Scheme defines the scheme to use for the request to the upstream Kubernetes Service.
+                          It defaults to https when Kubernetes Service port is 443, http otherwise.
+                        type: string
+                      serversTransport:
+                        description: |-
+                          ServersTransport defines the name of ServersTransport resource to use.
+                          It allows to configure the transport between Traefik and your servers.
+                          Can only be used on a Kubernetes Service.
+                        type: string
+                      sticky:
+                        description: |-
+                          Sticky defines the sticky sessions configuration.
+                          More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/load-balancing/service/#sticky-sessions
+                        properties:
+                          cookie:
+                            description: Cookie defines the sticky cookie configuration.
+                            properties:
+                              domain:
+                                description: |-
+                                  Domain defines the host to which the cookie will be sent.
+                                  More info: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#domaindomain-value
+                                type: string
+                              httpOnly:
+                                description: HTTPOnly defines whether the cookie can
+                                  be accessed by client-side APIs, such as JavaScript.
+                                type: boolean
+                              maxAge:
+                                description: |-
+                                  MaxAge defines the number of seconds until the cookie expires.
+                                  When set to a negative number, the cookie expires immediately.
+                                  When set to zero, the cookie never expires.
+                                type: integer
+                              name:
+                                description: Name defines the Cookie name.
+                                type: string
+                              path:
+                                description: |-
+                                  Path defines the path that must exist in the requested URL for the browser to send the Cookie header.
+                                  When not provided the cookie will be sent on every request to the domain.
+                                  More info: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#pathpath-value
+                                type: string
+                              sameSite:
+                                description: |-
+                                  SameSite defines the same site policy.
+                                  More info: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite
+                                enum:
+                                - none
+                                - lax
+                                - strict
+                                - None
+                                - Lax
+                                - Strict
+                                type: string
+                              secure:
+                                description: Secure defines whether the cookie can
+                                  only be transmitted over an encrypted connection
+                                  (i.e. HTTPS).
+                                type: boolean
+                            type: object
+                        type: object
+                      strategy:
+                        description: |-
+                          Strategy defines the load balancing strategy between the servers.
+                          Supported values are: wrr (Weighed round-robin), p2c (Power of two choices), hrw (Highest Random Weight), and leasttime (Least-Time).
+                          RoundRobin value is deprecated and supported for backward compatibility.
+                        enum:
+                        - wrr
+                        - p2c
+                        - hrw
+                        - leasttime
+                        - RoundRobin
+                        type: string
+                      weight:
+                        description: |-
+                          Weight defines the weight and should only be specified when Name references a TraefikService object
+                          (and to be precise, one that embeds a Weighted Round Robin).
+                        minimum: 0
+                        type: integer
+                    required:
+                    - name
+                    type: object
+                required:
+                - errors
+                - fallback
+                - service
+                type: object
+              highestRandomWeight:
+                description: HighestRandomWeight defines the highest random weight
+                  service configuration.
+                properties:
+                  services:
+                    description: Services defines the list of Kubernetes Service and/or
+                      TraefikService to load-balance, with weight.
                     items:
-                      description: MirrorService holds the mirror configuration.
+                      description: Service defines an upstream HTTP service to proxy
+                        traffic to.
                       properties:
                         healthCheck:
                           description: Healthcheck defines health checks for ExternalName
@@ -2563,7 +3532,7 @@ spec:
                               - type: integer
                               - type: string
                               description: |-
-                                Interval defines the frequency of the health check calls.
+                                Interval defines the frequency of the health check calls for healthy targets.
                                 Default: 30s
                               x-kubernetes-int-or-string: true
                             method:
@@ -2599,6 +3568,15 @@ spec:
                                 Timeout defines the maximum duration Traefik will wait for a health check request before considering the server unhealthy.
                                 Default: 5s
                               x-kubernetes-int-or-string: true
+                            unhealthyInterval:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              description: |-
+                                UnhealthyInterval defines the frequency of the health check calls for unhealthy targets.
+                                When UnhealthyInterval is not defined, it defaults to the Interval value.
+                                Default: 30s
+                              x-kubernetes-int-or-string: true
                           type: object
                         kind:
                           description: Kind defines the kind of the Service.
@@ -2606,6 +3584,25 @@ spec:
                           - Service
                           - TraefikService
                           type: string
+                        middlewares:
+                          description: Middlewares defines the list of references
+                            to Middleware resources to apply to the service.
+                          items:
+                            description: MiddlewareRef is a reference to a Middleware
+                              resource.
+                            properties:
+                              name:
+                                description: Name defines the name of the referenced
+                                  Middleware resource.
+                                type: string
+                              namespace:
+                                description: Namespace defines the namespace of the
+                                  referenced Middleware resource.
+                                type: string
+                            required:
+                            - name
+                            type: object
+                          type: array
                         name:
                           description: |-
                             Name defines the name of the referenced Kubernetes Service or TraefikService.
@@ -2634,6 +3631,389 @@ spec:
                             PassHostHeader defines whether the client Host header is forwarded to the upstream Kubernetes Service.
                             By default, passHostHeader is true.
                           type: boolean
+                        passiveHealthCheck:
+                          description: PassiveHealthCheck defines passive health checks
+                            for ExternalName services.
+                          properties:
+                            failureWindow:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              description: FailureWindow defines the time window during
+                                which the failed attempts must occur for the server
+                                to be marked as unhealthy. It also defines for how
+                                long the server will be considered unhealthy.
+                              x-kubernetes-int-or-string: true
+                            maxFailedAttempts:
+                              description: MaxFailedAttempts is the number of consecutive
+                                failed attempts allowed within the failure window
+                                before marking the server as unhealthy.
+                              type: integer
+                          type: object
+                        port:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          description: |-
+                            Port defines the port of a Kubernetes Service.
+                            This can be a reference to a named port.
+                          x-kubernetes-int-or-string: true
+                        responseForwarding:
+                          description: ResponseForwarding defines how Traefik forwards
+                            the response from the upstream Kubernetes Service to the
+                            client.
+                          properties:
+                            flushInterval:
+                              description: |-
+                                FlushInterval defines the interval, in milliseconds, in between flushes to the client while copying the response body.
+                                A negative value means to flush immediately after each write to the client.
+                                This configuration is ignored when ReverseProxy recognizes a response as a streaming response;
+                                for such responses, writes are flushed to the client immediately.
+                                Default: 100ms
+                              type: string
+                          type: object
+                        scheme:
+                          description: |-
+                            Scheme defines the scheme to use for the request to the upstream Kubernetes Service.
+                            It defaults to https when Kubernetes Service port is 443, http otherwise.
+                          type: string
+                        serversTransport:
+                          description: |-
+                            ServersTransport defines the name of ServersTransport resource to use.
+                            It allows to configure the transport between Traefik and your servers.
+                            Can only be used on a Kubernetes Service.
+                          type: string
+                        sticky:
+                          description: |-
+                            Sticky defines the sticky sessions configuration.
+                            More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/load-balancing/service/#sticky-sessions
+                          properties:
+                            cookie:
+                              description: Cookie defines the sticky cookie configuration.
+                              properties:
+                                domain:
+                                  description: |-
+                                    Domain defines the host to which the cookie will be sent.
+                                    More info: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#domaindomain-value
+                                  type: string
+                                httpOnly:
+                                  description: HTTPOnly defines whether the cookie
+                                    can be accessed by client-side APIs, such as JavaScript.
+                                  type: boolean
+                                maxAge:
+                                  description: |-
+                                    MaxAge defines the number of seconds until the cookie expires.
+                                    When set to a negative number, the cookie expires immediately.
+                                    When set to zero, the cookie never expires.
+                                  type: integer
+                                name:
+                                  description: Name defines the Cookie name.
+                                  type: string
+                                path:
+                                  description: |-
+                                    Path defines the path that must exist in the requested URL for the browser to send the Cookie header.
+                                    When not provided the cookie will be sent on every request to the domain.
+                                    More info: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#pathpath-value
+                                  type: string
+                                sameSite:
+                                  description: |-
+                                    SameSite defines the same site policy.
+                                    More info: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite
+                                  enum:
+                                  - none
+                                  - lax
+                                  - strict
+                                  - None
+                                  - Lax
+                                  - Strict
+                                  type: string
+                                secure:
+                                  description: Secure defines whether the cookie can
+                                    only be transmitted over an encrypted connection
+                                    (i.e. HTTPS).
+                                  type: boolean
+                              type: object
+                          type: object
+                        strategy:
+                          description: |-
+                            Strategy defines the load balancing strategy between the servers.
+                            Supported values are: wrr (Weighed round-robin), p2c (Power of two choices), hrw (Highest Random Weight), and leasttime (Least-Time).
+                            RoundRobin value is deprecated and supported for backward compatibility.
+                          enum:
+                          - wrr
+                          - p2c
+                          - hrw
+                          - leasttime
+                          - RoundRobin
+                          type: string
+                        weight:
+                          description: |-
+                            Weight defines the weight and should only be specified when Name references a TraefikService object
+                            (and to be precise, one that embeds a Weighted Round Robin).
+                          minimum: 0
+                          type: integer
+                      required:
+                      - name
+                      type: object
+                    type: array
+                type: object
+              mirroring:
+                description: Mirroring defines the Mirroring service configuration.
+                properties:
+                  healthCheck:
+                    description: Healthcheck defines health checks for ExternalName
+                      services.
+                    properties:
+                      followRedirects:
+                        description: |-
+                          FollowRedirects defines whether redirects should be followed during the health check calls.
+                          Default: true
+                        type: boolean
+                      headers:
+                        additionalProperties:
+                          type: string
+                        description: Headers defines custom headers to be sent to
+                          the health check endpoint.
+                        type: object
+                      hostname:
+                        description: Hostname defines the value of hostname in the
+                          Host header of the health check request.
+                        type: string
+                      interval:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        description: |-
+                          Interval defines the frequency of the health check calls for healthy targets.
+                          Default: 30s
+                        x-kubernetes-int-or-string: true
+                      method:
+                        description: Method defines the healthcheck method.
+                        type: string
+                      mode:
+                        description: |-
+                          Mode defines the health check mode.
+                          If defined to grpc, will use the gRPC health check protocol to probe the server.
+                          Default: http
+                        type: string
+                      path:
+                        description: Path defines the server URL path for the health
+                          check endpoint.
+                        type: string
+                      port:
+                        description: Port defines the server URL port for the health
+                          check endpoint.
+                        type: integer
+                      scheme:
+                        description: Scheme replaces the server URL scheme for the
+                          health check endpoint.
+                        type: string
+                      status:
+                        description: Status defines the expected HTTP status code
+                          of the response to the health check request.
+                        type: integer
+                      timeout:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        description: |-
+                          Timeout defines the maximum duration Traefik will wait for a health check request before considering the server unhealthy.
+                          Default: 5s
+                        x-kubernetes-int-or-string: true
+                      unhealthyInterval:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        description: |-
+                          UnhealthyInterval defines the frequency of the health check calls for unhealthy targets.
+                          When UnhealthyInterval is not defined, it defaults to the Interval value.
+                          Default: 30s
+                        x-kubernetes-int-or-string: true
+                    type: object
+                  kind:
+                    description: Kind defines the kind of the Service.
+                    enum:
+                    - Service
+                    - TraefikService
+                    type: string
+                  maxBodySize:
+                    description: |-
+                      MaxBodySize defines the maximum size allowed for the body of the request.
+                      If the body is larger, the request is not mirrored.
+                      Default value is -1, which means unlimited size.
+                    format: int64
+                    type: integer
+                  middlewares:
+                    description: Middlewares defines the list of references to Middleware
+                      resources to apply to the service.
+                    items:
+                      description: MiddlewareRef is a reference to a Middleware resource.
+                      properties:
+                        name:
+                          description: Name defines the name of the referenced Middleware
+                            resource.
+                          type: string
+                        namespace:
+                          description: Namespace defines the namespace of the referenced
+                            Middleware resource.
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    type: array
+                  mirrorBody:
+                    description: |-
+                      MirrorBody defines whether the body of the request should be mirrored.
+                      Default value is true.
+                    type: boolean
+                  mirrors:
+                    description: Mirrors defines the list of mirrors where Traefik
+                      will duplicate the traffic.
+                    items:
+                      description: MirrorService holds the mirror configuration.
+                      properties:
+                        healthCheck:
+                          description: Healthcheck defines health checks for ExternalName
+                            services.
+                          properties:
+                            followRedirects:
+                              description: |-
+                                FollowRedirects defines whether redirects should be followed during the health check calls.
+                                Default: true
+                              type: boolean
+                            headers:
+                              additionalProperties:
+                                type: string
+                              description: Headers defines custom headers to be sent
+                                to the health check endpoint.
+                              type: object
+                            hostname:
+                              description: Hostname defines the value of hostname
+                                in the Host header of the health check request.
+                              type: string
+                            interval:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              description: |-
+                                Interval defines the frequency of the health check calls for healthy targets.
+                                Default: 30s
+                              x-kubernetes-int-or-string: true
+                            method:
+                              description: Method defines the healthcheck method.
+                              type: string
+                            mode:
+                              description: |-
+                                Mode defines the health check mode.
+                                If defined to grpc, will use the gRPC health check protocol to probe the server.
+                                Default: http
+                              type: string
+                            path:
+                              description: Path defines the server URL path for the
+                                health check endpoint.
+                              type: string
+                            port:
+                              description: Port defines the server URL port for the
+                                health check endpoint.
+                              type: integer
+                            scheme:
+                              description: Scheme replaces the server URL scheme for
+                                the health check endpoint.
+                              type: string
+                            status:
+                              description: Status defines the expected HTTP status
+                                code of the response to the health check request.
+                              type: integer
+                            timeout:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              description: |-
+                                Timeout defines the maximum duration Traefik will wait for a health check request before considering the server unhealthy.
+                                Default: 5s
+                              x-kubernetes-int-or-string: true
+                            unhealthyInterval:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              description: |-
+                                UnhealthyInterval defines the frequency of the health check calls for unhealthy targets.
+                                When UnhealthyInterval is not defined, it defaults to the Interval value.
+                                Default: 30s
+                              x-kubernetes-int-or-string: true
+                          type: object
+                        kind:
+                          description: Kind defines the kind of the Service.
+                          enum:
+                          - Service
+                          - TraefikService
+                          type: string
+                        middlewares:
+                          description: Middlewares defines the list of references
+                            to Middleware resources to apply to the service.
+                          items:
+                            description: MiddlewareRef is a reference to a Middleware
+                              resource.
+                            properties:
+                              name:
+                                description: Name defines the name of the referenced
+                                  Middleware resource.
+                                type: string
+                              namespace:
+                                description: Namespace defines the namespace of the
+                                  referenced Middleware resource.
+                                type: string
+                            required:
+                            - name
+                            type: object
+                          type: array
+                        name:
+                          description: |-
+                            Name defines the name of the referenced Kubernetes Service or TraefikService.
+                            The differentiation between the two is specified in the Kind field.
+                          type: string
+                        namespace:
+                          description: Namespace defines the namespace of the referenced
+                            Kubernetes Service or TraefikService.
+                          type: string
+                        nativeLB:
+                          description: |-
+                            NativeLB controls, when creating the load-balancer,
+                            whether the LB's children are directly the pods IPs or if the only child is the Kubernetes Service clusterIP.
+                            The Kubernetes Service itself does load-balance to the pods.
+                            By default, NativeLB is false.
+                          type: boolean
+                        nodePortLB:
+                          description: |-
+                            NodePortLB controls, when creating the load-balancer,
+                            whether the LB's children are directly the nodes internal IPs using the nodePort when the service type is NodePort.
+                            It allows services to be reachable when Traefik runs externally from the Kubernetes cluster but within the same network of the nodes.
+                            By default, NodePortLB is false.
+                          type: boolean
+                        passHostHeader:
+                          description: |-
+                            PassHostHeader defines whether the client Host header is forwarded to the upstream Kubernetes Service.
+                            By default, passHostHeader is true.
+                          type: boolean
+                        passiveHealthCheck:
+                          description: PassiveHealthCheck defines passive health checks
+                            for ExternalName services.
+                          properties:
+                            failureWindow:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              description: FailureWindow defines the time window during
+                                which the failed attempts must occur for the server
+                                to be marked as unhealthy. It also defines for how
+                                long the server will be considered unhealthy.
+                              x-kubernetes-int-or-string: true
+                            maxFailedAttempts:
+                              description: MaxFailedAttempts is the number of consecutive
+                                failed attempts allowed within the failure window
+                                before marking the server as unhealthy.
+                              type: integer
+                          type: object
                         percent:
                           description: |-
                             Percent defines the part of the traffic to mirror.
@@ -2675,28 +4055,46 @@ spec:
                         sticky:
                           description: |-
                             Sticky defines the sticky sessions configuration.
-                            More info: https://doc.traefik.io/traefik/v3.2/routing/services/#sticky-sessions
+                            More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/load-balancing/service/#sticky-sessions
                           properties:
                             cookie:
                               description: Cookie defines the sticky cookie configuration.
                               properties:
+                                domain:
+                                  description: |-
+                                    Domain defines the host to which the cookie will be sent.
+                                    More info: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#domaindomain-value
+                                  type: string
                                 httpOnly:
                                   description: HTTPOnly defines whether the cookie
                                     can be accessed by client-side APIs, such as JavaScript.
                                   type: boolean
                                 maxAge:
                                   description: |-
-                                    MaxAge indicates the number of seconds until the cookie expires.
+                                    MaxAge defines the number of seconds until the cookie expires.
                                     When set to a negative number, the cookie expires immediately.
                                     When set to zero, the cookie never expires.
                                   type: integer
                                 name:
                                   description: Name defines the Cookie name.
                                   type: string
+                                path:
+                                  description: |-
+                                    Path defines the path that must exist in the requested URL for the browser to send the Cookie header.
+                                    When not provided the cookie will be sent on every request to the domain.
+                                    More info: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#pathpath-value
+                                  type: string
                                 sameSite:
                                   description: |-
                                     SameSite defines the same site policy.
                                     More info: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite
+                                  enum:
+                                  - none
+                                  - lax
+                                  - strict
+                                  - None
+                                  - Lax
+                                  - Strict
                                   type: string
                                 secure:
                                   description: Secure defines whether the cookie can
@@ -2708,12 +4106,20 @@ spec:
                         strategy:
                           description: |-
                             Strategy defines the load balancing strategy between the servers.
-                            RoundRobin is the only supported value at the moment.
+                            Supported values are: wrr (Weighed round-robin), p2c (Power of two choices), hrw (Highest Random Weight), and leasttime (Least-Time).
+                            RoundRobin value is deprecated and supported for backward compatibility.
+                          enum:
+                          - wrr
+                          - p2c
+                          - hrw
+                          - leasttime
+                          - RoundRobin
                           type: string
                         weight:
                           description: |-
                             Weight defines the weight and should only be specified when Name references a TraefikService object
                             (and to be precise, one that embeds a Weighted Round Robin).
+                          minimum: 0
                           type: integer
                       required:
                       - name
@@ -2747,6 +4153,25 @@ spec:
                       PassHostHeader defines whether the client Host header is forwarded to the upstream Kubernetes Service.
                       By default, passHostHeader is true.
                     type: boolean
+                  passiveHealthCheck:
+                    description: PassiveHealthCheck defines passive health checks
+                      for ExternalName services.
+                    properties:
+                      failureWindow:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        description: FailureWindow defines the time window during
+                          which the failed attempts must occur for the server to be
+                          marked as unhealthy. It also defines for how long the server
+                          will be considered unhealthy.
+                        x-kubernetes-int-or-string: true
+                      maxFailedAttempts:
+                        description: MaxFailedAttempts is the number of consecutive
+                          failed attempts allowed within the failure window before
+                          marking the server as unhealthy.
+                        type: integer
+                    type: object
                   port:
                     anyOf:
                     - type: integer
@@ -2782,28 +4207,46 @@ spec:
                   sticky:
                     description: |-
                       Sticky defines the sticky sessions configuration.
-                      More info: https://doc.traefik.io/traefik/v3.2/routing/services/#sticky-sessions
+                      More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/load-balancing/service/#sticky-sessions
                     properties:
                       cookie:
                         description: Cookie defines the sticky cookie configuration.
                         properties:
+                          domain:
+                            description: |-
+                              Domain defines the host to which the cookie will be sent.
+                              More info: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#domaindomain-value
+                            type: string
                           httpOnly:
                             description: HTTPOnly defines whether the cookie can be
                               accessed by client-side APIs, such as JavaScript.
                             type: boolean
                           maxAge:
                             description: |-
-                              MaxAge indicates the number of seconds until the cookie expires.
+                              MaxAge defines the number of seconds until the cookie expires.
                               When set to a negative number, the cookie expires immediately.
                               When set to zero, the cookie never expires.
                             type: integer
                           name:
                             description: Name defines the Cookie name.
                             type: string
+                          path:
+                            description: |-
+                              Path defines the path that must exist in the requested URL for the browser to send the Cookie header.
+                              When not provided the cookie will be sent on every request to the domain.
+                              More info: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#pathpath-value
+                            type: string
                           sameSite:
                             description: |-
                               SameSite defines the same site policy.
                               More info: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite
+                            enum:
+                            - none
+                            - lax
+                            - strict
+                            - None
+                            - Lax
+                            - Strict
                             type: string
                           secure:
                             description: Secure defines whether the cookie can only
@@ -2814,12 +4257,20 @@ spec:
                   strategy:
                     description: |-
                       Strategy defines the load balancing strategy between the servers.
-                      RoundRobin is the only supported value at the moment.
+                      Supported values are: wrr (Weighed round-robin), p2c (Power of two choices), hrw (Highest Random Weight), and leasttime (Least-Time).
+                      RoundRobin value is deprecated and supported for backward compatibility.
+                    enum:
+                    - wrr
+                    - p2c
+                    - hrw
+                    - leasttime
+                    - RoundRobin
                     type: string
                   weight:
                     description: |-
                       Weight defines the weight and should only be specified when Name references a TraefikService object
                       (and to be precise, one that embeds a Weighted Round Robin).
+                    minimum: 0
                     type: integer
                 required:
                 - name
@@ -2858,7 +4309,7 @@ spec:
                               - type: integer
                               - type: string
                               description: |-
-                                Interval defines the frequency of the health check calls.
+                                Interval defines the frequency of the health check calls for healthy targets.
                                 Default: 30s
                               x-kubernetes-int-or-string: true
                             method:
@@ -2894,6 +4345,15 @@ spec:
                                 Timeout defines the maximum duration Traefik will wait for a health check request before considering the server unhealthy.
                                 Default: 5s
                               x-kubernetes-int-or-string: true
+                            unhealthyInterval:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              description: |-
+                                UnhealthyInterval defines the frequency of the health check calls for unhealthy targets.
+                                When UnhealthyInterval is not defined, it defaults to the Interval value.
+                                Default: 30s
+                              x-kubernetes-int-or-string: true
                           type: object
                         kind:
                           description: Kind defines the kind of the Service.
@@ -2901,6 +4361,25 @@ spec:
                           - Service
                           - TraefikService
                           type: string
+                        middlewares:
+                          description: Middlewares defines the list of references
+                            to Middleware resources to apply to the service.
+                          items:
+                            description: MiddlewareRef is a reference to a Middleware
+                              resource.
+                            properties:
+                              name:
+                                description: Name defines the name of the referenced
+                                  Middleware resource.
+                                type: string
+                              namespace:
+                                description: Namespace defines the namespace of the
+                                  referenced Middleware resource.
+                                type: string
+                            required:
+                            - name
+                            type: object
+                          type: array
                         name:
                           description: |-
                             Name defines the name of the referenced Kubernetes Service or TraefikService.
@@ -2929,6 +4408,25 @@ spec:
                             PassHostHeader defines whether the client Host header is forwarded to the upstream Kubernetes Service.
                             By default, passHostHeader is true.
                           type: boolean
+                        passiveHealthCheck:
+                          description: PassiveHealthCheck defines passive health checks
+                            for ExternalName services.
+                          properties:
+                            failureWindow:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              description: FailureWindow defines the time window during
+                                which the failed attempts must occur for the server
+                                to be marked as unhealthy. It also defines for how
+                                long the server will be considered unhealthy.
+                              x-kubernetes-int-or-string: true
+                            maxFailedAttempts:
+                              description: MaxFailedAttempts is the number of consecutive
+                                failed attempts allowed within the failure window
+                                before marking the server as unhealthy.
+                              type: integer
+                          type: object
                         port:
                           anyOf:
                           - type: integer
@@ -2965,28 +4463,46 @@ spec:
                         sticky:
                           description: |-
                             Sticky defines the sticky sessions configuration.
-                            More info: https://doc.traefik.io/traefik/v3.2/routing/services/#sticky-sessions
+                            More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/load-balancing/service/#sticky-sessions
                           properties:
                             cookie:
                               description: Cookie defines the sticky cookie configuration.
                               properties:
+                                domain:
+                                  description: |-
+                                    Domain defines the host to which the cookie will be sent.
+                                    More info: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#domaindomain-value
+                                  type: string
                                 httpOnly:
                                   description: HTTPOnly defines whether the cookie
                                     can be accessed by client-side APIs, such as JavaScript.
                                   type: boolean
                                 maxAge:
                                   description: |-
-                                    MaxAge indicates the number of seconds until the cookie expires.
+                                    MaxAge defines the number of seconds until the cookie expires.
                                     When set to a negative number, the cookie expires immediately.
                                     When set to zero, the cookie never expires.
                                   type: integer
                                 name:
                                   description: Name defines the Cookie name.
                                   type: string
+                                path:
+                                  description: |-
+                                    Path defines the path that must exist in the requested URL for the browser to send the Cookie header.
+                                    When not provided the cookie will be sent on every request to the domain.
+                                    More info: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#pathpath-value
+                                  type: string
                                 sameSite:
                                   description: |-
                                     SameSite defines the same site policy.
                                     More info: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite
+                                  enum:
+                                  - none
+                                  - lax
+                                  - strict
+                                  - None
+                                  - Lax
+                                  - Strict
                                   type: string
                                 secure:
                                   description: Secure defines whether the cookie can
@@ -2998,12 +4514,20 @@ spec:
                         strategy:
                           description: |-
                             Strategy defines the load balancing strategy between the servers.
-                            RoundRobin is the only supported value at the moment.
+                            Supported values are: wrr (Weighed round-robin), p2c (Power of two choices), hrw (Highest Random Weight), and leasttime (Least-Time).
+                            RoundRobin value is deprecated and supported for backward compatibility.
+                          enum:
+                          - wrr
+                          - p2c
+                          - hrw
+                          - leasttime
+                          - RoundRobin
                           type: string
                         weight:
                           description: |-
                             Weight defines the weight and should only be specified when Name references a TraefikService object
                             (and to be precise, one that embeds a Weighted Round Robin).
+                          minimum: 0
                           type: integer
                       required:
                       - name
@@ -3012,28 +4536,46 @@ spec:
                   sticky:
                     description: |-
                       Sticky defines whether sticky sessions are enabled.
-                      More info: https://doc.traefik.io/traefik/v3.2/routing/providers/kubernetes-crd/#stickiness-and-load-balancing
+                      More info: https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/kubernetes/crd/http/traefikservice/#stickiness-and-load-balancing
                     properties:
                       cookie:
                         description: Cookie defines the sticky cookie configuration.
                         properties:
+                          domain:
+                            description: |-
+                              Domain defines the host to which the cookie will be sent.
+                              More info: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#domaindomain-value
+                            type: string
                           httpOnly:
                             description: HTTPOnly defines whether the cookie can be
                               accessed by client-side APIs, such as JavaScript.
                             type: boolean
                           maxAge:
                             description: |-
-                              MaxAge indicates the number of seconds until the cookie expires.
+                              MaxAge defines the number of seconds until the cookie expires.
                               When set to a negative number, the cookie expires immediately.
                               When set to zero, the cookie never expires.
                             type: integer
                           name:
                             description: Name defines the Cookie name.
                             type: string
+                          path:
+                            description: |-
+                              Path defines the path that must exist in the requested URL for the browser to send the Cookie header.
+                              When not provided the cookie will be sent on every request to the domain.
+                              More info: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#pathpath-value
+                            type: string
                           sameSite:
                             description: |-
                               SameSite defines the same site policy.
                               More info: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite
+                            enum:
+                            - none
+                            - lax
+                            - strict
+                            - None
+                            - Lax
+                            - Strict
                             type: string
                           secure:
                             description: Secure defines whether the cookie can only

@@ -5,7 +5,7 @@ metadata:
   namespace: "{{  .Values.global.helm_namespace  }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    
+    kubernetes.io/ingress.class: kaapana
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:
@@ -40,6 +40,7 @@ metadata:
     kaapana.ai/ui.section: "system"
     kaapana.ai/ui.order: "40"
     kaapana.ai/ui.path: "/traefik/dashboard/"
+    kubernetes.io/ingress.class: kaapana
 spec:
   rules:
   - host: 

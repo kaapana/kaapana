@@ -7,6 +7,18 @@ metadata:
 spec:
   template:
     spec:
+      {{- if .Values.global.no_read_write_many_support }}
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: kaapana.io/rwo-anchor
+                    operator: In
+                    values:
+                      - "true"
+              topologyKey: kubernetes.io/hostname
+      {{- end }}
       {{- if .Values.global.storage_node }}
       nodeSelector:
         kaapana.io/node: {{ .Values.global.storage_node }}

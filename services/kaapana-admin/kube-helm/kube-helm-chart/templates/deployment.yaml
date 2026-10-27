@@ -15,6 +15,9 @@ spec:
       labels:
         app.kubernetes.io/name: kube-helm
         app.kubernetes.io/component: backend
+{{- if .Values.global.no_read_write_many_support }}
+        kaapana.io/rwo-anchor: "true"
+{{- end }}
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "5000"
@@ -25,6 +28,19 @@ spec:
         prometheus.io/scrape_timeout: "10s"
     spec:
 {{- include "kaapana.nodeSelector" . | indent 6 }}
+{{- if .Values.global.no_read_write_many_support }}
+      # a restarted anchor stays on the node of its volumes
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: kaapana.io/rwo-anchor
+                    operator: In
+                    values:
+                      - "true"
+              topologyKey: kubernetes.io/hostname
+{{- end }}
       containers:
       - name: kube-helm
         image: "{{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.kaapana_build_version  }}"

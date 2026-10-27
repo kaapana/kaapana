@@ -1519,7 +1519,7 @@ function load_kaapana_config {
     ADMIN_NAMESPACE="admin"
     EXTENSIONS_NAMESPACE="extensions"
     PREFIX_ALL_NAMESPACES=false
-    HELM_NAMESPACE="default"
+    HELM_NAMESPACE="default" # with RESTRICTED_RBAC=true the admin namespace is used
 
     OIDC_CLIENT_SECRET=$(echo $RANDOM | md5sum | base64 | head -c 32)
 
@@ -1621,7 +1621,13 @@ function load_kaapana_config {
         STORAGE_CLASS="" # STORAGE_PROVIDER="default" only: storage class to use, defaults to the cluster's default storage class
     fi
     VOLUME_SLOW_DATA="100Gi" # size of volumes in slow data dir (e.g. 100Gi or 100Ti)
+    RESTRICTED_RBAC=false # no cluster-scoped rights (e.g. managed Rancher): no PriorityClasses/LimitRanges/ClusterRoles/CRDs, namespaces must exist
     API_SERVER_CIDR="10.0.0.0/8"
+}
+
+# Project namespaces known before deploying: the admin project
+function set_initial_project_namespaces {
+    INITIAL_PROJECT_NAMESPACES="${PLATFORM_PREFIX}-project-admin"
 }
 
 function apply_namespace_config {
@@ -1630,6 +1636,10 @@ function apply_namespace_config {
         ADMIN_NAMESPACE="${PLATFORM_PREFIX}-admin"
         SERVICES_NAMESPACE="${PLATFORM_PREFIX}-services"
         EXTENSIONS_NAMESPACE="${PLATFORM_PREFIX}-extensions"
+    fi
+    # without cluster-scoped rights the release can't go into a namespace outside of kaapana
+    if [ "$RESTRICTED_RBAC" = "true" ]; then
+        HELM_NAMESPACE="$ADMIN_NAMESPACE"
     fi
 }
 
@@ -1704,6 +1714,12 @@ function delete_deployment {
         fi
     fi
 
+    local project_namespaces=""
+    if [ "$RESTRICTED_RBAC" = "true" ]; then
+        project_namespaces=$($HELM_EXECUTABLE -n "$HELM_NAMESPACE" ls --deployed --failed --pending --superseded --uninstalling -o json 2>/dev/null \
+            | jq -r '.[] | select(.chart | startswith("project-namespace-")) | .name' || true)
+    fi
+
     echo -e "${YELLOW}Undeploy releases${NC}"
     local failed=0
     local namespace
@@ -1735,7 +1751,15 @@ function delete_deployment {
                 fi
             done
         fi
-        TERMINATING_PODS=$(/bin/bash -i -c "kubectl get pods --all-namespaces | grep -E 'Terminating' | awk '{print \$1 \"/\" \$2}'")
+        if [ "$RESTRICTED_RBAC" = "true" ]; then
+            TERMINATING_PODS=""
+            for namespace in $EXTENSIONS_NAMESPACE $SERVICES_NAMESPACE $ADMIN_NAMESPACE $project_namespaces; do
+                TERMINATING_PODS="$TERMINATING_PODS $($KUBE get pods -n "$namespace" --no-headers 2>/dev/null | awk -v ns="$namespace" '$3 == "Terminating" {print ns "/" $1}' | tr '\n' ' ')"
+            done
+            TERMINATING_PODS=$(echo $TERMINATING_PODS)
+        else
+            TERMINATING_PODS=$(/bin/bash -i -c "kubectl get pods --all-namespaces | grep -E 'Terminating' | awk '{print \$1 \"/\" \$2}'")
+        fi
         echo -e ""
         UNINSTALL_TEST=$TERMINATING_PODS
         if [ -z "$UNINSTALL_TEST" ]; then
@@ -1754,7 +1778,12 @@ function delete_deployment {
     fi
 
     # Clean all project-* namespaces when the platform prefix is known.
-    if [ -n "${PLATFORM_PREFIX:-}" ]; then
+    if [ "$RESTRICTED_RBAC" = "true" ]; then
+        for ns in $project_namespaces; do
+            echo "Deleting all pods in $ns"
+            $KUBE delete pods --all -n $ns --grace-period=0 --force 2>/dev/null || true
+        done
+    elif [ -n "${PLATFORM_PREFIX:-}" ]; then
         PROJECT_NAMESPACES=$($KUBE get namespaces --no-headers -o custom-columns=NAME:.metadata.name | grep "^${PLATFORM_PREFIX}-project-" || true)
         for ns in $PROJECT_NAMESPACES; do
             echo "Deleting all pods in $ns"
@@ -2295,13 +2324,26 @@ function setup_storage_classes() {
 function create_namespaces {
   local namespaces="$EXTENSIONS_NAMESPACE $SERVICES_NAMESPACE $ADMIN_NAMESPACE $HELM_NAMESPACE"
 
-  for namespace in $namespaces; do
-    $KUBE create namespace "$namespace" --dry-run=client -o yaml | $KUBE apply -f -
-    echo -e "${GREEN}Namespace '$namespace' ensured${NC}"
-  done
+  if [ "$RESTRICTED_RBAC" = "true" ]; then
+    # No permission to create namespaces: all must exist, incl. the initial project namespaces kaapana would create later
+    for namespace in $namespaces $INITIAL_PROJECT_NAMESPACES; do
+      if ! $KUBE get namespace "$namespace" >/dev/null 2>&1; then
+        echo -e "${RED}Namespace '$namespace' does not exist or is not accessible (RESTRICTED_RBAC=true, namespaces are not created).${NC}"
+        echo -e "${RED}Create it beforehand - e.g. in a managed Kubernetes cluster via the platform UI.${NC}"
+        exit 1
+      fi
+      echo -e "${GREEN}Namespace '$namespace' exists and is accessible${NC}"
+    done
+  else
+    for namespace in $namespaces; do
+      $KUBE create namespace "$namespace" --dry-run=client -o yaml | $KUBE apply -f -
+      echo -e "${GREEN}Namespace '$namespace' ensured${NC}"
+    done
+  fi
 }
 
 function deploy_chart {
+    set_initial_project_namespaces
     if [ -z "$CONTAINER_REGISTRY_URL" ]; then
         echo "${RED}CONTAINER_REGISTRY_URL needs to be set! -> please adjust the kaapanactl.sh script!${NC}"
         echo "${RED}ABORT${NC}"
@@ -2519,6 +2561,11 @@ function deploy_chart {
     if [ "$PLAIN_HTTP" = true ]; then
         HELM_INSTALL_CMD="$HELM_INSTALL_CMD --plain-http"
     fi
+    # CRDs are cluster-scoped; with RESTRICTED_RBAC they have to be installed by the cluster administrators
+    if [ "$RESTRICTED_RBAC" = "true" ]; then
+        HELM_INSTALL_CMD="$HELM_INSTALL_CMD --skip-crds"
+    fi
+
     DEFAULT_PROXY="http://squid-proxy-service.${ADMIN_NAMESPACE}.svc.cluster.local:3128"
     # The proxy of this host doesn't necessarily apply to a remote cluster
     if [ "$IS_MICROK8S" != true ]; then
@@ -2553,6 +2600,8 @@ function deploy_chart {
         fi
     fi
     echo "proxy settings: http_proxy=$http_proxy, https_proxy=$https_proxy"
+
+    ALL_MANAGED_NAMESPACES="$EXTENSIONS_NAMESPACE,$SERVICES_NAMESPACE,$ADMIN_NAMESPACE,${INITIAL_PROJECT_NAMESPACES// /,}"
 
     $HELM_INSTALL_CMD $CHART_PATH \
     --set-string global.base_namespace="base" \
@@ -2627,7 +2676,9 @@ function deploy_chart {
     --set-string global.volume_slow_data="$VOLUME_SLOW_DATA" \
     --set-string global.storage_node="$STORAGE_NODE" \
     "${kube_helm_timeout_args[@]}" \
+    --set global.restricted_rbac="$RESTRICTED_RBAC" \
     --set global.is_microk8s="$IS_MICROK8S" \
+    --set global.all_managed_namespaces="{${ALL_MANAGED_NAMESPACES}}" \
     --name-template "$PLATFORM_NAME"
 
     echo -e ""
@@ -3012,6 +3063,12 @@ function update_coredns_rewrite() {
     # If hostname starts with a number it is considerd an IP and dns rewrite is skipped
     if [[ "$hostname" =~ ^[0-9] ]]; then
         echo "Skipped DNS rewrite because ${hostname} seems to be an IP Adress"
+        return 0
+    fi
+
+    # The CoreDNS ConfigMap lives in kube-system, which is not accessible without cluster-scoped rights
+    if [ "$RESTRICTED_RBAC" = "true" ]; then
+        echo "Skipped DNS rewrite because RESTRICTED_RBAC=true (no access to kube-system)"
         return 0
     fi
 

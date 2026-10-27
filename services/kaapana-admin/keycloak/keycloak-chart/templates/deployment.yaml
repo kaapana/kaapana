@@ -183,7 +183,9 @@ spec:
       - name: default-project-role-user-mapping
         configMap:
           name: default-project-role-user-mapping
+{{- if not .Values.global.restricted_rbac }}
       priorityClassName: kaapana-high-priority
+{{- end }}
       imagePullSecrets:
       - name: registry-secret
 ---

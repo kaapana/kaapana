@@ -1,0 +1,11 @@
+{{- if .Values.global.restricted_rbac }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airflow-managed-namespaces
+  namespace: {{ .Values.global.services_namespace }}
+data:
+  namespaces: "{{ .Values.global.services_namespace }},{{ required `global.platform_prefix is required` .Values.global.platform_prefix }}-project-admin"
+
+{{- end }}

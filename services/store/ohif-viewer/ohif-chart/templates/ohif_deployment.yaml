@@ -45,7 +45,9 @@ spec:
           emptyDir: {}
         - name: tmp
           emptyDir: {}
+{{- if not .Values.global.restricted_rbac }}
       priorityClassName: kaapana-high-priority
+{{- end }}
       imagePullSecrets:
       - name: registry-secret
 ---

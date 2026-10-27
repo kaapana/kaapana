@@ -94,6 +94,8 @@ data:
       #   static_configs:
       #   - targets: ['node-exporter.{{  .Values.global.services_namespace  }}.svc:9100']
 
+{{- if not .Values.global.restricted_rbac }}
+      # The node and cAdvisor jobs need cluster-scoped rights (nodes, nodes/proxy), not available with restricted RBAC.
       # Taken from: https://github.com/prometheus/prometheus/blob/main/documentation/examples/prometheus-kubernetes.yml
       # Scrape config for nodes (kubelet).
       - job_name: "kubernetes-nodes"
@@ -176,11 +178,17 @@ data:
         relabel_configs:
           - action: labelmap
             regex: __meta_kubernetes_node_label_(.+)
+{{- end }}
 
       - job_name: "kubernetes-service-endpoints"
 
         kubernetes_sd_configs:
         - role: endpoints
+{{- if .Values.global.restricted_rbac }}
+          # without cluster-scoped rights only Kaapana's namespaces can be watched
+          namespaces:
+            names: {{ .Values.global.all_managed_namespaces | toJson }}
+{{- end }}
 
         relabel_configs:
         - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
@@ -212,6 +220,10 @@ data:
       - job_name: "kubernetes-pods"
         kubernetes_sd_configs:
         - role: pod
+{{- if .Values.global.restricted_rbac }}
+          namespaces:
+            names: {{ .Values.global.all_managed_namespaces | toJson }}
+{{- end }}
 
         relabel_configs:
         - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
@@ -281,6 +293,10 @@ data:
       - job_name: "kubernetes-pods-extra"
         kubernetes_sd_configs:
         - role: pod
+{{- if .Values.global.restricted_rbac }}
+          namespaces:
+            names: {{ .Values.global.all_managed_namespaces | toJson }}
+{{- end }}
 
         relabel_configs:
         - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape_2]
@@ -352,6 +368,10 @@ data:
       - job_name: "kubernetes-pods-insecure"
         kubernetes_sd_configs:
         - role: pod
+{{- if .Values.global.restricted_rbac }}
+          namespaces:
+            names: {{ .Values.global.all_managed_namespaces | toJson }}
+{{- end }}
 
         tls_config:
           insecure_skip_verify: true

@@ -103,7 +103,9 @@ spec:
             items:
               - key: nginx.conf
                 path: nginx.conf
+{{- if not .Values.global.restricted_rbac }}
       priorityClassName: kaapana-high-priority
+{{- end }}
       imagePullSecrets:
       - name: registry-secret
 ---

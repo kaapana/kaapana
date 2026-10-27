@@ -53,6 +53,8 @@ spec:
         configMap:
           name: home-ui-branding
 {{- end }}
+{{- if not .Values.global.restricted_rbac }}
       priorityClassName: kaapana-high-priority
+{{- end }}
       imagePullSecrets:
         - name: registry-secret

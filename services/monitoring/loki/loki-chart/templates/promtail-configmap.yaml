@@ -1,3 +1,5 @@
+{{- /* promtail and node-exporter need hostPath volumes (rejected by PodSecurity baseline) and cluster-wide reads: not deployed with restricted RBAC */}}
+{{- if not .Values.global.restricted_rbac }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -98,3 +100,4 @@ data:
 
     tracing:
       enabled: false
+{{- end }}

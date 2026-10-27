@@ -44,8 +44,13 @@ spec:
           ports:
           - name: metrics
             containerPort: 8081
+{{- if .Values.global.external_ingress }}
+          - name: http
+            containerPort: 4180
+{{- else }}
           - name: https
             containerPort: 8443
+{{- end }}
           resources:
             requests:
               memory: 50Mi

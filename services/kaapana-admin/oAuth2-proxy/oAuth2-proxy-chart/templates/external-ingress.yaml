@@ -1,0 +1,30 @@
+{{- if .Values.global.external_ingress }}
+# Entry point for the external ingress controller of the cluster. TLS is terminated there with the
+# controller's (default) certificate, oauth2-proxy is reached via plain HTTP inside the cluster.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: oauth2-proxy-external-ingress
+  namespace: "{{ .Values.global.helm_namespace }}"
+  annotations:
+    {{- if eq .Values.global.external_ingress "traefik" }}
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    {{- end }}
+    {{- if eq .Values.global.external_ingress "nginx" }}
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.global.external_ingress | quote }}
+  rules:
+  - host: {{ required "A valid hostname (or fqdn) is required!" .Values.global.hostname }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: oauth2-proxy-service
+            port:
+              name: http-port
+{{- end }}

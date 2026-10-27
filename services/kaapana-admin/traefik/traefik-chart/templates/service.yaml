@@ -6,9 +6,14 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-    - protocol: TCP
-      name: websecure
+    - name: websecure
+  {{- if .Values.global.external_ingress }}
+      port: 9000        # what oauth2-proxy connects to
+      targetPort: 9000
+  {{- else }}
       port: {{ .Values.global.https_port }}
+      targetPort: {{ .Values.global.https_port }}
+  {{- end }}
     - protocol: TCP
       name: admin
       port: 8080
@@ -22,12 +27,18 @@ metadata:
   name: traefik-http
   namespace: "{{  .Values.global.helm_namespace  }}"
 spec:
+  {{- if .Values.global.external_ingress }}
+  type: ClusterIP
+  {{- else }}
   type: NodePort
+  {{- end }}
   ports:
     - protocol: TCP
       name: web
       port: {{ .Values.global.http_port }}
+      {{- if not .Values.global.external_ingress }}
       nodePort: {{ .Values.global.http_port }}
+      {{- end }}
   selector:
     app.kubernetes.io/name: traefik
 {{- end }}

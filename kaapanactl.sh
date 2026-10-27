@@ -1605,6 +1605,7 @@ function load_kaapana_config {
     MOUNT_POINTS_TO_MONITOR=""
 
     INSTANCE_NAME=""
+    EXTERNAL_INGRESS="" # "" or "nginx" or "traefik": ingress controller in front of kaapana (traefik then isn't exposed via NodePort)
 
     ######################################################
     # Login page branding (shown on the Keycloak login page)
@@ -2693,6 +2694,7 @@ function deploy_chart {
     --set global.restricted_rbac="$RESTRICTED_RBAC" \
     --set global.is_microk8s="$IS_MICROK8S" \
     --set global.all_managed_namespaces="{${ALL_MANAGED_NAMESPACES}}" \
+    --set-string global.external_ingress="$EXTERNAL_INGRESS" \
     --name-template "$PLATFORM_NAME"
 
     echo -e ""
@@ -3077,6 +3079,12 @@ function update_coredns_rewrite() {
     # If hostname starts with a number it is considerd an IP and dns rewrite is skipped
     if [[ "$hostname" =~ ^[0-9] ]]; then
         echo "Skipped DNS rewrite because ${hostname} seems to be an IP Adress"
+        return 0
+    fi
+
+    # With an external ingress the hostname has to resolve to it: oauth2-proxy then only serves HTTP inside the cluster
+    if [ -n "$EXTERNAL_INGRESS" ]; then
+        echo "Skipped DNS rewrite because EXTERNAL_INGRESS=$EXTERNAL_INGRESS"
         return 0
     fi
 

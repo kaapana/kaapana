@@ -39,9 +39,15 @@ data:
     cookie_secret = "{{ randAlphaNum 32 | b64enc }}"
 
     # TLS and SSL settings
+    {{- if .Values.global.external_ingress }}
+    # The external ingress controller terminates TLS with its own certificate and forwards via plain HTTP.
+    # oauth2-proxy can't serve both: with tls_cert_file set it ignores http_address.
+    http_address = "0.0.0.0:4180"
+    {{- else }}
     tls_cert_file = "/ssl/tls.crt"
     tls_key_file = "/ssl/tls.key"
     https_address = "0.0.0.0:8443"
+    {{- end }}
     metrics_address = ":8081"
     ssl_insecure_skip_verify = true
     ssl_upstream_insecure_skip_verify = true
@@ -69,7 +75,15 @@ data:
 
     # Additional flags
     custom_templates_dir = "/usr/share/oauth2-proxy"
-    upstreams = ["https://traefik-{{ .Values.global.instance_uid | default 0 }}.{{ .Values.global.helm_namespace }}.svc:{{ .Values.global.https_port }}"]
+    {{- if .Values.global.external_ingress }}
+    upstreams = [
+      "https://traefik-{{ .Values.global.instance_uid | default 0 }}.{{ .Values.global.helm_namespace }}.svc:9000"
+    ]
+    {{- else }}
+    upstreams = [
+      "https://traefik-{{ .Values.global.instance_uid | default 0 }}.{{ .Values.global.helm_namespace }}.svc:{{ .Values.global.https_port }}"
+    ]
+    {{- end }}
     skip_provider_button = true
     skip_oidc_discovery = true
     skip_jwt_bearer_tokens = true

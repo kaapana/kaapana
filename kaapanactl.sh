@@ -353,9 +353,6 @@ function deploy() {
     CONTAINER_REGISTRY_PASSWORD="${CONTAINER_REGISTRY_PASSWORD:-}"
     CHART_REFERENCE="${CHART_REFERENCE:-}"
     PLAIN_HTTP="${PLAIN_HTTP:-false}"
-    # Comma-separated CIDRs of the site's LDAP/AD servers; rendered by the keycloak chart into an
-    # egress policy for the Keycloak pods. Empty: no policy, egress unchanged.
-    KEYCLOAK_LDAP_EGRESS_CIDRS="${KEYCLOAK_LDAP_EGRESS_CIDRS:-}"
     KUBE_HELM_INSTALL_TIMEOUT="${KUBE_HELM_INSTALL_TIMEOUT:-}"
     KUBE_HELM_DELETION_TIMEOUT="${KUBE_HELM_DELETION_TIMEOUT:-}"
 
@@ -1544,6 +1541,10 @@ function load_kaapana_config {
     EMAIL_ADDRESS_SENDER=""
     SMTP_USERNAME=""
     SMTP_PASSWORD=""
+
+    # List the CIDRs of the site's LDAP or AD servers, separated by commas, e.g. "10.20.30.40/32".
+    # Keycloak can only reach servers outside the cluster if they are listed here.
+    KEYCLOAK_LDAP_EGRESS_CIDRS=""
 
     VERSION_IMAGE_COUNT="20"
     DEPLOYMENT_TIMESTAMP=`date  --iso-8601=seconds`

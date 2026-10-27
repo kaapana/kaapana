@@ -65,77 +65,35 @@ const extensionDependencies = {
   '@kaapana/extension-nninteractive': '^3.13.4',
 };
 
-const HOTKEY_PREFERENCES_VERSION = 'nninteractive-move40-v1';
-
-function resetStaleHotkeyPreferences() {
-  if (typeof window === 'undefined' || !window.localStorage) {
-    return;
-  }
-
-  const versionKey = 'kaapana-nninteractive-hotkeys-version';
-  if (window.localStorage.getItem(versionKey) === HOTKEY_PREFERENCES_VERSION) {
-    return;
-  }
-
-  window.localStorage.removeItem('user-preferred-keys');
-  window.localStorage.removeItem('hotkey-definitions');
-  window.localStorage.setItem('hotkeys-migrated', 'true');
-  window.localStorage.setItem(versionKey, HOTKEY_PREFERENCES_VERSION);
-}
+// Adapt OHIF's default hotkeys to the nnInteractive panel's single-letter keys:
+// - R and L (rotate) collide with Clear and Lasso; they move to Ctrl.
+// - Ctrl+Z is the panel's undo; OHIF's measurement undo moves to Ctrl+Shift+Z.
+// - B/E (brush/eraser) and A (add segment) bypass the panel's object handling; the panel's
+//   Brush (C) and New object (N) replace them.
+const DROPPED_TOOL_HOTKEYS = ['CircularBrush', 'CircularEraser'];
 
 function migrateHotkeyBindings(bindings = []) {
   return bindings
-    .filter(binding => {
-      if (binding.commandName === 'addNewSegment') {
-        return false;
-      }
-
-      return !(
-        binding.commandName === 'setToolActive' &&
-        binding.commandOptions?.toolName === 'CircularBrush'
-      );
-    })
+    .filter(
+      binding =>
+        binding.commandName !== 'addNewSegment' &&
+        !(
+          binding.commandName === 'setToolActive' &&
+          DROPPED_TOOL_HOTKEYS.includes(binding.commandOptions?.toolName)
+        )
+    )
     .map(binding => {
       switch (binding.commandName) {
         case 'rotateViewportCW':
           return { ...binding, keys: ['ctrl+r'] };
         case 'rotateViewportCCW':
           return { ...binding, keys: ['ctrl+l'] };
-        case 'flipViewportVertical':
-          return { ...binding, keys: ['ctrl+v'] };
         case 'undo':
           return { ...binding, keys: ['ctrl+shift+z'] };
         default:
           return binding;
       }
-    })
-    .concat([
-      {
-        commandName: 'toggleSegmentationVisibilityAllViewports',
-        label: 'Toggle Segmentation Visibility (All Viewports)',
-        keys: ['v'],
-        isEditable: true,
-      },
-      {
-        commandName: 'undoNninter',
-        label: 'Undo NNInteractive',
-        keys: ['ctrl+z'],
-        isEditable: true,
-      },
-      {
-        commandName: 'resetNninter',
-        label: 'Reset NNInteractive',
-        keys: ['g'],
-        isEditable: true,
-      },
-      {
-        commandName: 'setToolActive',
-        commandOptions: { toolName: 'CircularBrush' },
-        label: 'Brush',
-        keys: ['ctrl+b'],
-        isEditable: true,
-      },
-    ]);
+    });
 }
 
 function installHotkeyRegistrationGuard(extensionManager) {
@@ -156,7 +114,7 @@ function installHotkeyRegistrationGuard(extensionManager) {
 }
 
 function modeFactory({ modeConfiguration }) {
-  let _activatePanelTriggersSubscriptions = [];
+  let _commandsManager;
 
   return {
     id,
@@ -168,7 +126,9 @@ function modeFactory({ modeConfiguration }) {
 
       measurementService.clearMeasurements();
 
-      resetStaleHotkeyPreferences();
+      _commandsManager = commandsManager;
+      commandsManager.runCommand('enterNninterMode');
+
       installHotkeyRegistrationGuard(extensionManager);
 
       initToolGroups(extensionManager, toolGroupService, commandsManager);
@@ -219,38 +179,16 @@ function modeFactory({ modeConfiguration }) {
       ]);
 
       customizationService.setCustomizations({
-        'panelSegmentation.disableEditing': {
-          $set: false,
-        },
         'ohif.hotkeyBindings': {
           $apply: migrateHotkeyBindings,
         },
+        // OHIF recomputes segment statistics 1 s after every labelmap change and then writes
+        // back the whole segment map it read before its (slow) async pass — clobbering objects
+        // created or moved meanwhile, since nnInteractive packs objects as segments of shared
+        // layer segmentations. The extension computes the one statistic it needs (an object's
+        // center, for jump-to-object) itself.
+        'panelSegmentation.disableUpdateSegmentationStats': { $set: true },
       });
-
-      toolbarService.createButtonSection('segmentationToolbox', [
-        'SegmentationUtilities',
-        'SegmentationTools',
-      ]);
-
-      toolbarService.createButtonSection('aiToolBox', ['aiToolBoxContainer']);
-
-      toolbarService.createButtonSection('aiToolBoxSection', [
-        'Probe2',
-        'RectangleROI2',
-        'PlanarFreehandROI2',
-        'PlanarFreehandROI3',
-        'nninter',
-        'undoNninter',
-      ]);
-      toolbarService.createButtonSection('segmentationToolboxUtilitySection', [
-        'InterpolateLabelmap',
-        'SegmentBidirectional',
-      ]);
-      toolbarService.createButtonSection('segmentationToolboxToolsSection', [
-        'BrushTools',
-        'Shapes',
-      ]);
-      toolbarService.createButtonSection('brushToolsSection', ['Brush', 'Eraser', 'Threshold']);
     },
     onModeExit: ({ servicesManager }: withAppTypes) => {
       const {
@@ -262,8 +200,8 @@ function modeFactory({ modeConfiguration }) {
         uiModalService,
       } = servicesManager.services;
 
-      _activatePanelTriggersSubscriptions.forEach(sub => sub.unsubscribe());
-      _activatePanelTriggersSubscriptions = [];
+      _commandsManager?.runCommand('exitNninterMode');
+      _commandsManager = undefined;
 
       uiDialogService.hideAll();
       uiModalService.hide();

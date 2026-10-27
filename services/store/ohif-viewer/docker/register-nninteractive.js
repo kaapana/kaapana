@@ -5,13 +5,17 @@ const fs = require('fs');
 const path = 'platform/app/pluginConfig.json';
 const config = JSON.parse(fs.readFileSync(path, 'utf8'));
 
-const register = (list, packageName) => {
+const register = (list, packageName, { first = false } = {}) => {
   if (!list.some(entry => entry.packageName === packageName)) {
-    list.push({ packageName });
+    first ? list.unshift({ packageName }) : list.push({ packageName });
   }
 };
 
+// Last: the extension uses services (segmentation, cornerstone viewport) that OHIF's own
+// extensions register first.
 register(config.extensions, '@kaapana/extension-nninteractive');
-register(config.modes, '@kaapana/mode-nninteractive');
+// First: the mode serves the `viewer` route, which OHIF's longitudinal mode also declares, and
+// the first registered mode wins the route.
+register(config.modes, '@kaapana/mode-nninteractive', { first: true });
 
 fs.writeFileSync(path, JSON.stringify(config, null, 2) + '\n');

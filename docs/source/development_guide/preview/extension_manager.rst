@@ -35,6 +35,11 @@ Manager uses the registry credentials of the deployment to access it.
   extensions cannot be installed again, because their workflows already exist.
 - The URL uses HTTPS. If the platform was deployed with
   ``kaapanactl.sh --plain-http``, it uses HTTP.
+- The default repository does not work if the registry is called ``localhost``
+  or ``127.0.0.1``, for example ``localhost:5000``. Inside the pod of the
+  Extension Manager, ``localhost`` is the pod itself and not the server. Use a
+  registry address that is reachable from inside the cluster, for example the
+  IP address or the hostname of the server.
 - In offline mode, no default repository is registered.
 
 

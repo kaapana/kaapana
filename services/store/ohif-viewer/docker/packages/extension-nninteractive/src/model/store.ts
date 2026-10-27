@@ -1,5 +1,5 @@
 // Minimal observable store. Panels subscribe instead of polling; models push
-// changes through set(). Kept deliberately tiny (Ponytail: only what must exist).
+// changes through set().
 
 export type Unsubscribe = () => void;
 

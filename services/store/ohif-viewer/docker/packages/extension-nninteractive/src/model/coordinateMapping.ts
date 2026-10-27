@@ -6,15 +6,15 @@
 // viewports the world point is mapped to volume IJK and the volume slice id is mapped
 // back through the source display-set image-id order (the robust MPR rule).
 //
+// Coordinates stay unrounded, like napari's data coordinates: the proxy applies the
+// napari-nninteractive plugin's own rounding, brush and polygon rules. Only the axis of
+// the drawn plane is snapped to the displayed slice, as a napari layer lies on one slice.
+//
 // No command or tool builds IJK directly; everything goes through here.
 
-import {
-  BaseVolumeViewport,
-  VolumeViewport3D,
-  utilities as csUtils,
-} from '@cornerstonejs/core';
+import { BaseVolumeViewport, VolumeViewport3D, utilities as csUtils } from '@cornerstonejs/core';
 
-import { FreehandPromptPayload, ViewportKind } from './types';
+import { FreehandPrompt, ViewportKind } from './types';
 
 function getImageData(viewport: any): any {
   const image = viewport?.getImageData?.();
@@ -34,49 +34,43 @@ export function viewportKind(viewport: any): ViewportKind {
   return 'stack';
 }
 
-export function isPromptableViewport(viewport: any): boolean {
-  const kind = viewportKind(viewport);
-  return kind === 'stack' || kind === 'volumeMpr';
-}
-
 /**
  * Convert a single world point to source display-set voxel coordinates [x, y, slice].
  * `dsImageIds` is the source display-set image-id order; `referencedImageId` is the
  * annotation's slice for stack viewports.
  */
-export function worldToSourceVoxel(
+function worldToSourceVoxel(
   viewport: any,
   world: number[],
   dsImageIds: string[],
   referencedImageId?: string
 ): [number, number, number] | undefined {
   const imageData = getImageData(viewport);
-  if (!imageData || typeof csUtils.transformWorldToIndex !== 'function') {
+  if (!imageData) {
     return undefined;
   }
-  const ijk = csUtils.transformWorldToIndex(imageData, world as any);
-  if (!ijk) {
-    return undefined;
-  }
-  const x = Math.round(ijk[0]);
-  const y = Math.round(ijk[1]);
+  const [x, y, k] = csUtils.transformWorldToIndex(imageData, world as any);
 
   if (viewport instanceof BaseVolumeViewport) {
-    const k = Math.round(ijk[2]);
     const volumeImageIds: string[] = viewport.getImageIds?.() ?? [];
-    const srcImageId = volumeImageIds[k];
+    const kRounded = Math.min(Math.max(Math.round(k), 0), Math.max(volumeImageIds.length - 1, 0));
     let z = k;
-    if (srcImageId && dsImageIds?.length) {
-      const idx = dsImageIds.indexOf(srcImageId);
+    if (dsImageIds?.length && volumeImageIds.length) {
+      const idx = dsImageIds.indexOf(volumeImageIds[kRounded]);
       if (idx >= 0) {
-        z = idx;
+        // Keep the sub-slice fraction; it runs backwards when the volume's slice order is
+        // the reverse of the display set's.
+        const first = dsImageIds.indexOf(volumeImageIds[0]);
+        const last = dsImageIds.indexOf(volumeImageIds[volumeImageIds.length - 1]);
+        const direction = last >= first ? 1 : -1;
+        z = idx + direction * (k - kRounded);
       }
     }
     return [x, y, z];
   }
 
   // Stack viewport: the slice is the referenced image id's position in source order.
-  let z = Math.round(ijk[2]);
+  let z = Math.round(k);
   if (referencedImageId && dsImageIds?.length) {
     const idx = dsImageIds.indexOf(referencedImageId);
     if (idx >= 0) {
@@ -86,30 +80,40 @@ export function worldToSourceVoxel(
   return [x, y, z];
 }
 
-/** World polyline of an annotation, regardless of tool (points, rectangle corners, contour). */
-export function getPromptWorldPoints(annotation: any): number[][] {
-  const data = annotation?.data ?? {};
-  if (Array.isArray(data.handles?.points) && data.handles.points.length) {
-    return data.handles.points;
-  }
-  if (Array.isArray(data.contour?.polyline) && data.contour.polyline.length) {
-    return data.contour.polyline;
-  }
-  if (Array.isArray(data.polyline) && data.polyline.length) {
-    return data.polyline;
-  }
-  return [];
+/** World polyline of an annotation: probe/rectangle handles or a freehand contour. */
+function promptWorldPoints(annotation: any): number[][] {
+  const { handles, contour } = annotation.data ?? {};
+  return handles?.points?.length ? handles.points : (contour?.polyline ?? []);
 }
 
 function convertAll(viewport: any, annotation: any, dsImageIds: string[]): number[][] {
-  const referencedImageId = annotation?.metadata?.referencedImageId;
-  return getPromptWorldPoints(annotation)
+  const referencedImageId = annotation.metadata?.referencedImageId;
+  return promptWorldPoints(annotation)
     .map(p => worldToSourceVoxel(viewport, p, dsImageIds, referencedImageId))
     .filter(Boolean) as number[][];
 }
 
+/** Points of one prompt, with the drawn plane's axis snapped to the displayed slice. */
+function convertOnPlane(
+  viewport: any,
+  annotation: any,
+  dsImageIds: string[]
+): { points: number[][]; axis: number | undefined } {
+  const points = convertAll(viewport, annotation, dsImageIds);
+  const axis = points.length
+    ? (planeAxisFromViewport(viewport) ?? planeAxisFromPoints(points))
+    : undefined;
+  if (axis !== undefined) {
+    const slice = Math.round(points[0][axis]);
+    for (const point of points) {
+      point[axis] = slice;
+    }
+  }
+  return { points, axis };
+}
+
 function indexToWorld(imageData: any, index: number[]): number[] | undefined {
-  return imageData?.indexToWorld?.(index) ?? csUtils.transformIndexToWorld?.(imageData, index as any);
+  return imageData?.indexToWorld?.(index) ?? csUtils.transformIndexToWorld(imageData, index as any);
 }
 
 function normalize(vector: number[]): number[] | undefined {
@@ -147,10 +151,10 @@ function planeAxisFromViewport(viewport: any): number | undefined {
     const axisVector = normalize(world.map((value, i) => value - origin[i]));
     return axisVector ? Math.abs(dot(normal, axisVector)) : -1;
   });
-  const best = scores.reduce(
-    (acc, score, axis) => (score > acc.score ? { axis, score } : acc),
-    { axis: -1, score: -1 }
-  );
+  const best = scores.reduce((acc, score, axis) => (score > acc.score ? { axis, score } : acc), {
+    axis: -1,
+    score: -1,
+  });
   return best.axis >= 0 && best.score > 0 ? best.axis : undefined;
 }
 
@@ -173,17 +177,19 @@ export function pointIJK(
   annotation: any,
   dsImageIds: string[]
 ): number[] | undefined {
-  const points = convertAll(viewport, annotation, dsImageIds);
-  return points[0];
+  return convertOnPlane(viewport, annotation, dsImageIds).points[0];
 }
 
-/** Box prompt (RectangleROI2) → [[minX, minY, minZ], [maxX, maxY, maxZ]]. */
+/**
+ * Box prompt (RectangleROI2) → [[minX, minY, minZ], [maxX, maxY, maxZ]] over its corners.
+ * The proxy turns this into napari's half-open box (the collapsed plane axis gets +1).
+ */
 export function boxIJK(
   viewport: any,
   annotation: any,
   dsImageIds: string[]
 ): number[][] | undefined {
-  const points = convertAll(viewport, annotation, dsImageIds);
+  const { points } = convertOnPlane(viewport, annotation, dsImageIds);
   if (points.length < 2) {
     return undefined;
   }
@@ -196,28 +202,15 @@ export function boxIJK(
   ];
 }
 
-/** Freehand prompt (scribble or lasso) → polyline of [x, y, slice]. */
+/** Freehand prompt (scribble or lasso) → polyline of [x, y, slice] plus the drawn plane's axis. */
 export function freehandIJK(
   viewport: any,
   annotation: any,
   dsImageIds: string[]
-): number[][] | undefined {
-  const points = convertAll(viewport, annotation, dsImageIds);
-  return points.length ? points : undefined;
-}
-
-/** Freehand prompt plus the constant source axis of the drawn plane. */
-export function freehandPromptIJK(
-  viewport: any,
-  annotation: any,
-  dsImageIds: string[]
-): FreehandPromptPayload | undefined {
-  const points = convertAll(viewport, annotation, dsImageIds);
+): FreehandPrompt | undefined {
+  const { points, axis } = convertOnPlane(viewport, annotation, dsImageIds);
   if (!points.length) {
     return undefined;
   }
-  return {
-    points,
-    axis: planeAxisFromViewport(viewport) ?? planeAxisFromPoints(points),
-  };
+  return { points, axis };
 }

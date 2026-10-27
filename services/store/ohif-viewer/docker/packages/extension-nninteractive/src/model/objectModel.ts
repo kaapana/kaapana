@@ -6,14 +6,9 @@
 // know about (which object the backend loaded, whether the local mask diverged, and
 // whether an undo is currently safe).
 
-import { objectKeyOf } from './types';
+import { ObjectRef, objectKeyOf } from './types';
 
-export interface ActiveObject {
-  segmentationId: string;
-  segmentIndex: number;
-}
-
-// The object the backend session currently holds, `${segmentationId}#${segmentIndex}`.
+// The object the backend session currently holds.
 let serverObjectKey: string | undefined;
 // True only when at least one prompt has been applied since the last init/reset/set_mask.
 let undoableSinceLoad = false;
@@ -24,37 +19,30 @@ const dirtyObjects = new Set<string>();
 const knownEmptyObjects = new Set<string>();
 
 /** The active nnInteractive object = the active OHIF segment in the active viewport. */
-export function getActiveObject(servicesManager: any): ActiveObject | null {
-  const service = servicesManager?.services?.segmentationService;
-  const viewportGridService = servicesManager?.services?.viewportGridService;
-  if (!service) {
-    return null;
-  }
-  const viewportId = viewportGridService?.getActiveViewportId?.();
-  const activeSeg = service.getActiveSegmentation?.(viewportId);
+export function getActiveObject(servicesManager: any): ObjectRef | null {
+  const { segmentationService, viewportGridService } = servicesManager.services;
+  const viewportId = viewportGridService.getActiveViewportId();
+  const activeSeg = segmentationService.getActiveSegmentation(viewportId);
   if (!activeSeg?.segmentationId) {
     return null;
   }
-  const activeSegment = service.getActiveSegment?.(viewportId);
   const segmentIndex =
-    activeSegment?.segmentIndex ?? activeSeg.activeSegmentIndex ?? 1;
+    segmentationService.getActiveSegment(viewportId)?.segmentIndex ??
+    activeSeg.activeSegmentIndex ??
+    1;
   return { segmentationId: activeSeg.segmentationId, segmentIndex };
-}
-
-export function objectKey(segmentationId: string, segmentIndex: number): string {
-  return objectKeyOf(segmentationId, segmentIndex);
 }
 
 export function getServerObject(): string | undefined {
   return serverObjectKey;
 }
 
-export function setServerObject(segmentationId: string, segmentIndex: number): void {
-  serverObjectKey = objectKeyOf(segmentationId, segmentIndex);
+export function setServerObject(object: ObjectRef): void {
+  serverObjectKey = objectKeyOf(object);
 }
 
-export function holdsObject(segmentationId: string, segmentIndex: number): boolean {
-  return serverObjectKey === objectKeyOf(segmentationId, segmentIndex);
+export function holdsObject(object: ObjectRef): boolean {
+  return serverObjectKey === objectKeyOf(object);
 }
 
 export function clearServerObject(): void {
@@ -70,39 +58,56 @@ export function isUndoable(): boolean {
   return undoableSinceLoad;
 }
 
-export function markDirty(segmentationId: string, segmentIndex: number): void {
-  const key = objectKeyOf(segmentationId, segmentIndex);
+export function markDirty(object: ObjectRef): void {
+  const key = objectKeyOf(object);
   dirtyObjects.add(key);
   knownEmptyObjects.delete(key);
 }
 
-export function isDirty(segmentationId: string, segmentIndex: number): boolean {
-  return dirtyObjects.has(objectKeyOf(segmentationId, segmentIndex));
+export function isDirty(object: ObjectRef): boolean {
+  return dirtyObjects.has(objectKeyOf(object));
 }
 
-export function clearDirty(segmentationId: string, segmentIndex: number): void {
-  dirtyObjects.delete(objectKeyOf(segmentationId, segmentIndex));
+export function clearDirty(object: ObjectRef): void {
+  dirtyObjects.delete(objectKeyOf(object));
 }
 
-export function markEmpty(segmentationId: string, segmentIndex: number): void {
-  const key = objectKeyOf(segmentationId, segmentIndex);
+export function markEmpty(object: ObjectRef): void {
+  const key = objectKeyOf(object);
   knownEmptyObjects.add(key);
   dirtyObjects.delete(key);
 }
 
-export function markNonEmpty(segmentationId: string, segmentIndex: number): void {
-  knownEmptyObjects.delete(objectKeyOf(segmentationId, segmentIndex));
+export function markNonEmpty(object: ObjectRef): void {
+  knownEmptyObjects.delete(objectKeyOf(object));
 }
 
-export function isKnownEmpty(segmentationId: string, segmentIndex: number): boolean {
-  return knownEmptyObjects.has(objectKeyOf(segmentationId, segmentIndex));
+export function isKnownEmpty(object: ObjectRef): boolean {
+  return knownEmptyObjects.has(objectKeyOf(object));
 }
 
-export function forgetObject(segmentationId: string, segmentIndex: number): void {
-  const key = objectKeyOf(segmentationId, segmentIndex);
+export function forgetObject(object: ObjectRef): void {
+  const key = objectKeyOf(object);
   dirtyObjects.delete(key);
   knownEmptyObjects.delete(key);
   if (serverObjectKey === key) {
     clearServerObject();
+  }
+}
+
+/** An object moved to another layer (new segmentation/index): carry its bookkeeping over. */
+export function renameObject(from: ObjectRef, to: ObjectRef): void {
+  const fromKey = objectKeyOf(from);
+  const toKey = objectKeyOf(to);
+  if (fromKey === toKey) {
+    return;
+  }
+  if (serverObjectKey === fromKey) {
+    serverObjectKey = toKey;
+  }
+  for (const set of [dirtyObjects, knownEmptyObjects]) {
+    if (set.delete(fromKey)) {
+      set.add(toKey);
+    }
   }
 }

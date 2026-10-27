@@ -6,23 +6,20 @@ Kaapana OHIF extension for the nnInteractive segmentation workflow.
 
 | File | Role |
 |---|---|
-| `src/index.ts` | OHIF extension descriptor. Exposes pre-registration, commands, panels, customizations, and utilities. |
-| `src/preRegistration.ts` | Runtime setup before modes enter: prompt-tool registration, icon registration, metadata providers, prompt-annotation stamping, the 3D-focus guard, the import-split hook, and viewport/session subscriptions. |
-| `src/commandsModule.ts` | Thin nnInteractive command surface over the `model/` layer: session lifecycle, inference, undo/reset, manual correction, SEG store/download overrides (merged per-object → one overlapping SEG, with a series-name prompt on store), segment jumping/toggling. |
-| `src/model/` | Product logic split by concern: `sessionModel`, `imageModel`, `objectModel`, `promptModel`/`promptDisplay`, `coordinateMapping`, `segmentationBridge` (the only module touching labelmap voxels; one OHIF segmentation per object + import-split), `serverApi`, `store`, `types`. |
-| `src/getPanelModule.tsx` | Exposes `aiToolBox` and `panelSegmentationWithTools`. |
-| `src/getCustomizationModule.ts` | Registers Cornerstone overlay/tool customizations. |
-| `src/getUtilityModule.ts` | Exposes utility modules used by other package code. |
+| `src/index.ts` | OHIF extension descriptor. Exposes pre-registration, commands, and the panel. |
+| `src/preRegistration.ts` | Runtime setup before modes enter: prompt-tool and icon registration, prompt-annotation stamping (and live-mode submit), the 3D-focus guard, and the console debug hooks. |
+| `src/commandsModule.ts` | Thin nnInteractive command surface over the `model/` layer: session lifecycle, inference, undo/reset, manual correction, SEG store/download (all objects → one overlapping SEG, with a series-name prompt on store), jumping to an object; also the viewport guard and the SEG import-split hook. |
+| `src/model/` | Product logic split by concern: `sessionModel`, `imageModel`, `objectModel`, `promptModel`/`promptDisplay`, `coordinateMapping`, `segmentationBridge` (the only module touching labelmap voxels; objects packed into layer segmentations + import-split), `serverApi`, `store`, `types`. |
+| `src/getPanelModule.tsx` | Exposes the single nnInteractive panel (`panelSegmentationWithTools`). |
 
 ## Main Folders
 
 | Folder | Role |
 |---|---|
-| `src/panels/` | AI toolbox panel plus extension-owned segmentation panel/table fork. |
+| `src/panels/` | The nnInteractive panel (`NnInteractivePanel`) and its object list (`ObjectList`). |
 | `src/tools/` | nnInteractive prompt tool subclasses (`Probe2`, `RectangleROI2`, `PlanarFreehandROI2`, `PlanarFreehandROI3`). |
 | `src/icons/` | Icons registered with `Icons.addIcon(...)` in `preRegistration.ts`. |
-| `src/customizations/` | Components plugged into OHIF customization slots. |
-| `src/utils/` | Shared runtime helpers: toolbox state, multipart parsing, prompt-annotation styling, and measurement-state events. |
+| `src/utils/` | Shared runtime helpers: toolbox (UI) state and multipart response parsing. |
 
 ## Data Model & Workflow
 
@@ -33,14 +30,17 @@ stamps a prompt on draw and, in live mode, submits it on completion. `model/coor
 converts each annotation's geometry into the IJK payload the proxy expects, for both stack and MPR
 planes.
 
-**One OHIF segmentation per nnInteractive object.** Each object is its own segmentation with a single
-labelmap and segment index 1, so objects overlap natively and render/edit in the stack view and the
-axial/coronal/sagittal MPR views. `model/segmentationBridge.ts` is the only module that reads or
-writes labelmap voxels. The stack labelmap images are the single voxel store: Cornerstone 5 renders
+**Objects are segments packed into layer segmentations.** Each object owns one segment index in an
+ordinary single-labelmap OHIF segmentation (a "layer"); its voxels hold that index. Objects of one
+layer cannot share voxels, so an object whose mask would overlap another object of its layer moves
+to a layer where it fits (or a new one). A typical session needs one layer, so memory grows with
+the number of overlapping objects, not with the number of objects. `model/segmentationBridge.ts` is
+the only module that reads or writes labelmap voxels. The stack labelmap images are the single voxel store: Cornerstone 5 renders
 them in stack viewports and, through an image-backed geometry volume, in MPR viewports, so a write
 (or a brush stroke in either view) shows everywhere after `triggerSegmentationDataModified`. The
-bridge also assigns each object a palette color and keeps its representation in every stack/MPR
-viewport (never in 3D).
+bridge also assigns each object a palette color, keeps every layer's representation in every
+stack/MPR viewport (never in 3D), and locks all objects but the active one so the brush cannot paint
+over a neighbour in the same layer.
 
 **Session & inference.** `sessionModel` owns the backend session lifecycle over the `serverApi`
 facade; `objectModel` tracks the active object and its dirty state. Running the prompts sends them
@@ -49,54 +49,64 @@ object. Manual brush edits mark the object dirty and are sent back to the backen
 the next run.
 
 **Import / export.** On load, a stored SEG that OHIF hydrates as one multi-segment segmentation is
-split into per-object segmentations, preserving each segment's label and color. On store/download,
-the per-object segmentations are merged into one overlapping DICOM SEG; store prompts for a series
-name first.
+split into objects, preserving each segment's label and color. On store/download, all objects of
+the series are merged into one overlapping DICOM SEG; store prompts for a series name first.
 
 ## Command Ownership
 
-This extension intentionally overrides or supplements some stock OHIF commands. Keep related command
-families together:
+The extension's commands use their own names and never override stock OHIF commands, so other modes
+are unaffected. Its global listeners (prompt annotations, viewport guard, SEG import-split, 3D focus
+guard) act only while the nnInteractive mode is active: the mode calls `enterNninterMode` and
+`exitNninterMode`, and exit closes the backend session. Keep related command families together:
 
-- session commands: `initNninter`, `nninterSessionStatus`, `closeNninterSession`
-- inference commands: `nninter` (run prompts), `undoNninter`, `resetNninter`, `resetSegment`, `deleteSegment`
+- mode lifecycle: `enterNninterMode`, `exitNninterMode`
+- session commands: `nninterSessionStatus` (heartbeat), `closeNninterSession`; the first prompt starts the session, and a run that finds its backend session gone (409) re-initializes once and re-seeds the object from the local mask
+- inference commands: `nninter` (run prompts), `undoNninter`, `resetSegment`, `deleteNninterObject`
 - object commands: `armNextNninterObject`, `loadSegmentForRefinement`
 - manual correction: brush add/erase in manual-correction mode; edits mark the active object dirty and go to the backend as `set_mask` on the next run
-- UI bridge commands: `setAiToolActive`, `runAiSegmentation`
-- navigation/visibility: `jumpToSegment`, `toggleCurrentSegment`
-- SEG operations: `storeNninterSegmentation` and `downloadNninterSegmentation` merge the per-object segmentations into one overlapping DICOM SEG
+- navigation: `jumpToSegment`
+- SEG operations: `storeNninterSegmentation` and `downloadNninterSegmentation` merge all objects into one overlapping DICOM SEG
 
 Do not split store/download changes across extension and source patches unless there is no choice.
-These flows share assumptions about segmentation ids, display sets, and the per-object labelmap layout.
+These flows share assumptions about segmentation ids, display sets, and the layer labelmap layout.
 
 ## Prompt Tool Ownership
 
-Prompt tool behavior lives in `src/tools/promptTools.ts`. The subclasses render prompt annotations
-with pending/positive/negative styling and provide `_addNewAnnotationFromIndex(...)`;
-`model/coordinateMapping.ts` converts each prompt annotation's geometry into the IJK payload the
-proxy expects. There are no Cornerstone package patches; anything prompt-specific belongs in these
-subclasses.
+`src/tools/promptTools.ts` defines the prompt tools as renamed subclasses of the stock Cornerstone
+tools, so prompts never mix with measurements. `model/promptDisplay.ts` styles them (pending vs.
+committed, positive vs. negative) and locks submitted ones; `model/coordinateMapping.ts` converts each
+prompt annotation's geometry into the IJK payload the proxy expects. There are no Cornerstone package
+patches.
 
-## Segmentation Table
+## Panel
 
-`src/panels/SegmentationTable/` is a local fork of the relevant OHIF segmentation table pieces. This
-is deliberate: the nnInteractive panel needs multi-select, per-object color and label, prompt cleanup,
-and manual-correction ergonomics that are easier to reason about in an owned component tree.
+`src/panels/NnInteractivePanel.tsx` is the mode's only right-hand panel and follows the workflow top
+to bottom: prompt sign (positive/negative) → tool (point, box, scribble, lasso, correction brush) →
+run options → objects → save. Each action has exactly one control, and its keyboard shortcut is
+printed on that control; the panel's key handler is the single place those shortcuts are bound.
+The backend session starts on the first prompt (there is no Initialize button); the header shows its
+status. Reset and Delete ask for confirmation because they cannot be undone.
 
-When upstream OHIF changes its table, do not blindly copy the new version over this folder. First
-check whether the change affects:
+`src/panels/ObjectList.tsx` lists every object (one row per segment of the layer segmentations, in
+creation order). Clicking a row selects the object for refinement and
+jumps to it; visibility applies to every viewport showing it (MPR has three).
 
-- visibility updates
-- active segment selection
-- per-object color and label
-- prompt cleanup when segments/segmentations are removed
-- manual correction brush add/erase workflows
+When changing the panel, keep:
+
+- one control per action, with the shortcut on it
 - single-step nnInteractive undo; the backend can undo only the latest interaction
 - per-tab nnInteractive session ids; one user's close request must not close another user's lease
 
+## Debugging
+
+In the browser console, `__nnInteractiveDbg()` logs a snapshot of the session, active object, prompts
+and every viewport's segmentation representations; `__nnInteractiveGpu.info()` reports the WebGL
+capabilities that decide whether MPR volumes render.
+
 ## Runtime Assumptions
 
-- The backend proxy is reachable under `/nninteractive/infer/...`.
+- The backend proxy is reachable under `/nninteractive/infer/...`, or `/project/<id>/nninteractive/...`
+  when OHIF runs under `/project/<id>/`.
 - The proxy keys sessions by study, series, and the OHIF tab's `clientSessionID`.
 - The mode registers the prompt tools in the active tool groups.
 - Stock OHIF 3.13 / Cornerstone 5: no OHIF source or node-module patches beyond Kaapana's shared
@@ -106,12 +116,12 @@ check whether the change affects:
 
 Verify:
 
-- initialize/close session
+- the first prompt starts the session; leaving the mode closes it
 - add all prompt types
 - negative prompts subtract instead of add
 - run segmentation and see mask update
 - manual correction brush add/erase
 - single-step undo/reset/next object
 - store/export SEG (a series-name prompt appears before storing)
-- reload stored SEG and see it split into per-object segmentations
-- segment statistics display
+- reload stored SEG and see it split into objects
+- object list: select (jumps to the object), hide/show, rename, color, delete

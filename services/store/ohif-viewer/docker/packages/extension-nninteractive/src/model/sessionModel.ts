@@ -6,6 +6,7 @@
 
 import { createStore } from './store';
 import * as serverApi from './serverApi';
+import * as objectModel from './objectModel';
 import { getActiveSource, sameSource } from './imageModel';
 import { SessionStatus, SourceImage } from './types';
 
@@ -35,10 +36,6 @@ export function getSource(): SourceImage | null {
 
 export function getGeneration(): number {
   return store.get().generation;
-}
-
-export function isReady(): boolean {
-  return store.get().status === 'ready';
 }
 
 /** True when the ready session still matches the currently displayed series. */
@@ -77,6 +74,8 @@ export async function initialize(servicesManager: any): Promise<boolean> {
 
   try {
     await serverApi.createSession(source);
+    // A fresh backend session holds no object: the next prompt must seed it from the local mask.
+    objectModel.clearServerObject();
     store.set({ status: 'ready', source });
     return true;
   } catch (error: any) {

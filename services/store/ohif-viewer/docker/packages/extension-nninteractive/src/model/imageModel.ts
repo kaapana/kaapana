@@ -20,7 +20,7 @@ function readViewportDisplaySetUIDs(viewportGridService: any, viewportId: string
   return [];
 }
 
-function toSourceImage(displaySet: any): SourceImage | null {
+export function toSourceImage(displaySet: any): SourceImage | null {
   if (!displaySet?.SeriesInstanceUID || !displaySet?.StudyInstanceUID) {
     return null;
   }

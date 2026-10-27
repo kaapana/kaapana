@@ -2,22 +2,16 @@
 // "which object is active, which mask does the server hold, which response is stale,
 // and what did Cornerstone attach to each viewport?" without spelunking minified bundles.
 
-import { cache } from '@cornerstonejs/core';
-import {
-  Enums as csToolsEnums,
-  segmentation as csToolsSegmentation,
-} from '@cornerstonejs/tools';
+import { cache, setPreferSizeOverAccuracy } from '@cornerstonejs/core';
+import { Enums as csToolsEnums, segmentation as csToolsSegmentation } from '@cornerstonejs/tools';
+
 import { getActiveSource } from './imageModel';
 import * as objectModel from './objectModel';
 import * as promptModel from './promptModel';
 import { sessionState } from './sessionModel';
 import { viewportKind } from './coordinateMapping';
-import { objectKeyOf } from './types';
 
 const LABELMAP = csToolsEnums.SegmentationRepresentations.Labelmap;
-export const DEBUG_HOOK_VERSION = 'nninteractive-services-v1';
-let debugHookLogged = false;
-let pendingHookLogged = false;
 
 function callSafely<T>(fn: () => T): T | string | undefined {
   try {
@@ -49,7 +43,9 @@ function viewportSnapshot(servicesManager: any, viewportId: string): Record<stri
   const viewport = viewportError ? undefined : viewportResult;
   const volumeId = viewport ? callSafely(() => viewport.getVolumeId?.()) : undefined;
   const imageId = viewport ? callSafely(() => viewport.getCurrentImageId?.()) : undefined;
-  const currentImageIndex = viewport ? callSafely(() => viewport.getCurrentImageIdIndex?.()) : undefined;
+  const currentImageIndex = viewport
+    ? callSafely(() => viewport.getCurrentImageIdIndex?.())
+    : undefined;
   const actors = viewport
     ? callSafely(() =>
         viewport.getActors?.()?.map((actorEntry: any) => ({
@@ -133,90 +129,66 @@ function segmentationSnapshot(servicesManager: any): Record<string, any>[] {
   });
 }
 
-export function debugSnapshot(servicesManager: any): Record<string, any> {
-  const { viewportGridService, cornerstoneViewportService } = servicesManager?.services ?? {};
-  const viewportId = viewportGridService?.getActiveViewportId?.();
+function debugSnapshot(servicesManager: any): Record<string, any> {
+  const { viewportGridService, cornerstoneViewportService } = servicesManager.services;
+  const viewportId = viewportGridService.getActiveViewportId();
   const viewport = viewportId
-    ? cornerstoneViewportService?.getCornerstoneViewport?.(viewportId)
+    ? cornerstoneViewportService.getCornerstoneViewport(viewportId)
     : undefined;
   const active = objectModel.getActiveObject(servicesManager);
-  const activeKey = active ? objectKeyOf(active.segmentationId, active.segmentIndex) : undefined;
 
   const snapshot = {
-    debugHook: DEBUG_HOOK_VERSION,
-    ready: true,
     time: new Date().toISOString(),
     session: sessionState.get(),
     source: getActiveSource(servicesManager),
-    viewport: {
-      id: viewportId,
-      kind: viewportKind(viewport),
-    },
-    viewportIds: cornerstoneViewportService?.getViewportIds?.() ?? [],
-    viewports: (cornerstoneViewportService?.getViewportIds?.() ?? []).map((id: string) =>
-      viewportSnapshot(servicesManager, id)
-    ),
+    viewport: { id: viewportId, kind: viewportKind(viewport) },
+    viewports: cornerstoneViewportService
+      .getViewportIds()
+      .map((id: string) => viewportSnapshot(servicesManager, id)),
     segmentations: segmentationSnapshot(servicesManager),
     activeObject: active,
     serverObject: objectModel.getServerObject(),
-    serverHoldsActive:
-      !!active && objectModel.holdsObject(active.segmentationId, active.segmentIndex),
+    serverHoldsActive: !!active && objectModel.holdsObject(active),
     undoable: objectModel.isUndoable(),
-    prompts: activeKey ? promptModel.countForObject(activeKey) : { pending: 0, submitted: 0 },
+    prompts: active ? promptModel.countForObject(active) : { pending: 0, submitted: 0 },
   };
 
-  // eslint-disable-next-line no-console
   console.info('[nninteractive] snapshot', snapshot);
   return snapshot;
 }
 
-export function installPendingDebugHook(): void {
-  if (typeof globalThis === 'undefined') {
-    return;
+/** What the GPU reports for the texture formats Cornerstone uses for volumes (MPR). */
+function gpuInfo() {
+  const gl = document.createElement('canvas').getContext('webgl2');
+  if (!gl) {
+    return { webgl2: false };
   }
-  const existingVersion = (globalThis as any).__nnInteractiveDbgVersion;
-  const existingReady = (globalThis as any).__nnInteractiveDbgReady;
-  if (existingVersion === DEBUG_HOOK_VERSION && existingReady === true) {
-    return;
-  }
-
-  const pendingHook = () => {
-    const snapshot = {
-      debugHook: DEBUG_HOOK_VERSION,
-      ready: false,
-      time: new Date().toISOString(),
-      status: 'extension-loaded-services-not-bound',
-    };
-    // eslint-disable-next-line no-console
-    console.info('[nninteractive] snapshot pending', snapshot);
-    return snapshot;
+  const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+  return {
+    webgl2: true,
+    renderer: debugInfo
+      ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL)
+      : gl.getParameter(gl.RENDERER),
+    vendor: debugInfo
+      ? gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL)
+      : gl.getParameter(gl.VENDOR),
+    norm16: !!gl.getExtension('EXT_texture_norm16'),
+    floatLinear: !!gl.getExtension('OES_texture_float_linear'),
+    max3DTextureSize: gl.getParameter(gl.MAX_3D_TEXTURE_SIZE),
   };
-
-  (globalThis as any).__nnDbg = pendingHook;
-  (globalThis as any).__nnInteractiveDbg = pendingHook;
-  (globalThis as any).__nnInteractiveDbgVersion = DEBUG_HOOK_VERSION;
-  (globalThis as any).__nnInteractiveDbgReady = false;
-  if (!pendingHookLogged) {
-    pendingHookLogged = true;
-    console.info(
-      `[nninteractive] debug hook pending: window.__nnInteractiveDbg() ${DEBUG_HOOK_VERSION}`
-    );
-  }
 }
 
+/**
+ * Console hooks: `__nnInteractiveDbg()` logs and returns a runtime snapshot. GPU diagnostics for
+ * black volume (MPR) viewports: `__nnInteractiveGpu.info()`, and
+ * `__nnInteractiveGpu.preferSize(true)` before opening MPR to skip 16-bit-normalized textures.
+ */
 export function installDebugHook(servicesManager: any): void {
-  if (typeof globalThis === 'undefined') {
-    return;
-  }
-  const debugHook = () => debugSnapshot(servicesManager);
-  (globalThis as any).__nnDbg = debugHook;
-  (globalThis as any).__nnInteractiveDbg = debugHook;
-  (globalThis as any).__nnInteractiveDbgVersion = DEBUG_HOOK_VERSION;
-  (globalThis as any).__nnInteractiveDbgReady = true;
-  if (!debugHookLogged) {
-    debugHookLogged = true;
-    console.info(
-      `[nninteractive] debug hook installed: window.__nnInteractiveDbg() ${DEBUG_HOOK_VERSION}`
-    );
-  }
+  Object.assign(globalThis, {
+    __nnInteractiveDbg: () => debugSnapshot(servicesManager),
+    __nnInteractiveGpu: {
+      info: gpuInfo,
+      preferSize: (on = true) => setPreferSizeOverAccuracy(on),
+    },
+  });
 }

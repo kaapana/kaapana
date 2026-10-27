@@ -1,45 +1,68 @@
 // segmentationBridge: the only module that reads or writes native OHIF/Cornerstone
 // segmentation labelmap data.
 //
-// Data model: ONE OHIF segmentation per nnInteractive object. Each managed
-// segmentation has exactly one segment, segmentIndex=1, so objects can overlap
-// without competing for values in a shared labelmap.
+// Data model: nnInteractive objects are SEGMENTS packed into as few OHIF segmentations
+// ("layers") as possible. A layer is an ordinary single-labelmap segmentation; each object
+// owns one segment index there and its voxels hold that index. Objects of one layer cannot
+// share voxels, so an object whose mask would overlap another object of its layer is moved
+// to a layer where it fits (or to a new layer). A typical session needs a single layer, so
+// memory and render cost grow with the number of OVERLAPPING objects, not with the number
+// of objects. An object's identity `${segmentationId}#${segmentIndex}` therefore changes
+// when it moves; applyCrop reports the new location and the caller re-keys its bookkeeping.
 //
-// Storage: the segmentation's stack labelmap images (one derived image per source
-// image) are the only voxel store. Cornerstone 5 renders the same images in stack
-// viewports and, through an image-backed geometry volume, in MPR viewports — so a
-// write here (or a brush stroke in either view) is visible everywhere after
-// triggerSegmentationDataModified, with no stack/volume mirroring.
+// Storage: a layer's stack labelmap images (one derived image per source image) are the
+// only voxel store. Cornerstone 5 renders the same images in stack viewports and, through
+// an image-backed geometry volume, in MPR viewports — so a write here (or a brush stroke in
+// either view) is visible everywhere after triggerSegmentationDataModified.
+//
+// (Cornerstone's own multi-layer labelmaps — `labelmaps`/`segmentBindings` — would do the
+// packing natively, but in OHIF's legacy viewports a second layer switches the labelmap to
+// slice-actor rendering, which drops label value 1 on every layer. One labelmap per
+// segmentation stays on the well-trodden rendering path.)
 
 import {
   cache,
+  metaData,
   utilities as csUtils,
   BaseVolumeViewport,
   VolumeViewport3D,
 } from '@cornerstonejs/core';
-import {
-  Enums as csToolsEnums,
-  segmentation as csToolsSegmentation,
-} from '@cornerstonejs/tools';
+import { Enums as csToolsEnums, segmentation as csToolsSegmentation } from '@cornerstonejs/tools';
 
-import { PredictionCrop, SourceImage } from './types';
+import { ObjectRef, PredictionCrop, SourceImage } from './types';
 
 const LABELMAP = csToolsEnums.SegmentationRepresentations.Labelmap;
+// Labelmap images are Uint8: values 2..255 are object segment indices. Value 1 is never used:
+// vtk.js's 2D label-outline shader (stack viewports) computes `int(texel * 255.0)`, which
+// truncates 1/255*255 to 0 and draws label 1 as background — no fill, no outline.
+const FIRST_OBJECT_INDEX = 2;
+const MAX_OBJECTS_PER_LAYER = 255;
 
-// nnInteractive object segmentations grouped by source series.
+// nnInteractive layer segmentations grouped by source series.
 const managedSegIdsBySeries = new Map<string, Set<string>>();
-// Segmentations this module created (so import logic never re-processes them).
+// Layer segmentations this module created (so import logic never re-processes them).
 const managedSegIds = new Set<string>();
-// Externally-hydrated segmentations already split into per-object segmentations. Their state is
-// KEPT (deleting it crashes OHIF's presentation store / toolbar evaluators); a later rep re-add
+// Externally-hydrated segmentations already split into objects. Their state is KEPT
+// (deleting it crashes OHIF's presentation store / toolbar evaluators); a later rep re-add
 // (viewport remount, re-hydration of the same SEG) is just re-stripped, never re-split.
 const splitConsumedIds = new Set<string>();
 // Reentrancy guard while a split runs for one hydrated segmentation.
 const splitInProgress = new Set<string>();
 
 export interface ApplyCropResult {
-  changedSlices: number[];
+  /** The object's location after the write; differs from the target when it was moved. */
+  object: ObjectRef;
+  moved: boolean;
   wroteVoxels: boolean;
+}
+
+/** An object mask restricted to the slices it occupies: z → binary slice (rows*columns). */
+type SliceMasks = Map<number, Uint8Array>;
+
+interface ObjectMeta {
+  label: string;
+  color: number[];
+  objectOrdinal: number;
 }
 
 // Distinct object colors (RGBA 0-255), assigned by object ordinal.
@@ -66,24 +89,20 @@ export function isManaged(segmentationId: string): boolean {
   }
   const seg = csToolsSegmentation.state.getSegmentation(segmentationId);
   if (isTaggedManagedSegmentation(seg)) {
-    registerManagedSegmentation(segmentationId, getSeriesInstanceUIDForSegmentation(segmentationId));
+    registerManagedSegmentation(
+      segmentationId,
+      getSeriesInstanceUIDForSegmentation(segmentationId)
+    );
     return true;
   }
   return false;
-}
-
-export function getSegmentationIdForSeries(seriesInstanceUID: string): string | undefined {
-  return getManagedSegmentationIdsForSeries(seriesInstanceUID)[0];
 }
 
 function isTaggedManagedSegmentation(seg: any): boolean {
   return seg?.cachedStats?.nninteractiveManaged === true;
 }
 
-function registerManagedSegmentation(
-  segmentationId: string,
-  seriesInstanceUID?: string
-): void {
+function registerManagedSegmentation(segmentationId: string, seriesInstanceUID?: string): void {
   managedSegIds.add(segmentationId);
   if (!seriesInstanceUID) {
     return;
@@ -96,7 +115,7 @@ function registerManagedSegmentation(
   ids.add(segmentationId);
 }
 
-export function unregisterManagedSegmentation(segmentationId: string): void {
+function unregisterManagedSegmentation(segmentationId: string): void {
   managedSegIds.delete(segmentationId);
   for (const ids of managedSegIdsBySeries.values()) {
     ids.delete(segmentationId);
@@ -109,19 +128,27 @@ export function getSeriesInstanceUIDForSegmentation(segmentationId: string): str
   return typeof value === 'string' && value ? value : undefined;
 }
 
-function getObjectOrdinal(segmentationId: string): number {
+function getLayerOrdinal(segmentationId: string): number {
   const seg = csToolsSegmentation.state.getSegmentation(segmentationId);
-  const ordinal = Number(seg?.cachedStats?.objectOrdinal);
+  const ordinal = Number(seg?.cachedStats?.layerOrdinal);
   return Number.isInteger(ordinal) && ordinal > 0 ? ordinal : Number.MAX_SAFE_INTEGER;
 }
 
-export function getManagedSegmentationIdsForSeries(seriesInstanceUID: string): string[] {
+function byLayerOrdinal(a: string, b: string): number {
+  return getLayerOrdinal(a) - getLayerOrdinal(b) || a.localeCompare(b);
+}
+
+/** Layer segmentations of a series, in creation order. */
+function getManagedSegmentationIdsForSeries(seriesInstanceUID: string): string[] {
   const ids = new Set<string>(managedSegIdsBySeries.get(seriesInstanceUID) ?? []);
 
   // Recover after a state reset by scanning for managed segmentations tagged with the series.
   const all = (csToolsSegmentation.state.getSegmentations?.() ?? []) as any[];
   for (const seg of all) {
-    if (isTaggedManagedSegmentation(seg) && seg?.cachedStats?.seriesInstanceUid === seriesInstanceUID) {
+    if (
+      isTaggedManagedSegmentation(seg) &&
+      seg?.cachedStats?.seriesInstanceUid === seriesInstanceUID
+    ) {
       registerManagedSegmentation(seg.segmentationId, seriesInstanceUID);
       ids.add(seg.segmentationId);
     }
@@ -129,10 +156,11 @@ export function getManagedSegmentationIdsForSeries(seriesInstanceUID: string): s
 
   return Array.from(ids)
     .filter(segmentationId => !!csToolsSegmentation.state.getSegmentation(segmentationId))
-    .sort((a, b) => getObjectOrdinal(a) - getObjectOrdinal(b) || a.localeCompare(b));
+    .sort(byLayerOrdinal);
 }
 
-export function getManagedSegmentationIds(): string[] {
+/** All layer segmentations, in creation order. */
+function getManagedSegmentationIds(): string[] {
   const all = (csToolsSegmentation.state.getSegmentations?.() ?? []) as any[];
   for (const seg of all) {
     if (isTaggedManagedSegmentation(seg)) {
@@ -141,13 +169,53 @@ export function getManagedSegmentationIds(): string[] {
   }
   return Array.from(managedSegIds)
     .filter(segmentationId => !!csToolsSegmentation.state.getSegmentation(segmentationId))
-    .sort((a, b) => getObjectOrdinal(a) - getObjectOrdinal(b) || a.localeCompare(b));
+    .sort(byLayerOrdinal);
+}
+
+function segmentIndicesOf(segmentationId: string): number[] {
+  const seg = csToolsSegmentation.state.getSegmentation(segmentationId);
+  return Object.keys(seg?.segments ?? {})
+    .map(Number)
+    .filter(n => Number.isInteger(n) && n > 0)
+    .sort((a, b) => a - b);
+}
+
+function getObjectOrdinal(object: ObjectRef): number {
+  const ordinal = Number(
+    getSegment(object.segmentationId, object.segmentIndex)?.cachedStats?.objectOrdinal
+  );
+  return Number.isInteger(ordinal) && ordinal > 0 ? ordinal : Number.MAX_SAFE_INTEGER;
+}
+
+function objectsOfLayers(layerIds: string[]): ObjectRef[] {
+  return layerIds
+    .flatMap(segmentationId =>
+      segmentIndicesOf(segmentationId).map(segmentIndex => ({ segmentationId, segmentIndex }))
+    )
+    .sort((a, b) => getObjectOrdinal(a) - getObjectOrdinal(b));
+}
+
+/** Every object of a series, in creation (ordinal) order. */
+export function getObjectsForSeries(seriesInstanceUID: string): ObjectRef[] {
+  return objectsOfLayers(getManagedSegmentationIdsForSeries(seriesInstanceUID));
+}
+
+/** Every object of every series, in creation (ordinal) order. */
+export function getObjects(): ObjectRef[] {
+  return objectsOfLayers(getManagedSegmentationIds());
 }
 
 function nextObjectOrdinal(seriesInstanceUID: string): number {
+  const ordinals = getObjectsForSeries(seriesInstanceUID)
+    .map(getObjectOrdinal)
+    .filter(ordinal => ordinal < Number.MAX_SAFE_INTEGER);
+  return ordinals.length ? Math.max(...ordinals) + 1 : 1;
+}
+
+function nextLayerOrdinal(seriesInstanceUID: string): number {
   const ordinals = getManagedSegmentationIdsForSeries(seriesInstanceUID)
-    .map(segmentationId => getObjectOrdinal(segmentationId))
-    .filter(ordinal => Number.isInteger(ordinal) && ordinal > 0 && ordinal < Number.MAX_SAFE_INTEGER);
+    .map(getLayerOrdinal)
+    .filter(ordinal => ordinal < Number.MAX_SAFE_INTEGER);
   return ordinals.length ? Math.max(...ordinals) + 1 : 1;
 }
 
@@ -167,7 +235,7 @@ function failHard(message: string, detail?: unknown): never {
 // ── Labelmap image access ───────────────────────────────────────────────────────────────────
 
 /**
- * One object's voxel store, indexed by display slice: `slices[z]` is the scalar array of the
+ * One layer's voxel store, indexed by display slice: `slices[z]` is the scalar array of the
  * labelmap image derived from source image `sourceImageIds[z]` (mutated in place — replacing
  * the array would detach it from the image's voxel manager).
  */
@@ -210,7 +278,8 @@ function getLabelmapContext(segmentationId: string): LabelmapContext | null {
   let rows = 0;
   let columns = 0;
   const slices = sourceImageIds.map(sourceImageId => {
-    const image: any = cache.getImage(labelmapImageIdByReference.get(sourceImageId));
+    const labelmapImageId = labelmapImageIdByReference.get(sourceImageId);
+    const image: any = labelmapImageId ? cache.getImage(labelmapImageId) : undefined;
     const scalarData = image?.voxelManager?.getScalarData?.();
     if (!scalarData) {
       return null;
@@ -233,7 +302,10 @@ function requireLabelmapContext(segmentationId: string): LabelmapContext {
   return ctx;
 }
 
-function clearValueFromSlice(slice: LabelmapContext['slices'][number], segmentIndex: number): boolean {
+function clearValueFromSlice(
+  slice: LabelmapContext['slices'][number],
+  segmentIndex: number
+): boolean {
   let changed = false;
   for (let j = 0; j < slice.length; j++) {
     if (slice[j] === segmentIndex) {
@@ -248,10 +320,13 @@ function clearValueFromSlice(slice: LabelmapContext['slices'][number], segmentIn
 
 function getSegment(segmentationId: string, segmentIndex: number): any {
   const seg = csToolsSegmentation.state.getSegmentation(segmentationId);
-  return seg?.segments?.[segmentIndex] ?? seg?.segments?.[String(segmentIndex)];
+  return seg?.segments?.[segmentIndex];
 }
 
-function getSegmentDirtySlices(segmentationId: string, segmentIndex: number): {
+function getSegmentDirtySlices(
+  segmentationId: string,
+  segmentIndex: number
+): {
   known: boolean;
   slices: number[];
 } {
@@ -271,6 +346,14 @@ function getSegmentDirtySlices(segmentationId: string, segmentIndex: number): {
   };
 }
 
+/** Slices that may hold the object's voxels: the recorded dirty slices, else all. */
+function candidateSlices(ctx: LabelmapContext, object: ObjectRef): number[] {
+  const dirty = getSegmentDirtySlices(object.segmentationId, object.segmentIndex);
+  return dirty.known
+    ? dirty.slices.filter(z => z < ctx.slices.length)
+    : ctx.slices.map((_, z) => z);
+}
+
 function updateSegmentDirtyStats(
   segmentationId: string,
   segmentIndex: number,
@@ -282,16 +365,11 @@ function updateSegmentDirtyStats(
   }
   const unique = Array.from(new Set(dirtySlices)).sort((a, b) => a - b);
   const segments = { ...(seg.segments ?? {}) };
-  const segment = {
-    ...(segments[segmentIndex] ?? segments[String(segmentIndex)] ?? { segmentIndex }),
-  } as any;
-  segment.cachedStats = {
-    ...(segment.cachedStats ?? {}),
-    dirtySlices: unique,
-    segZ0: unique.length ? unique[0] : undefined,
-    segZ1: unique.length ? unique[unique.length - 1] + 1 : undefined,
+  const segment = segments[segmentIndex] ?? ({ segmentIndex } as any);
+  segments[segmentIndex] = {
+    ...segment,
+    cachedStats: { ...(segment.cachedStats ?? {}), dirtySlices: unique },
   };
-  segments[segmentIndex] = segment;
   csToolsSegmentation.updateSegmentations([{ segmentationId, payload: { segments } }]);
 }
 
@@ -328,11 +406,14 @@ function getRepresentationsMissing(
 ): string[] {
   const service = servicesManager.services.segmentationService;
   return viewportIds.filter(viewportId => {
-    const reps = service.getSegmentationRepresentations(viewportId, {
-      segmentationId,
-      type: LABELMAP,
-    }) ?? [];
-    return !reps.some((rep: any) => rep?.segmentationId === segmentationId && rep?.type === LABELMAP);
+    const reps =
+      service.getSegmentationRepresentations(viewportId, {
+        segmentationId,
+        type: LABELMAP,
+      }) ?? [];
+    return !reps.some(
+      (rep: any) => rep?.segmentationId === segmentationId && rep?.type === LABELMAP
+    );
   });
 }
 
@@ -354,8 +435,8 @@ function rgbMatches(a: unknown, b: unknown): boolean {
 // This must re-check on every guard pass rather than run once at rep-add time: switching
 // layout makes OHIF auto-propagate the labelmap representation into the new viewports, and
 // those reps never appear as "missing". If we only colored freshly-added reps, every object
-// would keep Cornerstone's default segment-index-1 color (red) there — both the render and
-// the panel (which reads the active viewport's representation color) then show all-red.
+// would keep Cornerstone's default color for its segment index there — both the render and
+// the panel (which reads the active viewport's representation color) would then be wrong.
 function applySegmentColors(
   servicesManager: any,
   segmentationId: string,
@@ -392,9 +473,16 @@ function applySegmentColors(
   return applied;
 }
 
-function removeRepresentations(servicesManager: any, segmentationId: string, viewportIds: string[]): void {
+function removeRepresentations(
+  servicesManager: any,
+  segmentationId: string,
+  viewportIds: string[]
+): void {
   const service = servicesManager.services.segmentationService;
   for (const viewportId of viewportIds) {
+    if (!service.getSegmentationRepresentations(viewportId, { segmentationId })?.length) {
+      continue;
+    }
     try {
       service.removeRepresentationsFromViewport(viewportId, { segmentationId });
     } catch {
@@ -403,7 +491,10 @@ function removeRepresentations(servicesManager: any, segmentationId: string, vie
   }
 }
 
-async function attachRepresentations(servicesManager: any, segmentationId: string): Promise<boolean> {
+async function attachRepresentations(
+  servicesManager: any,
+  segmentationId: string
+): Promise<boolean> {
   const service = servicesManager.services.segmentationService;
   const { planar, volume3d } = classifyViewports(servicesManager);
   const missing = getRepresentationsMissing(servicesManager, segmentationId, planar);
@@ -421,8 +512,9 @@ async function attachRepresentations(servicesManager: any, segmentationId: strin
 }
 
 /**
- * Viewport guard: after a layout or viewport change, make every managed segmentation visible
- * (with its object color) in each stack/MPR viewport and absent from 3D viewports.
+ * Viewport guard: after a layout or viewport change, make every layer visible (with its
+ * objects' colors) in each stack/MPR viewport and absent from 3D viewports. Cost scales with
+ * the number of layers, not objects.
  */
 export async function ensureViewportRepresentations(servicesManager: any): Promise<void> {
   for (const segmentationId of getManagedSegmentationIds()) {
@@ -432,100 +524,396 @@ export async function ensureViewportRepresentations(servicesManager: any): Promi
   }
 }
 
-// ── Objects ─────────────────────────────────────────────────────────────────────────────────
-
-async function createObjectSegmentation(
-  commandsManager: any,
-  source: SourceImage,
-  objectOrdinal: number
-): Promise<string> {
-  const segmentationId = csUtils.uuidv4();
-  try {
-    await commandsManager.run('loadSegmentationsForViewport', {
-      segmentations: [
-        {
-          segmentationId,
-          representation: { type: LABELMAP },
-          config: { label: `Object ${objectOrdinal}`, segments: {} },
-        },
-      ],
-    });
-  } catch (error) {
-    failHard('loadSegmentationsForViewport failed', error);
+/**
+ * Brush/eraser edits must never overwrite another object that shares the active object's
+ * layer: lock every object except the active one (Cornerstone's labelmap tools skip voxels
+ * of locked segments). Only touches segments whose lock state differs.
+ */
+export function applyEditLocks(active: ObjectRef | null): void {
+  const { segmentLocking } = csToolsSegmentation;
+  for (const segmentationId of getManagedSegmentationIds()) {
+    for (const segmentIndex of segmentIndicesOf(segmentationId)) {
+      const locked = !(
+        active &&
+        active.segmentationId === segmentationId &&
+        active.segmentIndex === segmentIndex
+      );
+      if (segmentLocking.isSegmentIndexLocked(segmentationId, segmentIndex) !== locked) {
+        segmentLocking.setSegmentIndexLocked(segmentationId, segmentIndex, locked);
+      }
+    }
   }
-  const created: any = csToolsSegmentation.state.getSegmentation(segmentationId);
-  if (!created?.representationData?.[LABELMAP]?.imageIds?.length) {
-    failHard(`OHIF did not create a labelmap for segmentation ${segmentationId}`);
-  }
-  registerManagedSegmentation(segmentationId, source.seriesInstanceUID);
-  return segmentationId;
 }
 
+// ── Layers ──────────────────────────────────────────────────────────────────────────────────
+
+function sourceSliceGeometry(source: SourceImage): { rows: number; columns: number } {
+  const imageId = source.imageIds[0];
+  const image: any = imageId ? cache.getImage(imageId) : undefined;
+  const pixelModule: any = imageId ? metaData.get('imagePixelModule', imageId) : undefined;
+  return {
+    rows: Number(image?.rows ?? pixelModule?.rows) || 0,
+    columns: Number(image?.columns ?? pixelModule?.columns) || 0,
+  };
+}
+
+const MB = 1024 * 1024;
+
 /**
- * Create a new one-segment OHIF segmentation for one nnInteractive object.
+ * A layer is a full-size labelmap. Refuse to allocate one the Cornerstone cache cannot hold:
+ * past its limit the derived images are silently not cached and every later write fails.
  */
-export async function addObject(
+function assertCacheRoomForLayer(source: SourceImage): void {
+  const { rows, columns } = sourceSliceGeometry(source);
+  const needed = rows * columns * source.imageIds.length;
+  const free = cache.getMaxCacheSize() - cache.getCacheSize();
+  if (needed && needed > free) {
+    throw new Error(
+      `Not enough viewer memory for another segmentation layer (needs ${Math.ceil(needed / MB)} MB, ` +
+        `${Math.max(0, Math.floor(free / MB))} MB free). Delete objects you no longer need, ` +
+        'or save and reload the viewer.'
+    );
+  }
+}
+
+function layerLabel(layerOrdinal: number): string {
+  return layerOrdinal === 1
+    ? 'nnInteractive objects'
+    : `nnInteractive objects (layer ${layerOrdinal})`;
+}
+
+async function deleteLayer(commandsManager: any, segmentationId: string): Promise<void> {
+  const labelmap: any =
+    csToolsSegmentation.state.getSegmentation(segmentationId)?.representationData?.[LABELMAP];
+  const imageIds: string[] = labelmap?.imageIds ?? [];
+  try {
+    await commandsManager.run('deleteSegmentation', { segmentationId });
+  } finally {
+    unregisterManagedSegmentation(segmentationId);
+  }
+  // Removing a segmentation leaves its labelmap images in the cache (~47 MB per layer for a
+  // 512×512×178 CT); nothing else references a layer's images.
+  for (const imageId of imageIds) {
+    if (cache.getImage(imageId)) {
+      cache.removeImageLoadObject(imageId, { force: true });
+    }
+  }
+}
+
+/** Create a new, empty layer segmentation for the source series. */
+async function createLayer(
   servicesManager: any,
   commandsManager: any,
   source: SourceImage
-): Promise<{ segmentationId: string; segmentIndex: number; created: boolean }> {
-  const objectOrdinal = nextObjectOrdinal(source.seriesInstanceUID);
-  const segmentationId = await createObjectSegmentation(commandsManager, source, objectOrdinal);
-
-  const seg = csToolsSegmentation.state.getSegmentation(segmentationId);
-  const segmentIndex = 1;
-  const color = objectColorForOrdinal(objectOrdinal);
-  const label = `Object ${objectOrdinal}`;
+): Promise<string> {
+  assertCacheRoomForLayer(source);
+  const layerOrdinal = nextLayerOrdinal(source.seriesInstanceUID);
+  const segmentationId = csUtils.uuidv4();
+  // Not the `loadSegmentationsForViewport` command: it derives the labelmap from the active
+  // viewport's first display set, which can be a SEG overlay (its labelmap images then become
+  // the "source", and the layer has the wrong size and no CT references for export).
+  const { segmentationService, displaySetService } = servicesManager.services;
+  const displaySet = displaySetService.getDisplaySetByUID(source.displaySetInstanceUID);
+  if (!displaySet) {
+    failHard(`source display set ${source.displaySetInstanceUID} not found`);
+  }
+  try {
+    await segmentationService.createLabelmapForDisplaySet(displaySet, {
+      segmentationId,
+      segments: {},
+      label: layerLabel(layerOrdinal),
+    });
+  } catch (error) {
+    failHard('createLabelmapForDisplaySet failed', error);
+  }
+  const created: any = csToolsSegmentation.state.getSegmentation(segmentationId);
+  const imageIds: string[] = created?.representationData?.[LABELMAP]?.imageIds ?? [];
+  if (!imageIds.length || imageIds.some(imageId => !cache.getImage(imageId))) {
+    // Allocation hit the cache limit after all (other data grew meanwhile): undo it.
+    if (created) {
+      await deleteLayer(commandsManager, segmentationId).catch(() => undefined);
+    }
+    throw new Error(
+      'Not enough viewer memory for another segmentation layer. Delete objects you no longer ' +
+        'need, or save and reload the viewer.'
+    );
+  }
 
   csToolsSegmentation.updateSegmentations([
     {
       segmentationId,
       payload: {
-        label,
         cachedStats: {
-          ...(seg?.cachedStats ?? {}),
+          ...(created.cachedStats ?? {}),
           nninteractiveManaged: true,
           seriesInstanceUid: source.seriesInstanceUID,
           displaySetInstanceUID: source.displaySetInstanceUID,
-          objectOrdinal,
+          layerOrdinal,
         },
+      },
+    },
+  ]);
+  registerManagedSegmentation(segmentationId, source.seriesInstanceUID);
+  await attachRepresentations(servicesManager, segmentationId);
+  // OHIF gives a segmentation created without segments a default "Segment 1"; a layer holds
+  // only objects.
+  for (const segmentIndex of segmentIndicesOf(segmentationId)) {
+    removeSegmentEntry({ segmentationId, segmentIndex });
+  }
+  return segmentationId;
+}
+
+function freeSegmentIndex(segmentationId: string): number | undefined {
+  const used = new Set(segmentIndicesOf(segmentationId));
+  for (let index = FIRST_OBJECT_INDEX; index <= MAX_OBJECTS_PER_LAYER; index++) {
+    if (!used.has(index)) {
+      return index;
+    }
+  }
+  return undefined;
+}
+
+/** True when none of the mask's voxels is taken in the layer. */
+function maskFits(ctx: LabelmapContext, mask: SliceMasks): boolean {
+  for (const [z, sliceMask] of mask) {
+    const slice = ctx.slices[z];
+    if (!slice) {
+      return false;
+    }
+    for (let j = 0; j < sliceMask.length; j++) {
+      if (sliceMask[j] && slice[j] !== 0) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+/** The first layer of the series (in creation order) with a free index where `mask` fits. */
+function findLayerFor(
+  seriesInstanceUID: string,
+  mask: SliceMasks,
+  excludeSegmentationId?: string
+): string | undefined {
+  for (const segmentationId of getManagedSegmentationIdsForSeries(seriesInstanceUID)) {
+    if (
+      segmentationId === excludeSegmentationId ||
+      freeSegmentIndex(segmentationId) === undefined
+    ) {
+      continue;
+    }
+    if (!mask.size) {
+      return segmentationId;
+    }
+    const ctx = getLabelmapContext(segmentationId);
+    if (ctx && maskFits(ctx, mask)) {
+      return segmentationId;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Store an object with the given mask and metadata in a layer where it fits, creating a
+ * layer if none does. Returns where it was placed.
+ */
+async function placeObject(
+  servicesManager: any,
+  commandsManager: any,
+  source: SourceImage,
+  mask: SliceMasks,
+  meta: ObjectMeta,
+  excludeSegmentationId?: string
+): Promise<ObjectRef> {
+  const segmentationId =
+    findLayerFor(source.seriesInstanceUID, mask, excludeSegmentationId) ??
+    (await createLayer(servicesManager, commandsManager, source));
+  const segmentIndex = freeSegmentIndex(segmentationId);
+  if (segmentIndex === undefined) {
+    failHard(`layer ${segmentationId} has no free segment index`);
+  }
+
+  const seg = csToolsSegmentation.state.getSegmentation(segmentationId);
+  csToolsSegmentation.updateSegmentations([
+    {
+      segmentationId,
+      payload: {
         segments: {
+          ...(seg?.segments ?? {}),
           [segmentIndex]: {
             segmentIndex,
-            color,
-            label,
+            label: meta.label,
+            color: meta.color,
             locked: false,
-            active: true,
-            cachedStats: { color, dirtySlices: [], objectOrdinal },
+            active: false,
+            cachedStats: { color: meta.color, objectOrdinal: meta.objectOrdinal, dirtySlices: [] },
           } as any,
         },
       },
     },
   ]);
 
-  await attachRepresentations(servicesManager, segmentationId);
+  const written: number[] = [];
+  if (mask.size) {
+    const ctx = requireLabelmapContext(segmentationId);
+    for (const [z, sliceMask] of mask) {
+      const slice = ctx.slices[z];
+      let wrote = false;
+      for (let j = 0; j < sliceMask.length; j++) {
+        if (sliceMask[j]) {
+          slice[j] = segmentIndex;
+          wrote = true;
+        }
+      }
+      if (wrote) {
+        written.push(z);
+      }
+    }
+  }
+  updateSegmentDirtyStats(segmentationId, segmentIndex, written);
+  applySegmentColors(servicesManager, segmentationId, classifyViewports(servicesManager).planar);
+  dispatchModified(segmentationId);
+  return { segmentationId, segmentIndex };
+}
 
-  return { segmentationId, segmentIndex, created: true };
+function objectMeta(object: ObjectRef): ObjectMeta {
+  const segment = getSegment(object.segmentationId, object.segmentIndex);
+  const objectOrdinal = Number(segment?.cachedStats?.objectOrdinal) || 0;
+  return {
+    label: segment?.label || `Object ${objectOrdinal || object.segmentIndex}`,
+    color:
+      (Array.isArray(segment?.cachedStats?.color) && segment.cachedStats.color) ||
+      (Array.isArray(segment?.color) && segment.color) ||
+      objectColorForOrdinal(objectOrdinal || 1),
+    objectOrdinal,
+  };
 }
 
 /**
- * Write a prediction crop into one object's labelmap.
- * Coordinates in the crop are model order [z, y, x]; `flipped` reverses z to viewer order.
- * Returns the display-set slice indices that changed.
+ * Drop a segment entry (voxels must already be cleared) without touching the active segment.
+ * Mirrors cornerstone's removeSegment minus its clearSegmentValue, which re-clears the value
+ * with a per-voxel callback over the whole layer (~2-3 s for a 512×512×178 CT).
+ */
+function removeSegmentEntry(object: ObjectRef): void {
+  const { segmentationId, segmentIndex } = object;
+  const seg = csToolsSegmentation.state.getSegmentation(segmentationId);
+  if (!seg) {
+    return;
+  }
+  const segments = { ...seg.segments };
+  delete segments[segmentIndex];
+  // Cornerstone re-creates a binding for every listed segment but never prunes stale ones.
+  delete (seg.representationData?.Labelmap as any)?.segmentBindings?.[segmentIndex];
+  csToolsSegmentation.updateSegmentations([{ segmentationId, payload: { segments } }]);
+  for (const viewportId of csToolsSegmentation.state.getViewportIdsWithSegmentation(
+    segmentationId
+  )) {
+    for (const rep of csToolsSegmentation.state.getSegmentationRepresentations(viewportId, {
+      segmentationId,
+    })) {
+      delete (rep.segments as any)?.[segmentIndex];
+    }
+  }
+  dispatchModified(segmentationId);
+}
+
+// ── Objects ─────────────────────────────────────────────────────────────────────────────────
+
+/** Create a new, empty object (in the first layer with a free index). */
+export async function addObject(
+  servicesManager: any,
+  commandsManager: any,
+  source: SourceImage
+): Promise<ObjectRef> {
+  const objectOrdinal = nextObjectOrdinal(source.seriesInstanceUID);
+  return placeObject(servicesManager, commandsManager, source, new Map(), {
+    label: `Object ${objectOrdinal}`,
+    color: objectColorForOrdinal(objectOrdinal),
+    objectOrdinal,
+  });
+}
+
+/**
+ * The object's current voxels, restricted to its populated slices. Scans every slice: brush
+ * edits do not maintain the dirty-slice record.
+ */
+function readObjectSlices(ctx: LabelmapContext, object: ObjectRef): SliceMasks {
+  const mask: SliceMasks = new Map();
+  ctx.slices.forEach((slice, z) => {
+    let sliceMask: Uint8Array | undefined;
+    for (let j = 0; j < slice.length; j++) {
+      if (slice[j] === object.segmentIndex) {
+        sliceMask ??= new Uint8Array(ctx.sliceLen);
+        sliceMask[j] = 1;
+      }
+    }
+    if (sliceMask) {
+      mask.set(z, sliceMask);
+    }
+  });
+  return mask;
+}
+
+/**
+ * Visit every row of a prediction crop that lands inside the volume: its viewer slice `z`, the
+ * row's start in `crop.seg` and in the labelmap slice. Crop coordinates are model order
+ * [z, y, x]; `flipped` reverses z to viewer order. Stops when `visit` returns true.
+ */
+function forEachCropRow(
+  ctx: LabelmapContext,
+  crop: PredictionCrop,
+  visit: (z: number, srcRow: number, dstRow: number) => boolean | void
+): void {
+  const nz = ctx.slices.length;
+  const [cropZ, cropY, cropX] = crop.cropShape;
+  const [z0, y0, x0] = crop.offset;
+  for (let i = 0; i < cropZ; i++) {
+    const z = crop.flipped ? nz - 1 - (z0 + i) : z0 + i;
+    if (z < 0 || z >= nz) {
+      continue;
+    }
+    for (let cy = 0; cy < cropY; cy++) {
+      if (visit(z, (i * cropY + cy) * cropX, (y0 + cy) * ctx.columns + x0)) {
+        return;
+      }
+    }
+  }
+}
+
+/**
+ * Write a prediction crop into an object's labelmap. If the new mask would overwrite another
+ * object of the same layer, the object is moved to a layer where it fits instead; the result
+ * reports where it lives afterwards.
  */
 export async function applyCrop(
   servicesManager: any,
-  segmentationId: string,
-  segmentIndex: number,
+  commandsManager: any,
+  source: SourceImage,
+  target: ObjectRef,
   crop: PredictionCrop
 ): Promise<ApplyCropResult> {
+  const { segmentationId, segmentIndex } = target;
   const ctx = requireLabelmapContext(segmentationId);
-  const nz = ctx.sourceImageIds.length;
-  const nx = ctx.columns;
   if (crop.fullShape[2] !== ctx.columns || crop.fullShape[1] !== ctx.rows) {
     failHard(
       `prediction shape ${crop.fullShape.join('x')} does not match labelmap ${ctx.rows}x${ctx.columns} for ${segmentationId}`
     );
+  }
+  const cropX = crop.cropShape[2];
+
+  // Would the prediction take voxels of another object of this layer?
+  let overlaps = false;
+  forEachCropRow(ctx, crop, (z, srcRow, dstRow) => {
+    const slice = ctx.slices[z];
+    for (let cx = 0; cx < cropX; cx++) {
+      const value = slice[dstRow + cx];
+      if (crop.seg[srcRow + cx] && value !== 0 && value !== segmentIndex) {
+        return (overlaps = true);
+      }
+    }
+  });
+  if (overlaps) {
+    return moveObjectWithCrop(servicesManager, commandsManager, source, target, ctx, crop);
   }
 
   const changed = new Set<number>();
@@ -533,58 +921,137 @@ export async function applyCrop(
   const previousDirty = getSegmentDirtySlices(segmentationId, segmentIndex);
 
   if (crop.scope === 'full') {
-    const toClear = previousDirty.known ? previousDirty.slices : ctx.slices.map((_, z) => z);
-    for (const z of toClear) {
-      if (z < nz && clearValueFromSlice(ctx.slices[z], segmentIndex)) {
+    for (const z of candidateSlices(ctx, target)) {
+      if (clearValueFromSlice(ctx.slices[z], segmentIndex)) {
         changed.add(z);
       }
     }
   }
 
-  const [cropZ, cropY, cropX] = crop.cropShape;
-  const [z0, y0, x0] = crop.offset;
-  for (let i = z0; i < z0 + cropZ; i++) {
-    const z = crop.flipped ? nz - 1 - i : i;
-    if (z < 0 || z >= nz) {
-      continue;
-    }
+  forEachCropRow(ctx, crop, (z, srcRow, dstRow) => {
     const slice = ctx.slices[z];
-    const cropSliceBase = (i - z0) * cropY * cropX;
-    let wrote = false;
-    for (let cy = 0; cy < cropY; cy++) {
-      const srcRow = cropSliceBase + cy * cropX;
-      const dstRow = (y0 + cy) * nx + x0;
-      for (let cx = 0; cx < cropX; cx++) {
-        const dst = dstRow + cx;
-        if (crop.seg[srcRow + cx]) {
-          if (slice[dst] !== segmentIndex) {
-            slice[dst] = segmentIndex;
-            wrote = true;
-          }
-          written.add(z);
-        } else if (crop.scope === 'delta' && slice[dst] === segmentIndex) {
-          slice[dst] = 0;
-          wrote = true;
+    let rowChanged = false;
+    let rowWritten = false;
+    for (let cx = 0; cx < cropX; cx++) {
+      const j = dstRow + cx;
+      if (crop.seg[srcRow + cx]) {
+        rowWritten = true;
+        if (slice[j] !== segmentIndex) {
+          slice[j] = segmentIndex;
+          rowChanged = true;
         }
+      } else if (crop.scope === 'delta' && slice[j] === segmentIndex) {
+        slice[j] = 0;
+        rowChanged = true;
       }
     }
-    if (wrote) {
+    if (rowChanged) {
       changed.add(z);
     }
-  }
+    if (rowWritten) {
+      written.add(z);
+    }
+  });
 
-  const changedSlices = Array.from(changed).sort((a, b) => a - b);
-  const writtenSlices = Array.from(written).sort((a, b) => a - b);
-  const nextDirty =
-    crop.scope === 'delta'
-      ? Array.from(new Set([...previousDirty.slices, ...changedSlices])).sort((a, b) => a - b)
-      : writtenSlices;
-  if (crop.scope !== 'delta' || previousDirty.known) {
-    updateSegmentDirtyStats(segmentationId, segmentIndex, nextDirty);
+  if (crop.scope !== 'delta') {
+    updateSegmentDirtyStats(segmentationId, segmentIndex, Array.from(written));
+  } else if (previousDirty.known) {
+    updateSegmentDirtyStats(segmentationId, segmentIndex, [...previousDirty.slices, ...changed]);
   }
   dispatchModified(segmentationId);
 
-  return { changedSlices, wroteVoxels: writtenSlices.length > 0 };
+  return { object: target, moved: false, wroteVoxels: written.size > 0 };
+}
+
+/** Apply a crop to the object's mask off-labelmap, then re-place the result in another layer. */
+async function moveObjectWithCrop(
+  servicesManager: any,
+  commandsManager: any,
+  source: SourceImage,
+  from: ObjectRef,
+  ctx: LabelmapContext,
+  crop: PredictionCrop
+): Promise<ApplyCropResult> {
+  const cropX = crop.cropShape[2];
+
+  // 'full' replaces the whole mask; 'delta' rewrites only the crop box of the current mask.
+  const mask: SliceMasks = crop.scope === 'full' ? new Map() : readObjectSlices(ctx, from);
+  forEachCropRow(ctx, crop, (z, srcRow, dstRow) => {
+    let sliceMask = mask.get(z);
+    for (let cx = 0; cx < cropX; cx++) {
+      if (crop.seg[srcRow + cx]) {
+        if (!sliceMask) {
+          sliceMask = new Uint8Array(ctx.sliceLen);
+          mask.set(z, sliceMask);
+        }
+        sliceMask[dstRow + cx] = 1;
+      } else if (sliceMask) {
+        sliceMask[dstRow + cx] = 0;
+      }
+    }
+  });
+  for (const [z, sliceMask] of mask) {
+    if (!sliceMask.some(Boolean)) {
+      mask.delete(z);
+    }
+  }
+
+  // Clear every slice: the index is freed and may be reused by another object.
+  for (const slice of ctx.slices) {
+    clearValueFromSlice(slice, from.segmentIndex);
+  }
+
+  const object = await placeObject(
+    servicesManager,
+    commandsManager,
+    source,
+    mask,
+    objectMeta(from),
+    from.segmentationId
+  );
+  removeSegmentEntry(from);
+  console.info(
+    `[nninteractive] object moved ${from.segmentationId}#${from.segmentIndex} → ` +
+      `${object.segmentationId}#${object.segmentIndex} (overlaps another object of its layer)`
+  );
+
+  return { object, moved: true, wroteVoxels: mask.size > 0 };
+}
+
+/**
+ * The object's voxel centroid (image and world coordinates), for jumping to it. OHIF's own
+ * segment statistics (`cachedStats.center`) are disabled in this mode: recomputing them
+ * rewrites a layer's whole segment map and races with object creation.
+ */
+export function objectCenter(
+  object: ObjectRef
+): { image: [number, number, number]; world: [number, number, number] } | undefined {
+  const ctx = getLabelmapContext(object.segmentationId);
+  if (!ctx) {
+    return undefined;
+  }
+  let count = 0;
+  let sumX = 0;
+  let sumY = 0;
+  let sumZ = 0;
+  ctx.slices.forEach((slice, z) => {
+    for (let j = 0; j < ctx.sliceLen; j++) {
+      if (slice[j] === object.segmentIndex) {
+        count++;
+        sumX += j % ctx.columns;
+        sumY += Math.floor(j / ctx.columns);
+        sumZ += z;
+      }
+    }
+  });
+  if (!count) {
+    return undefined;
+  }
+  const image: [number, number, number] = [sumX / count, sumY / count, sumZ / count];
+  const imageId = ctx.sourceImageIds[Math.round(image[2])];
+  // imageToWorldCoords takes pixel-edge coordinates: +0.5 addresses the voxel centre.
+  const world = csUtils.imageToWorldCoords(imageId, [image[0] + 0.5, image[1] + 0.5]) as number[];
+  return { image, world: [world[0], world[1], world[2]] };
 }
 
 /**
@@ -592,12 +1059,8 @@ export async function applyCrop(
  * voxel). The proxy reshapes to [z, y, x] and reverses z when the series is flipped, so
  * viewer/display-set order is what to send for set_mask.
  */
-export function readObjectMask(
-  servicesManager: any,
-  source: SourceImage,
-  segmentationId: string,
-  segmentIndex: number
-): Uint8Array | null {
+export function readObjectMask(source: SourceImage, object: ObjectRef): Uint8Array | null {
+  const { segmentationId, segmentIndex } = object;
   const ctx = requireLabelmapContext(segmentationId);
   if (source.imageIds.length !== ctx.sourceImageIds.length) {
     failHard(
@@ -618,118 +1081,51 @@ export function readObjectMask(
   return voxelCount > 0 ? mask : null;
 }
 
-/** Zero all voxels belonging to an object segment (reset). */
-export async function clearSegment(
-  servicesManager: any,
-  segmentationId: string,
-  segmentIndex: number
-): Promise<void> {
+/**
+ * Zero all voxels belonging to an object segment (reset). Scans every slice — brush edits do
+ * not maintain the dirty-slice record, and a removed object's index may be reused.
+ */
+export function clearObject({ segmentationId, segmentIndex }: ObjectRef): void {
   const ctx = requireLabelmapContext(segmentationId);
-  const previousDirty = getSegmentDirtySlices(segmentationId, segmentIndex);
-  const toClear = previousDirty.known ? previousDirty.slices : ctx.slices.map((_, z) => z);
-  for (const z of toClear) {
-    if (z < ctx.slices.length) {
-      clearValueFromSlice(ctx.slices[z], segmentIndex);
-    }
+  for (const slice of ctx.slices) {
+    clearValueFromSlice(slice, segmentIndex);
   }
   updateSegmentDirtyStats(segmentationId, segmentIndex, []);
   dispatchModified(segmentationId);
 }
 
-/** Remove an object segment entirely (clear voxels + drop the segment entry). */
-export async function removeSegment(
-  servicesManager: any,
-  segmentationId: string,
-  segmentIndex: number
-): Promise<void> {
-  await clearSegment(servicesManager, segmentationId, segmentIndex);
-  if (isManaged(segmentationId)) {
-    return;
+/**
+ * Remove an object entirely: clear its voxels and drop its segment. A layer left without
+ * objects is deleted, which frees its labelmap memory.
+ */
+export async function removeObject(commandsManager: any, object: ObjectRef): Promise<void> {
+  const { segmentationId } = object;
+  clearObject(object);
+  removeSegmentEntry(object);
+  if (isManaged(segmentationId) && !segmentIndicesOf(segmentationId).length) {
+    await deleteLayer(commandsManager, segmentationId);
   }
-  const seg = csToolsSegmentation.state.getSegmentation(segmentationId);
-  const segments = { ...(seg?.segments ?? {}) };
-  delete segments[segmentIndex];
-  csToolsSegmentation.updateSegmentations([{ segmentationId, payload: { segments } }]);
-  dispatchModified(segmentationId);
 }
 
 // ── Import-split ────────────────────────────────────────────────────────────────────────────
-// OHIF hydrates a saved DICOM SEG as ONE segmentation with N segments (overlapping SEG → several
-// labelmap images per source slice, each holding value = its segment index; non-overlapping → one
-// image per slice with values 1..N). The per-object model wants each object as its OWN
-// single-segment segmentation, so a loaded SEG is split back into N managed objects, each built
-// via addObject (which owns creation + representations).
+// OHIF hydrates a saved DICOM SEG as ONE segmentation with N segments (overlapping SEG →
+// several labelmap images per source slice, each holding value = its segment index;
+// non-overlapping → one image per slice with values 1..N). Each segment becomes an object,
+// packed into layers like any other object, so a non-overlapping SEG loads into one layer.
 
-export type ImportSplitResult =
-  | { status: 'skip' }
-  | { status: 'consumed' }
-  | { status: 'retry'; reason: string }
-  | { status: 'done'; created: string[] };
+export type ImportSplitResult = { status: 'skip' | 'done' } | { status: 'retry'; reason: string };
 
 function stripRepresentationsEverywhere(servicesManager: any, segmentationId: string): void {
-  const viewportIds = servicesManager?.services?.cornerstoneViewportService?.getViewportIds?.() ?? [];
+  const viewportIds =
+    servicesManager?.services?.cornerstoneViewportService?.getViewportIds?.() ?? [];
   removeRepresentations(servicesManager, segmentationId, viewportIds);
 }
 
-function applyObjectLabelAndColor(
-  servicesManager: any,
-  segmentationId: string,
-  label: string,
-  color: number[]
-): void {
-  const seg = csToolsSegmentation.state.getSegmentation(segmentationId);
-  const existing: any = seg?.segments?.[1] ?? seg?.segments?.['1'] ?? {};
-  const objectOrdinal = seg?.cachedStats?.objectOrdinal;
-  csToolsSegmentation.updateSegmentations([
-    {
-      segmentationId,
-      payload: {
-        label,
-        segments: {
-          1: {
-            ...existing,
-            segmentIndex: 1,
-            label,
-            color,
-            cachedStats: { ...(existing.cachedStats ?? {}), color, objectOrdinal },
-          },
-        },
-      },
-    },
-  ]);
-  applySegmentColors(servicesManager, segmentationId, classifyViewports(servicesManager).planar);
-}
-
-// Write a viewer/display-set-order binary mask (1 byte/voxel) into an object's labelmap.
-// Returns the display-set slice indices that changed.
-function writeFullObjectMask(segmentationId: string, segmentIndex: number, mask: Uint8Array): number[] {
-  const ctx = requireLabelmapContext(segmentationId);
-  const expected = ctx.sourceImageIds.length * ctx.sliceLen;
-  if (mask.length !== expected) {
-    failHard(`import-split mask size ${mask.length} does not match labelmap ${expected} for ${segmentationId}`);
-  }
-  const changed: number[] = [];
-  ctx.slices.forEach((slice, z) => {
-    const srcBase = z * ctx.sliceLen;
-    let wrote = false;
-    for (let j = 0; j < ctx.sliceLen; j++) {
-      if (mask[srcBase + j]) {
-        slice[j] = segmentIndex;
-        wrote = true;
-      }
-    }
-    if (wrote) {
-      changed.push(z);
-    }
-  });
-  return changed;
-}
-
 /**
- * Split a freshly-hydrated multi-segment OHIF segmentation into N managed one-segment objects,
- * preserving each segment's label + color, then hide the original (strip its representations,
- * keep its state). No-op for segmentations this module manages. Returns a status so the caller
- * can retry while hydration data is still settling.
+ * Split a freshly-hydrated multi-segment OHIF segmentation into managed objects, preserving
+ * each segment's label + color, then hide the original (strip its representations, keep its
+ * state). No-op for segmentations this module manages. Returns a status so the caller can
+ * retry while hydration data is still settling.
  */
 export async function importSplitSegmentation(
   servicesManager: any,
@@ -747,7 +1143,7 @@ export async function importSplitSegmentation(
   if (splitConsumedIds.has(hydratedSegmentationId)) {
     // Already split before — a re-add of its reps just gets re-stripped (never split twice).
     stripRepresentationsEverywhere(servicesManager, hydratedSegmentationId);
-    return { status: 'consumed' };
+    return { status: 'skip' };
   }
 
   const seg: any = csToolsSegmentation.state.getSegmentation(hydratedSegmentationId);
@@ -761,10 +1157,7 @@ export async function importSplitSegmentation(
   if (!ids.length) {
     return { status: 'skip' }; // volume-only / not a readable stack labelmap
   }
-  const segIndices = Object.keys(seg?.segments ?? {})
-    .map(Number)
-    .filter(n => Number.isInteger(n) && n > 0)
-    .sort((a, b) => a - b);
+  const segIndices = segmentIndicesOf(hydratedSegmentationId);
   if (!segIndices.length) {
     return { status: 'skip' };
   }
@@ -809,13 +1202,13 @@ export async function importSplitSegmentation(
     // Layout-agnostic value routing: never index by image position — make ONE pass over ALL
     // labelmap images, route each voxel by its VALUE to that segment's mask at the slice its
     // referencedImageId maps to. Several images can target the same slice (OR-merge).
-    // Index by source.imageIds order (what writeFullObjectMask reads back), NOT the SEG's
+    // Index by source.imageIds order (what the layers are indexed by), NOT the SEG's
     // referencedImageIds order — same set, but the order is not guaranteed to match.
     const zByRefId = new Map<string, number>();
     source.imageIds.forEach((rid, z) => zByRefId.set(rid, z));
-    const masks = new Map<number, Uint8Array>();
+    const masks = new Map<number, SliceMasks>();
     for (const k of segIndices) {
-      masks.set(k, new Uint8Array(source.imageIds.length * sliceLen));
+      masks.set(k, new Map());
     }
     let totalCopied = 0;
     for (const id of ids) {
@@ -825,14 +1218,18 @@ export async function importSplitSegmentation(
       if (!sd || z === undefined) {
         continue;
       }
-      const dstBase = z * sliceLen;
       const n = Math.min(sd.length, sliceLen);
       for (let j = 0; j < n; j++) {
         const v = sd[j];
         if (v > 0) {
           const mask = masks.get(segmentIndexByImageAndValue(id, v));
           if (mask) {
-            mask[dstBase + j] = 1;
+            let sliceMask = mask.get(z);
+            if (!sliceMask) {
+              sliceMask = new Uint8Array(sliceLen);
+              mask.set(z, sliceMask);
+            }
+            sliceMask[j] = 1;
             totalCopied++;
           }
         }
@@ -843,22 +1240,21 @@ export async function importSplitSegmentation(
       return { status: 'retry', reason: 'hydration pixel data not written yet' };
     }
 
-    const created: string[] = [];
+    const created: ObjectRef[] = [];
     for (const k of segIndices) {
-      const srcSegment: any = seg.segments?.[k] ?? seg.segments?.[String(k)];
-      const label = srcSegment?.label || `Object ${k}`;
+      const srcSegment: any = seg.segments[k];
+      const objectOrdinal = nextObjectOrdinal(source.seriesInstanceUID);
       const color =
         (Array.isArray(srcSegment?.color) && srcSegment.color) ||
         (Array.isArray(srcSegment?.cachedStats?.color) && srcSegment.cachedStats.color) ||
-        objectColorForOrdinal(created.length + 1);
-
-      const { segmentationId: newId } = await addObject(servicesManager, commandsManager, source);
-      created.push(newId);
-      applyObjectLabelAndColor(servicesManager, newId, label, color);
-
-      const changed = writeFullObjectMask(newId, 1, masks.get(k) as Uint8Array);
-      updateSegmentDirtyStats(newId, 1, changed);
-      dispatchModified(newId);
+        objectColorForOrdinal(objectOrdinal);
+      created.push(
+        await placeObject(servicesManager, commandsManager, source, masks.get(k) as SliceMasks, {
+          label: srcSegment?.label || `Object ${objectOrdinal}`,
+          color,
+          objectOrdinal,
+        })
+      );
     }
 
     // Hide the original: strip reps everywhere, keep state, remember it so a re-add is re-stripped.
@@ -869,15 +1265,23 @@ export async function importSplitSegmentation(
     // the active segmentation).
     if (created.length) {
       try {
-        await commandsManager.run('setActiveSegmentation', { segmentationId: created[0] });
+        await commandsManager.run('setActiveSegmentation', {
+          segmentationId: created[0].segmentationId,
+        });
+        csToolsSegmentation.segmentIndex.setActiveSegmentIndex(
+          created[0].segmentationId,
+          created[0].segmentIndex
+        );
       } catch {
         // ignore
       }
     }
+    const layerCount = new Set(created.map(object => object.segmentationId)).size;
     console.info(
-      `[nninteractive] import-split: ${hydratedSegmentationId} → ${created.length} objects (${totalCopied} voxels)`
+      `[nninteractive] import-split: ${hydratedSegmentationId} → ${created.length} objects in ` +
+        `${layerCount} layer(s) (${totalCopied} voxels)`
     );
-    return { status: 'done', created };
+    return { status: 'done' };
   } finally {
     splitInProgress.delete(hydratedSegmentationId);
   }

@@ -7,21 +7,19 @@
 import { annotation as cornerstoneAnnotation } from '@cornerstonejs/tools';
 
 import * as promptDisplay from './promptDisplay';
-import { PROMPT_TOOL_KIND, PROMPT_TOOL_NAMES, PromptKind } from './types';
-
-const PROMPT_NAME_SET = new Set<string>(PROMPT_TOOL_NAMES as unknown as string[]);
+import { ObjectRef, PROMPT_TOOL_KIND, PromptKind, isPromptTool, objectKeyOf } from './types';
 
 // Submitted prompt annotationUIDs in submission order (for undo marker removal).
 let undoOrder: string[] = [];
 
 function allPromptAnnotations(): any[] {
-  let annotations: any[] = [];
-  try {
-    annotations = (cornerstoneAnnotation.state.getAllAnnotations?.() as any[]) ?? [];
-  } catch {
-    annotations = [];
-  }
-  return annotations.filter(a => PROMPT_NAME_SET.has(a?.metadata?.toolName));
+  const annotations = (cornerstoneAnnotation.state.getAllAnnotations() as any[]) ?? [];
+  return annotations.filter(a => isPromptTool(a?.metadata?.toolName));
+}
+
+function promptsOf(object: ObjectRef): any[] {
+  const key = objectKeyOf(object);
+  return allPromptAnnotations().filter(a => a.metadata.objectKey === key);
 }
 
 export function kindOf(annotation: any): PromptKind | undefined {
@@ -29,44 +27,26 @@ export function kindOf(annotation: any): PromptKind | undefined {
 }
 
 /** Stamp a freshly-drawn prompt with its sign and owning object, and give it pending style. */
-export function stampNew(annotation: any, opts: { neg: boolean; objectKey?: string }): void {
-  if (!annotation?.metadata) {
-    return;
+export function stampNew(annotation: any, neg: boolean, object: ObjectRef | null): void {
+  annotation.metadata.neg = neg;
+  if (object) {
+    annotation.metadata.objectKey = objectKeyOf(object);
   }
-  annotation.metadata.neg = opts.neg;
-  if (opts.objectKey) {
-    annotation.metadata.objectKey = opts.objectKey;
-  }
-  promptDisplay.applyPending(annotation.annotationUID, opts.neg);
-}
-
-/** Unsubmitted, completed prompts for the given object (what the next submit should send). */
-export function getUnsubmittedForObject(objectKey: string): any[] {
-  return allPromptAnnotations().filter(
-    a =>
-      a.metadata?.objectKey === objectKey &&
-      a.metadata?.promptCompleted === true &&
-      a.metadata?.submitted !== true
-  );
-}
-
-export function hasUnsubmitted(objectKey: string): boolean {
-  return getUnsubmittedForObject(objectKey).length > 0;
+  promptDisplay.applyPending(annotation.annotationUID, neg);
 }
 
 /** Every completed, unsubmitted prompt (the interaction being run, regardless of object). */
 export function getAllUnsubmitted(): any[] {
   return allPromptAnnotations().filter(
-    a => a.metadata?.promptCompleted === true && a.metadata?.submitted !== true
+    a => a.metadata.promptCompleted === true && a.metadata.submitted !== true
   );
 }
 
-/** Lock + darken submitted prompts and record them for undo. */
-export function markSubmitted(annotations: any[]): void {
+/** Assign submitted prompts to the object they ran on, lock + darken them, record them for undo. */
+export function markSubmitted(annotations: any[], object: ObjectRef): void {
+  const key = objectKeyOf(object);
   for (const annotation of annotations) {
-    if (!annotation?.metadata) {
-      continue;
-    }
+    annotation.metadata.objectKey = key;
     annotation.metadata.submitted = true;
     promptDisplay.commit(annotation.annotationUID, !!annotation.metadata.neg);
     undoOrder.push(annotation.annotationUID);
@@ -76,34 +56,37 @@ export function markSubmitted(annotations: any[]): void {
 /** Re-enable editing on prompts whose submission failed. */
 export function markFailed(annotations: any[]): void {
   for (const annotation of annotations) {
-    if (!annotation?.metadata) {
-      continue;
-    }
     promptDisplay.unlock(annotation.annotationUID, !!annotation.metadata.neg);
   }
 }
 
 /** Remove the most recently submitted prompt marker (used after a successful backend undo). */
-export function removeLastSubmitted(): boolean {
+export function removeLastSubmitted(): void {
   const uid = undoOrder.pop();
-  if (!uid) {
-    return false;
+  if (uid) {
+    promptDisplay.remove(uid);
   }
-  promptDisplay.remove(uid);
-  return true;
 }
 
 /** Remove every prompt annotation belonging to an object (pending + submitted). */
-export function clearForObject(objectKey: string): void {
-  for (const annotation of allPromptAnnotations()) {
-    if (annotation.metadata?.objectKey === objectKey) {
-      promptDisplay.remove(annotation.annotationUID);
-      undoOrder = undoOrder.filter(uid => uid !== annotation.annotationUID);
-    }
+export function clearForObject(object: ObjectRef): void {
+  const removed = new Set<string>();
+  for (const annotation of promptsOf(object)) {
+    promptDisplay.remove(annotation.annotationUID);
+    removed.add(annotation.annotationUID);
+  }
+  undoOrder = undoOrder.filter(uid => !removed.has(uid));
+}
+
+/** An object moved to another layer: re-point its prompts at the new object key. */
+export function renameObject(from: ObjectRef, to: ObjectRef): void {
+  const key = objectKeyOf(to);
+  for (const annotation of promptsOf(from)) {
+    annotation.metadata.objectKey = key;
   }
 }
 
-/** Remove every prompt annotation (session reset / mode exit). */
+/** Remove every prompt annotation (new object armed). */
 export function clearAll(): void {
   for (const annotation of allPromptAnnotations()) {
     promptDisplay.remove(annotation.annotationUID);
@@ -111,28 +94,16 @@ export function clearAll(): void {
   undoOrder = [];
 }
 
-export function setPromptsVisible(visible: boolean, objectKey?: string): void {
-  for (const annotation of allPromptAnnotations()) {
-    if (objectKey && annotation.metadata?.objectKey !== objectKey) {
-      continue;
-    }
+export function setPromptsVisible(visible: boolean, object?: ObjectRef): void {
+  for (const annotation of object ? promptsOf(object) : allPromptAnnotations()) {
     promptDisplay.setVisible(annotation.annotationUID, visible);
   }
 }
 
-export function countForObject(objectKey: string): { pending: number; submitted: number } {
-  let pending = 0;
-  let submitted = 0;
-  for (const annotation of allPromptAnnotations()) {
-    if (annotation.metadata?.objectKey !== objectKey) {
-      continue;
-    }
-    if (annotation.metadata?.submitted) {
-      submitted += 1;
-    } else if (annotation.metadata?.promptCompleted) {
-      pending += 1;
-    }
-  }
+export function countForObject(object: ObjectRef): { pending: number; submitted: number } {
+  const prompts = promptsOf(object);
+  const submitted = prompts.filter(a => a.metadata.submitted).length;
+  const pending = prompts.filter(a => !a.metadata.submitted && a.metadata.promptCompleted).length;
   return { pending, submitted };
 }
 

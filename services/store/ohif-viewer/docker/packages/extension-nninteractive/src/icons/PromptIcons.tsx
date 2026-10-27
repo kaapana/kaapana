@@ -11,11 +11,36 @@ export const ToolNnInteractivePoint = ({ className, ...props }: IconProps) => (
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 256 256"
   >
-    <circle fill="currentColor" cx="145.71" cy="56.89" r="21.26" />
-    <circle fill="currentColor" cx="73.29" cy="94.08" r="21.26" />
-    <circle fill="currentColor" cx="188.55" cy="120.06" r="21.26" />
-    <circle fill="currentColor" cx="145.71" cy="183.24" r="21.26" />
-    <circle fill="currentColor" cx="65.92" cy="187.32" r="21.26" />
+    <circle
+      fill="currentColor"
+      cx="145.71"
+      cy="56.89"
+      r="21.26"
+    />
+    <circle
+      fill="currentColor"
+      cx="73.29"
+      cy="94.08"
+      r="21.26"
+    />
+    <circle
+      fill="currentColor"
+      cx="188.55"
+      cy="120.06"
+      r="21.26"
+    />
+    <circle
+      fill="currentColor"
+      cx="145.71"
+      cy="183.24"
+      r="21.26"
+    />
+    <circle
+      fill="currentColor"
+      cx="65.92"
+      cy="187.32"
+      r="21.26"
+    />
   </svg>
 );
 

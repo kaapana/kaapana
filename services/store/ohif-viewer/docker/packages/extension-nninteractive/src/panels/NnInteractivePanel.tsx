@@ -1,933 +1,598 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Icons, Label, PanelSection, Switch, Button, ToggleGroup, ToggleGroupItem } from '@ohif/ui-next';
-import { Brush, Lock, LockOpen } from 'lucide-react';
-import { useSystem, useToolbar } from '@ohif/core';
+import React, { useEffect, useState } from 'react';
+import {
+  Button,
+  Icons,
+  Label,
+  PanelSection,
+  Switch,
+  ToggleGroup,
+  ToggleGroupItem,
+} from '@ohif/ui-next';
+import { useSystem } from '@ohif/core';
+import { Brush } from 'lucide-react';
 import classnames from 'classnames';
-import { useTranslation } from 'react-i18next';
-import * as promptModel from '../model/promptModel';
-import { toolboxState } from '../utils/toolboxState';
 
-interface ButtonProps {
-  isActive?: boolean;
-  options?: unknown;
-}
+import {
+  ToolNnInteractiveBbox,
+  ToolNnInteractiveLasso,
+  ToolNnInteractivePoint,
+  ToolNnInteractiveScribble,
+} from '../icons/PromptIcons';
+import * as objectModel from '../model/objectModel';
+import * as promptModel from '../model/promptModel';
+import { isAvailable } from '../model/serverApi';
+import { sessionState } from '../model/sessionModel';
+import { toolboxState } from '../utils/toolboxState';
+import { ObjectList, ObjectRow, setObjectVisible, useObjects } from './ObjectList';
 
 const BRUSH_SIZE_MIN = 1;
 const BRUSH_SIZE_MAX = 60;
-const BRUSH_SIZE_STEP = 1;
+const BRUSH_TOOLS = ['CircularBrush', 'CircularEraser'];
 
-function ShortcutKey({
-  keys,
-  title,
-  className,
-}: {
-  keys: string;
-  title: string;
-  className?: string;
-}) {
+const PROMPT_TOOLS = [
+  { toolName: 'Probe2', label: 'Point', key: 'P', Icon: ToolNnInteractivePoint },
+  { toolName: 'RectangleROI2', label: 'Box', key: 'B', Icon: ToolNnInteractiveBbox },
+  { toolName: 'PlanarFreehandROI2', label: 'Scribble', key: 'S', Icon: ToolNnInteractiveScribble },
+  { toolName: 'PlanarFreehandROI3', label: 'Lasso', key: 'L', Icon: ToolNnInteractiveLasso },
+];
+
+function Key({ children }: { children: React.ReactNode }) {
   return (
     <kbd
-      title={`${title} (${keys})`}
-      aria-label={`${title}: ${keys}`}
-      className={classnames(
-        'border-primary/30 bg-background text-muted-foreground inline-flex h-5 min-w-5 items-center justify-center rounded border px-1 text-[10px] font-semibold leading-none',
-        className
-      )}
+      className="text-muted-foreground border-primary/30 rounded border"
+      style={{ fontSize: 10, lineHeight: '14px', padding: '0 4px', fontFamily: 'inherit' }}
     >
-      {keys}
+      {children}
     </kbd>
   );
 }
 
-function ShortcutHint({ keys, label, title }: { keys: string; label: string; title: string }) {
+function SectionLabel({ children, hint }: { children: React.ReactNode; hint?: React.ReactNode }) {
   return (
-    <span
-      title={`${title} (${keys})`}
-      className="border-primary/20 text-muted-foreground inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[11px]"
-    >
-      <ShortcutKey
-        keys={keys}
-        title={title}
-        className="border-transparent bg-transparent p-0 text-[11px]"
-      />
-      <span>{label}</span>
-    </span>
+    <div className="flex items-center justify-between">
+      <Label>{children}</Label>
+      {hint}
+    </div>
   );
 }
 
-export default function NnInteractivePanel({
-  buttonSectionId,
-  title,
-  defaultOpen = true,
-}: {
-  buttonSectionId: string;
-  title: string;
-  defaultOpen?: boolean;
-}) {
+type Status = 'checking' | 'unavailable' | 'idle' | 'starting' | 'ready' | 'error';
+
+const STATUS_TEXT: Record<Status, { text: string; color: string; hint?: string }> = {
+  checking: { text: 'Checking…', color: '#9ca3af' },
+  unavailable: {
+    text: 'Unavailable',
+    color: '#ef4444',
+    hint: 'The nnInteractive backend is not installed or not reachable.',
+  },
+  idle: { text: 'Idle', color: '#9ca3af', hint: 'A session starts with your first prompt.' },
+  starting: { text: 'Starting…', color: '#f59e0b' },
+  ready: { text: 'Ready', color: '#22c55e' },
+  error: { text: 'Error', color: '#ef4444' },
+};
+
+/**
+ * The nnInteractive workflow in one panel, top to bottom: prompt type → tool → objects → save.
+ * Every action has exactly one control here; its shortcut is printed on that control.
+ */
+export default function NnInteractivePanel() {
   const { servicesManager, commandsManager } = useSystem();
-  const { t } = useTranslation();
+  const { viewportGridService, toolGroupService, uiNotificationService } = servicesManager.services;
 
-  const {
-    toolbarService,
-    customizationService,
-    segmentationService,
-    viewportGridService,
-    measurementService,
-    displaySetService,
-    uiNotificationService,
-  } = servicesManager.services;
+  const [available, setAvailable] = useState<boolean | null>(null);
+  const [session, setSession] = useState(sessionState.get());
+  const [ui, setUi] = useState(toolboxState.get());
+  const [activeTool, setActiveTool] = useState<string | undefined>();
+  const [undoable, setUndoable] = useState(false);
+  const objects = useObjects(servicesManager);
+  const activeObject = objects.find(o => o.active);
 
-  const onInteractionRef = useRef<((args: { itemId: string }) => void) | null>(null);
-  const isAIToolBox = buttonSectionId === 'aiToolBox';
-  const [showConfig, setShowConfig] = useState(false);
-  const [isLocked, setIsLocked] = useState(toolboxState.getLocked());
-  const [liveMode, setLiveMode] = useState(toolboxState.getLiveMode());
-  const [posNeg, setPosNeg] = useState(toolboxState.getPosNeg());
-  const [sessionActive, setSessionActive] = useState(toolboxState.getSessionActive());
-  const [initializing, setInitializing] = useState(false);
-  const [nnInteractiveAvailable, setNnInteractiveAvailable] = useState<boolean | null>(null);
-  const [showManualControl, setShowManualControl] = useState(false);
-  const [brushSize, setBrushSize] = useState(12);
-  const lastSeriesRef = useRef<string>('');
-  const hotkeysDisabled = isAIToolBox && isLocked;
+  // ── state subscriptions ───────────────────────────────────────────────────────────────
+  useEffect(() => sessionState.subscribe(() => setSession(sessionState.get())), []);
 
-  const getActiveSeriesUID = (): string => {
-    try {
-      const { activeViewportId, viewports } = viewportGridService.getState();
-      const dsUID = viewports.get(activeViewportId)?.displaySetInstanceUIDs?.[0];
-      const ds = displaySetService.activeDisplaySets.find(
-        (d: any) => d.displaySetInstanceUID === dsUID
-      );
-      return ds?.SeriesInstanceUID ?? '';
-    } catch {
-      return '';
-    }
-  };
+  useEffect(() => toolboxState.subscribe(() => setUi(toolboxState.get())), []);
 
+  // The armed tool can also change from the main toolbar, so read it from the tool group.
   useEffect(() => {
-    const updateLocalState = () => {
-      setLiveMode(toolboxState.getLiveMode());
-      setPosNeg(toolboxState.getPosNeg());
-      setIsLocked(toolboxState.getLocked());
-
-      if (isAIToolBox) {
-        const series = getActiveSeriesUID();
-        if (series && lastSeriesRef.current && series !== lastSeriesRef.current) {
-          toolboxState.setSessionActive(false);
-        }
-        if (series) {
-          lastSeriesRef.current = series;
-        }
-        setSessionActive(toolboxState.getSessionActive());
-      }
+    const tick = () => {
+      const viewportId = viewportGridService.getActiveViewportId();
+      setActiveTool(viewportId ? toolGroupService.getActiveToolForViewport(viewportId) : undefined);
+      setUndoable(objectModel.isUndoable());
     };
-
-    updateLocalState();
-    const interval = setInterval(updateLocalState, 100);
-
-    return () => {
-      clearInterval(interval);
-      toolboxState.setManualCorrectionMode(false);
-      toolboxState.setPosNeg(false);
-    };
+    tick();
+    const id = setInterval(tick, 250);
+    return () => clearInterval(id);
   }, []);
 
   useEffect(() => {
-    if (!isAIToolBox || hotkeysDisabled) {
-      return;
-    }
-
-    const activatePromptTool = (toolName: string) => {
-      toolboxState.setManualCorrectionMode(false);
-      toolboxState.setTool(toolName);
-      commandsManager.run('setAiToolActive', { toolName });
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const activeElement = document.activeElement;
-      const isInputField =
-        activeElement?.tagName === 'INPUT' ||
-        activeElement?.tagName === 'TEXTAREA' ||
-        (activeElement as HTMLElement)?.contentEditable === 'true';
-
-      if (isInputField) {
-        return;
-      }
-
-      switch (event.key.toLowerCase()) {
-        case 'q': {
-          if (!nnInteractiveAvailable) {
-            return;
-          }
-          event.preventDefault();
-          event.stopPropagation();
-          const newLiveMode = !toolboxState.getLiveMode();
-          setLiveMode(newLiveMode);
-          toolboxState.setLiveMode(newLiveMode);
-          break;
-        }
-        case 't': {
-          if (!nnInteractiveAvailable) {
-            return;
-          }
-          event.preventDefault();
-          event.stopPropagation();
-          const newPosNeg = !toolboxState.getPosNeg();
-          setPosNeg(newPosNeg);
-          toolboxState.setPosNeg(newPosNeg);
-          break;
-        }
-        case 'p':
-          if (!nnInteractiveAvailable) {
-            return;
-          }
-          event.preventDefault();
-          event.stopPropagation();
-          activatePromptTool('Probe2');
-          break;
-        case 'b':
-          if (!nnInteractiveAvailable) {
-            return;
-          }
-          event.preventDefault();
-          event.stopPropagation();
-          activatePromptTool('RectangleROI2');
-          break;
-        case 's':
-          if (!nnInteractiveAvailable) {
-            return;
-          }
-          event.preventDefault();
-          event.stopPropagation();
-          activatePromptTool('PlanarFreehandROI2');
-          break;
-        case 'l':
-          if (!nnInteractiveAvailable) {
-            return;
-          }
-          event.preventDefault();
-          event.stopPropagation();
-          activatePromptTool('PlanarFreehandROI3');
-          break;
-        case 'n': {
-          if (!nnInteractiveAvailable) {
-            return;
-          }
-          event.preventDefault();
-          event.stopPropagation();
-          commandsManager.run('armNextNninterObject');
-          break;
-        }
-        case 'c': {
-          if (!nnInteractiveAvailable) {
-            return;
-          }
-          event.preventDefault();
-          event.stopPropagation();
-          setManualCorrectionBrush();
-          break;
-        }
-        case '+':
-        case '=': {
-          if (!nnInteractiveAvailable || event.ctrlKey || event.metaKey) {
-            return;
-          }
-          event.preventDefault();
-          event.stopPropagation();
-          adjustBrushSize(BRUSH_SIZE_STEP);
-          break;
-        }
-        case '-':
-        case '_': {
-          if (!nnInteractiveAvailable || event.ctrlKey || event.metaKey) {
-            return;
-          }
-          event.preventDefault();
-          event.stopPropagation();
-          adjustBrushSize(-BRUSH_SIZE_STEP);
-          break;
-        }
-        case 'r': {
-          if (!nnInteractiveAvailable) {
-            return;
-          }
-          event.preventDefault();
-          event.stopPropagation();
-          const { activeViewportId: avId } = viewportGridService.getState();
-          const activeSeg = segmentationService.getActiveSegmentation(avId);
-          const activeSegment = segmentationService.getActiveSegment(avId);
-          if (activeSeg?.segmentationId && activeSegment?.segmentIndex != null) {
-            commandsManager.run('resetSegment', {
-              segmentationId: activeSeg.segmentationId,
-              segmentIndex: activeSegment.segmentIndex,
-            });
-          }
-          break;
-        }
-        case 'o': {
-          if (!nnInteractiveAvailable) {
-            return;
-          }
-          event.preventDefault();
-          event.stopPropagation();
-          const next = !toolboxState.getPromptsVisible();
-          toolboxState.setPromptsVisible(next);
-          // Prompts are Cornerstone annotations (not measurements) — toggle them directly.
-          promptModel.setPromptsVisible(next);
-          break;
-        }
-        case 'z': {
-          if (!nnInteractiveAvailable) {
-            return;
-          }
-          if (event.ctrlKey && !event.shiftKey) {
-            event.preventDefault();
-            event.stopPropagation();
-            commandsManager.run('undoNninter');
-          }
-          break;
-        }
-        case 'delete': {
-          if (!nnInteractiveAvailable) {
-            return;
-          }
-          event.preventDefault();
-          event.stopPropagation();
-          handleDeleteObject();
-          break;
-        }
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown, true);
-    return () => document.removeEventListener('keydown', handleKeyDown, true);
-  }, [brushSize, hotkeysDisabled, isAIToolBox, nnInteractiveAvailable, sessionActive]);
-
-  useEffect(() => {
-    if (!isLocked) {
-      return;
-    }
-
-    try {
-      if (liveMode) {
-        setLiveMode(false);
-        toolboxState.setLiveMode(false);
-      }
-      commandsManager?.run?.('setToolActive', { toolName: 'Pan' });
-    } catch {
-      // no-op
-    }
-  }, [isLocked]);
-
-  useEffect(() => {
-    if (!isAIToolBox) {
-      return;
-    }
-
     let mounted = true;
-    const checkAvailability = async () => {
-      try {
-        const response = await fetch('/nninteractive/infer/availability', {
-          cache: 'no-store',
-          headers: { accept: 'application/json' },
-        });
-        if (!mounted) {
-          return;
-        }
-        if (!response.ok) {
-          setNnInteractiveAvailable(false);
-          toolboxState.setSessionActive(false);
-          return;
-        }
-        const data = await response.json();
-        const available = !!data?.available;
-        setNnInteractiveAvailable(available);
-        if (!available) {
-          toolboxState.setSessionActive(false);
-        }
-      } catch {
-        if (mounted) {
-          setNnInteractiveAvailable(false);
-          toolboxState.setSessionActive(false);
-        }
+    const check = async () => {
+      const result = await isAvailable();
+      if (mounted) {
+        setAvailable(result);
       }
     };
-
-    checkAvailability();
-    const interval = setInterval(checkAvailability, 30000);
+    check();
+    const id = setInterval(check, 30000);
     return () => {
       mounted = false;
-      clearInterval(interval);
+      clearInterval(id);
     };
-  }, [isAIToolBox]);
+  }, []);
 
+  // Heartbeat while a session exists; release the backend slot when the tab goes away.
   useEffect(() => {
-    if (!isAIToolBox || !nnInteractiveAvailable) {
+    if (!available) {
       return;
     }
-
-    const poll = () => {
-      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
-        return;
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible' && sessionState.get().status === 'ready') {
+        commandsManager.run('nninterSessionStatus');
       }
-      commandsManager.run('nninterSessionStatus');
-    };
-
-    const interval = setInterval(poll, 20000);
+    }, 20000);
     const onPageHide = () => {
-      if (toolboxState.getSessionActive()) {
+      if (sessionState.get().status === 'ready') {
         commandsManager.run('closeNninterSession');
       }
     };
-
     window.addEventListener('pagehide', onPageHide);
     return () => {
-      clearInterval(interval);
+      clearInterval(id);
       window.removeEventListener('pagehide', onPageHide);
     };
-  }, [isAIToolBox, nnInteractiveAvailable]);
+  }, [available]);
 
-  const { toolbarButtons: toolboxSections, onInteraction } = useToolbar({
-    servicesManager,
-    buttonSection: buttonSectionId,
-  });
-  onInteractionRef.current = onInteraction;
+  useEffect(() => {
+    return () => toolboxState.set({ manualCorrectionMode: false, negative: false });
+  }, []);
 
-  if (!toolboxSections.length) {
-    return null;
-  }
+  const status: Status =
+    available === null
+      ? 'checking'
+      : !available
+        ? 'unavailable'
+        : session.status === 'initializing'
+          ? 'starting'
+          : session.status === 'ready'
+            ? 'ready'
+            : session.status === 'error'
+              ? 'error'
+              : 'idle';
+  const enabled = available === true;
+  const brushActive = ui.manualCorrectionMode && BRUSH_TOOLS.includes(activeTool ?? '');
 
-  if (!toolboxSections.every(section => section.componentProps.buttonSection)) {
-    throw new Error(
-      'Toolbox accepts only button sections at the top level, not buttons. Create at least one button section.'
-    );
-  }
+  // ── actions ────────────────────────────────────────────────────────────────────────────
+  const notify = (message: string) =>
+    uiNotificationService?.show?.({ title: 'nnInteractive', message, type: 'info' });
 
-  const findActiveOptions = (buttons: any[]): unknown => {
-    for (const tool of buttons) {
-      if (tool.componentProps.isActive) {
-        return tool.componentProps.options;
-      }
-      if (tool.componentProps.buttonSection) {
-        const nestedButtons = toolbarService.getButtonPropsInButtonSection(
-          tool.componentProps.buttonSection
-        ) as ButtonProps[];
-        const activeNested = nestedButtons.find(nested => nested.isActive);
-        if (activeNested) {
-          return activeNested.options;
-        }
-      }
-    }
-    return null;
-  };
-
-  toolboxSections.reduce((activeOptions, section) => {
-    if (activeOptions) {
-      return activeOptions;
-    }
-    const sectionId = section.componentProps.buttonSection;
-    const buttons = toolbarService.getButtonSection(sectionId);
-    return findActiveOptions(buttons);
-  }, null);
-
-  const handleInteraction = ({ itemId }: { itemId: string }) => {
-    if (isAIToolBox && isLocked && itemId !== 'Pan') {
-      commandsManager?.run?.('setToolActive', { toolName: 'Pan' });
-      return;
-    }
-    if (isAIToolBox && !nnInteractiveAvailable && itemId !== 'Pan') {
-      return;
-    }
-    if (isAIToolBox && !sessionActive && itemId !== 'Pan') {
-      uiNotificationService?.show?.({
-        title: 'nnInteractive',
-        message: 'Click Initialize to start a session first.',
-        type: 'info',
+  const setNegative = (negative: boolean) => {
+    toolboxState.set({ negative });
+    if (toolboxState.get().manualCorrectionMode) {
+      commandsManager.run('setToolActiveToolbar', {
+        toolName: negative ? 'CircularEraser' : 'CircularBrush',
       });
+    }
+  };
+
+  const disarm = () => {
+    toolboxState.set({ manualCorrectionMode: false, tool: 'none' });
+    commandsManager.run('setToolActive', { toolName: 'Pan' });
+  };
+
+  const togglePromptTool = (toolName: string) => {
+    if (!enabled) {
       return;
     }
-    if (isAIToolBox && promptToolIds.includes(itemId)) {
-      toolboxState.setManualCorrectionMode(false);
-    }
-    onInteraction?.({ itemId });
-  };
-
-  const promptToolIds = ['Probe2', 'RectangleROI2', 'PlanarFreehandROI2', 'PlanarFreehandROI3'];
-
-  const aiActiveSegmentation = () => {
-    const { activeViewportId: avId } = viewportGridService.getState();
-    return (
-      segmentationService.getActiveSegmentation(avId) ??
-      segmentationService.getSegmentations()?.[0]
-    );
-  };
-
-  const handleInitialize = async () => {
-    if (!nnInteractiveAvailable || initializing || sessionActive) {
+    if (activeTool === toolName && !toolboxState.get().manualCorrectionMode) {
+      disarm();
       return;
     }
-    // Block the button while the backend session is being created so a slow
-    // init can't be spammed. The finally re-enables it if anything goes wrong;
-    // on success sessionActive keeps it disabled ("Session ready").
-    setInitializing(true);
-    try {
-      await commandsManager.run('initNninter');
-    } catch (error) {
-      console.error('initNninter failed:', error);
-    } finally {
-      setInitializing(false);
-    }
-  };
-  const handleRun = () => {
-    if (nnInteractiveAvailable) {
-      commandsManager.run('nninter');
-    }
-  };
-  const handleUndo = () => {
-    if (nnInteractiveAvailable) {
-      commandsManager.run('undoNninter');
-    }
+    toolboxState.set({ manualCorrectionMode: false, tool: toolName });
+    commandsManager.run('setToolActive', { toolName });
   };
 
-  const handleResetObject = () => {
-    const { activeViewportId: avId } = viewportGridService.getState();
-    if (!nnInteractiveAvailable) {
+  const applyBrushSize = (size: number) => {
+    const clamped = Math.min(BRUSH_SIZE_MAX, Math.max(BRUSH_SIZE_MIN, size));
+    toolboxState.set({ brushSize: clamped });
+    commandsManager.run('setBrushSize', { value: clamped, toolNames: BRUSH_TOOLS });
+  };
+
+  const toggleBrush = () => {
+    if (!enabled) {
       return;
     }
-    const seg = segmentationService.getActiveSegmentation(avId);
-    const segment = segmentationService.getActiveSegment(avId);
-    const segmentIndex =
-      seg?.cachedStats?.nninteractiveManaged === true ? 1 : segment?.segmentIndex;
-    if (seg?.segmentationId && segmentIndex != null) {
+    if (brushActive) {
+      disarm();
+      return;
+    }
+    if (!activeObject) {
+      notify('Select an object to correct first.');
+      return;
+    }
+    toolboxState.set({ manualCorrectionMode: true, tool: 'brush' });
+    applyBrushSize(toolboxState.get().brushSize);
+    commandsManager.run('setToolActiveToolbar', {
+      toolName: toolboxState.get().negative ? 'CircularEraser' : 'CircularBrush',
+    });
+  };
+
+  const togglePrompts = () => {
+    const next = !toolboxState.get().promptsVisible;
+    toolboxState.set({ promptsVisible: next });
+    // Prompts are Cornerstone annotations (not measurements) — toggle them directly.
+    promptModel.setPromptsVisible(next);
+  };
+
+  // Reset and delete drop the object's mask and cannot be undone.
+  const confirmObjectAction = (action: string, object: ObjectRow) =>
+    window.confirm(`${action} "${object.label}"? This cannot be undone.`);
+
+  const resetObject = (object = activeObject) => {
+    if (object && confirmObjectAction('Clear', object)) {
       commandsManager.run('resetSegment', {
-        segmentationId: seg.segmentationId,
-        segmentIndex,
+        segmentationId: object.segmentationId,
+        segmentIndex: object.segmentIndex,
       });
     }
   };
 
-  const handleNextObject = () => {
-    if (!nnInteractiveAvailable) {
-      return;
-    }
-
-    commandsManager.run('armNextNninterObject');
-  };
-
-  const handleDeleteObject = () => {
-    if (!nnInteractiveAvailable) {
-      return;
-    }
-
-    const { activeViewportId: avId } = viewportGridService.getState();
-    const activeSeg = segmentationService.getActiveSegmentation(avId);
-    const activeSegment = segmentationService.getActiveSegment(avId);
-    const segmentIndex =
-      activeSeg?.cachedStats?.nninteractiveManaged === true ? 1 : activeSegment?.segmentIndex;
-    if (activeSeg?.segmentationId && segmentIndex != null) {
-      const { segmentationId } = activeSeg;
-      // deleteSegment clears the object's prompt annotations and resets the backend.
-      commandsManager.run('deleteSegment', { segmentationId, segmentIndex });
+  const deleteObject = (object = activeObject) => {
+    if (object && confirmObjectAction('Delete', object)) {
+      commandsManager.run('deleteNninterObject', {
+        segmentationId: object.segmentationId,
+        segmentIndex: object.segmentIndex,
+      });
     }
   };
 
-  const handleExport = () => {
-    const seg = aiActiveSegmentation();
-    if (!nnInteractiveAvailable) {
-      return;
-    }
-    if (seg?.segmentationId) {
+  const newObject = () => enabled && commandsManager.run('armNextNninterObject');
+  const undo = () => enabled && undoable && commandsManager.run('undoNninter');
+  const run = () => enabled && commandsManager.run('nninter');
+
+  // Both export every object of the series as one overlapping SEG.
+  const exportSeg = (commandName: string) => {
+    const object = activeObject ?? objects[0];
+    if (object) {
       commandsManager.run({
-        commandName: 'storeNninterSegmentation',
-        commandOptions: { segmentationId: seg.segmentationId },
+        commandName,
+        commandOptions: { segmentationId: object.segmentationId },
         context: 'SEGMENTATION',
       });
     }
   };
+  const saveSeg = () => exportSeg('storeNninterSegmentation');
+  const downloadSeg = () => exportSeg('downloadNninterSegmentation');
 
-  const hasActiveAiSegment = () => {
-    const { activeViewportId: avId } = viewportGridService.getState();
-    const seg = segmentationService.getActiveSegmentation(avId);
-    const segment = segmentationService.getActiveSegment(avId);
-    const segmentIndex = seg?.cachedStats?.nninteractiveManaged === true ? 1 : segment?.segmentIndex;
-    return !!seg?.segmentationId && segmentIndex != null;
+  // ── keyboard ───────────────────────────────────────────────────────────────────────────
+  // Every shortcut shown in the panel is handled here; latest closures via the ref below.
+  const keyActions: Record<string, () => void> = {
+    p: () => togglePromptTool('Probe2'),
+    b: () => togglePromptTool('RectangleROI2'),
+    s: () => togglePromptTool('PlanarFreehandROI2'),
+    l: () => togglePromptTool('PlanarFreehandROI3'),
+    c: toggleBrush,
+    t: () => setNegative(!toolboxState.get().negative),
+    q: () => toolboxState.set({ liveMode: !toolboxState.get().liveMode }),
+    o: togglePrompts,
+    n: newObject,
+    r: () => resetObject(),
+    delete: () => deleteObject(),
+    // Only while brushing: otherwise these stay OHIF's zoom keys.
+    ...(brushActive && {
+      '+': () => applyBrushSize(toolboxState.get().brushSize + 1),
+      '=': () => applyBrushSize(toolboxState.get().brushSize + 1),
+      '-': () => applyBrushSize(toolboxState.get().brushSize - 1),
+    }),
   };
+  const keyActionsRef = React.useRef(keyActions);
+  keyActionsRef.current = keyActions;
 
-  const applyBrushSize = (nextSize: number) => {
-    const clampedSize = Math.min(BRUSH_SIZE_MAX, Math.max(BRUSH_SIZE_MIN, nextSize));
-    setBrushSize(clampedSize);
-    commandsManager.run('setBrushSize', {
-      value: clampedSize,
-      toolNames: ['CircularBrush', 'CircularEraser'],
-    });
-  };
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = document.activeElement as HTMLElement | null;
+      if (
+        target?.tagName === 'INPUT' ||
+        target?.tagName === 'TEXTAREA' ||
+        target?.isContentEditable
+      ) {
+        return;
+      }
+      const key = event.key.toLowerCase();
+      if (key === 'z' && (event.ctrlKey || event.metaKey) && !event.shiftKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        commandsManager.run('undoNninter');
+        return;
+      }
+      // Single keys only: leave Ctrl/Cmd/Alt combos to the browser and OHIF.
+      if (event.ctrlKey || event.metaKey || event.altKey) {
+        return;
+      }
+      const action = keyActionsRef.current[key];
+      if (!action || !enabled) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      action();
+    };
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => document.removeEventListener('keydown', onKeyDown, true);
+  }, [enabled]);
 
-  const adjustBrushSize = (delta: number) => {
-    if (!nnInteractiveReady || !sessionActive || !hasActiveAiSegment()) {
-      return;
-    }
-
-    applyBrushSize(brushSize + delta);
-  };
-
-  const setManualCorrectionBrush = () => {
-    if (!nnInteractiveReady || !sessionActive || !hasActiveAiSegment()) {
-      uiNotificationService?.show?.({
-        title: 'Manual correction',
-        message: 'Select an active nnInteractive segment first.',
-        type: 'info',
-      });
-      return;
-    }
-
-    toolboxState.setManualCorrectionMode(true);
-    applyBrushSize(brushSize);
-    commandsManager.run('setToolActiveToolbar', {
-      toolName: toolboxState.getPosNeg() ? 'CircularEraser' : 'CircularBrush',
-    });
-  };
-
-  const handleBrushSizeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    applyBrushSize(Number(event.target.value));
-  };
-
-  const CustomConfigComponent = customizationService.getCustomization(`${buttonSectionId}.config`);
-  const nnInteractiveReady = nnInteractiveAvailable === true;
-  const nnInteractiveChecking = nnInteractiveAvailable === null;
-  const shouldCollapse = isAIToolBox && isLocked;
-
-  const renderGenericToolbox = () =>
-    toolboxSections.map(section => {
-      const sectionId = section.componentProps.buttonSection;
-      const buttons = toolbarService.getButtonSection(sectionId) as any[];
-
-      return (
-        <div key={sectionId} className="bg-muted flex flex-wrap space-x-2 py-2 px-1">
-          {buttons.map(tool => {
-            if (!tool) {
-              return null;
-            }
-            const { id, Component, componentProps } = tool;
-
-            return (
-              <div key={id} className={classnames('ml-1')}>
-                <Component
-                  {...componentProps}
-                  id={id}
-                  onInteraction={handleInteraction}
-                  size="toolbox"
-                  servicesManager={servicesManager}
-                />
-              </div>
-            );
-          })}
-        </div>
-      );
-    });
+  // ── render ─────────────────────────────────────────────────────────────────────────────
+  const statusInfo = STATUS_TEXT[status];
+  const toolButtonStyle = (active: boolean): React.CSSProperties => ({
+    height: 'auto',
+    flexDirection: 'column',
+    gap: 2,
+    padding: '6px 0',
+    fontSize: 11,
+    // Inactive tools are outlined so the armed one is the only filled button.
+    border: active ? '1px solid transparent' : '1px solid rgba(90, 204, 230, 0.25)',
+  });
 
   return (
-    <PanelSection
-      key={isAIToolBox ? `toolbox-${isLocked}` : buttonSectionId}
-      defaultOpen={defaultOpen && !shouldCollapse}
-    >
+    <PanelSection defaultOpen={true}>
       <PanelSection.Header className="flex items-center justify-between">
+        <span>nnInteractive</span>
         <span
-          className={classnames('flex items-center gap-2', {
-            'pointer-events-none': shouldCollapse,
-          })}
+          className="text-muted-foreground flex items-center text-xs"
+          style={{ gap: 6, marginLeft: 'auto', marginRight: 8 }}
+          title={statusInfo.hint}
         >
-          <span className="pointer-events-auto">{t(title)}</span>
-          {isAIToolBox && (
-            <button
-              type="button"
-              className={classnames(
-                'ml-auto h-5 w-5 text-primary hover:opacity-80 pointer-events-auto cursor-pointer'
-              )}
-              onClick={e => {
-                e.stopPropagation();
-                const next = !isLocked;
-                setIsLocked(next);
-                toolboxState.setLocked(next);
-                if (next) {
-                  commandsManager?.run?.('setToolActive', { toolName: 'Pan' });
-                }
-              }}
-              aria-label={isLocked ? 'Unlock tools' : 'Lock tools'}
-              title={isLocked ? 'Unlock tools' : 'Lock tools'}
-            >
-              {isLocked ? <Lock className="h-4 w-4" /> : <LockOpen className="h-4 w-4" />}
-            </button>
-          )}
+          <span
+            className="rounded-full"
+            style={{ width: 8, height: 8, backgroundColor: statusInfo.color }}
+          />
+          {statusInfo.text}
         </span>
-        {CustomConfigComponent && (
-          <div className="ml-auto mr-2">
-            <Icons.Settings
-              className="text-primary h-4 w-4"
-              onClick={e => {
-                e.stopPropagation();
-                setShowConfig(!showConfig);
-              }}
-            />
-          </div>
-        )}
       </PanelSection.Header>
 
-      {!shouldCollapse && (
-        <PanelSection.Content className="bg-muted flex-shrink-0 border-none">
-          {showConfig && <CustomConfigComponent />}
+      <PanelSection.Content className="bg-muted flex-shrink-0 border-none">
+        <div className="flex flex-col gap-3 px-2 py-2">
+          {statusInfo.hint && (
+            <div className="text-muted-foreground text-xs">
+              {status === 'error' && session.lastError ? session.lastError : statusInfo.hint}
+            </div>
+          )}
 
-          {!isAIToolBox && renderGenericToolbox()}
-
-          {isAIToolBox &&
-            toolboxSections.map(section => {
-              const sectionId = section.componentProps.buttonSection;
-              const buttons = toolbarService.getButtonSection(sectionId) as any[];
-
-              return (
-                <div key={sectionId} className="flex flex-col gap-3 py-2 px-2">
-                  <div className="text-muted-foreground text-sm">Model: nnInteractive</div>
-                  {!nnInteractiveReady && (
-                    <div className="text-muted-foreground rounded border border-primary/20 p-2 text-xs">
-                      {nnInteractiveChecking
-                        ? 'Checking nnInteractive availability...'
-                        : 'nnInteractive is not installed or the backend is unavailable.'}
-                    </div>
-                  )}
-
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="w-full"
-                    disabled={!nnInteractiveReady || sessionActive || initializing}
-                    onClick={handleInitialize}
-                  >
-                    {sessionActive ? 'Session ready' : initializing ? 'Initializing...' : 'Initialize'}
-                  </Button>
-                  <div
-                    className={classnames(
-                      'text-xs',
-                      sessionActive ? 'text-green-500' : 'text-muted-foreground'
-                    )}
-                  >
-                    {sessionActive
-                      ? 'Session ready'
-                      : initializing
-                        ? 'Initializing session...'
-                        : nnInteractiveReady
-                          ? 'Initialize to start a session'
-                          : 'Optional nnInteractive backend unavailable'}
-                  </div>
-
-                  <div className="border-t border-primary/20" />
-
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <Label>Prompt Type</Label>
-                      <ShortcutKey
-                        keys="T"
-                        title="Toggle positive or negative prompt"
-                      />
-                    </div>
-                    <ToggleGroup
-                      type="single"
-                      size="sm"
-                      className="w-full"
-                      value={posNeg ? 'negative' : 'positive'}
-                      disabled={!nnInteractiveReady || !sessionActive}
-                      onValueChange={value => {
-                        if (!value) {
-                          return;
-                        }
-                        const neg = value === 'negative';
-                        setPosNeg(neg);
-                        toolboxState.setPosNeg(neg);
-                        if (toolboxState.getManualCorrectionMode() && sessionActive) {
-                          commandsManager.run('setToolActiveToolbar', {
-                            toolName: neg ? 'CircularEraser' : 'CircularBrush',
-                          });
-                        }
-                      }}
-                    >
-                      <ToggleGroupItem value="positive" className="flex-1">
-                        positive
-                      </ToggleGroupItem>
-                      <ToggleGroupItem value="negative" className="flex-1">
-                        negative
-                      </ToggleGroupItem>
-                    </ToggleGroup>
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <Label>Interaction Tools</Label>
-                    <div
-                      className={classnames('flex flex-wrap gap-1', {
-                        'opacity-40 pointer-events-none': !nnInteractiveReady || !sessionActive,
-                      })}
-                    >
-                      {buttons
-                        .filter(tool => tool && promptToolIds.includes(tool.id))
-                        .map(tool => {
-                          const { id, Component, componentProps } = tool;
-                          return (
-                            <div key={id} className="ml-1">
-                              <Component
-                                {...componentProps}
-                                id={id}
-                                onInteraction={handleInteraction}
-                                size="toolbox"
-                                servicesManager={servicesManager}
-                              />
-                            </div>
-                          );
-                        })}
-                    </div>
-                    <div className="flex flex-wrap gap-1 pt-1">
-                      <ShortcutHint keys="P" label="Point" title="Activate point prompt" />
-                      <ShortcutHint keys="B" label="BBox" title="Activate bounding box prompt" />
-                      <ShortcutHint keys="S" label="Scribble" title="Activate scribble prompt" />
-                      <ShortcutHint keys="L" label="Lasso" title="Activate lasso prompt" />
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="gap-1.5"
-                      disabled={!nnInteractiveReady || !sessionActive}
-                      onClick={handleUndo}
-                    >
-                      Undo
-                      <ShortcutKey keys="Ctrl+Z" title="Undo last nnInteractive prompt" />
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="gap-1.5"
-                      disabled={!nnInteractiveReady || !sessionActive}
-                      onClick={handleResetObject}
-                    >
-                      Reset Object
-                      <ShortcutKey keys="R" title="Reset current object" />
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="gap-1.5"
-                      disabled={!nnInteractiveReady || !sessionActive}
-                      onClick={handleNextObject}
-                    >
-                      Next Object
-                      <ShortcutKey keys="N" title="Move to next object" />
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="gap-1.5"
-                      disabled={!nnInteractiveReady || !sessionActive || !hasActiveAiSegment()}
-                      onClick={handleDeleteObject}
-                    >
-                      Delete Object
-                      <ShortcutKey keys="Delete" title="Delete current object" />
-                    </Button>
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <button
-                      type="button"
-                      className="flex items-center gap-1 text-sm text-primary hover:opacity-80"
-                      onClick={() => setShowManualControl(v => !v)}
-                    >
-                      <span>{showManualControl ? 'v' : '>'}</span>
-                      <span>Manual Control</span>
-                    </button>
-                    {showManualControl && (
-                      <div className="flex flex-col gap-2 pl-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <Label htmlFor="auto-run" className="flex items-center gap-1.5">
-                            Auto Run Prediction
-                            <ShortcutKey keys="Q" title="Toggle auto-run prediction" />
-                          </Label>
-                          <Switch
-                            id="auto-run"
-                            checked={liveMode}
-                            disabled={!nnInteractiveReady || !sessionActive}
-                            onCheckedChange={checked => {
-                              setLiveMode(checked);
-                              toolboxState.setLiveMode(checked);
-                            }}
-                          />
-                        </div>
-                        <Button variant="secondary" size="sm" disabled={!nnInteractiveReady || !sessionActive} onClick={handleRun}>
-                          Run
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="border-t border-primary/20" />
-
-                  <div className="flex flex-col gap-2">
-                    <div className="text-muted-foreground text-sm">Manual Correction</div>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="relative w-full justify-center gap-2"
-                      disabled={!nnInteractiveReady || !sessionActive || !hasActiveAiSegment()}
-                      onClick={setManualCorrectionBrush}
-                    >
-                      <span className="flex items-center gap-1">
-                        <Brush className="h-4 w-4" />
-                        Brush
-                      </span>
-                      <ShortcutKey
-                        keys="C"
-                        title="Activate manual correction brush"
-                        className="absolute right-2"
-                      />
-                    </Button>
-                    <div
-                      className={classnames('flex flex-col gap-1', {
-                        'opacity-40 pointer-events-none':
-                          !nnInteractiveReady || !sessionActive || !hasActiveAiSegment(),
-                      })}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <Label htmlFor="nninter-brush-size">Brush size</Label>
-                        <div className="flex items-center gap-1">
-                          <ShortcutKey keys="-" title="Make brush smaller" />
-                          <ShortcutKey keys="+" title="Make brush bigger" />
-                          <span className="text-muted-foreground text-xs">{brushSize}px</span>
-                        </div>
-                      </div>
-                      <input
-                        id="nninter-brush-size"
-                        type="range"
-                        min={BRUSH_SIZE_MIN}
-                        max={BRUSH_SIZE_MAX}
-                        step={BRUSH_SIZE_STEP}
-                        value={brushSize}
-                        onChange={handleBrushSizeChange}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="border-t border-primary/20" />
-
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="w-full"
-                    disabled={!nnInteractiveReady || !sessionActive}
-                    onClick={handleExport}
-                  >
-                    Export DICOM SEG
-                  </Button>
-                </div>
-              );
+          <div
+            className={classnames('flex flex-col gap-3', {
+              'pointer-events-none opacity-40': !enabled,
             })}
-        </PanelSection.Content>
-      )}
+          >
+            {/* 1. what the next prompt or brush stroke does */}
+            <div className="flex flex-col gap-1">
+              <SectionLabel hint={<Key>T</Key>}>Prompt</SectionLabel>
+              <ToggleGroup
+                type="single"
+                size="sm"
+                className="w-full"
+                value={ui.negative ? 'negative' : 'positive'}
+                onValueChange={value => value && setNegative(value === 'negative')}
+              >
+                <ToggleGroupItem
+                  value="positive"
+                  className="flex-1"
+                >
+                  + Positive
+                </ToggleGroupItem>
+                <ToggleGroupItem
+                  value="negative"
+                  className="flex-1"
+                >
+                  − Negative
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+
+            {/* 2. tools: four prompt types plus the manual-correction brush */}
+            <div className="flex flex-col gap-1">
+              <SectionLabel>Tool</SectionLabel>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 4 }}>
+                {PROMPT_TOOLS.map(({ toolName, label, key, Icon }) => {
+                  const active = activeTool === toolName && !ui.manualCorrectionMode;
+                  return (
+                    <Button
+                      key={toolName}
+                      size="sm"
+                      variant={active ? 'default' : 'ghost'}
+                      style={toolButtonStyle(active)}
+                      title={`${label} prompt (${key})`}
+                      aria-pressed={active}
+                      onClick={() => togglePromptTool(toolName)}
+                    >
+                      <Icon className="h-5 w-5" />
+                      <span>{label}</span>
+                      <Key>{key}</Key>
+                    </Button>
+                  );
+                })}
+                <Button
+                  size="sm"
+                  variant={brushActive ? 'default' : 'ghost'}
+                  style={toolButtonStyle(brushActive)}
+                  title="Correct the selected object by hand (C). Negative erases."
+                  aria-pressed={brushActive}
+                  disabled={!activeObject}
+                  onClick={toggleBrush}
+                >
+                  <Brush className="h-5 w-5" />
+                  <span>Brush</span>
+                  <Key>C</Key>
+                </Button>
+              </div>
+              {brushActive && (
+                <div
+                  className="flex items-center gap-2"
+                  style={{ paddingTop: 4 }}
+                >
+                  <Label htmlFor="nninter-brush-size">Size</Label>
+                  <input
+                    id="nninter-brush-size"
+                    type="range"
+                    className="flex-1"
+                    min={BRUSH_SIZE_MIN}
+                    max={BRUSH_SIZE_MAX}
+                    value={ui.brushSize}
+                    onChange={e => applyBrushSize(Number(e.target.value))}
+                  />
+                  <span
+                    className="text-muted-foreground text-xs"
+                    style={{ minWidth: 40 }}
+                  >
+                    {ui.brushSize} mm
+                  </span>
+                  <Key>− +</Key>
+                </div>
+              )}
+            </div>
+
+            {/* 3. when prompts are sent and whether they stay visible */}
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <Label
+                  htmlFor="nninter-auto-run"
+                  className="flex items-center gap-2"
+                >
+                  Run on each prompt <Key>Q</Key>
+                </Label>
+                <Switch
+                  id="nninter-auto-run"
+                  checked={ui.liveMode}
+                  onCheckedChange={liveMode => toolboxState.set({ liveMode })}
+                />
+              </div>
+              {!ui.liveMode && (
+                <Button
+                  size="sm"
+                  variant="default"
+                  className="w-full"
+                  onClick={run}
+                >
+                  Run prompts
+                </Button>
+              )}
+              <div className="flex items-center justify-between">
+                <Label
+                  htmlFor="nninter-show-prompts"
+                  className="flex items-center gap-2"
+                >
+                  Show prompts <Key>O</Key>
+                </Label>
+                <Switch
+                  id="nninter-show-prompts"
+                  checked={ui.promptsVisible}
+                  onCheckedChange={togglePrompts}
+                />
+              </div>
+            </div>
+
+            <div className="border-primary/20 border-t" />
+
+            {/* 4. objects: pick one to refine; actions apply to the selected one */}
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <Label>Objects</Label>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="gap-1"
+                  onClick={newObject}
+                >
+                  <Icons.Add />
+                  New object <Key>N</Key>
+                </Button>
+              </div>
+              <ObjectList
+                objects={objects}
+                onSelect={async object => {
+                  await commandsManager.run('loadSegmentForRefinement', {
+                    segmentationId: object.segmentationId,
+                    segmentIndex: object.segmentIndex,
+                  });
+                  commandsManager.run('jumpToSegment');
+                }}
+                onToggleVisible={object =>
+                  setObjectVisible(servicesManager, object, !object.visible)
+                }
+                onRename={object =>
+                  commandsManager.run('editSegmentLabel', {
+                    segmentationId: object.segmentationId,
+                    segmentIndex: object.segmentIndex,
+                  })
+                }
+                onColor={object =>
+                  commandsManager.run('editSegmentColor', {
+                    segmentationId: object.segmentationId,
+                    segmentIndex: object.segmentIndex,
+                  })
+                }
+                onDelete={deleteObject}
+              />
+              <div className="flex gap-1">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="flex-1 gap-1"
+                  disabled={!undoable}
+                  title="Undo the last prompt on the selected object"
+                  onClick={undo}
+                >
+                  Undo <Key>Ctrl+Z</Key>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="flex-1 gap-1"
+                  disabled={!activeObject}
+                  title="Clear the selected object's mask and prompts"
+                  onClick={() => resetObject()}
+                >
+                  Clear <Key>R</Key>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="flex-1 gap-1"
+                  disabled={!activeObject}
+                  title="Delete the selected object"
+                  onClick={() => deleteObject()}
+                >
+                  Delete <Key>Del</Key>
+                </Button>
+              </div>
+            </div>
+
+            <div className="border-primary/20 border-t" />
+
+            {/* 5. result: all objects as one overlapping DICOM SEG */}
+            <div className="flex gap-1">
+              <Button
+                size="sm"
+                variant="default"
+                className="flex-1"
+                disabled={!objects.length}
+                title="Store all objects as one DICOM SEG in the PACS"
+                onClick={saveSeg}
+              >
+                Save as DICOM SEG
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={!objects.length}
+                aria-label="Download DICOM SEG"
+                title="Download all objects as a DICOM SEG file"
+                onClick={downloadSeg}
+              >
+                <Icons.Download />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </PanelSection.Content>
     </PanelSection>
   );
 }

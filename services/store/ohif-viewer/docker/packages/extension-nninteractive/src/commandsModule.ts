@@ -1,7 +1,5 @@
 // Thin command layer. Every command delegates to a small model module — the command
 // module owns no data model, no server bookkeeping, and no viewport internals.
-//
-// See docs/nninteractive-ohif-ideal-architecture.md §6 (Commands) and §16 (module map).
 
 import dcmjs from 'dcmjs';
 import { cache, eventTarget, metaData } from '@cornerstonejs/core';
@@ -9,9 +7,8 @@ import { Enums as csToolsEnums } from '@cornerstonejs/tools';
 import { adaptersSEG, helpers } from '@cornerstonejs/adapters';
 import { DicomMetadataStore } from '@ohif/core';
 import { createReportDialogPrompt } from '@ohif/extension-default';
-// PROMPT_RESPONSES is not re-exported from the package index; reach into OHIF's default
-// extension source (this extension lives alongside it under packages/, so the relative
-// path resolves at build time — same import the pre-rewrite commandsModule used).
+// Not re-exported from the package index; this extension is built next to OHIF's default
+// extension, so the relative path resolves at build time.
 import PROMPT_RESPONSES from '../../default/src/utils/_shared/PROMPT_RESPONSES';
 
 import * as sessionModel from './model/sessionModel';
@@ -21,8 +18,7 @@ import * as promptModel from './model/promptModel';
 import * as imageModel from './model/imageModel';
 import * as coord from './model/coordinateMapping';
 import * as bridge from './model/segmentationBridge';
-import { debugSnapshot, installDebugHook } from './model/debugTools';
-import { emptyPromptArrays, objectKeyOf, type SourceImage } from './model/types';
+import { ObjectRef, PromptArrays, PromptKind, SourceImage, emptyPromptArrays } from './model/types';
 import { toolboxState } from './utils/toolboxState';
 
 const LABELMAP = csToolsEnums.SegmentationRepresentations.Labelmap;
@@ -33,82 +29,415 @@ const {
 } = adaptersSEG;
 const { downloadDICOMData } = helpers;
 
+const TISSUE_CODE = { CodeValue: 'T-D0050', CodingSchemeDesignator: 'SRT', CodeMeaning: 'Tissue' };
+
+/** How each prompt kind is converted to source voxels and which payload field it fills. */
+const PROMPT_CONVERSION: Record<
+  PromptKind,
+  { toVoxels: (viewport: any, annotation: any, imageIds: string[]) => any; field: string }
+> = {
+  point: { toVoxels: coord.pointIJK, field: 'points' },
+  box: { toVoxels: coord.boxIJK, field: 'boxes' },
+  lasso: { toVoxels: coord.freehandIJK, field: 'lassos' },
+  scribble: { toVoxels: coord.freehandIJK, field: 'scribbles' },
+};
+
 // Guard so the MPR/brush event subscriptions are installed only once, even if
 // getCommandsModule is ever invoked more than once.
 let subscriptionsInstalled = false;
 
 const commandsModule = ({ servicesManager, commandsManager, extensionManager }: any) => {
-  const services = servicesManager.services;
   const {
     viewportGridService,
     cornerstoneViewportService,
     segmentationService,
     uiNotificationService,
     displaySetService,
-  } = services;
+  } = servicesManager.services;
+
+  const notify = (message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') =>
+    uiNotificationService.show({ title: 'nnInteractive', message, type });
+
+  const activeViewport = () => {
+    const id = viewportGridService.getActiveViewportId();
+    return id ? cornerstoneViewportService.getCornerstoneViewport(id) : undefined;
+  };
 
   // Resolve the source image series for a segmentation from its OWN referenced images (so a SEG
   // imported into a multi-series study splits onto the right series regardless of which viewport
   // is active), falling back to the active viewport's source.
   const sourceForSegmentation = (segmentationId: string): SourceImage | null => {
     const seg = segmentationService.getSegmentation(segmentationId);
-    const refIds = seg?.representationData?.[LABELMAP]?.referencedImageIds ?? [];
-    const firstRef = refIds[0];
+    const firstRef = seg?.representationData?.[LABELMAP]?.referencedImageIds?.[0];
     const instance = firstRef ? metaData.get('instance', firstRef) : null;
-    const SOPInstanceUID = instance?.SOPInstanceUID || instance?.SopInstanceUID;
-    const SeriesInstanceUID = instance?.SeriesInstanceUID;
-    const displaySet =
-      SOPInstanceUID && displaySetService?.getDisplaySetForSOPInstanceUID
-        ? displaySetService.getDisplaySetForSOPInstanceUID(SOPInstanceUID, SeriesInstanceUID)
-        : null;
-    if (displaySet?.SeriesInstanceUID && Array.isArray(displaySet.imageIds) && displaySet.imageIds.length) {
-      return {
-        studyInstanceUID: displaySet.StudyInstanceUID,
-        seriesInstanceUID: displaySet.SeriesInstanceUID,
-        displaySetInstanceUID: displaySet.displaySetInstanceUID,
-        imageIds: displaySet.imageIds,
-        seriesDescription: displaySet.SeriesDescription,
-      };
+    const displaySet = instance?.SOPInstanceUID
+      ? displaySetService.getDisplaySetForSOPInstanceUID(
+          instance.SOPInstanceUID,
+          instance.SeriesInstanceUID
+        )
+      : null;
+    const source = displaySet?.imageIds?.length ? imageModel.toSourceImage(displaySet) : null;
+    return source ?? imageModel.getActiveSource(servicesManager);
+  };
+
+  // ── Session ──────────────────────────────────────────────────────────────────────────────
+
+  /** The ready session for the displayed series, starting one if needed. */
+  async function ensureSession(): Promise<SourceImage | null> {
+    if (
+      !sessionModel.isReadyForActive(servicesManager) &&
+      !(await sessionModel.initialize(servicesManager))
+    ) {
+      notify('Could not start an nnInteractive session for this series.', 'warning');
+      return null;
     }
-    return imageModel.getActiveSource(servicesManager);
+    return sessionModel.getSource();
+  }
+
+  function handleServerError(error: any, prompts?: any[]) {
+    if (serverApi.isSessionExpiredError(error)) {
+      sessionModel.markExpired();
+      notify('nnInteractive session expired. Please re-initialize.', 'warning');
+    } else {
+      notify(`nnInteractive request failed: ${error?.message ?? error}`, 'error');
+    }
+    if (prompts?.length) {
+      promptModel.markFailed(prompts);
+    }
+  }
+
+  /**
+   * Run `send`; if the backend dropped our session (409: restart, idle reaping), start a
+   * new one for the same series and run it once more. The new session holds no object, so
+   * `send` re-seeds it from the local mask before prompting.
+   */
+  async function withSessionRecovery<T>(source: SourceImage, send: () => Promise<T>): Promise<T> {
+    try {
+      return await send();
+    } catch (error) {
+      if (!serverApi.isSessionExpiredError(error)) {
+        throw error;
+      }
+      sessionModel.markExpired();
+      const ok = await sessionModel.initialize(servicesManager);
+      if (!ok || !imageModel.sameSource(sessionModel.getSource(), source)) {
+        throw error;
+      }
+      notify('nnInteractive session was restarted; continuing on the current object.', 'info');
+      return send();
+    }
+  }
+
+  /** Drop the backend's interaction history; in-flight responses become stale. */
+  async function resetBackendObject() {
+    const source = sessionModel.getSource();
+    if (source) {
+      try {
+        await serverApi.resetInteractions(source);
+      } catch (error) {
+        handleServerError(error);
+      }
+    }
+    objectModel.clearServerObject();
+    sessionModel.bumpGeneration();
+  }
+
+  // ── Objects ──────────────────────────────────────────────────────────────────────────────
+
+  function setActiveObject(object: ObjectRef) {
+    const { segmentationId, segmentIndex } = object;
+    const viewportId = viewportGridService.getActiveViewportId();
+    try {
+      if (viewportId) {
+        segmentationService.setActiveSegmentation(viewportId, segmentationId);
+      }
+    } catch {
+      // ignore — the segment set below still targets the right segmentation
+    }
+    try {
+      segmentationService.setActiveSegment(segmentationId, segmentIndex);
+    } catch {
+      // ignore
+    }
+    // Objects share layers: the brush may only paint the active one.
+    bridge.applyEditLocks(bridge.isManaged(segmentationId) ? object : null);
+  }
+
+  /** The object moved to another layer: re-key its bookkeeping and keep it selected. */
+  function adoptMovedObject(from: ObjectRef, to: ObjectRef) {
+    objectModel.renameObject(from, to);
+    promptModel.renameObject(from, to);
+    setActiveObject(to);
+  }
+
+  /** Record what a written crop left in the object (voxels or, for a full replace, none). */
+  function noteWrittenCrop(applied: bridge.ApplyCropResult, scope: string) {
+    if (applied.wroteVoxels) {
+      objectModel.markNonEmpty(applied.object);
+    } else if (scope === 'full') {
+      objectModel.markEmpty(applied.object);
+    }
+  }
+
+  /**
+   * Make the backend hold the target object before prompts. Returns whether the prompt
+   * submission still needs nninter_reset_first (a fresh/empty object with a stale buffer).
+   */
+  async function ensureBackendHoldsObject(
+    source: SourceImage,
+    object: ObjectRef
+  ): Promise<boolean> {
+    if (objectModel.isKnownEmpty(object)) {
+      objectModel.clearServerObject();
+      return true;
+    }
+    if (objectModel.holdsObject(object) && !objectModel.isDirty(object)) {
+      return false;
+    }
+    const mask = bridge.readObjectMask(source, object);
+    if (!mask) {
+      // Empty object → nothing to seed; reset the backend buffer before prompts.
+      objectModel.clearServerObject();
+      return true;
+    }
+    await serverApi.setActiveObjectMask(source, mask);
+    objectModel.setServerObject(object);
+    objectModel.clearDirty(object);
+    objectModel.setUndoable(false);
+    return false;
+  }
+
+  // ── Prompts ──────────────────────────────────────────────────────────────────────────────
+
+  // Serialize prompt submissions so rapid live-mode completions never double-send.
+  let submitChain: Promise<void> = Promise.resolve();
+
+  async function runNninter() {
+    const source = await ensureSession();
+    if (!source) {
+      return;
+    }
+
+    // Convert annotation geometry → source voxel prompt arrays.
+    const viewport = activeViewport();
+    const arrays = emptyPromptArrays();
+    const sent: any[] = [];
+    for (const annotation of promptModel.getAllUnsubmitted()) {
+      const kind = promptModel.kindOf(annotation);
+      const conversion = kind && PROMPT_CONVERSION[kind];
+      const prompt = conversion?.toVoxels(viewport, annotation, source.imageIds);
+      if (prompt) {
+        const sign = annotation.metadata.neg ? 'neg' : 'pos';
+        arrays[`${sign}_${conversion.field}` as keyof PromptArrays].push(prompt);
+        sent.push(annotation);
+      }
+    }
+    if (!sent.length) {
+      notify('No new prompts to run.', 'info');
+      return;
+    }
+
+    // Refine the active object, or start a new one when none of ours is selected.
+    const active = objectModel.getActiveObject(servicesManager);
+    let target: ObjectRef;
+    if (active && bridge.isManaged(active.segmentationId)) {
+      target = active;
+    } else {
+      target = await bridge.addObject(servicesManager, commandsManager, source);
+      objectModel.markEmpty(target);
+    }
+    setActiveObject(target);
+
+    let crop: Awaited<ReturnType<typeof serverApi.submitPrompts>>;
+    let generation: number;
+    try {
+      ({ crop, generation } = await withSessionRecovery(source, async () => {
+        const generation = sessionModel.getGeneration();
+        const resetFirst = await ensureBackendHoldsObject(source, target);
+        return { generation, crop: await serverApi.submitPrompts(source, arrays, resetFirst) };
+      }));
+    } catch (error) {
+      handleServerError(error, sent);
+      return;
+    }
+
+    // Stale-response guard: a reset/re-init since the request started invalidates this crop.
+    if (sessionModel.getGeneration() !== generation) {
+      return;
+    }
+
+    objectModel.setServerObject(target);
+    if (crop.meta.prompt_info !== 'no new prompts') {
+      objectModel.setUndoable(true);
+    }
+    if (crop.scope !== 'unchanged' && crop.seg.length) {
+      const applied = await bridge.applyCrop(
+        servicesManager,
+        commandsManager,
+        source,
+        target,
+        crop
+      );
+      if (applied.moved) {
+        adoptMovedObject(target, applied.object);
+        target = applied.object;
+      }
+      noteWrittenCrop(applied, crop.scope);
+    }
+    objectModel.clearDirty(target);
+
+    promptModel.markSubmitted(sent, target);
+    if (!toolboxState.get().promptsVisible) {
+      promptModel.setPromptsVisible(false, target);
+    }
+  }
+
+  function nninter() {
+    submitChain = submitChain.then(() =>
+      runNninter().catch(e => {
+        console.warn('[nninteractive] run failed:', e);
+        notify(`nnInteractive could not apply the prompt: ${e?.message ?? e}`, 'error');
+      })
+    );
+    return submitChain;
+  }
+
+  // ── Viewport guard + brush dirty tracking ────────────────────────────────────────────────
+
+  // Coalesce bursts of viewport/representation events into one guard run at a time; an event
+  // during a run queues exactly one more run.
+  let guardQueued = false;
+  let guardScheduled = false;
+  let guardRunning = false;
+
+  async function runViewportGuard() {
+    guardScheduled = false;
+    guardRunning = true;
+    try {
+      do {
+        guardQueued = false;
+        await bridge.ensureViewportRepresentations(servicesManager);
+      } while (guardQueued);
+    } catch (e) {
+      console.error('[nninteractive] viewport guard failed:', e);
+    } finally {
+      guardRunning = false;
+      if (guardQueued) {
+        queueGuardRun();
+      }
+    }
+  }
+
+  function queueGuardRun() {
+    if (!guardScheduled && !guardRunning) {
+      guardScheduled = true;
+      setTimeout(runViewportGuard, 0);
+    }
+  }
+
+  const scheduleViewportGuard = () => {
+    if (toolboxState.get().modeActive) {
+      guardQueued = true;
+      queueGuardRun();
+    }
   };
 
-  const notify = (message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') =>
-    uiNotificationService?.show?.({ title: 'nnInteractive', message, type });
+  if (!subscriptionsInstalled) {
+    subscriptionsInstalled = true;
 
-  const activeViewport = () => {
-    const id = viewportGridService.getActiveViewportId?.();
-    return id ? cornerstoneViewportService.getCornerstoneViewport(id) : undefined;
-  };
+    eventTarget.addEventListener(csToolsEnums.Events.SEGMENTATION_DATA_MODIFIED, () => {
+      if (!toolboxState.get().manualCorrectionMode) {
+        return;
+      }
+      // Manual brush edit → mark the object dirty so the next prompt re-syncs its mask.
+      const active = objectModel.getActiveObject(servicesManager);
+      if (active) {
+        objectModel.markDirty(active);
+      }
+    });
 
-  installDebugHook(servicesManager);
+    const { EVENTS: VIEWPORT_EVENTS } = cornerstoneViewportService;
+    cornerstoneViewportService.subscribe(
+      VIEWPORT_EVENTS.VIEWPORT_VOLUMES_CHANGED,
+      scheduleViewportGuard
+    );
+    cornerstoneViewportService.subscribe(
+      VIEWPORT_EVENTS.VIEWPORT_DATA_CHANGED,
+      scheduleViewportGuard
+    );
+    // OHIF propagates segmentations to new viewports (a Surface in 3D) after the viewport events
+    // above, so re-run the guard whenever a representation is added.
+    segmentationService.subscribe(
+      segmentationService.EVENTS.SEGMENTATION_REPRESENTATION_MODIFIED,
+      scheduleViewportGuard
+    );
 
-  const resolveManagedExportSegmentationIds = (args: any): string[] => {
+    // Import-split: a saved DICOM SEG is hydrated as ONE multi-segment segmentation; split it back
+    // into managed objects. Deferred OUT of the hydration / viewport-mount call stack
+    // (SEGMENTATION_ADDED fires synchronously inside createSegmentationForSEGDisplaySet; mutating
+    // segmentation state mid-flow crashes the viewer), with bounded retries while hydration pixel
+    // data settles.
+    const SPLIT_RETRY_MS = 300;
+    const SPLIT_MAX_RETRIES = 15;
+    const trySplit = (segmentationId: string, retries = 0) => {
+      bridge
+        .importSplitSegmentation(
+          servicesManager,
+          commandsManager,
+          segmentationId,
+          sourceForSegmentation(segmentationId)
+        )
+        .then(result => {
+          if (result.status !== 'retry') {
+            return;
+          }
+          if (retries < SPLIT_MAX_RETRIES) {
+            setTimeout(() => trySplit(segmentationId, retries + 1), SPLIT_RETRY_MS);
+          } else {
+            console.warn(
+              `[nninteractive] import-split: giving up on ${segmentationId} (${result.reason}); original left as-is`
+            );
+          }
+        })
+        .catch(e => console.warn('[nninteractive] import-split error:', e));
+    };
+    segmentationService.subscribe(
+      segmentationService.EVENTS.SEGMENTATION_ADDED,
+      ({ segmentationId }) => {
+        // Other modes keep OHIF's multi-segment SEG.
+        if (toolboxState.get().modeActive && segmentationId) {
+          setTimeout(() => trySplit(segmentationId), 250);
+        }
+      }
+    );
+  }
+
+  // ── Export ───────────────────────────────────────────────────────────────────────────────
+
+  // The objects to export: every object of the requested (or active) series. Empty when the
+  // request targets a segmentation this extension does not manage (OHIF's own export runs).
+  const resolveExportObjects = (args: any): ObjectRef[] => {
     const requestedId = args?.segmentationId;
     if (requestedId && !bridge.isManaged(requestedId)) {
       return [];
     }
-
-    const source = sessionModel.getSource();
     const seriesInstanceUID =
       (requestedId && bridge.getSeriesInstanceUIDForSegmentation(requestedId)) ||
-      source?.seriesInstanceUID;
-    const ids = seriesInstanceUID
-      ? bridge.getManagedSegmentationIdsForSeries(seriesInstanceUID)
-      : bridge.getManagedSegmentationIds();
-
-    return ids.length ? ids : requestedId ? [requestedId] : [];
+      sessionModel.getSource()?.seriesInstanceUID;
+    return seriesInstanceUID ? bridge.getObjectsForSeries(seriesInstanceUID) : bridge.getObjects();
   };
 
-  const getImagePixelData = (image: any): ArrayLike<number> | null =>
-    image?.getPixelData?.() ?? image?.voxelManager?.getScalarData?.() ?? null;
-
-  const getExportColor = (segmentationId: string, segment: any, fallbackOrdinal: number): number[] => {
-    const representations = segmentationService.getRepresentationsForSegmentation?.(segmentationId) ?? [];
-    const viewportId = representations[0]?.viewportId ?? viewportGridService.getActiveViewportId?.();
-    if (viewportId && typeof segmentationService.getSegmentColor === 'function') {
+  const getExportColor = (
+    { segmentationId, segmentIndex }: ObjectRef,
+    segment: any,
+    fallbackOrdinal: number
+  ): number[] => {
+    const representations =
+      segmentationService.getRepresentationsForSegmentation(segmentationId) ?? [];
+    const viewportId = representations[0]?.viewportId ?? viewportGridService.getActiveViewportId();
+    if (viewportId) {
       try {
-        const color = segmentationService.getSegmentColor(viewportId, segmentationId, 1);
+        const color = segmentationService.getSegmentColor(viewportId, segmentationId, segmentIndex);
         if (Array.isArray(color) && color.length >= 3) {
           return color;
         }
@@ -122,18 +451,18 @@ const commandsModule = ({ servicesManager, commandsManager, extensionManager }: 
       : bridge.objectColorForOrdinal(fallbackOrdinal);
   };
 
-  const buildMergedNninterSegmentation = (segmentationIds: string[], options: any = {}) => {
-    const firstSeg = segmentationService.getSegmentation(segmentationIds[0]);
+  const buildMergedNninterSegmentation = (objects: ObjectRef[], options: any = {}) => {
+    const firstSeg = segmentationService.getSegmentation(objects[0].segmentationId);
     const firstLabelmap = firstSeg?.representationData?.[LABELMAP];
     const firstImageIds = firstLabelmap?.imageIds ?? [];
     if (!firstImageIds.length) {
       throw new Error('No labelmap images found for nnInteractive export.');
     }
 
-    const firstSegImages = firstImageIds.map((imageId: string) => cache.getImage(imageId));
-    const referencedImages = firstSegImages.map((segImage: any, index: number) => {
+    const referencedImages = firstImageIds.map((imageId: string, index: number) => {
       const referencedImageId =
-        segImage?.referencedImageId ?? firstLabelmap?.referencedImageIds?.[index];
+        (cache.getImage(imageId) as any)?.referencedImageId ??
+        firstLabelmap?.referencedImageIds?.[index];
       return referencedImageId ? cache.getImage(referencedImageId) : null;
     });
     if (referencedImages.some((image: any) => !image)) {
@@ -142,24 +471,34 @@ const commandsModule = ({ servicesManager, commandsManager, extensionManager }: 
 
     const labelmaps: any[] = [];
     let exportSegmentNumber = 1;
+    // Slices an object does not touch share one read-only zero buffer, so export memory
+    // scales with the segmented slices rather than objects × volume.
+    const emptySlices = new Map<string, ArrayLike<number>>();
+    const emptySlice = (PixelArray: any, length: number) => {
+      const key = `${PixelArray.name}:${length}`;
+      if (!emptySlices.has(key)) {
+        emptySlices.set(key, new PixelArray(length));
+      }
+      return emptySlices.get(key);
+    };
 
-    for (const segmentationId of segmentationIds) {
+    for (const object of objects) {
+      const { segmentationId, segmentIndex } = object;
       const segmentation = segmentationService.getSegmentation(segmentationId);
-      const labelmap = segmentation?.representationData?.[LABELMAP];
-      const imageIds = labelmap?.imageIds ?? [];
+      const imageIds = segmentation?.representationData?.[LABELMAP]?.imageIds ?? [];
       if (!segmentation || imageIds.length !== firstImageIds.length) {
         throw new Error(`Segmentation ${segmentationId} does not match the export source series.`);
       }
 
-      const segment = segmentation.segments?.[1] ?? segmentation.segments?.['1'];
+      const segment = segmentation.segments?.[segmentIndex];
       const labelmaps2D: any[] = [];
       let hasVoxels = false;
 
       for (let z = 0; z < imageIds.length; z++) {
         const segImage: any = cache.getImage(imageIds[z]);
         const referencedImage: any = referencedImages[z];
-        const sourcePixels = getImagePixelData(segImage);
-        if (!segImage || !sourcePixels) {
+        const sourcePixels: ArrayLike<number> | undefined = segImage?.voxelManager?.getScalarData();
+        if (!sourcePixels) {
           throw new Error(`Labelmap image ${z} is not cached for nnInteractive export.`);
         }
         const rows = segImage.rows ?? referencedImage?.rows;
@@ -168,22 +507,20 @@ const commandsModule = ({ servicesManager, commandsManager, extensionManager }: 
           throw new Error(`Labelmap image ${z} is missing rows/columns for nnInteractive export.`);
         }
 
+        // The layer holds several objects: only voxels with this object's index belong to it.
         const PixelArray = exportSegmentNumber > 255 ? Uint16Array : Uint8Array;
-        const pixelData = new PixelArray(sourcePixels.length);
-        let hasSliceVoxels = false;
+        let pixelData: any;
         for (let i = 0; i < sourcePixels.length; i++) {
-          if (sourcePixels[i] !== 0) {
+          if (sourcePixels[i] === segmentIndex) {
+            pixelData ??= new PixelArray(sourcePixels.length);
             pixelData[i] = exportSegmentNumber;
-            hasSliceVoxels = true;
           }
         }
-        if (hasSliceVoxels) {
-          hasVoxels = true;
-        }
+        hasVoxels ||= !!pixelData;
 
         labelmaps2D[z] = {
-          segmentsOnLabelmap: hasSliceVoxels ? [exportSegmentNumber] : [],
-          pixelData,
+          segmentsOnLabelmap: pixelData ? [exportSegmentNumber] : [],
+          pixelData: pixelData ?? emptySlice(PixelArray, sourcePixels.length),
           rows,
           columns,
         };
@@ -193,34 +530,22 @@ const commandsModule = ({ servicesManager, commandsManager, extensionManager }: 
         continue;
       }
 
-      const color = getExportColor(segmentationId, segment, exportSegmentNumber);
+      const color = getExportColor(object, segment, exportSegmentNumber);
       const RecommendedDisplayCIELabValue = dcmjs.data.Colors.rgb2DICOMLAB(
         color.slice(0, 3).map((value: number) => value / 255)
       ).map((value: number) => Math.round(value));
       const metadata: any[] = [];
       metadata[exportSegmentNumber] = {
         SegmentNumber: exportSegmentNumber.toString(),
-        SegmentLabel: segment?.label || segmentation.label || `Object ${exportSegmentNumber}`,
+        SegmentLabel: segment?.label || `Object ${exportSegmentNumber}`,
         SegmentAlgorithmType: segment?.algorithmType || 'MANUAL',
         SegmentAlgorithmName: segment?.algorithmName || 'nnInteractive',
         RecommendedDisplayCIELabValue,
-        SegmentedPropertyCategoryCodeSequence: {
-          CodeValue: 'T-D0050',
-          CodingSchemeDesignator: 'SRT',
-          CodeMeaning: 'Tissue',
-        },
-        SegmentedPropertyTypeCodeSequence: {
-          CodeValue: 'T-D0050',
-          CodingSchemeDesignator: 'SRT',
-          CodeMeaning: 'Tissue',
-        },
+        SegmentedPropertyCategoryCodeSequence: TISSUE_CODE,
+        SegmentedPropertyTypeCodeSequence: TISSUE_CODE,
       };
 
-      labelmaps.push({
-        segmentsOnLabelmap: [exportSegmentNumber],
-        metadata,
-        labelmaps2D,
-      });
+      labelmaps.push({ segmentsOnLabelmap: [exportSegmentNumber], metadata, labelmaps2D });
       exportSegmentNumber++;
     }
 
@@ -239,429 +564,44 @@ const commandsModule = ({ servicesManager, commandsManager, extensionManager }: 
     return { generated, label };
   };
 
-  const resolveDataSource = (dataSource: any) => {
-    if (dataSource && typeof dataSource === 'string') {
-      return extensionManager?.getDataSources?.(dataSource)?.[0];
+  const resolveDataSource = (dataSourceName?: string) => {
+    if (dataSourceName) {
+      return extensionManager.getDataSources(dataSourceName)?.[0];
     }
-    // extensionManager.getActiveDataSource() returns an ARRAY of data source
-    // instances in OHIF 3.x (a single definition can back several), so unwrap it —
-    // otherwise `.store.dicom` is undefined and export bails.
-    const resolved = dataSource ?? extensionManager?.getActiveDataSource?.();
-    return Array.isArray(resolved) ? resolved[0] : resolved;
+    // getActiveDataSource() returns an ARRAY of data source instances in OHIF 3.x (a single
+    // definition can back several), so unwrap it — otherwise `.store.dicom` is undefined.
+    return extensionManager.getActiveDataSource()?.[0];
   };
 
-  async function setActiveObject(segmentationId: string, segmentIndex: number) {
-    const resolvedSegmentIndex = bridge.isManaged(segmentationId) ? 1 : segmentIndex;
-    try {
-      const viewportId = viewportGridService.getActiveViewportId?.();
-      if (viewportId) {
-        segmentationService.setActiveSegmentation?.(viewportId, segmentationId);
-      }
-    } catch {
-      // ignore — the segment set below still targets the right segmentation
-    }
-    try {
-      segmentationService.setActiveSegment?.(segmentationId, resolvedSegmentIndex);
-    } catch {
-      // ignore
-    }
-    toolboxState.setCurrentActiveSegment(resolvedSegmentIndex);
-  }
-
-  function handleServerError(error: any, prompts?: any[]) {
-    if (serverApi.isSessionExpiredError(error)) {
-      sessionModel.markExpired();
-      toolboxState.setSessionActive(false);
-      notify('nnInteractive session expired. Please re-initialize.', 'warning');
-    } else {
-      notify(`nnInteractive request failed: ${error?.message ?? error}`, 'error');
-    }
-    if (prompts?.length) {
-      promptModel.markFailed(prompts);
-    }
-  }
-
-  /**
-   * Make the backend hold the target object before prompts. Returns whether the prompt
-   * submission still needs nninter_reset_first (a fresh/empty object with a stale buffer).
-   */
-  async function ensureBackendHoldsObject(
-    source: any,
-    segmentationId: string,
-    segmentIndex: number,
-    isNew: boolean
-  ): Promise<boolean> {
-    if (isNew || objectModel.isKnownEmpty(segmentationId, segmentIndex)) {
-      objectModel.clearServerObject();
-      return true;
-    }
-    const holds = objectModel.holdsObject(segmentationId, segmentIndex);
-    if (holds && !objectModel.isDirty(segmentationId, segmentIndex)) {
-      return false;
-    }
-    const mask = bridge.readObjectMask(servicesManager, source, segmentationId, segmentIndex);
-    if (mask) {
-      await serverApi.setActiveObjectMask(source, mask);
-      objectModel.setServerObject(segmentationId, segmentIndex);
-      objectModel.clearDirty(segmentationId, segmentIndex);
-      objectModel.setUndoable(false);
-      return false;
-    }
-    // Empty object → nothing to seed; reset the backend buffer before prompts.
-    objectModel.clearServerObject();
-    return true;
-  }
-
-  // Serialize prompt submissions so rapid live-mode completions never double-send.
-  let submitChain: Promise<any> = Promise.resolve();
-
-  async function runNninter() {
-    if (toolboxState.getLocked()) {
-      return;
-    }
-    if (!sessionModel.isReadyForActive(servicesManager)) {
-      const ok = await sessionModel.initialize(servicesManager);
-      toolboxState.setSessionActive(ok);
-      if (!ok) {
-        notify('Could not start an nnInteractive session for this series.', 'warning');
-        return;
-      }
-    }
-    const source = sessionModel.getSource();
-    if (!source) {
-      return;
-    }
-    const generation = sessionModel.getGeneration();
-    const viewport = activeViewport();
-
-    const pending = promptModel.getAllUnsubmitted();
-    if (!pending.length) {
-      notify('No new prompts to run.', 'info');
-      return;
-    }
-
-    // Resolve the target object: new object if armed or no active managed object; else refine.
-    const active = objectModel.getActiveObject(servicesManager);
-    const activeIsManaged = !!active && bridge.isManaged(active.segmentationId);
-    let target: { segmentationId: string; segmentIndex: number };
-    let isNew = false;
-    if (toolboxState.getRefineNew() || !activeIsManaged) {
-      const created = await bridge.addObject(servicesManager, commandsManager, source);
-      target = { segmentationId: created.segmentationId, segmentIndex: created.segmentIndex };
-      isNew = true;
-      objectModel.markEmpty(target.segmentationId, target.segmentIndex);
-      toolboxState.setRefineNew(false);
-    } else {
-      target = {
-        segmentationId: active.segmentationId,
-        segmentIndex: bridge.isManaged(active.segmentationId) ? 1 : active.segmentIndex,
-      };
-    }
-    await setActiveObject(target.segmentationId, target.segmentIndex);
-    const targetKey = objectKeyOf(target.segmentationId, target.segmentIndex);
-
-    let resetFirst: boolean;
-    try {
-      resetFirst = await ensureBackendHoldsObject(source, target.segmentationId, target.segmentIndex, isNew);
-    } catch (error) {
-      handleServerError(error);
-      return;
-    }
-
-    // Convert annotation geometry → source voxel prompt arrays.
-    const arrays = emptyPromptArrays();
-    const sent: any[] = [];
-    for (const annotation of pending) {
-      const neg = !!annotation.metadata?.neg;
-      const kind = promptModel.kindOf(annotation);
-      if (kind === 'point') {
-        const p = coord.pointIJK(viewport, annotation, source.imageIds);
-        if (!p) {
-          continue;
-        }
-        (neg ? arrays.neg_points : arrays.pos_points).push(p);
-      } else if (kind === 'box') {
-        const b = coord.boxIJK(viewport, annotation, source.imageIds);
-        if (!b) {
-          continue;
-        }
-        (neg ? arrays.neg_boxes : arrays.pos_boxes).push(b);
-      } else if (kind === 'lasso') {
-        const l = coord.freehandPromptIJK(viewport, annotation, source.imageIds);
-        if (!l) {
-          continue;
-        }
-        (neg ? arrays.neg_lassos : arrays.pos_lassos).push(l);
-      } else if (kind === 'scribble') {
-        const s = coord.freehandPromptIJK(viewport, annotation, source.imageIds);
-        if (!s) {
-          continue;
-        }
-        (neg ? arrays.neg_scribbles : arrays.pos_scribbles).push(s);
-      } else {
-        continue;
-      }
-      sent.push(annotation);
-    }
-    if (!sent.length) {
-      notify('No new prompts to run.', 'info');
-      return;
-    }
-
-    let crop;
-    try {
-      crop = await serverApi.submitPrompts(source, arrays, resetFirst);
-    } catch (error) {
-      handleServerError(error, sent);
-      return;
-    }
-
-    // Stale-response guard: a reset/re-init since the request started invalidates this crop.
-    if (sessionModel.getGeneration() !== generation) {
-      return;
-    }
-
-    objectModel.setServerObject(target.segmentationId, target.segmentIndex);
-    const accepted = String(crop.meta?.prompt_info ?? '').toLowerCase() !== 'no new prompts';
-    if (accepted) {
-      objectModel.setUndoable(true);
-    }
-    if (crop.scope !== 'unchanged' && crop.seg.length) {
-      const applied = await bridge.applyCrop(
-        servicesManager,
-        target.segmentationId,
-        target.segmentIndex,
-        crop
-      );
-      if (applied.wroteVoxels) {
-        objectModel.markNonEmpty(target.segmentationId, target.segmentIndex);
-      } else if (crop.scope === 'full') {
-        objectModel.markEmpty(target.segmentationId, target.segmentIndex);
-      }
-    }
-    objectModel.clearDirty(target.segmentationId, target.segmentIndex);
-
-    for (const annotation of sent) {
-      if (annotation.metadata) {
-        annotation.metadata.objectKey = targetKey;
-      }
-    }
-    promptModel.markSubmitted(sent);
-    if (!toolboxState.getPromptsVisible()) {
-      promptModel.setPromptsVisible(false, targetKey);
-    }
-  }
-
-  function nninter() {
-    submitChain = submitChain.then(() => runNninter().catch(e => console.warn('[nninteractive] run failed:', e)));
-    return submitChain;
-  }
-
-  // ── Viewport guard + brush dirty tracking─────────────────────────────────────────────
-  let guardQueued = false;
-  let guardScheduled = false;
-  let guardRunning = false;
-  async function runViewportGuard() {
-    guardScheduled = false;
-    if (guardRunning) {
-      return;
-    }
-    guardRunning = true;
-    try {
-      do {
-        guardQueued = false;
-        await bridge.ensureViewportRepresentations(servicesManager);
-      } while (guardQueued);
-    } catch (e) {
-      console.error('[nninteractive] viewport guard failed:', e);
-      throw e;
-    } finally {
-      guardRunning = false;
-      if (guardQueued) {
-        queueViewportGuardRun();
-      }
-    }
-  }
-  const queueViewportGuardRun = () => {
-    if (guardScheduled || guardRunning) {
-      return;
-    }
-    guardScheduled = true;
-    setTimeout(() => {
-      void runViewportGuard();
-    }, 0);
-  };
-
-  const scheduleViewportGuard = () => {
-    guardQueued = true;
-    queueViewportGuardRun();
-  };
-
-  if (!subscriptionsInstalled) {
-    subscriptionsInstalled = true;
-
-    eventTarget.addEventListener(csToolsEnums.Events.SEGMENTATION_DATA_MODIFIED, () => {
-      if (!toolboxState.getManualCorrectionMode()) {
-        return;
-      }
-      const active = objectModel.getActiveObject(servicesManager);
-      if (!active) {
-        return;
-      }
-      // Manual brush edit → mark the object dirty so the next prompt re-syncs its mask.
-      objectModel.markDirty(active.segmentationId, active.segmentIndex);
-    });
-
-    const subscribeGuard = (service: any, eventKeys: string[]) => {
-      if (!service?.subscribe || !service.EVENTS) {
-        return;
-      }
-      for (const key of eventKeys) {
-        const event = service.EVENTS[key];
-        if (event) {
-          try {
-            service.subscribe(event, scheduleViewportGuard);
-          } catch {
-            // ignore
-          }
-        }
-      }
-    };
-    subscribeGuard(cornerstoneViewportService, ['VIEWPORT_VOLUMES_CHANGED', 'VIEWPORT_DATA_CHANGED']);
-
-    // Import-split: a saved DICOM SEG is hydrated as ONE multi-segment segmentation; split it back
-    // into N managed one-segment objects (the per-object model). Deferred OUT of the hydration /
-    // viewport-mount call stack (SEGMENTATION_ADDED fires synchronously inside
-    // createSegmentationForSEGDisplaySet; mutating segmentation state mid-flow crashes the viewer),
-    // with bounded retries while hydration pixel data settles.
-    const splitRetries = new Map<string, number>();
-    const trySplit = (segmentationId: string) => {
-      bridge
-        .importSplitSegmentation(
-          servicesManager,
-          commandsManager,
-          segmentationId,
-          sourceForSegmentation(segmentationId)
-        )
-        .then(result => {
-          if (result.status === 'retry') {
-            const n = (splitRetries.get(segmentationId) ?? 0) + 1;
-            splitRetries.set(segmentationId, n);
-            if (n <= 15) {
-              setTimeout(() => trySplit(segmentationId), 300);
-            } else {
-              console.warn(
-                `[nninteractive] import-split: giving up on ${segmentationId} (${result.reason}); original left as-is`
-              );
-              splitRetries.delete(segmentationId);
-            }
-          } else {
-            splitRetries.delete(segmentationId);
-          }
-        })
-        .catch(e => console.warn('[nninteractive] import-split error:', e));
-    };
-    const segEvents: any = (segmentationService as any).EVENTS || {};
-    if (segEvents.SEGMENTATION_ADDED && typeof segmentationService.subscribe === 'function') {
-      segmentationService.subscribe(segEvents.SEGMENTATION_ADDED, (payload: any) => {
-        const id = payload?.segmentationId ?? payload?.segmentation?.segmentationId;
-        if (id) {
-          setTimeout(() => trySplit(id), 250);
-        }
-      });
-    }
-  }
+  // ── Commands ─────────────────────────────────────────────────────────────────────────────
 
   const actions = {
-    /** Activate a prompt/brush tool; forces Pan while the toolbox is locked. */
-    setAiToolActive: ({ toolName }: { toolName: string }) => {
-      const name = toolboxState.getLocked() ? 'Pan' : toolName;
-      return commandsManager.run('setToolActive', { toolName: name });
+    nninter,
+
+    nninterSessionStatus: () => sessionModel.heartbeat(),
+
+    closeNninterSession: () => sessionModel.close(),
+
+    /** Called by the nnInteractive mode: the extension's global listeners act only in between. */
+    enterNninterMode() {
+      toolboxState.reset();
+      toolboxState.set({ modeActive: true });
     },
 
-    /**
-     * Toolbar toggle for prompt tools. The toolbar passes the tool name as `itemId`
-     * (and sometimes `value`), NOT `toolName` — resolve all three. Arming a prompt tool
-     * exits manual-correction mode; toggling the active tool off falls back to Pan.
-     */
-    toggleToolActiveToolbar: ({ value, itemId, toolName, toolGroupIds = [] }: any) => {
-      const toolGroupService = services.toolGroupService;
-      const resolvedToolName = toolName || itemId || value;
-      const groups = toolGroupIds.length ? toolGroupIds : toolGroupService.getToolGroupIds();
-
-      const { activeViewportId } = viewportGridService.getState();
-      const activeToolGroup = toolGroupService.getToolGroupForViewport(activeViewportId);
-      const isCurrentlyActive =
-        activeToolGroup?.getActivePrimaryMouseButtonTool?.() === resolvedToolName;
-
-      if (isCurrentlyActive) {
-        groups.forEach((toolGroupId: string) => {
-          const tg = toolGroupService.getToolGroup(toolGroupId);
-          if (tg?.hasTool(resolvedToolName)) {
-            tg.setToolPassive(resolvedToolName);
-          }
-          if (tg?.hasTool('Pan')) {
-            commandsManager.run('setToolActive', { toolName: 'Pan', toolGroupId });
-          }
-        });
-        toolboxState.setTool('none');
-        return;
-      }
-
-      toolboxState.setTool(resolvedToolName);
-      toolboxState.setManualCorrectionMode(false);
-      commandsManager.run('setToolActiveToolbar', {
-        value,
-        itemId,
-        toolName: resolvedToolName,
-        toolGroupIds: groups,
-      });
-    },
-
-    runAiSegmentation: () => {
-      if (toolboxState.getLocked()) {
-        return;
-      }
-      return nninter();
-    },
-
-    nninter: () => nninter(),
-
-    async initNninter() {
-      const ok = await sessionModel.initialize(servicesManager);
-      toolboxState.setSessionActive(ok);
-      const source = sessionModel.getSource();
-      if (source) {
-        toolboxState.setSessionSeries(source.seriesInstanceUID);
-      }
-      notify(
-        ok ? 'nnInteractive session ready.' : 'Could not start an nnInteractive session.',
-        ok ? 'success' : 'error'
-      );
-      return ok;
-    },
-
-    async nninterSessionStatus() {
-      const active = await sessionModel.heartbeat();
-      toolboxState.setSessionActive(active);
-      return active;
-    },
-
-    closeNninterSession() {
+    exitNninterMode() {
       sessionModel.close();
-      toolboxState.setSessionActive(false);
+      objectModel.clearServerObject();
+      promptModel.resetUndoOrder();
+      toolboxState.reset();
     },
 
     async undoNninter() {
-      if (!objectModel.isUndoable()) {
-        return;
-      }
       const source = sessionModel.getSource();
       const active = objectModel.getActiveObject(servicesManager);
-      if (!source || !active) {
+      if (!objectModel.isUndoable() || !source || !active) {
         return;
       }
-      let result;
+      let result: Awaited<ReturnType<typeof serverApi.undo>>;
       try {
         result = await serverApi.undo(source);
       } catch (error) {
@@ -672,185 +612,123 @@ const commandsModule = ({ servicesManager, commandsManager, extensionManager }: 
         return;
       }
       if (result.crop.seg.length) {
-        const applied = await bridge.applyCrop(
-          servicesManager,
-          active.segmentationId,
-          active.segmentIndex,
-          result.crop
-        );
-        if (applied.wroteVoxels) {
-          objectModel.markNonEmpty(active.segmentationId, active.segmentIndex);
-        } else if (result.crop.scope === 'full') {
-          objectModel.markEmpty(active.segmentationId, active.segmentIndex);
+        let applied: bridge.ApplyCropResult;
+        try {
+          applied = await bridge.applyCrop(
+            servicesManager,
+            commandsManager,
+            source,
+            active,
+            result.crop
+          );
+        } catch (error) {
+          notify(
+            `nnInteractive could not apply the undo: ${(error as Error)?.message ?? error}`,
+            'error'
+          );
+          return;
         }
+        if (applied.moved) {
+          adoptMovedObject(active, applied.object);
+        }
+        noteWrittenCrop(applied, result.crop.scope);
       }
       promptModel.removeLastSubmitted();
     },
 
-    async resetNninter() {
-      const source = sessionModel.getSource();
-      if (source) {
-        try {
-          await serverApi.resetInteractions(source);
-        } catch (error) {
-          handleServerError(error);
-        }
-      }
-      objectModel.clearServerObject();
-      sessionModel.bumpGeneration();
-    },
-
-    async resetSegment({ segmentationId, segmentIndex }: any) {
-      const resolvedSegmentIndex = bridge.isManaged(segmentationId) ? 1 : segmentIndex;
-      await bridge.clearSegment(servicesManager, segmentationId, resolvedSegmentIndex);
-      promptModel.clearForObject(objectKeyOf(segmentationId, resolvedSegmentIndex));
-      objectModel.markEmpty(segmentationId, resolvedSegmentIndex);
-      if (objectModel.holdsObject(segmentationId, resolvedSegmentIndex)) {
-        await actions.resetNninter();
+    async resetSegment(object: ObjectRef) {
+      bridge.clearObject(object);
+      promptModel.clearForObject(object);
+      objectModel.markEmpty(object);
+      if (objectModel.holdsObject(object)) {
+        await resetBackendObject();
       }
     },
 
-    async deleteSegment({ segmentationId, segmentIndex }: any) {
-      const resolvedSegmentIndex = bridge.isManaged(segmentationId) ? 1 : segmentIndex;
-      const held = objectModel.holdsObject(segmentationId, resolvedSegmentIndex);
-      const managed = bridge.isManaged(segmentationId);
-      await bridge.removeSegment(servicesManager, segmentationId, resolvedSegmentIndex);
-      promptModel.clearForObject(objectKeyOf(segmentationId, resolvedSegmentIndex));
-      objectModel.forgetObject(segmentationId, resolvedSegmentIndex);
-      if (managed) {
-        try {
-          await commandsManager.run('deleteSegmentation', { segmentationId });
-        } finally {
-          bridge.unregisterManagedSegmentation(segmentationId);
-        }
-      }
+    // Not `deleteSegment`: OHIF's cornerstone extension owns that name and its context is searched first.
+    async deleteNninterObject(object: ObjectRef) {
+      const held = objectModel.holdsObject(object);
+      // Drops the segment; deletes its layer once no object is left in it.
+      await bridge.removeObject(commandsManager, object);
+      promptModel.clearForObject(object);
+      objectModel.forgetObject(object);
       if (held) {
-        await actions.resetNninter();
+        await resetBackendObject();
       }
     },
 
     /** Create and select the next empty object immediately. */
     async armNextNninterObject() {
-      if (!sessionModel.isReadyForActive(servicesManager)) {
-        const ok = await sessionModel.initialize(servicesManager);
-        toolboxState.setSessionActive(ok);
-        if (!ok) {
-          notify('Could not start an nnInteractive session for this series.', 'warning');
-          return;
-        }
-      }
-
-      const source = sessionModel.getSource();
+      const source = await ensureSession();
       if (!source) {
-        notify('No source image series is active.', 'warning');
         return;
       }
-      toolboxState.setSessionSeries(source.seriesInstanceUID);
-
-      const created = await bridge.addObject(servicesManager, commandsManager, source);
-      await setActiveObject(created.segmentationId, created.segmentIndex);
-      toolboxState.setRefineNew(false);
+      let created: ObjectRef;
+      try {
+        created = await bridge.addObject(servicesManager, commandsManager, source);
+      } catch (error) {
+        console.error('[nninteractive] could not create an object:', error);
+        notify(`Could not create a new object: ${(error as Error)?.message ?? error}`, 'error');
+        return;
+      }
+      setActiveObject(created);
       promptModel.clearAll();
       objectModel.clearServerObject();
-      objectModel.markEmpty(created.segmentationId, created.segmentIndex);
+      objectModel.markEmpty(created);
       return created;
     },
 
     /** Select an existing object and make the backend hold its mask for refinement. */
-    async loadSegmentForRefinement({ segmentationId, segmentIndex }: any) {
-      const resolvedSegmentIndex = bridge.isManaged(segmentationId) ? 1 : segmentIndex;
-      await setActiveObject(segmentationId, resolvedSegmentIndex);
-      toolboxState.setRefineNew(false);
-      if (!bridge.isManaged(segmentationId)) {
-        return { loaded: false, reason: 'unmanaged-segmentation' };
+    async loadSegmentForRefinement(object: ObjectRef) {
+      setActiveObject(object);
+      if (!bridge.isManaged(object.segmentationId)) {
+        return;
       }
-      if (!sessionModel.isReadyForActive(servicesManager)) {
-        const ok = await sessionModel.initialize(servicesManager);
-        toolboxState.setSessionActive(ok);
-        if (!ok) {
-          notify('Could not start an nnInteractive session for this series.', 'warning');
-          return { loaded: false, reason: 'session-not-ready' };
-        }
-      }
-
-      const source = sessionModel.getSource();
+      const source = await ensureSession();
       if (!source) {
-        notify('No source image series is active.', 'warning');
-        return { loaded: false, reason: 'no-source' };
+        return;
       }
-      toolboxState.setSessionSeries(source.seriesInstanceUID);
-
       try {
-        const resetFirst = await ensureBackendHoldsObject(
-          source,
-          segmentationId,
-          resolvedSegmentIndex,
-          false
-        );
-        if (resetFirst) {
+        if (await ensureBackendHoldsObject(source, object)) {
           await serverApi.resetInteractions(source);
           sessionModel.bumpGeneration();
-          objectModel.clearServerObject();
-          objectModel.setUndoable(false);
         }
-        return { loaded: true };
       } catch (error) {
         console.error('[nninteractive] load segment for refinement failed:', error);
         handleServerError(error);
-        return { loaded: false, reason: 'backend-sync-failed' };
       }
     },
 
     jumpToSegment() {
       const active = objectModel.getActiveObject(servicesManager);
-      const vpId = viewportGridService.getActiveViewportId?.();
-      if (active && vpId) {
-        segmentationService.jumpToSegmentCenter?.(active.segmentationId, active.segmentIndex, vpId);
+      const viewportId = viewportGridService.getActiveViewportId();
+      const center =
+        active && viewportId && !objectModel.isKnownEmpty(active) && bridge.objectCenter(active);
+      if (!center) {
+        return; // no voxels to center on
       }
-    },
-
-    toggleCurrentSegment() {
-      const vpId = viewportGridService.getActiveViewportId?.();
-      const activeSeg = vpId ? segmentationService.getActiveSegmentation?.(vpId) : undefined;
-      if (activeSeg) {
-        segmentationService.toggleSegmentationRepresentationVisibility(vpId, {
-          segmentationId: activeSeg.segmentationId,
-          type: LABELMAP,
-        });
-      }
-    },
-
-    // Segment-level measurement toggles are not part of the nnInteractive prompt model
-    // (prompts are annotations). Provided as safe no-ops so the segmentation table, which
-    // renders these controls generically, never invokes a missing command.
-    getSegmentMeasurementVisibility: () => false,
-    toggleSegmentMeasurement: () => {},
-
-    toggleSegmentationVisibilityAllViewports({ segmentationId, type }: any) {
-      for (const vpId of cornerstoneViewportService.getViewportIds?.() ?? []) {
-        try {
-          segmentationService.toggleSegmentationRepresentationVisibility(vpId, {
-            segmentationId,
-            type: type ?? LABELMAP,
-          });
-        } catch {
-          // ignore
-        }
-      }
-    },
-
-    async removeSegmentationFromViewport({ segmentationId }: any) {
-      await actions.resetNninter();
-      const vpId = viewportGridService.getActiveViewportId?.();
-      if (vpId) {
-        segmentationService.removeRepresentationsFromViewport(vpId, { segmentationId });
+      try {
+        // Positional args up to the last one, the precomputed center; undefined keeps OHIF's defaults.
+        segmentationService.jumpToSegmentCenter(
+          active.segmentationId,
+          active.segmentIndex,
+          viewportId,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          center
+        );
+      } catch {
+        // viewport cannot jump (e.g. 3D)
       }
     },
 
     /** Export nnInteractive objects to one overlapping DICOM SEG. */
     async storeNninterSegmentation(args: any) {
-      const managedIds = resolveManagedExportSegmentationIds(args);
-      if (!managedIds.length) {
+      const objects = resolveExportObjects(args);
+      if (!objects.length) {
         return commandsManager.run('storeSegmentation', args);
       }
 
@@ -858,7 +736,7 @@ const commandsModule = ({ servicesManager, commandsManager, extensionManager }: 
       // same dialog OHIF uses for its own SEG export.
       const {
         value: reportName,
-        dataSourceName: selectedDataSourceName,
+        dataSourceName,
         action,
       } = await createReportDialogPrompt({
         servicesManager,
@@ -873,8 +751,8 @@ const commandsModule = ({ servicesManager, commandsManager, extensionManager }: 
         ...args?.options,
         ...(reportName ? { SeriesDescription: reportName } : {}),
       };
-      const { generated } = buildMergedNninterSegmentation(managedIds, options);
-      const dataSource = resolveDataSource(selectedDataSourceName ?? args?.dataSource);
+      const { generated } = buildMergedNninterSegmentation(objects, options);
+      const dataSource = resolveDataSource(dataSourceName);
       if (!dataSource?.store?.dicom) {
         throw new Error('No DICOM store data source is available for nnInteractive export.');
       }
@@ -890,65 +768,20 @@ const commandsModule = ({ servicesManager, commandsManager, extensionManager }: 
     },
 
     async downloadNninterSegmentation(args: any) {
-      const managedIds = resolveManagedExportSegmentationIds(args);
-      if (!managedIds.length) {
+      const objects = resolveExportObjects(args);
+      if (!objects.length) {
         return commandsManager.run('downloadSegmentation', args);
       }
-      const { generated, label } = buildMergedNninterSegmentation(managedIds, args?.options);
+      const { generated, label } = buildMergedNninterSegmentation(objects, args?.options);
       downloadDICOMData(generated.dataset, label);
       return generated.dataset;
     },
-
-    debugSnapshot: () => debugSnapshot(servicesManager),
   };
 
-  const defaultContextNames = [
-    'setAiToolActive',
-    'runAiSegmentation',
-    'initNninter',
-    'nninterSessionStatus',
-    'closeNninterSession',
-    'undoNninter',
-    'resetNninter',
-    'resetSegment',
-    'deleteSegment',
-    'loadSegmentForRefinement',
-    'armNextNninterObject',
-    'nninter',
-    'jumpToSegment',
-    'toggleCurrentSegment',
-    'debugSnapshot',
-  ];
-
-  const definitions: Record<string, any> = {};
-  for (const name of defaultContextNames) {
-    definitions[name] = { commandFn: (actions as any)[name] };
-  }
-
-  Object.assign(definitions, {
-    toggleToolActiveToolbar: { commandFn: actions.toggleToolActiveToolbar, context: 'CORNERSTONE' },
-    getSegmentMeasurementVisibility: {
-      commandFn: actions.getSegmentMeasurementVisibility,
-      context: 'CORNERSTONE',
-    },
-    toggleSegmentMeasurement: { commandFn: actions.toggleSegmentMeasurement, context: 'CORNERSTONE' },
-    toggleSegmentationVisibilityAllViewports: {
-      commandFn: actions.toggleSegmentationVisibilityAllViewports,
-      context: 'CORNERSTONE',
-    },
-    removeSegmentationFromViewport: {
-      commandFn: actions.removeSegmentationFromViewport,
-      context: 'CORNERSTONE',
-    },
-    downloadNninterSegmentation: {
-      commandFn: actions.downloadNninterSegmentation,
-      context: 'SEGMENTATION',
-    },
-    storeNninterSegmentation: {
-      commandFn: actions.storeNninterSegmentation,
-      context: 'SEGMENTATION',
-    },
-  });
+  const definitions: Record<string, { commandFn: (...args: any[]) => any; context?: string }> =
+    Object.fromEntries(Object.entries(actions).map(([name, commandFn]) => [name, { commandFn }]));
+  definitions.storeNninterSegmentation.context = 'SEGMENTATION';
+  definitions.downloadNninterSegmentation.context = 'SEGMENTATION';
 
   return { actions, definitions, defaultContext: 'DEFAULT' };
 };

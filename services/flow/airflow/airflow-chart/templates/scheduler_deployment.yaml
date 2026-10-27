@@ -84,6 +84,17 @@ spec:
           value: "INFO"
         - name: AIRFLOW__API__AUTH_BACKENDS
           value: "airflow.api.auth.backend.session,airflow.api.auth.backend.basic_auth"
+{{- if .Values.global.restricted_rbac }}
+        - name: AIRFLOW__KUBERNETES_EXECUTOR__NAMESPACE
+          value: "{{ .Values.global.services_namespace }}"
+        - name: AIRFLOW__KUBERNETES_EXECUTOR__MULTI_NAMESPACE_MODE
+          value: "True"
+        - name: AIRFLOW__KUBERNETES_EXECUTOR__MULTI_NAMESPACE_MODE_NAMESPACE_LIST
+          valueFrom:
+            configMapKeyRef:
+              name: airflow-managed-namespaces
+              key: namespaces
+{{- end }}
         {{- include "airflow.env.common" . | nindent 8 }}
         {{- include "airflow.env.taskRuntime" . | nindent 8 }}
         resources:
@@ -193,7 +204,9 @@ spec:
       - name: tmpfs
         emptyDir: {}
       serviceAccountName: kaapana-kube-admin
+{{- if not .Values.global.restricted_rbac }}
       priorityClassName: kaapana-high-priority
+{{- end }}
       imagePullSecrets:
       - name: registry-secret
 ---

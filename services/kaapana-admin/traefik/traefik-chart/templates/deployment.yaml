@@ -44,6 +44,12 @@ spec:
 {{- end }}
             - '--entrypoints.websecure.http.middlewares={{  .Values.global.helm_namespace  }}-auth-check@kubernetescrd,{{  .Values.global.admin_namespace  }}-cors-middleware@kubernetescrd'
             - '--entrypoints.websecure.address=:{{ .Values.global.https_port }}'
+{{- if .Values.global.restricted_rbac }}
+            - --providers.kubernetesingress.namespaces={{ .Values.global.all_managed_namespaces | join "," }}
+            - --providers.kubernetescrd.namespaces={{ .Values.global.all_managed_namespaces | join "," }}
+            - '--providers.kubernetescrd.disableClusterScopeResources=true'
+            - '--providers.kubernetesingress.disableClusterScopeResources=true'
+{{- end }}
             - '--entryPoints.websecure.http.tls=true'
             - '--entrypoints.dicom.Address=:11112'
             # - '--serversTransport.insecureSkipVerify=true'
@@ -92,7 +98,9 @@ spec:
         - name: ssl
           secret:
             secretName: certificate
+{{- if not .Values.global.restricted_rbac }}
       priorityClassName: kaapana-high-priority
+{{- end }}
       imagePullSecrets:
       - name: registry-secret
 ---

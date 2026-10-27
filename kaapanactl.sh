@@ -2793,7 +2793,22 @@ function install_certs {
         exit 1
     fi
 
-    # update cert and restart pods in a namespace
+    # OpenSearch, OpenSearch Dashboards and dicom-web-filter trust the CA bundle secret (global.ca_bundle_secret),
+    # not tls.crt
+    local ca_bundle_secret="ca-bundle"
+    local ca_bundle_key="ca-bundle.pem"
+    local ca_bundle_file
+    ca_bundle_file=$(mktemp)
+    cat ./tls.crt > "$ca_bundle_file"
+    echo >> "$ca_bundle_file"
+    for system_ca_bundle in /etc/ssl/certs/ca-certificates.crt /etc/ssl/cert.pem /etc/pki/tls/certs/ca-bundle.crt; do
+        if [ -f "$system_ca_bundle" ]; then
+            cat "$system_ca_bundle" >> "$ca_bundle_file"
+            break
+        fi
+    done
+
+    # update cert and CA bundle and restart the pods using them in a namespace
     update_namespace() {
         local ns=$1
         echo -e "\nUpdating certificate in namespace: ${ns}"
@@ -2803,9 +2818,18 @@ function install_certs {
         $KUBE create secret generic certificate --type=kubernetes.io/tls --namespace "$ns" \
             --from-file=tls.key=./tls.key --from-file=tls.crt=./tls.crt --from-file=ca.crt=./tls.crt
 
-        # get app.kubernetes.io/name of all pods that mount the certificate secret in the namespace
+        # replace instead of apply: the last-applied annotation would exceed the 256 KiB annotation limit
+        local ca_bundle_manifest
+        ca_bundle_manifest=$($KUBE create secret generic "$ca_bundle_secret" --namespace "$ns" \
+            --from-file="${ca_bundle_key}=${ca_bundle_file}" --dry-run=client -o yaml)
+        if ! echo "$ca_bundle_manifest" | $KUBE replace -f - >/dev/null 2>&1; then
+            echo "$ca_bundle_manifest" | $KUBE create -f - >/dev/null
+        fi
+        echo "secret/$ca_bundle_secret updated"
+
+        # get app.kubernetes.io/name of all pods that mount the certificate or CA bundle secret in the namespace
         local app_labels=$($KUBE get pods -n "$ns" -o json | \
-            jq -r '.items[] | select(.spec.volumes[]?.secret?.secretName == "certificate") | .metadata.labels."app.kubernetes.io/name" // empty' | sort -u)
+            jq -r --arg ca "$ca_bundle_secret" '.items[] | select(any(.spec.volumes[]?; .secret?.secretName == "certificate" or .secret?.secretName == $ca)) | .metadata.labels."app.kubernetes.io/name" // empty' | sort -u)
 
         if [ -n "$app_labels" ]; then
             echo -e "Restarting pods using certificate:"
@@ -2824,6 +2848,7 @@ function install_certs {
 
     update_namespace "$ADMIN_NAMESPACE"
     update_namespace "$SERVICES_NAMESPACE"
+    rm -f "$ca_bundle_file"
 
     # copy certificates
     if [ -n "$FAST_DATA_DIR" ]; then

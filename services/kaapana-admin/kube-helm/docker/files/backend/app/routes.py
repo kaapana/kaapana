@@ -308,6 +308,25 @@ async def helm_delete_chart(request: Request):
         raise HTTPException(status_code=500, detail=f"Chart uninstall failed {str(e)}")
 
 
+@router.post("/create-namespace")
+async def create_namespace(request: Request):
+    try:
+        payload = await request.json()
+        logger.info(f"/create-namespace called with {payload=}")
+        assert "namespace" in payload, "Required key 'namespace' not found in payload"
+        utils.create_namespace_if_not_exists(payload["namespace"])
+        return Response(f"Namespace {payload['namespace']} is available", 200)
+    except utils.NamespaceUnavailableError as e:
+        logger.error(f"/create-namespace failed: {e}")
+        return Response(str(e), e.status_code)
+    except AssertionError as e:
+        logger.error(f"/create-namespace failed: {str(e)}", exc_info=True)
+        return Response(f"Namespace check failed, bad request {str(e)}", 400)
+    except Exception as e:
+        logger.error(f"/create-namespace failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Namespace check failed {str(e)}")
+
+
 @router.post("/helm-install-chart")
 async def helm_install_chart(request: Request):
     try:

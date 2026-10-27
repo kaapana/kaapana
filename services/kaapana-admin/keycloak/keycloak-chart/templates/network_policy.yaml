@@ -1,9 +1,8 @@
 {{- if .Values.global.keycloak_ldap_egress_cidrs }}
-# The admin namespace's restrict-egress policy only allows the cluster CIDRs, so a
-# Keycloak LDAP/AD federation whose server is outside them cannot be reached and every
-# sync or login hangs. Sites list their LDAP server CIDRs in
-# global.keycloak_ldap_egress_cidrs; this policy then opens LDAP/LDAPS for the
-# Keycloak pods alone. Unset (the default), nothing is rendered.
+# The admin namespace only allows traffic to addresses inside the cluster.
+# Without this policy, Keycloak cannot reach an external LDAP or AD server, and
+# logins and user syncs hang. The policy opens LDAP and LDAPS for the Keycloak pods
+# only, so the rest of the namespace stays restricted.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

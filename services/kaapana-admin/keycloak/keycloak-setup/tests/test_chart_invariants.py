@@ -292,10 +292,9 @@ def test_runtime_templates_drop_admin_password(template):
 
 
 def test_keycloak_ldap_egress_policy_targets_the_keycloak_pods():
-    # The admin namespace's restrict-egress policy blocks LDAP/AD servers outside
-    # the cluster CIDRs; this NetworkPolicy is the only way out for Keycloak, so it
-    # has to match the labels the deployment gives its pods, be gated on the site
-    # value, and open both LDAP ports - a mismatch fails silently at the site.
+    # This policy is Keycloak's only way to reach an external LDAP server.
+    # A mismatch with the pod labels, the site value or the LDAP ports fails silently
+    # at the site, so the test checks all three.
     chart = ROOT / "services/kaapana-admin/keycloak/keycloak-chart"
     policy = _read(chart / "templates/network_policy.yaml")
     deployment = _read(chart / "templates/deployment.yaml")

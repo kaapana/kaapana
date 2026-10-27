@@ -1,10 +1,12 @@
 import os
+
 import requests
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-from kaapanapy.logger import get_logger
 import logging
+
+from kaapanapy.logger import get_logger
 
 logger = get_logger(__name__, logging.DEBUG)
 
@@ -62,9 +64,8 @@ class KeycloakHelper:
         request=requests.post,
         payload={},
         update_url="",
-        # 30s rather than 2s: while Keycloak is still coming up after a deploy, or waits
-        # on a slow LDAP federation, admin API calls take longer than 2s and the setup
-        # jobs failed spuriously.
+        # Admin API calls can take longer than 2s while Keycloak starts or waits for a
+        # slow LDAP server. A shorter timeout fails calls that Keycloak would still answer.
         timeout=30,
         **kwargs,
     ):

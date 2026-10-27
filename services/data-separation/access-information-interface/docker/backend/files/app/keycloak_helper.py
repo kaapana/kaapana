@@ -86,9 +86,8 @@ class KeycloakHelper:
         request=requests.post,
         payload={},
         update_url="",
-        # 30s rather than 2s: while Keycloak is still coming up after a deploy, or waits
-        # on a slow LDAP federation, admin API calls take longer than 2s and the setup
-        # jobs failed spuriously.
+        # Admin API calls can take longer than 2s while Keycloak starts or waits for a
+        # slow LDAP server. A shorter timeout fails calls that Keycloak would still answer.
         timeout=30,
         **kwargs,
     ):
@@ -154,7 +153,9 @@ class KeycloakHelper:
                     full_user = self.get_user_by_id(user_id)
                     users_dict.append(full_user)
                 except Exception as e:
-                    logger.warning(f"Could not fetch full details for user {user_id}: {e}")
+                    logger.warning(
+                        f"Could not fetch full details for user {user_id}: {e}"
+                    )
                     users_dict.append(dict_keys_camel_to_snake(user))
 
         return users_dict

@@ -5,5 +5,5 @@ requests==2.32.3
 numpy==1.26.4
 pydicom==3.0.1
 SimpleITK==2.4.0
-scipy==1.14.1
-nninteractive-client==2.5.0
+scikit-image==0.25.2
+nninteractive-client==2.6.0

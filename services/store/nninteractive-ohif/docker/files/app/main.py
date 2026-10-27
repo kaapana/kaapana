@@ -1,4 +1,5 @@
-import gzip
+import base64
+import hashlib
 import json
 import logging
 import math
@@ -7,6 +8,7 @@ import tempfile
 import threading
 import time
 import uuid
+import zlib
 from dataclasses import dataclass, field
 from email.parser import BytesParser
 from email.policy import default
@@ -24,7 +26,7 @@ from nnInteractive.inference.remote import (
     SessionExpiredError,
     nnInteractiveRemoteInferenceSession,
 )
-from scipy.ndimage import binary_dilation, binary_fill_holes
+from skimage.draw import polygon2mask
 
 logger = logging.getLogger("nninteractive-proxy")
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
@@ -38,7 +40,13 @@ NNINTERACTIVE_SERVER_URL = os.environ.get(
     "http://nninteractive-server-service.services.svc:1527",
 ).rstrip("/")
 NNINTERACTIVE_API_KEY = os.environ.get("NN_INTERACTIVE_API_KEY") or None
-MAX_CACHED_SESSIONS = int(os.environ.get("MAX_CACHED_SESSIONS", "1"))
+# Keep at or below the server's --max-sessions so a full proxy answers "busy" instead of the
+# server rejecting a session the proxy thinks it can hold.
+MAX_CACHED_SESSIONS = int(os.environ.get("MAX_CACHED_SESSIONS", "3"))
+# A session whose browser has not sent a heartbeat (every 20 s) for this long is abandoned.
+STALE_SESSION_SECONDS = float(os.environ.get("STALE_SESSION_SECONDS", "120"))
+# A raw uint8 mask is one byte per voxel; this bounds what a single upload may occupy in memory.
+MAX_MASK_UPLOAD_BYTES = int(os.environ.get("MAX_MASK_UPLOAD_BYTES", str(1024**3)))
 REQUEST_TIMEOUT = float(os.environ.get("DICOMWEB_REQUEST_TIMEOUT", "120"))
 
 app = FastAPI(title="OHIF nnInteractive proxy", version="0.1.0")
@@ -47,12 +55,12 @@ app = FastAPI(title="OHIF nnInteractive proxy", version="0.1.0")
 @dataclass
 class SeriesSession:
     key: str
-    study_uid: str
     series_uid: str
-    client_session_id: str
     session: nnInteractiveRemoteInferenceSession
     target_buffer: np.ndarray
     flipped: bool
+    # Voxel spacing in [z, y, x]; napari scales its scribble brush by it.
+    spacing_zyx: tuple[float, float, float] = (1.0, 1.0, 1.0)
     prompts_seen: set[str] = field(default_factory=set)
     prompt_order: list[str] = field(default_factory=list)
     last_used: float = field(default_factory=time.time)
@@ -62,10 +70,14 @@ class SeriesSession:
 
 @dataclass
 class CachedImage:
-    key: str
     image_4d: np.ndarray
-    flipped: bool
+    # SOPInstanceUIDs of the first and last slice of image_4d (SimpleITK's position order).
+    first_sop: str
+    last_sop: str
+    # Fallback flip for clients that do not send their slice order: InstanceNumber descending.
+    instance_number_flipped: bool
     timings: dict[str, float]
+    spacing_zyx: tuple[float, float, float] = (1.0, 1.0, 1.0)
     last_used: float = field(default_factory=time.time)
 
 
@@ -75,7 +87,6 @@ init_locks: dict[str, threading.Lock] = {}
 image_cache: dict[str, CachedImage] = {}
 image_cache_lock = threading.RLock()
 image_locks: dict[str, threading.Lock] = {}
-LEGACY_CLIENT_SESSION_ID = "legacy"
 MAX_CACHED_IMAGES = int(os.environ.get("MAX_CACHED_IMAGES", "2"))
 
 
@@ -109,14 +120,46 @@ def _prompt_key(kind: str, prompt: Any) -> str:
 
 def _client_session_id(value: Any) -> str:
     parsed = _jsonish(value, "")
-    if parsed is None:
-        return LEGACY_CLIENT_SESSION_ID
-    text = str(parsed).strip()
-    return text or LEGACY_CLIENT_SESSION_ID
+    text = "" if parsed is None else str(parsed).strip()
+    if not text:
+        raise HTTPException(400, "Missing required parameter: clientSessionID")
+    return text
 
 
-def _session_key(study_uid: str, series_uid: str, client_session_id: str) -> str:
-    return f"{study_uid}|{series_uid}|{client_session_id}"
+def _access_token(request: Request) -> str | None:
+    authorization = request.headers.get("authorization") or ""
+    if authorization.lower().startswith("bearer "):
+        return authorization[7:].strip() or None
+    return request.headers.get("x-forwarded-access-token") or None
+
+
+def _token_subject(token: str) -> str | None:
+    try:
+        payload = token.split(".")[1]
+        claims = json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)))
+        subject = claims.get("sub")
+        return str(subject) if subject else None
+    except Exception:
+        return None
+
+
+def _principal(request: Request) -> str:
+    """Who a session belongs to: the token subject plus the project scope.
+
+    traefik's auth-check has already authenticated the token, and dicom-web-filter verifies it
+    again whenever a session is created (see _assert_series_access), so the subject is only
+    decoded here to keep users' sessions apart.
+    """
+    token = _access_token(request)
+    if token:
+        subject = _token_subject(token) or hashlib.sha256(token.encode()).hexdigest()[:16]
+    else:
+        subject = "anonymous"
+    return f"{subject}|{request.headers.get('project') or ''}"
+
+
+def _session_key(principal: str, study_uid: str, series_uid: str, client_session_id: str) -> str:
+    return f"{principal}|{study_uid}|{series_uid}|{client_session_id}"
 
 
 def _image_key(study_uid: str, series_uid: str) -> str:
@@ -129,11 +172,13 @@ def _auth() -> tuple[str, str] | None:
     return (username, password) if username and password else None
 
 
-def _dicomweb_get(path: str, headers: dict[str, str] | None = None) -> requests.Response:
+def _dicomweb_get(
+    path: str,
+    headers: dict[str, str] | None = None,
+    accept: str = 'multipart/related; type="application/dicom"; transfer-syntax=*',
+) -> requests.Response:
     url = f"{DICOMWEB_ROOT}/{path.lstrip('/')}"
-    request_headers = {
-        "Accept": 'multipart/related; type="application/dicom"; transfer-syntax=*',
-    }
+    request_headers = {"Accept": accept}
     if headers:
         request_headers.update(headers)
     response = requests.get(
@@ -185,7 +230,7 @@ def _load_image(
     study_uid: str,
     series_uid: str,
     headers: dict[str, str] | None,
-) -> tuple[np.ndarray, bool, dict[str, float]]:
+) -> tuple[np.ndarray, str, str, bool, dict[str, float], tuple[float, float, float]]:
     timings: dict[str, float] = {}
     with tempfile.TemporaryDirectory(prefix="nninteractive-proxy-") as tempdir:
         fetch_start = time.time()
@@ -205,12 +250,13 @@ def _load_image(
         image = reader.Execute()
         timings["sitk_execute"] = time.time() - sitk_execute_start
 
-        flipped = False
+        first = pydicom.dcmread(files[0], stop_before_pixels=True, force=True)
+        last = pydicom.dcmread(files[-1], stop_before_pixels=True, force=True)
+        instance_number_flipped = False
         if len(files) >= 2:
             try:
-                first = pydicom.dcmread(files[0], stop_before_pixels=True, force=True)
                 second = pydicom.dcmread(files[1], stop_before_pixels=True, force=True)
-                flipped = int(first.get("InstanceNumber", 0)) > int(second.get("InstanceNumber", 0))
+                instance_number_flipped = int(first.get("InstanceNumber", 0)) > int(second.get("InstanceNumber", 0))
             except Exception:
                 logger.warning("Could not determine slice flip from InstanceNumber", exc_info=True)
 
@@ -218,7 +264,14 @@ def _load_image(
         volume = sitk.GetArrayFromImage(image)
         volume_4d = np.ascontiguousarray(volume[None])
         timings["numpy_convert"] = time.time() - numpy_start
-        return volume_4d, flipped, timings
+        return (
+            volume_4d,
+            str(first.get("SOPInstanceUID", "")),
+            str(last.get("SOPInstanceUID", "")),
+            instance_number_flipped,
+            timings,
+            tuple(float(s) for s in image.GetSpacing()[::-1]),
+        )
 
 
 def _new_remote_session(
@@ -247,22 +300,10 @@ def _new_remote_session(
     return session, target_buffer, timings
 
 
-def _get_init_lock(key: str) -> threading.Lock:
-    with sessions_lock:
-        lock = init_locks.get(key)
-        if lock is None:
-            lock = threading.Lock()
-            init_locks[key] = lock
-        return lock
-
-
-def _get_image_lock(key: str) -> threading.Lock:
-    with image_cache_lock:
-        lock = image_locks.get(key)
-        if lock is None:
-            lock = threading.Lock()
-            image_locks[key] = lock
-        return lock
+def _keyed_lock(locks: dict[str, threading.Lock], guard: threading.RLock, key: str) -> threading.Lock:
+    """The lock serializing one slow load (image fetch, session init) per key."""
+    with guard:
+        return locks.setdefault(key, threading.Lock())
 
 
 def _evict_images_if_needed() -> None:
@@ -271,74 +312,145 @@ def _evict_images_if_needed() -> None:
         image_cache.pop(oldest_key, None)
 
 
+def _assert_series_access(study_uid: str, series_uid: str, headers: dict[str, str] | None) -> None:
+    """The image cache is shared, so a cache hit must not skip the caller's access check."""
+    response = _dicomweb_get(
+        f"studies/{study_uid}/series?SeriesInstanceUID={series_uid}",
+        headers,
+        accept="application/dicom+json",
+    )
+    if response.status_code == 204 or not response.content or not response.json():
+        raise HTTPException(404, "Series not found")
+
+
 def _get_cached_image(
     study_uid: str,
     series_uid: str,
     dicomweb_headers: dict[str, str] | None,
-) -> tuple[np.ndarray, bool, dict[str, float]]:
+) -> CachedImage:
     key = _image_key(study_uid, series_uid)
-    with image_cache_lock:
-        cached = image_cache.get(key)
-        if cached is not None:
-            cached.last_used = time.time()
-            return cached.image_4d, cached.flipped, {"image_cache": 0.0}
 
-    image_lock = _get_image_lock(key)
-    with image_lock:
+    def cache_hit() -> CachedImage | None:
         with image_cache_lock:
             cached = image_cache.get(key)
-            if cached is not None:
-                cached.last_used = time.time()
-                return cached.image_4d, cached.flipped, {"image_cache": 0.0}
+        if cached is not None:
+            _assert_series_access(study_uid, series_uid, dicomweb_headers)
+            cached.last_used = time.time()
+        return cached
 
-        image_4d, flipped, timings = _load_image(study_uid, series_uid, dicomweb_headers)
+    cached = cache_hit()
+    if cached is not None:
+        return cached
+
+    with _keyed_lock(image_locks, image_cache_lock, key):
+        cached = cache_hit()
+        if cached is not None:
+            return cached
+
+        # Fetching the series through dicom-web-filter with the caller's token is the access check.
+        volume_4d, first_sop, last_sop, instance_number_flipped, timings, spacing_zyx = _load_image(
+            study_uid, series_uid, dicomweb_headers
+        )
+        loaded = CachedImage(
+            volume_4d, first_sop, last_sop, instance_number_flipped, timings, spacing_zyx=spacing_zyx
+        )
         with image_cache_lock:
-            image_cache[key] = CachedImage(key, image_4d, flipped, timings)
+            image_cache[key] = loaded
             _evict_images_if_needed()
-        return image_4d, flipped, timings
+        return loaded
 
 
-def _evict_if_needed() -> None:
-    while len(sessions) >= MAX_CACHED_SESSIONS:
-        oldest_key = min(sessions, key=lambda k: sessions[k].last_used)
-        old = sessions.pop(oldest_key)
-        try:
-            with old.lock:
-                old.session.close()
-        except Exception:
-            logger.warning("Failed to close old nnInteractive session", exc_info=True)
+def _resolve_flip(image: CachedImage, client_first_sop: str | None) -> bool:
+    """Whether the viewer's slice order is the reverse of image_4d's.
+
+    The viewer sends the SOPInstanceUID of its first slice. OHIF orders slices by position, which
+    does not follow InstanceNumber for every series, so the InstanceNumber guess is only a fallback.
+    """
+    if not client_first_sop:
+        logger.warning("Client sent no firstSOPInstanceUID; guessing slice order from InstanceNumber")
+        return image.instance_number_flipped
+    if client_first_sop == image.first_sop:
+        return False
+    if client_first_sop == image.last_sop:
+        return True
+    raise HTTPException(422, "Viewer slice order does not match the series volume")
+
+
+def _validate_shape(image: CachedImage, client_shape: Any) -> None:
+    """The viewer's [slices, rows, columns] must match the volume, or prompts land elsewhere."""
+    shape = _jsonish(client_shape, None)
+    if not shape:
+        return
+    if [int(v) for v in shape] != [int(v) for v in image.image_4d.shape[1:]]:
+        raise HTTPException(
+            422,
+            f"Viewer volume {list(shape)} does not match the series volume {list(image.image_4d.shape[1:])}",
+        )
+
+
+def _reserve_capacity() -> None:
+    """Free abandoned sessions, then refuse (never evict an active user) if still full."""
+    now = time.time()
+    with sessions_lock:
+        stale = [
+            entry
+            for entry in sessions.values()
+            if now - max(entry.last_browser_seen, entry.last_used) > STALE_SESSION_SECONDS
+        ]
+        for entry in stale:
+            sessions.pop(entry.key, None)
+        full = len(sessions) >= MAX_CACHED_SESSIONS
+    # Close outside the global lock: closing talks to the server and may wait on an inference.
+    for entry in stale:
+        logger.info("Closing abandoned nnInteractive session for %s", entry.series_uid)
+        _close_session_quietly(entry)
+    if full:
+        raise HTTPException(503, "All nnInteractive slots are in use; try again later")
+
+
+def _close_session_quietly(entry: SeriesSession) -> None:
+    try:
+        with entry.lock:
+            entry.session.close()
+    except Exception:
+        logger.warning("Failed to close nnInteractive session", exc_info=True)
+
+
+def _touch_session(key: str) -> SeriesSession | None:
+    """The live session for `key`, marked as just used."""
+    with sessions_lock:
+        entry = sessions.get(key)
+        if entry is not None:
+            entry.last_used = time.time()
+        return entry
 
 
 def _get_series_session(
+    principal: str,
     study_uid: str,
     series_uid: str,
     client_session_id: str,
     dicomweb_headers: dict[str, str] | None,
+    client_first_sop: str | None,
+    client_shape: Any,
 ) -> SeriesSession:
-    key = _session_key(study_uid, series_uid, client_session_id)
-    with sessions_lock:
-        existing = sessions.get(key)
+    key = _session_key(principal, study_uid, series_uid, client_session_id)
+    existing = _touch_session(key)
+    if existing is not None:
+        return existing
+
+    with _keyed_lock(init_locks, sessions_lock, key):
+        existing = _touch_session(key)
         if existing is not None:
-            existing.last_used = time.time()
             return existing
 
-    init_lock = _get_init_lock(key)
-    with init_lock:
-        with sessions_lock:
-            existing = sessions.get(key)
-            if existing is not None:
-                existing.last_used = time.time()
-                return existing
-
-        with sessions_lock:
-            _evict_if_needed()
+        _reserve_capacity()
         try:
             load_start = time.time()
-            image_4d, flipped, load_timings = _get_cached_image(
-                study_uid,
-                series_uid,
-                dicomweb_headers,
-            )
+            image = _get_cached_image(study_uid, series_uid, dicomweb_headers)
+            image_4d, load_timings = image.image_4d, image.timings
+            _validate_shape(image, client_shape)
+            flipped = _resolve_flip(image, client_first_sop)
             session, target_buffer, remote_timings = _new_remote_session(image_4d)
             total = time.time() - load_start
             timings = {**load_timings, **remote_timings}
@@ -354,14 +466,21 @@ def _get_series_session(
                 flipped,
                 ", ".join(f"{key}={value:.3f}s" for key, value in timings.items()),
             )
+        except HTTPException:
+            raise
         except ServerAtCapacityError as e:
             raise HTTPException(503, "nnInteractive server is at capacity") from e
         except requests.HTTPError as e:
-            raise HTTPException(502, f"DICOMweb request failed: {e}") from e
+            status = e.response.status_code if e.response is not None else None
+            if status in (401, 403, 404):
+                raise HTTPException(404, "Series not found") from e
+            logger.exception("DICOMweb request failed for %s", series_uid)
+            raise HTTPException(502, "DICOMweb request failed") from e
         except Exception as e:
-            raise HTTPException(502, f"Could not initialize nnInteractive session: {e}") from e
+            logger.exception("Could not initialize nnInteractive session for %s", series_uid)
+            raise HTTPException(502, "Could not initialize nnInteractive session") from e
 
-        entry = SeriesSession(key, study_uid, series_uid, client_session_id, session, target_buffer, flipped)
+        entry = SeriesSession(key, series_uid, session, target_buffer, flipped, spacing_zyx=image.spacing_zyx)
         with sessions_lock:
             sessions[key] = entry
         return entry
@@ -370,11 +489,7 @@ def _get_series_session(
 def _close_entry(entry: SeriesSession) -> None:
     with sessions_lock:
         sessions.pop(entry.key, None)
-    try:
-        with entry.lock:
-            entry.session.close()
-    except Exception:
-        logger.warning("Failed to close nnInteractive session", exc_info=True)
+    _close_session_quietly(entry)
 
 
 def _reset(entry: SeriesSession) -> None:
@@ -384,73 +499,131 @@ def _reset(entry: SeriesSession) -> None:
     entry.prompt_order.clear()
 
 
-def _flip_z_if_needed(point: list[float], entry: SeriesSession) -> list[float]:
-    point = list(point)
+# Prompt geometry mirrors the napari-nninteractive plugin (the nnInteractive reference client)
+# exactly: the viewer sends unrounded voxel coordinates (napari's data coordinates) and every
+# rounding, brush and polygon rule below is napari's, so the same gesture yields the same prompt.
+
+
+def _viewer_to_model_zyx(point: list[float], entry: SeriesSession) -> list[float]:
+    """Viewer [x, y, slice] (continuous) → model [z, y, x] (continuous, flip applied)."""
+    x, y, z = (float(v) for v in point[:3])
     if entry.flipped:
-        point[2] = entry.target_buffer.shape[0] - 1 - point[2]
-    return point
+        z = entry.target_buffer.shape[0] - 1 - z
+    return [z, y, x]
 
 
-def _viewer_point_to_model(point: list[float], entry: SeriesSession) -> list[int]:
-    return [int(round(v)) for v in _flip_z_if_needed(point, entry)[::-1]]
+def _bbox_to_half_open_intervals(corners_zyx: np.ndarray) -> list[list[float]]:
+    """napari-nninteractive's _bbox_to_half_open_intervals: the session rounds the floats."""
+    mins = np.min(corners_zyx, axis=0).astype(float)
+    maxs = np.max(corners_zyx, axis=0).astype(float)
+    collapsed = mins == maxs
+    maxs[collapsed] = maxs[collapsed] + 1.0
+    return [[float(mins[i]), float(maxs[i])] for i in range(len(mins))]
 
 
-def clean_and_densify_polyline(
-    polyline: list,
-    max_segment_length: int = 1,
-    close: bool = False,
-) -> list[list[float]]:
-    if not polyline:
-        return []
-
-    points: list[list[float]] = []
-    for point in polyline:
-        if not isinstance(point, (list, tuple)) or len(point) < 3:
-            continue
-        try:
-            xyz = [float(point[0]), float(point[1]), float(point[2])]
-        except (TypeError, ValueError):
-            continue
-        if all(math.isfinite(v) for v in xyz):
-            points.append(xyz)
-
-    if not points:
-        return []
-    if len(points) == 1:
-        return [points[0]]
-    if close and len(points) > 2 and points[0] != points[-1]:
-        points = [*points, points[0]]
-
-    step_limit = max(1.0, float(max_segment_length))
-    cleaned: list[list[float]] = []
-
-    def append_unique(point: list[float]) -> None:
-        rounded = [round(point[0]), round(point[1]), round(point[2])]
-        if cleaned and [round(v) for v in cleaned[-1]] == rounded:
-            return
-        cleaned.append(point)
-
-    for start, end in zip(points[:-1], points[1:]):
-        delta = [end[i] - start[i] for i in range(3)]
-        distance = max(abs(v) for v in delta)
-        if distance == 0:
-            append_unique(start)
-            continue
-        steps = max(1, math.ceil(distance / step_limit))
-        for j in range(steps):
-            t = j / steps
-            append_unique([start[i] + delta[i] * t for i in range(3)])
-    append_unique(points[-1])
-    return cleaned
+def _interpolate_coordinates(old_coord: np.ndarray, new_coord: np.ndarray, brush_size: float) -> np.ndarray:
+    """napari.layers.labels._labels_utils.interpolate_coordinates."""
+    num_step = round(max(abs(np.array(new_coord) - np.array(old_coord))) / brush_size * 4)
+    coords = [np.linspace(old_coord[i], new_coord[i], num=int(num_step + 1)) for i in range(len(new_coord))]
+    coords = np.stack(coords).T
+    if len(coords) > 1:
+        coords = coords[1:]
+    return coords
 
 
-def scribble_constant_axis(points: np.ndarray) -> int | None:
-    if points.size == 0:
-        return None
-    for axis in (0, 1, 2):
-        if np.unique(points[:, axis]).size == 1:
-            return axis
-    return None
+def _sphere_indices(radius: float, scale: tuple[float, ...]) -> np.ndarray:
+    """napari.layers.labels._labels_utils.sphere_indices."""
+    ndim = len(scale)
+    abs_scale = np.abs(scale)
+    scale_normalized = np.asarray(abs_scale, dtype=float) / np.min(abs_scale)
+    r_normalized = radius / scale_normalized + 0.5
+    slices = [slice(-int(np.ceil(r)), int(np.floor(r)) + 1) for r in r_normalized]
+    indices = np.mgrid[slices].T.reshape(-1, ndim)
+    distances_sq = np.sum((indices * scale_normalized) ** 2, axis=1)
+    return indices[distances_sq <= radius**2].astype(int)
+
+
+def _flat_axis_zyx(points_zyx: np.ndarray, flat_axis_xyz: Any) -> int:
+    """The axis not displayed while drawing: the payload's, else the one the stroke does not move along."""
+    axis = _coerce_flat_axis(flat_axis_xyz)
+    if axis is not None:
+        return 2 - axis
+    return int(np.argmin(np.ptp(points_zyx, axis=0)))
+
+
+def _slice_id(points_zyx: np.ndarray, flat: int, shape_zyx: tuple[int, int, int]) -> int:
+    # napari: int(np.rint(dims point)), clipped into the volume.
+    return int(np.clip(int(np.rint(float(points_zyx[0, flat]))), 0, shape_zyx[flat] - 1))
+
+
+def _crop_on_plane(
+    plane: np.ndarray, flat: int, sid: int, lo: Any, hi: Any
+) -> tuple[np.ndarray, list[list[int]]]:
+    crop_3d = np.expand_dims(plane[lo[0] : hi[0], lo[1] : hi[1]].astype(np.uint8), axis=flat)
+    displayed = [d for d in range(3) if d != flat]
+    bbox = [[0, 0], [0, 0], [0, 0]]
+    bbox[flat] = [sid, sid + 1]
+    bbox[displayed[0]] = [int(lo[0]), int(hi[0])]
+    bbox[displayed[1]] = [int(lo[1]), int(hi[1])]
+    return crop_3d, bbox
+
+
+def _prepare_scribble(
+    shape_zyx: tuple[int, int, int],
+    points_zyx: np.ndarray,
+    flat: int,
+    brush_size: float,
+    spacing_zyx: tuple[float, float, float],
+) -> tuple[np.ndarray | None, list[list[int]] | None]:
+    """Paint the stroke like a napari Labels brush, then crop it like ScribbleLayer.get_last."""
+    sid = _slice_id(points_zyx, flat, shape_zyx)
+    displayed = [d for d in range(3) if d != flat]
+    plane_shape = np.array([shape_zyx[d] for d in displayed])
+    plane = np.zeros(plane_shape, dtype=bool)
+    # Ensure circle doesn't have spurious point on edge by keeping radius as ##.5 (napari).
+    radius = np.floor(brush_size / 2) + 0.5
+    offsets = _sphere_indices(radius, tuple(float(spacing_zyx[d]) for d in displayed))
+
+    def paint(coord: np.ndarray) -> None:
+        indices = offsets + np.round(coord[displayed]).astype(int)
+        valid = np.all((indices >= 0) & (indices < plane_shape), axis=1)
+        plane[indices[valid, 0], indices[valid, 1]] = True
+
+    stroke = points_zyx.astype(float).copy()
+    stroke[:, flat] = sid  # napari strokes lie on the displayed slice
+    # napari's draw: paint the press position, then interpolate along every mouse move.
+    paint(stroke[0])
+    for old, new in zip(stroke[:-1], stroke[1:]):
+        for coord in _interpolate_coordinates(old, new, brush_size):
+            paint(coord)
+
+    ij = np.argwhere(plane)
+    if len(ij) == 0:
+        return None, None
+    return _crop_on_plane(plane, flat, sid, ij.min(axis=0), ij.max(axis=0) + 1)
+
+
+def _prepare_lasso(
+    shape_zyx: tuple[int, int, int],
+    points_zyx: np.ndarray,
+    flat: int,
+) -> tuple[np.ndarray | None, list[list[int]] | None]:
+    """LassoLayer.get_last: fill the float polygon with skimage's polygon2mask on a tight crop."""
+    if len(points_zyx) < 3:
+        return None, None
+    sid = _slice_id(points_zyx, flat, shape_zyx)
+    polygon_2d = np.delete(points_zyx.astype(float), flat, axis=1)
+    slice_shape = np.delete(np.array(shape_zyx), flat)
+    lo = np.floor(polygon_2d.min(axis=0)).astype(int)
+    hi = np.ceil(polygon_2d.max(axis=0)).astype(int) + 1
+    lo = np.clip(lo, 0, slice_shape - 1)
+    hi = np.clip(hi, lo + 1, slice_shape)
+    mask = polygon2mask((int(hi[0] - lo[0]), int(hi[1] - lo[1])), polygon_2d - lo)
+    if not mask.any():
+        return None, None
+    full = np.zeros(slice_shape, dtype=bool)
+    full[lo[0] : hi[0], lo[1] : hi[1]] = mask
+    return _crop_on_plane(full, flat, sid, lo, hi)
 
 
 def _coerce_flat_axis(axis: Any) -> int | None:
@@ -461,139 +634,6 @@ def _coerce_flat_axis(axis: Any) -> int | None:
     return coerced if coerced in (0, 1, 2) else None
 
 
-def _rasterize_polygon_2d(rows: np.ndarray, cols: np.ndarray, height: int, width: int) -> np.ndarray:
-    mask = np.zeros((height, width), dtype=bool)
-    for i in range(len(rows)):
-        r0, c0 = int(rows[i]), int(cols[i])
-        r1, c1 = int(rows[(i + 1) % len(rows)]), int(cols[(i + 1) % len(cols)])
-        steps = max(abs(r1 - r0), abs(c1 - c0)) + 1
-        rs = np.round(np.linspace(r0, r1, steps)).astype(int)
-        cs = np.round(np.linspace(c0, c1, steps)).astype(int)
-        valid = (rs >= 0) & (rs < height) & (cs >= 0) & (cs < width)
-        mask[rs[valid], cs[valid]] = True
-    return binary_fill_holes(mask)
-
-
-def _bbox_from_mask(mask: np.ndarray) -> list[list[int]] | None:
-    coords = np.nonzero(mask)
-    if coords[0].size == 0:
-        return None
-    return [[int(axis.min()), int(axis.max()) + 1] for axis in coords]
-
-
-def _prepare_scribble(
-    volume_shape_zyx: tuple[int, int, int],
-    points_xyz: np.ndarray,
-    brush_radius: int = 1,
-    flat_axis_xyz: int | None = None,
-) -> tuple[np.ndarray | None, list[list[int]] | None]:
-    flat_axis = _coerce_flat_axis(flat_axis_xyz)
-    if flat_axis is None:
-        flat_axis = scribble_constant_axis(points_xyz)
-    z_size, y_size, x_size = volume_shape_zyx
-    x_arr, y_arr, z_arr = points_xyz[:, 0], points_xyz[:, 1], points_xyz[:, 2]
-    radius = max(0, int(brush_radius))
-    kernel = np.ones((2 * radius + 1, 2 * radius + 1), dtype=bool)
-
-    if flat_axis == 2:
-        z_val = int(z_arr[0])
-        mask = np.zeros((y_size, x_size), dtype=bool)
-        valid = (x_arr >= 0) & (x_arr < x_size) & (y_arr >= 0) & (y_arr < y_size)
-        mask[y_arr[valid], x_arr[valid]] = True
-        dil = binary_dilation(mask, structure=kernel) if radius else mask
-        bbox_2d = _bbox_from_mask(dil)
-        if bbox_2d is None:
-            return None, None
-        (y0, y1), (x0, x1) = bbox_2d
-        return dil[y0:y1, x0:x1].astype(np.uint8)[None], [[z_val, z_val + 1], [y0, y1], [x0, x1]]
-
-    if flat_axis == 1:
-        y_val = int(y_arr[0])
-        mask = np.zeros((z_size, x_size), dtype=bool)
-        valid = (x_arr >= 0) & (x_arr < x_size) & (z_arr >= 0) & (z_arr < z_size)
-        mask[z_arr[valid], x_arr[valid]] = True
-        dil = binary_dilation(mask, structure=kernel) if radius else mask
-        bbox_2d = _bbox_from_mask(dil)
-        if bbox_2d is None:
-            return None, None
-        (z0, z1), (x0, x1) = bbox_2d
-        return dil[z0:z1, x0:x1].astype(np.uint8)[:, None, :], [[z0, z1], [y_val, y_val + 1], [x0, x1]]
-
-    if flat_axis == 0:
-        x_val = int(x_arr[0])
-        mask = np.zeros((z_size, y_size), dtype=bool)
-        valid = (y_arr >= 0) & (y_arr < y_size) & (z_arr >= 0) & (z_arr < z_size)
-        mask[z_arr[valid], y_arr[valid]] = True
-        dil = binary_dilation(mask, structure=kernel) if radius else mask
-        bbox_2d = _bbox_from_mask(dil)
-        if bbox_2d is None:
-            return None, None
-        (z0, z1), (y0, y1) = bbox_2d
-        return dil[z0:z1, y0:y1].astype(np.uint8)[:, :, None], [[z0, z1], [y0, y1], [x_val, x_val + 1]]
-
-    point_mask = np.zeros(volume_shape_zyx, dtype=bool)
-    valid = (
-        (x_arr >= 0) & (x_arr < x_size)
-        & (y_arr >= 0) & (y_arr < y_size)
-        & (z_arr >= 0) & (z_arr < z_size)
-    )
-    point_mask[z_arr[valid], y_arr[valid], x_arr[valid]] = True
-    if radius:
-        point_mask = binary_dilation(
-            point_mask,
-            structure=np.ones((2 * radius + 1, 2 * radius + 1, 2 * radius + 1), dtype=bool),
-        )
-    return point_mask.astype(np.uint8), None
-
-
-def _prepare_lasso(
-    volume_shape_zyx: tuple[int, int, int],
-    points_xyz: np.ndarray,
-    flat_axis_xyz: int | None = None,
-) -> tuple[np.ndarray | None, list[list[int]] | None]:
-    flat_axis = _coerce_flat_axis(flat_axis_xyz)
-    if flat_axis is None:
-        flat_axis = scribble_constant_axis(points_xyz)
-    z_size, y_size, x_size = volume_shape_zyx
-    x_arr, y_arr, z_arr = points_xyz[:, 0], points_xyz[:, 1], points_xyz[:, 2]
-    if flat_axis == 2:
-        z_val = int(z_arr[0])
-        filled = _rasterize_polygon_2d(y_arr, x_arr, y_size, x_size)
-        bbox_2d = _bbox_from_mask(filled)
-        if bbox_2d is None:
-            return None, None
-        (y0, y1), (x0, x1) = bbox_2d
-        return filled[y0:y1, x0:x1].astype(np.uint8)[None], [[z_val, z_val + 1], [y0, y1], [x0, x1]]
-    if flat_axis == 1:
-        y_val = int(y_arr[0])
-        filled = _rasterize_polygon_2d(z_arr, x_arr, z_size, x_size)
-        bbox_2d = _bbox_from_mask(filled)
-        if bbox_2d is None:
-            return None, None
-        (z0, z1), (x0, x1) = bbox_2d
-        return filled[z0:z1, x0:x1].astype(np.uint8)[:, None, :], [[z0, z1], [y_val, y_val + 1], [x0, x1]]
-    if flat_axis == 0:
-        x_val = int(x_arr[0])
-        filled = _rasterize_polygon_2d(z_arr, y_arr, z_size, y_size)
-        bbox_2d = _bbox_from_mask(filled)
-        if bbox_2d is None:
-            return None, None
-        (z0, z1), (y0, y1) = bbox_2d
-        return filled[z0:z1, y0:y1].astype(np.uint8)[:, :, None], [[z0, z1], [y0, y1], [x_val, x_val + 1]]
-    return None, None
-
-
-def _add_prompt(entry: SeriesSession, kind: str, prompt: Any, callback) -> tuple[bool, Any]:
-    """Apply a prompt once (dedup by key). Returns (applied, changed_bbox_or_None)."""
-    key = _prompt_key(kind, prompt)
-    if key in entry.prompts_seen:
-        return False, None
-    bbox = callback()
-    entry.prompts_seen.add(key)
-    entry.prompt_order.append(key)
-    return True, bbox
-
-
 def _union_bbox(a: Any, b: Any) -> Any:
     if a is None:
         return b
@@ -602,21 +642,37 @@ def _union_bbox(a: Any, b: Any) -> Any:
     return [[min(a[i][0], b[i][0]), max(a[i][1], b[i][1])] for i in range(3)]
 
 
-def _preferred_scribble_radius(entry: SeriesSession, flat_axis_xyz: int | None) -> int:
-    # nnInteractive reports preferred thickness in target-buffer axis order [z, y, x].
-    # OHIF prompt points are [x, y, z], so map the constant interaction axis back first.
-    axis_zyx = {2: 0, 1: 1, 0: 2}.get(flat_axis_xyz, 0)
+def _preferred_brush_size(entry: SeriesSession, flat_zyx: int) -> float:
+    # napari sets the scribble brush_size to the session's preferred_scribble_thickness for the
+    # axis not displayed (target-buffer order [z, y, x]).
     preferred = getattr(entry.session, "preferred_scribble_thickness", None)
     value: Any = None
-    if isinstance(preferred, (list, tuple)) and len(preferred) > axis_zyx:
-        value = preferred[axis_zyx]
+    if isinstance(preferred, (list, tuple)) and len(preferred) > flat_zyx:
+        value = preferred[flat_zyx]
     elif isinstance(preferred, (int, float)):
         value = preferred
     try:
-        radius = int(round(float(value)))
+        return max(1.0, float(value))
     except (TypeError, ValueError):
-        radius = 1
-    return max(0, radius)
+        return 2.0
+
+
+def _freehand_points_zyx(prompt: Any, entry: SeriesSession) -> tuple[np.ndarray, int] | None:
+    raw_points, flat_axis_xyz = _prompt_points_and_flat_axis(prompt)
+    points = []
+    for point in raw_points if isinstance(raw_points, list) else []:
+        if not isinstance(point, (list, tuple)) or len(point) < 3:
+            continue
+        try:
+            zyx = _viewer_to_model_zyx(point, entry)
+        except (TypeError, ValueError):
+            continue
+        if all(math.isfinite(v) for v in zyx):
+            points.append(zyx)
+    if not points:
+        return None
+    points_zyx = np.asarray(points, dtype=float)
+    return points_zyx, _flat_axis_zyx(points_zyx, flat_axis_xyz)
 
 
 def _prompt_points_and_flat_axis(prompt: Any) -> tuple[Any, int | None]:
@@ -625,124 +681,88 @@ def _prompt_points_and_flat_axis(prompt: Any) -> tuple[Any, int | None]:
     return prompt.get("points", []), _coerce_flat_axis(prompt.get("axis"))
 
 
+# Payload fields per prompt kind, in the order prompts are applied (napari's order).
+PROMPT_KINDS = ("points", "boxes", "lassos", "scribbles")
+
+
+def _send_prompt(entry: SeriesSession, kind: str, prompt: Any, include: bool) -> Any:
+    """Add one prompt to the session. Returns the changed-region bbox it reports, or None."""
+    session = entry.session
+    if kind == "points":
+        # Unrounded, like napari's point layer; the session rounds.
+        return session.add_point_interaction(_viewer_to_model_zyx(prompt, entry), include_interaction=include)
+    if kind == "boxes":
+        corners = np.asarray([_viewer_to_model_zyx(corner, entry) for corner in prompt], dtype=float)
+        return session.add_bbox_interaction(_bbox_to_half_open_intervals(corners), include_interaction=include)
+
+    parsed = _freehand_points_zyx(prompt, entry)
+    if parsed is None:
+        return None
+    shape = entry.target_buffer.shape
+    if kind == "lassos":
+        mask, bbox = _prepare_lasso(shape, *parsed)
+        add = session.add_lasso_interaction
+    else:
+        points_zyx, flat = parsed
+        mask, bbox = _prepare_scribble(shape, points_zyx, flat, _preferred_brush_size(entry, flat), entry.spacing_zyx)
+        add = session.add_scribble_interaction
+    if mask is None:
+        return None
+    return add(mask, include_interaction=include, interaction_bbox=bbox)
+
+
 def _apply_prompts(entry: SeriesSession, data: dict[str, Any]) -> tuple[dict[str, int], Any]:
-    """Apply new prompts. Returns (counts, changed_bbox) — the union of the changed-region bboxes
-    the session reports per interaction ([[z0,z1],[y0,y1],[x0,x1]] in raw buffer coords, same
-    convention as _crop_target's offset), or None if nothing visibly changed."""
-    counts = {
-        "pos_points": 0,
-        "neg_points": 0,
-        "pos_boxes": 0,
-        "neg_boxes": 0,
-        "pos_lassos": 0,
-        "neg_lassos": 0,
-        "pos_scribbles": 0,
-        "neg_scribbles": 0,
-    }
-    shape = tuple(int(x) for x in entry.target_buffer.shape)
+    """Apply the prompts not seen before (deduplicated by content). Returns (counts per payload
+    field, changed_bbox) — the union of the changed-region bboxes the session reports per
+    interaction ([[z0,z1],[y0,y1],[x0,x1]] in raw buffer coords), or None if nothing visibly changed."""
+    counts: dict[str, int] = {}
     changed: Any = None
-
-    for kind, include in (("pos_points", True), ("neg_points", False)):
-        for point in _as_list(data.get(kind)):
-            def cb(point=point, include=include):
-                return entry.session.add_point_interaction(_viewer_point_to_model(point, entry), include_interaction=include)
-            applied, bbox = _add_prompt(entry, kind, point, cb)
-            if applied:
-                counts[kind] += 1
-                changed = _union_bbox(changed, bbox)
-
-    for kind, include in (("pos_boxes", True), ("neg_boxes", False)):
-        for box in _as_list(data.get(kind)):
-            if not isinstance(box, list) or len(box) != 2:
-                continue
-            def cb(box=box, include=include):
-                p0 = _viewer_point_to_model(box[0], entry)
-                p1 = _viewer_point_to_model(box[1], entry)
-                bbox = [[min(p0[i], p1[i]), max(p0[i], p1[i]) + 1] for i in range(3)]
-                return entry.session.add_bbox_interaction(bbox, include_interaction=include)
-            applied, bbox = _add_prompt(entry, kind, box, cb)
-            if applied:
-                counts[kind] += 1
-                changed = _union_bbox(changed, bbox)
-
-    for kind, include in (("pos_lassos", True), ("neg_lassos", False)):
-        for lasso in _as_list(data.get(kind)):
-            def cb(lasso=lasso, include=include):
-                lasso_points, flat_axis = _prompt_points_and_flat_axis(lasso)
-                cleaned = clean_and_densify_polyline(lasso_points, close=True)
-                points = np.round(np.asarray(cleaned)).astype(int)
-                if points.size == 0:
-                    return None
-                if entry.flipped:
-                    points[:, 2] = entry.target_buffer.shape[0] - 1 - points[:, 2]
-                mask, bbox = _prepare_lasso(shape, points, flat_axis_xyz=flat_axis)
-                if mask is None:
-                    return None
-                return entry.session.add_lasso_interaction(mask, include_interaction=include, interaction_bbox=bbox)
-            applied, bbox = _add_prompt(entry, kind, lasso, cb)
-            if applied:
-                counts[kind] += 1
-                changed = _union_bbox(changed, bbox)
-
-    for kind, include in (("pos_scribbles", True), ("neg_scribbles", False)):
-        for scribble in _as_list(data.get(kind)):
-            def cb(scribble=scribble, include=include):
-                scribble_points, flat_axis = _prompt_points_and_flat_axis(scribble)
-                cleaned = clean_and_densify_polyline(scribble_points, close=False)
-                points = np.round(np.asarray(cleaned)).astype(int)
-                if points.size == 0:
-                    return None
-                if entry.flipped:
-                    points[:, 2] = entry.target_buffer.shape[0] - 1 - points[:, 2]
-                if flat_axis is None:
-                    flat_axis = scribble_constant_axis(points)
-                mask, bbox = _prepare_scribble(
-                    shape,
-                    points,
-                    brush_radius=_preferred_scribble_radius(entry, flat_axis),
-                    flat_axis_xyz=flat_axis,
-                )
-                if mask is None:
-                    return None
-                return entry.session.add_scribble_interaction(mask, include_interaction=include, interaction_bbox=bbox)
-            applied, bbox = _add_prompt(entry, kind, scribble, cb)
-            if applied:
-                counts[kind] += 1
-                changed = _union_bbox(changed, bbox)
-
+    for kind in PROMPT_KINDS:
+        for sign, include in (("pos", True), ("neg", False)):
+            field = f"{sign}_{kind}"
+            counts[field] = 0
+            for prompt in _as_list(data.get(field)):
+                if kind == "boxes" and not (isinstance(prompt, list) and len(prompt) == 2):
+                    continue
+                key = _prompt_key(field, prompt)
+                if key in entry.prompts_seen:
+                    continue
+                changed = _union_bbox(changed, _send_prompt(entry, kind, prompt, include))
+                entry.prompts_seen.add(key)
+                entry.prompt_order.append(key)
+                counts[field] += 1
     return counts, changed
 
 
-def _crop_target(target_buffer: np.ndarray) -> tuple[bytes, list[int], list[int], list[int]]:
-    full_shape = [int(x) for x in target_buffer.shape]
-    z_has = np.any(target_buffer, axis=(1, 2))
-    if not z_has.any():
-        return b"", [0, 0, 0], full_shape, [0, 0, 0]
-    y_has = np.any(target_buffer, axis=(0, 2))
-    x_has = np.any(target_buffer, axis=(0, 1))
-    z_idx = np.flatnonzero(z_has)
-    y_idx = np.flatnonzero(y_has)
-    x_idx = np.flatnonzero(x_has)
-    z0, z1 = int(z_idx[0]), int(z_idx[-1]) + 1
-    y0, y1 = int(y_idx[0]), int(y_idx[-1]) + 1
-    x0, x1 = int(x_idx[0]), int(x_idx[-1]) + 1
-    crop = np.ascontiguousarray(target_buffer[z0:z1, y0:y1, x0:x1])
-    return crop.tobytes(order="C"), [z0, y0, x0], full_shape, [z1 - z0, y1 - y0, x1 - x0]
+Crop = tuple[bytes, list[int], list[int], list[int]]
 
 
-def _crop_target_bbox(
-    target_buffer: np.ndarray, bbox: Any
-) -> tuple[bytes, list[int], list[int], list[int]]:
-    """Slice the given changed-region bbox out of the buffer — no full-volume nonzero scan.
-    Same return shape/convention as _crop_target."""
+def _empty_crop(target_buffer: np.ndarray) -> Crop:
+    return b"", [0, 0, 0], [int(x) for x in target_buffer.shape], [0, 0, 0]
+
+
+def _crop_target_bbox(target_buffer: np.ndarray, bbox: Any) -> Crop:
+    """Slice a region ([[z0,z1],[y0,y1],[x0,x1]]) out of the buffer.
+    Returns (bytes, offset [z0,y0,x0], full shape, crop shape)."""
     full_shape = [int(x) for x in target_buffer.shape]
-    z0, z1 = max(0, int(bbox[0][0])), min(full_shape[0], int(bbox[0][1]))
-    y0, y1 = max(0, int(bbox[1][0])), min(full_shape[1], int(bbox[1][1]))
-    x0, x1 = max(0, int(bbox[2][0])), min(full_shape[2], int(bbox[2][1]))
+    (z0, z1), (y0, y1), (x0, x1) = (
+        (max(0, int(lo)), min(size, int(hi))) for (lo, hi), size in zip(bbox, full_shape)
+    )
     if z1 <= z0 or y1 <= y0 or x1 <= x0:
-        return b"", [0, 0, 0], full_shape, [0, 0, 0]
+        return _empty_crop(target_buffer)
     crop = np.ascontiguousarray(target_buffer[z0:z1, y0:y1, x0:x1])
     return crop.tobytes(order="C"), [z0, y0, x0], full_shape, [z1 - z0, y1 - y0, x1 - x0]
+
+
+def _crop_target(target_buffer: np.ndarray) -> Crop:
+    """The buffer's whole foreground, cropped to its bounding box."""
+    bbox = []
+    for axes in ((1, 2), (0, 2), (0, 1)):
+        indices = np.flatnonzero(np.any(target_buffer, axis=axes))
+        if not len(indices):
+            return _empty_crop(target_buffer)
+        bbox.append([int(indices[0]), int(indices[-1]) + 1])
+    return _crop_target_bbox(target_buffer, bbox)
 
 
 def _multipart(meta: dict[str, Any], seg: bytes) -> Response:
@@ -763,35 +783,21 @@ def _multipart(meta: dict[str, Any], seg: bytes) -> Response:
     return Response(body, media_type=f'multipart/form-data; boundary="{boundary}"')
 
 
-def _meta(
+def _response(
     entry: SeriesSession,
-    seg: bytes,
-    offset: list[int],
-    full_shape: list[int],
-    crop_shape: list[int],
+    crop: Crop,
     start: float,
     prompt_info: str,
     extra: dict[str, Any] | None = None,
-) -> dict[str, str]:
-    now = time.time()
+) -> Response:
+    seg, offset, full_shape, crop_shape = crop
     meta = {
         "flipped": str(entry.flipped).lower(),
-        "nninter_elapsed": f"{now - start:.3f}",
-        "nninter_core_elapsed": f"{now - start:.3f}",
-        "server_request_ts": f"{start:.6f}",
-        "server_begin_ts": f"{start:.6f}",
-        "server_end_ts": f"{now:.6f}",
-        "server_load_elapsed": "0.000",
-        "server_img_convert_elapsed": "0.000",
-        "server_prompt_prep_elapsed": "0.000",
-        "server_result_elapsed": "0.000",
-        "nninter_first_interaction_ts": f"{start:.6f}",
+        "nninter_elapsed": f"{time.time() - start:.3f}",
         "prompt_info": prompt_info,
-        "label_name": "nnInteractive",
         "pred_offset": json.dumps(offset),
         "pred_full_shape": json.dumps(full_shape),
         "pred_crop_shape": json.dumps(crop_shape),
-        "seg_bytes": str(len(seg)),
     }
     if extra:
         meta.update(
@@ -800,7 +806,19 @@ def _meta(
                 for key, value in extra.items()
             }
         )
-    return meta
+    return _multipart(meta, seg)
+
+
+def _gunzip_limited(data: bytes, limit: int) -> bytes:
+    """Decompress at most `limit` bytes, so a small upload cannot expand without bound."""
+    try:
+        decompressor = zlib.decompressobj(wbits=16 + zlib.MAX_WBITS)
+        out = decompressor.decompress(data, limit + 1)
+    except zlib.error as e:
+        raise HTTPException(400, "Mask is not valid gzip") from e
+    if len(out) > limit or decompressor.unconsumed_tail:
+        raise HTTPException(400, "Mask is larger than the target volume")
+    return out
 
 
 def _forward_auth_headers(request: Request) -> dict[str, str]:
@@ -811,18 +829,20 @@ def _forward_auth_headers(request: Request) -> dict[str, str]:
         headers["Authorization"] = authorization
     if forwarded_token:
         headers["x-forwarded-access-token"] = forwarded_token
+    # Set by traefik's auth-check for /project/<id>/ URLs; dicom-web-filter scopes reads to it.
+    project = request.headers.get("project")
+    if project:
+        headers["Project"] = project
     return headers
 
 
 def _run_inference_request(entry: SeriesSession, mode: Any, data: dict[str, Any], start: float) -> Response:
     if mode == "init":
-        seg, offset, full_shape, crop_shape = _crop_target(entry.target_buffer)
-        return _multipart(_meta(entry, b"", [0, 0, 0], full_shape, [0, 0, 0], start, "initialized"), b"")
+        return _response(entry, _empty_crop(entry.target_buffer), start, "initialized")
 
     if mode == "reset":
         _reset(entry)
-        seg, offset, full_shape, crop_shape = _crop_target(entry.target_buffer)
-        return _multipart(_meta(entry, b"", offset, full_shape, crop_shape, start, "reset"), b"")
+        return _response(entry, _empty_crop(entry.target_buffer), start, "reset")
 
     if mode == "undo":
         ran = entry.session.undo()
@@ -831,31 +851,18 @@ def _run_inference_request(entry: SeriesSession, mode: Any, data: dict[str, Any]
         # undo() only returns a bool; the changed-region bbox of the restore is exposed via the
         # remote client's _last_paste_bbox (private, but it mirrors the server response verbatim).
         undo_bbox = getattr(entry.session, "_last_paste_bbox", None) if ran else None
-        if undo_bbox is not None:
-            seg, offset, full_shape, crop_shape = _crop_target_bbox(entry.target_buffer, undo_bbox)
-        else:
-            # Nothing to undo / no visible change — empty delta (client exits early on undone=false).
-            seg, offset, full_shape, crop_shape = (
-                b"", [0, 0, 0], [int(x) for x in entry.target_buffer.shape], [0, 0, 0]
-            )
-        return _multipart(
-            _meta(entry, seg, offset, full_shape, crop_shape, start, "undo",
-                  {"undone": ran, "pred_scope": "delta"}),
-            seg,
-        )
+        # Nothing undone / no visible change → empty delta (the client stops at undone=false).
+        crop = _crop_target_bbox(entry.target_buffer, undo_bbox) if undo_bbox is not None else _empty_crop(entry.target_buffer)
+        return _response(entry, crop, start, "undo", {"undone": ran, "pred_scope": "delta"})
 
     if mode == "set_mask":
         mask_bytes = data.get("mask_bytes")
         if not isinstance(mask_bytes, (bytes, bytearray)):
             raise HTTPException(400, "Missing required mask file for set_mask")
-        # The client gzips the (very sparse) full-volume mask when the browser supports
-        # CompressionStream; raw uploads remain valid (fallback / older clients).
-        if bytes(mask_bytes[:2]) == b"\x1f\x8b":
-            try:
-                mask_bytes = gzip.decompress(bytes(mask_bytes))
-            except Exception as e:
-                raise HTTPException(400, f"Failed to decompress gzipped mask: {e}") from e
+        # The client gzips the (very sparse) full-volume mask; raw uploads remain valid.
         expected_size = int(np.prod(entry.target_buffer.shape))
+        if bytes(mask_bytes[:2]) == b"\x1f\x8b":
+            mask_bytes = _gunzip_limited(bytes(mask_bytes), expected_size)
         if len(mask_bytes) != expected_size:
             raise HTTPException(
                 400,
@@ -871,38 +878,30 @@ def _run_inference_request(entry: SeriesSession, mode: Any, data: dict[str, Any]
         entry.session.add_initial_seg_interaction(seg01, run_prediction=False)
         entry.prompts_seen.clear()
         entry.prompt_order.clear()
-        seg, offset, full_shape, crop_shape = _crop_target(entry.target_buffer)
-        return _multipart(
-            _meta(entry, seg, offset, full_shape, crop_shape, start, "manual correction", {"pred_scope": "full"}), seg
-        )
+        return _response(entry, _crop_target(entry.target_buffer), start, "manual correction", {"pred_scope": "full"})
 
-    if mode is not True and str(mode).lower() != "true":
+    if mode is not True:
         raise HTTPException(400, "Only nnInteractive requests are supported")
 
-    reset_ran = _jsonish(data.get("nninter_reset_first"), False)
-    if reset_ran:
+    reset_first = _jsonish(data.get("nninter_reset_first"), False)
+    if reset_first:
         _reset(entry)
 
     counts, changed_bbox = _apply_prompts(entry, data)
-    if reset_ran:
+    if reset_first:
         # Replay from scratch — the client must rebuild the whole object.
-        seg, offset, full_shape, crop_shape = _crop_target(entry.target_buffer)
-        scope = "full"
+        crop, scope = _crop_target(entry.target_buffer), "full"
+    elif changed_bbox is not None:
+        # Ship only the changed region the session reported.
+        crop, scope = _crop_target_bbox(entry.target_buffer, changed_bbox), "delta"
     else:
-        # Ship only the changed region the session reported (empty if nothing visibly changed).
-        seg, offset, full_shape, crop_shape = (
-            _crop_target_bbox(entry.target_buffer, changed_bbox)
-            if changed_bbox is not None
-            else (b"", [0, 0, 0], [int(x) for x in entry.target_buffer.shape], [0, 0, 0])
-        )
-        scope = "delta"
+        crop, scope = _empty_crop(entry.target_buffer), "delta"
     prompt_info = ", ".join(f"{k}={v}" for k, v in counts.items() if v) or "no new prompts"
-    return _multipart(
-        _meta(entry, seg, offset, full_shape, crop_shape, start, prompt_info, {"pred_scope": scope}), seg
-    )
+    return _response(entry, crop, start, prompt_info, {"pred_scope": scope})
 
 
 def _infer_segmentation_sync(
+    principal: str,
     study_uid: str,
     series_uid: str,
     client_session_id: str,
@@ -911,17 +910,21 @@ def _infer_segmentation_sync(
     mode: Any,
     start: float,
 ) -> Response:
-    # Only an explicit "init" request may create a session. Every other mode
-    # (inference / undo / reset) requires the user to have initialized first, so
-    # the OHIF UI can gate prompts on a live session instead of silently spinning
-    # one up on the first click.
+    # Only an explicit "init" request may create a session. Every other mode answers 409 when the
+    # session is gone, so the client re-initializes and re-uploads its mask instead of prompting
+    # an empty session.
     if mode == "init":
-        entry = _get_series_session(study_uid, series_uid, client_session_id, dicomweb_headers)
+        entry = _get_series_session(
+            principal,
+            study_uid,
+            series_uid,
+            client_session_id,
+            dicomweb_headers,
+            data.get("firstSOPInstanceUID"),
+            data.get("volumeShape"),
+        )
     else:
-        with sessions_lock:
-            entry = sessions.get(_session_key(study_uid, series_uid, client_session_id))
-            if entry is not None:
-                entry.last_used = time.time()
+        entry = _touch_session(_session_key(principal, study_uid, series_uid, client_session_id))
         if entry is None:
             raise HTTPException(409, "no active nnInteractive session; initialize first")
 
@@ -929,16 +932,12 @@ def _infer_segmentation_sync(
         with entry.lock:
             return _run_inference_request(entry, mode, data, start)
 
-    except SessionExpiredError:
-        logger.info("nnInteractive session expired for %s; recreating and retrying request once", series_uid)
+    except SessionExpiredError as e:
+        # Never recreate and replay here: a fresh session has lost the object's mask, so replaying
+        # the prompt would predict from nothing. The client re-initializes and re-uploads the mask.
+        logger.info("nnInteractive session expired for %s", series_uid)
         _close_entry(entry)
-        retry_entry = _get_series_session(study_uid, series_uid, client_session_id, dicomweb_headers)
-        try:
-            with retry_entry.lock:
-                return _run_inference_request(retry_entry, mode, data, start)
-        except SessionExpiredError as e:
-            _close_entry(retry_entry)
-            raise HTTPException(409, "nnInteractive session expired after retry; please initialize again") from e
+        raise HTTPException(409, "nnInteractive session expired; initialize again") from e
 
 
 @app.get("/healthz")
@@ -970,6 +969,7 @@ def availability() -> dict[str, Any]:
 
 @app.get("/infer/session")
 def session_status(
+    request: Request,
     image: str | None = None,
     studyInstanceUID: str | None = None,
     clientSessionID: str | None = None,
@@ -985,7 +985,9 @@ def session_status(
     if not image or not studyInstanceUID:
         raise HTTPException(400, "Missing required query parameters: image, studyInstanceUID")
     with sessions_lock:
-        entry = sessions.get(_session_key(studyInstanceUID, image, _client_session_id(clientSessionID)))
+        entry = sessions.get(
+            _session_key(_principal(request), studyInstanceUID, image, _client_session_id(clientSessionID))
+        )
     if entry is None:
         return {"active": False}
     entry.last_browser_seen = time.time()
@@ -1007,8 +1009,8 @@ def session_status(
 async def close_session(request: Request) -> dict[str, Any]:
     """Release the nnInteractive lease when the user leaves the OHIF page.
 
-    Accepts the series/study via query params or a ``navigator.sendBeacon`` form
-    body (beacons can't set query strings reliably during unload). Idempotent.
+    Accepts the series/study via query params or a form body (the browser sends a keepalive
+    fetch with a form during unload). Idempotent.
     """
     series_uid = request.query_params.get("image")
     study_uid = request.query_params.get("studyInstanceUID")
@@ -1025,7 +1027,9 @@ async def close_session(request: Request) -> dict[str, Any]:
         raise HTTPException(400, "Missing required parameters: image, studyInstanceUID")
     with sessions_lock:
         entry = sessions.get(
-            _session_key(str(study_uid), str(series_uid), _client_session_id(client_session_id))
+            _session_key(
+                _principal(request), str(study_uid), str(series_uid), _client_session_id(client_session_id)
+            )
         )
     if entry is None:
         return {"closed": False}
@@ -1050,6 +1054,8 @@ async def infer_segmentation(request: Request) -> Response:
     data.update({key: form.get(key) for key in form.keys() if key != "params"})
     mask_file = form.get("mask")
     if hasattr(mask_file, "read"):
+        if (getattr(mask_file, "size", None) or 0) > MAX_MASK_UPLOAD_BYTES:
+            raise HTTPException(413, "Mask upload is too large")
         data["mask_bytes"] = await mask_file.read()
     study_uid = str(data.get("studyInstanceUID") or "")
     if not study_uid:
@@ -1057,12 +1063,11 @@ async def infer_segmentation(request: Request) -> Response:
     client_session_id = _client_session_id(data.get("clientSessionID"))
 
     mode = _jsonish(data.get("nninter"), False)
-    if mode in {"medGemma", "gemini", "openai", "claude", "kimi", "qwen", "gemma", "vllm"}:
-        raise HTTPException(501, f"Text/VLM mode '{mode}' is not implemented by this nnInteractive proxy")
 
     try:
         return await anyio.to_thread.run_sync(
             _infer_segmentation_sync,
+            _principal(request),
             study_uid,
             series_uid,
             client_session_id,
@@ -1075,4 +1080,4 @@ async def infer_segmentation(request: Request) -> Response:
         raise
     except Exception as e:
         logger.exception("nnInteractive proxy request failed")
-        raise HTTPException(500, f"nnInteractive proxy request failed: {e}") from e
+        raise HTTPException(500, "nnInteractive proxy request failed") from e

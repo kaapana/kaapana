@@ -67,6 +67,8 @@ spec:
       - name: config-volume
         configMap:
           name: oauth2-proxy-cfg
+{{- if not .Values.global.restricted_rbac }}
       priorityClassName: kaapana-high-priority
+{{- end }}
       imagePullSecrets:
       - name: registry-secret

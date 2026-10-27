@@ -69,7 +69,9 @@ spec:
           claimName: dcm4che-pv-claim
       - name: unix-socket-dir
         emptyDir: {}
+{{- if not .Values.global.restricted_rbac }}
       priorityClassName: kaapana-high-priority
+{{- end }}
       imagePullSecrets:
       - name: registry-secret
 ---

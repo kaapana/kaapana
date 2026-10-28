@@ -198,9 +198,12 @@ class InstalledModel(Base):
     input_mode = Column(String(50), default="all")
     info = Column(String(255), default="N/A")
     kind = Column(String(50), default="nnunet")
+    # further fields of the workflow form that this entry fills in (e.g. the GPU memory a training needs)
+    form_defaults = Column(mutable_json_type(dbtype=JSONB, nested=False), default=dict)
 
     def to_dict(self):
         return {
+            **(self.form_defaults or {}),
             "id": self.id,
             "project_id": str(self.project_id),
             "friendly_name": self.friendly_name,

@@ -1718,6 +1718,7 @@ def update_installed_models(
                     input_mode=task_data.get("input-mode", "all"),
                     info=task_data.get("info", "N/A"),
                     kind=kind,
+                    form_defaults=task_data.get("form_defaults", {}),
                 )
                 db.add(model)
                 created.append(model)

@@ -260,7 +260,7 @@ Choose the tab that matches how you build: **Remote Registry** for a normal buil
 
             sudo systemctl restart docker
 
-         | The restart stops running containers, unless :code:`live-restore` is enabled. The file is in another place for snap, rootless and Docker Desktop installations.
+         | The restart stops running containers, unless :code:`live-restore` is enabled. The file is in another place for snap, rootless and Docker Desktop installations. See :ref:`plain_http_registry`.
 
 
       4. Run the build against the registry. Replace **<node-ip>** by the IP address of the server, which the cluster can reach:
@@ -302,3 +302,76 @@ You can find the build-logs and results at :code:`./kaapana/build`
 
 
 The next step will explain how to install the Kubernetes cluster via the :code:`kaapanactl.sh` script.
+
+
+.. _plain_http_registry:
+
+Using a Plain HTTP Registry
+---------------------------
+
+A registry without TLS needs two settings, if it is not called :code:`localhost` or :code:`127.0.0.1`, for example :code:`10.0.0.5:5000`. Docker and BuildKit treat only loopback addresses as insecure without any setting. This is why the registry :code:`localhost:5000` works without them.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Setting
+     - Who sets it
+   * - Helm and the buildx builder
+     - The flag :code:`--plain-http` of :code:`kaapana-build`. The buildx builder is used with :code:`--cache-from` and :code:`--cache-to`. If it exists from an earlier run, the build removes it and creates it again.
+   * - Container engine (login, push and pull of images)
+     - You. The build tool cannot set it, because it needs root rights and a restart of the engine. If it is missing, the login fails with ``http: server gave HTTP response to HTTPS client``.
+
+Add the registry to the insecure registries of the container engine. The place depends on the installation:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 25 45 30
+
+   * - Installation
+     - File or setting
+     - Restart
+   * - Docker Engine (apt, convenience script)
+     - :code:`/etc/docker/daemon.json`
+     - :code:`sudo systemctl restart docker`
+   * - Docker as snap
+     - :code:`/var/snap/docker/current/config/daemon.json`
+     - :code:`sudo snap restart docker`
+   * - Docker rootless
+     - :code:`~/.config/docker/daemon.json`
+     - :code:`systemctl --user restart docker`
+   * - Docker Desktop
+     - **Settings** > **Docker Engine**
+     - **Apply & restart**
+   * - Podman (:code:`--container-engine podman`)
+     - :code:`/etc/containers/registries.conf`
+     - none
+
+To find out how Docker is installed, run :code:`snap list docker`, :code:`systemctl cat docker` or :code:`docker info`.
+
+For Docker, add the registry under the key :code:`insecure-registries` and keep all other keys of the file:
+
+.. code-block:: json
+
+   {
+     "insecure-registries": ["10.0.0.5:5000"]
+   }
+
+For Podman, add a block to :code:`registries.conf`:
+
+.. code-block:: toml
+
+   [[registry]]
+   location = "10.0.0.5:5000"
+   insecure = true
+
+After the restart, check the setting:
+
+.. code-block:: bash
+
+   docker info | grep -A4 "Insecure Registries"
+
+.. warning::
+   The restart of Docker stops all running containers, unless :code:`live-restore` is enabled in :code:`daemon.json`. This includes a registry container that runs on the same machine, if it has no restart policy.
+
+The container runtime of the cluster has its own registry setting. :code:`kaapanactl.sh --plain-http` only applies to Helm. See :ref:`the installation <deployment>`.

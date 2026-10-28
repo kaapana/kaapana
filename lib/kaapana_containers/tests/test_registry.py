@@ -1,4 +1,5 @@
 import json
+import httpx
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
@@ -152,3 +153,59 @@ class TestClientOptions:
             assert client._client.timeout.write == 60.0
             assert client._client.timeout.connect == 60.0
             assert client._client.timeout.pool == 60.0
+
+
+# ---------------------------------------------------------------------------
+# cookies
+# ---------------------------------------------------------------------------
+
+
+def _session_cookie_handler(seen: list[httpx.Request]):
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        headers = {"set-cookie": "sid=abc; Path=/"}
+        if request.url.path == "/token":
+            return httpx.Response(200, headers=headers, json={"token": "t"})
+        if request.headers.get("authorization") != "Bearer t":
+            headers["www-authenticate"] = (
+                'Bearer realm="https://registry.example.com/token",'
+                'service="registry.example.com"'
+            )
+            return httpx.Response(401, headers=headers)
+        if request.url.path.endswith("/tags/list"):
+            return httpx.Response(200, headers=headers, json={"tags": ["v1.0.0"]})
+        return httpx.Response(200, headers=headers)
+
+    return handler
+
+
+class TestCookies:
+    async def test_never_sends_cookies_set_by_registry(self):
+        seen: list[httpx.Request] = []
+        client = OCIRegistryDiscovery(
+            "https://registry.example.com",
+            "user/repo",
+            username="user",
+            password="pass",
+            client_options={
+                "transport": httpx.MockTransport(_session_cookie_handler(seen))
+            },
+        )
+
+        async with client:
+            assert await client.check_login() is True
+            assert await client.list_tags() == ["v1.0.0"]
+
+        assert len(seen) == 4
+        assert [r.headers.get("cookie") for r in seen] == [None] * len(seen)
+
+    async def test_cookies_option_is_rejected(self):
+        client = OCIRegistryDiscovery(
+            "https://registry.example.com",
+            "user/repo",
+            client_options={"cookies": {"sid": "abc"}},
+        )
+
+        with pytest.raises(TypeError):
+            async with client:
+                pass

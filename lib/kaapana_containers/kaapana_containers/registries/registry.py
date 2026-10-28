@@ -1,5 +1,6 @@
 import httpx
 import base64
+import http.cookiejar
 import json
 import re
 import hashlib
@@ -102,7 +103,8 @@ class OCIRegistryDiscovery:
             username: Optional username for basic authentication.
             password: Optional password for basic authentication.
             client_options: Options forwarded to :class:`httpx.AsyncClient`
-                (e.g. ``{"timeout": 60.0, "verify": False}``).
+                (e.g. ``{"timeout": 60.0, "verify": False}``). A ``cookies``
+                entry is not accepted because the client never keeps cookies.
         """
         self.logger = logging.getLogger(__name__)
         self.registry_url = registry_url.rstrip("/")
@@ -115,7 +117,11 @@ class OCIRegistryDiscovery:
         self._client_options: Dict[str, Any] = client_options or {}
 
     async def __aenter__(self) -> "OCIRegistryDiscovery":
-        self._client = httpx.AsyncClient(**self._client_options)
+        # Keep no cookies, as the OCI distribution-spec conformance client does.
+        jar = http.cookiejar.CookieJar(
+            policy=http.cookiejar.DefaultCookiePolicy(allowed_domains=[])
+        )
+        self._client = httpx.AsyncClient(**self._client_options, cookies=jar)
         return self
 
     async def __aexit__(self, *args: Any) -> None:

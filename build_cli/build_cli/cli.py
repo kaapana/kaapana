@@ -303,7 +303,10 @@ def build(
         False,
         "--plain-http",
         envvar="PLAIN_HTTP",
-        help="Use plain HTTP for communication.",
+        help=(
+            "Use plain HTTP for the default registry. Applies to Helm and to the buildx builder. "
+            "The container engine needs its own insecure registry setting."
+        ),
     ),
     helm_executable: str = typer.Option(
         "helm",

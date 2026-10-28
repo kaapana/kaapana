@@ -25,7 +25,9 @@ protocol.
 
 Each **view** is a self-contained single-page app under
 ``services/base/<view>-ui/docker/files`` (each was extracted from the former
-monolithic landing page, which no longer exists). Every view is its own
+monolithic landing page, which no longer exists). A view that belongs to
+another service domain lives in that domain instead, for example
+``project-management-ui`` under ``services/data-separation``. Every view is its own
 Vue 3 + Vuetify 3 + Vite app with its own
 ``package.json``, its own Dockerfile (a node build stage, then an unprivileged
 nginx image serving the static ``dist/``), and its own mock-backed Playwright
@@ -353,7 +355,9 @@ CI
 --
 
 The ``ui_e2e_tests`` job in ``ci/pipeline/unit-tests.yml`` runs one matrix entry
-per app. Before installing an app it checks the app's ``package.json`` for
+per app. It looks up each entry's directory by name in
+``services/*/<name>/docker/files``, so app names must be unique across
+service domains. Before installing an app it checks the app's ``package.json`` for
 ``"@kaapana/base-ui"`` and, if present, first runs ``npm ci && npm run build``
 in the library — so a consumer gets the library built in CI automatically,
 simply by declaring the ``file:`` dependency.
@@ -411,10 +415,16 @@ type-check instead of silently passing. No cluster or backend is needed to
 run them.
 
 Each suite starts its app's own Vite server (the dev server locally, a
-``preview`` of the production build in CI) on a fixed per-app port —
-``portal-ui`` on 4300, the views on 4301–4309, ``base-ui`` on 4310,
-``extension-manager-ui`` on 4311 — so all
-suites can run in parallel on one machine. Run a suite from the view's
+``preview`` of the production build in CI) on a fixed per-app port, so all
+suites can run in parallel on one machine:
+
+- ``portal-ui``: 4300
+- the views in ``services/base``: 4301–4309
+- ``base-ui``: 4310
+- ``extension-manager-ui``: 4311
+- ``project-management-ui``: 4312
+
+Run a suite from the view's
 ``docker/files`` directory with ``npx playwright test`` (build ``base-ui``
 first if the view consumes it). CI runs the same suites in the ``ui_e2e_tests`` matrix job.
 

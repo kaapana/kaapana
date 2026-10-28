@@ -14,6 +14,10 @@ dist-ssr
 coverage
 *.local
 
+# Playwright e2e outputs
+/test-results
+/playwright-report
+
 /cypress/videos/
 /cypress/screenshots/
 

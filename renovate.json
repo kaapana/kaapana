@@ -121,7 +121,10 @@
     },
     {
       "matchManagers": ["npm"],
-      "matchFileNames": ["services/base/**"],
+      "matchFileNames": [
+        "services/base/**",
+        "services/data-separation/project-management-ui/**"
+      ],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "UI npm dependencies"
     },
@@ -205,7 +208,8 @@
         "services/base/results-ui/**",
         "services/base/federated-ui/**",
         "services/base/workflow-execution-ui/**",
-        "services/base/workflow-list-ui/**"
+        "services/base/workflow-list-ui/**",
+        "services/data-separation/project-management-ui/**"
       ],
       "matchManagers": ["npm"],
       "addLabels": ["Coverage: e2e"],

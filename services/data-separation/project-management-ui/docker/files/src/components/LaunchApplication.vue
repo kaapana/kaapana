@@ -2,7 +2,7 @@
   <v-card>
     <!-- TITLE -->
     <v-card-title v-if="showConfigTitle">
-      Configure {{ extension.name }}
+      Configure {{ extension.annotations['ui-visible-name'] }}
     </v-card-title>
 
     <v-card-text>
@@ -10,24 +10,19 @@
         <template v-for="(param, key) in (extension?.extension_params || {})" :key="key">
 
           <!-- Group title -->
-          <span
-            v-if="param.type === 'group_name'"
-            class="font-weight-bold text-h6"
-          >
+          <span v-if="param.type === 'group_name'" class="text-h6">
             {{ param.default }}
           </span>
 
           <!-- Documentation block -->
           <div v-if="param.type === 'doc'">
             <br />
-            <span class="font-weight-bold text-h6">
+            <span class="text-h6">
               {{ param.title }}
             </span>
 
-            <div
-              v-if="param.html"
-              v-html="param.html"
-            ></div>
+            <!-- HTML from the extension's own chart, which the platform already trusts to run. -->
+            <div v-if="param.html" v-html="param.html"></div>
           </div>
 
           <!-- STRING INPUT -->
@@ -38,13 +33,8 @@
             clearable
             :rules="rulesStr"
           >
-            <template v-if="param.help" #append-outer>
-              <v-tooltip>
-                <template #activator="{ props }">
-                  <v-icon v-bind="props">mdi-tooltip-question</v-icon>
-                </template>
-                <div v-html="param.help"></div>
-              </v-tooltip>
+            <template v-if="param.help" #append>
+              <HelpIcon :text="param.help" />
             </template>
           </v-text-field>
 
@@ -55,12 +45,7 @@
             v-model="formValues[key]"
           >
             <template v-if="param.help" #append>
-              <v-tooltip>
-                <template #activator="{ props }">
-                  <v-icon v-bind="props">mdi-tooltip-question</v-icon>
-                </template>
-                <div v-html="param.help"></div>
-              </v-tooltip>
+              <HelpIcon :text="param.help" />
             </template>
           </v-checkbox>
 
@@ -73,13 +58,8 @@
             clearable
             :rules="rulesSingleList"
           >
-            <template v-if="param.help" #append-outer>
-              <v-tooltip>
-                <template #activator="{ props }">
-                  <v-icon v-bind="props">mdi-tooltip-question</v-icon>
-                </template>
-                <div v-html="param.help"></div>
-              </v-tooltip>
+            <template v-if="param.help" #append>
+              <HelpIcon :text="param.help" />
             </template>
           </v-select>
 
@@ -93,13 +73,8 @@
             clearable
             :rules="rulesMultiList"
           >
-            <template v-if="param.help" #append-outer>
-              <v-tooltip>
-                <template #activator="{ props }">
-                  <v-icon v-bind="props">mdi-tooltip-question</v-icon>
-                </template>
-                <div v-html="param.help"></div>
-              </v-tooltip>
+            <template v-if="param.help" #append>
+              <HelpIcon :text="param.help" />
             </template>
           </v-select>
 
@@ -111,11 +86,9 @@
     <v-card-actions>
       <v-spacer></v-spacer>
 
-      <v-btn color="error" @click="emitClose">
-        Cancel
-      </v-btn>
+      <v-btn :disabled="busy" @click="emitClose">Cancel</v-btn>
 
-      <v-btn color="primary" @click="submit">
+      <v-btn color="primary" :loading="busy" :disabled="busy" @click="submit">
         {{ extension?.multiinstallable === 'yes' ? 'Launch' : 'Install' }}
       </v-btn>
     </v-card-actions>
@@ -125,9 +98,11 @@
 
 
 <script setup>
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch } from 'vue'
+import { HelpIcon } from '@kaapana/base-ui'
 
 const props = defineProps({
+  busy: { type: Boolean, default: false },
   extension: {
     type: Object,
     required: false,
@@ -143,13 +118,14 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(["close", "submit"]);
+const emit = defineEmits(['close', 'submit', 'update:dirty'])
 
 /* ---------------------------
    FORM STATE
 ---------------------------- */
-const formRef = ref(null);
-const formValues = ref({});
+const formRef = ref(null)
+const formValues = ref({})
+const initialValues = ref({})
 
 /* ---------------------------
    INITIALIZE PARAM VALUES
@@ -157,7 +133,8 @@ const formValues = ref({});
 watch(
   () => props.extension,
   (ext) => {
-    formValues.value = {};
+    formValues.value = {}
+    initialValues.value = {}
 
     if (!ext || !ext.extension_params) return;
 
@@ -179,10 +156,17 @@ watch(
         default:
           break;
       }
-    });
+    })
+    initialValues.value = JSON.parse(JSON.stringify(formValues.value))
   },
   { immediate: true }
 );
+
+watch(
+  () => JSON.stringify(formValues.value) !== JSON.stringify(initialValues.value),
+  (dirty) => emit('update:dirty', dirty),
+  { immediate: true },
+)
 
 /* ---------------------------
    TITLE CONDITION
@@ -199,15 +183,15 @@ const showConfigTitle = computed(() => {
    VALIDATION RULES
 ---------------------------- */
 const rulesStr = [
-  (v) => (v !== null && v !== undefined && v !== "") || "Field is required"
+  (v) => (v !== null && v !== undefined && v !== "") || 'Enter a value.'
 ];
 
 const rulesSingleList = [
-  (v) => (v !== null && v !== "") || "Please select a value"
-];
+  (v) => (v !== null && v !== undefined && v !== '') || 'Select a value.',
+]
 
 const rulesMultiList = [
-  (v) => (Array.isArray(v) && v.length > 0) || "Select at least one item"
+  (v) => (Array.isArray(v) && v.length > 0) || 'Select at least one value.'
 ];
 
 /* ---------------------------
@@ -218,12 +202,7 @@ function emitClose() {
 }
 
 async function submit() {
-  // Guard against missing form reference (e.g., when component is destroyed)
-  let valid = true;
-  if (formRef.value && typeof formRef.value.validate === "function") {
-    valid = await formRef.value.validate();
-  }
-  if (!valid) return;
+  if (!(await formRef.value.validate()).valid) return;
 
   emit("submit", {
     extension: props.extension,
@@ -231,9 +210,3 @@ async function submit() {
   });
 }
 </script>
-
-<style scoped>
-.font-weight-bold {
-  font-weight: bold;
-}
-</style>

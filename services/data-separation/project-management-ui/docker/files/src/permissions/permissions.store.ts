@@ -27,13 +27,9 @@ export const usePermissionsStore = defineStore("permissions", {
   }),
 
   actions: {
-    async loadUserRights(userId?: string): Promise<void> {
-      if (!userId) {
-        console.warn("loadUserRights called without userId");
-        return;
-      }
-
-      this.rights = await aiiApiGet('/aii/users/' + userId + '/rights');
+    async loadUserRights(userId: string): Promise<void> {
+      // AII serves rights from its own /aii router, below the /aii/ ingress prefix.
+      this.rights = await aiiApiGet(`aii/users/${userId}/rights`)
 
       this.rightsByProject = this.rights.reduce<RightsByProject>((acc, r) => {
         if (!acc[r.project_id]) acc[r.project_id] = [];
@@ -45,13 +41,8 @@ export const usePermissionsStore = defineStore("permissions", {
     },
 
     async loadProjectWhitelist(projectId: string): Promise<void> {
-      if (!projectId) return;
-      try {
-        const whitelist = await aiiApiGet(`projects/${projectId}/multiinstallable-whitelist`);
-        this.whitelistByProject[projectId] = Array.isArray(whitelist) ? whitelist : [];
-      } catch (error) {
-        console.error('Failed to load project whitelist:', error);
-      }
+      const whitelist = await aiiApiGet(`projects/${projectId}/multiinstallable-whitelist`)
+      this.whitelistByProject[projectId] = Array.isArray(whitelist) ? whitelist : []
     },
 
     hasRight(projectId: string, name: string): boolean {

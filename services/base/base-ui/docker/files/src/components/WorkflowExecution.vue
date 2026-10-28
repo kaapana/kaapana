@@ -615,7 +615,12 @@ function formatFormData(formData: Record<string, any>) {
   Object.entries(formData).forEach(([form_key, form_value]) => {
     if (form_key == "workflow_form") {
       formDataFormatted[form_key] = {};
+      // vjsf keeps the values of every selection the user looked at; only the selected one's key#idx count
+      const selected = (state.schemas?.workflow_form?.oneOf ?? []).find(
+        (branch: any) => branch?.properties?.task_ids?.const === (form_value as any)?.task_ids,
+      );
       Object.entries(form_value).forEach(([key, value]) => {
+        if (selected && key.includes("#") && !(key in selected.properties)) return;
         formDataFormatted[form_key][key.split("#")[0]] = value;
       });
     } else {

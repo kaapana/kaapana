@@ -14,6 +14,10 @@ SHA256Digest = NewType("SHA256Digest", str)
 """Type alias for SHA256 digest strings in format 'sha256:<hexdigest>'."""
 
 
+def _same_origin(a: httpx.URL, b: httpx.URL) -> bool:
+    return (a.scheme, a.host, a.port) == (b.scheme, b.host, b.port)
+
+
 class OCIError(Exception):
     """OCI registry error with the error code from the OCI Distribution Spec.
 
@@ -104,8 +108,9 @@ class OCIRegistryDiscovery:
             username: Optional username for basic authentication.
             password: Optional password for basic authentication.
             client_options: Options forwarded to :class:`httpx.AsyncClient`
-                (e.g. ``{"timeout": 60.0, "verify": False}``). A ``cookies``
-                entry is not accepted because the client never keeps cookies.
+                (e.g. ``{"timeout": 60.0, "verify": False}``). ``cookies`` and
+                ``follow_redirects`` entries are not accepted because the client
+                never keeps cookies and always follows redirects.
             finalize_timeout: Read timeout in seconds for the request that closes a
                 blob upload. That request returns only after the registry has stored
                 the whole blob, so it can take much longer than any other request.
@@ -129,7 +134,10 @@ class OCIRegistryDiscovery:
         jar = http.cookiejar.CookieJar(
             policy=http.cookiejar.DefaultCookiePolicy(allowed_domains=[])
         )
-        self._client = httpx.AsyncClient(**self._client_options, cookies=jar)
+        # Registries may redirect any request. httpx drops Authorization when a redirect leaves the origin.
+        self._client = httpx.AsyncClient(
+            **self._client_options, cookies=jar, follow_redirects=True
+        )
         return self
 
     async def __aexit__(self, *args: Any) -> None:
@@ -200,11 +208,21 @@ class OCIRegistryDiscovery:
         Raises:
             OCIError: On any non-2xx response.
         """
+        # Registry credentials go only to the registry's own origin, never to a
+        # redirect target, upload location or link on another host.
+        registry = httpx.URL(self.registry_url)
+        on_registry = _same_origin(httpx.URL(url), registry)
         headers = kwargs.pop("headers", {})
-        headers.update(self._auth_headers())
+        if on_registry:
+            headers.update(self._auth_headers())
         response = await self._client.request(method, url, headers=headers, **kwargs)
 
-        if response.status_code == 401 and "WWW-Authenticate" in response.headers:
+        if (
+            response.status_code == 401
+            and "WWW-Authenticate" in response.headers
+            and on_registry
+            and _same_origin(response.url, registry)
+        ):
             token = await self._get_bearer_token(response.headers["WWW-Authenticate"])
             self.bearer_token = token
             headers["Authorization"] = f"Bearer {token}"

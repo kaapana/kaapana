@@ -1,3 +1,4 @@
+import hashlib
 import json
 import httpx
 import pytest
@@ -287,3 +288,139 @@ class TestCookies:
         with pytest.raises(TypeError):
             async with client:
                 pass
+
+
+# ---------------------------------------------------------------------------
+# redirects
+# ---------------------------------------------------------------------------
+
+
+def _redirecting_blob_handler(
+    seen: list[httpx.Request], blobs: dict[str, bytes], manifest: dict
+):
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        path = request.url.path
+        if request.url.host == "storage.example.com":
+            return httpx.Response(200, content=blobs[path.rsplit("/", 1)[-1]])
+        if "/manifests/" in path:
+            return httpx.Response(200, json=manifest)
+        if "/blobs/" in path:
+            digest = path.rsplit("/", 1)[-1]
+            return httpx.Response(
+                307, headers={"location": f"https://storage.example.com/{digest}"}
+            )
+        return httpx.Response(404)
+
+    return handler
+
+
+class TestRedirects:
+    async def test_follows_blob_redirect_without_forwarding_credentials(self, tmp_path):
+        payload = b"file content"
+        payload_digest = "sha256:" + hashlib.sha256(payload).hexdigest()
+        config = json.dumps(
+            {"files": [{"filename": "a.bin", "digest": payload_digest}]}
+        ).encode()
+        config_digest = "sha256:" + hashlib.sha256(config).hexdigest()
+        manifest = {
+            "schemaVersion": 2,
+            "config": {"digest": config_digest},
+            "layers": [],
+        }
+        seen: list[httpx.Request] = []
+        client = OCIRegistryDiscovery(
+            "https://registry.example.com",
+            "user/repo",
+            username="user",
+            password="pass",
+            client_options={
+                "transport": httpx.MockTransport(
+                    _redirecting_blob_handler(
+                        seen, {config_digest: config, payload_digest: payload}, manifest
+                    )
+                )
+            },
+        )
+
+        async with client:
+            assert await client.download_files("v1", str(tmp_path)) is True
+
+        assert (tmp_path / "a.bin").read_bytes() == payload
+        storage = [r for r in seen if r.url.host == "storage.example.com"]
+        registry = [r for r in seen if r.url.host == "registry.example.com"]
+        assert len(storage) == 2
+        assert all("authorization" not in r.headers for r in storage)
+        assert all(r.headers["authorization"].startswith("Basic ") for r in registry)
+
+    @pytest.mark.parametrize(
+        "target",
+        [
+            "https://storage.example.com/blob",
+            "https://registry.example.com:8443/blob",
+            "http://registry.example.com/blob",
+        ],
+    )
+    async def test_challenge_from_redirect_target_gets_no_credentials(self, target):
+        seen: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen.append(request)
+            if str(request.url) == target:
+                return httpx.Response(
+                    401,
+                    headers={
+                        "www-authenticate": 'Bearer realm="https://evil.example.com/token",service="evil"'
+                    },
+                )
+            return httpx.Response(307, headers={"location": target})
+
+        client = OCIRegistryDiscovery(
+            "https://registry.example.com",
+            "user/repo",
+            username="user",
+            password="pass",
+            client_options={"transport": httpx.MockTransport(handler)},
+        )
+
+        async with client:
+            with pytest.raises(OCIError):
+                await client.list_tags()
+
+        assert [str(r.url) for r in seen][1:] == [target]
+        assert "authorization" not in seen[1].headers
+
+    async def test_follow_redirects_option_is_rejected(self):
+        client = OCIRegistryDiscovery(
+            "https://registry.example.com",
+            "user/repo",
+            client_options={"follow_redirects": False},
+        )
+
+        with pytest.raises(TypeError):
+            async with client:
+                pass
+
+    async def test_token_request_follows_redirects(self):
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/token":
+                return httpx.Response(307, headers={"location": "/token2"})
+            if request.url.path == "/token2":
+                return httpx.Response(200, json={"token": "t"})
+            if request.headers.get("authorization") == "Bearer t":
+                return httpx.Response(200, json={"tags": ["v1"]})
+            return httpx.Response(
+                401,
+                headers={
+                    "www-authenticate": 'Bearer realm="https://registry.example.com/token",service="registry.example.com"'
+                },
+            )
+
+        client = OCIRegistryDiscovery(
+            "https://registry.example.com",
+            "user/repo",
+            client_options={"transport": httpx.MockTransport(handler)},
+        )
+
+        async with client:
+            assert await client.list_tags() == ["v1"]

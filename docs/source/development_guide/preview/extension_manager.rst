@@ -37,9 +37,14 @@ Manager uses the registry credentials of the deployment to access it.
   ``kaapanactl.sh --plain-http``, it uses HTTP.
 - The default repository does not work if the registry is called ``localhost``
   or ``127.0.0.1``, for example ``localhost:5000``. Inside the pod of the
-  Extension Manager, ``localhost`` is the pod itself and not the server. Use a
-  registry address that is reachable from inside the cluster, for example the
-  IP address or the hostname of the server.
+  Extension Manager, ``localhost`` is the pod itself and not the server. Build
+  the platform with ``--default-registry "<node-ip>:5000"``, where ``<node-ip>``
+  is the IP address of the server. A hostname that the cluster resolves to the
+  server works as well.
+- A local Docker registry on the same server as the cluster must run on the
+  host network (``docker run --network host``). On a MicroK8s server, pods could
+  not reach a registry that Docker published with ``-p 5000:5000`` on the IP
+  address of the server. See :ref:`Build With Local Registry <build>`.
 - In offline mode, no default repository is registered.
 
 

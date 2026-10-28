@@ -30,6 +30,8 @@ dependencies:
     version: 0.0.0
   - name: nnunet-workflow
     version: 0.0.0
+  - name: nnunetv2-workflow
+    version: 0.0.0
   - name: nnunet-federated-workflow
     version: 0.0.0
   - name: radiomics-workflow

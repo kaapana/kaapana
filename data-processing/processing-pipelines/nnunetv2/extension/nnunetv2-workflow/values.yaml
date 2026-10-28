@@ -1,0 +1,4 @@
+---
+global:
+  image: "dag-nnunetv2"
+  action: "copy"

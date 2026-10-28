@@ -9,4 +9,4 @@ keywords:
 - gpurequired
 annotations:
   documentation: "user_guide/extensions.html#nnunet-predict"
-  ui-visible-name: "nnUNet"
+  ui-visible-name: "nnUNet (legacy, used by nnunet-federated)"

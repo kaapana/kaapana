@@ -1,0 +1,12 @@
+---
+apiVersion: v1
+appVersion: "0.1.0"
+description: "nnU-Net v2: create datasets, plan, preprocess and train, each as its own workflow; data and models live in MinIO"
+name: nnunetv2-workflow
+version: "0.0.0"
+keywords:
+- kaapanaworkflow
+- gpurequired
+annotations:
+  documentation: "user_guide/extensions/nnunet.html"
+  ui-visible-name: "nnU-Net"

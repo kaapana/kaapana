@@ -165,7 +165,20 @@ For more information, check out their `repository <https://github.com/UMEssen/Bo
    - The DICOM SEG file is uploaded to the PACS.
    - All other output files are uploaded to MinIO at :code:`<project-bucket>/body-and-organ-analysis/<dicom-series-uid>`.
 
+nnU-Net (nnunetv2-...)
+----------------------
+Creating datasets, planning, preprocessing, training, finding the best configuration and predicting with nnU-Net,
+including finetuning from the nnFoundation models. See :ref:`extensions_nnunetv2`.
+
+.. toctree::
+   :hidden:
+
+   extensions/nnunet
+
 .. _extensions_nnunet:
+
+The following nnunet-... workflows belong to the older extension *nnunet-workflow*, which is kept for federated
+training (*nnunet-federated*). For everything else use :ref:`extensions_nnunetv2`.
 
 nnunet-predict
 --------------

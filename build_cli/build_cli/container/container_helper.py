@@ -91,7 +91,21 @@ class ContainerHelper:
             quiet=True,
         )
 
-        if inspect_result.returncode != 0:
+        builder_exists = inspect_result.returncode == 0
+
+        if builder_exists and cls._build_config.plain_http:
+            # A builder keeps the BuildKit config of its creation, and buildx can neither show nor change it.
+            logger.info(f"-> Recreating buildx builder {BUILDX_BUILDER_NAME} to apply the plain-http registry setting")
+            CommandUtils.run(
+                ["docker", "buildx", "rm", BUILDX_BUILDER_NAME],
+                logger=logger,
+                timeout=30,
+                context="buildx-rm",
+                exit_on_error=cls._build_config.exit_on_error,
+            )
+            builder_exists = False
+
+        if not builder_exists:
             with tempfile.TemporaryDirectory() as tmp_dir:
                 create_command = [
                     "docker",

@@ -287,7 +287,28 @@ class ContainerHelper:
             timeout=10,
             context="registry-login",
             exit_on_error=cls._build_config.exit_on_error,
+            hints=cls._insecure_registry_hints(registry),
         )
+
+    @classmethod
+    def _insecure_registry_hints(cls, registry: str) -> list:
+        """
+        Explain the insecure registry setting of the container engine.
+
+        The login fails with the message "server gave HTTP response to HTTPS
+        client", which does not name the cause. The engine must list the
+        registry as insecure. This tool cannot set it, because it needs root
+        rights and a restart of the engine.
+        """
+        if not cls._build_config.plain_http:
+            return []
+
+        return [
+            f'With --plain-http, the engine must list "{cls._registry_host(registry)}" as an insecure registry.',
+            'Docker Engine: add it to "insecure-registries" in /etc/docker/daemon.json and restart Docker.',
+            "Snap, rootless and Docker Desktop use another place. Podman uses /etc/containers/registries.conf.",
+            'See the section "Using a plain HTTP registry" in the build documentation.',
+        ]
 
     @classmethod
     def login_cache_registries(cls):

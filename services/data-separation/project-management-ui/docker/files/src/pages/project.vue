@@ -1,128 +1,212 @@
 <template>
-  <v-snackbar v-model="isSnackbarVisible" :timeout="3000" location="top" :color="snackbarColor" elevation="2" closable>
-    {{ snackbarMessage }}
-  </v-snackbar>
+  <v-container fluid class="pm-view">
+    <div class="d-flex justify-space-between mb-2">
+      <v-btn variant="text" :prepend-icon="projectIcons.back" @click="goToProjectsList">
+        Projects
+      </v-btn>
+      <v-btn variant="text" :prepend-icon="kaapanaIcons.refresh" @click="refresh">Refresh</v-btn>
+    </div>
 
-  <v-container max-width="1200" class="bg-surface rounded-lg mt-2">
-
-    <!-- ── Back navigation ──────────────────────────────────────── -->
-    <v-row no-gutters class="mb-2" justify="space-between">
-      <v-col cols="auto">
-        <v-btn size="x-small" variant="outlined" prepend-icon="mdi-arrow-left" @click="goToProjectsList">
-          Projects
-        </v-btn>
-      </v-col>
-      <v-col cols="auto">
-        <v-btn size="x-small" variant="outlined" prepend-icon="mdi-refresh" @click="refresh">
-          Refresh
-        </v-btn>
-      </v-col>
-    </v-row>
-
-    <!-- ── Project header card ──────────────────────────────────── -->
     <v-row>
       <v-col>
-        <v-sheet class="pa-4 rounded-lg" border>
-          <div class="d-flex align-center justify-space-between mb-3">
-            <div v-if="project" class="d-flex align-center ga-3">
-              <v-icon icon="mdi-folder-multiple" color="primary" size="large" />
-              <div>
-                <div class="d-flex align-center ga-2">
-                  <span class="text-h5 font-weight-bold" style="font-family: monospace">{{ project.name }}</span>
-                  <v-chip v-if="project.is_archived" color="warning" size="small">Archived</v-chip>
-                </div>
-                <div v-if="project.external_id" class="text-caption text-medium-emphasis" style="font-family: monospace">
-                  {{ project.external_id }}
-                </div>
-              </div>
+        <div class="d-flex align-start justify-space-between mb-3">
+          <div v-if="project">
+            <div class="d-flex align-center ga-2">
+              <h1 class="text-h4">{{ project.name }}</h1>
+              <v-chip v-if="project.is_archived" color="warning" size="small">Archived</v-chip>
             </div>
-            <v-skeleton-loader v-else :loading="!project" type="heading" width="200" />
-            <div v-if="userHasAdminAccess && project?.name !== 'admin'" class="d-flex ga-1">
-              <v-btn icon="mdi-pencil" size="default" variant="text" @click="openEditDialog" />
-              <v-btn v-if="!project?.is_archived" icon="mdi-archive-arrow-down" size="default" variant="text" color="warning" @click="archiveDialog = true" />
-              <v-btn v-if="project?.is_archived" icon="mdi-archive-arrow-up" size="default" variant="text" color="success" @click="unarchiveProject" />
-              <v-btn icon="mdi-trash-can" size="default" variant="text" color="error" @click="openDeleteDialog" />
+            <div v-if="project.external_id" class="text-caption text-medium-emphasis">
+              {{ project.external_id }}
             </div>
           </div>
-          <v-alert v-if="project?.is_archived" type="warning" density="compact" variant="tonal" class="mb-3">
-            This project is archived and read-only. Unarchive it to make changes.
-          </v-alert>
-          <v-sheet v-if="project?.description" class="pa-3 rounded mt-2" border>
-            <div class="text-caption text-medium-emphasis mb-1">Description</div>
-            <div class="text-body-2">{{ project.description }}</div>
-          </v-sheet>
-        </v-sheet>
+          <v-skeleton-loader v-else-if="!loadError" type="heading" width="200" />
+          <div v-if="userHasAdminAccess && project?.name !== 'admin'" class="d-flex ga-1">
+            <v-tooltip v-if="!project?.is_archived" text="Edit project" location="top">
+              <template #activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  :icon="kaapanaIcons.edit"
+                  aria-label="Edit project"
+                  :disabled="busy !== null"
+                  size="default"
+                  variant="text"
+                  color="primary"
+                  @click="openEditDialog"
+                />
+              </template>
+            </v-tooltip>
+            <v-tooltip v-if="!project?.is_archived" text="Archive project" location="top">
+              <template #activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  :icon="projectIcons.archive"
+                  aria-label="Archive project"
+                  :loading="busy === 'archive'"
+                  :disabled="busy !== null"
+                  size="default"
+                  variant="text"
+                  color="primary"
+                  @click="openArchiveDialog"
+                />
+              </template>
+            </v-tooltip>
+            <v-tooltip v-if="project?.is_archived" text="Unarchive project" location="top">
+              <template #activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  :icon="projectIcons.unarchive"
+                  aria-label="Unarchive project"
+                  :loading="busy === 'unarchive'"
+                  :disabled="busy !== null"
+                  size="default"
+                  variant="text"
+                  color="primary"
+                  @click="unarchiveProject"
+                />
+              </template>
+            </v-tooltip>
+            <v-tooltip text="Delete project" location="top">
+              <template #activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  :icon="kaapanaIcons.delete"
+                  aria-label="Delete project"
+                  :loading="busy === 'delete'"
+                  :disabled="busy !== null"
+                  size="default"
+                  variant="text"
+                  color="error"
+                  @click="openDeleteDialog"
+                />
+              </template>
+            </v-tooltip>
+          </div>
+        </div>
+        <FailureAlert
+          v-if="loadError"
+          title="Project not loaded"
+          text="Could not load this project."
+          :error="loadError"
+          :retry="loadProject"
+        />
+        <v-alert
+          v-if="project?.is_archived"
+          type="warning"
+          density="compact"
+          variant="tonal"
+          class="mb-3"
+        >
+          This project is archived: its details, members and allowed workflows cannot be changed.
+          Unarchive it to make changes.
+        </v-alert>
+        <p v-if="project?.description" class="text-body-1 text-medium-emphasis">
+          {{ project.description }}
+        </p>
       </v-col>
     </v-row>
 
-    <!-- ── Project Users ────────────────────────────────────────── -->
-    <v-row>
-      <ProjectUsers :key="`users-${refreshKey}`" :project="project" :expanded="isUsersSectionExpanded" @toggle="isUsersSectionExpanded = $event" />
-    </v-row>
+    <template v-if="project">
+      <!-- ── Project Users ────────────────────────────────────────── -->
+      <v-row>
+        <ProjectUsers :key="`users-${refreshKey}`" :project="project" :expanded="isUsersSectionExpanded" @toggle="isUsersSectionExpanded = $event" />
+      </v-row>
 
-    <v-divider class="my-4" />
-
-    <!-- ── Executable Workflows ─────────────────────────────────── -->
-    <v-row>
-      <ProjectWorkflows :key="`workflows-${refreshKey}`" :project="project" :expanded="isWorkflowsSectionExpanded"
-        @toggle="isWorkflowsSectionExpanded = $event" />
-    </v-row>
-
-    <template v-if="userHasAdminAccess || can(project?.id, 'view_applications')">
       <v-divider class="my-4" />
 
-      <!-- ── Multiinstallable Applications ────────────────────────── -->
+      <!-- ── Executable Workflows ─────────────────────────────────── -->
       <v-row>
-        <MultiinstallableApplications :key="`apps-${refreshKey}`" :project="project" :expanded="isAppsSectionExpanded"
-          @toggle="isAppsSectionExpanded = $event" />
+        <ProjectWorkflows :key="`workflows-${refreshKey}`" :project="project" :expanded="isWorkflowsSectionExpanded"
+          @toggle="isWorkflowsSectionExpanded = $event" />
       </v-row>
-    </template>
 
-    <template v-if="userHasAdminAccess || can(project?.id, 'view_active_apps')">
+      <template v-if="can(project?.id, 'view_applications')">
+        <v-divider class="my-4" />
+
+        <!-- ── Multiinstallable Applications ────────────────────────── -->
+        <v-row>
+          <MultiinstallableApplications
+            :key="`apps-${refreshKey}`"
+            :project="project"
+            :expanded="isAppsSectionExpanded"
+            @toggle="isAppsSectionExpanded = $event"
+            @launched="activeAppsKey++"
+          />
+        </v-row>
+      </template>
+
+      <template v-if="can(project?.id, 'view_active_apps')">
+        <v-divider class="my-4" />
+
+        <!-- ── Active Project Applications ──────────────────────────── -->
+        <v-row>
+          <ActiveProjectApplications
+            :key="`active-${refreshKey}-${activeAppsKey}`"
+            :project="project"
+            :expanded="isActiveAppsSectionExpanded"
+            @toggle="isActiveAppsSectionExpanded = $event"
+            :busy-release="uninstallingRelease"
+            @confirm-uninstall="confirmAppUninstall"
+          />
+        </v-row>
+      </template>
+
       <v-divider class="my-4" />
-
-      <!-- ── Active Project Applications ──────────────────────────── -->
-      <v-row>
-        <ActiveProjectApplications :key="`active-${refreshKey}`" :project="project" :expanded="isActiveAppsSectionExpanded"
-          @toggle="isActiveAppsSectionExpanded = $event" @confirm-uninstall="confirmAppUninstall" />
-      </v-row>
     </template>
-
-    <v-divider class="my-4" />
 
     <!-- ── Dialogs ───────────────────────────────────────────────── -->
-    <v-dialog v-model="deleteDialog" max-width="500">
-      <DeleteProjectDialog v-if="project" :project="project"
-        @confirm="handleDeleteConfirm" @cancel="deleteDialog = false" />
-    </v-dialog>
+    <GuardedDialog
+      v-slot="{ requestClose }"
+      v-model="editDialog"
+      :dirty="editDirty"
+      max-width="600"
+    >
+      <EditProjectDialog
+        v-if="editDialog && project"
+        :project="project"
+        @success="handleEditSuccess"
+        @cancel="requestClose"
+        @update:dirty="editDirty = $event"
+      />
+    </GuardedDialog>
 
-    <v-dialog v-model="editDialog" max-width="600">
-      <EditProjectDialog v-if="project" :project="project"
-        @success="handleEditSuccess" @cancel="editDialog = false" @error="handleEditError" />
-    </v-dialog>
-
-    <v-dialog v-model="archiveDialog" max-width="560">
-      <ArchiveProjectDialog v-if="project" :project="project"
-        @confirm="confirmArchive" @cancel="archiveDialog = false" />
-    </v-dialog>
-
+    <ConfirmDialog
+      v-model="confirmOpen"
+      :color="confirmation.color"
+      :title="confirmation.title"
+      :text="confirmation.text"
+      :confirm-text="confirmation.confirmText"
+      @confirm="runConfirmed"
+    />
   </v-container>
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
-import { aiiApiGet, aiiApiPost, aiiApiDelete, kubeHelmPost, setScopedProject } from '@/common/services';
-import { ProjectItem } from '@/common/types';
-import ProjectUsers from '@/components/ProjectUsers.vue';
-import ProjectWorkflows from '@/components/ProjectWorkflows.vue';
-import MultiinstallableApplications from '@/components/MultiinstallableApplications.vue';
-import ActiveProjectApplications from '@/components/ActiveProjectApplications.vue';
-import DeleteProjectDialog from '@/components/DeleteProjectDialog.vue';
-import EditProjectDialog from '@/components/EditProjectDialog.vue';
-import ArchiveProjectDialog from '@/components/ArchiveProjectDialog.vue';
-import { usePermissions } from '@/permissions/usePermissions';
-import { usePermissionsStore } from '@/permissions/permissions.store';
-import { isAdminUser, waitForStoreUser } from '@/common/userAccess';
+import { kaapanaIcons, projectIcons } from '@/utils/projectIcons'
+import { defineComponent } from 'vue'
+import {
+  aiiApiGet,
+  aiiApiPost,
+  aiiApiDelete,
+  kubeHelmPost,
+  setScopedProject,
+} from '@/common/services'
+import { ProjectItem } from '@/common/types'
+import ProjectUsers from '@/components/ProjectUsers.vue'
+import ProjectWorkflows from '@/components/ProjectWorkflows.vue'
+import MultiinstallableApplications from '@/components/MultiinstallableApplications.vue'
+import ActiveProjectApplications from '@/components/ActiveProjectApplications.vue'
+import EditProjectDialog from '@/components/EditProjectDialog.vue'
+import FailureAlert from '@/components/FailureAlert.vue'
+import GuardedDialog from '@/components/GuardedDialog.vue'
+import { ConfirmDialog, refreshShell } from '@kaapana/base-ui'
+import { notify } from '@kyvg/vue3-notification'
+import { notifyFailure } from '@/utils/notifyFailure'
+import { useConfirmation } from '@/composables/useConfirmation'
+import { confirmDiscard } from '@/composables/useDiscardConfirmation'
+import { archiveProjectConfirmation, deleteProjectConfirmation } from '@/utils/projectConfirmations'
+import { usePermissions } from '@/permissions/usePermissions'
+import { usePermissionsStore } from '@/permissions/permissions.store'
+import { isAdminUser, waitForStoreUser } from '@/common/userAccess'
 
 export default defineComponent({
   components: {
@@ -130,14 +214,16 @@ export default defineComponent({
     ProjectWorkflows,
     MultiinstallableApplications,
     ActiveProjectApplications,
-    DeleteProjectDialog,
     EditProjectDialog,
-    ArchiveProjectDialog,
+    FailureAlert,
+    ConfirmDialog,
+    GuardedDialog,
   },
 
   setup() {
-    const { can } = usePermissions();
-    return { can };
+    const { can } = usePermissions()
+    const { confirmOpen, confirmation, ask, runConfirmed } = useConfirmation()
+    return { kaapanaIcons, projectIcons, can, confirmOpen, confirmation, ask, runConfirmed }
   },
 
   data() {
@@ -153,15 +239,15 @@ export default defineComponent({
       isActiveAppsSectionExpanded: false,
 
       refreshKey: 0,
+      activeAppsKey: 0,
+      loadError: null as unknown,
 
-      deleteDialog: false,
+      busy: null as 'delete' | 'archive' | 'unarchive' | null,
+      uninstallingRelease: null as string | null,
+
       editDialog: false,
-      archiveDialog: false,
-
-      isSnackbarVisible: false,
-      snackbarMessage: '',
-      snackbarColor: 'info',
-    };
+      editDirty: false,
+    }
   },
 
   mounted() {
@@ -183,91 +269,116 @@ export default defineComponent({
   },
 
   methods: {
-    notify(message: string, color = 'info'): void {
-      this.snackbarMessage = message;
-      this.snackbarColor = color;
-      this.isSnackbarVisible = true;
-    },
-
     goToProjectsList(): void {
       this.$router.push('/');
     },
 
     async refresh(): Promise<void> {
-      await this.loadProject({ silent: true });
-      this.refreshKey++;
+      // Remounting the sections drops their staged changes.
+      if (!(await confirmDiscard())) return
+      await this.loadProject()
+      this.refreshKey++
     },
 
-    async loadProject({ silent = false } = {}): Promise<void> {
-      if (!this.projectId) return;
+    async loadProject(): Promise<void> {
+      if (!this.projectId) return
+      this.loadError = null
       try {
-        const project: ProjectItem = await aiiApiGet(`projects/${this.projectId}`);
-        this.project = project;
-        setScopedProject(project);
-        if (!silent) {
-          this.notify(`Selected project: ${project.name}.`, 'success');
-        }
-        usePermissionsStore().loadProjectWhitelist(this.projectId);
+        const project: ProjectItem = await aiiApiGet(`projects/${this.projectId}`)
+        this.project = project
+        setScopedProject(project)
+        // Only narrows which application actions are offered; kube-helm checks the
+        // whitelist itself, and the application section reports its own load failure.
+        usePermissionsStore()
+          .loadProjectWhitelist(this.projectId)
+          .catch(() => undefined)
       } catch (error) {
-        console.error('Failed to load project:', error);
+        this.loadError = error
       }
     },
 
     async confirmAppUninstall(app: any): Promise<void> {
+      this.uninstallingRelease = app.release_name
       try {
-        await kubeHelmPost('helm-delete-chart', { release_name: app.release_name });
-        this.notify(`Application "${app.release_name}" uninstalled successfully.`, 'success');
-        await this.refresh();
-      } catch (error: any) {
-        console.error('Failed to uninstall application:', error);
-        const detail = error?.response?.data?.detail ?? error?.message ?? 'Unknown error';
-        this.notify(`Failed to uninstall "${app.release_name}": ${detail}`, 'error');
+        await kubeHelmPost('helm-delete-chart', { release_name: app.release_name })
+        notify({
+          type: 'success',
+          text: `${app.annotations['kaapana.ai/display-name']} is being removed.`,
+        })
+        this.activeAppsKey++
+      } catch (error: unknown) {
+        notifyFailure(
+          'Application not uninstalled',
+          `Could not uninstall ${app.annotations['kaapana.ai/display-name']}.`,
+          error,
+        )
+      } finally {
+        this.uninstallingRelease = null
       }
     },
 
     openEditDialog(): void { this.editDialog = true; },
 
     async handleEditSuccess(): Promise<void> {
-      this.editDialog = false;
-      await this.loadProject();
-      this.notify('Project updated successfully.', 'success');
+      this.editDialog = false
+      refreshShell()
+      await this.loadProject()
+      notify({ type: 'success', text: 'Project updated.' })
     },
 
-    handleEditError(msg: string): void { this.notify(msg, 'error'); },
+    openDeleteDialog(): void {
+      if (!this.project) return
+      this.ask(deleteProjectConfirmation(this.project, () => this.deleteProject()))
+    },
 
-    openDeleteDialog(): void { this.deleteDialog = true; },
-
-    async handleDeleteConfirm(): Promise<void> {
-      this.deleteDialog = false;
+    async deleteProject(): Promise<void> {
+      this.busy = 'delete'
       try {
-        await aiiApiDelete(`projects/${this.projectId}`);
-        this.$router.push('/');
+        await aiiApiDelete(`projects/${this.projectId}`)
+        refreshShell()
+        this.$router.push('/')
+        notify({ type: 'success', text: `Project "${this.project?.name}" deleted.` })
       } catch (error) {
-        console.error(error);
-        this.notify('Failed to delete project.', 'error');
+        notifyFailure('Project not deleted', `Could not delete "${this.project?.name}".`, error)
+      } finally {
+        this.busy = null
       }
     },
 
-    async confirmArchive(): Promise<void> {
-      this.archiveDialog = false;
+    openArchiveDialog(): void {
+      if (!this.project) return
+      this.ask(archiveProjectConfirmation(this.project, () => this.archiveProject()))
+    },
+
+    async archiveProject(): Promise<void> {
+      this.busy = 'archive'
       try {
-        await aiiApiPost(`projects/${this.projectId}/archive`, {});
-        await this.loadProject();
-        this.notify(`Project "${this.project?.name}" archived.`, 'success');
+        await aiiApiPost(`projects/${this.projectId}/archive`, {})
+        refreshShell()
+        await this.loadProject()
+        notify({ type: 'success', text: `Project "${this.project?.name}" archived.` })
       } catch (error) {
-        console.error(error);
-        this.notify('Failed to archive project.', 'error');
+        notifyFailure('Project not archived', `Could not archive "${this.project?.name}".`, error)
+      } finally {
+        this.busy = null
       }
     },
 
     async unarchiveProject(): Promise<void> {
+      this.busy = 'unarchive'
       try {
-        await aiiApiPost(`projects/${this.projectId}/unarchive`, {});
-        await this.loadProject();
-        this.notify(`Project "${this.project?.name}" unarchived.`, 'success');
+        await aiiApiPost(`projects/${this.projectId}/unarchive`, {})
+        refreshShell()
+        await this.loadProject()
+        notify({ type: 'success', text: `Project "${this.project?.name}" unarchived.` })
       } catch (error) {
-        console.error(error);
-        this.notify('Failed to unarchive project.', 'error');
+        notifyFailure(
+          'Project not unarchived',
+          `Could not unarchive "${this.project?.name}".`,
+          error,
+        )
+      } finally {
+        this.busy = null
       }
     },
 

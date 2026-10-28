@@ -4,7 +4,7 @@
         <SectionHeader :expanded="props.expanded" @toggle="emit('toggle', $event)">
             <!-- LEFT TITLE -->
             <template #title>
-                Project Users
+                Project members
             </template>
 
             <!-- OPTIONAL CHIP -->
@@ -21,12 +21,19 @@
                 <v-tooltip v-if="isAdmin" location="top">
                     <template #activator="{ props }">
                         <div class="d-flex align-center ga-2" v-bind="props">
+                            <v-icon
+                                :color="showSystemUsers ? 'primary' : 'medium-emphasis'"
+                                :icon="projectIcons.systemUsers"
+                            />
 
-                            <v-icon :color="showSystemUsers ? 'primary' : 'text'">
-                                mdi-account-cog
-                            </v-icon>
-
-                            <v-switch v-model="showSystemUsers" hide-details inset density="compact" color="primary" />
+                            <v-switch
+                                v-model="showSystemUsers"
+                                aria-label="Show system users"
+                                hide-details
+                                inset
+                                density="compact"
+                                color="primary"
+                            />
                         </div>
                     </template>
 
@@ -34,9 +41,14 @@
                 </v-tooltip>
 
                 <!-- add button -->
-                <v-btn v-if="can(project?.id, 'manage_users')" @click.stop="openAddUserDialog" size="large" variant="tonal">
-                    <template #prepend><v-icon color="primary">mdi-account-plus</v-icon></template>
-                    Add User
+                <v-btn
+                    v-if="can(project?.id, 'manage_users')"
+                    :disabled="readOnly"
+                    color="primary"
+                    :prepend-icon="projectIcons.addUser"
+                    @click.stop="openAddUserDialog"
+                >
+                    Add members
                 </v-btn>
 
             </template>
@@ -46,142 +58,163 @@
         <v-expand-transition>
             <div v-if="props.expanded">
                 <!-- search -->
-                <SearchBar v-model="search" placeholder="Search users..." />
-                <!-- Loading skeleton -->
-                <v-skeleton-loader v-if="isLoadingUsers" type="table" class="mt-4" />
+                <SearchBar v-model="search" label="Search members" />
+                <FailureAlert
+                    v-if="loadError"
+                    title="Members not loaded"
+                    text="Could not load the members of this project."
+                    :error="loadError"
+                    :retry="loadProjectUsers"
+                />
 
                 <!-- User table -->
-                <v-data-table v-else-if="filteredUsers.length > 0" :headers="tableHeaders" :items="filteredUsers"
-                    :sort-by="[{ key: 'username', order: 'asc' }]" multi-sort class="mt-4">
-
+                <v-data-table
+                    v-else
+                    :loading="isLoadingUsers"
+                    loading-text="Loading members…"
+                    :items-per-page="-1"
+                    hide-default-footer
+                    :headers="tableHeaders"
+                    :items="filteredUsers"
+                    :sort-by="[{ key: 'username', order: 'asc' }]"
+                    multi-sort
+                    class="mt-4"
+                >
                     <template #item.icon>
-                        <td>
-                            <v-icon>mdi-account-circle</v-icon>
-                        </td>
-                    </template>
-
-                    <template #item.username="{ item }">
-                        <td><span style="font-family: monospace">{{ item.username }}</span></td>
-                    </template>
-
-                    <template #item.first_name="{ item }">
-                        <td>{{ item.first_name }}</td>
-                    </template>
-
-                    <template #item.last_name="{ item }">
-                        <td>{{ item.last_name }}</td>
-                    </template>
-
-                    <template #item.email="{ item }">
-                        <td>{{ item.email }}</td>
+                        <v-icon :icon="kaapanaIcons.account" />
                     </template>
 
                     <template #item.role="{ item }">
-                        <td>
-                            <v-tooltip location="top">
-                                <template #activator="{ props }">
-                                    <span v-bind="props">{{ item.role?.name }}</span>
-                                </template>
+                        <v-tooltip location="top">
+                            <template #activator="{ props }">
+                                <span v-bind="props">{{ item.role?.name }}</span>
+                            </template>
 
-                                <span v-if="item.role?.name === 'principal-investigator'">
-                                    Principal Investigator: Has full access and control over the project.
-                                </span>
-
-                                <span v-else-if="item.role?.name === 'scientist'">
-                                    Scientist: Can use approved software for research purposes.
-                                </span>
-
-                                <span v-else>
-                                    {{ item.role?.name }}
-                                </span>
-                            </v-tooltip>
-                        </td>
+                            <span>{{ item.role?.description || item.role?.name }}</span>
+                        </v-tooltip>
                     </template>
 
                     <template #item.actions="{ item }">
-                        <td class="text-center">
-                            <div class="d-flex justify-center gap-1">
-                                <v-btn @click="openEditUserDialog(item)" icon="mdi-link-edit" color="primary" variant="text"
-                                    :disabled="!can(project?.id, 'manage_users')" />
-                                <v-btn @click="onRemoveUser(item)" icon="mdi-trash-can" color="error" variant="text"
-                                    :disabled="!can(project?.id, 'manage_users')" />
-                            </div>
-                        </td>
+                        <div class="d-flex justify-center ga-1">
+                            <v-tooltip text="Change role" location="top">
+                                <template #activator="{ props }">
+                                    <v-btn
+                                        v-bind="props"
+                                        @click="openEditUserDialog(item)"
+                                        :icon="projectIcons.editRole"
+                                        :aria-label="`Change role of ${item.username}`"
+                                        color="primary"
+                                        variant="text"
+                                        :disabled="removingUserId !== null || readOnly"
+                                    />
+                                </template>
+                            </v-tooltip>
+                            <v-tooltip text="Remove from project" location="top">
+                                <template #activator="{ props }">
+                                    <v-btn
+                                        v-bind="props"
+                                        @click="onRemoveUser(item)"
+                                        :icon="kaapanaIcons.delete"
+                                        :aria-label="`Remove ${item.username} from the project`"
+                                        :loading="removingUserId === item.id"
+                                        color="error"
+                                        variant="text"
+                                        :disabled="removingUserId !== null || readOnly"
+                                    />
+                                </template>
+                            </v-tooltip>
+                        </div>
+                    </template>
+                    <template #no-data>
+                        <ListEmptyState
+                            :search="search.trim()"
+                            noun="members"
+                            title="No members yet"
+                            text="Add users to give them access to this project."
+                            @clear-search="search = ''"
+                        >
+                            <template v-if="can(project?.id, 'manage_users')" #actions>
+                                <v-btn
+                                    :disabled="readOnly"
+                                    color="primary"
+                                    variant="text"
+                                    :prepend-icon="projectIcons.addUser"
+                                    @click="openAddUserDialog"
+                                >
+                                    Add members
+                                </v-btn>
+                            </template>
+                        </ListEmptyState>
                     </template>
                 </v-data-table>
-
-                <!-- Empty state -->
-                <v-sheet rounded v-else class="mt-4">
-                    <v-container>
-                        <v-row align="center" justify="center" no-gutters>
-                            <v-icon icon="mdi-information" size="x-large" class="large-font"></v-icon>
-                        </v-row>
-                        <v-row align="center" justify="center" no-gutters class="py-6">
-                            <div class="text-subtitle-1 font-weight-light text-center">
-                                No User found under this Project. Click the following button to Add new user.
-                            </div>
-                        </v-row>
-                        <v-row align="center" justify="center" no-gutters>
-                            <v-btn @click="openAddUserDialog" size="large" variant="tonal" v-if="can(project?.id, 'manage_users')">
-                                <template #prepend><v-icon color="primary">mdi-account-plus</v-icon></template>
-                                Add user to project "{{ project?.name }}"
-                            </v-btn>
-                        </v-row>
-                    </v-container>
-                </v-sheet>
-
             </div>
         </v-expand-transition>
 
         <!-- ── Add users dialog ────────────────────────────────────── -->
-        <v-dialog v-model="isAddDialogOpen" max-width="640" scrollable>
-            <AddUserToProject v-if="isAddDialogOpen" :project="project" action-type="add"
-                :existing-user-ids="users.map(u => u.id)" @cancel="closeAddDialog" @success="onUserOperationSuccess"
-                @users-added="onUsersAdded" @users-add-failed="onUsersAddFailed" />
-        </v-dialog>
+        <GuardedDialog
+            v-slot="{ requestClose }"
+            v-model="isAddDialogOpen"
+            :dirty="addDirty"
+            max-width="600"
+        >
+            <AddUserToProject
+                v-if="isAddDialogOpen"
+                :project="project"
+                action-type="add"
+                :existing-user-ids="users.map((u) => u.id)"
+                @cancel="requestClose"
+                @update:dirty="addDirty = $event"
+                @success="onUserOperationSuccess"
+            />
+        </GuardedDialog>
 
         <!-- ── Edit user role dialog ───────────────────────────────── -->
-        <v-dialog v-model="isEditDialogOpen" max-width="480" scrollable>
-            <AddUserToProject v-if="isEditDialogOpen && selectedUser" :project="project" action-type="update"
+        <GuardedDialog
+            v-slot="{ requestClose }"
+            v-model="isEditDialogOpen"
+            :dirty="editDirty"
+            max-width="600"
+        >
+            <AddUserToProject
+                v-if="isEditDialogOpen && selectedUser"
+                :project="project"
+                action-type="update"
                 :user-to-edit="selectedUser"
-                :existing-user-ids="users.filter(u => u.id !== selectedUser!.id).map(u => u.id)"
-                @cancel="closeEditDialog" @success="onUserOperationSuccess" @role-updated="onRoleUpdated"
-                @role-update-failed="onRoleUpdateFailed" />
-        </v-dialog>
+                :existing-user-ids="users.filter((u) => u.id !== selectedUser!.id).map((u) => u.id)"
+                @cancel="requestClose"
+                @update:dirty="editDirty = $event"
+                @success="onUserOperationSuccess"
+            />
+        </GuardedDialog>
 
-        <!-- ── Remove confirmation dialog ─────────────────────────── -->
-        <v-dialog v-model="isRemoveDialogOpen" max-width="400">
-            <v-card rounded="lg">
-                <v-card-title class="text-h6 pa-6 pb-2">Remove user from project?</v-card-title>
-                <v-card-text class="pa-6 pt-2">
-                    <span v-if="userPendingRemoval">
-                        This will remove
-                        <strong>{{ userPendingRemoval.first_name }} {{ userPendingRemoval.last_name }}</strong>
-                        (@{{ userPendingRemoval.username }}) from this project.
-                        They will lose all access immediately.
-                    </span>
-                </v-card-text>
-                <v-card-actions class="pa-4 pt-0">
-                    <v-spacer />
-                    <v-btn variant="text" @click="closeRemoveDialog">Cancel</v-btn>
-                    <v-btn color="error" variant="flat" :loading="isRemoving" @click="confirmRemoveUser">
-                        Remove
-                    </v-btn>
-                </v-card-actions>
-            </v-card>
-        </v-dialog>
-
+        <ConfirmDialog
+            v-model="confirmOpen"
+            :color="confirmation.color"
+            :title="confirmation.title"
+            :text="confirmation.text"
+            :confirm-text="confirmation.confirmText"
+            @confirm="runConfirmed"
+        />
     </v-col>
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, watch, computed } from 'vue';
-import { UserItem, UserRole } from '@/common/types';
-import { usePermissions } from '@/permissions/usePermissions';
-import { aiiApiDelete, aiiApiGet } from '@/common/services';
-import { isAdminUser, isSystemUser, waitForStoreUser } from '@/common/userAccess';
-import AddUserToProject from './AddUserToProject.vue';
-import SearchBar from '@/components/SearchBar.vue';
+import { kaapanaIcons, projectIcons } from '@/utils/projectIcons'
+import { ref, onMounted, watch, computed } from 'vue'
+import { UserItem, UserRole } from '@/common/types'
+import { usePermissions } from '@/permissions/usePermissions'
+import { aiiApiDelete, aiiApiGet } from '@/common/services'
+import { isAdminUser, isSystemUser, waitForStoreUser } from '@/common/userAccess'
+import AddUserToProject from './AddUserToProject.vue'
+import SearchBar from '@/components/SearchBar.vue'
+import SectionHeader from '@/components/SectionHeader.vue'
+import GuardedDialog from '@/components/GuardedDialog.vue'
+import ListEmptyState from '@/components/ListEmptyState.vue'
+import { ConfirmDialog } from '@kaapana/base-ui'
+import { useConfirmation } from '@/composables/useConfirmation'
+import { notify } from '@kyvg/vue3-notification'
+import { notifyFailure } from '@/utils/notifyFailure'
+import FailureAlert from '@/components/FailureAlert.vue'
 // ── Types ──────────────────────────────────────────────────────────────────
 
 interface UserWithRole extends UserItem {
@@ -189,8 +222,9 @@ interface UserWithRole extends UserItem {
 }
 
 interface ProjectRef {
-    id?: string;
-    name?: string;
+    id?: string
+    name?: string
+    is_archived?: boolean
 }
 
 // ── Props & emits ──────────────────────────────────────────────────────────
@@ -206,22 +240,24 @@ const emit = defineEmits<{
 
 // ── Permissions ────────────────────────────────────────────────────────────
 
-const { can } = usePermissions();
-
+const { can } = usePermissions()
+const readOnly = computed(() => !!props.project?.is_archived)
 
 // ── State ──────────────────────────────────────────────────────────────────
 
 const search = ref('')
-const users = ref<UserWithRole[]>([]);
-const isLoadingUsers = ref(false);
-const isRemoving = ref(false);
+const users = ref<UserWithRole[]>([])
+const isLoadingUsers = ref(false)
+const loadError = ref<unknown>(null)
+const removingUserId = ref<string | null>(null)
 
-const isAddDialogOpen = ref(false);
-const isEditDialogOpen = ref(false);
-const isRemoveDialogOpen = ref(false);
+const isAddDialogOpen = ref(false)
+const isEditDialogOpen = ref(false)
+const addDirty = ref(false)
+const editDirty = ref(false)
 
-const selectedUser = ref<UserWithRole | undefined>(undefined);
-const userPendingRemoval = ref<UserWithRole | undefined>(undefined);
+const selectedUser = ref<UserWithRole | undefined>(undefined)
+const { confirmOpen, confirmation, ask, runConfirmed } = useConfirmation()
 
 // ── System user filtering ──────────────────────────────────────────────────
 
@@ -251,15 +287,17 @@ const filteredUsers = computed(() => {
 
 // ── Table headers ──────────────────────────────────────────────────────────
 
-const tableHeaders = [
+const tableHeaders = computed(() => [
     { title: '', key: 'icon', width: '40px' },
     { title: 'Username', key: 'username' },
-    { title: 'First Name', key: 'first_name' },
-    { title: 'Last Name', key: 'last_name' },
+    { title: 'First name', key: 'first_name' },
+    { title: 'Last name', key: 'last_name' },
     { title: 'Email', key: 'email' },
     { title: 'Role', key: 'role' },
-    { title: 'Actions', key: 'actions', width: '100px' }
-];
+    ...(can(props.project?.id, 'manage_users')
+        ? [{ title: 'Actions', key: 'actions', width: '100px', align: 'center' as const }]
+        : []),
+])
 
 // ── Lifecycle ──────────────────────────────────────────────────────────────
 
@@ -277,10 +315,6 @@ watch(
 
 const openAddUserDialog = () => { isAddDialogOpen.value = true; };
 
-const closeAddDialog = () => {
-    isAddDialogOpen.value = false;
-};
-
 const openEditUserDialog = (user: UserWithRole) => {
     selectedUser.value = user;
     isEditDialogOpen.value = true;
@@ -292,32 +326,32 @@ const closeEditDialog = () => {
 };
 
 const onRemoveUser = (user: UserWithRole) => {
-    userPendingRemoval.value = user;
-    isRemoveDialogOpen.value = true;
-};
-
-const closeRemoveDialog = () => {
-    isRemoveDialogOpen.value = false;
-    userPendingRemoval.value = undefined;
-};
+    ask({
+        color: 'error',
+        title: `Remove ${user.first_name} ${user.last_name} from "${props.project?.name}"?`,
+        text:
+            `@${user.username} loses access to this project when their session next refreshes, ` +
+            'within a few minutes. ' +
+            'Data in the project is not affected, and the user can be added again later.',
+        confirmText: 'Remove member',
+        action: () => removeUser(user),
+    })
+}
 
 // ── User operations ────────────────────────────────────────────────────────
 
-const confirmRemoveUser = async () => {
-    if (!userPendingRemoval.value || !props.project?.id) return;
-    isRemoving.value = true;
+const removeUser = async (user: UserWithRole) => {
+    if (!props.project?.id) return
+    removingUserId.value = user.id
     try {
-        await aiiApiDelete(
-            `projects/${props.project.id}/user/${userPendingRemoval.value.id}/rolemapping`
-        );
-        isRemoveDialogOpen.value = false;
-        userPendingRemoval.value = undefined;
+        await aiiApiDelete(`projects/${props.project.id}/user/${user.id}/rolemapping`)
+        notify({ type: 'success', text: `@${user.username} removed from the project.` })
         // Reload to verify the change
         await loadProjectUsers({ showLoading: false });
     } catch (error) {
-        console.error('Failed to remove user:', error);
+        notifyFailure('Member not removed', `Could not remove @${user.username} from the project.`, error)
     } finally {
-        isRemoving.value = false;
+        removingUserId.value = null
     }
 };
 
@@ -328,22 +362,6 @@ const onUserOperationSuccess = async () => {
     await loadProjectUsers({ showLoading: false });
 };
 
-const onUsersAdded = (_addedUsers: UserItem[]) => {
-    // Data will be reloaded via onUserOperationSuccess
-};
-
-const onUsersAddFailed = (_failedUserIds: string[]) => {
-    // Data will be reloaded via onUserOperationSuccess
-};
-
-const onRoleUpdated = (_roleName: string) => {
-    // Data will be reloaded via onUserOperationSuccess
-};
-
-const onRoleUpdateFailed = (_rollback: () => void) => {
-    // Data will be reloaded via onUserOperationSuccess
-};
-
 // ── Data fetching ──────────────────────────────────────────────────────────
 
 const loadProjectUsers = async (options: { showLoading?: boolean } = {}) => {
@@ -351,6 +369,7 @@ const loadProjectUsers = async (options: { showLoading?: boolean } = {}) => {
     if (options.showLoading !== false) {
         isLoadingUsers.value = true;
     }
+    loadError.value = null
     try {
         const fetchedUsers: UserItem[] = await aiiApiGet(`projects/${props.project.id}/users`);
         users.value = fetchedUsers ?? [];
@@ -358,7 +377,7 @@ const loadProjectUsers = async (options: { showLoading?: boolean } = {}) => {
             users.value.map((user, index) => loadUserRole(user.id, index))
         );
     } catch (error) {
-        console.error('Failed to load project users:', error);
+        loadError.value = error
     } finally {
         if (options.showLoading !== false) {
             isLoadingUsers.value = false;
@@ -367,12 +386,8 @@ const loadProjectUsers = async (options: { showLoading?: boolean } = {}) => {
 };
 
 const loadUserRole = async (userId: string, userIndex: number) => {
-    if (!props.project?.id) return;
-    try {
-        const role: UserRole = await aiiApiGet(`projects/${props.project.id}/users/${userId}/roles`);
-        if (users.value[userIndex]) users.value[userIndex].role = role;
-    } catch (error) {
-        console.error(`Failed to load role for user ${userId}:`, error);
-    }
-};
+    if (!props.project?.id) return
+    const role: UserRole = await aiiApiGet(`projects/${props.project.id}/users/${userId}/roles`)
+    if (users.value[userIndex]) users.value[userIndex].role = role
+}
 </script>

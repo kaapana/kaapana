@@ -22,36 +22,26 @@ spec:
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         ports:
           - name: proj-list-http
-            containerPort: {{ if .Values.global.dev_files }}5174{{ else }}80{{ end }}
+            containerPort: 5000
+        livenessProbe:
+          httpGet:
+            path: /
+            port: proj-list-http
+          initialDelaySeconds: 10
+          periodSeconds: 20
         resources:
-          limits:
-            memory: "5Gi"
           requests:
+            memory: "10Mi"
+          limits:
             memory: "100Mi"
         volumeMounts:
-{{- if .Values.global.dev_files }}
-          # Mount source files for hot reload in dev mode
-          - name: dev-files
-            mountPath: /app
-{{- end }}
           - name: tmp
-            mountPath: /var/run
-          - name: cache
-            mountPath: /var/cache/nginx
+            mountPath: /tmp
         securityContext:
           allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: {{ if .Values.global.dev_files }}false{{ else }}true{{ end }}  # Allow writes for dev mode (node_modules, vite cache)
+          readOnlyRootFilesystem: true
       volumes:
-{{- if .Values.global.dev_files }}
-      # Mount project-management-ui source code from Kaapana repo for hot reload
-      - name: dev-files
-        hostPath:
-          path: {{ .Values.global.dev_files }}
-          type: Directory
-{{- end }}
       - name: tmp
-        emptyDir: {}
-      - name: cache
         emptyDir: {}
       priorityClassName: kaapana-high-priority
       imagePullSecrets:

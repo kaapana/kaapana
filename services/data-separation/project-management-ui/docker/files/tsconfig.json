@@ -7,13 +7,16 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "axios": ["node_modules/axios"],
+      "axios/*": ["node_modules/axios/*"],
+      "pinia": ["node_modules/pinia"],
+      "vue": ["node_modules/vue"],
+      "vuetify": ["node_modules/vuetify"],
+      "@kyvg/vue3-notification": ["node_modules/@kyvg/vue3-notification"]
     },
     "resolveJsonModule": true,
-    "types": [
-      "vite/client",
-      "unplugin-vue-router/client",
-    ],
+    "types": ["vite/client"],
     "allowJs": true,
     "strict": true,
     "strictNullChecks": true,
@@ -25,8 +28,7 @@
   },
   "include": [
     "src/**/*",
-    "src/**/*.vue",
-    "typed-router.d.ts"
+    "src/**/*.vue"
   ],
   "exclude": ["dist", "node_modules", "cypress"],
   "references": [{ "path": "./tsconfig.node.json" }],

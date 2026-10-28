@@ -1,0 +1,11 @@
+**/node_modules
+**/dist
+**/test-results
+**/playwright-report
+.git
+.gitignore
+Dockerfile
+build.log
+npm-debug.log*
+/.cache
+.DS_Store

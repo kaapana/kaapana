@@ -1,19 +1,20 @@
-// store.js
 import { ref, reactive } from 'vue'
 import {UserItem} from '@/common/types';
 
 const state = reactive({
-  user : ref<UserItem|null>(null), // Initialize as null or a valid default
-  fetching: false,
-});
+  user: ref<UserItem | null>(null),
+})
+
+let resolveUser!: (user: UserItem) => void
+const userLoaded = new Promise<UserItem>((resolve) => (resolveUser = resolve))
 
 function updateUser(newUser: UserItem) {
-  // Ensure reactivity by updating properties of the existing object
-  // Object.assign(state.user, newUser); // Update user properties reactively
-  state.user = newUser;
+  state.user = newUser
+  resolveUser(newUser)
 }
 
 export default {
   state,
-  updateUser
-};
+  userLoaded,
+  updateUser,
+}

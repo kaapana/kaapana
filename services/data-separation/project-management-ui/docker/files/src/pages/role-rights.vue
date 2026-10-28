@@ -1,94 +1,73 @@
 <template>
-  <v-snackbar v-model="snackbarVisible" :timeout="4000" location="top" :color="snackbarColor" elevation="2" closable>
-    {{ snackbarMessage }}
-  </v-snackbar>
+  <v-container fluid class="pm-view">
+    <div class="mb-2">
+      <v-btn variant="text" :prepend-icon="projectIcons.back" @click="$router.push('/')">
+        Projects
+      </v-btn>
+    </div>
 
-  <v-container max-width="1400" class="bg-surface rounded-lg mt-2">
-
-    <!-- ── Back navigation ──────────────────────────────────────── -->
-    <v-row no-gutters class="mb-2">
-      <v-col>
-        <v-btn size="x-small" variant="outlined" prepend-icon="mdi-arrow-left" @click="$router.push('/')">
-          Projects
+    <div class="d-flex flex-wrap align-start justify-space-between ga-4 mb-4">
+      <h1 class="text-h4">Edit role rights</h1>
+      <div class="d-flex flex-wrap align-center ga-2">
+        <v-chip v-if="pendingCount > 0" color="warning" variant="tonal" size="small">
+          {{ pendingCount }} unsaved change{{ pendingCount !== 1 ? 's' : '' }}
+        </v-chip>
+        <v-btn v-if="pendingCount > 0" size="small" variant="text" @click="pending = {}">
+          Discard
         </v-btn>
-      </v-col>
-    </v-row>
+        <v-btn
+          variant="outlined"
+          color="error"
+          :prepend-icon="projectIcons.reset"
+          :loading="resetting"
+          @click="askReset"
+        >
+          Reset to defaults
+        </v-btn>
+        <v-btn :prepend-icon="kaapanaIcons.add" variant="outlined" @click="openAddRight">
+          Add right
+        </v-btn>
+        <v-btn
+          :disabled="pendingCount === 0 || saving"
+          :loading="saving"
+          color="primary"
+          :prepend-icon="kaapanaIcons.save"
+          @click="askSave"
+        >
+          Save changes
+        </v-btn>
+      </div>
+    </div>
 
-    <!-- ── Header card ──────────────────────────────────────────── -->
-    <v-row class="mb-4">
-      <v-col>
-        <v-sheet class="pa-4 rounded-lg" border>
-          <div class="d-flex align-center justify-space-between">
-            <div class="d-flex align-center ga-3">
-              <v-icon icon="mdi-shield-key" color="primary" size="large" />
-              <span class="text-h5 font-weight-bold">Edit Role Rights</span>
-            </div>
-            <div class="d-flex align-center ga-2">
-              <v-chip v-if="pendingCount > 0" color="warning" variant="tonal">
-                {{ pendingCount }} unsaved change{{ pendingCount !== 1 ? 's' : '' }}
-              </v-chip>
-              <v-btn
-                variant="outlined"
-                size="large"
-                prepend-icon="mdi-restore"
-                :loading="resetting"
-                @click="resetDialog = true"
-              >
-                Reset to Defaults
-              </v-btn>
-              <v-btn
-                size="large"
-                prepend-icon="mdi-plus"
-                variant="outlined"
-                @click="addRightDialog = true"
-              >
-                Add Right
-              </v-btn>
-              <v-btn
-                :disabled="pendingCount === 0 || saving"
-                :loading="saving"
-                color="primary"
-                size="large"
-                prepend-icon="mdi-content-save"
-                @click="confirmDialog = true"
-              >
-                Save Changes
-              </v-btn>
-            </div>
-          </div>
-        </v-sheet>
-      </v-col>
-    </v-row>
-
-    <v-alert v-if="userLoaded && !isAdmin" type="error" class="mb-4">
-      This page is only accessible to admins.
+    <v-alert type="info" variant="tonal" density="compact" class="mb-4">
+      Changes are staged locally until you click <strong>Save changes</strong>. Users receive
+      updated rights when their session next refreshes, within a few minutes, or at their next
+      login.
     </v-alert>
 
-    <template v-else>
-      <v-alert type="info" variant="tonal" density="compact" class="mb-4">
-        Changes are staged locally until you click <strong>Save Changes</strong>.
-        Users receive updated rights on their next login or when their token refreshes (within ~15 minutes).
-      </v-alert>
+    <v-skeleton-loader v-if="loading" type="table" />
 
-      <v-skeleton-loader v-if="loading" type="table" />
+    <FailureAlert
+      v-else-if="loadError"
+      title="Role rights not loaded"
+      text="Could not load the roles and rights."
+      :error="loadError"
+      :retry="load"
+    />
 
-      <v-table v-else density="comfortable" class="rounded">
+    <v-card v-else :elevation="2">
+      <v-table density="comfortable">
         <thead>
           <tr>
-            <th style="width: 150px">Right</th>
-            <th style="width: 150px" class="text-caption text-medium-emphasis">JWT Claim</th>
-            <th
-              v-for="role in roles"
-              :key="role.id"
-              class="text-center"
-              style="width: 130px"
-            >
-              <div class="font-weight-bold text-uppercase">{{ role.name }}</div>
-              <div class="text-caption text-medium-emphasis font-weight-regular" style="white-space: normal; line-height: 1.3">
+            <th>Right</th>
+            <th class="text-caption text-medium-emphasis">JWT claim</th>
+            <th v-for="role in roles" :key="role.id" class="text-center">
+              <div class="font-weight-medium text-uppercase">{{ role.name }}</div>
+              <div class="text-caption text-medium-emphasis font-weight-regular text-wrap">
                 {{ role.description }}
               </div>
             </th>
-            <th style="width: 48px" class="text-right"></th>
+            <th class="text-right"></th>
           </tr>
         </thead>
         <tbody>
@@ -96,18 +75,18 @@
             <td>
               <v-tooltip :text="right.description" location="right">
                 <template #activator="{ props }">
-                  <span v-bind="props" class="font-weight-medium" style="font-family: monospace">{{ right.name }}</span>
+                  <span v-bind="props" class="font-weight-medium">{{ right.name }}</span>
                 </template>
               </v-tooltip>
             </td>
             <td class="text-caption text-medium-emphasis">
-              <span style="font-family: monospace">{{ right.claim_key }}: {{ right.claim_value }}</span>
+              <span>{{ right.claim_key }}: {{ right.claim_value }}</span>
             </td>
             <td
               v-for="role in roles"
               :key="role.id"
               class="text-center"
-              :class="isPending(role.id, right.id) ? 'bg-warning-lighten-4' : ''"
+              :class="isPending(role.id, right.id) ? 'pm-pending' : ''"
             >
               <v-checkbox-btn
                 :model-value="effectiveValue(role.id, right.id)"
@@ -120,79 +99,95 @@
             </td>
             <td>
               <div class="d-flex justify-end pr-2">
-                <v-btn icon="mdi-trash-can" size="default" variant="text" color="error" @click="deleteRight(right)" />
+                <v-tooltip text="Delete right" location="top">
+                  <template #activator="{ props }">
+                    <v-btn
+                      v-bind="props"
+                      :icon="kaapanaIcons.delete"
+                      :aria-label="`Delete right ${right.name}`"
+                      :loading="deletingRightId === right.id"
+                      :disabled="deletingRightId !== null"
+                      size="default"
+                      variant="text"
+                      color="error"
+                      @click="askDeleteRight(right)"
+                    />
+                  </template>
+                </v-tooltip>
               </div>
             </td>
           </tr>
         </tbody>
       </v-table>
-    </template>
+    </v-card>
   </v-container>
 
-  <!-- Reset to defaults dialog -->
-  <v-dialog v-model="resetDialog" max-width="480">
-    <v-card rounded="lg">
-      <v-card-title class="text-h6 pa-6 pb-2">Reset to defaults?</v-card-title>
-      <v-card-text class="pa-6 pt-2">
-        This will:
-        <ul class="mt-2 ml-4">
-          <li>Recreate any missing default rights from the configmap</li>
-          <li><strong>Permanently delete</strong> any custom rights you added</li>
-          <li>Reset all role-rights assignments to the configmap defaults</li>
-        </ul>
-        <div class="mt-3">Any unsaved staged changes will also be discarded.</div>
+  <GuardedDialog
+    v-slot="{ requestClose }"
+    v-model="addRightDialog"
+    :dirty="newRightDirty"
+    max-width="600"
+  >
+    <v-card title="Add new right">
+      <v-card-text>
+        <v-form ref="addRightForm" @submit.prevent="addRight">
+          <v-text-field
+            v-model="newRight.name"
+            label="Name"
+            hint="e.g. manage_users"
+            :rules="[required('a name for the right, such as manage_users')]"
+          />
+          <v-text-field
+            v-model="newRight.description"
+            label="Description"
+            :rules="[required('a description')]"
+          />
+          <v-text-field
+            v-model="newRight.claim_key"
+            label="JWT claim key"
+            hint="e.g. kaapana.ai/aii"
+            :rules="[required('the JWT claim key')]"
+          />
+          <v-text-field
+            v-model="newRight.claim_value"
+            label="JWT claim value"
+            hint="e.g. manage_users"
+            :rules="[required('the JWT claim value')]"
+          />
+        </v-form>
       </v-card-text>
-      <v-card-actions class="pa-4 pt-0">
+      <v-card-actions>
         <v-spacer />
-        <v-btn variant="text" @click="resetDialog = false">Cancel</v-btn>
-        <v-btn color="error" variant="flat" :loading="resetting" @click="resetToDefaults">
-          Reset
+        <v-btn :disabled="addingRight" @click="requestClose">Cancel</v-btn>
+        <v-btn color="primary" :loading="addingRight" :disabled="addingRight" @click="addRight">
+          Add right
         </v-btn>
       </v-card-actions>
     </v-card>
-  </v-dialog>
+  </GuardedDialog>
 
-  <!-- Add right dialog -->
-  <v-dialog v-model="addRightDialog" max-width="520">
-    <v-card rounded="lg">
-      <v-card-title class="text-h6 pa-6 pb-2">Add New Right</v-card-title>
-      <v-card-text class="pa-6 pt-2 d-flex flex-column ga-3">
-        <v-text-field v-model="newRight.name" label="Name" hint="e.g. manage_users" density="compact" variant="outlined" />
-        <v-text-field v-model="newRight.description" label="Description" density="compact" variant="outlined" />
-        <v-text-field v-model="newRight.claim_key" label="JWT Claim Key" hint="e.g. kaapana.ai/aii" density="compact" variant="outlined" />
-        <v-text-field v-model="newRight.claim_value" label="JWT Claim Value" hint="e.g. manage_users" density="compact" variant="outlined" />
-      </v-card-text>
-      <v-card-actions class="pa-4 pt-0">
-        <v-spacer />
-        <v-btn variant="text" @click="addRightDialog = false">Cancel</v-btn>
-        <v-btn color="primary" variant="flat" :loading="addingRight" @click="addRight">Add</v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
-
-  <!-- Confirm dialog -->
-  <v-dialog v-model="confirmDialog" max-width="480">
-    <v-card rounded="lg">
-      <v-card-title class="text-h6 pa-6 pb-2">Save changes?</v-card-title>
-      <v-card-text class="pa-6 pt-2">
-        This will apply <strong>{{ pendingCount }} change{{ pendingCount !== 1 ? 's' : '' }}</strong>
-        to the role-rights mapping. Users will receive the updated rights on their next login or token refresh.
-      </v-card-text>
-      <v-card-actions class="pa-4 pt-0">
-        <v-spacer />
-        <v-btn variant="text" @click="confirmDialog = false">Cancel</v-btn>
-        <v-btn color="primary" variant="flat" :loading="saving" @click="saveAndLogout">
-          Save
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+  <ConfirmDialog
+    v-model="confirmOpen"
+    :color="confirmation.color"
+    :title="confirmation.title"
+    :text="confirmation.text"
+    :confirm-text="confirmation.confirmText"
+    @confirm="runConfirmed"
+  />
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
-import { aiiApiGet, aiiApiPost, aiiApiDelete } from '@/common/services';
-import { isAdminUser, waitForStoreUser } from '@/common/userAccess';
+import { kaapanaIcons, projectIcons } from '@/utils/projectIcons'
+import { ConfirmDialog } from '@kaapana/base-ui'
+import { useConfirmation } from '@/composables/useConfirmation'
+import { useViewDirty } from '@/composables/useViewDirty'
+import { notify } from '@kyvg/vue3-notification'
+import { notifyFailure } from '@/utils/notifyFailure'
+import FailureAlert from '@/components/FailureAlert.vue'
+import GuardedDialog from '@/components/GuardedDialog.vue'
+import { defineComponent, ref } from 'vue'
+import { aiiApiGet, aiiApiPost, aiiApiDelete } from '@/common/services'
+import { required } from '@/common/validation'
 
 interface Right {
   id: number;
@@ -209,15 +204,27 @@ interface Role {
 }
 
 export default defineComponent({
+  components: { ConfirmDialog, FailureAlert, GuardedDialog },
+  setup() {
+    const { confirmOpen, confirmation, ask, runConfirmed } = useConfirmation()
+    const dirty = ref(false)
+    useViewDirty(dirty)
+    return {
+      kaapanaIcons,
+      projectIcons,
+      confirmOpen,
+      confirmation,
+      ask,
+      runConfirmed,
+      dirty,
+      required,
+    }
+  },
   data() {
     return {
-      isAdmin: false,
-      userLoaded: false,
       loading: true,
       saving: false,
       resetting: false,
-      confirmDialog: false,
-      resetDialog: false,
       addRightDialog: false,
       addingRight: false,
       newRight: { name: '', description: '', claim_key: '', claim_value: '' },
@@ -227,79 +234,125 @@ export default defineComponent({
       committed: {} as Record<number, Set<number>>,
       // pending overrides: key="${roleId}-${rightId}", value = desired boolean
       pending: {} as Record<string, boolean>,
-      snackbarVisible: false,
-      snackbarMessage: '',
-      snackbarColor: 'info',
-    };
+      loadError: null as unknown,
+      deletingRightId: null as number | null,
+    }
   },
 
   computed: {
     pendingCount(): number {
       return Object.keys(this.pending).length;
     },
+    newRightDirty(): boolean {
+      return Object.values(this.newRight).some((value) => value.trim() !== '')
+    },
+  },
+
+  watch: {
+    pendingCount(count: number) {
+      this.dirty = count > 0
+    },
   },
 
   mounted() {
-    waitForStoreUser((user) => {
-      this.isAdmin = isAdminUser(user);
-      this.userLoaded = true;
-      if (this.isAdmin) this.load();
-      else this.loading = false;
-    });
+    this.load()
   },
 
   methods: {
+    openAddRight() {
+      this.newRight = { name: '', description: '', claim_key: '', claim_value: '' }
+      this.addRightDialog = true
+    },
+
     async addRight() {
-      if (!this.newRight.name) return;
-      this.addingRight = true;
+      const form = this.$refs.addRightForm as { validate: () => Promise<{ valid: boolean }> }
+      if (!(await form.validate()).valid) return
+      this.addingRight = true
       try {
-        await aiiApiPost('projects/rights', this.newRight);
-        this.notify(`Right "${this.newRight.name}" added.`, 'success');
-        this.addRightDialog = false;
-        this.newRight = { name: '', description: '', claim_key: '', claim_value: '' };
-        await this.load();
-      } catch (error: any) {
-        const detail = error?.response?.data?.detail ?? error?.message ?? 'Unknown error';
-        this.notify(`Failed to add right: ${detail}`, 'error');
+        await aiiApiPost('projects/rights', this.newRight)
+        notify({ type: 'success', text: `Right "${this.newRight.name}" added.` })
+        this.addRightDialog = false
+        await this.load()
+      } catch (error: unknown) {
+        notifyFailure('Right not added', `Could not add the right "${this.newRight.name}".`, error)
       } finally {
         this.addingRight = false;
       }
     },
 
-    async deleteRight(right: { id: number; name: string }) {
+    askDeleteRight(right: Right) {
+      this.ask({
+        color: 'error',
+        title: `Delete right "${right.name}"?`,
+        text:
+          'The right is removed from every role that holds it, and users lose its claim when ' +
+          'their session next refreshes, within a few minutes. Reset to defaults restores ' +
+          'default rights, not custom ones.',
+        confirmText: 'Delete right',
+        action: () => this.deleteRight(right),
+      })
+    },
+
+    askReset() {
+      this.ask({
+        color: 'error',
+        title: 'Reset role rights to defaults?',
+        text:
+          'All rights and role-right assignments are replaced by the defaults from the ' +
+          'configuration; custom rights are permanently deleted. Unsaved staged changes are ' +
+          'discarded.',
+        confirmText: 'Reset to defaults',
+        action: () => this.resetToDefaults(),
+      })
+    },
+
+    askSave() {
+      const count = this.pendingCount
+      this.ask({
+        color: 'primary',
+        title: 'Save role-right changes?',
+        text:
+          `${count} change${count !== 1 ? 's are' : ' is'} applied to the role-rights mapping. ` +
+          'Users receive the updated rights when their session next refreshes, within a few ' +
+          'minutes.',
+        confirmText: 'Save changes',
+        action: () => this.saveChanges(),
+      })
+    },
+
+    async deleteRight(right: Right) {
+      this.deletingRightId = right.id
       try {
-        await aiiApiDelete(`projects/rights/${right.id}`);
-        this.notify(`Right "${right.name}" deleted.`, 'success');
-        await this.load();
-      } catch (error: any) {
-        const detail = error?.response?.data?.detail ?? error?.message ?? 'Unknown error';
-        this.notify(`Failed to delete right: ${detail}`, 'error');
+        await aiiApiDelete(`projects/rights/${right.id}`)
+        notify({ type: 'success', text: `Right "${right.name}" deleted.` })
+        await this.load()
+      } catch (error: unknown) {
+        notifyFailure('Right not deleted', `Could not delete the right "${right.name}".`, error)
+      } finally {
+        this.deletingRightId = null
       }
     },
 
     async resetToDefaults() {
-      this.resetting = true;
-      this.resetDialog = false;
+      this.resetting = true
       try {
-        const result = await aiiApiPost('projects/rights/reset', {});
-        this.notify(`Reset complete: ${result.reset} role-right assignments applied.`, 'success');
-        await this.load();
-      } catch (error: any) {
-        const detail = error?.response?.data?.detail ?? error?.message ?? 'Unknown error';
-        this.notify(`Reset failed: ${detail}`, 'error');
+        const result = await aiiApiPost('projects/rights/reset', {})
+        notify({
+          type: 'success',
+          text: `Reset complete: ${result.reset} role-right assignments applied.`,
+        })
+        this.pending = {}
+        await this.load()
+      } catch (error: unknown) {
+        notifyFailure('Role rights not reset', 'Could not reset the role rights.', error)
       } finally {
         this.resetting = false;
       }
     },
 
-    notify(msg: string, color = 'info') {
-      this.snackbarMessage = msg;
-      this.snackbarColor = color;
-      this.snackbarVisible = true;
-    },
-
     async load() {
-      this.loading = true;
+      this.loading = true
+      this.loadError = null
       try {
         const [roles, rights] = await Promise.all([
           aiiApiGet('projects/roles'),
@@ -311,15 +364,22 @@ export default defineComponent({
         const committed: Record<number, Set<number>> = {};
         await Promise.all(
           roles.map(async (role: Role) => {
-            const roleRights: Right[] = await aiiApiGet(`projects/roles/${role.id}/rights`);
-            committed[role.id] = new Set(roleRights.map((r) => r.id));
-          })
-        );
-        this.committed = committed;
-        this.pending = {};
+            const roleRights: Right[] = await aiiApiGet(`projects/roles/${role.id}/rights`)
+            committed[role.id] = new Set(roleRights.map((r) => r.id))
+          }),
+        )
+        this.committed = committed
+        // Adding, deleting and saving reload the matrix; staged changes survive
+        // unless they no longer apply.
+        this.pending = Object.fromEntries(
+          Object.entries(this.pending).filter(([key, grant]) => {
+            const [roleId, rightId] = key.split('-').map(Number)
+            const exists = rights.some((r: Right) => r.id === rightId)
+            return exists && (committed[roleId]?.has(rightId) ?? false) !== grant
+          }),
+        )
       } catch (error) {
-        console.error('Failed to load role rights:', error);
-        this.notify('Failed to load role rights.', 'error');
+        this.loadError = error
       } finally {
         this.loading = false;
       }
@@ -348,11 +408,11 @@ export default defineComponent({
       }
     },
 
-    async saveAndLogout() {
-      this.saving = true;
-      this.confirmDialog = false;
-      let applied = 0;
-      let failed = 0;
+    async saveChanges() {
+      this.saving = true
+      let applied = 0
+      let failed = 0
+      let lastError: unknown = null
 
       try {
         await Promise.all(
@@ -364,21 +424,25 @@ export default defineComponent({
               } else {
                 await aiiApiDelete(`projects/roles/${roleId}/rights/${rightId}`);
               }
-              applied++;
-            } catch (e: any) {
-              console.error(`Failed to update ${key}:`, e);
-              failed++;
+              applied++
+            } catch (error) {
+              lastError = error
+              failed++
             }
           })
         );
 
         if (failed > 0) {
-          this.notify(`${applied} change${applied !== 1 ? 's' : ''} saved, ${failed} failed.`, 'warning');
+          notifyFailure(
+            'Role rights partly saved',
+            `${applied} change${applied !== 1 ? 's' : ''} saved, ${failed} failed.`,
+            lastError,
+          )
         } else {
-          this.notify(
-            `${applied} change${applied !== 1 ? 's' : ''} saved. Users will receive updated rights on their next login or token refresh.`,
-            'success'
-          );
+          notify({
+            type: 'success',
+            text: `${applied} change${applied !== 1 ? 's' : ''} saved. Users receive the updated rights within a few minutes.`,
+          })
         }
 
         // Reload committed state

@@ -105,7 +105,7 @@ class ContainerHelper:
                     "network=host",
                 ]
                 create_command.extend(cls._buildx_proxy_driver_opts())
-                create_command.extend(cls._buildx_dns_config_opts(Path(tmp_dir)))
+                create_command.extend(cls._buildx_buildkitd_config_opts(Path(tmp_dir)))
 
                 CommandUtils.run(
                     create_command,
@@ -171,21 +171,56 @@ class ContainerHelper:
 
         return driver_opts
 
-    @classmethod
-    def _buildx_dns_config_opts(cls, tmp_dir: Path) -> list:
+    @staticmethod
+    def _registry_host(registry: str) -> str:
         """
-        Work around DNS failures inside the isolated docker-container builder.
+        Return the host and port of a registry name, without the repository path.
+        """
+        return registry.split("/")[0]
 
-        The docker-container buildx builder runs as its own
-        separate container and does not reliably pick up the host's DNS
-        setup. If the host resolves via a local stub (e.g.
-        systemd-resolved), that address doesn't work inside the builder, so
-        RUN steps (apk/apt, etc.) fail with "DNS: transient
-        error (try again later)".
+    @classmethod
+    def _buildx_buildkitd_config_opts(cls, tmp_dir: Path) -> list:
+        """
+        Write the buildkitd config of the docker-container builder and return
+        the --buildkitd-config flag that points at it (or [] if the config
+        would be empty).
 
-        This method generates a buildkitd config that pins the builder to real,
-        externally-reachable nameservers, and returns the --buildkitd-config
-        flag pointing at it (or [] if none could be determined).
+        The builder runs as its own container. It ignores the registry
+        settings of the Docker daemon, so it needs its own settings for the
+        following two cases.
+
+        DNS: The builder does not reliably pick up the DNS setup of the host.
+        If the host resolves via a local stub (e.g. systemd-resolved), that
+        address does not work inside the builder, so RUN steps (apk/apt, etc.)
+        fail with "DNS: transient error (try again later)". The config pins
+        the builder to real, externally-reachable nameservers.
+
+        Plain HTTP: BuildKit pushes and pulls over HTTPS, unless the registry
+        is on a loopback address. With --plain-http the config allows HTTP
+        for the default registry.
+        """
+        sections = []
+
+        nameservers = cls._host_nameservers()
+        if nameservers:
+            servers = ", ".join(f'"{ns}"' for ns in nameservers)
+            sections.append(f"[dns]\n  nameservers = [{servers}]\n")
+
+        if cls._build_config.plain_http:
+            registry = cls._registry_host(cls._build_config.default_registry)
+            sections.append(f'[registry."{registry}"]\n  http = true\n  insecure = true\n')
+
+        if not sections:
+            return []
+
+        config_path = tmp_dir / "buildkitd.toml"
+        config_path.write_text("\n".join(sections))
+        return ["--buildkitd-config", str(config_path)]
+
+    @staticmethod
+    def _host_nameservers() -> list:
+        """
+        Return the nameservers of the host, without loopback addresses.
         """
         try:
             resolv_conf = Path("/etc/resolv.conf").read_text()
@@ -197,13 +232,7 @@ class ContainerHelper:
             parts = line.split()
             if len(parts) == 2 and parts[0] == "nameserver" and not parts[1].startswith("127."):
                 nameservers.append(parts[1])
-        if not nameservers:
-            return []
-
-        config_path = tmp_dir / "buildkitd.toml"
-        servers = ", ".join(f'"{ns}"' for ns in nameservers)
-        config_path.write_text(f"[dns]\n  nameservers = [{servers}]\n")
-        return ["--buildkitd-config", str(config_path)]
+        return nameservers
 
     @classmethod
     def container_registry_login(cls, registry: str, username: str, password: str):

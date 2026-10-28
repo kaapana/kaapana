@@ -167,11 +167,14 @@ class Job(Base):
 
 class InstalledModel(Base):
     __tablename__ = "installed_models"
+    __table_args__ = (
+        UniqueConstraint("project_id", "kind", "friendly_name", name="uq_installed_models_project_kind_name"),
+    )
 
     # Primary identifiers
     id = Column(Integer, primary_key=True)
     project_id = Column(UUID(as_uuid=True), nullable=False, index=True)
-    friendly_name = Column(String(255), nullable=False, unique=True)
+    friendly_name = Column(String(255), nullable=False)
     models_name = Column(String(255), nullable=False)  # e.g., "3d_fullres"
     task_ids = Column(String(255), nullable=False)
     # Core model metadata (directly used in UI form)

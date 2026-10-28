@@ -504,12 +504,19 @@ def ui_form_schemas(
             # Remove properties-template from response (it's not needed in frontend)
             form_schemas["workflow_form"].pop("properties-template", None)
             if len(form_schemas["workflow_form"]["oneOf"]) == 0:
+                empty_title, empty_description = form_schemas["workflow_form"].get(
+                    "empty_message",
+                    (
+                        "No tasks are available in this project!",
+                        "You first have to install a task with nnunet-install-model.",
+                    ),
+                )
                 form_schemas["workflow_form"] = {
                     "type": "object",
                     "properties": {
                         "tasks": {
-                            "title": "No tasks are available in this project!",
-                            "description": "You first have to install a task with nnunet-install-model.",
+                            "title": empty_title,
+                            "description": empty_description,
                             "oneOf": [],
                             "type": "string",
                             "readOnly": False,

@@ -238,18 +238,41 @@ Choose the tab that matches how you build: **Remote Registry** for a normal buil
             docker run --entrypoint htpasswd httpd:2.4.58 -Bbn <registry user> <registry password> > auth/htpasswd
 
 
-      2. Start the Docker registry with basic authentication:
+      2. Start the Docker registry with basic authentication on the host network:
 
          .. code-block:: bash
 
-            docker run -d -p 5000:5000 --restart unless-stopped --name registry -v "$(pwd)"/auth:/auth -e "REGISTRY_AUTH=htpasswd" -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm" -e REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd registry:2.8.3
+            docker run -d --network host --restart unless-stopped --name registry -v "$(pwd)"/auth:/auth -e "REGISTRY_AUTH=htpasswd" -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm" -e REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd registry:2.8.3
+
+         | With :code:`--network host` the registry listens on port 5000 of the server and does not use the Docker bridge network. Do not add :code:`-p`, because Docker ignores it in this mode.
+         | The registry should be reachable from inside the cluster, because the Extension Manager reads the default extension repository from it. On a server with MicroK8s, pods could not reach a registry that Docker published with :code:`-p 5000:5000` on the IP address of the server.
 
 
-      3. Run the build against the local registry:
+      3. Allow the Docker daemon to use the registry without TLS. This step is required because the registry is called by the IP address of the server, and Docker only treats :code:`localhost` and :code:`127.0.0.1` as insecure registries. Add the registry to :code:`/etc/docker/daemon.json`, keep existing keys, and restart Docker:
+
+         .. code-block:: json
+
+            {
+              "insecure-registries": ["<node-ip>:5000"]
+            }
+
+         .. code-block:: bash
+
+            sudo systemctl restart docker
+
+         | The restart stops running containers, unless :code:`live-restore` is enabled. The file is in another place for snap, rootless and Docker Desktop installations.
+
+
+      4. Run the build against the registry. Replace **<node-ip>** by the IP address of the server, which the cluster can reach:
 
          .. code-block:: python
 
-            kaapana-build --registry-username <registry user> --registry-password <registry password> --default-registry "localhost:5000"
+            kaapana-build --registry-username <registry user> --registry-password <registry password> --default-registry "<node-ip>:5000" --plain-http
+
+         .. important::
+
+            | Do not use :code:`localhost:5000` as :code:`--default-registry` if you deploy on the same server. The registry name is part of every image name. Inside a pod, :code:`localhost` is the pod itself, so the Extension Manager cannot reach the default extension repository. See :ref:`extension_manager`.
+            | For the deployment, the container runtime of the cluster also needs a setting for plain HTTP registries. See :ref:`the installation <deployment>`.
 
 
    .. tab:: Build Tarball

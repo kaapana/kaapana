@@ -9,7 +9,7 @@ from kaapana_nnunetv2.NnUNetV2Operator import NnUNetV2Operator
 
 args = {
     "ui_visible": True,
-    "ui_forms": forms.ui_forms("nnunetv2-create-dataset", forms.CREATE_DATASET),
+    "ui_forms": forms.ui_forms("nnunetv2-create-dataset", forms.CREATE_DATASET, data_form=forms.DATASET_ONLY),
     "owner": "kaapana",
     "start_date": days_ago(0),
     "retries": 0,

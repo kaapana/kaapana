@@ -1,7 +1,8 @@
 """Workflow forms. Every nnU-Net argument has a field; an empty field means nnU-Net's own default.
 
 Frequently used fields are at the top, all others in the collapsed "Advanced (nnU-Net)" section with
-nnU-Net's flag name in the title. Dropdowns of project data use the backend's installed_models mechanism
+nnU-Net's flag name in the title; create-dataset splits it into titled panels with an intro and a guide link
+each (descriptions of array fields are not shown by the frontend). Dropdowns of project data use the backend's installed_models mechanism
 (kinds nnunetv2-raw / -preprocessed / -model, kept in sync with S3 by every step).
 """
 
@@ -64,6 +65,30 @@ def advanced(properties):
     }
 
 
+def doc_link(anchor, text):
+    """Markdown link to a section of the guide; opens in a new tab so the filled-in form is kept."""
+    return f'<a href="/docs{DOCS}#{anchor}" target="_blank">{text} ↗</a>'
+
+
+def advanced_panels(*panels):
+    """Collapsed panels (title, intro markdown, properties); like advanced(), all fields stay in one object."""
+    return {
+        "type": "object",
+        "layout": {
+            "comp": "expansion-panels",
+            "children": [
+                {"title": title, "children": [{"markdown": intro}, *properties]} for title, intro, properties in panels
+            ],
+        },
+        "properties": {k: v for _, _, properties in panels for k, v in properties.items()},
+    }
+
+
+# channel rule syntax (kaapana_nnunet/channels.py): 'segmented' or conditions 'Field op value' joined with &
+_CONDITION = r"[A-Za-z][A-Za-z0-9]*\s*(!=|=|~)[^&]*"
+RULE_PATTERN = rf"^\s*([Ss][Ee][Gg][Mm][Ee][Nn][Tt][Ee][Dd]|{_CONDITION}(&\s*{_CONDITION})*)\s*$"
+
+
 def selection_form(kind, title, description, empty_title, empty_description, properties):
     """A form whose first field picks one item of ``kind``; ``properties`` follow below it."""
     return {
@@ -84,75 +109,144 @@ CREATE_DATASET = {
     "type": "object",
     "properties": {
         "dataset_name": {
-            "title": "Dataset name",
-            "description": "Becomes DatasetXXX_<name>; the ID XXX is the next free one in this project.",
+            "title": "Name of the new nnU-Net dataset",
+            "description": "Stored as DatasetXXX_<name>; XXX is the next free ID in this project.",
             "type": "string",
-            "pattern": "^[A-Za-z0-9_-]+$",
+            "minLength": 1,
             "required": True,
+            "layout": {
+                "placeholder": "e.g. ProstateMR",
+                "slots": {
+                    "after": (
+                        "**Simple case:** pick the Kaapana dataset at the bottom of this form, enter a name, start. "
+                        "You get one input channel (the image the segmentation was drawn on) and one label per "
+                        "segment name. Several images per case or renaming labels: open *Advanced* below. "
+                        "**Segments must not overlap** (nnU-Net needs one label per voxel). If anything is wrong the "
+                        "run uploads nothing and its report says what to change. "
+                        + doc_link("nnunetv2-create-dataset", "Guide")
+                        + " · "
+                        + doc_link("reading-the-report", "Reading the report")
+                    )
+                },
+            },
         },
-        "channels": {
-            "title": "Input channels",
-            "description": (
-                "Leave empty for one channel: the image the segmentations were drawn on. "
-                "Otherwise one row per channel, in order. Rule: 'segmented' or conditions on DICOM fields "
-                "joined with &, e.g. 'SeriesDescription ~ t2' (regex), 'Modality = MR', 'Tags = adc'. "
-                "Each rule must match exactly one series per study."
-            ),
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "name": {"title": "Name", "type": "string"},
-                    "rule": {"title": "Rule", "type": "string", "default": "segmented"},
-                    "normalization": {
-                        "title": "Normalization",
-                        "description": "Empty: CT normalization for CT, z-score otherwise.",
-                        "type": "string",
-                        "enum": ["", "CT", "zscore", "noNorm", "rescale_to_0_1", "rgb_to_0_1"],
-                        "default": "",
+        "advanced": advanced_panels(
+            (
+                "Several images per case (multi-channel)",
+                "Without rows there is one channel: the image the segmentation was drawn on. Otherwise one row per "
+                "channel, in order. **Rule:** `segmented` (the image the segmentation was drawn on) or conditions "
+                "joined with `&`: `SeriesDescription ~ adc` (regular expression), `Modality = MR`, "
+                "`ImageType != DERIVED`, `Tags = adc`. Each rule must pick exactly one series per study. "
+                + doc_link("nnunetv2-create-channels", "Channel rules"),
+                {
+                    "channels": {
+                        "title": "Input channels",
+                        "type": "array",
+                        "layout": {"listEditMode": "inline", "messages": {"addItem": "Add channel"}},
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "title": "Name",
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "layout": {"placeholder": "e.g. T2"},
+                                },
+                                "rule": {
+                                    "title": "Rule",
+                                    "type": "string",
+                                    "pattern": RULE_PATTERN,
+                                    "examples": ["segmented", "SeriesDescription ~ adc", "Modality = MR"],
+                                },
+                                "normalization": {
+                                    "title": "Normalization",
+                                    "type": "string",
+                                    "oneOf": [
+                                        {"const": "", "title": "Automatic (CT for CT, otherwise z-score)"},
+                                        {"const": "CT", "title": "CT (clip and normalize Hounsfield units)"},
+                                        {"const": "zscore", "title": "Z-score per image"},
+                                        {"const": "noNorm", "title": "None"},
+                                        {"const": "rescale_to_0_1", "title": "Rescale to 0-1"},
+                                        {"const": "rgb_to_0_1", "title": "RGB to 0-1"},
+                                    ],
+                                    "default": "",
+                                },
+                            },
+                        },
+                        "default": [],
                     },
+                    "resample_to_first_channel": boolean(
+                        "Resample channels onto channel 0",
+                        "Channels with another geometry are resampled (linear). Off: such cases are problems.",
+                        True,
+                    ),
                 },
-            },
-            "default": [],
-        },
-        "labels": {
-            "title": "Labels",
-            "description": (
-                "Leave empty to make every segment name its own label. Otherwise one row per label; the order "
-                "gives the label value (1, 2, ...). Aliases: further segment names (comma separated) that "
-                "belong to this label. Where segments overlap, the later label wins."
             ),
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "name": {"title": "Label", "type": "string"},
-                    "aliases": {"title": "Also matches", "type": "string"},
+            (
+                "Labels (names, merging, order)",
+                "Without rows every segment name is its own label (spellings that differ only in case are "
+                "merged). Otherwise one row per label; the row number is the label value. **Also matches:** "
+                "further segment names for the same label. Segments must not overlap; the run stops and lists "
+                "the cases if they do. "
+                + doc_link("nnunetv2-create-labels", "Labels"),
+                {
+                    "labels": {
+                        "title": "Labels",
+                        "type": "array",
+                        "layout": {"listEditMode": "inline", "messages": {"addItem": "Add label"}},
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "title": "Label",
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "layout": {"placeholder": "e.g. Lesion"},
+                                },
+                                "aliases": {
+                                    "title": "Also matches",
+                                    "type": "string",
+                                    "layout": {"placeholder": "e.g. Tumour, tumor"},
+                                },
+                            },
+                        },
+                        "default": [],
+                    },
+                    "ignore_unlisted_segments": boolean(
+                        "Ignore segments not in the label table", "Otherwise unknown segment names are a problem."
+                    ),
                 },
-            },
-            "default": [],
-        },
-        "check_only": boolean(
-            "Check only", "Convert and report problems, but upload nothing. Recommended for the first run."
+            ),
+            (
+                "Options",
+                "Usually not needed. " + doc_link("how-it-works", "How create-dataset works"),
+                {
+                    "check_only": boolean(
+                        "Check only",
+                        "Convert and report, upload nothing and keep the dataset ID free. "
+                        "A normal run with problems uploads nothing either.",
+                    ),
+                    "skip_invalid_cases": boolean(
+                        "Skip invalid cases", "Leave out cases with problems instead of failing (they are listed)."
+                    ),
+                    "dataset_id": integer("Dataset ID", "Fixed nnU-Net dataset ID (1-999) instead of the next free one."),
+                    "description": text("Description", "Stored in dataset.json."),
+                },
+            ),
         ),
-        "description": text("Description", "Stored in dataset.json."),
-        "advanced": advanced(
-            {
-                "dataset_id": integer("Dataset ID", "Fixed nnU-Net dataset ID (1-999) instead of the next free one."),
-                "resample_to_first_channel": boolean(
-                    "Resample channels to the first channel",
-                    "Channels with another geometry are resampled (linear) onto channel 0. "
-                    "Off: such cases are reported as errors.",
-                    True,
-                ),
-                "ignore_unlisted_segments": boolean(
-                    "Ignore segments not in the label table", "Otherwise unknown segment names are an error."
-                ),
-                "skip_invalid_cases": boolean(
-                    "Skip invalid cases", "Leave out cases with problems instead of failing (they are listed)."
-                ),
-            }
-        ),
+    },
+}
+
+# the Kaapana dataset picker without "Limit dataset size": a limit counts SEG series too and could drop them
+DATASET_ONLY = {
+    "type": "object",
+    "properties": {
+        "dataset_name": {
+            "type": "string",
+            "title": "Kaapana dataset (images and their segmentations)",
+            "oneOf": [],
+            "required": True,
+        }
     },
 }
 

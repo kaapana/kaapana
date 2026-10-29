@@ -25,16 +25,14 @@ openssl req -new -key client-key.pem -subj "/C=CA/ST=ONTARIO/L=TORONTO/O=ORG/OU=
 echo 'subjectAltName=DNS:client.dns.a-record' > client.ext
 openssl x509 -req -in client.csr -CA root-ca.pem -CAkey root-ca-key.pem -CAcreateserial -sha256 -out client.pem -days 730 -extfile client.ext
 
-# -----------------------------------------------------------------------
-# Build root-ca-bundle.pem from the shared platform trust anchor.
-# External chain handling belongs in cert-init/cert-copy, not here.
-# -----------------------------------------------------------------------
+# root-ca.pem of OpenSearch: the internal CA for the node, admin and client certificates, plus the
+# platform's CA bundle for Keycloak
 KEYSTORE_PASSWORD="keystorepassword"
 
+cp root-ca.pem root-ca-bundle.pem
 if [ -f ca-bundle.pem ]; then
-  cp ca-bundle.pem root-ca-bundle.pem
-else
-  cp root-ca.pem root-ca-bundle.pem
+  echo >> root-ca-bundle.pem
+  cat ca-bundle.pem >> root-ca-bundle.pem
 fi
 echo "Bundle contains $(grep -c 'BEGIN CERTIFICATE' root-ca-bundle.pem) certificate(s) total."
 

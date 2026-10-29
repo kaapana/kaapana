@@ -41,10 +41,10 @@ spec:
           subPath: snapshots
         - name: oscerts
           mountPath: /os/certs
-        - name: kaapana-cert
+        - name: internal-ca
           mountPath: /certs/root-ca-key.pem
           subPath: tls.key
-        - name: kaapana-cert
+        - name: internal-ca
           mountPath: /certs/root-ca.pem
           subPath: tls.crt
         - name: ca-bundle-cert
@@ -157,9 +157,9 @@ spec:
             path: config.yml
           - key: internal_users.yml
             path: internal_users.yml
-      - name: kaapana-cert
+      - name: internal-ca
         secret:
-          secretName: certificate
+          secretName: opensearch-internal-ca
           defaultMode: 420
       - name: ca-bundle-cert
         secret:

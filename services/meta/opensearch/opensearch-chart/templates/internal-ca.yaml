@@ -1,0 +1,16 @@
+---
+# CA of OpenSearch's own node, admin and client certificates. The platform certificate can't be used for this:
+# a certificate issued by a CA (CA:FALSE) can't sign other certificates. Created once and kept on upgrades.
+{{- $secretName := "opensearch-internal-ca" }}
+{{- $secretObj := (lookup "v1" "Secret" .Values.global.services_namespace $secretName) | default dict }}
+{{- $secretData := (get $secretObj "data") | default dict }}
+{{- $ca := genCA "kaapana-opensearch-internal-ca" 3650 }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $secretName }}
+  namespace: "{{ .Values.global.services_namespace }}"
+type: Opaque
+data:
+  tls.crt: {{ (get $secretData "tls.crt") | default ($ca.Cert | b64enc) | quote }}
+  tls.key: {{ (get $secretData "tls.key") | default ($ca.Key | b64enc) | quote }}

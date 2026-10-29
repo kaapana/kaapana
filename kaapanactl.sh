@@ -2816,18 +2816,29 @@ function install_certs {
         fi
         echo "secret/$ca_bundle_secret updated"
 
-        # get app.kubernetes.io/name of all pods that mount the certificate or CA bundle secret in the namespace
-        local app_labels=$($KUBE get pods -n "$ns" -o json | \
-            jq -r --arg ca "$ca_bundle_secret" '.items[] | select(any(.spec.volumes[]?; .secret?.secretName == "certificate" or .secret?.secretName == $ca)) | .metadata.labels."app.kubernetes.io/name" // empty' | sort -u)
+        # Deployments are restarted as a whole, so that their update strategy applies (OpenSearch: Recreate, the old pod
+        # has to release the data directory first)
+        local pods_json deployments="" other_pods rs
+        pods_json=$($KUBE get pods -n "$ns" -o json | jq --arg ca "$ca_bundle_secret" \
+            '[.items[] | select(any(.spec.volumes[]?; .secret?.secretName == "certificate" or .secret?.secretName == $ca))]')
+        for rs in $(echo "$pods_json" | jq -r '.[].metadata.ownerReferences[]? | select(.kind == "ReplicaSet") | .name' | sort -u); do
+            deployments="$deployments $($KUBE -n "$ns" get rs "$rs" -o jsonpath='{.metadata.ownerReferences[?(@.kind=="Deployment")].name}' 2>/dev/null)"
+        done
+        deployments=$(echo $deployments | tr ' ' '\n' | sort -u)
+        other_pods=$(echo "$pods_json" | jq -r '.[] | select(all(.metadata.ownerReferences[]?; .kind != "ReplicaSet")) | .metadata.name')
 
-        if [ -n "$app_labels" ]; then
+        if [ -n "$deployments" ] || [ -n "$other_pods" ]; then
             echo -e "Restarting pods using certificate:"
-            echo -e "$app_labels" | while read label; do
-                if [ -n "$label" ]; then
-                    echo -e "  - app.kubernetes.io/name=$label"
-                    if ! $KUBE -n "$ns" delete pod -l "app.kubernetes.io/name=$label" --grace-period=120 2>/dev/null; then
-                        echo -e "${YELLOW} Warning: Failed to restart pods with label $label${NC}"
-                    fi
+            for deployment in $deployments; do
+                echo -e "  - deployment/$deployment"
+                if ! $KUBE -n "$ns" rollout restart deployment "$deployment" >/dev/null; then
+                    echo -e "${YELLOW} Warning: Failed to restart deployment $deployment${NC}"
+                fi
+            done
+            for pod in $other_pods; do
+                echo -e "  - pod/$pod"
+                if ! $KUBE -n "$ns" delete pod "$pod" --grace-period=120 2>/dev/null; then
+                    echo -e "${YELLOW} Warning: Failed to restart pod $pod${NC}"
                 fi
             done
         else

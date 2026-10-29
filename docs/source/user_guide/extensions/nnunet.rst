@@ -8,10 +8,11 @@ nnU-Net
 | **DOI:** `10.1038/s41592-020-01008-z <https://doi.org/10.1038/s41592-020-01008-z>`_
 | **Code:** `github.com/MIC-DKFZ/nnUNet <https://github.com/MIC-DKFZ/nnUNet>`_
 
-The extension **nnunetv2-workflow** brings nnU-Net to Kaapana as five workflows that follow nnU-Net's own steps.
+The extension **nnunetv2-workflow** brings nnU-Net to Kaapana as six workflows that follow nnU-Net's own steps.
 Every step runs in its own pod and every nnU-Net option is available in the workflow form:
 frequently used options at the top, all others in the collapsed section *Advanced (nnU-Net)*, titled with nnU-Net's flag.
-An empty field always means nnU-Net's own default.
+An empty field always means nnU-Net's own default. :ref:`nnunetv2-create-dataset <nnunetv2_create_dataset>` needs only
+a name in the simple case; its *Advanced* section has panels for channels, labels and options.
 
 .. list-table::
    :header-rows: 1
@@ -54,8 +55,8 @@ Quick start
 
 #. Upload images and segmentations (DICOM SEG or RTSTRUCT) and put them into a Kaapana dataset,
    see :ref:`data_upload` and :ref:`datasets`.
-#. Run **nnunetv2-create-dataset** on that dataset with *Check only* enabled. The log lists the cases, labels
-   and every problem found. Run it again without *Check only* to create the raw dataset.
+#. Run **nnunetv2-create-dataset** on that dataset: pick the dataset, enter a name, start. If something does not
+   fit, nothing is uploaded and the report says what to change, see :ref:`nnunetv2_create_report`.
 #. Run **nnunetv2-plan-preprocess** on the raw dataset. The defaults are nnU-Net's defaults.
 #. Run **nnunetv2-train** on the preprocessed data, e.g. *Dataset001_Liver | nnUNetPlans | 3d_fullres*.
    All five folds train in parallel as far as GPUs are free.
@@ -73,8 +74,42 @@ nnunetv2-create-dataset
 ***********************
 
 Converts images and segmentations stored in Kaapana (DICOM) into an nnU-Net raw dataset ``DatasetXXX_Name``:
-the NIfTI images and label maps nnU-Net trains on, plus its ``dataset.json``. This is the step where your data
-meets nnU-Net's expectations, so it is worth understanding how it decides what goes in.
+the NIfTI images and label maps nnU-Net trains on, plus its ``dataset.json``.
+
+The simple case
+===============
+
+One image per case, segmented with one or more structures: pick the Kaapana dataset (the field at the bottom of
+the form), enter a name for the new dataset and start. Nothing else is needed.
+
+* **One input channel:** the image the segmentation was drawn on.
+* **One label per segment name**, numbered alphabetically. Spellings that differ only in case or spacing
+  (``Liver``, ``liver``) become one label.
+* **Normalization** follows nnU-Net: CT normalization for CT, z-score for everything else.
+
+.. important::
+
+  **Segments must not overlap.** nnU-Net needs exactly one label per voxel. If two segments share voxels (e.g. a
+  lesion drawn inside the prostate segment), the run stops before anything is uploaded and names the segments
+  and cases. Fix the segmentations, e.g. cut the lesion out of the prostate, see :ref:`nnunetv2_create_labels`.
+
+The run checks everything before it uploads anything. If a check fails, nothing is uploaded and the
+:ref:`report <nnunetv2_create_report>` names the problem and the field to change. Open *Advanced* only when one of
+these applies:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 45 55
+
+   * - Situation
+     - Panel in *Advanced*
+   * - Several images per case (e.g. T2 + ADC), or the modality of the image is unknown
+     - :ref:`Several images per case <nnunetv2_create_channels>`
+   * - Segments are named differently across cases, labels should be numbered in a given order, or only some
+       segments should be used
+     - :ref:`Labels <nnunetv2_create_labels>`
+   * - Leave out broken cases, fix the dataset ID, try without uploading
+     - :ref:`Options <nnunetv2_create_options>`
 
 How it works
 ============
@@ -100,18 +135,21 @@ How it works
 #. **Cases come from the segmentations.** The workflow collects every DICOM SEG and RTSTRUCT in the selected
    Kaapana dataset and follows its reference to the image series it was drawn on. **One case is one segmented
    image series.** Several segmentation objects referencing the same series (e.g. one SEG per structure) are
-   merged into that case. The images themselves only need to be in the project, not in the selected dataset.
+   merged into that case; two of them providing the same label are refused (see :ref:`nnunetv2_create_report`).
+   The images themselves only need to be in the project, not in the selected dataset.
 #. **Labels come from the segment names.** All segment names (SEG) and ROI names (RTSTRUCT) are collected and
-   mapped to label values with the label table (see :ref:`below <nnunetv2_create_labels>`).
+   mapped to label values (see :ref:`nnunetv2_create_labels`).
 #. **Channels come from the study.** For every case, each channel rule picks one series of the same study
-   (see :ref:`below <nnunetv2_create_channels>`). Without channel rows, the only channel is the segmented series.
+   (see :ref:`nnunetv2_create_channels`). Without channel rows, the only channel is the segmented series.
 #. **Conversion.** Each channel becomes a 3D NIfTI image; channels with another geometry than channel 0 are
    resampled onto it. All segments of the case are drawn onto the grid of the segmented image and combined into
    one label map, which is placed on the grid of channel 0.
-#. **Report and publish.** The log lists what was found and every problem. With *Check only* the workflow stops
-   here. Otherwise the dataset is uploaded to ``nnunet/raw/DatasetXXX_Name/`` in the project's MinIO bucket and
-   appears in the dropdown of :ref:`nnunetv2-plan-preprocess <nnunetv2_plan_preprocess>`. The ID ``XXX`` is the
-   next free one in the project unless a fixed *Dataset ID* is set in *Advanced*.
+#. **Check.** The cases, labels, overlapping segments and modalities are checked, and nnU-Net's own dataset check runs on the
+   result.
+#. **Report and publish.** The report lists what was found and every problem. Without problems the dataset is
+   uploaded to ``nnunet/raw/DatasetXXX_Name/`` in the project's MinIO bucket, together with the report, and appears
+   in the dropdown of :ref:`nnunetv2-plan-preprocess <nnunetv2_plan_preprocess>`. The ID ``XXX`` is the next free
+   one in the project unless a fixed *Dataset ID* is set.
 
 Example
 =======
@@ -127,12 +165,13 @@ A prostate MRI study with three series and a SEG drawn on the T2w series:
      #100 Prostate segmentation  SEG    segments: Prostate, Lesion
                                         (in some studies: Prostate, Tumour)
 
-Form:
+Form, in *Advanced*:
 
-* *Input channels*: row ``T2`` with rule ``segmented``, row ``ADC`` with rule ``SeriesDescription ~ adc``.
+* *Several images per case*: row ``T2`` with rule ``segmented``, row ``ADC`` with rule ``SeriesDescription ~ adc``.
   Channel 0 is t2_tse_tra, channel 1 is ep2d_diff_ADC; t1_tse_tra is not used.
-* *Labels*: row ``Prostate``, row ``Lesion`` with alias ``Tumour``.
-  Label 1 is Prostate, label 2 is Lesion, also in the studies that call it Tumour.
+* *Labels*: row ``Prostate``, row ``Lesion`` with *Also matches* ``Tumour``.
+  Label 1 is Prostate, label 2 is Lesion, also in the studies that call it Tumour. The Prostate segment must
+  leave out the lesion voxels: segments must not overlap.
 
 Result for the dataset name ``ProstateMR``:
 
@@ -145,11 +184,12 @@ Result for the dataset name ``ProstateMR``:
      ...
      dataset.json                           channels, labels, number of cases
      kaapana.json                           rules, where every case came from
+     report.txt                             the report of the run
 
 .. _nnunetv2_create_channels:
 
-Input channels
-==============
+Several images per case (multi-channel)
+=======================================
 
 Leave the table empty for one channel: the image the segmentations were drawn on. For several channels add one
 row per channel, in order; the order is the channel order nnU-Net sees, also at prediction time.
@@ -166,11 +206,13 @@ The *Rule* says which series of the study is the channel:
     Tags = adc                 Kaapana tags work like any other field
     ImageType != DERIVED       does not equal
 
+The form marks a rule it cannot read in red before the run starts.
 **Each rule must match exactly one series per study.** Rules see all series of the study in the project, not
 only those in the selected dataset. Tips:
 
 * Look up the values first: in :ref:`datasets`, open a study and compare the *Series Description* of its series
-  across a few studies; scanners and sites name sequences differently.
+  across a few studies; scanners and sites name sequences differently. The report of a run lists, per channel,
+  which series descriptions it picked and how often.
 * Make regular expressions specific. ``~ t2`` also matches ``t2_tse_sag`` and ``t2_tse_cor``;
   ``~ t2.*tra`` or ``SeriesDescription ~ t2 & SeriesDescription ~ tra`` picks the axial one.
 * Several patterns for the same channel: ``SeriesDescription ~ adc|apparent``.
@@ -178,73 +220,130 @@ only those in the selected dataset. Tips:
 * If no rule can tell the series apart, tag the right series in :ref:`datasets` and use ``Tags = <tag>``.
 
 *Name* is the channel name in ``dataset.json``. *Normalization* sets nnU-Net's intensity normalization per
-channel; empty means CT normalization when all series of the channel are CT, z-score otherwise.
-Channels with a different geometry (size, spacing, orientation) than channel 0 are resampled onto channel 0
-(linear interpolation); switch this off in *Advanced* to report them as errors instead.
+channel. *Automatic* means CT normalization when all series of the channel are CT and z-score when they all
+have another modality. If a channel mixes modalities or a series has no modality in the metadata, the run stops
+and asks you to choose. For a single channel add one row with rule ``segmented`` and the normalization.
+
+*Resample channels onto channel 0* (on by default) resamples channels with a different geometry (size, spacing,
+orientation) linearly onto channel 0; off, such cases are reported as problems.
 
 The rules are stored in ``kaapana.json`` and used again by :ref:`nnunetv2-predict <nnunetv2_predict>`, so
 prediction finds the channels of new studies the same way.
 
 .. _nnunetv2_create_labels:
 
-Labels
-======
+Labels (names, merging, order)
+==============================
 
-Leave the table empty to make every segment name its own label (numbered alphabetically). Otherwise add one row
-per label: the row order gives the label value (1, 2, ...). *Also matches* lists further segment names (comma
-separated) that belong to the same label, e.g. label ``Lesion`` that also matches ``Tumour, tumor``. Names are
-compared case-insensitively; spaces in label names become ``_``.
+**Empty table:** every segment name is its own label, numbered alphabetically. Names that differ only in case
+or spacing are one label; the report lists the merged spellings (``Liver (also: liver)``). Names that say
+nothing about the structure, such as ``Segment_1`` or ``1``, are refused because they can mean different
+structures in different cases: rename the segments or fill the table.
 
-**Overlapping segments.** nnU-Net needs one label per voxel. Where segments overlap, **the label further down
-in the table wins**. Put enclosing structures first: in the example, *Prostate* (the whole gland, including the
-lesion) is label 1 and *Lesion* label 2, so lesion voxels stay lesion. The report shows how many voxels were
-overwritten per label (``Overlaps: Prostate overwritten in 11465 voxels by a higher label``). If that number is
-unexpected, the order is probably wrong.
+**Table:** one row per label; the row order gives the label value (1, 2, ...). *Also matches* lists further
+segment names (comma separated) that belong to the same label, e.g. label ``Lesion`` that also matches
+``Tumour, tumor``. Names are compared case-insensitively; spaces in label names become ``_``.
+
+**Segments must not overlap.** nnU-Net needs exactly one label per voxel. Kaapana does not decide which of two
+overlapping segments wins, because that would change your annotation silently. If segments overlap in any case,
+the run stops before anything is uploaded, also with *Skip invalid cases*, and names the segments, the voxel
+count and the cases (``OVERLAP: 'Prostate' and 'Lesion' overlap in 14 case(s) ...``). To fix it:
+
+* Correct the segmentations so that they do not share voxels, e.g. cut the lesion out of the prostate segment
+  (in an annotation tool, or by exporting the segmentation again) and replace the SEGs in the Kaapana dataset.
+* Or leave one of the structures out: list the labels in the table without it and enable *Ignore segments not
+  in the label table*.
+
+Overlaps between segments of the *same* label (e.g. ``Tumour`` and ``tumor`` merged into one label) are fine.
 
 Segment names found in the data but not in the table stop the workflow before anything is converted (the error
-lists them). Add them as label or alias, or enable *Ignore segments not in the label table* to leave them out.
+lists them). Add them as label or in *Also matches*, or enable *Ignore segments not in the label table* to leave
+them out; the report lists the ignored names. A label that has no voxel in any case is a problem as well.
+
+nnU-Net's region-based training (nested labels as in BraTS) is not supported: every voxel has exactly one label.
 
 Supported segmentations: DICOM SEG (binary, fractional – thresholded at 50 % – and labelmap) and RTSTRUCT (closed
 planar contours; a contour inside another contour of the same ROI is a hole). SEG frames must lie on the slices
 of the referenced image; segmentations resampled to another grid are reported as errors.
 
+.. _nnunetv2_create_options:
+
+Options
+=======
+
+* **Check only:** convert and report, but upload nothing and keep the dataset ID free. A normal run with problems
+  uploads nothing either, so this is only needed to look at the report of a clean dataset first.
+* **Skip invalid cases:** cases with problems are left out and listed instead of failing the run. Problems of the
+  whole dataset (overlapping segments, mixed modalities, empty labels) still fail it.
+* **Dataset ID:** a fixed nnU-Net dataset ID (1–999) instead of the next free one.
+* **Description:** stored in ``dataset.json``.
+
+.. _nnunetv2_create_report:
+
 Reading the report
 ==================
 
 Every run prints a report at the end of its log (Workflow List → the run → *Open the Airflow run details* →
-task *nnunet-create-dataset* → *Logs*):
+task *nnunet-create-dataset* → *Logs*). A published dataset also contains it as ``report.txt``.
 
 .. code-block:: text
 
    Dataset:   Dataset001_ProstateMR
-   Cases:     20 of 20 segmented series
-   Channels:  0: T2 (segmented), 1: ADC (SeriesDescription ~ adc)
-   Labels:    1: Prostate, 2: Lesion
-   Overlaps:  Prostate overwritten in 11465 voxels by a higher label
+   Cases:     20 of 20 segmented series, from 20 patient(s)
+   Channels:
+     0 T2 (segmented): MR x20; normalization zscore; series: t2_tse_tra x18, t2_blade_tra x2
+     1 ADC (SeriesDescription ~ adc): MR x20; normalization zscore; series: ep2d_diff_ADC x20
+   Labels:
+     1 Prostate: in 20 of 20 cases
+     2 Lesion: in 14 of 20 cases (also: lesion)
 
-   Check only: nothing was uploaded.
+Check *series* (did each rule pick the intended sequence everywhere?) and the label counts.
+If some patients have several cases, the report suggests own cross-validation splits
+(see :ref:`nnunetv2_splits`).
 
-Problems are listed below it, one line per case, and make the run fail – unless *Skip invalid cases* is
-enabled, then the valid cases are uploaded and the others only listed.
+Problems are listed below the report and make the run fail. Problems of single cases can be left out with
+*Skip invalid cases*; then the valid cases are uploaded and the others only listed. Series are named
+``#<series number> <series description>`` as in the viewer.
 
-``channel 'ADC' (SeriesDescription ~ adc) matches 0 series``
-   The study has no such series, or it is named differently. Check the series descriptions; widen the rule (``~
-   adc|apparent``) or skip the case.
+``channel 'ADC' (SeriesDescription ~ adc) matches no series; the study has: #3 t2_tse_tra, #5 dwi_b800``
+   The study has no such series, or it is named differently. Compare with the listed series; widen the rule
+   (``~ adc|apparent``) or skip the case.
 
-``channel 'T2' (...) matches 2 series: [...]``
+``channel 'T2' (...) matches 2 series: #3 t2_tse_tra, #4 t2_tse_tra_ND``
    The rule is not specific enough; add a condition (``& SeriesDescription ~ tra``, ``& ImageType != DERIVED``).
 
 ``two channels picked the same series``
    Two rules match the same series; make them exclusive.
 
+``OVERLAP: 'Prostate' and 'Lesion' overlap in 14 case(s), ... voxels in total: #3 t2_tse_tra (patient P07), ...``
+   nnU-Net needs one label per voxel. Fix the segmentations of the listed cases so that the two segments do not
+   share voxels, or leave one of them out (see :ref:`nnunetv2_create_labels`). This always stops the run.
+
+``these segment names do not say which structure they are ...``
+   Segments named like ``Segment_1``. Rename them in the data, or list the labels in the table.
+
 ``these segment names are in the data but not in the label table: ...``
-   Add the names as label or alias, or enable *Ignore segments not in the label table*.
+   Add the names as label or in *Also matches*, or enable *Ignore segments not in the label table*.
 
 ``'x' is listed for two labels``
    A name or alias appears in two rows; keep it in one.
 
-``does not reference an image series``
-   The SEG/RTSTRUCT lacks the reference to the image it was drawn on, so it cannot be placed.
+``label 'Lesion' comes from 2 segmentation objects (...)``
+   Two segmentation objects of the same series contain the same structure, e.g. a second annotator, an outdated
+   version or an earlier nnU-Net prediction (dataset *nnunet-seg*). Keep only one of them in the Kaapana dataset.
+
+``label 'x' has no voxel in any case``
+   The label is in the table but never drawn. Remove the row.
+
+``the segmentation is empty (no voxel of any label)``
+   All segments of the case are empty or ignored. Remove the case or skip it.
+
+``channel 0 (...) has mixed or unknown modalities (CT x18, unknown x2) ...``
+   The normalization cannot be chosen automatically. Add a channel row with the normalization, see
+   :ref:`nnunetv2_create_channels`.
+
+``cannot be read`` / ``does not reference an image series``
+   The SEG/RTSTRUCT is broken or lacks the reference to the image it was drawn on, so it cannot be placed.
    Export it again with the reference, or remove it from the dataset.
 
 ``the SEG frames do not lie on the pixel grid of the referenced image``
@@ -254,13 +353,14 @@ enabled, then the valid cases are uploaded and the others only listed.
    The series is not a single 3D volume. Remove localizers or split the stacks before importing.
 
 ``channel 1 has a different geometry than channel 0``
-   Only with resampling switched off: enable *Resample channels to the first channel*.
+   Only with resampling switched off: enable *Resample channels onto channel 0*.
+
+``nnU-Net's dataset check failed: ...``
+   nnU-Net's own check (``verify_dataset_integrity``) found a problem in the converted files; the message is
+   nnU-Net's.
 
 ``The dataset contains no DICOM SEG or RTSTRUCT``
    Add the segmentation series (not only the images) to the Kaapana dataset.
-
-Recommended order: run with *Check only*, fix rules and labels until the report has no problems, then run again
-without it.
 
 What is written
 ===============
@@ -270,6 +370,7 @@ What is written
 * ``dataset.json``: nnU-Net's description (``channel_names``, ``labels``, ``numTraining``, ``file_ending``).
 * ``kaapana.json``: the channel rules, labels and aliases, and for every case its study, the series of each
   channel and the segmentation objects – to trace a case back to its DICOM data, and for prediction.
+* ``report.txt``: the report of the run.
 
 The dataset is uploaded only when complete (a ``_DONE.json`` marker is written last), so other workflows never
 see half a dataset. To add cases later, create a new dataset; existing datasets are not changed.
@@ -554,8 +655,10 @@ Troubleshooting
 **A dropdown is empty although the data is in MinIO.**
   Run **nnunetv2-refresh**.
 
-**nnunetv2-create-dataset fails with problems in some cases.**
-  The log lists every problem. Fix the data, adjust the label or channel table, or enable *Skip invalid cases*.
+**nnunetv2-create-dataset fails.**
+  The report at the end of the log lists every problem and what to change, see :ref:`nnunetv2_create_report`.
+  Overlapping segments, mixed modalities and empty labels always stop the run; problems of single cases can be
+  left out with *Skip invalid cases*.
 
 **nnunetv2-train fails with "A fold needs ... GB of GPU memory".**
   No GPU can provide the memory in *GPU memory per fold*, because the GPU is too small or other programs use part

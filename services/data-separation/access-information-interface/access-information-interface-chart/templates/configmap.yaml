@@ -150,6 +150,7 @@ data:
       { "software_uuid": "nnunet-uninstall-models"},
       { "software_uuid": "nnunetv2-create-dataset"},
       { "software_uuid": "nnunetv2-find-best-config"},
+      { "software_uuid": "nnunetv2-harmonize-segmentations"},
       { "software_uuid": "nnunetv2-plan-preprocess"},
       { "software_uuid": "nnunetv2-predict"},
       { "software_uuid": "nnunetv2-refresh"},

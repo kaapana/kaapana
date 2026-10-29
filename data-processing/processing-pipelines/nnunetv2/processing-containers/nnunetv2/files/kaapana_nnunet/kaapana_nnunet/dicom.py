@@ -223,45 +223,99 @@ def write_seg(
     algorithm: str,
 ) -> bool:
     """Label array (z, y, x) on the grid of the source series -> DICOM SEG. False if it is empty."""
+    present = sorted(int(v) for v in np.unique(labels) if v)
+    segments = [SegSegment(label_names.get(v, f"label {v}"), labels == v) for v in present]
+    return write_seg_segments(segments, source_files, out_file, series_description, algorithm)
+
+
+class SegSegment:
+    """One segment of a SEG to write: name, boolean mask (z, y, x) and optionally the coded property
+    category and type (pydicom code items) of the segment it came from."""
+
+    def __init__(self, name: str, mask: np.ndarray, category=None, property_type=None):
+        self.name, self.mask, self.category, self.property_type = name, mask, category, property_type
+
+
+def segment_codes(ds: pydicom.Dataset) -> dict[str, tuple]:
+    """{segment name: (category item, type item)} of a SEG; RTSTRUCTs carry no such codes."""
+    codes = {}
+    for s in ds.get("SegmentSequence", []):
+        try:
+            codes[str(s.SegmentLabel).strip()] = (
+                s.SegmentedPropertyCategoryCodeSequence[0],
+                s.SegmentedPropertyTypeCodeSequence[0],
+            )
+        except (AttributeError, IndexError):
+            pass
+    return codes
+
+
+def write_seg_segments(
+    segments: list[SegSegment],
+    source_files: list[str],
+    out_file: Path,
+    series_description: str,
+    algorithm: str,
+    algorithm_type: str = "AUTOMATIC",
+    series_uid: Optional[str] = None,
+    sop_uid: Optional[str] = None,
+    series_number: int = 900,
+    content_label: Optional[str] = None,
+    content_description: Optional[str] = None,
+) -> bool:
+    """Non-empty boolean masks (z, y, x) on the grid of the source series -> one BINARY DICOM SEG.
+    Segments may overlap. Returns False (nothing written) if all masks are empty."""
     import highdicom as hd
 
     if len(source_files) == 1:
         raise ConversionError("writing SEGs for multi-frame source images is not supported yet")
-    present = sorted(int(v) for v in np.unique(labels) if v)
-    if not present:
+    segments = [s for s in segments if s.mask.any()]
+    if not segments:
         return False
     sources = [pydicom.dcmread(f) for f in source_files]
-    # segment numbers must be 1..n: renumber the labels that occur
-    renumbered = np.zeros(labels.shape, dtype=np.uint8)
-    for number, value in enumerate(present, start=1):
-        renumbered[labels == value] = number
-    descriptions = [
-        hd.seg.SegmentDescription(
-            segment_number=number,
-            segment_label=label_names.get(value, f"label {value}"),
-            segmented_property_category=hd.sr.CodedConcept("91723000", "SCT", "Anatomical Structure"),
-            segmented_property_type=hd.sr.CodedConcept("85756007", "SCT", "Tissue"),
-            algorithm_type=hd.seg.SegmentAlgorithmTypeValues.AUTOMATIC,
-            algorithm_identification=hd.AlgorithmIdentificationSequence(
-                name=algorithm[:64], version="1", family=hd.sr.CodedConcept("123109", "DCM", "Artificial Intelligence")
-            ),
+    tissue = (
+        hd.sr.CodedConcept("91723000", "SCT", "Anatomical Structure"),
+        hd.sr.CodedConcept("85756007", "SCT", "Tissue"),
+    )
+    descriptions = []
+    for number, segment in enumerate(segments, start=1):
+        if segment.category is not None and segment.property_type is not None:
+            codes = (
+                hd.sr.CodedConcept.from_dataset(segment.category),
+                hd.sr.CodedConcept.from_dataset(segment.property_type),
+            )
+        else:
+            codes = tissue
+        descriptions.append(
+            hd.seg.SegmentDescription(
+                segment_number=number,
+                segment_label=segment.name[:64],
+                segmented_property_category=codes[0],
+                segmented_property_type=codes[1],
+                algorithm_type=getattr(hd.seg.SegmentAlgorithmTypeValues, algorithm_type),
+                algorithm_identification=hd.AlgorithmIdentificationSequence(
+                    name=algorithm[:64],
+                    version="1",
+                    family=hd.sr.CodedConcept("123109", "DCM", "Artificial Intelligence"),
+                ),
+            )
         )
-        for number, value in enumerate(present, start=1)
-    ]
     seg = hd.seg.Segmentation(
         source_images=sources,
-        pixel_array=renumbered,
+        pixel_array=np.stack([s.mask for s in segments], axis=-1).astype(np.uint8),
         segmentation_type=hd.seg.SegmentationTypeValues.BINARY,
         segment_descriptions=descriptions,
-        series_instance_uid=hd.UID(),
-        series_number=900,
-        sop_instance_uid=hd.UID(),
+        series_instance_uid=series_uid or hd.UID(),
+        series_number=series_number,
+        sop_instance_uid=sop_uid or hd.UID(),
         instance_number=1,
         manufacturer="Kaapana",
         manufacturer_model_name="nnU-Net",
         software_versions="nnU-Net",
         device_serial_number="0",
         series_description=series_description[:64],
+        content_label=content_label,
+        content_description=content_description,
     )
     out_file.parent.mkdir(parents=True, exist_ok=True)
     seg.save_as(out_file)

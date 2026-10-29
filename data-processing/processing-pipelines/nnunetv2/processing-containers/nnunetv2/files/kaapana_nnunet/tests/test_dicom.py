@@ -191,3 +191,28 @@ def test_rtstruct_with_hole(tmp_path):
     assert not body[2, 6, 6]  # the hole
     assert not body[1].any() and not body[3].any()
     assert got["Spot"][4, 2, 2] and got["Spot"][4].sum() == 9
+
+
+def test_write_seg_segments_round_trip_keeps_codes_and_uids(tmp_path):
+    folder, datasets, _ = make_ct(tmp_path)
+    image, files = dicom.read_image_series(folder, with_files=True)
+    masks = two_masks()
+    masks["Tumor"] = masks["Tumor"] | masks["Liver"]  # segments of one SEG may overlap
+    source = make_seg(datasets, {"Liver": masks["Liver"]})
+    category, kind = dicom.segment_codes(source)["Liver"]
+    segments = [dicom.SegSegment("Liver", masks["Liver"], category, kind), dicom.SegSegment("Tumor", masks["Tumor"])]
+    uids = dict(series_uid="1.2.3.4", sop_uid="1.2.3.5")
+    first, second = tmp_path / "a" / "seg.dcm", tmp_path / "b" / "seg.dcm"
+    for out in (first, second):
+        assert dicom.write_seg_segments(
+            segments, files, out, "Harmonized", "Kaapana harmonize", "SEMIAUTOMATIC", **uids, content_label="HARMONIZED"
+        )
+    ds = pydicom.dcmread(first)
+    assert ds.SeriesInstanceUID == "1.2.3.4" and ds.SOPInstanceUID == "1.2.3.5" and ds.ContentLabel == "HARMONIZED"
+    assert ds.SegmentSequence[0].SegmentedPropertyTypeCodeSequence[0].CodeMeaning == "Liver"
+    assert ds.SegmentSequence[1].SegmentedPropertyTypeCodeSequence[0].CodeMeaning == "Tissue"
+    got = dicom.segment_masks(ds, image)
+    for name in ("Liver", "Tumor"):
+        np.testing.assert_array_equal(got[name], masks[name], err_msg=name)
+    empty = [dicom.SegSegment("x", np.zeros(SHAPE, bool))]
+    assert not dicom.write_seg_segments(empty, files, tmp_path / "c.dcm", "", "")

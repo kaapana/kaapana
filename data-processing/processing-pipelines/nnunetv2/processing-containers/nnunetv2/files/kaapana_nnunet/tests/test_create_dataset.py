@@ -6,7 +6,8 @@ from kaapana_nnunet.steps.create_dataset import _label_table
 
 
 def test_auto_labels_merge_case_and_spacing():
-    labels, lookup, merged = _label_table([], Counter({"Liver": 5, "liver": 1, "Left Kidney": 2, "left_kidney": 1}), False)
+    found = Counter({"Liver": 5, "liver": 1, "Left Kidney": 2, "left_kidney": 1})
+    labels, lookup, merged = _label_table([], found, False)
     assert labels == {"Left_Kidney": 1, "Liver": 2}
     assert lookup["liver"] == lookup["liver"] == 2 and lookup["left kidney"] == lookup["left_kidney"] == 1
     assert merged == {"Left_Kidney": ["left_kidney"], "Liver": ["liver"]}

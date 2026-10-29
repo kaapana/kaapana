@@ -166,6 +166,39 @@ def test_overlapping_segments_fail(store, tmp_path, monkeypatch, pacs):
     assert store.list_markers("raw") == []
 
 
+@pytest.mark.parametrize("pacs", [True], indirect=True)
+def test_harmonize_resolves_overlaps_for_create_dataset(store, tmp_path, monkeypatch, pacs):
+    from kaapana_nnunet.steps import create_dataset, harmonize
+
+    received = tmp_path / "pacs-received"
+    received.mkdir()
+    port = str(21000 + os.getpid() % 10000)
+    scp = subprocess.Popen(["storescp", "-od", str(received), port])
+    form = {"aetitle": "liver-h", "rules": [{"rule": "priority", "segments": "Tumour, liver"}]}
+    try:
+        segs = [m[SERIES_TAG] for m in pacs if m["00080060 Modality_keyword"] == "SEG"]
+        env = {"PACS_HOST": "127.0.0.1", "PACS_PORT": port}
+        run_step(harmonize, store, tmp_path, monkeypatch, form, segs, env=env)
+    finally:
+        scp.terminate()
+        scp.wait()
+    harmonized = [pydicom.dcmread(f) for f in received.iterdir()]
+    assert len(harmonized) == N_CASES and all(ds.ContentLabel == "HARMONIZED" for ds in harmonized)
+    (record,) = [m for m in store.list_markers("harmonize/liver-h")]
+    assert "report.txt" in {e["path"] for e in record["marker"]["files"]}
+
+    # the harmonized SEGs replace the originals in "the PACS" and create-dataset accepts them
+    root = tmp_path / "pacs"
+    for ds in harmonized:
+        (root / ds.SeriesInstanceUID).mkdir()
+        ds.save_as(root / ds.SeriesInstanceUID / "seg.dcm")
+        original = next(m for m in pacs if m[STUDY_TAG] == ds.StudyInstanceUID)
+        pacs.append({**original, SERIES_TAG: ds.SeriesInstanceUID, "00080060 Modality_keyword": "SEG"})
+    labels = [{"name": "liver"}, {"name": "tumor", "aliases": "Tumour"}]
+    form = {"dataset_name": "LiverH", "dataset_id": 2, "labels": labels, "check_only": True}
+    run_step(create_dataset, store, tmp_path, monkeypatch, form, [ds.SeriesInstanceUID for ds in harmonized])
+
+
 def test_dicom_to_trained_folds(store, tmp_path, monkeypatch, pacs):
     from kaapana_nnunet import catalog, layout
     from kaapana_nnunet.steps import create_dataset, plan_preprocess, train

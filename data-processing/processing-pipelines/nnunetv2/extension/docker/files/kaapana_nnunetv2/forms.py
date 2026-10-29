@@ -1,8 +1,9 @@
 """Workflow forms. Every nnU-Net argument has a field; an empty field means nnU-Net's own default.
 
 Frequently used fields are at the top, all others in the collapsed "Advanced (nnU-Net)" section with
-nnU-Net's flag name in the title; create-dataset splits it into titled panels with an intro and a guide link
-each (descriptions of array fields are not shown by the frontend). Dropdowns of project data use the backend's installed_models mechanism
+nnU-Net's flag name in the title; create-dataset and harmonize split it into titled panels with an intro and a
+guide link each (descriptions of array fields are not shown by the frontend). Dropdowns of project data use the
+backend's installed_models mechanism
 (kinds nnunetv2-raw / -preprocessed / -model, kept in sync with S3 by every step).
 """
 
@@ -229,7 +230,9 @@ CREATE_DATASET = {
                     "skip_invalid_cases": boolean(
                         "Skip invalid cases", "Leave out cases with problems instead of failing (they are listed)."
                     ),
-                    "dataset_id": integer("Dataset ID", "Fixed nnU-Net dataset ID (1-999) instead of the next free one."),
+                    "dataset_id": integer(
+                        "Dataset ID", "Fixed nnU-Net dataset ID (1-999) instead of the next free one."
+                    ),
                     "description": text("Description", "Stored in dataset.json."),
                 },
             ),
@@ -508,6 +511,140 @@ PREDICT = selection_form(
         ),
     },
 )
+
+# ---------------------------------------------------------------- harmonize segmentations
+
+def _names(title, placeholder, default=None):
+    field = {"title": title, "type": "string", "minLength": 1, "layout": {"placeholder": placeholder}}
+    if default is not None:
+        field["default"] = default
+    return field
+
+
+def _rule(kind, title, segments, target=None, value=None):
+    """One rule type with only the fields it needs (kaapana_nnunet/harmonize.py); the type is the discriminator."""
+    properties = {"rule": {"const": kind}, "segments": segments}
+    if target:
+        properties["target"] = target
+    if value:
+        properties["value"] = value
+    return {"title": title, "type": "object", "properties": properties, "required": list(properties)}
+
+
+HARMONIZE_RULES = {
+    "title": "",
+    "type": "array",
+    "default": [],
+    "layout": {"listEditMode": "inline", "messages": {"addItem": "Add rule"}},
+    "items": {
+        "type": "object",
+        "discriminator": {"propertyName": "rule"},
+        "oneOfLayout": {"label": "Rule"},
+        "oneOf": [
+            _rule(
+                "priority",
+                "Priority: the first segment keeps overlapping voxels",
+                _names("Segments, most important first", "e.g. Lesion, Prostate"),
+            ),
+            _rule(
+                "cut_out",
+                "Cut out: remove segments from another one",
+                _names("Cut out", "e.g. Lesion"),
+                _names("from", "e.g. Prostate"),
+            ),
+            _rule(
+                "rename", "Rename", _names("Segments to rename", "e.g. Leber*, LIVER"), _names("New name", "e.g. Liver")
+            ),
+            _rule(
+                "combine",
+                "Combine several segments into one",
+                _names("Segments to combine", "e.g. PZ, TZ"),
+                _names("Name of the combined segment", "e.g. Prostate"),
+            ),
+            _rule("drop", "Drop segments", _names("Segments to drop", "e.g. Body, z_*")),
+            _rule("keep_only", "Keep only these segments", _names("Segments to keep", "e.g. Liver, Lesion")),
+            _rule(
+                "remove_specks",
+                "Remove specks (small loose pieces)",
+                _names("Segments", "* for all", "*"),
+                value={"title": "Smallest piece to keep (mm³)", "type": "number", "exclusiveMinimum": 0, "default": 10},
+            ),
+            _rule(
+                "choose_version",
+                "Choose version (several SEGs on one series)",
+                _names("Segments", "* for all", "*"),
+                value={
+                    "title": "Keep",
+                    "type": "string",
+                    "examples": ["newest", "union", "description ~ manual", "author ~ Smith"],
+                    "default": "newest",
+                },
+            ),
+        ],
+    },
+}
+
+HARMONIZE = {
+    "type": "object",
+    "properties": {
+        "aetitle": {
+            "title": "Name of the result dataset",
+            "description": "Kaapana dataset that receives the harmonized SEGs. At most 13 characters.",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 13,  # sent as DICOM AE title kp-<name>, at most 16 characters
+            "pattern": "^[A-Za-z0-9._-]+$",
+            "required": True,
+            "layout": {
+                "placeholder": "e.g. liver-harm",
+                "slots": {
+                    "after": (
+                        "Writes one cleaned-up SEG per image series into this new dataset; the originals stay "
+                        "untouched. Overlaps that no rule resolves stop that series. "
+                        + doc_link("nnunetv2-harmonize-segmentations", "Guide")
+                        + " · "
+                        + doc_link("reading-the-harmonize-report", "Reading the report")
+                    )
+                },
+            },
+        },
+        "advanced": advanced_panels(
+            (
+                "Rules",
+                "Whatever the order of the rows, the rules run as: choose version → rename → drop / keep only → "
+                "combine → cut out → remove specks → priority. Names ignore case, `*` matches anything. "
+                + doc_link("harmonize-rules", "Rules"),
+                {"rules": HARMONIZE_RULES},
+            ),
+            (
+                "Overlaps",
+                "Overlaps left after the rules stop the series and are listed in the report. Add a *priority* or "
+                "*cut out* rule, or switch on *Inner structure wins*. "
+                + doc_link("harmonize-overlaps", "Overlaps"),
+                {
+                    "inner_wins": boolean(
+                        "Inner structure wins",
+                        "A segment lying at least 80% inside another one keeps the shared voxels (e.g. a lesion "
+                        "inside the organ). Every such decision is listed in the report.",
+                    ),
+                },
+            ),
+            (
+                "Options",
+                "Usually not needed.",
+                {
+                    "check_only": boolean(
+                        "Check only", "Apply the rules and report, but write and send nothing. Recommended first."
+                    ),
+                    "skip_invalid_cases": boolean(
+                        "Skip invalid series", "Send the series without problems; the others are listed."
+                    ),
+                    "seg_description": text("Series description", "Of the new SEGs. Default: Harmonized <original>."),
+                },
+            ),
+        ),
+    },
+}
 
 # ---------------------------------------------------------------- refresh
 

@@ -7,7 +7,6 @@ one case, the channel 'segmented' is that series, other channels are found in it
 import json
 import logging
 import os
-import subprocess
 from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
@@ -15,6 +14,7 @@ import SimpleITK as sitk
 
 from kaapana_nnunet import channels as ch
 from kaapana_nnunet import dicom, sources
+from kaapana_nnunet.pacs import check_aetitle, send_to_pacs
 from kaapana_nnunet.context import Context, StepError, run_nnunet
 from kaapana_nnunet.sources import MODALITY, SERIES, STUDY
 
@@ -33,24 +33,6 @@ def model_channels(kaapana: dict, dataset_json: dict) -> tuple[list[ch.Channel],
             "so its inputs cannot be found in DICOM."
         )
     return ch.parse_channels([]), True
-
-
-def send_to_pacs(ctx: Context, folder, aetitle: str):
-    """dcmsend to Kaapana's DICOM receiver (CTP): indexed and assigned to this project like any upload."""
-    host = os.environ.get("PACS_HOST")
-    if not host:
-        from kaapana_client.settings import KaapanaSettings
-
-        host = f"ctp-dicom-service.{KaapanaSettings().services_namespace}.svc"
-    project = ctx.project.get("short_id") or "admin"
-    args = ["dcmsend", "-v", host, os.environ.get("PACS_PORT", "11112"), "-aet", f"kp-{aetitle}"]
-    args += ["-aec", f"kp-{project}", "--scan-directories", "--recurse", "--no-halt", str(folder)]
-    for attempt in range(1, 6):
-        out = subprocess.run(args, capture_output=True, text=True, timeout=600)
-        if out.returncode == 0 and "with status SUCCESS" in out.stdout + out.stderr:
-            return
-        logger.warning("dcmsend attempt %d failed:\n%s%s", attempt, out.stdout, out.stderr)
-    raise StepError("Sending the segmentations to the PACS failed (dcmsend), see the log above.")
 
 
 def postprocess(ctx: Context, dataset: str, model_name: str, folds: list[str], model_dir, out_dir):
@@ -96,8 +78,7 @@ def run(ctx: Context):
     model_prefix = ctx.selection()
     dataset, model_name = model_prefix.split("/")[1:3]
     aetitle = ctx.get("aetitle") or "nnunet-seg"
-    if len(f"kp-{aetitle}") > 16:  # DICOM AE titles have at most 16 characters
-        raise StepError(f"Result dataset '{aetitle}' is too long: at most 13 characters.")
+    check_aetitle(aetitle)
     ctx.prepare()
     store = ctx.store
     model_dir = ctx.scratch / "model" / model_name

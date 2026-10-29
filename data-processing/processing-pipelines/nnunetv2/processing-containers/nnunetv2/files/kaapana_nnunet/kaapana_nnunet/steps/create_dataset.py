@@ -154,7 +154,9 @@ def run(ctx: Context):
             case = cases.setdefault(ref, {"study": study_uid, "segmentations": []})
             case["segmentations"].append((uid, ds, seg_name))
 
-    found_names = Counter(n for case in cases.values() for _, ds, _ in case["segmentations"] for n in _segment_names(ds))
+    found_names = Counter(
+        n for case in cases.values() for _, ds, _ in case["segmentations"] for n in _segment_names(ds)
+    )
     labels, lookup, merged = _label_table(label_rows, found_names, ignore_unlisted)
     ignored = sorted(n for n in found_names if n.lower() not in lookup)
 
@@ -257,7 +259,8 @@ def _convert_and_publish(
             raise dicom.ConversionError(
                 "; ".join(f"label '{label_name[v]}' comes from {len(s)} segmentation objects ({', '.join(sorted(s))})"
                           for v, s in twice.items())
-                + ". Keep only one of them in the Kaapana dataset (an earlier nnU-Net prediction?)"
+                + ". Keep only one of them in the Kaapana dataset (an earlier nnU-Net prediction?), or pick one "
+                "with nnunetv2-harmonize-segmentations (rule 'choose version')."
             )
         label_of = {k: lookup[k.rsplit("#", 1)[0].lower()] for k in masks}
         label_image, overlaps = dicom.labelmap(masks, label_of, segmented)
@@ -300,8 +303,9 @@ def _convert_and_publish(
             f"OVERLAP: '{a}' and '{b}' overlap in {len(where)} case(s), {voxels} voxels in total: "
             + ", ".join(sorted(where)[:5])
             + (f" and {len(where) - 5} more" if len(where) > 5 else "")
-            + f". Fix the segmentations so that '{a}' and '{b}' do not share voxels (e.g. cut the inner structure "
-            "out of the outer one), or leave one of them out (Advanced -> Labels)."
+            + f". Fix the segmentations so that '{a}' and '{b}' do not share voxels, e.g. with "
+            "nnunetv2-harmonize-segmentations (rule 'priority' or 'cut out'), or leave one of them out "
+            "(Advanced -> Labels)."
         )
     if converted:
         fatal += [
@@ -382,7 +386,8 @@ def _convert_and_publish(
         raise StepError(
             "Segments overlap. nnU-Net needs exactly one label per voxel, so overlapping segmentations cannot be "
             f"trained. Affected: {sum(len(w) for _, w in overlap_cases.values())} case(s), listed in the report "
-            f"above. Fix the segmentations and run again. Nothing was uploaded. See {HELP['labels']}"
+            f"above. Fix the segmentations, e.g. with the workflow nnunetv2-harmonize-segmentations, and run again. "
+            f"Nothing was uploaded. See {HELP['labels']}"
         )
     if fatal or (problems and not (skip_invalid and converted)):
         raise StepError(

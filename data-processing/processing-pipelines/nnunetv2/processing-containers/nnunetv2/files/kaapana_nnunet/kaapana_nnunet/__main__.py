@@ -6,7 +6,7 @@ import sys
 
 from kaapana_nnunet.context import main
 
-STEPS = ("create_dataset", "plan_preprocess", "train", "find_best_config", "predict", "refresh")
+STEPS = ("create_dataset", "plan_preprocess", "train", "find_best_config", "predict", "refresh", "harmonize")
 
 
 def entry():

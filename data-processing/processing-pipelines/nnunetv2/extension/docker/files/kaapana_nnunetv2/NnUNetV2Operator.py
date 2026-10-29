@@ -35,9 +35,12 @@ RESOURCES = {
         timeout=timedelta(hours=12),
     ),
     "refresh": dict(ram_mem_mb=1000, ram_mem_mb_lmt=4000, timeout=timedelta(hours=2)),
+    "harmonize": dict(
+        ram_mem_mb=8000, ram_mem_mb_lmt=32000, cpu_millicores=4000, cpu_millicores_lmt=8000, timeout=timedelta(hours=12)
+    ),
 }
-# prediction results are sent to Kaapana's DICOM receiver
-LABELS = {"predict": {"network-access-ctp": "true"}}
+# prediction and harmonization results are sent to Kaapana's DICOM receiver
+LABELS = {"predict": {"network-access-ctp": "true"}, "harmonize": {"network-access-ctp": "true"}}
 
 
 class NnUNetV2Operator(KaapanaBaseOperator):
@@ -46,7 +49,7 @@ class NnUNetV2Operator(KaapanaBaseOperator):
     The container reads the whole form from conf.json, fetches its inputs from the project bucket
     and publishes its outputs there; nothing is passed between tasks on disk.
 
-    :param step: create_dataset, plan_preprocess, train, find_best_config, predict or refresh
+    :param step: create_dataset, plan_preprocess, train, find_best_config, predict, refresh or harmonize
     :param fold: (train) the fold this task trains; it is skipped unless the form selects it
     """
 

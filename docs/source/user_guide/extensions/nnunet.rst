@@ -334,13 +334,57 @@ a run train in parallel as far as GPUs are free. Folds that are not selected app
   The default comes from the plans, see :ref:`nnunetv2_resources`.
 * **Trainer (-tr):** ``nnUNetTrainer`` or any variant that ships with nnU-Net, e.g. ``nnUNetTrainer_250epochs``.
   For nnFoundation plans the default becomes ``PretrainedTrainer``.
-* **Splits:** empty means nnU-Net's 5-fold split. For an own split upload a file in the format of
-  ``splits_final.json`` to ``nnunet/splits/<Dataset>/<name>.json`` and enter ``<name>``.
 * **--npz:** saves the softmax predictions of the validation. Needed to ensemble configurations in
   :ref:`nnunetv2-find-best-config <nnunetv2_find_best_config>`.
 
 A fold that is already trained is not trained again unless *Overwrite existing fold* is enabled.
 The finished fold is published as ``results/<Dataset>/<trainer>__<plans>__<configuration>/fold_X/``.
+
+Fields in *Advanced* include *Own cross-validation splits*, see :ref:`nnunetv2_splits`.
+
+.. _nnunetv2_splits:
+
+Own cross-validation splits
+===========================
+
+By default nnU-Net splits the cases of a dataset at random into 5 folds (seed 12345) and writes the split to
+``nnunet/preprocessed/<Dataset>/splits_final.json``. You can give nnU-Net your own split instead, e.g. to keep
+all scans of one patient in the same fold, to stratify by site or scanner, or to reuse the folds of a
+publication.
+
+#. Download ``nnunet/preprocessed/<Dataset>/splits_final.json`` from the project's MinIO bucket (see
+   :ref:`store`). It already contains every case name of the dataset and is the easiest starting point.
+#. Edit it. The file is a list with one entry per fold; each entry names the training and the validation cases
+   of that fold:
+
+   .. code-block:: json
+
+     [
+       {"train": ["Liver_0002", "Liver_0003", "Liver_0004"], "val": ["Liver_0000", "Liver_0001"]},
+       {"train": ["Liver_0000", "Liver_0001", "Liver_0004"], "val": ["Liver_0002", "Liver_0003"]}
+     ]
+
+   Case names are the file names in ``labelsTr/`` without ``.nii.gz``. Usually every case is validated in
+   exactly one fold, but nnU-Net does not enforce this.
+#. Upload it as ``nnunet/splits/<Dataset>/<name>.json``, e.g. ``nnunet/splits/Dataset001_Liver/by_patient.json``.
+   One dataset can have several split files.
+#. In **nnunetv2-train** open *Advanced* and enter ``<name>`` (``by_patient``) in *Own cross-validation splits*.
+
+Before nnU-Net starts, each fold checks the file: it must be valid JSON in the format above, every case must
+exist in the preprocessed data and the file must define the selected fold. Otherwise the fold fails with a
+message that names the problem and lists the split files available for the dataset. The name and checksum of the
+split used are recorded with the fold's results. The fold ``all`` trains on all cases and ignores the split.
+
+.. warning::
+
+  The results of a fold are stored under ``<trainer>__<plans>__<configuration>/fold_X/`` regardless of the split.
+  Train all folds of one model with the same split, and use the same split for every configuration compared in
+  :ref:`nnunetv2-find-best-config <nnunetv2_find_best_config>`: otherwise the validation results are not
+  comparable and an ensemble validates cases that one of its models was trained on. To retrain a model with a
+  different split, enable *Overwrite existing fold* for all its folds.
+
+  The form offers the folds ``0``-``4``. A split file with more folds can be uploaded, but only its first five
+  folds can be trained.
 
 .. _nnunetv2_continue_training:
 

@@ -294,11 +294,6 @@ TRAIN = selection_form(
             "For nnFoundation (ptPlans) data nnUNetTrainer means PretrainedTrainer.",
             "nnUNetTrainer",
         ),
-        "splits": text(
-            "Splits",
-            "Empty: nnU-Net's 5-fold split. Otherwise the name of a file you uploaded to "
-            "nnunet/splits/<Dataset>/<name>.json (same format as splits_final.json).",
-        ),
         "continue_training": boolean(
             "Continue training (--c)",
             "After a crash, timeout or abort: select the same data, folds and trainer and enable this. "
@@ -324,6 +319,15 @@ TRAIN = selection_form(
                     "results/Dataset001_X/nnUNetTrainer__nnUNetPlans__3d_fullres/fold_0/checkpoint_final.safetensors",
                 ),
                 "n_proc_da": integer("nnUNet_n_proc_DA", "Data augmentation workers. Default: 12."),
+                "splits": text(
+                    "Own cross-validation splits",
+                    "Empty: nnU-Net's random 5-fold split (seed 12345). To decide yourself which cases are "
+                    "validated in which fold, upload a JSON file to nnunet/splits/<Dataset>/<name>.json in "
+                    "the project's MinIO bucket and enter <name>. Format as nnU-Net's splits_final.json: a "
+                    'list with one {"train": [...], "val": [...]} per fold, holding case names such as '
+                    "Name_0000. Start from nnunet/preprocessed/<Dataset>/splits_final.json. Train all folds of "
+                    "a model with the same splits. See the documentation for details.",
+                ),
             }
         ),
     },

@@ -50,6 +50,26 @@ def integer(title, description):
     return {"title": title, "description": description, "type": "integer"}
 
 
+def result_dataset(title, description, placeholder, optional=False):
+    """Kaapana dataset that receives DICOM: sent as calling AE title kp-<name>, which allows 16 characters."""
+    field = {
+        "title": title,
+        "description": description,
+        "type": "string",
+        "maxLength": 13,
+        "pattern": "^[A-Za-z0-9._-]*$" if optional else "^[A-Za-z0-9._-]+$",
+        "errorMessage": {
+            "maxLength": f"Use at most 13 characters, for example {placeholder}.",
+            "pattern": f"Use only letters, digits, '.', '_' or '-' (no spaces), for example {placeholder}.",
+        },
+        "layout": {"placeholder": f"e.g. {placeholder}"},
+    }
+    if not optional:
+        field["minLength"] = 1
+        field["errorMessage"]["minLength"] = f"Enter a name for the result dataset, for example {placeholder}."
+    return field
+
+
 def number(title, description):
     return {"title": title, "description": description, "type": "number"}
 
@@ -68,7 +88,7 @@ def advanced(properties):
 
 def doc_link(anchor, text):
     """Markdown link to a section of the guide; opens in a new tab so the filled-in form is kept."""
-    return f'<a href="/docs{DOCS}#{anchor}" target="_blank">{text} ↗</a>'
+    return f'<a href="/docs{DOCS}#{anchor}" target="_blank">{text}</a>'
 
 
 def advanced_panels(*panels):
@@ -114,17 +134,20 @@ CREATE_DATASET = {
             "description": "Stored as DatasetXXX_<name>; XXX is the next free ID in this project.",
             "type": "string",
             "minLength": 1,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "errorMessage": {
+                "minLength": "Enter a name for the nnU-Net dataset, for example ProstateMR.",
+                "pattern": "Use only letters, digits, '_' or '-' (no spaces), for example ProstateMR.",
+            },
             "required": True,
             "layout": {
                 "placeholder": "e.g. ProstateMR",
                 "slots": {
                     "after": (
-                        "**Simple case:** pick the Kaapana dataset at the bottom of this form, enter a name, start. "
-                        "You get one input channel (the image the segmentation was drawn on) and one label per "
-                        "segment name. Several images per case or renaming labels: open *Advanced* below. "
-                        "**Segments must not overlap** (nnU-Net needs one label per voxel). If anything is wrong the "
-                        "run uploads nothing and its report says what to change. "
-                        + doc_link("nnunetv2-create-dataset", "Guide")
+                        "Pick the Kaapana dataset at the bottom, enter a name and start: one input channel and one "
+                        "label per segment name. Segments must not overlap. For several images per case or own "
+                        "labels, open *Advanced*. "
+                        + doc_link("nnunetv2-create-dataset", "Create-dataset guide")
                         + " · "
                         + doc_link("reading-the-report", "Reading the report")
                     )
@@ -134,11 +157,9 @@ CREATE_DATASET = {
         "advanced": advanced_panels(
             (
                 "Several images per case (multi-channel)",
-                "Without rows there is one channel: the image the segmentation was drawn on. Otherwise one row per "
-                "channel, in order. **Rule:** `segmented` (the image the segmentation was drawn on) or conditions "
-                "joined with `&`: `SeriesDescription ~ adc` (regular expression), `Modality = MR`, "
-                "`ImageType != DERIVED`, `Tags = adc`. Each rule must pick exactly one series per study. "
-                + doc_link("nnunetv2-create-channels", "Channel rules"),
+                "No rows: one channel, the image the segmentation was drawn on. Otherwise one row per channel, in "
+                "order; each rule must pick exactly one series per study. "
+                + doc_link("nnunetv2-create-channels", "Channel rules explained"),
                 {
                     "channels": {
                         "title": "Input channels",
@@ -149,18 +170,30 @@ CREATE_DATASET = {
                             "properties": {
                                 "name": {
                                     "title": "Name",
+                                    "description": "Channel name in dataset.json.",
                                     "type": "string",
                                     "minLength": 1,
+                                    "errorMessage": {"minLength": "Enter a channel name, for example T2."},
                                     "layout": {"placeholder": "e.g. T2"},
                                 },
                                 "rule": {
                                     "title": "Rule",
+                                    "description": (
+                                        "segmented: the image the segmentation was drawn on. Otherwise conditions "
+                                        "joined with &: SeriesDescription ~ adc (regular expression), Modality = MR, "
+                                        "ImageType != DERIVED, Tags = adc."
+                                    ),
                                     "type": "string",
                                     "pattern": RULE_PATTERN,
+                                    "errorMessage": {
+                                        "pattern": "Use segmented, or conditions such as SeriesDescription ~ adc "
+                                        "joined with &. Each condition is a DICOM field, =, != or ~, and a value."
+                                    },
                                     "examples": ["segmented", "SeriesDescription ~ adc", "Modality = MR"],
                                 },
                                 "normalization": {
                                     "title": "Normalization",
+                                    "description": "How nnU-Net normalizes the intensities of this channel.",
                                     "type": "string",
                                     "oneOf": [
                                         {"const": "", "title": "Automatic (CT for CT, otherwise z-score)"},
@@ -185,11 +218,9 @@ CREATE_DATASET = {
             ),
             (
                 "Labels (names, merging, order)",
-                "Without rows every segment name is its own label (spellings that differ only in case are "
-                "merged). Otherwise one row per label; the row number is the label value. **Also matches:** "
-                "further segment names for the same label. Segments must not overlap; the run stops and lists "
-                "the cases if they do. "
-                + doc_link("nnunetv2-create-labels", "Labels"),
+                "No rows: one label per segment name. Otherwise one row per label; the row order gives the label "
+                "value. "
+                + doc_link("nnunetv2-create-labels", "Labels explained"),
                 {
                     "labels": {
                         "title": "Labels",
@@ -200,12 +231,15 @@ CREATE_DATASET = {
                             "properties": {
                                 "name": {
                                     "title": "Label",
+                                    "description": "Label name in dataset.json; also matches segments of this name.",
                                     "type": "string",
                                     "minLength": 1,
+                                    "errorMessage": {"minLength": "Enter a label name, for example Lesion."},
                                     "layout": {"placeholder": "e.g. Lesion"},
                                 },
                                 "aliases": {
                                     "title": "Also matches",
+                                    "description": "Further segment names for this label, separated by commas.",
                                     "type": "string",
                                     "layout": {"placeholder": "e.g. Tumour, tumor"},
                                 },
@@ -230,9 +264,15 @@ CREATE_DATASET = {
                     "skip_invalid_cases": boolean(
                         "Skip invalid cases", "Leave out cases with problems instead of failing (they are listed)."
                     ),
-                    "dataset_id": integer(
-                        "Dataset ID", "Fixed nnU-Net dataset ID (1-999) instead of the next free one."
-                    ),
+                    "dataset_id": {
+                        **integer("Dataset ID", "Fixed nnU-Net dataset ID (1-999) instead of the next free one."),
+                        "minimum": 1,
+                        "maximum": 999,
+                        "errorMessage": {
+                            "minimum": "nnU-Net dataset IDs are 1-999.",
+                            "maximum": "nnU-Net dataset IDs are 1-999.",
+                        },
+                    },
                     "description": text("Description", "Stored in dataset.json."),
                 },
             ),
@@ -384,6 +424,7 @@ TRAIN = selection_form(
             "32 (ResEnc XL, nnFoundationViT).",
             "type": "integer",
             "minimum": 1,
+            "errorMessage": {"minimum": "Enter at least 1 GB, or leave the field empty for the default."},
         },
         "trainer": text(
             "Trainer (-tr)",
@@ -502,10 +543,9 @@ PREDICT = selection_form(
                 "nps": integer("-nps", "Export processes. Default: 3."),
                 "not_on_device": boolean("--not_on_device", "For very large images that do not fit on the GPU."),
                 "skip_invalid_cases": boolean("Skip invalid cases", "Do not fail when some series cannot be used."),
-                "aetitle": {
-                    **text("Result dataset", "Kaapana dataset the SEGs are added to. Default: nnunet-seg."),
-                    "maxLength": 13,  # sent as DICOM AE title kp-<name>, at most 16 characters
-                },
+                "aetitle": result_dataset(
+                    "Result dataset", "Kaapana dataset the SEGs are added to. Default: nnunet-seg.", "nnunet-seg", True
+                ),
                 "verbose": boolean("--verbose", "Print a lot more."),
             }
         ),
@@ -514,8 +554,15 @@ PREDICT = selection_form(
 
 # ---------------------------------------------------------------- harmonize segmentations
 
-def _names(title, placeholder, default=None):
-    field = {"title": title, "type": "string", "minLength": 1, "layout": {"placeholder": placeholder}}
+def _names(title, description, placeholder, default=None):
+    field = {
+        "title": title,
+        "description": description,
+        "type": "string",
+        "minLength": 1,
+        "errorMessage": {"minLength": f"Enter segment names separated by commas, {placeholder}."},
+        "layout": {"placeholder": placeholder},
+    }
     if default is not None:
         field["default"] = default
     return field
@@ -544,38 +591,62 @@ HARMONIZE_RULES = {
             _rule(
                 "priority",
                 "Priority: the first segment keeps overlapping voxels",
-                _names("Segments, most important first", "e.g. Lesion, Prostate"),
+                _names(
+                    "Segments, most important first",
+                    "Where these segments overlap, the earlier one keeps the voxels.",
+                    "e.g. Lesion, Prostate",
+                ),
             ),
             _rule(
                 "cut_out",
                 "Cut out: remove segments from another one",
-                _names("Cut out", "e.g. Lesion"),
-                _names("from", "e.g. Prostate"),
+                _names("Cut out", "Segments whose voxels are removed from the other one.", "e.g. Lesion"),
+                _names("from", "The segment that loses these voxels.", "e.g. Prostate"),
             ),
             _rule(
-                "rename", "Rename", _names("Segments to rename", "e.g. Leber*, LIVER"), _names("New name", "e.g. Liver")
+                "rename", "Rename", _names("Segments to rename", "* matches any text.", "e.g. Leber*, LIVER"),
+                _names("New name", "Segments that end up with the same name are united.", "e.g. Liver"),
             ),
             _rule(
                 "combine",
                 "Combine several segments into one",
-                _names("Segments to combine", "e.g. PZ, TZ"),
-                _names("Name of the combined segment", "e.g. Prostate"),
+                _names("Segments to combine", "Replaced by their union.", "e.g. PZ, TZ"),
+                _names("Name of the combined segment", "Name of the union.", "e.g. Prostate"),
             ),
-            _rule("drop", "Drop segments", _names("Segments to drop", "e.g. Body, z_*")),
-            _rule("keep_only", "Keep only these segments", _names("Segments to keep", "e.g. Liver, Lesion")),
+            _rule("drop", "Drop segments", _names("Segments to drop", "* matches any text.", "e.g. Body, z_*")),
+            _rule(
+                "keep_only",
+                "Keep only these segments",
+                _names("Segments to keep", "All other segments are left out.", "e.g. Liver, Lesion"),
+            ),
             _rule(
                 "remove_specks",
                 "Remove specks (small loose pieces)",
-                _names("Segments", "* for all", "*"),
-                value={"title": "Smallest piece to keep (mm³)", "type": "number", "exclusiveMinimum": 0, "default": 10},
+                _names("Segments", "* for all segments.", "* for all", "*"),
+                value={
+                    "title": "Smallest piece to keep (mm³)",
+                    "description": "Connected pieces smaller than this are removed. mm³, because slices are often "
+                    "much thicker than pixels.",
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "errorMessage": {"exclusiveMinimum": "Enter a volume above 0 mm³, for example 10."},
+                    "default": 10,
+                },
             ),
             _rule(
                 "choose_version",
                 "Choose version (several SEGs on one series)",
-                _names("Segments", "* for all", "*"),
+                _names("Segments", "Segments drawn in several SEGs of the same series; * for all.", "* for all", "*"),
                 value={
                     "title": "Keep",
+                    "description": "newest, union (all versions united), or the SEG whose series description or "
+                    "author matches a regular expression: description ~ manual, author ~ Smith.",
                     "type": "string",
+                    "pattern": r"^\s*(newest|union|(description|author)\s*~\s*\S.*)\s*$",
+                    "errorMessage": {
+                        "pattern": "Use newest, union, description ~ <text> or author ~ <text>, for example "
+                        "description ~ manual."
+                    },
                     "examples": ["newest", "union", "description ~ manual", "author ~ Smith"],
                     "default": "newest",
                 },
@@ -588,12 +659,9 @@ HARMONIZE = {
     "type": "object",
     "properties": {
         "aetitle": {
-            "title": "Name of the result dataset",
-            "description": "Kaapana dataset that receives the harmonized SEGs. At most 13 characters.",
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 13,  # sent as DICOM AE title kp-<name>, at most 16 characters
-            "pattern": "^[A-Za-z0-9._-]+$",
+            **result_dataset(
+                "Name of the result dataset", "Kaapana dataset that receives the harmonized SEGs.", "liver-harm"
+            ),
             "required": True,
             "layout": {
                 "placeholder": "e.g. liver-harm",
@@ -601,7 +669,7 @@ HARMONIZE = {
                     "after": (
                         "Writes one cleaned-up SEG per image series into this new dataset; the originals stay "
                         "untouched. Overlaps that no rule resolves stop that series. "
-                        + doc_link("nnunetv2-harmonize-segmentations", "Guide")
+                        + doc_link("nnunetv2-harmonize-segmentations", "Harmonize guide")
                         + " · "
                         + doc_link("reading-the-harmonize-report", "Reading the report")
                     )
@@ -613,14 +681,13 @@ HARMONIZE = {
                 "Rules",
                 "Whatever the order of the rows, the rules run as: choose version → rename → drop / keep only → "
                 "combine → cut out → remove specks → priority. Names ignore case, `*` matches anything. "
-                + doc_link("harmonize-rules", "Rules"),
+                + doc_link("harmonize-rules", "All rules explained"),
                 {"rules": HARMONIZE_RULES},
             ),
             (
                 "Overlaps",
-                "Overlaps left after the rules stop the series and are listed in the report. Add a *priority* or "
-                "*cut out* rule, or switch on *Inner structure wins*. "
-                + doc_link("harmonize-overlaps", "Overlaps"),
+                "Overlaps left after the rules stop the series. Resolve them with a rule or the switch below. "
+                + doc_link("harmonize-overlaps", "Resolving overlaps"),
                 {
                     "inner_wins": boolean(
                         "Inner structure wins",

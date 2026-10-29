@@ -55,7 +55,8 @@ data:
 
     # To disregard the validity of SSL certificates, change this setting's value to 'none'.
     opensearch.ssl.verificationMode: "certificate"
-    opensearch.ssl.certificateAuthorities: ["/etc/certs/kaapana.pem"]
+    # OpenSearch's certificate is signed by its internal CA (secret opensearch-internal-ca of the opensearch chart)
+    opensearch.ssl.certificateAuthorities: ["/etc/certs/opensearch-ca.pem"]
 
     opensearchDashboards.branding:
       applicationTitle: "META"

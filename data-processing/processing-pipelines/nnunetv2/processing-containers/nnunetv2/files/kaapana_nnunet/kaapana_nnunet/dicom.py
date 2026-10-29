@@ -194,17 +194,17 @@ def _rtstruct_masks(ds: pydicom.Dataset, reference: sitk.Image) -> dict[str, np.
 
 def labelmap(
     masks: dict[str, np.ndarray], label_of: dict[str, int], reference: sitk.Image
-) -> tuple[sitk.Image, dict[int, int]]:
+) -> tuple[sitk.Image, dict[tuple[int, int], int]]:
     """Combine masks into one uint8 label image. Higher label values win where masks overlap.
-    Returns the image and {label: number of voxels overwritten by a higher label}."""
+    Returns the image and {(overwritten label, higher label): number of voxels}."""
     shape = reference.GetSize()[::-1]
     out = np.zeros(shape, dtype=np.uint8)
     overlaps = {}
     for name, mask in sorted(masks.items(), key=lambda kv: label_of[kv[0]]):
         value = label_of[name]
-        clash = int(np.count_nonzero(mask & (out > 0) & (out != value)))
-        if clash:
-            overlaps[value] = overlaps.get(value, 0) + clash
+        under, counts = np.unique(out[mask & (out > 0) & (out != value)], return_counts=True)
+        for u, n in zip(under.tolist(), counts.tolist()):
+            overlaps[(u, value)] = overlaps.get((u, value), 0) + n
         out[mask] = value
     image = sitk.GetImageFromArray(out)
     image.CopyInformation(reference)

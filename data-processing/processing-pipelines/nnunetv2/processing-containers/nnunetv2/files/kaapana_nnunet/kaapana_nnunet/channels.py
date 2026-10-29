@@ -99,18 +99,36 @@ def parse_channels(rows: list[dict]) -> list[Channel]:
     return channels
 
 
-def assign(channels: list[Channel], segmented_uid: str, study_series: list[dict], series_uid_of) -> list[str]:
-    """Series UID per channel for one case. Raises RuleError when a rule matches no or several series."""
+def describe_series(meta: dict) -> str:
+    """'#<SeriesNumber> <SeriesDescription>', how users recognise a series in the viewer."""
+    number = field_values(meta, "SeriesNumber")
+    description = field_values(meta, "SeriesDescription")
+    return f"#{number[0] if number else '?'} {description[0] if description else '(no description)'}"
+
+
+def assign(
+    channels: list[Channel], segmented_uid: str, study_series: list[dict], series_uid_of, describe=None
+) -> list[str]:
+    """Series UID per channel for one case. Raises RuleError when a rule matches no or several series;
+    ``describe(meta)`` names the series in that message (default: the UID)."""
+    describe = describe or series_uid_of
     picked, problems = [], []
     for c in channels:
         if c.is_segmented:
             picked.append(segmented_uid)
             continue
-        hits = [series_uid_of(m) for m in study_series if c.matches(m)]
+        hits = [m for m in study_series if c.matches(m)]
         if len(hits) == 1:
-            picked.append(hits[0])
+            picked.append(series_uid_of(hits[0]))
+        elif hits:
+            problems.append(
+                f"channel '{c.name}' ({c.rule}) matches {len(hits)} series: " + ", ".join(describe(m) for m in hits)
+            )
         else:
-            problems.append(f"channel '{c.name}' ({c.rule}) matches {len(hits)} series" + (f": {hits}" if hits else ""))
+            problems.append(
+                f"channel '{c.name}' ({c.rule}) matches no series; the study has: "
+                + ", ".join(describe(m) for m in study_series)
+            )
     if len(set(picked)) != len(picked) and not problems:
         problems.append("two channels picked the same series")
     if problems:
@@ -126,6 +144,6 @@ def nnunet_channel_name(channel: Channel, modalities: set[str]) -> str:
     if modalities == {"CT"}:
         return "CT"
     # a name that happens to be a normalization scheme must not silently select it
-    if not channel.name or channel.name in NNUNET_NORMALIZATIONS:
+    if not channel.name or channel.name.lower() in {n.lower() for n in NNUNET_NORMALIZATIONS}:
         return "zscore"
     return channel.name

@@ -141,7 +141,7 @@ def run(ctx: Context):
             continue
         seen_studies.add(m[STUDY])
         try:
-            picked = ch.assign(channels, uid, meta.study_series(m[STUDY]), lambda x: x[SERIES])
+            picked = ch.assign(channels, uid, meta.study_series(m[STUDY]), lambda x: x[SERIES], ch.describe_series)
         except ch.RuleError as e:
             problems.append(f"series {uid}: {e}")
             continue

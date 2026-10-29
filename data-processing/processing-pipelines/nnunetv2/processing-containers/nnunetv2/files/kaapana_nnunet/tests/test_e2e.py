@@ -20,6 +20,7 @@ import pytest
 from pydicom.dataset import FileMetaDataset
 from pydicom.uid import ExplicitVRLittleEndian, generate_uid
 
+from kaapana_nnunet.context import StepError
 from tests.conftest import ENDPOINT
 
 pytestmark = pytest.mark.skipif(
@@ -33,8 +34,9 @@ N_CASES = 6
 STUDY_TAG, SERIES_TAG = "0020000D StudyInstanceUID_keyword", "0020000E SeriesInstanceUID_keyword"
 
 
-def write_case(root, n, rng):
-    """One study with a CT and a SEG (labels 'liver' and, in odd cases, 'Tumour')."""
+def write_case(root, n, rng, overlap=False):
+    """One study with a CT and a SEG (labels 'liver' and, in odd cases, 'Tumour'; with ``overlap`` the liver
+    segment also covers the tumour)."""
     study, series, frame = generate_uid(), generate_uid(), generate_uid()
     z, y, x = np.ogrid[: SHAPE[0], : SHAPE[1], : SHAPE[2]]
     center = np.array(SHAPE) / 2 + rng.integers(-3, 4, 3)
@@ -65,7 +67,7 @@ def write_case(root, n, rng):
         ds.PixelData = volume[k].tobytes()
         ds.save_as(root / series / f"{k}.dcm", enforce_file_format=True)
         datasets.append(ds)
-    names = {"liver": ball & ~tumour, "Tumour": tumour} if n % 2 else {"liver": ball}
+    names = {"liver": ball if overlap else ball & ~tumour, "Tumour": tumour} if n % 2 else {"liver": ball}
     seg = hd.seg.Segmentation(
         source_images=datasets,
         pixel_array=np.stack(list(names.values()), -1).astype(np.uint8),
@@ -91,15 +93,18 @@ def write_case(root, n, rng):
     )
     (root / seg.SeriesInstanceUID).mkdir()
     seg.save_as(root / seg.SeriesInstanceUID / "seg.dcm")
-    meta = lambda uid, mod: {STUDY_TAG: study, SERIES_TAG: uid, "00080060 Modality_keyword": mod}  # noqa: E731
+    meta = lambda uid, mod: {  # noqa: E731
+        STUDY_TAG: study, SERIES_TAG: uid, "00080060 Modality_keyword": mod, "00100020 PatientID_keyword": f"P{n}"
+    }
     return [meta(series, "CT"), meta(seg.SeriesInstanceUID, "SEG")]
 
 
 @pytest.fixture
-def pacs(tmp_path, monkeypatch):
+def pacs(tmp_path, monkeypatch, request):
     rng = np.random.default_rng(0)
     root = tmp_path / "pacs"
-    metas = [m for n in range(N_CASES) for m in write_case(root, n, rng)]
+    overlap = getattr(request, "param", False)
+    metas = [m for n in range(N_CASES) for m in write_case(root, n, rng, overlap)]
 
     class FakeDcmWeb:
         def download_series(self, study_uid, series_uid, target_dir):
@@ -150,6 +155,17 @@ def run_step(module, store, tmp_path, monkeypatch, form, identifiers=(), env=Non
         ctx.cleanup()
 
 
+@pytest.mark.parametrize("pacs", [True], indirect=True)
+def test_overlapping_segments_fail(store, tmp_path, monkeypatch, pacs):
+    from kaapana_nnunet.steps import create_dataset
+
+    ids = [m[SERIES_TAG] for m in pacs]
+    labels = [{"name": "liver"}, {"name": "tumor", "aliases": "Tumour"}]
+    with pytest.raises(StepError, match="Segments overlap. nnU-Net needs exactly one label per voxel"):
+        run_step(create_dataset, store, tmp_path, monkeypatch, {"dataset_name": "Liver", "labels": labels}, ids)
+    assert store.list_markers("raw") == []
+
+
 def test_dicom_to_trained_folds(store, tmp_path, monkeypatch, pacs):
     from kaapana_nnunet import catalog, layout
     from kaapana_nnunet.steps import create_dataset, plan_preprocess, train
@@ -162,6 +178,7 @@ def test_dicom_to_trained_folds(store, tmp_path, monkeypatch, pacs):
     assert store.list_markers("raw") == []
 
     labels = [{"name": "liver"}, {"name": "tumor", "aliases": "Tumour, lesion"}]
+
     run_step(create_dataset, store, tmp_path, monkeypatch, {"dataset_name": "Liver", "labels": labels}, ids)
     (raw,) = store.list_markers("raw")
     assert raw["prefix"] == "raw/Dataset001_Liver"
@@ -170,6 +187,8 @@ def test_dicom_to_trained_folds(store, tmp_path, monkeypatch, pacs):
     )
     assert dataset_json["labels"] == {"background": 0, "liver": 1, "tumor": 2}
     assert dataset_json["channel_names"] == {"0": "CT"} and dataset_json["numTraining"] == N_CASES
+    report = store._client().get_object(store.bucket, "nnunet/raw/Dataset001_Liver/report.txt").read().decode()
+    assert "2 tumor: in 3 of 6 cases" in report and "from 6 patient(s)" in report
 
     form = {"task_ids": "Dataset001_Liver", "configurations": ["3d_fullres"], "verify_dataset_integrity": True}
     run_step(plan_preprocess, store, tmp_path, monkeypatch, form)

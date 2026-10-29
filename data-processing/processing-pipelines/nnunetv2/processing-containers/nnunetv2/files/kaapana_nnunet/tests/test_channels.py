@@ -55,7 +55,7 @@ def test_ambiguous_and_missing_rules_fail():
     )
     with pytest.raises(ch.RuleError) as e:
         ch.assign(channels, "t2", STUDY, UID)
-    assert "matches 2 series" in str(e.value) and "matches 0 series" in str(e.value)
+    assert "matches 2 series" in str(e.value) and "matches no series; the study has" in str(e.value)
 
 
 @pytest.mark.parametrize(
@@ -80,3 +80,13 @@ def test_normalization_names():
     assert ch.nnunet_channel_name(ch.Channel(name="", rule="segmented"), {"CT"}) == "CT"
     assert ch.nnunet_channel_name(ch.Channel(name="CT", rule="segmented"), {"MR"}) == "zscore"
     assert ch.nnunet_channel_name(ch.Channel(name="x", rule="segmented", normalization="noNorm"), {"CT"}) == "noNorm"
+
+
+def test_problems_name_series_by_number_and_description():
+    channels = ch.parse_channels([{"name": "B", "rule": "Modality = CT"}])
+    with pytest.raises(ch.RuleError, match=r"the study has: #\? AX T2 TSE, #\? ep2d_diff ADC"):
+        ch.assign(channels, "t2", STUDY, UID, ch.describe_series)
+
+
+def test_normalization_names_are_case_insensitive():
+    assert ch.nnunet_channel_name(ch.Channel(name="ct", rule="segmented"), {"MR"}) == "zscore"

@@ -130,7 +130,7 @@ def test_labelmap_overlap_higher_label_wins(tmp_path):
     label, overlaps = dicom.labelmap({"a": a, "b": b}, {"a": 1, "b": 2}, image)
     arr = sitk.GetArrayFromImage(label)
     assert arr[2, 1, 1] == 2 and arr[1, 1, 1] == 1 and arr[0, 0, 0] == 0
-    assert overlaps == {2: 4}
+    assert overlaps == {(1, 2): 4}
     assert dicom.same_geometry(label, image)
 
 

@@ -167,8 +167,8 @@ For more information, check out their `repository <https://github.com/UMEssen/Bo
 
 nnU-Net (nnunetv2-...)
 ----------------------
-Creating datasets, planning, preprocessing, training, finding the best configuration and predicting with nnU-Net,
-including finetuning from the nnFoundation models. See :ref:`extensions_nnunetv2`.
+Harmonizing segmentations, creating datasets, planning, preprocessing, training, finding the best configuration
+and predicting with nnU-Net, including finetuning from the nnFoundation models. See :ref:`extensions_nnunetv2`.
 
 .. toctree::
    :hidden:

@@ -8,7 +8,7 @@ nnU-Net
 | **DOI:** `10.1038/s41592-020-01008-z <https://doi.org/10.1038/s41592-020-01008-z>`_
 | **Code:** `github.com/MIC-DKFZ/nnUNet <https://github.com/MIC-DKFZ/nnUNet>`_
 
-The extension **nnunetv2-workflow** brings nnU-Net to Kaapana as six workflows that follow nnU-Net's own steps.
+The extension **nnunetv2-workflow** brings nnU-Net to Kaapana as seven workflows that follow nnU-Net's own steps.
 Every step runs in its own pod and every nnU-Net option is available in the workflow form:
 frequently used options at the top, all others in the collapsed section *Advanced (nnU-Net)*, titled with nnU-Net's flag.
 An empty field always means nnU-Net's own default. :ref:`nnunetv2-create-dataset <nnunetv2_create_dataset>` needs only
@@ -21,6 +21,9 @@ a name in the simple case; its *Advanced* section has panels for channels, label
    * - Workflow
      - nnU-Net step
      - Result in MinIO (``<project-bucket>/nnunet/``)
+   * - :ref:`nnunetv2-harmonize-segmentations <nnunetv2_harmonize>` (optional)
+     - resolves overlaps and naming before create-dataset
+     - harmonized DICOM SEGs in a new Kaapana dataset
    * - :ref:`nnunetv2-create-dataset <nnunetv2_create_dataset>`
      - builds the raw dataset (``nnUNet_raw``)
      - ``raw/DatasetXXX_Name/``
@@ -56,7 +59,9 @@ Quick start
 #. Upload images and segmentations (DICOM SEG or RTSTRUCT) and put them into a Kaapana dataset,
    see :ref:`data_upload` and :ref:`datasets`.
 #. Run **nnunetv2-create-dataset** on that dataset: pick the dataset, enter a name, start. If something does not
-   fit, nothing is uploaded and the report says what to change, see :ref:`nnunetv2_create_report`.
+   fit, nothing is uploaded and the report says what to change, see :ref:`nnunetv2_create_report`. Segments that
+   overlap or are named differently across cases can be fixed first with
+   :ref:`nnunetv2-harmonize-segmentations <nnunetv2_harmonize>`.
 #. Run **nnunetv2-plan-preprocess** on the raw dataset. The defaults are nnU-Net's defaults.
 #. Run **nnunetv2-train** on the preprocessed data, e.g. *Dataset001_Liver | nnUNetPlans | 3d_fullres*.
    All five folds train in parallel as far as GPUs are free.
@@ -91,7 +96,8 @@ the form), enter a name for the new dataset and start. Nothing else is needed.
 
   **Segments must not overlap.** nnU-Net needs exactly one label per voxel. If two segments share voxels (e.g. a
   lesion drawn inside the prostate segment), the run stops before anything is uploaded and names the segments
-  and cases. Fix the segmentations, e.g. cut the lesion out of the prostate, see :ref:`nnunetv2_create_labels`.
+  and cases. Fix the segmentations, e.g. cut the lesion out of the prostate with
+  :ref:`nnunetv2-harmonize-segmentations <nnunetv2_harmonize>`, see :ref:`nnunetv2_create_labels`.
 
 The run checks everything before it uploads anything. If a check fails, nothing is uploaded and the
 :ref:`report <nnunetv2_create_report>` names the problem and the field to change. Open *Advanced* only when one of
@@ -249,8 +255,9 @@ overlapping segments wins, because that would change your annotation silently. I
 the run stops before anything is uploaded, also with *Skip invalid cases*, and names the segments, the voxel
 count and the cases (``OVERLAP: 'Prostate' and 'Lesion' overlap in 14 case(s) ...``). To fix it:
 
-* Correct the segmentations so that they do not share voxels, e.g. cut the lesion out of the prostate segment
-  (in an annotation tool, or by exporting the segmentation again) and replace the SEGs in the Kaapana dataset.
+* Correct the segmentations so that they do not share voxels, e.g. cut the lesion out of the prostate segment.
+  :ref:`nnunetv2-harmonize-segmentations <nnunetv2_harmonize>` does this with rules (*Priority*, *Cut out*) and
+  writes new SEGs; or fix them in an annotation tool and replace the SEGs in the Kaapana dataset.
 * Or leave one of the structures out: list the labels in the table without it and enable *Ignore segments not
   in the label table*.
 
@@ -317,7 +324,8 @@ Problems are listed below the report and make the run fail. Problems of single c
 
 ``OVERLAP: 'Prostate' and 'Lesion' overlap in 14 case(s), ... voxels in total: #3 t2_tse_tra (patient P07), ...``
    nnU-Net needs one label per voxel. Fix the segmentations of the listed cases so that the two segments do not
-   share voxels, or leave one of them out (see :ref:`nnunetv2_create_labels`). This always stops the run.
+   share voxels, e.g. with :ref:`nnunetv2-harmonize-segmentations <nnunetv2_harmonize>`, or leave one of them out
+   (see :ref:`nnunetv2_create_labels`). This always stops the run.
 
 ``these segment names do not say which structure they are ...``
    Segments named like ``Segment_1``. Rename them in the data, or list the labels in the table.
@@ -330,7 +338,8 @@ Problems are listed below the report and make the run fail. Problems of single c
 
 ``label 'Lesion' comes from 2 segmentation objects (...)``
    Two segmentation objects of the same series contain the same structure, e.g. a second annotator, an outdated
-   version or an earlier nnU-Net prediction (dataset *nnunet-seg*). Keep only one of them in the Kaapana dataset.
+   version or an earlier nnU-Net prediction (dataset *nnunet-seg*). Keep only one of them in the Kaapana dataset,
+   or pick one with :ref:`nnunetv2-harmonize-segmentations <nnunetv2_harmonize>` (rule *Choose version*).
 
 ``label 'x' has no voxel in any case``
    The label is in the table but never drawn. Remove the row.
@@ -374,6 +383,131 @@ What is written
 
 The dataset is uploaded only when complete (a ``_DONE.json`` marker is written last), so other workflows never
 see half a dataset. To add cases later, create a new dataset; existing datasets are not changed.
+
+.. _nnunetv2_harmonize:
+
+nnunetv2-harmonize-segmentations
+********************************
+
+Prepares segmentations that nnunetv2-create-dataset refuses: segments that overlap, structures named differently
+across cases, several versions of a segmentation on the same image, or extra contours that should not be trained
+(e.g. radiotherapy helper structures). It writes **one new DICOM SEG per image series** into a new Kaapana dataset;
+the original segmentations stay untouched. Open the new SEG in the viewer next to the original, then run
+:ref:`nnunetv2-create-dataset <nnunetv2_create_dataset>` on the new dataset.
+
+#. Select the Kaapana dataset with the segmentations and enter a name for the result dataset (at most 13
+   characters).
+#. Add rules in *Advanced → Rules*, e.g. ``priority`` with segments ``Lesion, Prostate``.
+#. Run it with *Check only* (in *Options*) first: the report shows what every rule did and every overlap that is
+   still left. Then run it without *Check only*.
+
+**Nothing is decided silently.** Wherever segments still overlap after the rules, that image series gets no new
+SEG and is listed in the report, unless a rule or the switch *Inner structure wins* resolves it.
+
+.. _harmonize-rules:
+
+Rules
+=====
+
+Add a rule with *Add rule*, pick its type under *Rule*; the row then shows only the fields that type needs. The
+rows can be in any order: the rules always run in the order of this table, so the result never depends on the
+order of the rows. Segment names are compared case-insensitively; segment fields take a comma-separated list in
+which ``*`` stands for any text (``Leber*``, ``z_*``, ``*``).
+
+.. list-table::
+   :header-rows: 1
+   :widths: 16 34 50
+
+   * - Rule
+     - Fields
+     - What it does
+   * - Choose version
+     - *Segments*; *Keep*: ``newest``, ``union``, ``description ~ <regex>``, ``author ~ <regex>``
+     - When several segmentation objects of the same image series contain a segment of the same name (two
+       annotators, an old and a corrected version, a prediction and a manual segmentation), keep one of them:
+       the newest (content or series date), the one whose series description or author (*ContentCreatorName*)
+       matches, or all of them united. Without this rule such a series is refused. If the choice is not unique
+       (equal dates, the pattern matches several), the series is refused.
+   * - Rename
+     - *Segments to rename*; *New name*
+     - ``Leber*, LIVER`` → ``liver``. Segments that end up with the same name are united.
+   * - Drop / Keep only
+     - *Segments to drop* / *Segments to keep*
+     - Leave segments out, e.g. ``z_*, opt*, *ring*, Couch*, BODY``, or keep only the listed ones.
+   * - Combine
+     - *Segments to combine*; *Name of the combined segment*
+     - Replaces the listed segments by their union, e.g. ``PZ, TZ`` → ``Prostate``.
+   * - Cut out
+     - *Cut out* … *from*
+     - ``Lesion`` from ``Prostate``: the prostate segment no longer contains the lesion voxels.
+   * - Remove specks
+     - *Segments* (``*`` for all); *Smallest piece to keep (mm³)*
+     - Removes connected pieces (26-neighbourhood) smaller than the volume, e.g. stray clicks. The size is in mm³
+       because slices are often much thicker than pixels.
+   * - Priority
+     - *Segments, most important first*
+     - Where the listed segments overlap, the earlier one keeps the voxels: ``Lesion, Prostate`` keeps lesion
+       voxels as lesion. Several priority rows are applied one after another.
+
+A rule whose segments match nothing in any series stops the run (usually a typo). *Choose version* is the
+exception, it only matters where versions exist.
+
+.. _harmonize-overlaps:
+
+Overlaps
+========
+
+After the rules, every pair of segments that still shares voxels is an overlap and refuses its series. Resolve it
+with *Priority* or *Cut out*, or switch on **Inner structure wins**: a segment lying at least 80 % inside another
+one keeps the shared voxels (a lesion inside its organ, a zone inside the gland). Smaller structures are decided
+first, so nested structures resolve from the inside out. Partial overlaps (neighbouring organs touching each
+other) are not containment and stay a problem. Every decision of the switch is listed in the report.
+
+nnU-Net's region-based training (nested labels as in BraTS) is not supported yet: every voxel gets exactly one
+label.
+
+.. _reading-the-harmonize-report:
+
+Reading the report
+==================
+
+.. code-block:: text
+
+   Harmonize: 20 image series, 26 segmentation objects
+   Result:    20 series -> Kaapana dataset 'prostate-h'
+   Rules (applied in this order):
+      3 choose version of *: description ~ manual: matched in 6 of 20 series
+      1 rename PZ*, peripheral* -> PZ: matched in 20 of 20 series
+      2 priority Lesion > PZ > TZ: matched in 20 of 20 series, 3.1 ml changed
+   Segments:
+     Lesion: in 14 of 20 series, 18.2 ml in total
+     PZ: in 20 of 20 series, 251.0 ml in total
+     TZ: in 20 of 20 series, 402.5 ml in total
+   Decisions and losses to check:
+     series 1.2.3...: 'PZ' lost 23% of its voxels
+
+* **Rules** shows every rule with its row number, in which series it matched something and how much volume it
+  changed. A rule that matched in fewer series than expected usually means a name variant it does not catch.
+* **Segments** lists the result: in how many series each segment exists and its total volume.
+* **Decisions and losses to check** lists the decisions of *Inner structure wins* and every segment that lost
+  more than 10 % of its voxels to *Cut out*, *Remove specks* or *Priority* (``now empty`` if it disappeared).
+
+Problems make the run fail and send nothing, unless *Skip invalid series* is enabled; then the other series are
+sent. ``OVERLAP: 'A' and 'B' share N voxels ...`` names the overlap and the rule that would resolve it;
+``comes from 2 segmentation objects`` asks for *Choose version*.
+
+What is written
+===============
+
+* One DICOM SEG per image series, referencing the original image: series description ``Harmonized <original
+  description>`` (or the one set in *Options*), series number 901, content label ``HARMONIZED``. Segments keep
+  the anatomical codes of the original SEG segments. Running the workflow again with the same rules on the same
+  data produces the same SEGs (same UIDs), and earlier ``HARMONIZED`` results in the input are skipped.
+* In MinIO, ``nnunet/harmonize/<result dataset>/``: ``rules.json``, ``report.txt`` and ``provenance.json``
+  (for every image series the source segmentation objects and the resulting SEG).
+
+Put only the harmonized SEGs, not the originals, into the dataset for nnunetv2-create-dataset; with both,
+create-dataset refuses the series because a label comes from two segmentation objects.
 
 .. _nnunetv2_plan_preprocess:
 

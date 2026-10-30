@@ -2,7 +2,7 @@
 # # # ############# Build ###########
 # # # ###############################
 
-FROM docker.io/node:lts-alpine3.20 AS build-stage
+FROM docker.io/node:26-alpine3.24 AS build-stage
 
 LABEL IMAGE="maintenance-page-kaapana"
 LABEL VERSION="0.2.1"

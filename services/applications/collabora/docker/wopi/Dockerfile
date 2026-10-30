@@ -1,4 +1,4 @@
-FROM docker.io/node:lts-alpine3.16 as build-stage
+FROM docker.io/node:26-alpine3.24 as build-stage
 
 WORKDIR /app
 COPY files/ui/package*.json ./

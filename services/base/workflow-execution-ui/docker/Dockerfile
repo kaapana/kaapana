@@ -1,6 +1,6 @@
 FROM local-only/base-ui:latest AS base-ui
 
-FROM docker.io/node:lts-alpine3.23 AS build-stage
+FROM docker.io/node:26-alpine3.24 AS build-stage
 
 LABEL IMAGE="workflow-execution-ui"
 LABEL VERSION="0.0.0"

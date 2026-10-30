@@ -1,4 +1,4 @@
-FROM docker.io/node:lts-alpine3.23 AS build-stage
+FROM docker.io/node:26-alpine3.24 AS build-stage
 
 LABEL REGISTRY="local-only"
 LABEL IMAGE="base-ui"

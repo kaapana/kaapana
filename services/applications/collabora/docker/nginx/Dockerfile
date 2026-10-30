@@ -1,4 +1,4 @@
-FROM nginx:1.31.2
+FROM nginx:1.31
 
 LABEL IMAGE="nginx"
 LABEL VERSION="1.31.2"

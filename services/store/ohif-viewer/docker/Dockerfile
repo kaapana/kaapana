@@ -1,4 +1,4 @@
-FROM docker.io/node:26-alpine3.23 AS build
+FROM docker.io/node:26-alpine3.24 AS build
 
 LABEL IMAGE="ohif"
 LABEL VERSION="v3.13.4"
@@ -24,7 +24,7 @@ RUN git apply --ignore-whitespace customization.patch
 RUN pnpm install --frozen-lockfile
 RUN pnpm run build
 
-FROM docker.io/nginx:1.31-alpine AS production-stage
+FROM docker.io/nginx:1.31-alpine3.24 AS production-stage
 
 RUN apk update && apk upgrade libxml2
 

@@ -1,4 +1,4 @@
-FROM docker.io/node:26-alpine3.23  AS build-stage
+FROM docker.io/node:26-alpine3.24  AS build-stage
 
 WORKDIR /app
 
@@ -22,7 +22,7 @@ LABEL BUILD_IGNORE="False"
 ################################
 RUN npm run build
 
-FROM nginx:1.31-alpine
+FROM nginx:1.31-alpine3.24
 
 RUN apk update && apk upgrade libxml2
 

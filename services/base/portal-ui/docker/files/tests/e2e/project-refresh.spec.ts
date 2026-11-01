@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { installMockBackend, stubView, defaultMockData } from './fixtures/mock-backend'
+import { installMockBackend, stubView, defaultMockData, waitForBoot } from './fixtures/mock-backend'
 import type { Project } from '../../src/api/projects'
 
 const ADMIN: Project = { id: 1, name: 'admin', short_id: 'admin' }
@@ -23,6 +23,7 @@ test('a later poll picks up a newly created project in the selector', async ({ p
 
   await page.goto('/')
   await expect(page).toHaveURL(/\/project\/admin/)
+  await waitForBoot(page)
 
   // A new project appears on the backend; the 15s poll must surface it.
   projects = [ADMIN, RESB, NEWP]
@@ -45,6 +46,7 @@ test('the selected project being removed falls back to a still-available one', a
 
   await page.goto('/')
   await expect(page).toHaveURL(/\/project\/admin/)
+  await waitForBoot(page)
 
   // admin (the selection) is deleted; the poll must re-target onto a remaining
   // project like the router's unknown-project branch.
@@ -68,6 +70,7 @@ test('a project appearing while none is selected can be picked from the unscoped
 
   await page.goto('/')
   await expect(page).toHaveURL(/localhost:\d+\/$/)
+  await waitForBoot(page)
 
   projects = [ADMIN]
   const polled = page.waitForResponse('**/aii/projects')

@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
 import type { MenuResponse } from '../../../src/types/menu'
 import type { UserinfoJwt } from '../../../src/api/auth'
 import type { AiiUser, Project } from '../../../src/api/projects'
@@ -240,4 +240,12 @@ export async function stubView(page: Page, pathPrefix: string) {
  */
 export async function freezeClock(page: Page) {
   await page.clock.pauseAt(Date.now() + 5_000)
+}
+
+/**
+ * boot() scopes the URL before it starts the 15s poll, and renders the drawer
+ * after. Advancing the clock before the drawer shows can run ahead of the poll.
+ */
+export async function waitForBoot(page: Page) {
+  await expect(page.locator('.v-navigation-drawer')).toBeVisible()
 }

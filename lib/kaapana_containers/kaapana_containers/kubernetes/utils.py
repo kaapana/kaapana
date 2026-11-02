@@ -56,6 +56,8 @@ class KubernetsUtils:
                 file_path.lstrip("/"),
             ]
 
+            # The tar stream is binary. In text mode, the kubernetes client decodes each frame on its own.
+            # This replaces bytes that are not valid UTF-8 and corrupts the stream.
             tar_bytes = stream(
                 core.connect_get_namespaced_pod_exec,
                 name=name,
@@ -67,17 +69,17 @@ class KubernetsUtils:
                 stdout=True,
                 tty=False,
                 _preload_content=False,
+                binary=True,
             )
 
             file_stream = io.BytesIO()
             while tar_bytes.is_open():
                 tar_bytes.update(timeout=1)
                 if tar_bytes.peek_stdout():
-                    out = tar_bytes.read_stdout()
-                    file_stream.write(out.encode("utf-8"))
+                    file_stream.write(tar_bytes.read_stdout())
                 if tar_bytes.peek_stderr():
                     err = tar_bytes.read_stderr()
-                    cls.logger.info(f"[stderr]: {err}")
+                    cls.logger.info(f"[stderr]: {err.decode('utf-8', 'replace')}")
             tar_bytes.close()
             file_stream.seek(0)
 

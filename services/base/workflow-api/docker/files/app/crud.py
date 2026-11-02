@@ -281,7 +281,6 @@ async def restore_workflow_revision(
     if target is None:
         raise ValueError(f"Workflow {db_workflow.id} has no revision with increment={target_increment}")
     current = latest_revision(db_workflow)
-    assert current is not None
     next_increment = current.increment + 1
     new_rev = models.WorkflowRevision(
         workflow_id=db_workflow.id,

@@ -4,6 +4,7 @@ Unit tests for deleting workflow runs and for canceling runs before they reach t
 Covers:
 - DELETE /v1/workflow-runs/{id}: only finished runs; removes data, engine run and records.
 - Cancel of a CREATED run and the background submission that must skip it.
+- Active runs without an engine run answer 500 with a reason.
 """
 
 import sys
@@ -221,3 +222,28 @@ async def test_submission_of_a_created_run_still_works(session: AsyncSession):
     db_run = await crud.get_workflow_run(session, filters={"id": run_id})
     assert db_run.lifecycle_status == schemas.WorkflowRunStatus.PENDING
     assert db_run.external_id is not None
+
+
+# ============================================================
+# Runs that left CREATED without an engine run
+# ============================================================
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "method, path",
+    [
+        ("GET", "/v1/workflow-runs/{id}"),
+        ("GET", "/v1/workflow-runs/{id}/task-runs"),
+        ("PUT", "/v1/workflow-runs/{id}/cancel"),
+    ],
+)
+async def test_active_run_without_engine_run_answers_500_with_detail(
+    session: AsyncSession, client: AsyncClient, method, path
+):
+    run = await _make_workflow_and_run(session, lifecycle=schemas.WorkflowRunStatus.RUNNING, external_id=None)
+
+    response = await client.request(method, path.format(id=run.id))
+
+    assert response.status_code == 500
+    assert "has no run in the workflow engine" in response.json()["detail"]

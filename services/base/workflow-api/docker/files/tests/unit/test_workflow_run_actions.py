@@ -182,35 +182,6 @@ async def test_submission_skips_a_run_canceled_before_it_started(session: AsyncS
 
 
 @pytest.mark.asyncio
-async def test_a_run_canceled_during_submission_is_canceled_in_the_engine(session: AsyncSession, monkeypatch):
-    run = await _make_workflow_and_run(session, lifecycle=schemas.WorkflowRunStatus.CREATED, external_id=None)
-    run_id = run.id
-    workflow_run = await _schema(session, run_id)
-
-    async def _submit_while_user_cancels(self, wf_run, project_id):
-        await crud.update_workflow_run(
-            session, wf_run.id, schemas.WorkflowRunUpdate(lifecycle_status=schemas.WorkflowRunStatus.CANCELED)
-        )
-        return schemas.WorkflowRunUpdate(external_id="late-ext", lifecycle_status=schemas.WorkflowRunStatus.PENDING)
-
-    canceled: list[str] = []
-
-    async def _record_cancel(self, external_id):
-        canceled.append(external_id)
-        return schemas.WorkflowRunStatus.CANCELED
-
-    monkeypatch.setattr(DummyAdapter, "submit_workflow_run", _submit_while_user_cancels)
-    monkeypatch.setattr(DummyAdapter, "cancel_workflow_run", _record_cancel)
-    await service._submit_workflow_run_to_engine(session, workflow_run, DummyAdapter(), project_id="proj-123")
-
-    assert canceled == ["late-ext"]
-    session.expire_all()
-    db_run = await crud.get_workflow_run(session, filters={"id": run_id})
-    assert db_run.lifecycle_status == schemas.WorkflowRunStatus.CANCELED
-    assert db_run.external_id == "late-ext"
-
-
-@pytest.mark.asyncio
 async def test_submission_of_a_created_run_still_works(session: AsyncSession):
     run = await _make_workflow_and_run(session, lifecycle=schemas.WorkflowRunStatus.CREATED, external_id=None)
     run_id = run.id

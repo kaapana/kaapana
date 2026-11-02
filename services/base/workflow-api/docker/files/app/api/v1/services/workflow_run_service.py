@@ -383,10 +383,7 @@ async def retry_workflow_run(db: AsyncSession, workflow_run_id: int) -> schemas.
     Raises ConflictError for every other state, for a run that never reached the engine,
     and for a run whose data was cleaned or is being cleaned.
     """
-    db_run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
-    if not db_run:
-        logger.error(f"No workflow runs found to retry {workflow_run_id}")
-        raise NotFoundError("Workflow run not found")
+    db_run = await _lock_run(db, workflow_run_id)
 
     if db_run.lifecycle_status not in RETRYABLE_STATES:
         raise ConflictError(
@@ -577,14 +574,14 @@ async def trigger_cleanup(db: AsyncSession, workflow_run_id: int) -> schemas.Wor
       - currently PENDING or RUNNING → raise ConflictError (caller renders 409).
       - NOT_REQUIRED → claim and dispatch.
       - FAILED → claim from FAILED and re-dispatch.
+      - The run is locked while it is checked and claimed, so a parallel
+        retry or delete cannot change it in between.
 
     Lifecycle precondition: the run must be in a terminal state OR have a
     null external_id (nothing to clean). Cleaning a still-running run is
     rejected to avoid yanking data out from under the engine.
     """
-    db_run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
-    if not db_run:
-        raise NotFoundError("Workflow run not found")
+    db_run = await _lock_run(db, workflow_run_id)
 
     if db_run.cleanup_status == schemas.CleanupStatus.CLEANED:
         return _workflow_run_to_schema(db_run)
@@ -621,11 +618,11 @@ async def delete_workflow_run(db: AsyncSession, workflow_run_id: int) -> None:
 
     Raises ConflictError while the run is active or its data is being cleaned.
     The records are removed only after the data and the engine run are gone,
-    so a failure leaves a run that can be deleted again.
+    so a failure leaves a run that can be deleted again. The run stays locked
+    until it is deleted, so a parallel cancel, retry or clean waits and then
+    finds no run.
     """
-    db_run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
-    if not db_run:
-        raise NotFoundError("Workflow run not found")
+    db_run = await _lock_run(db, workflow_run_id)
 
     if db_run.lifecycle_status not in TERMINAL_STATES:
         raise ConflictError("Only finished workflow runs can be deleted. Cancel the run first.")

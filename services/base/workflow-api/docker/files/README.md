@@ -93,6 +93,8 @@ class WorkflowEngineAdapter(ABC):
 
 Requests outside these states answer 409 with `{"detail": "<reason>"}`.
 
+Cancel, retry, delete, clean and the submission to the engine lock the run until they are done. A request that waits longer than 30 seconds for the lock answers 409.
+
 ---
 
 ## Database Relations
@@ -195,6 +197,7 @@ Any label whose key starts with `kaapana.immutable.` is treated as **immutable**
 * Run `DOCKER_BUILDKIT=0 docker compose build`
 * Run `docker compose up` 
 * Ensure all tests pass via `cd files/tests && pytest workflow_run_test.py workflow_test.py`
+* Run the concurrency tests against PostgreSQL, because SQLite ignores row locks. The steps are in `files/tests/concurrency/conftest.py`.
 * Format your changes with `ruff format .` from the repository root (see `ruff.toml`)
 * Provide end to end tests for new use cases introduced
 

@@ -41,7 +41,10 @@ benchmark_platform:
       BENCHMARK_CLONE_URL="https://oauth2:${BENCHMARK_TOKEN}@${BENCHMARK_REPO_HOST}"
     - |
       if [[ -d "$BENCHMARK_REPO_DIR/.git" ]]; then
-        git -C "$BENCHMARK_REPO_DIR" pull
+        git -C "$BENCHMARK_REPO_DIR" remote set-url origin "$BENCHMARK_CLONE_URL"
+        git -C "$BENCHMARK_REPO_DIR" fetch --prune origin
+        git -C "$BENCHMARK_REPO_DIR" remote set-head origin --auto
+        git -C "$BENCHMARK_REPO_DIR" reset --hard origin/HEAD
       else
         git clone "$BENCHMARK_CLONE_URL" "$BENCHMARK_REPO_DIR"
       fi

@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple, Type
 
 from fastapi.encoders import jsonable_encoder
-from sqlalchemy import Select, delete, select, update
+from sqlalchemy import Select, delete, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -376,6 +376,26 @@ async def get_workflow_run(
     return result.scalars().first()
 
 
+async def lock_workflow_run(db: AsyncSession, run_id: int, lock_timeout: str) -> Optional[models.WorkflowRun]:
+    """Load a workflow run and lock its row until the transaction ends.
+
+    Other writers of the run wait for the lock, plain reads do not. Waiting
+    longer than `lock_timeout` raises the database's lock timeout error.
+    """
+    await db.execute(text("SELECT set_config('lock_timeout', :timeout, true)"), {"timeout": lock_timeout})
+    query = (
+        create_query(
+            model=models.WorkflowRun,
+            filters={"id": run_id},
+            eager_load=["task_runs", "workflow_revision"],
+        )
+        .with_for_update(of=models.WorkflowRun)
+        .execution_options(populate_existing=True)
+    )
+    result = await db.execute(query)
+    return result.scalars().first()
+
+
 async def create_workflow_run(
     db: AsyncSession,
     workflow_run: schemas.WorkflowRunCreate,
@@ -503,28 +523,6 @@ async def update_workflow_run(
     await db.refresh(db_workflow_run)
 
     return db_workflow_run
-
-
-async def update_workflow_run_if_status(
-    db: AsyncSession,
-    run_id: int,
-    expected_status: schemas.WorkflowRunStatus,
-    workflow_run_update: schemas.WorkflowRunUpdate,
-) -> bool:
-    """Apply `workflow_run_update` only while the run is still in `expected_status`.
-
-    Returns True iff the row was updated. Lets a background step detect that a
-    request changed the run in the meantime, for example a cancel during submission.
-    """
-    stmt = (
-        update(models.WorkflowRun)
-        .where(models.WorkflowRun.id == run_id)
-        .where(models.WorkflowRun.lifecycle_status == expected_status)
-        .values(**workflow_run_update.model_dump(exclude_unset=True))
-    )
-    result = await db.execute(stmt)
-    await db.commit()
-    return (result.rowcount or 0) == 1
 
 
 async def delete_workflow_run(db: AsyncSession, run_id: int) -> None:

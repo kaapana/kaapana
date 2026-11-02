@@ -15,6 +15,7 @@ from app.api.v1.services.errors import (
 )
 from app.api.v1.services.utils import run_in_background_with_retries
 from app.dependencies import get_async_db
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -61,6 +62,27 @@ RETRYABLE_STATES = {
     schemas.WorkflowRunStatus.ERROR,
     schemas.WorkflowRunStatus.CANCELED,
 }
+
+RUN_LOCK_TIMEOUT = "30s"
+LOCK_NOT_AVAILABLE = "55P03"
+
+
+async def _lock_run(db: AsyncSession, workflow_run_id: int) -> models.WorkflowRun:
+    """Load a workflow run and lock it until the caller commits.
+
+    Raises NotFoundError if the run does not exist, and ConflictError if
+    another request holds the lock for longer than RUN_LOCK_TIMEOUT.
+    """
+    try:
+        db_run = await crud.lock_workflow_run(db, workflow_run_id, RUN_LOCK_TIMEOUT)
+    except DBAPIError as e:
+        await db.rollback()
+        if getattr(e.orig, "sqlstate", None) == LOCK_NOT_AVAILABLE:
+            raise ConflictError("Another request is changing this workflow run. Try again in a moment.") from e
+        raise
+    if db_run is None:
+        raise NotFoundError("Workflow run not found")
+    return db_run
 
 
 async def _reload_run(db: AsyncSession, workflow_run_id: int) -> models.WorkflowRun:
@@ -330,27 +352,19 @@ async def cancel_workflow_run(db: AsyncSession, workflow_run_id: int) -> schemas
     """
     Cancel a workflow run and persist the CANCELED state.
     A run still in CREATED has not reached the engine; it is canceled in the
-    database only, and the background submission skips it.
+    database only, and the background submission skips it. A cancel during
+    the submission waits for it and then cancels the run in the engine.
     Raises ConflictError if the run is already finished.
     """
-    db_run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
-    if not db_run:
-        logger.error(f"No workflow runs found to cancel {workflow_run_id}")
-        raise NotFoundError("Workflow run not found")
+    db_run = await _lock_run(db, workflow_run_id)
 
     if db_run.lifecycle_status in TERMINAL_STATES:
         raise ConflictError(f"Only active workflow runs can be canceled. This run is {db_run.lifecycle_status.value}.")
 
     if db_run.lifecycle_status == schemas.WorkflowRunStatus.CREATED:
-        canceled = await crud.update_workflow_run_if_status(
-            db,
-            workflow_run_id,
-            expected_status=schemas.WorkflowRunStatus.CREATED,
-            workflow_run_update=schemas.WorkflowRunUpdate(lifecycle_status=schemas.WorkflowRunStatus.CANCELED),
-        )
-        if canceled:
-            return _workflow_run_to_schema(await _reload_run(db, workflow_run_id))
-        await db.refresh(db_run)
+        db_run.lifecycle_status = schemas.WorkflowRunStatus.CANCELED
+        await db.commit()
+        return _workflow_run_to_schema(db_run)
 
     external_id = _require_external_id(db_run)
     engine = get_workflow_engine(db_run.workflow_revision.workflow.workflow_engine)
@@ -500,12 +514,13 @@ async def _submit_workflow_run_to_engine(
 ) -> None:
     """Background task that submits a created workflow run to the engine and persists the engine-assigned `external_id` + initial lifecycle status.
 
-    Skips runs that were canceled before submission. A run canceled during
-    submission is canceled in the engine right away.
+    Skips runs that were canceled before submission. The run stays locked
+    until the engine run is stored, so a cancel waits for the submission.
     """
-    db_run = await crud.get_workflow_run(db, filters={"id": workflow_run.id})
+    db_run = await crud.lock_workflow_run(db, workflow_run.id, RUN_LOCK_TIMEOUT)
     if db_run is None or db_run.lifecycle_status != schemas.WorkflowRunStatus.CREATED:
         logger.info(f"WorkflowRun {workflow_run.id} is no longer CREATED; not submitting it to the engine.")
+        await db.rollback()
         return
 
     wf_run_update = await workflow_engine.submit_workflow_run(workflow_run, project_id=project_id)
@@ -513,19 +528,7 @@ async def _submit_workflow_run_to_engine(
     if wf_run_update.external_id is None:
         logger.error(f"Workflow engine did not return an external_id for workflow run {workflow_run.id}")
         raise InternalError("Workflow engine did not return an external_id")
-
-    submitted = await crud.update_workflow_run_if_status(
-        db,
-        workflow_run.id,
-        expected_status=schemas.WorkflowRunStatus.CREATED,
-        workflow_run_update=wf_run_update,
-    )
-    if not submitted:
-        logger.info(f"WorkflowRun {workflow_run.id} was canceled during submission; canceling it in the engine.")
-        await workflow_engine.cancel_workflow_run(wf_run_update.external_id)
-        await crud.update_workflow_run(
-            db, workflow_run.id, schemas.WorkflowRunUpdate(external_id=wf_run_update.external_id)
-        )
+    await crud.update_workflow_run(db, workflow_run.id, wf_run_update)
 
 
 async def _sync_single_workflow_run(db: AsyncSession, run: models.WorkflowRun) -> None:

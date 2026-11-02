@@ -90,7 +90,7 @@ async def delete_workflow_run(
 
     Errors:
       - 404 if the run does not exist.
-      - 409 if the run is not finished or its data is being cleaned.
+      - 409 if the run is not finished, its data is being cleaned, or another request is changing it.
       - 503 if the data or the engine run could not be deleted; the run is kept.
     """
     await service.delete_workflow_run(db, workflow_run_id)

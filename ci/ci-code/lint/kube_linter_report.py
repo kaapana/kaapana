@@ -1,3 +1,13 @@
+"""Convert a kube-linter JSON report into a GitLab Code Quality report.
+
+kube-linter runs on the charts rendered by `helm template`, so its findings point at
+files under the rendered directory. This script maps each finding back to the chart
+source file in the repository, so the MR Code Quality widget shows it on the file the
+MR changes, and prints the deduplicated findings as Code Quality JSON on stdout.
+
+Usage: kube_linter_report.py <kube-linter.json> <rendered-dir> > gl-code-quality-report.json
+"""
+
 import hashlib
 import json
 import re

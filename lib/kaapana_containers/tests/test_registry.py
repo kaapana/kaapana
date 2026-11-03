@@ -156,6 +156,84 @@ class TestClientOptions:
 
 
 # ---------------------------------------------------------------------------
+# finalize timeout
+# ---------------------------------------------------------------------------
+
+
+def _upload_timeouts_handler(timeouts: list[tuple[str, dict]]):
+    def handler(request: httpx.Request) -> httpx.Response:
+        timeouts.append((request.method, request.extensions["timeout"]))
+        if request.method == "HEAD":
+            return httpx.Response(404)
+        if request.method in ("POST", "PATCH"):
+            return httpx.Response(
+                202, headers={"location": "/v2/user/repo/blobs/uploads/u1"}
+            )
+        return httpx.Response(201)
+
+    return handler
+
+
+class TestFinalizeTimeout:
+    async def test_only_the_closing_put_waits_longer(self, tmp_path):
+        (tmp_path / "a.bin").write_bytes(b"content")
+        timeouts: list[tuple[str, dict]] = []
+        client = OCIRegistryDiscovery(
+            "https://registry.example.com",
+            "user/repo",
+            client_options={
+                "timeout": 60.0,
+                "transport": httpx.MockTransport(_upload_timeouts_handler(timeouts)),
+            },
+        )
+
+        async with client:
+            await client._upload_file(str(tmp_path / "a.bin"), "a.bin")
+
+        default = {"connect": 60.0, "read": 60.0, "write": 60.0, "pool": 60.0}
+        *others, closing = timeouts
+        assert closing == ("PUT", {**default, "read": 1800.0})
+        assert others and all(timeout == default for _, timeout in others)
+
+    @pytest.mark.parametrize("client_timeout", [3600.0, None])
+    async def test_longer_client_read_timeout_is_kept(self, tmp_path, client_timeout):
+        (tmp_path / "a.bin").write_bytes(b"content")
+        timeouts: list[tuple[str, dict]] = []
+        client = OCIRegistryDiscovery(
+            "https://registry.example.com",
+            "user/repo",
+            client_options={
+                "timeout": client_timeout,
+                "transport": httpx.MockTransport(_upload_timeouts_handler(timeouts)),
+            },
+        )
+
+        async with client:
+            await client._upload_file(str(tmp_path / "a.bin"), "a.bin")
+
+        assert timeouts[-1][0] == "PUT"
+        assert timeouts[-1][1]["read"] == client_timeout
+
+    async def test_none_waits_without_limit(self, tmp_path):
+        (tmp_path / "a.bin").write_bytes(b"content")
+        timeouts: list[tuple[str, dict]] = []
+        client = OCIRegistryDiscovery(
+            "https://registry.example.com",
+            "user/repo",
+            client_options={
+                "transport": httpx.MockTransport(_upload_timeouts_handler(timeouts))
+            },
+            finalize_timeout=None,
+        )
+
+        async with client:
+            await client._upload_file(str(tmp_path / "a.bin"), "a.bin")
+
+        assert timeouts[-1][0] == "PUT"
+        assert timeouts[-1][1]["read"] is None
+
+
+# ---------------------------------------------------------------------------
 # cookies
 # ---------------------------------------------------------------------------
 

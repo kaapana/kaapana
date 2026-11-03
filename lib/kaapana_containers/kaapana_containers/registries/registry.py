@@ -94,6 +94,7 @@ class OCIRegistryDiscovery:
         username: Optional[str] = None,
         password: Optional[str] = None,
         client_options: Optional[Dict[str, Any]] = None,
+        finalize_timeout: Optional[float] = 1800.0,
     ):
         """Initialize the OCIRegistryDiscovery client.
 
@@ -105,6 +106,12 @@ class OCIRegistryDiscovery:
             client_options: Options forwarded to :class:`httpx.AsyncClient`
                 (e.g. ``{"timeout": 60.0, "verify": False}``). A ``cookies``
                 entry is not accepted because the client never keeps cookies.
+            finalize_timeout: Read timeout in seconds for the request that closes a
+                blob upload. That request returns only after the registry has stored
+                the whole blob, so it can take much longer than any other request.
+                If the client's read timeout is longer or ``None``, the request
+                keeps it. ``None`` here waits without limit. The other timeouts of
+                that request are the timeouts of the client.
         """
         self.logger = logging.getLogger(__name__)
         self.registry_url = registry_url.rstrip("/")
@@ -115,6 +122,7 @@ class OCIRegistryDiscovery:
         self.basic_auth_header = self._build_basic_auth_header()
         self._client: Optional[httpx.AsyncClient] = None
         self._client_options: Dict[str, Any] = client_options or {}
+        self._finalize_timeout = finalize_timeout
 
     async def __aenter__(self) -> "OCIRegistryDiscovery":
         # Keep no cookies, as the OCI distribution-spec conformance client does.
@@ -258,11 +266,16 @@ class OCIRegistryDiscovery:
         digest = SHA256Digest(f"sha256:{hashlib.sha256(data_bytes).hexdigest()}")
 
         separator = "&" if "?" in location else "?"
+        client_read = self._client.timeout.read
+        no_limit = client_read is None or self._finalize_timeout is None
+        read = None if no_limit else max(client_read, self._finalize_timeout)
+        finalize = httpx.Timeout(**{**self._client.timeout.as_dict(), "read": read})
         await self._request_with_auth_retry(
             "PUT",
             f"{location}{separator}digest={digest}",
             headers={"Content-Type": media_type},
             content=data_bytes,
+            timeout=finalize,
         )
         return digest
 

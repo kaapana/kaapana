@@ -175,6 +175,8 @@ Workflows, runs, and tasks can be labeled arbitrarily. Labels enable flexible gr
 
 Any label whose key starts with `kaapana.immutable.` is treated as **immutable**: it cannot be removed or have its value changed across revisions. PATCHing an immutable label returns **422**. New immutable labels may be added at any time.
 
+The Extension Manager labels every workflow it installs with `kaapana.immutable.extension.id` and `kaapana.immutable.extension.content_name`, which identify the workflow across updates, and with `kaapana.extension.name` and `kaapana.extension.version`, which may change with an update.
+
 ### Audit Trail
 - API logs all key actions (creation, retrieval, updates) with workflow/run IDs.  
 - Logs can be exported for auditing.  

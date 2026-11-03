@@ -737,7 +737,7 @@ async def test_patch_workflow_add_extra_immutable_label_preserving_existing_allo
         json={
             "labels": [
                 {"key": "kaapana.immutable.extension.id", "value": "ext-1"},
-                {"key": "kaapana.immutable.extension.name", "value": "my-ext"},
+                {"key": "kaapana.immutable.extension.content_name", "value": "my-workflow"},
             ]
         },
     )

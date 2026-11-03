@@ -50,11 +50,7 @@ async def get_workflow_by_id(
     return await service.get_workflow_by_id(db, workflow_id)
 
 
-@router.patch(
-    "/workflows/{workflow_id}",
-    response_model=schemas.Workflow,
-    dependencies=[Depends(require_dev_mode)],
-)
+@router.patch("/workflows/{workflow_id}", response_model=schemas.Workflow)
 async def update_workflow(
     workflow_id: uuid.UUID,
     update: schemas.WorkflowUpdate,

@@ -114,6 +114,8 @@ IMMUTABLE_LABEL_PREFIX = "kaapana.immutable."
 # (and thus the project-namespace data volume). No label => cleanup impossible.
 PROJECT_ID_LABEL_KEY = f"{IMMUTABLE_LABEL_PREFIX}project_id"
 
+EXTENSION_ID_LABEL_KEY = f"{IMMUTABLE_LABEL_PREFIX}extension.id"
+
 
 class ImmutableLabelViolation(Exception):
     """Raised when a label update would change or remove an immutable label."""

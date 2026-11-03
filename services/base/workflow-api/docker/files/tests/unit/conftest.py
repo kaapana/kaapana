@@ -28,7 +28,8 @@ postgresql.JSONB = JSON
 # Add parent directories to path to import app
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from app.dependencies import get_async_db, require_dev_mode
+from app.config import settings
+from app.dependencies import get_async_db
 from app.main import app
 from app.models import Base
 
@@ -128,7 +129,7 @@ async def session_fixture():
 
 
 @pytest_asyncio.fixture(name="client")
-async def client_fixture(session: AsyncSession):
+async def client_fixture(session: AsyncSession, monkeypatch):
     """
     Create a test client with overridden database dependency.
 
@@ -143,7 +144,7 @@ async def client_fixture(session: AsyncSession):
 
     app.dependency_overrides[get_async_db] = get_async_db_override
     # Default to DEV_MODE=on for tests so updates work.
-    app.dependency_overrides[require_dev_mode] = lambda: None
+    monkeypatch.setattr(settings, "DEV_MODE", True)
 
     async with AsyncClient(
         transport=ASGITransport(app=app),

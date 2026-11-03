@@ -46,7 +46,7 @@
     "enabled": true
   },
   "kubernetes": {
-    "managerFilePatterns": ["/^utils/[^/]+\\.ya?ml$/", "/(^|/)(k8s|manifests)/.+\\.ya?ml$/"]
+    "managerFilePatterns": ["/(^|/)(k8s|manifests)/.+\\.ya?ml$/"]
   },
   "ansible": {
     "managerFilePatterns": ["/^ci/ci-code/deploy/[^/]+\\.ya?ml$/"]
@@ -121,10 +121,7 @@
     },
     {
       "matchManagers": ["npm"],
-      "matchFileNames": [
-        "services/base/**",
-        "services/data-separation/project-management-ui/**"
-      ],
+      "matchFileNames": ["services/**"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "UI npm dependencies"
     },
@@ -135,12 +132,12 @@
       "groupName": "base image Python dependencies"
     },
     {
-      "matchManagers": ["dockerfile", "docker-compose", "kubernetes", "ansible", "helm-values"],
+      "matchManagers": ["dockerfile", "kubernetes", "ansible", "helm-values"],
       "matchUpdateTypes": ["minor", "patch", "digest"],
       "groupName": "container base images"
     },
     {
-      "matchFileNames": ["ci/**", ".gitlab-ci.yml", ".pre-commit-config.yaml"],
+      "matchFileNames": ["ci/**", ".gitlab-ci.yml", ".pre-commit-config.yaml", "package.json", "tests/**"],
       "matchUpdateTypes": ["minor", "patch", "digest"],
       "groupName": "CI tooling"
     },
@@ -186,9 +183,10 @@
         "services/base/notification-service/**",
         "services/kaapana-admin/auth-backend/**",
         "services/kaapana-admin/keycloak/keycloak-setup/**",
+        "services/kaapana-admin/kube-helm/**",
         "services/data-separation/dicom-web-filter/**",
         "services/data-separation/access-information-interface/**",
-        "data-processing/kaapana-plugin/**"
+        "services/applications/collabora/docker/wopi/**"
       ],
       "matchManagers": ["pip_requirements", "pep621"],
       "addLabels": ["Coverage: unit"],
@@ -209,6 +207,7 @@
         "services/base/federated-ui/**",
         "services/base/workflow-execution-ui/**",
         "services/base/workflow-list-ui/**",
+        "services/base/extension-manager-ui/**",
         "services/data-separation/project-management-ui/**",
         "services/applications/collabora/docker/wopi/files/ui/**"
       ],
@@ -233,7 +232,7 @@
       ]
     },
     {
-      "matchFileNames": ["ci/**", ".gitlab-ci.yml", ".pre-commit-config.yaml", "tests/**"],
+      "matchFileNames": ["ci/**", ".gitlab-ci.yml", ".pre-commit-config.yaml", "package.json", "tests/**"],
       "addLabels": ["Coverage: pipeline"],
       "prBodyNotes": [
         "**Test coverage of `{{{packageFile}}}`: CI pipeline.** The MR pipeline uses this dependency itself, so a green pipeline tests it."

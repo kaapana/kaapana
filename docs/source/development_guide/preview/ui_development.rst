@@ -376,8 +376,8 @@ is a hard-coded list. A new view is not tested at all until it is added to it:
              ...
              - <view>-ui
 
-An entry is a view name under ``services/base``, or, for a UI that lives
-elsewhere, the path of its app directory, such as
+An entry is the name of a view in ``services/*/<view>/docker/files``, or, for a
+UI with a different layout, the path of its app directory, such as
 ``services/applications/collabora/docker/wopi/files/ui``.
 
 Pick the app's Playwright port from the registry in :ref:`ui_testing` (one port

@@ -329,7 +329,7 @@ test('unsaved edits are not lost to Escape or a click outside', async ({ page })
 
   // Escape asks; Enter answers with the focused Cancel and keeps the edits.
   await page.keyboard.press('Escape')
-  await expect(confirm).toBeVisible()
+  await expect(confirm.getByRole('button', { name: 'Cancel' })).toBeFocused()
   await page.keyboard.press('Enter')
   await expect(confirm).toBeHidden()
   await expect(page.getByLabel('Show Metadata')).not.toBeChecked()

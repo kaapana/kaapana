@@ -16,9 +16,10 @@ spec:
     - $[[ inputs.runner_tag ]]
   image: $CI_BASE_IMAGE
   variables:
-    # Bump together with the rev in .pre-commit-config.yaml.
+    # Bump each together with its hook's rev in .pre-commit-config.yaml.
     # renovate: datasource=pypi depName=ruff
     RUFF_VERSION: "0.16.4"
+    # renovate: datasource=github-releases depName=hadolint/hadolint extractVersion=^v(?<version>\d+\.\d+\.\d+)$
     HADOLINT_VERSION: "2.15.1"
 
 ##############################################

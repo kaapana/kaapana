@@ -1,3 +1,4 @@
+import ipaddress
 import os
 import tempfile
 from dataclasses import dataclass
@@ -33,6 +34,7 @@ class ContainerHelper:
 
     _build_config: BuildConfig = None  # type: ignore
     _build_state: BuildState = None  # type: ignore
+    _RESOLV_CONF_PATHS = (Path("/etc/resolv.conf"), Path("/run/systemd/resolve/resolv.conf"))
 
     @classmethod
     def init(cls, build_config: BuildConfig, build_state: BuildState):
@@ -231,22 +233,48 @@ class ContainerHelper:
         config_path.write_text("\n".join(sections))
         return ["--buildkitd-config", str(config_path)]
 
-    @staticmethod
-    def _host_nameservers() -> list:
+    @classmethod
+    def _host_nameservers(cls) -> list:
         """
         Return the nameservers of the host, without loopback addresses.
+
+        With systemd-resolved, /etc/resolv.conf lists only the local stub
+        resolver. The second file lists the servers that systemd-resolved
+        itself uses, so it is read when the first file has no usable entry.
+        """
+        for resolv_conf_path in cls._RESOLV_CONF_PATHS:
+            try:
+                resolv_conf = resolv_conf_path.read_text()
+            except OSError:
+                continue
+
+            nameservers = []
+            for line in resolv_conf.splitlines():
+                parts = line.split()
+                if len(parts) == 2 and parts[0] == "nameserver" and not cls._is_loopback(parts[1]):
+                    nameservers.append(parts[1])
+            if nameservers:
+                return nameservers
+
+        # Without nameservers, BuildKit uses public DNS servers, which some networks block.
+        logger.warning(
+            "No nameserver outside of loopback found in "
+            f"{', '.join(str(path) for path in cls._RESOLV_CONF_PATHS)}. "
+            f"RUN steps in the buildx builder {BUILDX_BUILDER_NAME} use public DNS servers "
+            "and fail if the network blocks them."
+        )
+        return []
+
+    @staticmethod
+    def _is_loopback(address: str) -> bool:
+        """
+        Return whether a nameserver address is on loopback. An entry that is
+        not an IP address is kept, as before.
         """
         try:
-            resolv_conf = Path("/etc/resolv.conf").read_text()
-        except OSError:
-            return []
-
-        nameservers = []
-        for line in resolv_conf.splitlines():
-            parts = line.split()
-            if len(parts) == 2 and parts[0] == "nameserver" and not parts[1].startswith("127."):
-                nameservers.append(parts[1])
-        return nameservers
+            return ipaddress.ip_address(address).is_loopback
+        except ValueError:
+            return False
 
     @classmethod
     def container_registry_login(cls, registry: str, username: str, password: str):

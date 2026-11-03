@@ -162,9 +162,7 @@ data:
       { "software_uuid": "total-segmentator-v2"},
       { "software_uuid": "validate-dicoms"},
       { "software_uuid": "project-dicom-transfer"},
-      { "software_uuid": "project-minio-transfer"},
-      { "software_uuid": "register-dicoms"},
-      { "software_uuid": "test-task-operator"}
+      { "software_uuid": "project-minio-transfer"}
     ]
 
   # Init User, Project and Role mapping will be done at a later stage (FastAPI lifespan init function) to dynamically incorporate the keycloak id.

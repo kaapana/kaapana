@@ -21,7 +21,6 @@
     "npm",
     "maven",
     "pre-commit",
-    "kubernetes",
     "ansible",
     "helm-requirements",
     "helm-values",
@@ -44,9 +43,6 @@
   },
   "pre-commit": {
     "enabled": true
-  },
-  "kubernetes": {
-    "managerFilePatterns": ["/(^|/)(k8s|manifests)/.+\\.ya?ml$/"]
   },
   "ansible": {
     "managerFilePatterns": ["/^ci/ci-code/deploy/[^/]+\\.ya?ml$/"]
@@ -132,7 +128,7 @@
       "groupName": "base image Python dependencies"
     },
     {
-      "matchManagers": ["dockerfile", "kubernetes", "ansible", "helm-values"],
+      "matchManagers": ["dockerfile", "ansible", "helm-values"],
       "matchUpdateTypes": ["minor", "patch", "digest"],
       "groupName": "container base images"
     },

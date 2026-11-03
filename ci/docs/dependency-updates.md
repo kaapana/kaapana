@@ -38,7 +38,7 @@ managers listed in `enabledManagers` run.
 | `maven` | `pom.xml` | the Keycloak extensions |
 | `pre-commit` | `.pre-commit-config.yaml` | ruff |
 | `custom.regex` | lines annotated with `# renovate:`, the opa download URL | `ARG HELM_VERSION`, `RUFF_VERSION` |
-| `ansible`, `kubernetes`, `helm-requirements`, `helm-values` | `ci/ci-code/deploy/*.yaml`, `k8s/` and `manifests/` directories, Helm charts | enabled so that new files are picked up. Today they find nothing to update. |
+| `ansible`, `helm-requirements`, `helm-values` | `ci/ci-code/deploy/*.yaml`, Helm charts | enabled so that new files are picked up. Today they find nothing to update. |
 
 `pre-commit` is the only manager that Renovate ships turned off. It needs
 both the entry in `enabledManagers` and `"pre-commit": { "enabled": true }`.
@@ -132,7 +132,7 @@ Patch and minor updates are grouped, one MR per group:
 | other npm dependencies | npm elsewhere that no other group catches |
 | base image Python dependencies | Python in `data-processing/base-images/**` |
 | Python dependencies | all other Python |
-| container base images | Dockerfile, Ansible, Kubernetes and Helm images |
+| container base images | Dockerfile, Ansible and Helm images |
 | CI tooling | everything in `ci/`, `tests/`, `.gitlab-ci.yml`, `.pre-commit-config.yaml` and the root `package.json` (ESLint, Prettier) |
 
 Some versions must move together and have their own group, also for major

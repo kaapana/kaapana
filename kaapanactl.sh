@@ -760,7 +760,7 @@ function server_installation() {
     echo -e "${GREEN}USER_HOME: $USER_HOME ${NC}";
     echo ""
 
-    DEFAULT_MICRO_VERSION=1.36/stable
+    DEFAULT_MICROK8S_VERSION=1.36/stable
     DEFAULT_HELM_VERSION=latest/stable
 
     ### Parsing command line arguments:
@@ -770,9 +770,9 @@ function server_installation() {
     _Flag:      --uninstall  removes microk8s and helm from the system
     _Flag:      --offline    offline installation for snap packages (expects '*.snap' and '*.assert' files within the working dir)
 
-    _Argument: -v --version [opt]
+    _Argument: -mv --microk8s-version [opt]
     where opt is:
-        default: $DEFAULT_MICRO_VERSION
+        default: $DEFAULT_MICROK8S_VERSION
 
     _Argument: -os --operating-system [opt]
     where opt is:
@@ -782,6 +782,7 @@ function server_installation() {
 
     QUIET=NA
     OFFLINE_SNAPS=NA
+    SET_MICROK8S_VERSION=false
     DNS=""
 
     POSITIONAL=()
@@ -803,9 +804,10 @@ function server_installation() {
                 shift # past value
             ;;
 
-            -v|--version)
-                DEFAULT_MICRO_VERSION="$2"
-                echo -e "${GREEN}Kubernetes version set to: $DEFAULT_MICRO_VERSION ${NC}";
+            -mv|--microk8s-version)
+                DEFAULT_MICROK8S_VERSION="$2"
+                SET_MICROK8S_VERSION=true
+                echo -e "${GREEN}Kubernetes version set to: $DEFAULT_MICROK8S_VERSION ${NC}";
                 shift # past argument
                 shift # past value
             ;;
@@ -845,6 +847,15 @@ function server_installation() {
         esac
     done
 
+
+    # In offline mode the bundled *.snap file decides the Kubernetes version, so -mv cannot
+    # influence what is installed. It would only mis-pin the snap channel, making a later
+    # refresh cross Kubernetes minor versions.
+    if [ "$OFFLINE_SNAPS" = "true" ] && [ "$SET_MICROK8S_VERSION" = "true" ]; then
+        echo -e "${RED}ERROR: -mv/--microk8s-version cannot be combined with --offline.${NC}"
+        echo -e "${RED}       The offline installer ships a fixed microk8s version; rerun without -mv.${NC}"
+        exit 1
+    fi
 
     case "$OS_PRESENT" in
         "AlmaLinux")
@@ -1237,6 +1248,12 @@ function install_microk8s {
 
             snap ack $assert_path
             snap install --classic $snap_path
+            # A snap installed from a local file tracks no channel, so a later refresh would
+            # jump to latest/stable - across Kubernetes minor versions, which microk8s does
+            # not support. Pin the track the online install uses (sets the channel only, no
+            # download and no restart).
+            snap switch microk8s --channel=$DEFAULT_MICROK8S_VERSION \
+                || echo "${YELLOW}WARNING: could not pin the microk8s snap channel -> a later 'snap refresh' may cross Kubernetes minor versions.${NC}"
             MICROK8S_BASE_IMAGES_TAR_PATH="$SCRIPT_DIR/microk8s_base_images.tar"
             echo "${YELLOW}Start Microk8s image import from $MICROK8S_BASE_IMAGES_TAR_PATH ... ${NC}"
             [ -f $MICROK8S_BASE_IMAGES_TAR_PATH ] && echo "${GREEN}MICROK8S_BASE_IMAGES_TAR exists ... ${NC}" || (echo "${RED}Images tar does not exist -> exit ${NC}" && exit 1)
@@ -1247,8 +1264,8 @@ function install_microk8s {
             microk8s kubectl apply -f /var/snap/microk8s/current/args/cni-network/cni.yaml
             echo "${GREEN}Microk8s offline installation done!${NC}"
         else
-            echo "${YELLOW}Installing microk8s v$DEFAULT_MICRO_VERSION ...${NC}"
-            snap install microk8s --classic --channel=$DEFAULT_MICRO_VERSION
+            echo "${YELLOW}Installing microk8s v$DEFAULT_MICROK8S_VERSION ...${NC}"
+            snap install microk8s --classic --channel=$DEFAULT_MICROK8S_VERSION
         fi
 
         echo "${YELLOW}Stopping microk8s for configuration ...${NC}"

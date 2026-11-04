@@ -376,6 +376,10 @@ is a hard-coded list. A new view is not tested at all until it is added to it:
              ...
              - <view>-ui
 
+An entry is the name of a view in ``services/*/<view>/docker/files``, or, for a
+UI with a different layout, the path of its app directory, such as
+``services/applications/collabora/docker/wopi/files/ui``.
+
 Pick the app's Playwright port from the registry in :ref:`ui_testing` (one port
 per app, ``--strictPort``) so suites can keep running in parallel.
 
@@ -423,6 +427,7 @@ suites can run in parallel on one machine:
 - ``base-ui``: 4310
 - ``extension-manager-ui``: 4311
 - ``project-management-ui``: 4312
+- the Collabora documents UI: 4313
 
 Run a suite from the view's
 ``docker/files`` directory with ``npx playwright test`` (build ``base-ui``

@@ -69,11 +69,15 @@ spec:
         - name: APPLICATION_ROOT
           value: /collabora-wopi
         - name: COLLABORA_URL
-          value: http://collabora-chart.services:9981/collabora
+          value: "http://{{ .Release.Name }}.{{ tpl .Values.global.namespace . }}:9981{{ .Values.global.collabora_prefix }}"
         - name: WOPI_API_ENDPOINT
           # value: http://collabora-chart-wopi.services:5000/collabora-wopi
           # Workaround till double backslash urls are supported by oauth2-proxy
-          value: collabora-chart-wopi.services:5000
+          value: "{{ .Release.Name }}-wopi.{{ tpl .Values.global.namespace . }}:5000"
+        - name: MINIO_URL
+          value: "minio-service.{{ .Values.global.services_namespace }}.svc:9000"
+        - name: AII_URL
+          value: "http://aii-service.{{ .Values.global.services_namespace }}.svc:8080"
         - name: DEV_MODE
           value: "false"
         volumeMounts:

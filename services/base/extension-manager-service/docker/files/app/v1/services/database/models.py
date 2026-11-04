@@ -1,6 +1,7 @@
 import enum
 import uuid
 from datetime import datetime
+from typing import Optional
 
 from sqlalchemy import DateTime, Enum, ForeignKey, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
@@ -22,6 +23,11 @@ class ExtensionStatus(enum.StrEnum):
     UNINSTALLING = "uninstalling"
     UNINSTALLED = "uninstalled"
     UNINSTALLING_FAILED = "uninstalling_failed"
+
+
+class ExtensionOrigin(enum.StrEnum):
+    REPOSITORY = "repository"
+    UPLOAD = "upload"
 
 
 class RegisteredRepository(Base):
@@ -52,7 +58,7 @@ class RegisteredRepository(Base):
 
     extensions: Mapped[list["Extension"]] = relationship(
         back_populates="repository",
-        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
 
@@ -71,10 +77,10 @@ class Extension(Base):
         primary_key=True,
         default=uuid.uuid4,
     )
-    repository_id: Mapped[uuid.UUID] = mapped_column(
+    repository_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("registries.id", ondelete="CASCADE"),
-        nullable=False,
+        ForeignKey("registries.id", ondelete="SET NULL", name="extensions_repository_id_fkey"),
+        nullable=True,
     )
 
     ### REGEX: [a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}
@@ -82,6 +88,20 @@ class Extension(Base):
     tag: Mapped[str] = mapped_column(String(128), nullable=False)
 
     manifest: Mapped[JSON] = mapped_column(JSON, nullable=False)
+
+    origin: Mapped[ExtensionOrigin] = mapped_column(
+        Enum(
+            ExtensionOrigin,
+            name="extension_origin",
+            values_callable=lambda enum_cls: [origin.value for origin in enum_cls],
+        ),
+        nullable=False,
+        default=ExtensionOrigin.REPOSITORY,
+        server_default=ExtensionOrigin.REPOSITORY.value,
+    )
+    uploaded_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    uploaded_filename: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     status: Mapped[ExtensionStatus] = mapped_column(
         Enum(
@@ -106,7 +126,7 @@ class Extension(Base):
         nullable=False,
     )
 
-    repository: Mapped[RegisteredRepository] = relationship(back_populates="extensions")
+    repository: Mapped[Optional[RegisteredRepository]] = relationship(back_populates="extensions")
 
     contents: Mapped[list["Content"]] = relationship(
         back_populates="extension",

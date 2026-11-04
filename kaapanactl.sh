@@ -2203,10 +2203,13 @@ function deploy_chart {
 
     # Helm keeps spaces and empty entries in a list, and the API server rejects them as CIDRs.
     # A single invalid entry would fail the whole installation, so the input is checked first.
+    # Only IPv4 is accepted because the cluster network of the platform uses IPv4.
+    local octet='(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])'
+    local cidr_re="^$octet\.$octet\.$octet\.$octet/([0-9]|[12][0-9]|3[0-2])\$"
     local ldap_cidrs=()
     for cidr in ${KEYCLOAK_LDAP_EGRESS_CIDRS//,/ }; do
-        if [[ "$cidr" != */* ]]; then
-            echo "${RED}ERROR: KEYCLOAK_LDAP_EGRESS_CIDRS entry '$cidr' is not a CIDR (e.g. $cidr/32)!${NC}"
+        if [[ ! "$cidr" =~ $cidr_re ]]; then
+            echo "${RED}ERROR: KEYCLOAK_LDAP_EGRESS_CIDRS entry '$cidr' is not an IPv4 CIDR (e.g. 10.20.30.40/32)!${NC}"
             exit 1
         fi
         ldap_cidrs+=("$cidr")

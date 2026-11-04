@@ -36,3 +36,9 @@ class ContentInstaller(ABC):
     @abstractmethod
     async def uninstall(self, content: Content) -> None:
         pass
+
+    def validate(self, content: Content) -> None:
+        """Check the files of the content before it is accepted.
+
+        :raises ContentError: If the content cannot be installed.
+        """

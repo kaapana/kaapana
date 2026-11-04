@@ -48,6 +48,16 @@ extension_params:
         definition: "Login page: URL or data: URI of a logo shown next to the Kaapana logo"
         type: string
         value: ""
+    pacs_patient_issuer_policy:
+        default: "archive_default"
+        definition: "PACS: how a patient is identified. One of archive_default, patient_id_only, fixed_issuer, supplement_issuer; see the deployment guide"
+        type: string
+        value: "archive_default"
+    pacs_patient_issuer_value:
+        default: ""
+        definition: "PACS: the local issuer written by fixed_issuer and supplement_issuer (1-64 letters, digits, space, dot, underscore or hyphen)"
+        type: string
+        value: ""
     kaapana_build_version:
         default: ""
         definition: The current build version of the platform

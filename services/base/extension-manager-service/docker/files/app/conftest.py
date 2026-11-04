@@ -36,6 +36,13 @@ class MockedInstaller(ContentInstaller):
             location="/mock/location",
         )
 
+    async def update(self, content: Content) -> InstallationResult:
+        return InstallationResult(
+            success=True,
+            message="Mocked update successful",
+            location=content.location,
+        )
+
     async def uninstall(self, content: Content) -> None:
         pass
 
@@ -50,6 +57,13 @@ def mocked_installer():
         return_value=InstallationResult(
             success=True,
             message="Mocked installation successful",
+            location="/mock/location",
+        )
+    )
+    mock_dispatcher.update_content = AsyncMock(
+        return_value=InstallationResult(
+            success=True,
+            message="Mocked update successful",
             location="/mock/location",
         )
     )

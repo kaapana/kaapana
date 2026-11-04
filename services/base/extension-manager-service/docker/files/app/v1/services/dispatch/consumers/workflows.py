@@ -48,10 +48,8 @@ class WorkflowInstaller(ContentInstaller):
     def validate(self, content: Content) -> None:
         self._read_workflow(content)
 
-    async def install(self, content: Content) -> InstallationResult:
+    def _workflow_payload(self, content: Content) -> dict:
         workflow = self._read_workflow(content)
-
-        title = workflow["title"]
 
         # add extension identity labels to workflow
         labels = [
@@ -81,6 +79,11 @@ class WorkflowInstaller(ContentInstaller):
                 ]
             )
         workflow["labels"] = labels
+        return workflow
+
+    async def install(self, content: Content) -> InstallationResult:
+        workflow = self._workflow_payload(content)
+        title = workflow["title"]
 
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -99,6 +102,31 @@ class WorkflowInstaller(ContentInstaller):
             success=True,
             message=f"Workflow '{title}' created",
             location=response.headers.get("Location"),
+        )
+
+    async def update(self, content: Content) -> InstallationResult:
+        workflow = self._workflow_payload(content)
+        title = workflow["title"]
+        # The engine is fixed when a workflow is created, the update payload does not accept it
+        workflow.pop("workflow_engine", None)
+
+        async with httpx.AsyncClient() as client:
+            response = await client.patch(
+                f"{WorkflowInstaller.workflow_api_url}{content.location}",
+                json=workflow,
+            )
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            raise ConsumerError(
+                f"Failed to update workflow '{title}', API responded with "
+                f"status code {response.status_code}: {response.text}"
+            ) from e
+
+        return InstallationResult(
+            success=True,
+            message=f"Workflow '{title}' updated",
+            location=content.location,
         )
 
     async def uninstall(self, content: Content) -> None:

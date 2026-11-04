@@ -9,6 +9,7 @@ from app.keycloak_helper import KeycloakHelper, get_keycloak_helper
 from app.projects import crud, dicom_data, kubehelm, minio, opensearch, schemas
 from app.schemas import KeycloakUser
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
 from requests.exceptions import HTTPError
 from sqlalchemy.exc import IntegrityError
@@ -98,7 +99,9 @@ async def create_right(
     try:
         return await crud.create_rights(session, right)
     except IntegrityError:
-        raise HTTPException(status_code=409, detail=f"Right '{right.name}' already exists.")
+        raise HTTPException(
+            status_code=409, detail=f"Right '{right.name}' already exists."
+        )
 
 
 @router.put("/rights/{right_id}", response_model=schemas.Right, tags=["Projects"])
@@ -161,7 +164,9 @@ async def reset_role_rights(
         for right_name in right_names:
             rights = await crud.get_rights(session, name=right_name)
             if not rights:
-                logger.warning(f"Right '{right_name}' not found after recreation, skipping.")
+                logger.warning(
+                    f"Right '{right_name}' not found after recreation, skipping."
+                )
                 continue
             try:
                 await crud.create_roles_rights_mapping(session, role.id, rights[0].id)
@@ -357,7 +362,9 @@ async def get_project_users(
     keycloak_users: List[KeycloakUser] = []
     for user in project_users:
         try:
-            keycloak_user_json = kc_client.get_user_by_id(user.keycloak_id)
+            keycloak_user_json = await run_in_threadpool(
+                kc_client.get_user_by_id, user.keycloak_id
+            )
         except HTTPError as e:
             if e.response.status_code == 404:
                 logger.warning(f"{user=} not found in Keycloak database.")
@@ -371,8 +378,8 @@ async def get_project_users(
 
 
 async def get_keycloak_user(keycloak_id: str):
-    kc_client = KeycloakHelper()
-    keycloak_user_json = kc_client.get_user_by_id(keycloak_id)
+    kc_client = await run_in_threadpool(KeycloakHelper)
+    keycloak_user_json = await run_in_threadpool(kc_client.get_user_by_id, keycloak_id)
     if not keycloak_user_json:
         raise HTTPException(status_code=404, detail="User not found")
     user = KeycloakUser(**keycloak_user_json)

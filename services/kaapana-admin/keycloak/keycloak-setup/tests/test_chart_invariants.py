@@ -286,3 +286,26 @@ def test_runtime_templates_drop_admin_password(template):
     assert (
         "kaapana-service-password" in text
     ), f"{template.name} must mount the kaapana-service-password secret."
+
+
+# --- Keycloak LDAP egress: the policy must select the pods the deployment creates --
+
+
+def test_keycloak_ldap_egress_policy_targets_the_keycloak_pods():
+    # This policy is Keycloak's only way to reach an external LDAP server.
+    # A mismatch with the pod labels, the site value or the LDAP ports fails silently
+    # at the site, so the test checks all three.
+    chart = ROOT / "services/kaapana-admin/keycloak/keycloak-chart"
+    policy = _read(chart / "templates/network_policy.yaml")
+    deployment = _read(chart / "templates/deployment.yaml")
+    assert "kind: NetworkPolicy" in policy and "- Egress" in policy
+    for label in (
+        "app.kubernetes.io/name: keycloak",
+        "app.kubernetes.io/component: keycloak",
+    ):
+        assert label in deployment and label in policy, f"pod selector misses {label}"
+    assert "range .Values.global.keycloak_ldap_egress_cidrs" in policy
+    assert "port: 389" in policy and "port: 636" in policy
+    assert "keycloak_ldap_egress_cidrs: []" in _read(
+        ROOT / "platforms/kaapana-admin-chart/values.yaml"
+    ), "kaapana-admin-chart must declare the value so a site can set it"

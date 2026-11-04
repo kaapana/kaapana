@@ -1542,6 +1542,10 @@ function load_kaapana_config {
     SMTP_USERNAME=""
     SMTP_PASSWORD=""
 
+    # List the CIDRs of the site's LDAP or AD servers, separated by commas, e.g. "10.20.30.40/32".
+    # Keycloak can only reach servers outside the cluster if they are listed here.
+    KEYCLOAK_LDAP_EGRESS_CIDRS=""
+
     VERSION_IMAGE_COUNT="20"
     DEPLOYMENT_TIMESTAMP=`date  --iso-8601=seconds`
     MOUNT_POINTS_TO_MONITOR=""
@@ -2194,6 +2198,21 @@ function deploy_chart {
         exit 1
     fi
 
+    # Helm keeps spaces and empty entries in a list, and the API server rejects them as CIDRs.
+    # A single invalid entry would fail the whole installation, so the input is checked first.
+    # Only IPv4 is accepted because the cluster network of the platform uses IPv4.
+    local octet='(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])'
+    local cidr_re="^$octet\.$octet\.$octet\.$octet/([0-9]|[12][0-9]|3[0-2])\$"
+    local ldap_cidrs=()
+    for cidr in ${KEYCLOAK_LDAP_EGRESS_CIDRS//,/ }; do
+        if [[ ! "$cidr" =~ $cidr_re ]]; then
+            echo "${RED}ERROR: KEYCLOAK_LDAP_EGRESS_CIDRS entry '$cidr' is not an IPv4 CIDR (e.g. 10.20.30.40/32)!${NC}"
+            exit 1
+        fi
+        ldap_cidrs+=("$cidr")
+    done
+    KEYCLOAK_LDAP_EGRESS_CIDRS=$(IFS=,; echo "${ldap_cidrs[*]}")
+
     get_domain
 
     if [ -z "$INSTANCE_NAME" ]; then
@@ -2455,6 +2474,7 @@ function deploy_chart {
     --set-string global.main_node_name="$MAIN_NODE_NAME" \
     --set-string global.volume_slow_data="$VOLUME_SLOW_DATA" \
     --set-string global.storage_node="$STORAGE_NODE" \
+    ${KEYCLOAK_LDAP_EGRESS_CIDRS:+--set global.keycloak_ldap_egress_cidrs="{$KEYCLOAK_LDAP_EGRESS_CIDRS}"} \
     "${kube_helm_timeout_args[@]}" \
     --name-template "$PLATFORM_NAME"
 

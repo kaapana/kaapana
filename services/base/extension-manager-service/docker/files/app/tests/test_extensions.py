@@ -121,3 +121,55 @@ async def test_post_repo_read_extensions_install_extension_uninstall_extension(
 
     for id in content_ids:
         assert await crud.get_content(session=session, content_id=id) is None
+
+
+@pytest.mark.asyncio
+async def test_delete_repository_keeps_installed_extension_uninstallable(
+    client: AsyncClient, session: AsyncSession, mocked_installer, monkeypatch
+):
+    async def fast_sleep(seconds):
+        pass
+
+    monkeypatch.setattr(asyncio, "sleep", fast_sleep)
+
+    response = await client.post(
+        "/repositories",
+        json={
+            "name": "Test Repository",
+            "description": "",
+            "username": "test",
+            "password": "test",
+            "repository_url": "https://example.com/oci",
+        },
+    )
+    assert response.status_code == 201
+    location = response.headers["Location"]
+    repository_id = location.split("/")[-1]
+
+    response = await client.get(location + "/extensions")
+    tag = response.json()[0]
+
+    response = await client.post(f"/extensions/install?repository_id={repository_id}&tag={tag}")
+    assert response.status_code == 201
+    extension_location = response.headers["Location"]
+
+    response = await client.delete(location)
+    assert response.status_code == 204
+
+    response = await client.get(extension_location)
+    assert response.status_code == 200
+    assert response.json()["repository_id"] is None
+    assert response.json()["status"] == "installed"
+
+    response = await client.get("/extensions")
+    assert [extension["repository_id"] for extension in response.json()] == [None]
+
+    response = await client.post(f"/extensions/install?repository_id={repository_id}&tag={tag}")
+    assert response.status_code == 404
+
+    response = await client.post(extension_location + "/uninstall")
+    assert response.status_code == 202
+    mocked_installer.uninstall_content.assert_awaited()
+
+    response = await client.get(extension_location)
+    assert response.status_code == 404

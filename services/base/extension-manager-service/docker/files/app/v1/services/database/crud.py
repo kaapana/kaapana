@@ -1,7 +1,7 @@
 from typing import List, Optional
 from uuid import UUID
 
-from sqlalchemy import and_, delete, select
+from sqlalchemy import and_, delete, select, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -112,8 +112,8 @@ async def update_registered_repository(
 
 
 async def delete_registered_repository(session: AsyncSession, repository_id: UUID) -> None:
-    stmt = delete(RegisteredRepository).where(RegisteredRepository.id == repository_id)
-    await session.execute(stmt)
+    await session.execute(update(Extension).where(Extension.repository_id == repository_id).values(repository_id=None))
+    await session.execute(delete(RegisteredRepository).where(RegisteredRepository.id == repository_id))
     await session.commit()
 
 

@@ -34,6 +34,10 @@ class ContentInstaller(ABC):
         pass
 
     @abstractmethod
+    async def update(self, content: Content) -> InstallationResult:
+        pass
+
+    @abstractmethod
     async def uninstall(self, content: Content) -> None:
         pass
 

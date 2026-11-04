@@ -10,6 +10,7 @@ from v1.services.database.exceptions import (
     NotSupportedExtensionStateTransition,
 )
 from v1.services.oci.exceptions import ExtensionNotFoundException
+from v1.services.oci.models import ExtensionManifest
 from v1.services.oci.service import ociService
 
 from ..dependencies import get_oci_service_for_repository
@@ -20,6 +21,17 @@ from .background_jobs import (
 )
 
 router = APIRouter(prefix="/extensions", tags=["extensions"])
+
+
+def _ensure_installers_exist(extension_manifest: ExtensionManifest) -> None:
+    for content in extension_manifest.contents:
+        try:
+            dispatch.dispatcher.find_installer(dispatch.Content(name=content.name, content_type=content.contentType))
+        except RuntimeError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"No installer found for content type {content.contentType}",
+            ) from e
 
 
 @router.post(
@@ -44,14 +56,7 @@ async def install_extension(
             detail=f"Extension with tag {tag} not found in {oci.repository_url}",
         ) from e
 
-    for content in extension_manifest.contents:
-        if not dispatch.dispatcher.find_installer(
-            dispatch.Content(name=content.name, content_type=content.contentType)
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"No installer found for content type {content.contentType}",
-            )
+    _ensure_installers_exist(extension_manifest)
 
     try:
         db_extension = await crud.create_extension(

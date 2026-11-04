@@ -3,6 +3,35 @@
 Changelog
 #########
 
+.. _release-0.7.1:
+
+------------------------
+
+********************
+Release Notes v0.7.1
+********************
+
+November 4, 2026
+
+---------------------------
+
+* Fix the platform build: replace Minio with a community-maintained fork called Silo
+* Fix the Slim viewer build by pinning Node.js to 24
+* Fix the DAG cleanup job skipping nights
+* Fix the cleanup at the end of a workflow not always running and reporting a wrong result
+* Fix processing steps of workflows with long names not finding their settings
+* Fix publishing and downloading the offline installer, including Harbor registries
+* Fix the wrong GPU operator version in the offline installation
+* Fix MicroK8s changing its version after an offline installation
+* Fix server installation stopping when no ``no_proxy`` setting exists
+* Fix deployment using a missing or outdated Kubernetes configuration of the user instead of the local MicroK8s cluster
+* Fix undeployment hanging on components that stop slowly
+* Fix the next deployment reusing the old HTTPS certificate after an undeployment
+* Fix Keycloak's access to a site's LDAP or Active Directory servers by setting it during deployment
+* Add a setting for how dcm4chee PACS identifies patients, so that one patient is no longer split into several entries (the default is unchanged)
+* Update the streaming of desktop applications to pixelflux 2
+
+
 .. _release-0.7.0:
 
 ------------------------

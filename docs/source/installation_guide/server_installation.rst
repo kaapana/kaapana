@@ -102,7 +102,7 @@ Before the example platform "Kaapana-platform" can be deployed, all dependencies
 To do this, you can use :term:`kaapanactl`.
 
 .. hint::
-   | If you don't want to clone the Kaapana repository, you can copy the :code:`kaapanactl.sh` script from `Github <https://github.com/kaapana/kaapana/blob/master/kaapanactl.sh>`_.
+   | If you don't want to clone the Kaapana repository, you can copy the :code:`kaapanactl.sh` script from `Github <https://github.com/kaapana/kaapana/blob/0.7.1/kaapanactl.sh>`_.
 
 1. Copy the script to your target-system (server)
 

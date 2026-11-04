@@ -19,7 +19,7 @@ However, if you are not sure about an advanced option, proceed with the one in t
     | 1. You already have a running Kaapana platform with admin access
     | 2. You have a basic understanding of the Kaapana platform and its components, if not please refer to the :ref:`user_guide`
     | 3. You have access to a terminal where the platform is running (if you are using EDK, you can skip this step)
-    | 4. You have a local development environment with access to internet, you have either Docker or Podman installed, and you cloned the `Kaapana repository <https://codebase.helmholtz.cloud/kaapana/kaapana/-/tree/master>`_ (if you are using EDK, you can skip this step)
+    | 4. You have a local development environment with access to internet, you have either Docker or Podman installed, and you cloned the `Kaapana repository <https://codebase.helmholtz.cloud/kaapana/kaapana/-/tree/0.7.1>`_ (if you are using EDK, you can skip this step)
 
     If you do not have an access to a terminal where Kaapana is deployed, you can still use EDK (Extension Development Kit) :ref:`extensions_edk` inside the platform directly.
     For that, the Kaapana version should be at least :code:`0.4.0` , and there needs to be internet access on the machine where it is deployed.

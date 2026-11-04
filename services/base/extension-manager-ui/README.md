@@ -56,6 +56,11 @@ Everything in `src/shared/` stays local to this view; nothing is moved to
   version and status in user terms (*Downloading*, *Installation failed*, …),
   carried by an icon and a label. The list is polled every 5 s while an
   operation is in progress and not at all otherwise.
+- **Install from file** — on the Extensions page, installs a `.tar.gz`
+  archive built with `extensionctl`. The dialog accepts only `.tar.gz` files,
+  shows the upload progress and cannot be closed while uploading. Uploaded
+  extensions show *Uploaded file* as their source, and their dialog names the
+  file and the user who uploaded it.
 - **Uninstall** — from the extension's dialog, after a confirmation that names
   the version, the repository and the installed items. Unavailable, with an
   explanation, while an operation runs; hidden for uninstalled extensions.
@@ -64,7 +69,8 @@ Everything in `src/shared/` stays local to this view; nothing is moved to
   stored credentials are kept unless both username and password are entered.
   Closing an edited form asks before discarding, and an edited form reports
   the view as dirty to the shell. Removing a repository is confirmed and says
-  when the extension manager stops tracking extensions installed from it.
+  that extensions installed from it stay installed and can still be
+  uninstalled; they show "Repository removed" afterwards.
 - **Empty and failure states** — each section distinguishes "nothing yet"
   (with the next step), "nothing matches" (catalog: clear filters) and "could
   not load" (retry and details). A failed refresh keeps the last list with an
@@ -84,10 +90,11 @@ All calls go to `extension-manager-service` through the
 | GET | `/extensions-api/repositories` | List repositories (all three sections). |
 | POST | `/extensions-api/repositories` | Register a repository (`name`, `description`, `repository_url`, `username`, `password`). |
 | PUT | `/extensions-api/repositories/<id>` | Update a repository; `username`/`password` only when both are replaced. |
-| DELETE | `/extensions-api/repositories/<id>` | Remove a repository. |
+| DELETE | `/extensions-api/repositories/<id>` | Remove a repository; its installed extensions keep their records with `repository_id: null`. |
 | GET | `/extensions-api/repositories/<id>/extensionManifests` | Tags and manifests of the extensions published in a repository (30 s timeout, one call per repository). |
 | GET | `/extensions-api/extensions` | Extensions with platform state (polled while one is in progress). |
 | POST | `/extensions-api/extensions/install?repository_id=<id>&tag=<tag>` | Start an installation. |
+| POST | `/extensions-api/extensions/upload` | Start an installation from an uploaded archive (`multipart/form-data`, field `file`, no timeout). |
 | POST | `/extensions-api/extensions/<id>/uninstall` | Start an uninstall. |
 
 **Legacy APIs:** none. The app calls no `kaapana-backend`, `kube-helm-api`,
@@ -179,6 +186,7 @@ previews the production build.
 | `boot` | fresh-profile boot, the shell's dark-mode setting, no own app bar/theme toggle, routing and the section tabs |
 | `catalog` | grouping, detail dialog, keyboard access, search and repository filter, the empty states, load failure, one failing repository |
 | `install` | install payload for the selected version, unavailable/retry states, no double submit, polling to the settled state, a rejected install |
+| `upload` | upload payload, file type check, progress and locked dialog while uploading, a rejected archive, uploader and file in the detail dialog |
 | `extensions` | status labels, per-item status, uninstall confirmation and payload, dismissal, unavailable/hidden uninstall, polling start and stop, failures, empty and stale states |
 | `repositories` | create payload, validation messages, rejected create, edit payload and credential rules, unsaved-changes protection, `kaapana:view-dirty`, removal and its consequences |
 | `guidelines` | cross-cutting rules: confirmations, focus return, theme and typeface, readable width, one primary action per page, status not by colour alone, accessible names, dialog widths |

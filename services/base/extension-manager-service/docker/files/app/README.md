@@ -75,14 +75,18 @@ Tracks an installed (or in-progress) extension.
 | Field           | Type              | Description                                            |
 |-----------------|-------------------|--------------------------------------------------------|
 | `id`            | UUID              | Primary key                                            |
-| `repository_id` | UUID (FK)         | Which registry this was pulled from                    |
-| `tag`           | string            | OCI tag used to pull this extension                    |
+| `repository_id` | UUID (FK, null)   | Which registry this was pulled from; `null` once that repository is removed, and for uploaded extensions |
+| `tag`           | string            | OCI tag used to pull this extension; `<id>-v<version>` for uploaded extensions |
+| `origin`        | `repository` \| `upload` | Whether the extension came from a registry or from an uploaded archive |
+| `uploaded_by`   | string (null)     | User who uploaded the archive, from the `X-Forwarded-Preferred-Username` header |
+| `uploaded_filename` | string (null) | Name of the uploaded archive                           |
+| `reason`        | text (null)       | Explains the current status, for example why an installation failed; replaced on every status change |
 | `manifest`      | JSON              | Full `ExtensionManifest` at install time               |
 | `status`        | `ExtensionStatus` | Current lifecycle state (see below)                    |
 | `created_at`    | datetime          | First seen timestamp                                   |
 | `updated_at`    | datetime          | Last status change timestamp                           |
 
-The pair `(repository_id, tag)` is unique — the same tag cannot be installed twice from the same registry.
+The pair `(repository_id, tag)` is unique — the same tag cannot be installed twice from the same registry. Because uploaded extensions have no repository, the router enforces uniqueness for them. In addition, only one extension per manifest `id` can be active, whatever its origin, because their contents would collide (for example workflows with the same title). Such requests get a 409.
 
 ### `InstalledContent` (database)
 
@@ -169,7 +173,7 @@ Manages the list of known OCI registries and exposes discovery endpoints.
 | `GET`    | `/repositories`                               | List registries (filter by `name` or `id`)              |
 | `GET`    | `/repositories/{id}`                          | Get a single registry                                   |
 | `PUT`    | `/repositories/{id}`                          | Update registry credentials or description              |
-| `DELETE` | `/repositories/{id}`                          | Remove a registry                                       |
+| `DELETE` | `/repositories/{id}`                          | Remove a registry; its installed extensions are kept with `repository_id: null` and can still be uninstalled |
 | `GET`    | `/repositories/{id}/extensions`               | List available extension tags in the registry           |
 | `GET`    | `/repositories/{id}/extensionManifests`       | Fetch manifests for tags (optionally filtered by tag)   |
 
@@ -180,6 +184,7 @@ Manages the install/uninstall lifecycle.
 | Method | Path                              | Description                                     |
 |--------|-----------------------------------|-------------------------------------------------|
 | `POST` | `/extensions/install`             | Install an extension by repository and tag      |
+| `POST` | `/extensions/upload`              | Install an extension from an uploaded `.tar.gz` archive (multipart field `file`) |
 | `GET`  | `/extensions`                     | List installed extensions (filter by tag, repo) |
 | `GET`  | `/extensions/{id}`                | Get details for one installed extension         |
 | `POST` | `/extensions/{id}/uninstall`      | Uninstall an extension                          |
@@ -213,6 +218,10 @@ The extracted path is passed to the dispatcher so each content installer can rea
 
 After installation completes the background job removes the extracted directory.
 
+### Upload Service
+
+`v1/services/upload.py` handles archives built with `extensionctl build`. The router streams the upload into a staging directory below `EXTENSION_UPLOAD_DIR` (default `/extensions/uploads`) and rejects files above `EXTENSION_UPLOAD_MAX_BYTES` (default 100 MB) with 413. The archive may only contain files and folders: links are rejected, the unpacked size is limited by `EXTENSION_UPLOAD_MAX_EXTRACTED_BYTES` (default 500 MB) and the number of entries by `EXTENSION_UPLOAD_MAX_ENTRIES` (default 10000). It is extracted with the tarfile `data` filter. The manifest must be valid JSON, match the `extensionctl` JSON schema (all errors are reported with their path), have an `id` and at least one content. Content names must be single folder names, file paths must stay inside their content folder, every listed file must exist and the archive must not contain unlisted files. Tag, names and the file name must fit their database columns. Each content installer then checks its own files through `validate()`; the workflow installer requires a valid `workflow.json` with a title and a non-empty `workflow_definition.py`. Every rejection is a 400 with the reason. The extracted files are moved to `/extensions/uploads/{tag}/`, where the install task reads them instead of pulling from a registry.
+
 ### Dispatch Service
 
 Routes each content item to the correct installer and abstracts the target platform service.
@@ -240,10 +249,13 @@ Routes each content item to the correct installer and abstracts the target platf
 
 Provides async SQLAlchemy CRUD operations over the `registries`, `extensions`, and `contents` tables.
 
+The schema is managed by Alembic (`alembic/`, one revision per release, named `v<major>_<minor>_<patch>_<rev>.py`). `boot.sh` runs `alembic/migrate.py` before the server starts: an empty database is upgraded to head; a database without `alembic_version`, created by `create_all` before Alembic, is stamped with the 0.7.0 revision and then upgraded. A schema change needs a new revision next to the model change, e.g. `alembic revision -m "v0-8-0 <change>"`. The tests build the schema with `create_all`.
+
 Key behaviours:
 - **Row-level locking** — `SELECT ... FOR UPDATE NOWAIT` prevents two concurrent requests from mutating the same extension or content row simultaneously. The lock fails immediately rather than waiting; concurrent attempts raise a `LockedExtensionException` which the caller surfaces as an HTTP 409.
 - **Transition validation** — `update_extension_status` and `update_content_status` check the requested transition against an allow-list before committing. This enforces the state machines described above.
 - **Cascade deletes** — deleting an extension removes all its `InstalledContent` rows automatically.
+- **Detach on repository removal** — deleting a repository sets `repository_id` to `NULL` on its extensions (`ON DELETE SET NULL`) instead of deleting them. Installation is platform state; the repository is only needed to pull, so a detached extension can be uninstalled but not reinstalled or retried. The Alembic revision `v0_8_0` applies the constraint change to existing databases.
 
 ---
 
@@ -302,7 +314,7 @@ sequenceDiagram
 
 1. **Validate** — The router fetches the manifest from the OCI registry and checks that every `contentType` listed in the manifest has a registered installer in the dispatcher. If any type is unsupported the request is rejected immediately (no DB writes).
 2. **Record** — An `Extension` row is created with status `PENDING`; one `InstalledContent` row is created per content item, also `PENDING`. If two concurrent requests race to install the same `(repository_id, tag)`, the database unique constraint resolves the conflict: the losing request detects the `IntegrityError`, loads the existing record, and retries the installation from there.
-3. **Pull** — The background job transitions the extension to `PULLING` and calls `OCI.pull_extension()`, which downloads and extracts the OCI artifact locally.
+3. **Pull** — The background job transitions the extension to `PULLING` and calls `OCI.pull_extension()`, which downloads and extracts the OCI artifact locally. For uploaded extensions it uses the files stored at upload time instead.
 4. **Install contents** — Status moves to `INSTALLING`. Content Items are installed consecutively; failures are collected and re-raised together as an `ExceptionGroup` so all results are captured.
 5. **Finalise** — On full success the extension moves to `INSTALLED`. If any content item fails, the extension moves to `INSTALLATION_FAILED`; successfully installed items keep their `INSTALLED` status.
 6. **Cleanup** — The extracted directory is removed regardless of outcome.

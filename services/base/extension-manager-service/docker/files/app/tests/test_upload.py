@@ -217,6 +217,9 @@ async def test_upload_rejects_an_extension_that_is_already_installed(client: Asy
     response = await _upload(client, _archive(manifest))
     assert response.status_code == 409
 
+    response = await _upload(client, _archive({**manifest, "version": "1.1.0"}))
+    assert response.status_code == 409
+    assert "already installed in version 1.0.0 from an uploaded file" in response.json()["detail"]
     assert len((await client.get("/extensions")).json()) == 1
 
 
@@ -242,3 +245,48 @@ async def test_upload_retries_a_failed_installation(client: AsyncClient, mocked_
     assert extension["status"] == "installed"
     assert extension["uploaded_by"] == "second"
     assert extension["reason"] is None
+
+
+@pytest.mark.asyncio
+async def test_repository_install_and_upload_of_the_same_extension_conflict(client: AsyncClient, mocked_installer):
+    response = await client.post(
+        "/repositories",
+        json={
+            "name": "Test Repository",
+            "description": "",
+            "username": "test",
+            "password": "test",
+            "repository_url": "https://example.com/oci",
+        },
+    )
+    repository_id = response.json()["id"]
+    response = await client.post(f"/extensions/install?repository_id={repository_id}&tag=extension-v1")
+    assert response.status_code == 201
+    repository_manifest = response.json()["manifest"]
+
+    response = await _upload(client, _archive(_manifest(id=repository_manifest["id"])))
+    assert response.status_code == 409
+    assert "from a repository" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_repository_install_is_rejected_while_the_same_extension_is_uploaded(
+    client: AsyncClient, mocked_installer
+):
+    manifest = json.loads((MOCK_EXTENSION_DIR / "extension_manifest.json").read_text())
+    assert (await _upload(client, _archive(manifest))).status_code == 201
+
+    response = await client.post(
+        "/repositories",
+        json={
+            "name": "Test Repository",
+            "description": "",
+            "username": "test",
+            "password": "test",
+            "repository_url": "https://example.com/oci",
+        },
+    )
+    repository_id = response.json()["id"]
+    response = await client.post(f"/extensions/install?repository_id={repository_id}&tag=extension-v1")
+    assert response.status_code == 409
+    assert "from an uploaded file" in response.json()["detail"]

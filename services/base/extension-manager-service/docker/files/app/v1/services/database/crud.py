@@ -162,6 +162,7 @@ async def list_extensions(
     tag: Optional[str] = None,
     status: Optional[ExtensionStatus] = None,
     origin: Optional[ExtensionOrigin] = None,
+    manifest_id: Optional[UUID] = None,
 ) -> List[Extension]:
     stmt = select(Extension).options(selectinload(Extension.contents))
     filters = []
@@ -173,6 +174,8 @@ async def list_extensions(
         filters.append(Extension.status == status)
     if origin is not None:
         filters.append(Extension.origin == origin)
+    if manifest_id is not None:
+        filters.append(Extension.manifest["id"].as_string() == str(manifest_id))
     if filters:
         stmt = stmt.where(and_(*filters))
     stmt = stmt.offset(skip).limit(limit)

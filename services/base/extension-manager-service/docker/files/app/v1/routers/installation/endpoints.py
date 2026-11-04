@@ -36,6 +36,29 @@ def _ensure_installers_exist(extension_manifest: ExtensionManifest) -> None:
             ) from e
 
 
+async def _ensure_not_installed_elsewhere(
+    db,
+    extension_manifest: ExtensionManifest,
+    is_same_extension,
+) -> None:
+    """Reject a second extension with the same manifest id.
+
+    Its contents would collide with the installed ones, for example workflows with the same title.
+    """
+    db_extensions = await crud.list_extensions(db, manifest_id=extension_manifest.id)
+    for db_extension in db_extensions:
+        if db_extension.status == models.ExtensionStatus.UNINSTALLED or is_same_extension(db_extension):
+            continue
+        source = "an uploaded file" if db_extension.origin == models.ExtensionOrigin.UPLOAD else "a repository"
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Extension {extension_manifest.name} is already installed in version "
+                f"{db_extension.manifest['version']} from {source}. Uninstall it first."
+            ),
+        )
+
+
 @router.post(
     "/install",
     response_model=schemas.InstalledExtension,
@@ -59,6 +82,11 @@ async def install_extension(
         ) from e
 
     _ensure_installers_exist(extension_manifest)
+    await _ensure_not_installed_elsewhere(
+        db,
+        extension_manifest,
+        lambda db_extension: db_extension.repository_id == repository_id and db_extension.tag == tag,
+    )
 
     try:
         db_extension = await crud.create_extension(
@@ -155,6 +183,11 @@ async def upload_extension(
                     detail=f"The content {content.name} is invalid: {e}",
                 ) from e
         tag = upload.extension_tag(extension_manifest)
+        await _ensure_not_installed_elsewhere(
+            db,
+            extension_manifest,
+            lambda db_extension: db_extension.origin == models.ExtensionOrigin.UPLOAD and db_extension.tag == tag,
+        )
 
         db_extensions = await crud.list_extensions(db, origin=models.ExtensionOrigin.UPLOAD, tag=tag)
         if db_extensions:

@@ -9,9 +9,30 @@ from v1.services import dispatch
 from v1.services.database import crud, database, models
 from v1.services.database.exceptions import NotSupportedExtensionStateTransition
 from v1.services.logger import get_logger
+from v1.services.oci.models import ExtensionManifest
 from v1.services.oci.service import ociService
 
 logger = get_logger(__name__)
+
+
+class ExtensionFilesNotFound(Exception):
+    pass
+
+
+def _reason(error: BaseException) -> str:
+    return str(error) or type(error).__name__
+
+
+async def _fetch_extension_files(db, db_extension: models.Extension) -> Path:
+    db_repository = await crud.get_registered_repository(db, db_extension.repository_id)
+    if not db_repository:
+        raise ExtensionFilesNotFound("The repository of this extension was removed.")
+
+    async with ociService(
+        db_repository.repository_url,
+        db_repository.authentication,
+    ) as oci:
+        return await oci.pull_extension(tag=db_extension.tag)
 
 
 async def install_extension_background_task(
@@ -30,113 +51,114 @@ async def install_extension_background_task(
         except NoResultFound:
             logger.warning(f"Extension with id {extension_id} not found. Cancel installation.")
             return
-        db_repository = await crud.get_registered_repository(db, db_extension.repository_id)
-        if not db_repository:
-            logger.warning("Repository not found. Cancel installation.")
+
+        try:
+            extension_path = await _fetch_extension_files(db, db_extension)
+        except ExtensionFilesNotFound as e:
+            logger.warning("Cannot install extension '%s': %s", db_extension.tag, e)
             await crud.update_extension(
                 db,
                 extension_id=extension_id,
                 status=models.ExtensionStatus.PULLING_FAILED,
+                reason=str(e),
             )
             return
-
-        async with ociService(
-            db_repository.repository_url,
-            db_repository.authentication,
-        ) as oci:
-            try:
-                extension_path = await oci.pull_extension(tag=db_extension.tag)
-            except Exception as e:
-                logger.error("Failed to pull extension '%s': %s", db_extension.tag, e, exc_info=True)
-                await crud.update_extension(
-                    db,
-                    extension_id=extension_id,
-                    status=models.ExtensionStatus.PULLING_FAILED,
-                )
-                raise
-
-            #### INSTALLING CONTENT ####
-            db_extension = await crud.update_extension(
-                db, extension_id=extension_id, status=models.ExtensionStatus.INSTALLING
+        except Exception as e:
+            logger.error("Failed to pull extension '%s': %s", db_extension.tag, e, exc_info=True)
+            await crud.update_extension(
+                db,
+                extension_id=extension_id,
+                status=models.ExtensionStatus.PULLING_FAILED,
+                reason=f"Download failed: {_reason(e)}",
             )
-            try:
-                with open(extension_path / "extension_manifest.json") as f:
-                    extension_manifest = json.load(f)
-                    assert extension_manifest == db_extension.manifest
+            raise
 
-                content_exceptions = []
+        #### INSTALLING CONTENT ####
+        db_extension = await crud.update_extension(
+            db, extension_id=extension_id, status=models.ExtensionStatus.INSTALLING
+        )
+        try:
+            with open(extension_path / "extension_manifest.json") as f:
+                extension_manifest = json.load(f)
+                assert ExtensionManifest(**extension_manifest).model_dump(mode="json") == db_extension.manifest
 
-                for content in db_extension.contents:
-                    #### INSTALLING CONTENT ####
-                    if content.status == models.ContentStatus.INSTALLED:
-                        logger.info(
-                            f"Content with id {content.id} and name {content.name} is already in status {content.status}"
+            content_exceptions = []
+            content_errors = []
+
+            for content in db_extension.contents:
+                #### INSTALLING CONTENT ####
+                if content.status == models.ContentStatus.INSTALLED:
+                    logger.info(
+                        f"Content with id {content.id} and name {content.name} is already in status {content.status}"
+                    )
+                    continue
+                content = await crud.update_content(
+                    db,
+                    content_id=content.id,
+                    status=models.ContentStatus.INSTALLING,
+                )
+                try:
+                    result = await dispatch.dispatcher.install_content(
+                        dispatch.Content(
+                            name=content.name,
+                            content_type=content.content_type,
+                            path=extension_path / content.name,
+                            extension_id=extension_manifest["id"],
+                            extension_name=extension_manifest["name"],
+                            extension_version=extension_manifest["version"],
                         )
-                        continue
-                    content = await crud.update_content(
+                    )
+
+                    await crud.update_content(
                         db,
                         content_id=content.id,
-                        status=models.ContentStatus.INSTALLING,
+                        status=models.ContentStatus.INSTALLED,
+                        location=result.location,
                     )
-                    try:
-                        result = await dispatch.dispatcher.install_content(
-                            dispatch.Content(
-                                name=content.name,
-                                content_type=content.content_type,
-                                path=extension_path / content.name,
-                                extension_id=extension_manifest["id"],
-                                extension_name=extension_manifest["name"],
-                                extension_version=extension_manifest["version"],
-                            )
-                        )
+                except Exception as e:
+                    logger.error("Failed to install content '%s': %s", content.name, e, exc_info=True)
+                    await crud.update_content(
+                        db,
+                        content_id=content.id,
+                        status=models.ContentStatus.INSTALLATION_FAILED,
+                    )
+                    content_exceptions.append(e)
+                    content_errors.append(f"{content.name}: {_reason(e)}")
 
-                        await crud.update_content(
-                            db,
-                            content_id=content.id,
-                            status=models.ContentStatus.INSTALLED,
-                            location=result.location,
-                        )
-                    except Exception as e:
-                        logger.error("Failed to install content '%s': %s", content.name, e, exc_info=True)
-                        await crud.update_content(
-                            db,
-                            content_id=content.id,
-                            status=models.ContentStatus.INSTALLATION_FAILED,
-                        )
-                        content_exceptions.append(e)
-
-            except Exception as e:
-                logger.error(
-                    "Unexpected error during installation of extension '%s': %s", db_extension.tag, e, exc_info=True
-                )
-                await crud.update_extension(
-                    db,
-                    extension_id=extension_id,
-                    status=models.ExtensionStatus.INSTALLATION_FAILED,
-                )
-                shutil.rmtree(Path(extension_path))
-                raise
-
-            if content_exceptions:
-                logger.error(
-                    "%d content(s) failed to install for extension '%s'",
-                    len(content_exceptions),
-                    db_extension.tag,
-                )
-                await crud.update_extension(
-                    db,
-                    extension_id=extension_id,
-                    status=models.ExtensionStatus.INSTALLATION_FAILED,
-                )
-                shutil.rmtree(Path(extension_path))
-                raise ExceptionGroup(
-                    "One or more content installations failed",
-                    content_exceptions,
-                )
-
-            db_extension = await crud.update_extension(
-                db, extension_id=extension_id, status=models.ExtensionStatus.INSTALLED
+        except Exception as e:
+            logger.error(
+                "Unexpected error during installation of extension '%s': %s", db_extension.tag, e, exc_info=True
             )
+            await crud.update_extension(
+                db,
+                extension_id=extension_id,
+                status=models.ExtensionStatus.INSTALLATION_FAILED,
+                reason=f"Installation failed: {_reason(e)}",
+            )
+            shutil.rmtree(Path(extension_path))
+            raise
+
+        if content_exceptions:
+            logger.error(
+                "%d content(s) failed to install for extension '%s'",
+                len(content_exceptions),
+                db_extension.tag,
+            )
+            await crud.update_extension(
+                db,
+                extension_id=extension_id,
+                status=models.ExtensionStatus.INSTALLATION_FAILED,
+                reason="; ".join(content_errors),
+            )
+            shutil.rmtree(Path(extension_path))
+            raise ExceptionGroup(
+                "One or more content installations failed",
+                content_exceptions,
+            )
+
+        db_extension = await crud.update_extension(
+            db, extension_id=extension_id, status=models.ExtensionStatus.INSTALLED
+        )
 
     shutil.rmtree(Path(extension_path))
 
@@ -155,6 +177,7 @@ async def uninstall_extension_background_task(
         #### UNINSTALLING CONTENT ####
         try:
             content_exceptions = []
+            content_errors = []
 
             for content in db_extension.contents:
                 #### UNINSTALLING CONTENT ####
@@ -191,6 +214,7 @@ async def uninstall_extension_background_task(
                         status=models.ContentStatus.UNINSTALLATION_FAILED,
                     )
                     content_exceptions.append(e)
+                    content_errors.append(f"{content.name}: {_reason(e)}")
 
         except Exception as e:
             logger.error(
@@ -200,6 +224,7 @@ async def uninstall_extension_background_task(
                 db,
                 extension_id=extension_id,
                 status=models.ExtensionStatus.UNINSTALLING_FAILED,
+                reason=f"Uninstallation failed: {_reason(e)}",
             )
             raise
 
@@ -213,6 +238,7 @@ async def uninstall_extension_background_task(
                 db,
                 extension_id=extension_id,
                 status=models.ExtensionStatus.UNINSTALLING_FAILED,
+                reason="; ".join(content_errors),
             )
             raise ExceptionGroup(
                 "One or more content uninstallations failed",

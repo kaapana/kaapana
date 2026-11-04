@@ -174,6 +174,7 @@ async def update_extension(
     session: AsyncSession,
     extension_id: UUID,
     status: ExtensionStatus,
+    reason: Optional[str] = None,
 ) -> Extension:
     try:
         selection = await session.execute(
@@ -188,6 +189,7 @@ async def update_extension(
             raise NotSupportedExtensionStateTransition(is_state=db_extension.status, soll_state=status)
 
         db_extension.status = status
+        db_extension.reason = reason
         await session.commit()
         await session.refresh(db_extension)
         return db_extension

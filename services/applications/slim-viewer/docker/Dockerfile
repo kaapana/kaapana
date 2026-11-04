@@ -1,4 +1,4 @@
-FROM node:lts-alpine AS build
+FROM node:24-alpine3.24 AS build
 
 LABEL IMAGE="slim"
 LABEL VERSION="0.35.0"
@@ -17,7 +17,7 @@ RUN yarn install --frozen-lockfile --network-timeout 100000
 RUN node patch-dcmjs.js
 RUN NODE_OPTIONS=--max_old_space_size=8192 yarn run build
 
-FROM nginx:1.31-alpine AS app
+FROM nginx:1.31-alpine3.24 AS app
 COPY --from=build /src/build/ /usr/share/nginx/html/slim/
 
 RUN apk update && apk upgrade libxml2

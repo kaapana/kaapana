@@ -375,7 +375,7 @@ function deploy() {
 
     _Flag: --undeploy undeploys the current platform
     _Flag: --no-hooks will purge all kubernetes deployments and jobs as well as all helm charts. Use this if the undeployment fails or runs forever.
-    _Flag: --auto-no-hooks enables an automatic --no-hooks fallback during undeployment. When enabled, stuck 'uninstalling' charts are retried with --no-hooks after a short wait.
+    _Flag: --auto-no-hooks enables an automatic --no-hooks fallback during undeployment. When enabled, charts still 'uninstalling' after the normal uninstall pass are retried with --no-hooks.
     _Flag: --install-certs set new HTTPS-certificates for the platform
     _Flag: --remove-all-images-ctr will delete all images from Microk8s (containerd)
     _Flag: --remove-all-images-docker will delete all Docker images from the system
@@ -1675,6 +1675,28 @@ function get_domain {
     fi
 }
 
+# Nothing may install releases while they are being uninstalled. kube-helm - the installer behind
+# preinstall, auto-launch and the extension store - is part of the admin chart and would otherwise
+# keep creating releases behind the snapshot the undeploy acts on, until its own release happens to
+# go. Stopping it first is what makes "no release left" a meaningful check at the end.
+function stop_platform_installer {
+    echo -e "${YELLOW}Stopping the extension installer (kube-helm) ...${NC}"
+    # Foreground cascade: --wait then also waits until the job's pod is gone.
+    $KUBECTL_EXECUTABLE -n "$ADMIN_NAMESPACE" delete job init-extensions --ignore-not-found --cascade=foreground --wait=true >/dev/null 2>&1 || true
+    if $KUBECTL_EXECUTABLE -n "$ADMIN_NAMESPACE" get deployment kube-helm-deployment >/dev/null 2>&1; then
+        $KUBECTL_EXECUTABLE -n "$ADMIN_NAMESPACE" scale deployment kube-helm-deployment --replicas=0 >/dev/null 2>&1 || true
+        $KUBECTL_EXECUTABLE -n "$ADMIN_NAMESPACE" wait --for=delete pod -l app.kubernetes.io/name=kube-helm --timeout=60s >/dev/null 2>&1 || true
+    fi
+}
+
+# Releases in 'uninstalling' in the platform's helm namespaces, one "namespace/release" per line.
+function list_uninstalling_releases {
+    local namespace
+    for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
+        $HELM_EXECUTABLE -n "$namespace" ls --uninstalling --short 2>/dev/null | sed "s|^|${namespace}/|" || true
+    done
+}
+
 function delete_deployment {
     if [ -z "${PLATFORM_PREFIX:-}" ]; then
         if get_platform_prefix_from_release; then
@@ -1687,58 +1709,78 @@ function delete_deployment {
     echo -e "${YELLOW}Undeploy releases${NC}"
     local failed=0
     local namespace
-    local helm_status_flags="--deployed --failed --pending --superseded"
+    local helm_status_flags="--deployed --failed --pending --superseded --uninstalling"
 
-    if [ -n "${NO_HOOKS:-}" ]; then
-        helm_status_flags="$helm_status_flags --uninstalling"
+    # Per-release uninstall budget. Hooks run inside it, so on a stuck hook this is also how long
+    # the undeploy blocks on that one release.
+    HELM_UNINSTALL_TIMEOUT="${HELM_UNINSTALL_TIMEOUT:-5m30s}"
+    # --ignore-not-found (Helm >= 3.13, so probed): a release removed by another helm client between
+    # `helm ls` and its uninstall is not a failure. Older Helm 3 behaves as before.
+    local ignore_not_found=""
+    if $HELM_EXECUTABLE uninstall --help 2>/dev/null | grep -q -- '--ignore-not-found'; then
+        ignore_not_found="--ignore-not-found"
     fi
 
+    stop_platform_installer
+
+    # Normal undeploy: uninstall all releases in parallel, hooks included unless --no-hooks is set.
     for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
         if ! $HELM_EXECUTABLE -n "$namespace" ls $helm_status_flags | awk 'NR > 1 { print  "-n "$2, $1}' \
-            | xargs -r -P 0 -I % sh -c "$HELM_EXECUTABLE uninstall ${NO_HOOKS} --timeout 5m30s % 2>&1"; then
+            | xargs -r -P 0 -I % sh -c "$HELM_EXECUTABLE uninstall ${NO_HOOKS} ${ignore_not_found} --timeout ${HELM_UNINSTALL_TIMEOUT} % 2>&1"; then
             failed=1
         fi
     done
 
+    # Helm has no controller: a release still in 'uninstalling' now stays that way until another
+    # helm uninstall acts on it - its hooks failed or timed out in this run. --auto-no-hooks retries
+    # those, and only those, without hooks; otherwise they are reported below.
+    local stuck_releases
+    stuck_releases="$(list_uninstalling_releases)"
+    if [ -n "$stuck_releases" ] && [ "$AUTO_NO_HOOKS" != "true" ]; then
+        echo -e "${RED}Releases stuck in 'uninstalling': $(echo $stuck_releases)${NC}"
+    fi
+    if [ -n "$stuck_releases" ] && [ "$AUTO_NO_HOOKS" = "true" ]; then
+        echo -e "${YELLOW}Retrying releases stuck in 'uninstalling' with --no-hooks: $(echo $stuck_releases)${NC}"
+        for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
+            if ! $HELM_EXECUTABLE -n "$namespace" ls --uninstalling | awk 'NR > 1 { print  "-n "$2, $1}' \
+                | xargs -r -P 0 -I % sh -c "$HELM_EXECUTABLE uninstall --no-hooks ${ignore_not_found} --timeout 60s % 2>&1"; then
+                failed=1
+            fi
+        done
+    fi
+
+    # From here on only pods still change on their own: wait for the terminating ones.
     echo -e "${YELLOW}Waiting until everything is terminated ...${NC}"
     WAIT_UNINSTALL_COUNT=100
     for idx in $(seq 0 $WAIT_UNINSTALL_COUNT)
     do
-        # Increase timeout or -no-hooks. This can cause inconsistencies
         sleep 3
-        if [ "$idx" -eq 2 ] && [ "$AUTO_NO_HOOKS" = "true" ]; then
-            echo "Deleting helm charts in 'uninstalling' state with --no-hooks"
-            for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
-                if ! $HELM_EXECUTABLE -n "$namespace" ls --uninstalling | awk 'NR > 1 { print  "-n "$2, $1}' \
-                    | xargs -r -P 0 -I % sh -c "$HELM_EXECUTABLE uninstall --no-hooks --wait --timeout 60s % 2>&1"; then
-                    failed=1
-                fi
-            done
+        # Under set -e/pipefail a failing kubectl would end the undeploy silently; retry instead.
+        if ! TERMINATING_PODS=$($KUBECTL_EXECUTABLE get pods --all-namespaces --no-headers 2>/dev/null | awk '$4 == "Terminating" { print $1 "/" $2 }'); then
+            echo -e "${YELLOW}Could not list pods, retrying ...${NC}"
+            continue
         fi
-        TERMINATING_PODS=$(/bin/bash -i -c "kubectl get pods --all-namespaces | grep -E 'Terminating' | awk '{print \$1 \"/\" \$2}'")
         echo -e ""
-        UNINSTALL_TEST=$TERMINATING_PODS
-        if [ -z "$UNINSTALL_TEST" ]; then
+        if [ -z "$TERMINATING_PODS" ]; then
             break
-        else
-            echo -e "${YELLOW}Waiting for $TERMINATING_PODS ${NC}"
         fi
+        echo -e "${YELLOW}Waiting for terminating pods: $TERMINATING_PODS ${NC}"
     done
 
     echo -e "${YELLOW}Cleaning up orphaned pods in Kubernetes namespaces ...${NC}"
 
     # Clean SERVICES_NAMESPACE
-    if microk8s.kubectl get namespace $SERVICES_NAMESPACE &>/dev/null; then
+    if $KUBECTL_EXECUTABLE get namespace $SERVICES_NAMESPACE &>/dev/null; then
         echo "Deleting all pods in $SERVICES_NAMESPACE"
-        microk8s.kubectl delete pods --all -n $SERVICES_NAMESPACE --grace-period=0 --force 2>/dev/null || true
+        $KUBECTL_EXECUTABLE delete pods --all -n $SERVICES_NAMESPACE --grace-period=0 --force 2>/dev/null || true
     fi
 
     # Clean all project-* namespaces when the platform prefix is known.
     if [ -n "${PLATFORM_PREFIX:-}" ]; then
-        PROJECT_NAMESPACES=$(microk8s.kubectl get namespaces --no-headers -o custom-columns=NAME:.metadata.name | grep "^${PLATFORM_PREFIX}-project-" || true)
+        PROJECT_NAMESPACES=$($KUBECTL_EXECUTABLE get namespaces --no-headers -o custom-columns=NAME:.metadata.name | grep "^${PLATFORM_PREFIX}-project-" || true)
         for ns in $PROJECT_NAMESPACES; do
             echo "Deleting all pods in $ns"
-            microk8s.kubectl delete pods --all -n $ns --grace-period=0 --force 2>/dev/null || true
+            $KUBECTL_EXECUTABLE delete pods --all -n $ns --grace-period=0 --force 2>/dev/null || true
         done
     else
         echo "${YELLOW}Skipping project namespace pod cleanup because PLATFORM_PREFIX is not set.${NC}"
@@ -1750,33 +1792,39 @@ function delete_deployment {
         pods_still_terminating=1
     fi
 
-    # Check whether any relevant Helm releases remain
-    local remaining_releases=0
-    local remaining_namespace_releases
+    # Collect every release Helm still knows about and print them as "namespace/release (status)",
+    # with "<unknown>" as the fallback when helm ls fails.
+    local remaining_releases=""
+    local namespace_releases
     for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
-        if ! remaining_namespace_releases=$($HELM_EXECUTABLE -n "$namespace" ls --short --deployed --failed --pending --superseded --uninstalling); then
+        if namespace_releases=$($HELM_EXECUTABLE -n "$namespace" ls -o json $helm_status_flags | jq -r '[.[] | "\(.namespace)/\(.name) (\(.status))"] | join(" ")'); then
+            if [ -n "$namespace_releases" ]; then
+                remaining_releases="${remaining_releases}${namespace_releases} "
+            fi
+        else
             echo "${RED}Could not check remaining Helm releases in namespace $namespace.${NC}"
-            remaining_releases=1
-        elif [ -n "$remaining_namespace_releases" ]; then
-            remaining_releases=1
+            remaining_releases="${remaining_releases}${namespace}/<unknown> "
         fi
     done
 
-    if [ "$failed" -ne 0 ] || [ "$remaining_releases" -ne 0 ] || [ "$pods_still_terminating" -ne 0 ]; then
+    if [ "$failed" -ne 0 ] || [ -n "$remaining_releases" ] || [ "$pods_still_terminating" -ne 0 ]; then
         echo "${RED}Undeployment did not finish cleanly.${NC}"
         if [ "$pods_still_terminating" -ne 0 ]; then
-            echo "${RED}Some pods are still terminating. Please check manually if there are still namespaces or pods floating around. Everything must be deleted before the deployment:${NC}"
-            echo "${RED}kubectl get pods -A${NC}"
-            echo "${RED}kubectl get namespaces${NC}"
-            echo "${RED}Executing './kaapanactl.sh deploy --no-hooks' is an option to force the resources to be removed.${NC}"
-            echo "${RED}Once everything is deleted you can re-deploy the platform!${NC}"
+            echo "${RED}Some pods were still terminating when the wait ran out: $(echo $TERMINATING_PODS)${NC}"
+            echo "${RED}Please check manually that nothing is left before redeploying: kubectl get pods -A${NC}"
         fi
-        if [ "$failed" -ne 0 ] || [ "$remaining_releases" -ne 0 ]; then
-            echo "${RED}Some Helm uninstalls failed or releases remain:${NC}"
+        if [[ "$remaining_releases" == *"<unknown>"* ]]; then
+            echo "${RED}Error while checking Helm releases. Run 'helm ls -A' manually to diagnose, then re-run './kaapanactl.sh deploy --undeploy'.${NC}"
+        elif [ -n "$remaining_releases" ]; then
+            echo "${RED}Helm releases remain: ${remaining_releases}${NC}"
+            echo "${RED}Re-run './kaapanactl.sh deploy --undeploy' first: it uninstalls these with their hooks, including releases in 'uninstalling'.${NC}"
+            echo "${RED}If a release stays 'uninstalling', './kaapanactl.sh deploy --auto-no-hooks --undeploy' forces only those (skips their hooks); './kaapanactl.sh deploy --no-hooks' purges everything without hooks.${NC}"
+        elif [ "$failed" -ne 0 ]; then
+            echo "${RED}Some helm uninstalls reported errors (see above).${NC}"
         fi
-        for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
-            $HELM_EXECUTABLE -n "$namespace" ls --deployed --failed --pending --superseded --uninstalling || true
-        done
+        if [ "$AUTO_NO_HOOKS" = "true" ] && [ -n "$stuck_releases" ]; then
+            echo "${RED}--auto-no-hooks removed $(echo $stuck_releases) without running their hooks, leftovers are possible.${NC}"
+        fi
         exit 1
     fi
 

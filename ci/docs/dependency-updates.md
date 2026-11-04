@@ -34,11 +34,11 @@ managers listed in `enabledManagers` run.
 | `dockerfile` | every `Dockerfile` | `FROM nginxinc/nginx-unprivileged:1.31-alpine`, `FROM quay.io/keycloak/keycloak:26.6.4` |
 | `gitlabci` | `.gitlab-ci.yml`, `ci/pipeline/*.yml` | `image: python:3.12`, the `docker:*-dind` services |
 | `pip_requirements`, `pep621` | `requirements*.txt`, `pyproject.toml`, `constraints/*.txt`, the Airflow `constraints-*.txt` | exact `==` pins in services, `lib/*` packages |
-| `npm` | `package.json` + `package-lock.json` | the Vue apps in `services/base/*-ui` and `services/data-separation/project-management-ui` |
+| `npm` | `package.json` + `package-lock.json` | the Vue apps in `services/`, the root lint setup, `tests/ui` |
 | `maven` | `pom.xml` | the Keycloak extensions |
 | `pre-commit` | `.pre-commit-config.yaml` | ruff |
 | `custom.regex` | lines annotated with `# renovate:`, the opa download URL | `ARG HELM_VERSION`, `RUFF_VERSION` |
-| `ansible`, `kubernetes`, `helm-requirements`, `helm-values` | `ci/ci-code/deploy/*.yaml`, `k8s/` and `manifests/` directories, Helm charts | enabled so that new files are picked up. Today they find nothing to update. |
+| `ansible`, `helm-requirements`, `helm-values` | `ci/ci-code/deploy/*.yaml`, Helm charts | enabled so that new files are picked up. Today they find nothing to update. |
 
 `pre-commit` is the only manager that Renovate ships turned off. It needs
 both the entry in `enabledManagers` and `"pre-commit": { "enabled": true }`.
@@ -128,12 +128,12 @@ Patch and minor updates are grouped, one MR per group:
 
 | Group | Contains |
 | --- | --- |
-| UI npm dependencies | npm in `services/base/**` and `services/data-separation/project-management-ui/**` |
-| other npm dependencies | all other npm |
+| UI npm dependencies | npm in `services/**` |
+| other npm dependencies | npm elsewhere that no other group catches |
 | base image Python dependencies | Python in `data-processing/base-images/**` |
 | Python dependencies | all other Python |
-| container base images | Dockerfile, Ansible, Kubernetes and Helm images |
-| CI tooling | everything in `ci/`, `.gitlab-ci.yml`, `.pre-commit-config.yaml` |
+| container base images | Dockerfile, Ansible and Helm images |
+| CI tooling | everything in `ci/`, `tests/`, `.gitlab-ci.yml`, `.pre-commit-config.yaml` and the root `package.json` (ESLint, Prettier) |
 
 Some versions must move together and have their own group, also for major
 updates:
@@ -161,15 +161,15 @@ changed file in its description.
 
 | Label | Meaning | Components |
 | --- | --- | --- |
-| `Coverage: unit` | Unit tests run in the `unittest` stage | `lib/*`, `workflow-api`, `portal-api`, `kaapana-backend`, `extension-manager-service`, `notification-service`, `auth-backend`, `keycloak-setup`, `dicom-web-filter`, `access-information-interface`, `kaapana-plugin` |
+| `Coverage: unit` | Unit tests run in the `unittest` stage | `lib/task_api`, `lib/kaapana_containers`, `lib/kaapana_extensions`, `lib/kaapana_client`, `workflow-api`, `portal-api`, `kaapana-backend`, `extension-manager-service`, `notification-service`, `auth-backend`, `keycloak-setup`, `kube-helm`, `dicom-web-filter`, `access-information-interface`, `collabora-wopi` |
 | `Coverage: e2e` | Playwright tests against a mocked backend in `ui_e2e_tests` | `base-ui` and the UIs in the `ui_e2e_tests` matrix |
 | `Coverage: integration` | The workflow runs in `run_workflows`. The job may fail, so check it. | processing pipelines with a `ci-config/` directory |
-| `Coverage: pipeline` | The MR pipeline uses the dependency itself | `ci/`, `.gitlab-ci.yml`, `.pre-commit-config.yaml`, `tests/` |
+| `Coverage: pipeline` | The MR pipeline uses the dependency itself | `ci/`, `.gitlab-ci.yml`, `.pre-commit-config.yaml`, `tests/`, the root `package.json` |
 | `Coverage: none` | Only the build and the deployment | everything else |
 
 When a component gets tests, add its path to the matching rule in
-`renovate.json`, and add it with a `!` to the `Coverage: none` rule. Keep the
-two lists in sync, so that each file gets exactly one level.
+`renovate.json`. Once phase 2 adds a `Coverage: none` rule, also add the path
+with a `!` there, so that each file gets exactly one level.
 
 ### Automerge for well-tested components
 

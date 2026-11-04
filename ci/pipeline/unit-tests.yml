@@ -464,3 +464,16 @@ ci_config_tests:
     reports:
       junit:
         - ci_config_report.xml
+
+##############################################
+# Admin-Init (cert-init) Tests
+##############################################
+admin_init_tests:
+  extends: .test_template
+  script:
+    - pip install -r $KAAPANA_DIR/services/kaapana-admin/admin-init/tests/requirements.txt
+    - pytest $KAAPANA_DIR/services/kaapana-admin/admin-init/tests/ --junitxml=admin_init_report.xml
+  artifacts:
+    reports:
+      junit:
+        - admin_init_report.xml

@@ -102,20 +102,22 @@ function install_cert {
 }
 
 function remove_cert {
+    # Undeploy keeps the admin namespace and Helm never owned this secret (install_cert
+    # creates it with kubectl), so a copy left here would be reused by the next deploy's
+    # install_cert_files even when the platform comes back under another hostname.
+    if ! kubectl -n $ADMIN_NAMESPACE delete secret $SECRET_NAME --ignore-not-found; then
+        echo "ERROR could not delete secret $SECRET_NAME from namespace $ADMIN_NAMESPACE."
+        exit 1
+    fi
+
     if ! kubectl get namespace $SECRET_NAMESPACE; then
         echo "Namespace $SECRET_NAMESPACE does not exist... skipping deletion"
         return
     fi
 
-    kubectl -n $SECRET_NAMESPACE get secret $SECRET_NAME 
-    if [ $? -eq 0 ]; then
-        echo "Secret $SECRET_NAME not present in namespace $SECRET_NAMESPACE... skipping deletion"
-    else 
-        if ! kubectl -n $SECRET_NAMESPACE delete secret $SECRET_NAME; then
-            echo "ERROR could not delete secret $SECRET_NAME from namespace $SECRET_NAMESPACE."
-            exit 1
-        fi
-        echo "Secret $SECRET_NAME deleted from namespace $SECRET_NAMESPACE."
+    if ! kubectl -n $SECRET_NAMESPACE delete secret $SECRET_NAME --ignore-not-found; then
+        echo "ERROR could not delete secret $SECRET_NAME from namespace $SECRET_NAMESPACE."
+        exit 1
     fi
 }
 

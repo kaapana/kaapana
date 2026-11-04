@@ -1,5 +1,6 @@
 import httpx
 import base64
+import http.cookiejar
 import json
 import re
 import hashlib
@@ -11,6 +12,10 @@ from urllib.parse import urljoin
 
 SHA256Digest = NewType("SHA256Digest", str)
 """Type alias for SHA256 digest strings in format 'sha256:<hexdigest>'."""
+
+
+def _same_origin(a: httpx.URL, b: httpx.URL) -> bool:
+    return (a.scheme, a.host, a.port) == (b.scheme, b.host, b.port)
 
 
 class OCIError(Exception):
@@ -93,6 +98,7 @@ class OCIRegistryDiscovery:
         username: Optional[str] = None,
         password: Optional[str] = None,
         client_options: Optional[Dict[str, Any]] = None,
+        finalize_timeout: Optional[float] = 1800.0,
     ):
         """Initialize the OCIRegistryDiscovery client.
 
@@ -102,7 +108,15 @@ class OCIRegistryDiscovery:
             username: Optional username for basic authentication.
             password: Optional password for basic authentication.
             client_options: Options forwarded to :class:`httpx.AsyncClient`
-                (e.g. ``{"timeout": 60.0, "verify": False}``).
+                (e.g. ``{"timeout": 60.0, "verify": False}``). ``cookies`` and
+                ``follow_redirects`` entries are not accepted because the client
+                never keeps cookies and always follows redirects.
+            finalize_timeout: Read timeout in seconds for the request that closes a
+                blob upload. That request returns only after the registry has stored
+                the whole blob, so it can take much longer than any other request.
+                If the client's read timeout is longer or ``None``, the request
+                keeps it. ``None`` here waits without limit. The other timeouts of
+                that request are the timeouts of the client.
         """
         self.logger = logging.getLogger(__name__)
         self.registry_url = registry_url.rstrip("/")
@@ -113,9 +127,17 @@ class OCIRegistryDiscovery:
         self.basic_auth_header = self._build_basic_auth_header()
         self._client: Optional[httpx.AsyncClient] = None
         self._client_options: Dict[str, Any] = client_options or {}
+        self._finalize_timeout = finalize_timeout
 
     async def __aenter__(self) -> "OCIRegistryDiscovery":
-        self._client = httpx.AsyncClient(**self._client_options)
+        # Keep no cookies, as the OCI distribution-spec conformance client does.
+        jar = http.cookiejar.CookieJar(
+            policy=http.cookiejar.DefaultCookiePolicy(allowed_domains=[])
+        )
+        # Registries may redirect any request. httpx drops Authorization when a redirect leaves the origin.
+        self._client = httpx.AsyncClient(
+            **self._client_options, cookies=jar, follow_redirects=True
+        )
         return self
 
     async def __aexit__(self, *args: Any) -> None:
@@ -186,11 +208,21 @@ class OCIRegistryDiscovery:
         Raises:
             OCIError: On any non-2xx response.
         """
+        # Registry credentials go only to the registry's own origin, never to a
+        # redirect target, upload location or link on another host.
+        registry = httpx.URL(self.registry_url)
+        on_registry = _same_origin(httpx.URL(url), registry)
         headers = kwargs.pop("headers", {})
-        headers.update(self._auth_headers())
+        if on_registry:
+            headers.update(self._auth_headers())
         response = await self._client.request(method, url, headers=headers, **kwargs)
 
-        if response.status_code == 401 and "WWW-Authenticate" in response.headers:
+        if (
+            response.status_code == 401
+            and "WWW-Authenticate" in response.headers
+            and on_registry
+            and _same_origin(response.url, registry)
+        ):
             token = await self._get_bearer_token(response.headers["WWW-Authenticate"])
             self.bearer_token = token
             headers["Authorization"] = f"Bearer {token}"
@@ -252,11 +284,16 @@ class OCIRegistryDiscovery:
         digest = SHA256Digest(f"sha256:{hashlib.sha256(data_bytes).hexdigest()}")
 
         separator = "&" if "?" in location else "?"
+        client_read = self._client.timeout.read
+        no_limit = client_read is None or self._finalize_timeout is None
+        read = None if no_limit else max(client_read, self._finalize_timeout)
+        finalize = httpx.Timeout(**{**self._client.timeout.as_dict(), "read": read})
         await self._request_with_auth_retry(
             "PUT",
             f"{location}{separator}digest={digest}",
             headers={"Content-Type": media_type},
             content=data_bytes,
+            timeout=finalize,
         )
         return digest
 

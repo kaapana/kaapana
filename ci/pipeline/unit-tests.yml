@@ -295,7 +295,7 @@ opa_policy_tests:
 # UI e2e Tests (mock-backed Playwright, no platform)
 ##############################################
 # One matrix job per frontend app; each suite starts its app on its own fixed
-# port (4300-4313, see each app's playwright.config.ts). An APP entry
+# port (4300-4314, see each app's playwright.config.ts). An APP entry
 # containing a slash is the app's directory; any other names services/*/$APP.
 ui_e2e_tests:
   extends: .test_template
@@ -320,6 +320,7 @@ ui_e2e_tests:
           - workflow-execution-ui
           - workflow-list-ui
           - extension-manager-ui
+          - workflow-ui
           - base-ui
           - project-management-ui
           - services/applications/collabora/docker/wopi/files/ui

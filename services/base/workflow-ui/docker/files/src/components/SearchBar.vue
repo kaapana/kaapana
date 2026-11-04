@@ -1,691 +1,707 @@
 <template>
-    <div class="search-bar-root">
-        <div class="panel-wrap pa-1" @click="handleContainerClick">
-            <div class="filter-container px-3">
-                <div class="filter-tokens-row">
-                    <div v-for="(filter, index) in appliedFilters" :key="index" class="filter-token-group">
-                        <span class="token" @click.stop="editFilterField(index)">{{ getFieldLabel(filter.field) }}</span>
-                        <span class="token token-operator">=</span>
-                        <span class="token token-value" @click.stop="editFilterValue(index)">
-                            {{ getValueLabel(filter.field, filter.value) }}
-                            <v-btn icon size="x-small" variant="text" @click.stop="removeFilter(index)"
-                                class="token-close" title="Remove filter">
-                                <v-icon size="12">mdi-close</v-icon>
-                            </v-btn>
-                        </span>
-                    </div>
-
-                    <div v-if="showFilterBuilder" class="filter-builder">
-                        <div v-if="!buildingFilter.field" class="field-selector">
-                            <v-menu v-model="_openFieldMenu" :close-on-content-click="false" location="bottom start">
-                                <template #activator="{ props: menuProps }">
-                                    <input ref="fieldInput" v-bind="menuProps" v-model="textSearchQuery"
-                                        :placeholder="appliedFilters.length === 0 ? 'Type to query or search...' : ''"
-                                        class="filter-input" @focus="showFilterBuilder = true" />
-                                </template>
-                                <v-card min-width="240">
-                                    <v-list density="compact">
-                                        <v-list-item v-for="field in filteredFields" :key="field.key"
-                                            @click="selectField(field)">
-                                            <template #prepend>
-                                                <v-icon :icon="field.icon" size="16" />
-                                            </template>
-                                            <v-list-item-title>{{ field.label }}</v-list-item-title>
-                                        </v-list-item>
-                                        <v-list-item v-if="filteredFields.length === 0">
-                                            <v-list-item-title class="text-caption text-medium-emphasis">No matching fields</v-list-item-title>
-                                        </v-list-item>
-                                    </v-list>
-                                </v-card>
-                            </v-menu>
-                        </div>
-
-                        <div v-else class="value-selector">
-                            <span class="token">{{ getFieldLabel(buildingFilter.field) }}</span>
-                            <span class="token token-operator">=</span>
-                            <v-menu v-model="_openValueMenu" :close-on-content-click="false" location="bottom start">
-                                <template #activator="{ props: menuProps }">
-                                    <input ref="valueInput" v-bind="menuProps" v-model="valueSearchQuery"
-                                        :placeholder="`Type or select ${getFieldLabel(buildingFilter.field)}...`"
-                                        class="filter-input" @keydown.escape="resetBuilder"
-                                        @keydown.enter="handleValueEnter" autofocus />
-                                </template>
-                                <v-card min-width="240" max-height="320">
-                                    <v-list density="compact">
-                                        <div v-if="getValuesForField(buildingFilter.field).length > 0">
-                                            <v-list-item v-for="val in filteredValues" :key="val.value"
-                                                @click="selectValue(val)">
-                                                <v-list-item-title>
-                                                    <v-chip v-if="buildingFilter.field === 'status'"
-                                                        :color="statusColor(val.label)" size="small" variant="outlined">
-                                                        {{ val.label }}
-                                                    </v-chip>
-                                                    <span v-else>{{ val.label }}</span>
-                                                </v-list-item-title>
-                                            </v-list-item>
-                                            <v-list-item v-if="filteredValues.length === 0">
-                                                <v-list-item-title class="text-caption text-medium-emphasis">No
-                                                    matches</v-list-item-title>
-                                            </v-list-item>
-                                        </div>
-
-                                        <div v-else>
-                                            <v-list-item>
-                                                <v-list-item-title class="text-caption text-medium-emphasis">Type and
-                                                    press
-                                                    Enter</v-list-item-title>
-                                            </v-list-item>
-                                        </div>
-                                    </v-list>
-                                </v-card>
-                            </v-menu>
-                        </div>
-                    </div>
-
-                    <div v-if="appliedFilters.length === 0 && !showFilterBuilder" class="initial-input">
-                        <input ref="initialInput" v-model="textSearchQuery" placeholder="Type to query or search..."
-                            class="filter-input" @focus="showFilterBuilder = true" />
-                    </div>
+  <div
+    ref="rootRef"
+    class="search-bar"
+    role="search"
+    :aria-label="`Filter ${name}`"
+    @focusout="onFocusOut"
+  >
+    <div class="search-bar-box">
+      <div class="search-bar-field" @click="focusInput()">
+        <div class="search-bar-tokens">
+          <template v-for="(group, groupIndex) in filterGroups" :key="group[0].index">
+            <button
+              v-if="groupIndex > 0"
+              type="button"
+              class="search-connector"
+              data-testid="filter-connector"
+              :aria-label="`Change AND before filter ${tokenLabel(group[0].filter)} to OR`"
+              @click.stop="toggleConnector(group[0].index)"
+            >
+              AND
+            </button>
+            <div
+              class="search-group"
+              :class="{ 'search-group--or': group.length > 1 }"
+              data-testid="filter-group"
+            >
+              <template v-for="({ filter, index }, position) in group" :key="index">
+                <button
+                  v-if="position > 0"
+                  type="button"
+                  class="search-connector"
+                  data-testid="filter-connector"
+                  :aria-label="`Change OR before filter ${tokenLabel(filter)} to AND`"
+                  @click.stop="toggleConnector(index)"
+                >
+                  OR
+                </button>
+                <div class="search-token" data-testid="filter-token">
+                  <button
+                    type="button"
+                    class="search-token-part"
+                    :aria-label="`Change the key of filter ${tokenLabel(filter)}`"
+                    @click.stop="editKey(index)"
+                  >
+                    {{ keyLabel(filter.key) }}
+                  </button>
+                  <button
+                    type="button"
+                    class="search-token-part search-token-operator"
+                    :aria-label="`Change the operator of filter ${tokenLabel(filter)}`"
+                    @click.stop="editOperator(index)"
+                  >
+                    {{ filter.operator }}
+                  </button>
+                  <button
+                    type="button"
+                    class="search-token-part search-token-value"
+                    :aria-label="`Change the value of filter ${tokenLabel(filter)}`"
+                    @click.stop="editValue(index)"
+                  >
+                    {{ filter.value }}
+                  </button>
+                  <v-btn
+                    :icon="kaapanaIcons.close"
+                    size="x-small"
+                    variant="text"
+                    density="comfortable"
+                    :aria-label="`Remove filter ${tokenLabel(filter)}`"
+                    @click.stop="removeAt(index)"
+                  />
                 </div>
-
-                <div class="filter-actions">
-                    <v-btn v-if="appliedFilters.length > 0 || textSearchQuery" icon size="small" variant="text"
-                        @click.stop="clearAllFilters" title="Clear all filters" class="action-btn">
-                        <v-icon class="">mdi-close</v-icon>
-                    </v-btn>
-
-                    <v-btn size="small" variant="outlined" class="action-btn search-btn" @click.stop="applySearch" title="Apply search">
-                        <v-icon>mdi-magnify</v-icon>
-                    </v-btn>
-
-                    <v-menu location="bottom end">
-                        <template #activator="{ props: menuProps }">
-                            <v-btn v-bind="menuProps" size="small" variant="text" @click.stop title="Sort by" class="action-btn">
-                                <v-icon>mdi-sort</v-icon>
-                            </v-btn>
-                        </template>
-                        <v-list density="compact">
-                            <v-list-subheader>Sort by</v-list-subheader>
-                            <v-list-item @click="setSortField('created_at')">
-                                <template #prepend>
-                                    <v-icon v-if="sortField === 'created_at'">mdi-check</v-icon>
-                                </template>
-                                <v-list-item-title>Created Date</v-list-item-title>
-                            </v-list-item>
-                            <v-list-item @click="setSortField('status')">
-                                <template #prepend>
-                                    <v-icon v-if="sortField === 'status'">mdi-check</v-icon>
-                                </template>
-                                <v-list-item-title>Status</v-list-item-title>
-                            </v-list-item>
-                            <v-list-item @click="setSortField('workflow')">
-                                <template #prepend>
-                                    <v-icon v-if="sortField === 'workflow'">mdi-check</v-icon>
-                                </template>
-                                <v-list-item-title>Workflow</v-list-item-title>
-                            </v-list-item>
-                            <v-divider />
-                            <v-list-item @click="toggleSortDirection">
-                                <template #prepend>
-                                    <v-icon>{{ sortDirection === 'desc' ? 'mdi-arrow-down' : 'mdi-arrow-up' }}</v-icon>
-                                </template>
-                                <v-list-item-title>{{ sortDirection === 'desc' ? 'Descending' : 'Ascending' }}</v-list-item-title>
-                            </v-list-item>
-                        </v-list>
-                    </v-menu>
-
-                    <v-btn icon size="small" variant="text" @click.stop="showHelp = true" title="Help" class="action-btn">
-                        <v-icon>mdi-help-circle-outline</v-icon>
-                    </v-btn>
-                </div>
+              </template>
             </div>
+          </template>
+
+          <div v-if="building.key" class="search-token search-token--building">
+            <span class="search-token-part">{{ keyLabel(building.key) }}</span>
+            <span v-if="building.operator" class="search-token-operator">{{
+              building.operator
+            }}</span>
+          </div>
+
+          <v-menu
+            v-model="menuOpen"
+            persistent
+            :close-on-content-click="false"
+            location="bottom start"
+            :open-on-click="false"
+            :activator="inputRef ?? undefined"
+            :width="buildingDate && building.operator ? undefined : 300"
+          >
+            <v-card ref="menuRef" max-height="480" class="overflow-y-auto">
+              <v-date-picker
+                v-if="buildingDate && building.operator"
+                :model-value="pickedDate"
+                hide-header
+                show-adjacent-months
+                @update:model-value="commitDate"
+              />
+              <v-list v-else density="compact" :aria-label="listLabel">
+                <template v-if="!building.key">
+                  <v-list-subheader>Filter by</v-list-subheader>
+                  <v-list-item
+                    v-for="filterKey in matchingKeys"
+                    :key="filterKey.key"
+                    :prepend-icon="filterKey.icon"
+                    :title="filterKey.label"
+                    @click="selectKey(filterKey.key)"
+                  />
+                  <v-list-item v-if="matchingKeys.length === 0">
+                    <v-list-item-title class="text-medium-emphasis">
+                      No filter key matches. Press Enter to search for the text.
+                    </v-list-item-title>
+                  </v-list-item>
+                </template>
+                <template v-else-if="!building.operator">
+                  <v-list-item
+                    v-for="operator in keyOperators"
+                    :key="operator"
+                    :title="operator"
+                    :subtitle="FILTER_OPERATOR_LABELS[operator]"
+                    @click="selectOperator(operator)"
+                  />
+                </template>
+                <template v-else-if="keyValues.length">
+                  <v-list-item
+                    v-for="value in matchingValues"
+                    :key="value"
+                    @click="commitValue(value)"
+                  >
+                    <v-chip
+                      v-if="valueColor?.(building.key, value)"
+                      :color="valueColor(building.key, value)"
+                      size="small"
+                      variant="outlined"
+                    >
+                      {{ value }}
+                    </v-chip>
+                    <v-list-item-title v-else>{{ value }}</v-list-item-title>
+                  </v-list-item>
+                  <v-list-item v-if="matchingValues.length === 0">
+                    <v-list-item-title class="text-medium-emphasis">
+                      No value matches. Press Enter to filter by the typed text.
+                    </v-list-item-title>
+                  </v-list-item>
+                </template>
+                <v-list-item v-else>
+                  <v-list-item-title class="text-medium-emphasis"
+                    >Type a value and press Enter.</v-list-item-title
+                  >
+                </v-list-item>
+              </v-list>
+            </v-card>
+          </v-menu>
+
+          <input
+            ref="inputRef"
+            v-model="query"
+            class="search-bar-input"
+            :placeholder="placeholder"
+            :aria-label="inputLabel"
+            aria-haspopup="listbox"
+            :aria-expanded="menuOpen"
+            autocomplete="off"
+            @input="menuOpen = true"
+            @keydown.enter.prevent="onEnter"
+            @keydown.escape="onEscape"
+            @keydown.backspace="onBackspace"
+            @keydown.down.prevent="focusFirstOption"
+          />
         </div>
 
-        <v-dialog v-model="showHelp" max-width="700">
-            <v-card>
-                <v-card-title class="d-flex align-center"><v-icon class="mr-2">mdi-help-circle</v-icon>Query Builder
-                    Help</v-card-title>
-                <v-card-text>
-                    <p class="text-body-2 mb-3">Build queries by clicking in the query builder, selecting a field, and
-                        choosing a
-                        value.</p>
-                    <p class="text-body-2">Date filters support YYYY-MM-DD, DD.MM.YYYY and DD.MM.YY.</p>
-                    <div class="mb-4">
-                        <h3 class="text-subtitle-2 mb-2">How to use:</h3>
-                        <ol class="text-body-2 ml-4">
-                            <li class="mb-1">Click in the search bar</li>
-                            <li class="mb-1">Select a field</li>
-                            <li class="mb-1">Choose or type a value</li>
-                            <li class="mb-1">Click the magnifying glass or press Enter to apply</li>
-                        </ol>
-                    </div>
-                </v-card-text>
-                <v-card-actions>
-                    <v-spacer />
-                    <v-btn color="primary" @click="showHelp = false">Got it</v-btn>
-                </v-card-actions>
-            </v-card>
-        </v-dialog>
+        <v-btn
+          v-if="draftFilters.length > 0 || draftText"
+          :icon="kaapanaIcons.close"
+          size="small"
+          variant="text"
+          aria-label="Clear all filters"
+          @click.stop="clearAll"
+        />
+      </div>
+
+      <button type="button" class="search-bar-submit" aria-label="Search" @click.stop="submit">
+        <v-icon :icon="kaapanaIcons.search" size="small" />
+      </button>
     </div>
+
+    <v-menu location="bottom end">
+      <template #activator="{ props: menuProps }">
+        <v-btn
+          v-bind="menuProps"
+          variant="text"
+          prepend-icon="mdi-sort"
+          :aria-label="`Sort ${shortName}, currently by ${sortLabel}`"
+        >
+          {{ sortLabel }}
+        </v-btn>
+      </template>
+      <v-list density="compact" :aria-label="`Sort ${shortName}`">
+        <template v-if="sortOptions.length > 1">
+          <v-list-subheader>Sort by</v-list-subheader>
+          <v-list-item
+            v-for="option in sortOptions"
+            :key="option.field"
+            :active="sort.field === option.field"
+            :title="option.label"
+            @click="emit('update:sort', { ...sort, field: option.field })"
+          />
+          <v-divider />
+        </template>
+        <v-list-item
+          :prepend-icon="sort.direction === 'desc' ? 'mdi-arrow-down' : 'mdi-arrow-up'"
+          :title="sort.direction === 'desc' ? 'Descending' : 'Ascending'"
+          @click="
+            emit('update:sort', {
+              ...sort,
+              direction: sort.direction === 'desc' ? 'asc' : 'desc',
+            })
+          "
+        />
+      </v-list>
+    </v-menu>
+
+    <v-btn
+      :icon="kaapanaIcons.help"
+      size="small"
+      variant="text"
+      :aria-label="`How to filter ${shortName}`"
+      @click.stop="showHelp = true"
+    />
+
+    <v-dialog v-model="showHelp" max-width="600">
+      <v-card :elevation="5">
+        <v-card-title>Filter {{ name }}</v-card-title>
+        <v-card-text class="text-body-2">
+          <p class="mb-4">
+            A filter has a key, an operator and a value, for example
+            <code>{{ example }}</code
+            >. <slot name="free-text" /> Press Enter or select Search to apply the filters.
+          </p>
+
+          <div class="text-subtitle-2 mb-1">Combining filters</div>
+          <ul class="ms-4 mb-4">
+            <li>
+              Between two filters, <strong>AND</strong> (default) means both must match and
+              <strong>OR</strong> means either can match. Click the AND or OR to switch.
+            </li>
+            <li>Filters joined with OR are framed as a group.</li>
+          </ul>
+
+          <div class="text-subtitle-2 mb-1">Operators</div>
+          <ul class="ms-4 mb-4">
+            <li><strong>Equal</strong> (<code>=</code>) keeps the matches.</li>
+            <li><strong>Not equal</strong> (<code>!=</code>) excludes them.</li>
+            <li v-if="hasDateKeys">Date filters only take <code>=</code>, which is filled in.</li>
+          </ul>
+
+          <div class="text-subtitle-2 mb-1">Editing</div>
+          <ul class="ms-4">
+            <li>
+              Select a part of a filter to change it. A new key or operator asks for the value
+              again.
+            </li>
+            <li>Backspace in the empty search field removes the last filter.</li>
+            <li v-if="hasDateKeys">Pick a date in the calendar or type it as YYYY-MM-DD.</li>
+            <slot name="help" />
+          </ul>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn color="primary" @click="showHelp = false">Close</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+  </div>
 </template>
 
-<script setup lang="ts">
-import { ref, computed, watch, PropType, nextTick, onMounted } from 'vue'
-import { statusColor } from '@/utils/status'
-import type { WorkflowRun } from '@/types/schemas'
+<script setup lang="ts" generic="F extends string">
+import { computed, nextTick, ref, watch } from 'vue'
+import { kaapanaIcons } from '@kaapana/base-ui'
+import {
+  ALL_OPERATORS,
+  FILTER_OPERATOR_LABELS,
+  formatSearchDate,
+  groupFilters,
+  parseSearchDate,
+  removeFilter,
+  type Filter,
+  type FilterKey,
+  type FilterOperator,
+  type Sort,
+  type SortOption,
+} from '@/utils/filters'
 
-// Props
-const props = defineProps({
-    runs: { type: Array as PropType<WorkflowRun[]>, default: () => [] },
-    filterFields: { type: Array as PropType<string[]>, default: () => null }
-})
-const emit = defineEmits(['update:filters', 'apply:filtered'])
+const props = defineProps<{
+  name: string
+  shortName: string
+  example: string
+  filterKeys: FilterKey[]
+  valuesFor: (key: string) => string[]
+  valueColor?: (key: string, value: string) => string | undefined
+  filters: Filter[]
+  text: string
+  sort: Sort<F>
+  sortOptions: SortOption<F>[]
+}>()
 
-// Local state
-const showFilterBuilder = ref(false)
+const emit = defineEmits<{
+  (e: 'update:filters', value: Filter[]): void
+  (e: 'update:text', value: string): void
+  (e: 'update:sort', value: Sort<F>): void
+}>()
+
+const rootRef = ref<HTMLElement | null>(null)
+const inputRef = ref<HTMLInputElement | null>(null)
+const menuRef = ref<{ $el: HTMLElement } | null>(null)
+const menuOpen = ref(false)
 const showHelp = ref(false)
-const textSearchQuery = ref('')
-const valueSearchQuery = ref('')
 
-const buildingFilter = ref<{ field: string | null; value: string | null }>({ field: null, value: null })
-const appliedFilters = ref<{ field: string; value: string }[]>([])
+const draftFilters = ref<Filter[]>([])
+const draftText = ref('')
 
-// When editing an existing token, editingIndex points to that filter index. null means creating a new one.
-const editingIndex = ref<number | null>(null)
+watch(
+  () => props.filters,
+  (filters) => {
+    draftFilters.value = filters.map((f) => ({ ...f }))
+  },
+  { immediate: true },
+)
+watch(
+  () => props.text,
+  (text) => {
+    draftText.value = text
+  },
+  { immediate: true },
+)
 
-// Sorting state
-const sortField = ref<string>('created_at')
-const sortDirection = ref<'asc' | 'desc'>('desc')
+const building = ref<{
+  key: string | null
+  operator: FilterOperator | null
+  index: number | null
+}>({ key: null, operator: null, index: null })
+const valueQuery = ref('')
 
-// Menu model toggles for v-menu
-// start closed
-const _openFieldMenu = ref(false)
-const _openValueMenu = ref(false)
-
-// Input refs
-const fieldInput = ref<HTMLInputElement | null>(null)
-const valueInput = ref<HTMLInputElement | null>(null)
-const initialInput = ref<HTMLInputElement | null>(null)
-
-// Emit initial filtered results on mount
-onMounted(() => {
-    emit('apply:filtered', filteredResults.value)
+const query = computed({
+  get: () => (building.value.key ? valueQuery.value : draftText.value),
+  set: (value: string) => {
+    if (building.value.key) valueQuery.value = value
+    else draftText.value = value
+  },
 })
 
-// Watch for changes in runs prop to re-emit filtered results
-watch(() => props.runs, () => {
-    emit('apply:filtered', filteredResults.value)
-}, { deep: true })
+const filterGroups = computed(() => groupFilters(draftFilters.value))
+const hasDateKeys = computed(() => props.filterKeys.some((k) => k.date))
 
-// Field definitions
-const availableFields = [
-    { key: 'status', label: 'Status', icon: 'mdi-clock-outline', type: 'enum' },
-    { key: 'task', label: 'Task', icon: 'mdi-checkbox-multiple-blank-outline', type: 'string' },
-    { key: 'workflow', label: 'Workflow', icon: 'mdi-sitemap-outline', type: 'string' },
-    { key: 'created_at', label: 'Created Date', icon: 'mdi-calendar', type: 'string' },
-    { key: 'created_since', label: 'Since', icon: 'mdi-calendar-start', type: 'string' },
-    { key: 'external_id', label: 'External ID', icon: 'mdi-identifier', type: 'string' }
-]
+const buildingKey = computed(() => (building.value.key ? findKey(building.value.key) : undefined))
+const buildingDate = computed(() => !!buildingKey.value?.date)
+const keyOperators = computed(() => buildingKey.value?.operators ?? ALL_OPERATORS)
+const pickedDate = computed(() => parseSearchDate(valueQuery.value) ?? undefined)
 
-function getValuesForField(field: string | null) {
-    if (field === 'status') {
-        return [
-            { value: 'created', label: 'Created' },
-            { value: 'pending', label: 'Pending' },
-            { value: 'running', label: 'Running' },
-            { value: 'completed', label: 'Completed' },
-            { value: 'error', label: 'Error' },
-            { value: 'canceled', label: 'Canceled' }
-        ]
-    } else if (field === 'task') {
-        const uniqueTasks = [...new Set(props.runs.flatMap(r => r.task_runs?.map(tr => tr.task_title) || []).filter(Boolean))]
-        return uniqueTasks.map(t => ({ value: t, label: t }))
-    } else if (field === 'workflow') {
-        const uniqueTitles = [...new Set(props.runs.map(r => r.workflow?.title).filter(Boolean))]
-        return uniqueTitles.map(t => ({ value: t as string, label: t as string }))
-    }
-    return []
-}
-
-const filteredValues = computed(() => {
-    const values = getValuesForField(buildingFilter.value.field)
-    if (!valueSearchQuery.value) return values
-    const q = valueSearchQuery.value.toLowerCase()
-    return values.filter(v => v.label.toLowerCase().includes(q))
+const listLabel = computed(() => {
+  if (!building.value.key) return 'Filter keys'
+  return building.value.operator ? 'Values' : 'Operators'
 })
 
-const filteredFields = computed(() => {
-    let filtered = availableFields.filter(f => 
-        !textSearchQuery.value || 
-        f.label.toLowerCase().includes(textSearchQuery.value.toLowerCase()) || 
-        f.key.toLowerCase().includes(textSearchQuery.value.toLowerCase())
+const inputLabel = computed(() => {
+  if (!building.value.key) return `Search or filter ${props.name}`
+  const key = keyLabel(building.value.key)
+  return building.value.operator ? `Value for ${key}` : `Operator for ${key}`
+})
+
+const placeholder = computed(() => {
+  if (building.value.key && !building.value.operator) {
+    return `Choose ${keyOperators.value.join(' or ')}`
+  }
+  if (building.value.key) {
+    return (
+      buildingKey.value?.placeholder ??
+      `Choose or type a ${keyLabel(building.value.key).toLowerCase()}`
     )
-    if (props.filterFields && props.filterFields.length > 0) {
-        filtered = filtered.filter(f => props.filterFields.includes(f.key))
-    }
-    return filtered
+  }
+  return draftFilters.value.length ? '' : `Search or filter ${props.shortName}…`
 })
 
-function selectField(field: { key: string; label: string; icon: string; type: string }) {
-    buildingFilter.value.field = field.key
-    valueSearchQuery.value = ''
-    textSearchQuery.value = ''
+const sortLabel = computed(
+  () => props.sortOptions.find((o) => o.field === props.sort.field)?.label ?? '',
+)
+
+const matchingKeys = computed(() => {
+  const q = draftText.value.trim().toLowerCase()
+  return props.filterKeys.filter(
+    (f) => !q || f.label.toLowerCase().includes(q) || f.key.includes(q),
+  )
+})
+
+const keyValues = computed(() =>
+  building.value.key && building.value.operator ? props.valuesFor(building.value.key) : [],
+)
+const matchingValues = computed(() => {
+  const q = valueQuery.value.trim().toLowerCase()
+  return keyValues.value.filter((v) => !q || v.toLowerCase().includes(q))
+})
+
+function findKey(key: string) {
+  return props.filterKeys.find((f) => f.key === key)
 }
 
-function selectValue(val: { value: string; label: string }) {
-    if (!buildingFilter.value.field) return
-
-    if (editingIndex.value !== null && editingIndex.value >= 0 && editingIndex.value < appliedFilters.value.length) {
-        // replace existing filter
-        appliedFilters.value.splice(editingIndex.value, 1, { field: buildingFilter.value.field, value: val.value })
-    } else {
-        appliedFilters.value.push({ field: buildingFilter.value.field, value: val.value })
-    }
-
-    // done editing/adding
-    resetBuilder()
-    editingIndex.value = null
-    // Keep filter builder open to allow chaining
-    showFilterBuilder.value = true
-    }
-
-// Edit a filter's field: open the field selector and prepare to replace the existing filter
-function editFilterField(index: number) {
-    const f = appliedFilters.value[index]
-    // mark we're editing this filter
-    editingIndex.value = index
-    // open field selector and prefill the search so user can quickly pick another field
-    textSearchQuery.value = getFieldLabel(f.field)
-    buildingFilter.value = { field: null, value: f.value }
-    showFilterBuilder.value = true
-    // open the menu and focus the field input
-    _openFieldMenu.value = true
-    nextTick(() => fieldInput.value?.focus())
+function keyLabel(key: string) {
+  return findKey(key)?.label ?? key
 }
 
-// Edit a filter's value: open the value selector for that field prefilled with the current value
-function editFilterValue(index: number) {
-    const f = appliedFilters.value[index]
-    editingIndex.value = index
-    buildingFilter.value = { field: f.field, value: f.value }
-    // prefill the value input with the current token so they can edit it
-    valueSearchQuery.value = f.value
-    showFilterBuilder.value = true
-    _openValueMenu.value = true
-    nextTick(() => valueInput.value?.focus())
+function tokenLabel(filter: Filter) {
+  return `${keyLabel(filter.key)} ${filter.operator} ${filter.value}`
 }
 
-function handleValueEnter() {
-    if (!buildingFilter.value.field || !valueSearchQuery.value) return
+function focusInput(openMenu = true) {
+  inputRef.value?.focus()
+  menuOpen.value = openMenu
+}
 
-    if (editingIndex.value !== null && editingIndex.value >= 0 && editingIndex.value < appliedFilters.value.length) {
-        appliedFilters.value.splice(editingIndex.value, 1, { field: buildingFilter.value.field, value: valueSearchQuery.value })
-    } else {
-        appliedFilters.value.push({ field: buildingFilter.value.field, value: valueSearchQuery.value })
-    }
+function focusFirstOption() {
+  menuOpen.value = true
+  nextTick(() => {
+    document
+      .querySelector<HTMLElement>('.v-overlay--active .v-list-item:not(.v-list-item--disabled)')
+      ?.focus()
+  })
+}
 
-    resetBuilder()
-    editingIndex.value = null
-    // Keep filter builder open to allow chaining
-    showFilterBuilder.value = true
+function onlyOperator(key: string): FilterOperator | null {
+  const operators = findKey(key)?.operators ?? ALL_OPERATORS
+  return operators.length === 1 ? operators[0] : null
+}
+
+function selectKey(key: string) {
+  building.value = { key, operator: onlyOperator(key), index: building.value.index }
+  valueQuery.value = ''
+  if (building.value.index === null) draftText.value = ''
+  focusInput()
+}
+
+function selectOperator(operator: FilterOperator) {
+  building.value = { ...building.value, operator }
+  valueQuery.value = ''
+  focusInput()
+}
+
+function toggleConnector(index: number) {
+  const filter = draftFilters.value[index]
+  const next = [...draftFilters.value]
+  next.splice(index, 1, { ...filter, connector: filter.connector === 'or' ? 'and' : 'or' })
+  draftFilters.value = next
+}
+
+function submit() {
+  resetBuilder()
+  menuOpen.value = false
+  emit(
+    'update:filters',
+    draftFilters.value.map((f) => ({ ...f })),
+  )
+  emit('update:text', draftText.value)
+}
+
+function commitValue(value: string) {
+  const { key, operator, index } = building.value
+  if (!key || !operator || !value.trim()) return
+  if (buildingDate.value) {
+    const date = parseSearchDate(value)
+    if (!date) return
+    value = formatSearchDate(date)
+  }
+  const next = [...draftFilters.value]
+  const connector = index !== null ? (draftFilters.value[index].connector ?? 'and') : 'and'
+  const filter: Filter = { key, operator, value: value.trim(), connector }
+  if (index !== null) next.splice(index, 1, filter)
+  else next.push(filter)
+  draftFilters.value = next
+  resetBuilder()
+  focusInput()
+}
+
+function commitDate(date: unknown) {
+  if (date instanceof Date) commitValue(formatSearchDate(date))
 }
 
 function resetBuilder() {
-    buildingFilter.value = { field: null, value: null }
-    valueSearchQuery.value = ''
+  building.value = { key: null, operator: null, index: null }
+  valueQuery.value = ''
 }
 
-function removeFilter(index: number) {
-    appliedFilters.value.splice(index, 1)
+function onEnter() {
+  if (building.value.key && !building.value.operator) {
+    const typed = valueQuery.value.trim().toLowerCase()
+    const operator = keyOperators.value.find(
+      (o) => o === typed || FILTER_OPERATOR_LABELS[o] === typed,
+    )
+    if (!typed || operator) selectOperator(operator ?? keyOperators.value[0])
+    return
+  }
+  if (building.value.key) {
+    commitValue(matchingValues.value.length === 1 ? matchingValues.value[0] : valueQuery.value)
+    return
+  }
+  const q = draftText.value.trim().toLowerCase()
+  const exact = props.filterKeys.find((f) => f.label.toLowerCase() === q || f.key === q)
+  if (exact) selectKey(exact.key)
+  else submit()
 }
 
-function clearAllFilters() {
-    appliedFilters.value = []
-    textSearchQuery.value = ''
+function onFocusOut(event: FocusEvent) {
+  const next = event.relatedTarget as Node | null
+  if (next && (rootRef.value?.contains(next) || menuRef.value?.$el.contains(next))) return
+  resetBuilder()
+  menuOpen.value = false
+}
+
+function onEscape() {
+  resetBuilder()
+  menuOpen.value = false
+}
+
+function onBackspace() {
+  if (query.value) return
+  if (building.value.key) {
     resetBuilder()
-    showFilterBuilder.value = false
+  } else if (draftFilters.value.length) {
+    draftFilters.value = draftFilters.value.slice(0, -1)
+    menuOpen.value = true
+  }
 }
 
-function getFieldLabel(key: string) {
-    const f = availableFields.find(x => x.key === key)
-    return f?.label || key
+function editKey(index: number) {
+  building.value = { key: null, operator: null, index }
+  draftText.value = ''
+  focusInput()
 }
 
-function getValueLabel(field: string, value: string) {
-    const vals = getValuesForField(field)
-    const v = vals.find(x => x.value === value)
-    return v?.label || value
+function editOperator(index: number) {
+  const key = draftFilters.value[index].key
+  building.value = { key, operator: onlyOperator(key), index }
+  valueQuery.value = ''
+  focusInput()
 }
 
-function parseSearchDate(value: string): Date | null {
-    const input = value.trim()
-
-    let year: number
-    let month: number
-    let day: number
-
-    const isoMatch = input.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
-    if (isoMatch) {
-        year = Number(isoMatch[1])
-        month = Number(isoMatch[2])
-        day = Number(isoMatch[3])
-        return createValidLocalDate(year, month, day)
-    }
-
-    const germanMatch = input.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2}|\d{4})$/)
-    if (germanMatch) {
-        day = Number(germanMatch[1])
-        month = Number(germanMatch[2])
-        year = normalizeYear(Number(germanMatch[3]))
-        return createValidLocalDate(year, month, day)
-    }
-
-    return null
+function editValue(index: number) {
+  const filter = draftFilters.value[index]
+  building.value = { key: filter.key, operator: filter.operator, index }
+  valueQuery.value = filter.value
+  focusInput()
 }
 
-function normalizeYear(year: number): number {
-    if (year < 100) {
-        return year >= 70 ? 1900 + year : 2000 + year
-    }
-
-    return year
+function removeAt(index: number) {
+  draftFilters.value = removeFilter(draftFilters.value, index)
+  resetBuilder()
+  focusInput()
 }
 
-function createValidLocalDate(year: number, month: number, day: number): Date | null {
-    const date = new Date(year, month - 1, day)
-
-    if (
-        date.getFullYear() !== year ||
-        date.getMonth() !== month - 1 ||
-        date.getDate() !== day
-    ) {
-        return null
-    }
-
-    return startOfDay(date)
-}
-
-function startOfDay(date: Date): Date {
-    return new Date(date.getFullYear(), date.getMonth(), date.getDate())
-}
-
-function startOfNextDay(date: Date): Date {
-    return new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1)
-}
-
-// statusColor imported from utils/status
-
-// Emit filters to parent whenever they change
-watch([appliedFilters, textSearchQuery], () => {
-    emit('update:filters', { appliedFilters: appliedFilters.value.slice(), text: textSearchQuery.value })
-    // Also emit the filtered results for convenience
-    emit('apply:filtered', filteredResults.value)
-}, { deep: true })
-
-// Compute filtered results locally (useful for previewing or emitting)
-const filteredResults = computed(() => {
-    let result = [...props.runs]
-
-    appliedFilters.value.forEach(filter => {
-        if (filter.field === 'status') {
-            result = result.filter(r => (r.lifecycle_status || '').toLowerCase() === filter.value.toLowerCase())
-        } else if (filter.field === 'task') {
-            const t = filter.value.toLowerCase()
-            result = result.filter(r => r.task_runs?.some(tr => (tr.task_title || '').toLowerCase().includes(t)))
-        } else if (filter.field === 'workflow') {
-            const t = filter.value.toLowerCase()
-            result = result.filter(r => (r.workflow?.title || '').toLowerCase().includes(t))
-        } else if (filter.field === 'external_id') {
-            const id = filter.value.toLowerCase()
-            result = result.filter(r => (r.external_id || '').toLowerCase().includes(id))
-        } else if (filter.field === 'created_at') {
-            const filterDate = parseSearchDate(filter.value)
-
-            if (!filterDate) {
-                result = []
-                return
-            }
-
-            const start = startOfDay(filterDate)
-            const end = startOfNextDay(filterDate)
-
-            result = result.filter(r => {
-                const createdAt = new Date(r.created_at)
-                return createdAt >= start && createdAt < end
-            })
-        } else if (filter.field === 'created_since') {
-            const sinceDate = parseSearchDate(filter.value)
-
-            if (!sinceDate) {
-                result = []
-                return
-            }
-
-            const start = startOfDay(sinceDate)
-
-            result = result.filter(r => {
-                const createdAt = new Date(r.created_at)
-                return createdAt >= start
-            })
-        }
-    })
-
-    if (textSearchQuery.value && appliedFilters.value.length === 0) {
-        const q = textSearchQuery.value.toLowerCase()
-        result = result.filter(r => {
-            const text = [r.workflow?.title || '', r.external_id || '', r.lifecycle_status, String(r.id)].join(' ').toLowerCase()
-            return text.includes(q)
-        })
-    }
-
-    // Apply sorting
-    result.sort((a, b) => {
-        let comparison = 0
-        
-        if (sortField.value === 'created_at') {
-            comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        } else if (sortField.value === 'status') {
-            comparison = (a.lifecycle_status || '').localeCompare(b.lifecycle_status || '')
-        } else if (sortField.value === 'workflow') {
-            comparison = (a.workflow?.title || '').localeCompare(b.workflow?.title || '')
-        }
-        
-        return sortDirection.value === 'desc' ? -comparison : comparison
-    })
-
-    return result
-})
-
-// Quick status statistics
-const statusStatistics = computed(() => {
-    const stats: Record<string, number> = {}
-    for (const r of props.runs) {
-        const s = r.lifecycle_status || 'Unknown'
-        stats[s] = (stats[s] || 0) + 1
-    }
-    return stats
-})
-
-function applySearch() {
-    // emit current filtered set explicitly
-    emit('apply:filtered', filteredResults.value)
-}
-
-// Handle clicking anywhere in the container to focus input
-function handleContainerClick(event: MouseEvent) {
-    // Don't trigger when clicking on action buttons or native buttons/inputs
-    const target = event.target as HTMLElement
-    if (target.closest('.action-btn') || target.closest('.token-close') || target.closest('.v-btn')) {
-        return
-    }
-
-    // Always open the builder and ensure the relevant menu/input is opened and focused
-    showFilterBuilder.value = true
-    nextTick(() => {
-        if (buildingFilter.value.field) {
-            // editing a value - open value menu and focus
-            _openValueMenu.value = true
-            // ensure value menu is toggled open so the activator input is visible
-            valueInput.value?.focus()
-        } else {
-            // open field selector and focus regardless of prior state
-            _openFieldMenu.value = true
-            fieldInput.value?.focus()
-        }
-    })
-}
-
-// Sorting functions
-function setSortField(field: string) {
-    sortField.value = field
-    emit('apply:filtered', filteredResults.value)
-}
-
-function toggleSortDirection() {
-    sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
-    emit('apply:filtered', filteredResults.value)
+function clearAll() {
+  draftFilters.value = []
+  draftText.value = ''
+  resetBuilder()
+  emit('update:filters', [])
+  emit('update:text', '')
+  focusInput()
 }
 </script>
 
 <style scoped>
-.search-bar-root {
-    width: 100%;
-    margin-bottom: 24px;
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.panel-wrap {
-    cursor: text;
+.search-bar-box {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 48px;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 8px;
+  background-color: rgb(var(--v-theme-surface));
+  overflow: hidden;
 }
 
-.filter-container {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    gap: 12px;
+.search-bar-box:focus-within {
+  border-color: rgb(var(--v-theme-primary));
 }
 
-.filter-tokens-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex: 1;
-    flex-wrap: wrap;
+.search-bar-field {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 4px 4px 4px 12px;
+  cursor: text;
 }
 
-.filter-token-group {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    position: relative;
-    padding: 1px 2px;
-    border-radius: 6px;
+.search-bar-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  border-left: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
-.filter-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
+.search-bar-submit:hover,
+.search-bar-submit:focus-visible {
+  background-color: rgba(var(--v-theme-on-surface), 0.06);
+  color: rgb(var(--v-theme-on-surface));
 }
 
-.filter-input {
-    border: none;
-    outline: none;
-    background: transparent;
-    padding: 4px 6px;
-    font-size: 13px;
-    color: rgba(var(--v-theme-on-surface), 0.87);
-    min-width: 160px;
-    cursor: text;
+.search-bar-submit:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: -2px;
 }
 
-.filter-input::placeholder {
-    color: rgba(var(--v-theme-on-surface), 0.5);
+.search-bar-tokens {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
-.field-selector,
-.value-selector,
-.initial-input {
-    display: flex;
-    align-items: center;
-    gap: 4px;
+.search-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
 }
 
-
-.token {
-    cursor: pointer;
-    padding: 2px 6px;
-    border-radius: 4px;
-    transition: background-color 120ms ease, color 120ms ease;
-    color: rgba(var(--v-theme-on-surface), 0.87);
-    line-height: 1;
-    display: inline-flex;
-    align-items: center;
+.search-group--or {
+  padding: 2px 4px;
+  border: 1px dashed rgba(var(--v-border-color), 0.5);
+  border-radius: 10px;
 }
 
-.filter-token-group:hover .token {
-    background-color: rgba(var(--v-theme-on-surface), 0.04);
+.search-connector {
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: rgb(var(--v-theme-primary));
 }
 
-.token-value {
-    /* slightly darker shade for values */
-    color: rgba(var(--v-theme-on-surface), 0.95);
-    font-weight: 500;
-    position: relative;
-    padding-right: 22px; /* space for close icon inside */
+.search-connector:hover,
+.search-connector:focus-visible {
+  background-color: rgba(var(--v-theme-primary), 0.12);
 }
 
-.token-operator {
-    opacity: 0.8;
+.search-connector:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-primary));
 }
 
-.token-close {
-    padding: 0;
-    min-width: 18px;
-    width: 18px;
-    height: 18px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    position: absolute;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    border-radius: 4px;
+.search-token {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 2px;
+  border-radius: 8px;
+  background-color: rgb(var(--v-theme-surface-light));
 }
 
-/* Action buttons (clear, sort, help) square rounded highlights */
-.action-btn {
-    padding: 0;
-    min-width: 34px;
-    width: 34px;
-    height: 34px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-    transition: background-color 120ms ease, border-color 120ms ease;
-    border: 1px solid rgba(var(--v-theme-on-surface), 0.06);
-    background: transparent;
-}
-.action-btn:hover {
-    background-color: rgba(var(--v-theme-on-surface), 0.06);
-    border-color: rgba(var(--v-theme-on-surface), 0.12);
-}
-.filter-actions .v-icon {
-    font-size: 16px;
+.search-token-part {
+  padding: 4px 6px;
+  border-radius: 6px;
+  color: inherit;
 }
 
-/* Ensure icons inside action buttons are consistent size (help icon was larger) */
-.action-btn .v-icon,
-.action-btn .v-icon svg {
-    font-size: 16px !important;
-    width: 16px !important;
-    height: 16px !important;
+button.search-token-part:hover,
+button.search-token-part:focus-visible {
+  background-color: rgba(var(--v-theme-on-surface), 0.08);
 }
 
-.v-btn {
-    cursor: pointer;
+button.search-token-part:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-primary));
+}
+
+.search-token-value {
+  font-weight: 500;
+}
+
+.search-token-operator {
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.search-bar-input {
+  flex: 1;
+  min-width: 180px;
+  padding: 4px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.search-bar-input::placeholder {
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 </style>

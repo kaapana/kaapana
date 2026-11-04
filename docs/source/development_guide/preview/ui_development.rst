@@ -428,6 +428,7 @@ suites can run in parallel on one machine:
 - ``extension-manager-ui``: 4311
 - ``project-management-ui``: 4312
 - the Collabora documents UI: 4313
+- ``workflow-ui``: 4314
 
 Run a suite from the view's
 ``docker/files`` directory with ``npx playwright test`` (build ``base-ui``

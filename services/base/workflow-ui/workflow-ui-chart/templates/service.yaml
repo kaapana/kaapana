@@ -9,17 +9,10 @@ spec:
   selector:
     app.kubernetes.io/name: workflow-ui-app
   ports:
-{{- if .Values.global.dev_files }}
     - name: http
-      port: 80
-      targetPort: 5173
+      port: 5000
+      targetPort: http-port
   type: ClusterIP
-{{- else }}
-    - name: http
-      port: 80
-      targetPort: 80
-  type: ClusterIP
-{{- end }}
 ---
 {{- if not .Values.global.dev_files }}
 apiVersion: traefik.io/v1alpha1
@@ -45,6 +38,8 @@ metadata:
 {{- end }}
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
     kaapana.ai/ui.name: "Workflows V2"
+    # The ids are the shell routes the app links to (src/utils/notify.ts).
+    kaapana.ai/ui.id: "workflows-v2"
     kaapana.ai/ui.section: "experimental"
     kaapana.ai/ui.section-label: "Experimental"
     kaapana.ai/ui.section-icon: "mdi-flask"
@@ -67,7 +62,7 @@ spec:
           service:
             name: workflow-ui-service
             port:
-              number: 80
+              number: 5000
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -81,6 +76,7 @@ metadata:
 {{- end }}
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
     kaapana.ai/ui.name: "Workflow Runs V2"
+    kaapana.ai/ui.id: "workflow-runs-v2"
     kaapana.ai/ui.section: "experimental"
     kaapana.ai/ui.order: "20"
     kaapana.ai/ui.path: "/workflow-ui/runs"
@@ -97,13 +93,13 @@ spec:
           service:
             name: workflow-ui-service
             port:
-              number: 80
+              number: 5000
 ---
 # Project-scoped route (/project/<id>/workflow-ui/...): auth-backend authorizes
 # against the <id> and injects the Project header workflow-api and
 # kaapana-backend require, the middlewares strip both prefixes, and the app
 # derives its router base and API prefix from the document URL (see
-# src/utils/projectScope.ts).
+# getProjectBase in @kaapana/base-ui).
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -122,4 +118,4 @@ spec:
 {{- end }}
       services:
         - name: workflow-ui-service
-          port: 80
+          port: 5000

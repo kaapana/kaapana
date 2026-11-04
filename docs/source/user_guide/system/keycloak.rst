@@ -103,15 +103,6 @@ In Keycloak's LDAP settings under **User Federation**, use a connection URL with
 In the connection URL, use the host name that the server's certificate is
 issued for.
 
-Keycloak must trust the LDAP server's certificate, otherwise the connection
-fails with ``SSLHandshakeFailed``. If the certificate is issued by an internal
-certificate authority, put that CA in a PEM file and add it to the
-``kaapanactl.sh`` configuration. Several CAs can be concatenated into one file:
-
-.. code-block:: bash
-
-   KEYCLOAK_LDAP_CA_FILE="/path/to/ldap-ca.crt"
-
 .. _keycloak_admin_password:
 
 Administrative access and credentials

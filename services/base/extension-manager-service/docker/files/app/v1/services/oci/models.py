@@ -18,4 +18,4 @@ class ExtensionManifest(BaseModel):
     name: str
     version: str
     contents: list[Content]
-    dependencies: list
+    dependencies: list = []

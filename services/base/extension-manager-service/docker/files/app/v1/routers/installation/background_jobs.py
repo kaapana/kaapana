@@ -5,7 +5,7 @@ from pathlib import Path
 from uuid import UUID
 
 from sqlalchemy.exc import NoResultFound
-from v1.services import dispatch
+from v1.services import dispatch, upload
 from v1.services.database import crud, database, models
 from v1.services.database.exceptions import NotSupportedExtensionStateTransition
 from v1.services.logger import get_logger
@@ -24,6 +24,12 @@ def _reason(error: BaseException) -> str:
 
 
 async def _fetch_extension_files(db, db_extension: models.Extension) -> Path:
+    if db_extension.origin == models.ExtensionOrigin.UPLOAD:
+        extension_path = upload.extension_dir(db_extension.tag)
+        if not extension_path.is_dir():
+            raise ExtensionFilesNotFound("The uploaded files were not found. Upload the archive again.")
+        return extension_path
+
     db_repository = await crud.get_registered_repository(db, db_extension.repository_id)
     if not db_repository:
         raise ExtensionFilesNotFound("The repository of this extension was removed.")

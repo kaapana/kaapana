@@ -18,6 +18,7 @@ from .models import (
     Content,
     ContentStatus,
     Extension,
+    ExtensionOrigin,
     ExtensionStatus,
     RegisteredRepository,
 )
@@ -123,15 +124,21 @@ async def delete_registered_repository(session: AsyncSession, repository_id: UUI
 async def create_extension(
     session: AsyncSession,
     *,
-    repository_id: UUID,
+    repository_id: Optional[UUID],
     tag: str,
     manifest: dict,
+    origin: ExtensionOrigin = ExtensionOrigin.REPOSITORY,
+    uploaded_by: Optional[str] = None,
+    uploaded_filename: Optional[str] = None,
 ) -> Extension:
     ext = Extension(
         repository_id=repository_id,
         tag=tag,
         manifest=manifest,
         status=ExtensionStatus.PENDING,
+        origin=origin,
+        uploaded_by=uploaded_by,
+        uploaded_filename=uploaded_filename,
     )
     session.add(ext)
     await session.commit()
@@ -154,6 +161,7 @@ async def list_extensions(
     repository_id: Optional[UUID] = None,
     tag: Optional[str] = None,
     status: Optional[ExtensionStatus] = None,
+    origin: Optional[ExtensionOrigin] = None,
 ) -> List[Extension]:
     stmt = select(Extension).options(selectinload(Extension.contents))
     filters = []
@@ -163,6 +171,8 @@ async def list_extensions(
         filters.append(Extension.tag == tag)
     if status is not None:
         filters.append(Extension.status == status)
+    if origin is not None:
+        filters.append(Extension.origin == origin)
     if filters:
         stmt = stmt.where(and_(*filters))
     stmt = stmt.offset(skip).limit(limit)
@@ -200,6 +210,21 @@ async def update_extension(
             raise LockedExtensionException(extension_id=extension_id)
         else:
             raise e
+
+
+async def update_extension_upload(
+    session: AsyncSession,
+    extension_id: UUID,
+    uploaded_by: Optional[str],
+    uploaded_filename: Optional[str],
+) -> Extension:
+    selection = await session.execute(select(Extension).where(Extension.id == extension_id))
+    db_extension = selection.scalar_one()
+    db_extension.uploaded_by = uploaded_by
+    db_extension.uploaded_filename = uploaded_filename
+    await session.commit()
+    await session.refresh(db_extension)
+    return db_extension
 
 
 async def delete_extension(session: AsyncSession, extension_id: UUID) -> None:

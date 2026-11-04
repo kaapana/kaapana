@@ -42,10 +42,7 @@ class PutRepositoryRequest(BaseModel):
 
 class Repository(BaseModel):
     name: str = Field(..., description="The human-readable name of the registry entry.")
-    description: str = Field(
-        default="",
-        description="An optional description for the registry entry.",
-    )
+    description: str = Field(..., description="An optional description for the registry entry.")
 
     repository_url: str = Field(
         ...,

@@ -223,11 +223,11 @@ PACS configurations
    * - ``PACS_PATIENT_ISSUER_POLICY``
      - ``"archive_default"``
      - string
-     - How dcm4chee identifies a patient, see the policies below. Changing it needs a re-deploy.
+     - How dcm4chee identifies a patient, see the policies below. Set it before the first data arrives, see the warning below. Changing it needs a re-deploy.
    * - ``PACS_PATIENT_ISSUER_VALUE``
      - ``""``
      - string
-     - Issuer written by ``fixed_issuer`` and ``supplement_issuer``, required for those two. 1-64 letters, digits, space, dot, underscore or hyphen.
+     - Issuer written by ``fixed_issuer`` and ``supplement_issuer``, required for those two. 1-64 letters, digits, space, dot, underscore or hyphen. Changing it later has the same effect as changing the policy.
 
 .. list-table::
    :header-rows: 1
@@ -244,9 +244,17 @@ PACS configurations
    * - ``supplement_issuer``
      - Writes ``PACS_PATIENT_ISSUER_VALUE`` only where the sender supplied no issuer.
 
+.. warning::
+
+   Choose the policy and issuer before the first data arrives. Changing either later does not rewrite stored data,
+   so existing studies keep the issuer they were stored with. A new series for such a study then gets a different issuer,
+   and dcm4chee rejects it because the study already belongs to another patient (HTTP 409 over STOW-RS).
+   For example, after switching from ``archive_default`` to ``fixed_issuer`` or ``supplement_issuer``,
+   new series for studies received before the switch are rejected.
+   Patients that were already split are not merged either.
+
 .. note::
 
-   Changing the policy does not rewrite stored data and does not merge patients that were already split.
    An instance whose archive rules were already changed by hand, for example by an earlier nullify rule, can be reset to dcm4chee's defaults with ``services/store/dcm4chee/scripts/restore-stock-issuer-rules.sh`` before the re-deploy.
 
 Data configurations

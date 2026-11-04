@@ -68,9 +68,9 @@ extension_params:
         definition: ""
         type: string
         value: ""
-    release_name:
+    helm_release_name:
         default: kaapana-platform-chart
-        definition: Name of the helm chart for this platform
+        definition: Helm release name of the platform (admin chart)
         type: string
         value: ""
     platform_prefix:

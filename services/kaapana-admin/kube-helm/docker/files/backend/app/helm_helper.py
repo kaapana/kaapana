@@ -207,7 +207,7 @@ def check_if_extension_param_is_needed(
     """
 
     # get global values
-    exctension_values = helm_get_values("kaapana-admin-chart", "default")
+    exctension_values = helm_get_values(settings.release_name, "default")
     for key in ext_params:
         if key in exctension_values.get("global", {}):
             ext_params[key]["required"] = False

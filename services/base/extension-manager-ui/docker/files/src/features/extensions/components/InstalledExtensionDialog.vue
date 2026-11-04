@@ -7,6 +7,7 @@ import ExtensionManifestDetails from '@/shared/components/ExtensionManifestDetai
 import SourceDetailsSection, {
   type SourceDetailsRow,
 } from '@/shared/components/SourceDetailsSection.vue'
+import { extensionSourceName } from '@/features/extensions/utils'
 import StatusIndicator from '@/shared/components/StatusIndicator.vue'
 import type { InstalledExtension, Repository } from '@/shared/types/apiSchemas'
 import { plural, presentExtensionStatus, UNINSTALLABLE_STATUSES } from '@/shared/utils/status'
@@ -31,8 +32,8 @@ const canBeUninstalled = computed(() =>
   Boolean(props.extension && UNINSTALLABLE_STATUSES.includes(props.extension.status)),
 )
 const showsUninstall = computed(() => props.extension?.status !== 'uninstalled')
-const repositoryName = computed(
-  () => props.repository?.name ?? props.extension?.repository_id ?? '',
+const repositoryName = computed(() =>
+  props.extension ? extensionSourceName(props.extension, props.repository) : '',
 )
 
 const uninstallTitle = computed(() => `Uninstall "${props.extension?.manifest.name ?? ''}"?`)
@@ -43,14 +44,23 @@ const uninstallText = computed(() => {
   const what = contents.length
     ? `the ${plural(contents.length, 'item')} it installed (${contents.join(', ')})`
     : 'everything it installed'
-  return `Version ${extension.manifest.version} from ${repositoryName.value} and ${what} are removed from the platform. Workflows it provided can no longer be started.`
+  const source = extension.repository_id ? ` from ${repositoryName.value}` : ''
+  return `Version ${extension.manifest.version}${source} and ${what} are removed from the platform. Workflows it provided can no longer be started.`
 })
 
 const sourceRows = computed<SourceDetailsRow[]>(() => {
   const extension = props.extension
   if (!extension) return []
-  const rows: SourceDetailsRow[] = [{ label: 'Repository', value: repositoryName.value }]
-  if (props.repository) rows.push({ label: 'URL', value: props.repository.repository_url })
+  const rows: SourceDetailsRow[] = []
+  if (extension.origin === 'upload') {
+    rows.push({ label: 'Source', value: repositoryName.value })
+    if (extension.uploaded_filename)
+      rows.push({ label: 'File', value: extension.uploaded_filename })
+    if (extension.uploaded_by) rows.push({ label: 'Uploaded by', value: extension.uploaded_by })
+  } else {
+    rows.push({ label: 'Repository', value: repositoryName.value })
+    if (props.repository) rows.push({ label: 'URL', value: props.repository.repository_url })
+  }
   rows.push({ label: 'Tag', value: extension.tag })
   return rows
 })
@@ -58,10 +68,10 @@ const sourceRows = computed<SourceDetailsRow[]>(() => {
 const advancedSourceRows = computed<SourceDetailsRow[]>(() => {
   const extension = props.extension
   if (!extension) return []
-  return [
-    { label: 'Repository ID', value: extension.repository_id },
-    { label: 'Installation ID', value: extension.id },
-  ]
+  const rows: SourceDetailsRow[] = []
+  if (extension.repository_id) rows.push({ label: 'Repository ID', value: extension.repository_id })
+  rows.push({ label: 'Installation ID', value: extension.id })
+  return rows
 })
 </script>
 
@@ -97,6 +107,16 @@ const advancedSourceRows = computed<SourceDetailsRow[]>(() => {
       >
         Uninstall becomes available once the current operation has finished.
       </p>
+      <v-alert
+        v-if="props.extension.reason"
+        :type="status.tone === 'error' ? 'error' : 'info'"
+        variant="tonal"
+        density="compact"
+        class="mx-6 mb-3"
+        data-testid="extension-reason"
+      >
+        {{ props.extension.reason }}
+      </v-alert>
     </template>
 
     <template v-if="props.extension" #body>

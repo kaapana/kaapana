@@ -1,4 +1,4 @@
-import { httpClient } from '@kaapana/base-ui'
+import { httpClient, httpClientWithoutTimeout } from '@kaapana/base-ui'
 import { EXTENSIONS_API, asList } from '@/shared/api/extensionsApi'
 import type { InstalledExtension } from '@/shared/types/apiSchemas'
 
@@ -11,6 +11,24 @@ export async function installExtension(
   const response = await httpClient.post<InstalledExtension>(`${API_BASE}/install`, null, {
     params: { repository_id: repositoryId, tag },
   })
+  return response.data
+}
+
+export async function uploadExtension(
+  file: File,
+  onProgress: (fraction: number) => void,
+): Promise<InstalledExtension> {
+  const body = new FormData()
+  body.append('file', file)
+  const response = await httpClientWithoutTimeout.post<InstalledExtension>(
+    `${API_BASE}/upload`,
+    body,
+    {
+      onUploadProgress: (event) => {
+        if (event.total) onProgress(event.loaded / event.total)
+      },
+    },
+  )
   return response.data
 }
 

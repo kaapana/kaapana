@@ -72,10 +72,16 @@ export interface InstalledContent {
   location?: string | null
 }
 
+export type ExtensionOrigin = 'repository' | 'upload'
+
 export interface InstalledExtension {
   id: string
-  repository_id: string
+  repository_id: string | null
   tag: string
+  origin: ExtensionOrigin
+  uploaded_by: string | null
+  uploaded_filename: string | null
+  reason: string | null
   manifest: ExtensionManifest
   status: ExtensionStatus
   contents: InstalledContent[]

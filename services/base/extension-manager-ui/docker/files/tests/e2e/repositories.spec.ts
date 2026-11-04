@@ -198,7 +198,7 @@ test.describe('unsaved changes', () => {
 })
 
 test.describe('removal', () => {
-  test('states that installed extensions stop being tracked, then removes', async ({ page }) => {
+  test('states that installed extensions stay installed, then removes', async ({ page }) => {
     await openView(page, 'repositories')
     await card(page, 'kaapana-public')
       .getByRole('button', { name: 'Remove kaapana-public' })
@@ -207,7 +207,9 @@ test.describe('removal', () => {
     const confirm = dialog(page)
     await expect(confirm).toContainText('Remove repository "kaapana-public"?')
     await expect(confirm).toContainText('no longer appear in the catalog')
-    await expect(confirm).toContainText('stops tracking the 1 extension installed from it')
+    await expect(confirm).toContainText(
+      '1 extension installed from it stays installed and can still be uninstalled',
+    )
 
     const request = nextRequest(page, `${API.repositories}/${PUBLIC_REPO.id}`, 'DELETE')
     await confirmAction(page, 'Remove repository')
@@ -216,11 +218,11 @@ test.describe('removal', () => {
     await expect(cards(page)).toHaveCount(1)
   })
 
-  test('a repository without installations does not mention tracking', async ({ page }) => {
+  test('a repository without installations does not mention them', async ({ page }) => {
     await openView(page, 'repositories', { ...defaultMockData(), extensions: [] })
     await card(page, 'lab-internal').getByRole('button', { name: 'Remove lab-internal' }).click()
 
-    await expect(dialog(page)).not.toContainText('stops tracking')
+    await expect(dialog(page)).not.toContainText('installed from it')
   })
 
   test('a failed removal keeps the repository and is reported', async ({ page }) => {

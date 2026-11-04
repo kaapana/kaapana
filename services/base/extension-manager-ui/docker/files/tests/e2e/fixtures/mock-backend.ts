@@ -32,8 +32,12 @@ export interface InstalledContentMock {
 
 export interface InstalledExtensionMock {
   id: string
-  repository_id: string
+  repository_id: string | null
   tag: string
+  origin: 'repository' | 'upload'
+  uploaded_by: string | null
+  uploaded_filename: string | null
+  reason: string | null
   manifest: ManifestMock
   status: string
   contents: InstalledContentMock[]
@@ -93,6 +97,12 @@ export const TOTALSEG = manifest(
   'bbbbbbbb-0000-0000-0000-000000000002',
 )
 export const RADIOMICS = manifest('radiomics', '0.3.0', 'cccccccc-0000-0000-0000-000000000003')
+export const HELLO_UPLOAD = manifest(
+  'hello-upload',
+  '1.0.0',
+  'ffffffff-0000-0000-0000-000000000004',
+)
+export const UPLOADED_BY = 'kaapana'
 
 export function installation(
   repository: RepositoryMock,
@@ -105,6 +115,10 @@ export function installation(
     id,
     repository_id: repository.id,
     tag: `${value.id}-v${value.version}`,
+    origin: 'repository',
+    uploaded_by: null,
+    uploaded_filename: null,
+    reason: null,
     manifest: value,
     status,
     contents: value.contents.map((content) => ({
@@ -113,6 +127,21 @@ export function installation(
       status: contentStatus,
       location: null,
     })),
+  }
+}
+
+export function uploadedInstallation(
+  value: ManifestMock,
+  status: string,
+  id: string,
+  filename: string,
+): InstalledExtensionMock {
+  return {
+    ...installation(PUBLIC_REPO, value, status, id),
+    repository_id: null,
+    origin: 'upload',
+    uploaded_by: UPLOADED_BY,
+    uploaded_filename: filename,
   }
 }
 
@@ -196,7 +225,8 @@ export async function installMockBackend(
     }
     if (repository && method === 'DELETE') {
       data.repositories = data.repositories.filter((entry) => entry.id !== repository[1])
-      data.extensions = data.extensions.filter((entry) => entry.repository_id !== repository[1])
+      for (const entry of data.extensions)
+        if (entry.repository_id === repository[1]) entry.repository_id = null
       return route.fulfill({ status: 204 })
     }
 
@@ -220,6 +250,18 @@ export async function installMockBackend(
         response.manifest,
         'pending',
         `dddddddd-0000-0000-0000-${String(nextId++).padStart(12, '0')}`,
+      )
+      data.extensions.push(created)
+      return route.fulfill(json(created, 201))
+    }
+
+    if (path === '/extensions/upload' && method === 'POST') {
+      const filename = /filename="([^"]+)"/.exec(request.postData() ?? '')?.[1] ?? 'unknown.tar.gz'
+      const created = uploadedInstallation(
+        HELLO_UPLOAD,
+        'pending',
+        `dddddddd-0000-0000-0000-${String(nextId++).padStart(12, '0')}`,
+        filename,
       )
       data.extensions.push(created)
       return route.fulfill(json(created, 201))

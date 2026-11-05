@@ -1,14 +1,13 @@
+import httpx
 import base64
-import hashlib
 import json
-import logging
 import re
+import hashlib
+import logging
+from typing import Optional, List, Dict, Any, Union, Tuple, NewType
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, NewType, Optional, Tuple, Union
 from urllib.parse import urljoin
-
-import httpx
 
 SHA256Digest = NewType("SHA256Digest", str)
 """Type alias for SHA256 digest strings in format 'sha256:<hexdigest>'."""
@@ -93,7 +92,7 @@ class OCIRegistryDiscovery:
         repository: str,
         username: Optional[str] = None,
         password: Optional[str] = None,
-        timeout: Any = httpx.USE_CLIENT_DEFAULT,
+        client_options: Optional[Dict[str, Any]] = None,
     ):
         """Initialize the OCIRegistryDiscovery client.
 
@@ -102,8 +101,8 @@ class OCIRegistryDiscovery:
             repository: Repository name within the registry (e.g., 'user.name/kaapana/extensions').
             username: Optional username for basic authentication.
             password: Optional password for basic authentication.
-            timeout: Per-request timeout, seconds or an :class:`httpx.Timeout`;
-                     ``None`` waits forever, the default leaves it to httpx.
+            client_options: Options forwarded to :class:`httpx.AsyncClient`
+                (e.g. ``{"timeout": 60.0, "verify": False}``).
         """
         self.logger = logging.getLogger(__name__)
         self.registry_url = registry_url.rstrip("/")
@@ -112,12 +111,11 @@ class OCIRegistryDiscovery:
         self.password = password
         self.bearer_token: Optional[str] = None
         self.basic_auth_header = self._build_basic_auth_header()
-        self.timeout = timeout
         self._client: Optional[httpx.AsyncClient] = None
+        self._client_options: Dict[str, Any] = client_options or {}
 
     async def __aenter__(self) -> "OCIRegistryDiscovery":
-        overrides = {} if self.timeout is httpx.USE_CLIENT_DEFAULT else {"timeout": self.timeout}
-        self._client = httpx.AsyncClient(**overrides)
+        self._client = httpx.AsyncClient(**self._client_options)
         return self
 
     async def __aexit__(self, *args: Any) -> None:
@@ -137,7 +135,9 @@ class OCIRegistryDiscovery:
         return {}
 
     async def _get_bearer_token(self, www_auth: str) -> str:
-        match = re.match(r'Bearer realm="([^"]+)",service="([^"]+)"(?:,scope="([^"]+)")?', www_auth)
+        match = re.match(
+            r'Bearer realm="([^"]+)",service="([^"]+)"(?:,scope="([^"]+)")?', www_auth
+        )
         if not match:
             raise OCIError(
                 f"cannot parse WWW-Authenticate header: {www_auth!r}",
@@ -316,12 +316,7 @@ class OCIRegistryDiscovery:
         media_type = self._media_type_from_ext(Path(file_path).suffix)
         digest = await self._upload_blob(data, media_type)
         name = stored_name if stored_name is not None else file_path
-        return {
-            "digest": digest,
-            "filename": name,
-            "mediaType": media_type,
-            "size": len(data),
-        }
+        return {"digest": digest, "filename": name, "mediaType": media_type, "size": len(data)}
 
     async def create_or_update_tag(
         self,
@@ -403,7 +398,9 @@ class OCIRegistryDiscovery:
         Raises:
             OCIError: If blob not found or other HTTP error.
         """
-        resp = await self._request_with_auth_retry("GET", f"{self.registry_url}/v2/{self.repository}/blobs/{digest}")
+        resp = await self._request_with_auth_retry(
+            "GET", f"{self.registry_url}/v2/{self.repository}/blobs/{digest}"
+        )
         return resp.content
 
     async def get(self, tag: str) -> Dict[str, Any]:
@@ -438,10 +435,7 @@ class OCIRegistryDiscovery:
         try:
             return config_resp.json()
         except json.JSONDecodeError as exc:
-            raise OCIError(
-                f"config blob for {tag!r} is not valid JSON: {exc}",
-                code="MANIFEST_INVALID",
-            ) from exc
+            raise OCIError(f"config blob for {tag!r} is not valid JSON: {exc}", code="MANIFEST_INVALID") from exc
 
     async def list_tags(self) -> List[str]:
         """List all tags in the repository.
@@ -455,10 +449,14 @@ class OCIRegistryDiscovery:
                       repository as an empty list should catch
                       ``OCIError`` with ``code == "NAME_UNKNOWN"``.
         """
-        resp = await self._request_with_auth_retry("GET", f"{self.registry_url}/v2/{self.repository}/tags/list")
+        resp = await self._request_with_auth_retry(
+            "GET", f"{self.registry_url}/v2/{self.repository}/tags/list"
+        )
         return resp.json().get("tags") or []
 
-    async def get_all_metadata(self, specific_tag: Optional[str] = None) -> List[Tuple[str, Dict[str, Any]]]:
+    async def get_all_metadata(
+        self, specific_tag: Optional[str] = None
+    ) -> List[Tuple[str, Dict[str, Any]]]:
         """Get metadata for all tags or a specific tag.
 
         Args:
@@ -493,7 +491,9 @@ class OCIRegistryDiscovery:
             headers={"Accept": "application/vnd.oci.image.manifest.v1+json"},
         )
         digest = f"sha256:{hashlib.sha256(manifest_resp.content).hexdigest()}"
-        await self._request_with_auth_retry("DELETE", f"{self.registry_url}/v2/{self.repository}/manifests/{digest}")
+        await self._request_with_auth_retry(
+            "DELETE", f"{self.registry_url}/v2/{self.repository}/manifests/{digest}"
+        )
         self.logger.info(f"Deleted tag {tag}")
         return True
 
@@ -534,7 +534,9 @@ class OCIRegistryDiscovery:
             filename = file_info["filename"]
             dest = (safe_root / filename).resolve()
             if not dest.is_relative_to(safe_root):
-                raise ValueError(f"filename {filename!r} in registry metadata would escape the output directory")
+                raise ValueError(
+                    f"filename {filename!r} in registry metadata would escape the output directory"
+                )
             data = await self._download_blob(file_info["digest"])
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_bytes(data)

@@ -1,7 +1,7 @@
+import json
+import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-import httpx
-import pytest
 from kaapana_containers.registries.registry import OCIError, OCIRegistryDiscovery
 
 
@@ -30,7 +30,6 @@ def _mock_response(status_code: int, body: dict | None = None, text: str = "") -
 # OCIError
 # ---------------------------------------------------------------------------
 
-
 class TestOCIError:
     def test_str_with_code(self):
         assert str(OCIError("not found", code="NAME_UNKNOWN")) == "NAME_UNKNOWN: not found"
@@ -50,15 +49,7 @@ class TestOCIError:
     def test_from_response_with_detail(self):
         resp = _mock_response(
             401,
-            body={
-                "errors": [
-                    {
-                        "code": "UNAUTHORIZED",
-                        "message": "auth required",
-                        "detail": "token expired",
-                    }
-                ]
-            },
+            body={"errors": [{"code": "UNAUTHORIZED", "message": "auth required", "detail": "token expired"}]},
         )
         err = OCIError.from_response(resp)
         assert err.code == "UNAUTHORIZED"
@@ -80,14 +71,15 @@ class TestOCIError:
 # check_login
 # ---------------------------------------------------------------------------
 
-
 class TestCheckLogin:
     async def test_success_returns_true(self, client):
         client._request_with_auth_retry.return_value = _mock_response(200)
         assert await client.check_login() is True
 
     async def test_unauthorized_raises(self, client):
-        client._request_with_auth_retry.side_effect = OCIError("auth required", code="UNAUTHORIZED")
+        client._request_with_auth_retry.side_effect = OCIError(
+            "auth required", code="UNAUTHORIZED"
+        )
         with pytest.raises(OCIError) as exc_info:
             await client.check_login()
         assert exc_info.value.code == "UNAUTHORIZED"
@@ -103,38 +95,60 @@ class TestCheckLogin:
 # list_tags
 # ---------------------------------------------------------------------------
 
-
 class TestListTags:
     async def test_returns_tag_list(self, client):
-        client._request_with_auth_retry.return_value = _mock_response(200, body={"tags": ["v1.0.0", "v2.0.0"]})
+        client._request_with_auth_retry.return_value = _mock_response(
+            200, body={"tags": ["v1.0.0", "v2.0.0"]}
+        )
         assert await client.list_tags() == ["v1.0.0", "v2.0.0"]
 
     async def test_empty_repository_returns_empty_list(self, client):
-        client._request_with_auth_retry.return_value = _mock_response(200, body={"tags": None})
+        client._request_with_auth_retry.return_value = _mock_response(
+            200, body={"tags": None}
+        )
         assert await client.list_tags() == []
 
     async def test_name_unknown_propagates(self, client):
-        client._request_with_auth_retry.side_effect = OCIError("repository not found", code="NAME_UNKNOWN")
+        client._request_with_auth_retry.side_effect = OCIError(
+            "repository not found", code="NAME_UNKNOWN"
+        )
         with pytest.raises(OCIError) as exc_info:
             await client.list_tags()
         assert exc_info.value.code == "NAME_UNKNOWN"
 
     async def test_other_oci_error_propagates(self, client):
-        client._request_with_auth_retry.side_effect = OCIError("server error", code="INTERNAL_ERROR")
+        client._request_with_auth_retry.side_effect = OCIError(
+            "server error", code="INTERNAL_ERROR"
+        )
         with pytest.raises(OCIError, match="server error"):
             await client.list_tags()
 
 
 # ---------------------------------------------------------------------------
-# client configuration
+# client_options
 # ---------------------------------------------------------------------------
 
+class TestClientOptions:
+    async def test_default_options_are_retained(self, client):
+        async with client:
+            assert client._client is not None
+            assert client._client.timeout.read == 5.0
+            assert client._client.timeout.write == 5.0
+            assert client._client.timeout.connect == 5.0
+            assert client._client.timeout.pool == 5.0
 
-class TestClientConfiguration:
-    async def test_timeout_defaults_to_httpx(self):
-        async with OCIRegistryDiscovery("https://registry.example.com", "user/repo") as client:
-            assert client._client.timeout == httpx.AsyncClient().timeout
 
-    async def test_timeout_is_configurable(self):
-        async with OCIRegistryDiscovery("https://registry.example.com", "user/repo", timeout=1.5) as client:
-            assert client._client.timeout.read == 1.5
+
+    async def test_options_forwarded_to_httpx_client(self):
+        client = OCIRegistryDiscovery(
+            "https://registry.example.com",
+            "user/repo",
+            client_options={"timeout": 60.0},
+        )
+
+        async with client:
+            assert client._client is not None
+            assert client._client.timeout.read == 60.0
+            assert client._client.timeout.write == 60.0
+            assert client._client.timeout.connect == 60.0
+            assert client._client.timeout.pool == 60.0

@@ -7,7 +7,6 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
-from kaapanapy.logger import get_logger
 
 logger = get_logger(__name__, logging.DEBUG)
 

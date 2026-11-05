@@ -47,9 +47,7 @@ def _oci_error(url, err):
     try:
         errors = json.loads(err.read().decode()).get("errors") or []
         if errors:
-            detail = f"{errors[0].get('code', detail)}: {errors[0].get('message', '')}".strip(
-                ": "
-            )
+            detail = f"{errors[0].get('code', detail)}: {errors[0].get('message', '')}".strip(": ")
     except (ValueError, OSError):
         pass
     return SystemExit(f"Registry request failed ({url}): {detail}")
@@ -68,9 +66,7 @@ class _StripAuthOnRedirect(urllib.request.HTTPRedirectHandler):
 class _OCIPull:
     """Read-only OCI registry client: enough of the protocol to fetch a tag's files."""
 
-    def __init__(
-        self, registry_url, repository, username=None, password=None, ssl_context=None
-    ):
+    def __init__(self, registry_url, repository, username=None, password=None, ssl_context=None):
         self.registry_url = registry_url.rstrip("/")
         self.repository = repository
         self.username = username
@@ -108,9 +104,7 @@ class _OCIPull:
             raise SystemExit(f"Cannot reach {url}: {err.reason}") from err
 
     def _get_bearer_token(self, www_auth):
-        match = re.match(
-            r'Bearer realm="([^"]+)",service="([^"]+)"(?:,scope="([^"]+)")?', www_auth
-        )
+        match = re.match(r'Bearer realm="([^"]+)",service="([^"]+)"(?:,scope="([^"]+)")?', www_auth)
         if not match:
             raise SystemExit(f"Cannot parse WWW-Authenticate header: {www_auth!r}")
         realm, service, scope = match.groups()
@@ -126,13 +120,9 @@ class _OCIPull:
             with self._opener.open(req) as resp:
                 token = json.loads(resp.read().decode()).get("token")
         except urllib.error.HTTPError as err:
-            raise SystemExit(
-                f"Token endpoint {realm} returned HTTP {err.code}"
-            ) from err
+            raise SystemExit(f"Token endpoint {realm} returned HTTP {err.code}") from err
         except urllib.error.URLError as err:
-            raise SystemExit(
-                f"Cannot reach token endpoint {realm}: {err.reason}"
-            ) from err
+            raise SystemExit(f"Cannot reach token endpoint {realm}: {err.reason}") from err
         if not token:
             raise SystemExit(f"Token endpoint {realm} did not return a token")
         return token
@@ -154,23 +144,15 @@ class _OCIPull:
         """Return the metadata stored in the tag's config blob."""
         url = f"{self.registry_url}/v2/{self.repository}/manifests/{tag}"
         try:
-            config_digest = json.loads(
-                self._request_with_auth_retry(url, MANIFEST_MEDIA_TYPE)
-            )["config"]["digest"]
+            config_digest = json.loads(self._request_with_auth_retry(url, MANIFEST_MEDIA_TYPE))["config"]["digest"]
         except (ValueError, KeyError) as exc:
-            raise SystemExit(
-                f"Cannot parse manifest for {self.repository}:{tag}: {exc}"
-            ) from exc
+            raise SystemExit(f"Cannot parse manifest for {self.repository}:{tag}: {exc}") from exc
 
-        blob = self._request_with_auth_retry(
-            f"{self.registry_url}/v2/{self.repository}/blobs/{config_digest}"
-        )
+        blob = self._request_with_auth_retry(f"{self.registry_url}/v2/{self.repository}/blobs/{config_digest}")
         try:
             return json.loads(blob)
         except ValueError as exc:
-            raise SystemExit(
-                f"Config blob for {self.repository}:{tag} is not valid JSON: {exc}"
-            ) from exc
+            raise SystemExit(f"Config blob for {self.repository}:{tag} is not valid JSON: {exc}") from exc
 
     def download_files(self, tag, output_dir):
         metadata = self.get(tag)
@@ -184,12 +166,8 @@ class _OCIPull:
             filename = file_info["filename"]
             dest = (safe_root / filename).resolve()
             if not dest.is_relative_to(safe_root):
-                raise SystemExit(
-                    f"Refusing filename from registry metadata: {filename!r}"
-                )
-            blob_url = (
-                f"{self.registry_url}/v2/{self.repository}/blobs/{file_info['digest']}"
-            )
+                raise SystemExit(f"Refusing filename from registry metadata: {filename!r}")
+            blob_url = f"{self.registry_url}/v2/{self.repository}/blobs/{file_info['digest']}"
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_bytes(self._request_with_auth_retry(blob_url))
 

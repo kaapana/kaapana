@@ -430,9 +430,7 @@ class OfflineInstallerHelper:
                         "kaapana_version": version,
                         "built_at": datetime.now(timezone.utc).isoformat(),
                     },
-                    files=[
-                        tarball.name
-                    ],  # basename only: the puller writes it into its target dir
+                    files=[tarball.name],  # basename only: the puller writes it into its target dir
                     base_dir=str(tarball.parent),
                 )
 

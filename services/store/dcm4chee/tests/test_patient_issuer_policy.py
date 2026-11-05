@@ -38,16 +38,28 @@ def chart(tmp_path_factory):
 
 def render(chart, policy="archive_default", value="", instance=""):
     values = chart.parent / "values.json"
-    values.write_text(json.dumps({"global": {
-        "hostname": "kaapana.example.org", "https_port": 443, "http_proxy": "",
-        "services_namespace": "services", "registry_url": "registry.example.org",
-        "kaapana_build_version": "0.0.0-test", "pull_policy_images": "IfNotPresent",
-        "storage_node": "node-1", "pacs_memory_limit": "4Gi", "pacs_memory_request": "1Gi",
-        "pacs_patient_issuer_policy": policy, "pacs_patient_issuer_value": value,
-        "instance_name": instance,
-    }}))
-    return subprocess.run(["helm", "template", "test", str(chart), "-f", str(values)],
-                          capture_output=True, text=True)
+    values.write_text(
+        json.dumps(
+            {
+                "global": {
+                    "hostname": "kaapana.example.org",
+                    "https_port": 443,
+                    "http_proxy": "",
+                    "services_namespace": "services",
+                    "registry_url": "registry.example.org",
+                    "kaapana_build_version": "0.0.0-test",
+                    "pull_policy_images": "IfNotPresent",
+                    "storage_node": "node-1",
+                    "pacs_memory_limit": "4Gi",
+                    "pacs_memory_request": "1Gi",
+                    "pacs_patient_issuer_policy": policy,
+                    "pacs_patient_issuer_value": value,
+                    "instance_name": instance,
+                }
+            }
+        )
+    )
+    return subprocess.run(["helm", "template", "test", str(chart), "-f", str(values)], capture_output=True, text=True)
 
 
 def rendered(chart, **kwargs):
@@ -61,15 +73,18 @@ def rendered(chart, **kwargs):
 
 def records(ldif):
     """The LDIF as a list of records, each a list of non-comment lines."""
-    return [[l for l in block.splitlines() if l and not l.startswith("#")]
-            for block in ldif.split("\n\n") if block.strip()]
+    return [
+        [l for l in block.splitlines() if l and not l.startswith("#")] for block in ldif.split("\n\n") if block.strip()
+    ]
 
 
 @pytest.mark.parametrize("policy", POLICIES)
 def test_every_policy_first_removes_the_previous_rule(chart, policy):
     data, _ = rendered(chart, policy=policy, value="UKHD")
     assert records(data["patient-issuer-policy.ldif"])[0] == ["version: 1", f"dn: {RULE_DN}", "changetype: delete"]
-    assert "KaapanaPatientIssuerPolicy" not in data["dcm4che-iid.ldif"], "the ldap container must never import the policy"
+    assert "KaapanaPatientIssuerPolicy" not in data["dcm4che-iid.ldif"], (
+        "the ldap container must never import the policy"
+    )
 
 
 def test_archive_default_installs_no_rule(chart):
@@ -77,38 +92,61 @@ def test_archive_default_installs_no_rule(chart):
     assert len(records(data["patient-issuer-policy.ldif"])) == 1
 
 
-@pytest.mark.parametrize("policy, expected", [
-    ("patient_id_only", {"dcmMergeAttribute: IssuerOfPatientID=", "dcmMergeAttribute: IssuerOfPatientIDQualifiersSequence="}),
-    ("fixed_issuer", {"dcmMergeAttribute: IssuerOfPatientID=UKHD", "dcmMergeAttribute: IssuerOfPatientIDQualifiersSequence="}),
-    ("supplement_issuer", {"dcmProperty: IssuerOfPatientID=", "dcmMergeAttribute: IssuerOfPatientID=UKHD",
-                           "dcmMergeAttribute: IssuerOfPatientIDQualifiersSequence="}),
-])
+@pytest.mark.parametrize(
+    "policy, expected",
+    [
+        (
+            "patient_id_only",
+            {"dcmMergeAttribute: IssuerOfPatientID=", "dcmMergeAttribute: IssuerOfPatientIDQualifiersSequence="},
+        ),
+        (
+            "fixed_issuer",
+            {"dcmMergeAttribute: IssuerOfPatientID=UKHD", "dcmMergeAttribute: IssuerOfPatientIDQualifiersSequence="},
+        ),
+        (
+            "supplement_issuer",
+            {
+                "dcmProperty: IssuerOfPatientID=",
+                "dcmMergeAttribute: IssuerOfPatientID=UKHD",
+                "dcmMergeAttribute: IssuerOfPatientIDQualifiersSequence=",
+            },
+        ),
+    ],
+)
 def test_the_rule_coerces_what_the_policy_says(chart, policy, expected):
     data, _ = rendered(chart, policy=policy, value="UKHD")
     _, add = records(data["patient-issuer-policy.ldif"])
     assert add[0] == f"dn: {RULE_DN}"
-    for line in ("objectClass: dcmArchiveAttributeCoercion2", "dcmDIMSE: C_STORE_RQ",
-                 "dicomTransferRole: SCU", "dcmRulePriority: -1", "dcmURI: merge-attrs:"):
+    for line in (
+        "objectClass: dcmArchiveAttributeCoercion2",
+        "dcmDIMSE: C_STORE_RQ",
+        "dicomTransferRole: SCU",
+        "dcmRulePriority: -1",
+        "dcmURI: merge-attrs:",
+    ):
         assert line in add
     assert {l for l in add if l.startswith(("dcmMergeAttribute:", "dcmProperty:"))} == expected
 
 
-@pytest.mark.parametrize("kwargs, message", [
-    # not one of the four policies
-    (dict(policy="nullify"), "Unknown pacs_patient_issuer_policy"),
-    # issuer is mandatory for fixed_issuer
-    (dict(policy="fixed_issuer"), "pacs_patient_issuer_value"),
-    # ... and for supplement_issuer, instance_name is no fallback
-    (dict(policy="supplement_issuer", instance="my-site.example.org"), "pacs_patient_issuer_value"),
-    # only the plain issuer name is allowed, not the HL7 "name&OID&ISO" form
-    (dict(policy="fixed_issuer", value="UKHD&1.2.40&ISO"), "pacs_patient_issuer_value"),
-    # dcm4chee would expand {PatientName} per image, the issuer must be a fixed string
-    (dict(policy="fixed_issuer", value="{PatientName}"), "pacs_patient_issuer_value"),
-    # leading/trailing space would make a different patient identity
-    (dict(policy="fixed_issuer", value=" UKHD"), "pacs_patient_issuer_value"),
-    # backslash needs escaping in LDIF and MessageFormat
-    (dict(policy="supplement_issuer", value="site\\x"), "pacs_patient_issuer_value"),
-])
+@pytest.mark.parametrize(
+    "kwargs, message",
+    [
+        # not one of the four policies
+        (dict(policy="nullify"), "Unknown pacs_patient_issuer_policy"),
+        # issuer is mandatory for fixed_issuer
+        (dict(policy="fixed_issuer"), "pacs_patient_issuer_value"),
+        # ... and for supplement_issuer, instance_name is no fallback
+        (dict(policy="supplement_issuer", instance="my-site.example.org"), "pacs_patient_issuer_value"),
+        # only the plain issuer name is allowed, not the HL7 "name&OID&ISO" form
+        (dict(policy="fixed_issuer", value="UKHD&1.2.40&ISO"), "pacs_patient_issuer_value"),
+        # dcm4chee would expand {PatientName} per image, the issuer must be a fixed string
+        (dict(policy="fixed_issuer", value="{PatientName}"), "pacs_patient_issuer_value"),
+        # leading/trailing space would make a different patient identity
+        (dict(policy="fixed_issuer", value=" UKHD"), "pacs_patient_issuer_value"),
+        # backslash needs escaping in LDIF and MessageFormat
+        (dict(policy="supplement_issuer", value="site\\x"), "pacs_patient_issuer_value"),
+    ],
+)
 def test_bad_settings_fail_the_render(chart, kwargs, message):
     result = render(chart, **kwargs)
     assert result.returncode != 0 and message in result.stderr
@@ -134,6 +172,7 @@ def test_the_rendered_ldif_parses(chart, policy, tmp_path):
     for key, ldif in data.items():
         f = tmp_path / key
         f.write_text(ldif)
-        parsed = subprocess.run(["ldapmodify", "-n", "-a", "-c", "-f", str(f), "-H", "ldap://127.0.0.1:1"],
-                                capture_output=True, text=True)
+        parsed = subprocess.run(
+            ["ldapmodify", "-n", "-a", "-c", "-f", str(f), "-H", "ldap://127.0.0.1:1"], capture_output=True, text=True
+        )
         assert parsed.returncode == 0, f"{key}: {parsed.stdout}{parsed.stderr}"

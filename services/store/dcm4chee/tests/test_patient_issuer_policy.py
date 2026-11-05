@@ -74,7 +74,9 @@ def rendered(chart, **kwargs):
 def records(ldif):
     """The LDIF as a list of records, each a list of non-comment lines."""
     return [
-        [l for l in block.splitlines() if l and not l.startswith("#")] for block in ldif.split("\n\n") if block.strip()
+        [line for line in block.splitlines() if line and not line.startswith("#")]
+        for block in ldif.split("\n\n")
+        if block.strip()
     ]
 
 
@@ -125,7 +127,7 @@ def test_the_rule_coerces_what_the_policy_says(chart, policy, expected):
         "dcmURI: merge-attrs:",
     ):
         assert line in add
-    assert {l for l in add if l.startswith(("dcmMergeAttribute:", "dcmProperty:"))} == expected
+    assert {entry for entry in add if entry.startswith(("dcmMergeAttribute:", "dcmProperty:"))} == expected
 
 
 @pytest.mark.parametrize(

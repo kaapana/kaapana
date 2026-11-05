@@ -3,29 +3,52 @@
     allow-multiple="true"
     credits="false"
     :label-idle="labelIdle"
+    :disabled="disabled"
     label-tap-to-undo="Remove from list"
-    :accepted-file-types="acceptedFileTypes"
+    @addfile="(error: unknown, file: FilePondFile) => !error && track(file, true)"
+    @processfilestart="(file: FilePondFile) => track(file, true)"
+    @processfile="(_error: unknown, file: FilePondFile) => track(file, false)"
+    @processfileabort="(file: FilePondFile) => track(file, false)"
+    @removefile="(_error: unknown, file: FilePondFile) => track(file, false)"
   />
 </template>
 
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import vueFilePond, { setOptions } from 'vue-filepond'
-import FilePondPluginFileValidateType from 'filepond-plugin-file-validate-type'
+import type { FilePondFile } from 'filepond'
 import 'filepond/dist/filepond.min.css'
 import { getProjectBase } from '@kaapana/base-ui'
+import { UPLOAD_URL } from '@/api/config'
 
-const props = withDefaults(defineProps<{
+// FilePond provides relativePath at runtime, but its type definitions omit it.
+type UploadFile = FilePondFile & { relativePath?: string }
+
+defineProps<{
   labelIdle?: string
-  acceptedFileTypes?: string[]
-  onProcessFileStart?: (file: any) => void
-  onProcessFile?: (error: any, file: any) => void
-  url?: string
-}>(), {
-  url: '/kaapana-backend/client/file',
-})
+  disabled?: boolean
+}>()
 
-const FilePond = vueFilePond(FilePondPluginFileValidateType)
+const emit = defineEmits<{
+  uploading: [active: boolean]
+}>()
+
+// Files that are queued or still uploading. A reload of the page would abort them.
+const activeFiles = new Set<string>()
+
+function track(file: FilePondFile, active: boolean) {
+  const wasUploading = activeFiles.size > 0
+  if (active) {
+    activeFiles.add(file.id)
+  } else {
+    activeFiles.delete(file.id)
+  }
+  if (wasUploading !== activeFiles.size > 0) {
+    emit('uploading', activeFiles.size > 0)
+  }
+}
+
+const FilePond = vueFilePond()
 
 onMounted(() => {
   // filepond bypasses httpClient, so apply the /project/<short_id> document
@@ -35,28 +58,88 @@ onMounted(() => {
     chunkUploads: true,
     chunkForce: true,
     chunkSize: 1024 * 1024 * 1,
-    beforeAddFile: (file: any) => {
-      let filepath = ''
-      if (file.relativePath == '') {
-        filepath = file.filename
-      } else {
-        filepath = file.relativePath
-      }
-      file.setMetadata('filepath', filepath)
-    },
-    onprocessfilestart: (file: any) => {
-      if (typeof props.onProcessFileStart == 'function') {
-        props.onProcessFileStart(file)
-      }
-    },
-    onprocessfile: (error: any, file: any) => {
-      if (typeof props.onProcessFile == 'function') {
-        props.onProcessFile(error, file)
-      }
+    beforeAddFile: (file: UploadFile) => {
+      file.setMetadata('filepath', file.relativePath || file.filename)
+      return true
     },
     server: {
-      url: `${base}${props.url}`,
+      url: `${base}${UPLOAD_URL}`,
     },
-  } as any)
+  })
 })
 </script>
+
+<style scoped>
+/* FilePond ships its own light palette; its surfaces are mapped onto the
+   theme roles so the drop zone follows dark mode. */
+:deep(.filepond--root) {
+  font-family: inherit;
+  margin-bottom: 0;
+}
+
+:deep(.filepond--panel-root) {
+  background-color: rgb(var(--v-theme-surface-light));
+  border: 1px dashed rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 8px;
+}
+
+:deep(.filepond--drop-label),
+:deep(.filepond--drop-label label) {
+  color: rgb(var(--v-theme-on-surface));
+  font-size: inherit;
+}
+
+/* Colour and weight mark the action, so it needs no underline. */
+:deep(.filepond--label-action) {
+  color: rgb(var(--v-theme-primary));
+  font-weight: 500;
+  text-decoration: none;
+}
+
+/* A click anywhere in the drop area opens the file chooser, so the area shows
+   that it is clickable. Keyboard focus gets the same highlight as the pointer. */
+:deep(.filepond--drop-label),
+:deep(.filepond--drop-label label) {
+  cursor: pointer;
+}
+
+:deep(.filepond--root:has(.filepond--drop-label:hover) .filepond--panel-root),
+:deep(.filepond--root:has(.filepond--browser:focus-visible) .filepond--panel-root) {
+  border-color: rgb(var(--v-theme-primary));
+  /* FilePond fills the seams between its panel parts with an inherited
+     background colour, so the tint must be part of that colour. */
+  background-color: color-mix(
+    in srgb,
+    rgb(var(--v-theme-on-surface)) calc(var(--v-hover-opacity) * 100%),
+    rgb(var(--v-theme-surface-light))
+  );
+}
+
+:deep(.filepond--item-panel) {
+  background-color: rgb(var(--v-theme-surface-variant));
+}
+
+:deep(.filepond--file) {
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+/* The rules above also cover finished and failed files. Their colour carries
+   meaning, so it maps to the success and error roles of the theme. */
+:deep([data-filepond-item-state='processing-complete'] .filepond--item-panel) {
+  background-color: rgb(var(--v-theme-success));
+}
+
+:deep([data-filepond-item-state='processing-complete'] .filepond--file) {
+  color: rgb(var(--v-theme-on-success));
+}
+
+:deep([data-filepond-item-state*='error'] .filepond--item-panel),
+:deep([data-filepond-item-state*='invalid'] .filepond--item-panel) {
+  background-color: rgb(var(--v-theme-error));
+}
+
+:deep([data-filepond-item-state*='error'] .filepond--file),
+:deep([data-filepond-item-state*='invalid'] .filepond--file) {
+  color: rgb(var(--v-theme-on-error));
+}
+</style>

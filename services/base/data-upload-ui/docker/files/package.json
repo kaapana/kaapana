@@ -22,7 +22,6 @@
     "@mdi/font": "^7.4.47",
     "axios": "^1.12.2",
     "filepond": "4.32.1",
-    "filepond-plugin-file-validate-type": "1.2.9",
     "pinia": "^2.2.6",
     "vue": "^3.5.18",
     "vue-filepond": "^8.0.0",

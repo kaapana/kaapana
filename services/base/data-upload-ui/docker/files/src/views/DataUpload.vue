@@ -1,173 +1,272 @@
 <template>
-  <div class="dropzone">
-    <v-container fluid class="text-left">
-      <h1>Data upload</h1>
-      <v-alert v-if="selectedProject && selectedProject.is_archived" type="warning" prominent class="mb-4" icon="mdi-archive">
-        This project is archived and is read-only. Data upload is disabled.
-        Unarchive the project to enable uploads again.
-      </v-alert>
-      <v-row dense>
-        <v-col cols="12">
-          <v-card>
-            <v-card-title class="text-h5">
-              Option 1 (preferred): Using the DICOM receiver port.
-            </v-card-title>
-            <v-card-text>
-              If you have images locally you can use e.g. DCMTK. However, any tool that
-              sends images to a DICOM receiver can be used. Here is an example of sending
-              images with DCMTK:
-              <br />
-              <br />
-              <code>
-                dcmsend -v {{ hostname }} 11112 --scan-directories --aetitle
-                kp-{{ "<" }}dataset-name{{ ">" }} --call
-                kp-{{ selectedProject.short_id }} --scan-pattern '*.dcm' --recurse
-                {{ "<" }}data-dir-of-DICOM-images{{ ">" }}
-              </code>
-            </v-card-text>
-          </v-card>
-        </v-col>
-        <v-col cols="12">
-          <v-card :disabled="selectedProject && selectedProject.is_archived">
-            <v-card-title class="text-h5">
-              Option 2: Upload the data via the browser(experimental).
-            </v-card-title>
-            <v-card-text>
-              <v-icon class="my-2" size="large">mdi-numeric-1-circle</v-icon>&nbsp; Make sure
-              your data is correctly formatted for the upload.
-              <v-btn color="primary" icon variant="text" @click.stop="infoDialog = true">
-                <v-icon color="primary"> mdi-information </v-icon>
-              </v-btn>
-              <br />
+  <v-container fluid max-width="1200" class="text-left">
+    <h1 class="text-h4 mb-4">Data upload</h1>
+    <v-alert v-if="projectLoadError" type="error" variant="tonal" class="mb-4">
+      {{ projectLoadErrorText }}
+      <template #append>
+        <v-btn
+          variant="text"
+          :prepend-icon="kaapanaIcons.refresh"
+          :loading="retryingProjectLoad"
+          @click="retryProjectLoad"
+        >
+          Try again
+        </v-btn>
+        <v-btn variant="text" @click="projectLoadDetails = true">Details</v-btn>
+      </template>
+    </v-alert>
+    <ErrorDetailsDialog
+      v-model="projectLoadDetails"
+      title="Could not load the project"
+      :text="projectLoadErrorText"
+      :error="projectLoadError ? apiErrorInfo(projectLoadError) : null"
+    />
+    <v-alert v-if="isArchived" type="warning" prominent class="mb-4" :icon="kaapanaIcons.archive">
+      This project is archived and is read-only. Data upload is disabled. Unarchive the project to
+      enable uploads again.
+    </v-alert>
+    <v-row dense>
+      <v-col cols="12">
+        <v-card>
+          <v-card-title tag="h2" class="text-h5">
+            Option 1 (preferred): Using the DICOM receiver port
+          </v-card-title>
+          <v-card-text>
+            <p class="mb-4">
+              If you have images locally you can use e.g. DCMTK. However, any tool that sends images
+              to a DICOM receiver can be used. Here is an example of sending images with DCMTK:
+            </p>
+            <div class="d-flex align-center ga-2 bg-surface-light rounded pa-3">
+              <!-- The command scrolls sideways, so the keyboard must be able to reach it. -->
+              <code class="flex-grow-1 text-pre overflow-x-auto" tabindex="0">{{
+                dcmsendCommand
+              }}</code>
+              <v-tooltip text="Copy command" location="top">
+                <template #activator="{ props: tooltipProps }">
+                  <v-btn
+                    v-bind="tooltipProps"
+                    :icon="commandCopied ? kaapanaIcons.success : kaapanaIcons.copy"
+                    :color="commandCopied ? 'success' : undefined"
+                    variant="text"
+                    size="small"
+                    aria-label="Copy command"
+                    @click="copyCommand"
+                  />
+                </template>
+              </v-tooltip>
+              <!-- Screen readers do not announce the change of the icon. -->
+              <span class="d-sr-only" aria-live="polite">
+                {{ commandCopied ? 'Command copied' : '' }}
+              </span>
+            </div>
+            <div class="mt-2 text-caption text-medium-emphasis">
+              <p class="mb-1">
+                11112 is the default port of the DICOM receiver. Your administrator may have
+                configured a different port for this platform.
+              </p>
+              <p>
+                Replace {{ '<' }}dataset-name{{ '>' }} with the dataset that should receive the
+                images. DICOM AE titles have at most 16 characters, so the dataset name can have at
+                most 13 characters after the kp- prefix.
+              </p>
+            </div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+      <v-col cols="12">
+        <v-card :disabled="isArchived">
+          <v-card-title tag="h2" class="text-h5">
+            Option 2: Upload the data via the browser (experimental)
+          </v-card-title>
+          <v-card-text>
+            <ol class="upload-steps">
+              <li class="d-flex align-center ga-3 mb-4">
+                <v-icon size="large">mdi-numeric-1-circle</v-icon>
+                <div class="d-flex align-center flex-grow-1">
+                  Make sure your data is correctly formatted for the upload.
+                  <!-- Opening through the activator lets Vuetify return focus to the button. -->
+                  <v-dialog v-model="infoDialog" max-width="600">
+                    <template #activator="{ props: activatorProps }">
+                      <v-btn
+                        v-bind="activatorProps"
+                        color="primary"
+                        icon
+                        variant="text"
+                        aria-label="How should the uploaded data look?"
+                      >
+                        <v-icon color="primary">{{ kaapanaIcons.info }}</v-icon>
+                      </v-btn>
+                    </template>
+                    <v-card>
+                      <v-card-title tag="h2" class="text-h5">
+                        How should the uploaded data look?
+                      </v-card-title>
+                      <v-card-text>
+                        <h3 class="text-h6 mb-2">Upload DICOM data</h3>
+                        <p class="mb-4">
+                          DICOM data should be uploaded in a single compressed zip file containing
+                          folder(s) with DICOM files.
+                        </p>
+                        <h3 class="text-h6 mb-2">Upload NIfTI data</h3>
+                        <p class="mb-2">
+                          Since the platform works with the DICOM standard, NIfTI data is converted
+                          to DICOM by triggering the workflow
+                          <code>import-niftis-from-data-upload</code>. If you have only NIfTI files
+                          without segmentations, the files with file endings <code>.nii.gz</code> or
+                          <code>.nii</code> can be uploaded in a compressed zip file.
+                        </p>
+                        <p>
+                          For NIfTI data, Kaapana supports multiple ways to specify metadata for
+                          volumes and segmentations. Depending on the use case, the data has to be
+                          formatted in one of the directory structures described in the
+                          <a
+                            href="/docs/user_guide/workflow_management_system/data_upload.html#nifti-data"
+                            target="_blank"
+                            >Kaapana documentation</a
+                          >.
+                        </p>
+                      </v-card-text>
 
-              <v-dialog v-model="infoDialog" width="60vw">
-                <v-card>
-                  <v-card-title class="text-h5">
-                    How should the uploaded data look like?
-                  </v-card-title>
-                  <v-card-text>
-                    <h3>Upload of DICOM data</h3>
-                    <p>
-                      DICOM data should be uploaded in a single compressed zip-file
-                      containing folder(s) with DICOM files.
-                    </p>
-                    <h3>Upload NIfTI data</h3>
-                    <p>
-                      Since the platform works with the DICOM standard, NIfTI data is
-                      converted to DICOMs by triggering the workflow
-                      `convert-nifitis-to-dicoms-and-import-to-pacs`. If you have only
-                      NIfTI files without segmentations, the files with file endings
-                      `.nii.gz` or `.nii` can be uploaded in a compressed zip-file.
-                    </p>
-                    <p>
-                      For NIfTI data kaapana supports multiple ways to specify metadata
-                      for volumes and segmentations. Depending on the use case the data
-                      has to be formated in one of the directory structures described in
-                      the
-                      <a href="https://kaapana.readthedocs.io/en/stable/user_guide/workflows.html#import-uploaded-nifti-files"
-                        target="_blank">Kaapana documentation</a>.
-                    </p>
-                  </v-card-text>
-
-                  <v-card-actions>
-                    <v-spacer></v-spacer>
-                    <v-btn color="primary" @click="() => (infoDialog = false)">
-                      Got it!
-                    </v-btn>
-                  </v-card-actions>
-                </v-card>
-              </v-dialog>
-
-              <v-icon class="my-2" size="large">mdi-numeric-2-circle</v-icon>&nbsp; Upload
-              DICOMS, NIfTIs or any data you want to use in a workflow as a zip file via
-              the dropzone.
-              <Upload label-idle="Dicoms, ITK images or any other data" :on-process-file="fileComplete"></Upload>
-              <br />
-              <v-icon size="large">mdi-numeric-3-circle</v-icon>&nbsp;
-              <v-btn color="primary" @click="() => (workflowDialog = true)">
-                Import the data
-                <v-icon>mdi-play-outline</v-icon>
-              </v-btn>
-            </v-card-text>
-          </v-card>
-        </v-col>
-
-        <v-dialog v-model="workflowDialog" width="500">
-          <v-defaults-provider :defaults="underlinedFieldDefaults">
-            <WorkflowExecution :key="componentKey" :onlyLocal="true" kind_of_dags="import" :isDialog="true"
-              @successful="() => (workflowDialog = false)" @cancel="() => (workflowDialog = false)" />
-          </v-defaults-provider>
-        </v-dialog>
-      </v-row>
-    </v-container>
-  </div>
+                      <v-card-actions>
+                        <v-spacer></v-spacer>
+                        <v-btn color="primary" @click="() => (infoDialog = false)"> Got it! </v-btn>
+                      </v-card-actions>
+                    </v-card>
+                  </v-dialog>
+                </div>
+              </li>
+              <li class="d-flex ga-3 mb-4">
+                <v-icon size="large">mdi-numeric-2-circle</v-icon>
+                <div class="flex-grow-1">
+                  <p class="mb-2">
+                    Upload DICOM data, NIfTI data or any other data you want to use in a workflow as
+                    a zip file via the drop zone.
+                  </p>
+                  <Upload
+                    label-idle="Drop DICOM, NIfTI or other data here or <span class='filepond--label-action'>browse</span>"
+                    :disabled="isArchived"
+                    @uploading="postViewDirty"
+                  ></Upload>
+                </div>
+              </li>
+              <li class="d-flex align-center ga-3">
+                <v-icon size="large">mdi-numeric-3-circle</v-icon>
+                <div class="flex-grow-1">
+                  <!-- The dialog unmounts its content when it closes, so every opening loads
+                       the current list of uploaded files. A forced remount would discard the
+                       user's input. -->
+                  <v-dialog v-model="workflowDialog" max-width="600">
+                    <template #activator="{ props: activatorProps }">
+                      <v-btn v-bind="activatorProps" color="primary" :disabled="isArchived">
+                        Import the data
+                        <v-icon>{{ kaapanaIcons.start }}</v-icon>
+                      </v-btn>
+                    </template>
+                    <WorkflowExecution
+                      :onlyLocal="true"
+                      kind_of_dags="import"
+                      :isDialog="true"
+                      @successful="() => (workflowDialog = false)"
+                      @cancel="() => (workflowDialog = false)"
+                    />
+                  </v-dialog>
+                </div>
+              </li>
+            </ol>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+  </v-container>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
-import { notify } from '@kyvg/vue3-notification'
 import Upload from '@/components/Upload.vue'
 import { WorkflowExecution } from '@kaapana/base-ui/workflow-execution'
 import '@kaapana/base-ui/workflow-execution.css'
-import { useProjectStore } from '@kaapana/base-ui'
+import {
+  ErrorDetailsDialog,
+  apiErrorInfo,
+  apiErrorText,
+  kaapanaIcons,
+  postViewDirty,
+  useProjectStore,
+} from '@kaapana/base-ui'
 import { settings as defaultSettings } from '@/static/defaultUIConfig'
 
 const projectStore = useProjectStore()
 const { selectedProject } = storeToRefs(projectStore)
-
-// This view standardizes the workflow form on underlined fields; supplied via a
-// defaults-provider around the shared WorkflowExecution (which carries no inline
-// variants). Covers both the native template fields and the vjsf-rendered ones.
-const underlinedFieldDefaults = {
-  VTextField: { variant: 'underlined' },
-  VSelect: { variant: 'underlined' },
-  VAutocomplete: { variant: 'underlined' },
-  VCombobox: { variant: 'underlined' },
-  VTextarea: { variant: 'underlined' },
-  VNumberInput: { variant: 'underlined' },
-}
+// A disabled card only blocks the pointer, so each control is disabled too.
+// Otherwise the keyboard still reaches them.
+const isArchived = computed(() => selectedProject.value.is_archived === true)
+// Until the project is known, the example uses the placeholder of the user guide.
+const projectShortId = computed(() => selectedProject.value.short_id ?? '<project-short-id>')
 
 const workflowDialog = ref(false)
 const infoDialog = ref(false)
-const supported = ref(true)
-const componentKey = ref(0)
-const hostname = ref('')
+const hostname = window.location.hostname
+const dcmsendCommand = computed(
+  () =>
+    `dcmsend -v ${hostname} 11112 --scan-directories --aetitle kp-<dataset-name> ` +
+    `--call kp-${projectShortId.value} --scan-pattern '*.dcm' --recurse <data-dir-of-DICOM-images>`,
+)
+const commandCopied = ref(false)
+let commandCopiedTimer: ReturnType<typeof setTimeout> | undefined
 
-// selectedProject drives the archived guard and the dcmsend example.
-projectStore.getSelectedProject().catch((error: any) => {
-  notify({
-    title: 'Error',
-    text: error.response?.data?.detail ?? error.message,
-    type: 'error',
+async function copyCommand() {
+  try {
+    await navigator.clipboard.writeText(dcmsendCommand.value)
+  } catch {
+    // The clipboard API is unavailable outside secure contexts. The command
+    // stays selectable on the page.
+    return
+  }
+  commandCopied.value = true
+  clearTimeout(commandCopiedTimer)
+  commandCopiedTimer = setTimeout(() => (commandCopied.value = false), 2000)
+}
+
+// selectedProject drives the archived guard and the dcmsend example, so a failed
+// lookup stays visible on the page instead of in a notification that disappears.
+const projectLoadError = ref<unknown>(null)
+const projectLoadDetails = ref(false)
+const retryingProjectLoad = ref(false)
+const projectLoadErrorText = computed(() =>
+  projectLoadError.value ? apiErrorText(projectLoadError.value, 'Could not load the project.') : '',
+)
+
+function loadProject() {
+  return projectStore
+    .getSelectedProject()
+    .then(() => {
+      projectLoadError.value = null
+    })
+    .catch((error: unknown) => {
+      projectLoadError.value = error
+    })
+}
+
+function retryProjectLoad() {
+  retryingProjectLoad.value = true
+  loadProject().finally(() => {
+    retryingProjectLoad.value = false
   })
-})
+}
+
+loadProject()
 // WorkflowExecution reads localStorage["settings"] directly; seed it for
 // standalone boots the shell never touched.
 if (!localStorage['settings']) {
   localStorage['settings'] = JSON.stringify(defaultSettings)
 }
-
-onMounted(() => {
-  const { userAgent } = navigator
-  if (userAgent.includes('Firefox/')) {
-    supported.value = false
-  } else {
-    supported.value = true
-  }
-  hostname.value = window.location.hostname
-})
-
-function fileComplete(_error: any, _file: any) {
-  // Remount WorkflowExecution (:key) so the import form reflects the new upload.
-  componentKey.value += 1
-}
 </script>
 
-<style lang="scss">
-.upload {
-  margin-top: 10px;
-  padding-top: 100px;
-  padding-bottom: 10px;
+<style scoped>
+/* The numbered icons mark the steps, so the list needs no markers of its own. */
+.upload-steps {
+  list-style: none;
+  padding-left: 0;
 }
 </style>

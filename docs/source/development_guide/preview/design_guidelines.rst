@@ -234,12 +234,18 @@ accessible name.
     * - :code:`add`
       - :code:`mdi-plus`
       - Add or create an item
+    * - :code:`archive`
+      - :code:`mdi-archive-arrow-down`
+      - Archive an item or indicate an archived state
     * - :code:`close`
       - :code:`mdi-close`
       - Close or dismiss the current surface
     * - :code:`confirm`
       - :code:`mdi-check`
       - Confirm or accept an action
+    * - :code:`copy`
+      - :code:`mdi-content-copy`
+      - Copy content to the clipboard
     * - :code:`delete`
       - :code:`mdi-delete`
       - Delete or remove an item

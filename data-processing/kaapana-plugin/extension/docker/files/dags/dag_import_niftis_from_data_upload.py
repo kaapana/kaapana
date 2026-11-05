@@ -2,10 +2,10 @@ from datetime import timedelta
 from pathlib import Path
 
 from airflow.models import DAG
+from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import BranchPythonOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.operators.empty import EmptyOperator
 from kaapana.blueprints.json_schema_templates import schema_upload_form
 from kaapana.blueprints.kaapana_global_variables import (
     AIRFLOW_WORKFLOW_DIR,

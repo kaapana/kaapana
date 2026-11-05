@@ -1,14 +1,12 @@
 from datetime import timedelta
 
 from airflow.models import DAG
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.dates import days_ago
 from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalTaggingOperator import LocalTaggingOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.TrainTestSplitOperator import TrainTestSplitOperator
-
-from airflow.operators.empty import EmptyOperator
-
 
 ui_forms = {
     "documentation_form": {

@@ -108,10 +108,4 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 
 check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
-(
-    get_input
-    >> delete_dcm_pacs
-    >> delete_dcm_meta
-    >> remove_thumbnail_from_project_bucket
-    >> [clean, check_success]
-)
+(get_input >> delete_dcm_pacs >> delete_dcm_meta >> remove_thumbnail_from_project_bucket >> [clean, check_success])

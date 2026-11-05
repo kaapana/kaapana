@@ -2,8 +2,8 @@ from datetime import timedelta
 
 from airflow.models import DAG
 from airflow.operators.empty import EmptyOperator
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
+from airflow.utils.log.logging_mixin import LoggingMixin
 from federated_setup_central_test.FedartedSetupCentralTestOperator import (
     FedartedSetupCentralTestOperator,
 )

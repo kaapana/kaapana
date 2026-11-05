@@ -93,11 +93,4 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 
 check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
-(
-    get_input
-    >> get_input_json
-    >> clear_validation_results
-    >> validate
-    >> put_html_to_minio
-    >> [clean, check_success]
-)
+(get_input >> get_input_json >> clear_validation_results >> validate >> put_html_to_minio >> [clean, check_success])

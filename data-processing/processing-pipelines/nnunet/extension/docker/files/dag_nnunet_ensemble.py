@@ -2,34 +2,34 @@
 # the deprecation banner in the UI. The former DAG body is in the git history.
 raise DeprecationWarning("This DAG is deprecated since version >=0.5.0.")
 
-from airflow.utils.dates import days_ago
-from airflow.operators.empty import EmptyOperator
 from datetime import timedelta
+
 from airflow.models import DAG
-from nnunet.DiceEvaluationOperator import DiceEvaluationOperator
-from nnunet.LocalDataorganizerOperator import LocalDataorganizerOperator
-from nnunet.NnUnetOperator import NnUnetOperator
-from kaapana.operators.DcmConverterOperator import DcmConverterOperator
-from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from nnunet.LocalSortGtOperator import LocalSortGtOperator
+from airflow.operators.empty import EmptyOperator
+from airflow.utils.dates import days_ago
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
-from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
+from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.GetRefSeriesOperator import GetRefSeriesOperator
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.JupyterlabReportingOperator import JupyterlabReportingOperator
-from nnunet.GetModelFromPacsOperator import GetModelFromPacsOperator
-from nnunet.NnUnetModelOperator import NnUnetModelOperator
-from nnunet.getTasks import get_available_protocol_names
-
-# from kaapana.operators.LocalPatchedGetInputDataOperator import LocalPatchedGetInputDataOperator
-from kaapana.operators.MinioOperator import MinioOperator
-from nnunet.SegCheckOperator import SegCheckOperator
-
-from kaapana.operators.MergeMasksOperator import MergeMasksOperator
+from kaapana.operators.LocalFilterMasksOperator import LocalFilterMasksOperator
+from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalModifySegLabelNamesOperator import (
     LocalModifySegLabelNamesOperator,
 )
-from kaapana.operators.LocalFilterMasksOperator import LocalFilterMasksOperator
+from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
+from kaapana.operators.MergeMasksOperator import MergeMasksOperator
+
+# from kaapana.operators.LocalPatchedGetInputDataOperator import LocalPatchedGetInputDataOperator
+from kaapana.operators.MinioOperator import MinioOperator
+from nnunet.DiceEvaluationOperator import DiceEvaluationOperator
+from nnunet.GetModelFromPacsOperator import GetModelFromPacsOperator
+from nnunet.getTasks import get_available_protocol_names
+from nnunet.LocalDataorganizerOperator import LocalDataorganizerOperator
+from nnunet.LocalSortGtOperator import LocalSortGtOperator
+from nnunet.NnUnetModelOperator import NnUnetModelOperator
+from nnunet.NnUnetOperator import NnUnetOperator
+from nnunet.SegCheckOperator import SegCheckOperator
 
 default_interpolation_order = "default"
 default_prep_thread_count = 1
@@ -164,9 +164,7 @@ get_test_images = LocalGetInputDataOperator(
     check_modality=False,
 )
 
-sort_gt = LocalSortGtOperator(
-    dag=dag, batch_name="nnunet-dataset", input_operator=get_test_images
-)
+sort_gt = LocalSortGtOperator(dag=dag, batch_name="nnunet-dataset", input_operator=get_test_images)
 
 
 get_ref_ct_series_from_gt = GetRefSeriesOperator(
@@ -228,9 +226,7 @@ dcm2nifti_ct = DcmConverterOperator(
 
 get_input = GetModelFromPacsOperator(dag=dag, name="get-models")
 
-dcm2bin = Bin2DcmOperator(
-    dag=dag, input_operator=get_input, name="extract-binary", file_extensions="*.dcm"
-)
+dcm2bin = Bin2DcmOperator(dag=dag, input_operator=get_input, name="extract-binary", file_extensions="*.dcm")
 
 extract_model = NnUnetModelOperator(
     dag=dag,

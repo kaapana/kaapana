@@ -1,8 +1,8 @@
-from airflow.utils.dates import days_ago
-from airflow.operators.empty import EmptyOperator
 from datetime import timedelta
 
 from airflow.models import DAG
+from airflow.operators.empty import EmptyOperator
+from airflow.utils.dates import days_ago
 from body_and_organ_analysis.BoaOutputCheckOperator import BoaOutputCheckOperator
 from body_and_organ_analysis.BodyAndOrganAnalysisOperator import (
     BodyAndOrganAnalysisOperator,

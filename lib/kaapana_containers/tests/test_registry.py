@@ -1,9 +1,9 @@
 import hashlib
 import json
-import httpx
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+import httpx
+import pytest
 from kaapana_containers.registries.registry import OCIError, OCIRegistryDiscovery
 
 
@@ -31,6 +31,7 @@ def _mock_response(status_code: int, body: dict | None = None, text: str = "") -
 # ---------------------------------------------------------------------------
 # OCIError
 # ---------------------------------------------------------------------------
+
 
 class TestOCIError:
     def test_str_with_code(self):
@@ -73,15 +74,14 @@ class TestOCIError:
 # check_login
 # ---------------------------------------------------------------------------
 
+
 class TestCheckLogin:
     async def test_success_returns_true(self, client):
         client._request_with_auth_retry.return_value = _mock_response(200)
         assert await client.check_login() is True
 
     async def test_unauthorized_raises(self, client):
-        client._request_with_auth_retry.side_effect = OCIError(
-            "auth required", code="UNAUTHORIZED"
-        )
+        client._request_with_auth_retry.side_effect = OCIError("auth required", code="UNAUTHORIZED")
         with pytest.raises(OCIError) as exc_info:
             await client.check_login()
         assert exc_info.value.code == "UNAUTHORIZED"
@@ -97,31 +97,24 @@ class TestCheckLogin:
 # list_tags
 # ---------------------------------------------------------------------------
 
+
 class TestListTags:
     async def test_returns_tag_list(self, client):
-        client._request_with_auth_retry.return_value = _mock_response(
-            200, body={"tags": ["v1.0.0", "v2.0.0"]}
-        )
+        client._request_with_auth_retry.return_value = _mock_response(200, body={"tags": ["v1.0.0", "v2.0.0"]})
         assert await client.list_tags() == ["v1.0.0", "v2.0.0"]
 
     async def test_empty_repository_returns_empty_list(self, client):
-        client._request_with_auth_retry.return_value = _mock_response(
-            200, body={"tags": None}
-        )
+        client._request_with_auth_retry.return_value = _mock_response(200, body={"tags": None})
         assert await client.list_tags() == []
 
     async def test_name_unknown_propagates(self, client):
-        client._request_with_auth_retry.side_effect = OCIError(
-            "repository not found", code="NAME_UNKNOWN"
-        )
+        client._request_with_auth_retry.side_effect = OCIError("repository not found", code="NAME_UNKNOWN")
         with pytest.raises(OCIError) as exc_info:
             await client.list_tags()
         assert exc_info.value.code == "NAME_UNKNOWN"
 
     async def test_other_oci_error_propagates(self, client):
-        client._request_with_auth_retry.side_effect = OCIError(
-            "server error", code="INTERNAL_ERROR"
-        )
+        client._request_with_auth_retry.side_effect = OCIError("server error", code="INTERNAL_ERROR")
         with pytest.raises(OCIError, match="server error"):
             await client.list_tags()
 
@@ -129,6 +122,7 @@ class TestListTags:
 # ---------------------------------------------------------------------------
 # client_options
 # ---------------------------------------------------------------------------
+
 
 class TestClientOptions:
     async def test_default_options_are_retained(self, client):
@@ -138,8 +132,6 @@ class TestClientOptions:
             assert client._client.timeout.write == 5.0
             assert client._client.timeout.connect == 5.0
             assert client._client.timeout.pool == 5.0
-
-
 
     async def test_options_forwarded_to_httpx_client(self):
         client = OCIRegistryDiscovery(
@@ -167,9 +159,7 @@ def _upload_timeouts_handler(timeouts: list[tuple[str, dict]]):
         if request.method == "HEAD":
             return httpx.Response(404)
         if request.method in ("POST", "PATCH"):
-            return httpx.Response(
-                202, headers={"location": "/v2/user/repo/blobs/uploads/u1"}
-            )
+            return httpx.Response(202, headers={"location": "/v2/user/repo/blobs/uploads/u1"})
         return httpx.Response(201)
 
     return handler
@@ -221,9 +211,7 @@ class TestFinalizeTimeout:
         client = OCIRegistryDiscovery(
             "https://registry.example.com",
             "user/repo",
-            client_options={
-                "transport": httpx.MockTransport(_upload_timeouts_handler(timeouts))
-            },
+            client_options={"transport": httpx.MockTransport(_upload_timeouts_handler(timeouts))},
             finalize_timeout=None,
         )
 
@@ -247,8 +235,7 @@ def _session_cookie_handler(seen: list[httpx.Request]):
             return httpx.Response(200, headers=headers, json={"token": "t"})
         if request.headers.get("authorization") != "Bearer t":
             headers["www-authenticate"] = (
-                'Bearer realm="https://registry.example.com/token",'
-                'service="registry.example.com"'
+                'Bearer realm="https://registry.example.com/token",service="registry.example.com"'
             )
             return httpx.Response(401, headers=headers)
         if request.url.path.endswith("/tags/list"):
@@ -266,9 +253,7 @@ class TestCookies:
             "user/repo",
             username="user",
             password="pass",
-            client_options={
-                "transport": httpx.MockTransport(_session_cookie_handler(seen))
-            },
+            client_options={"transport": httpx.MockTransport(_session_cookie_handler(seen))},
         )
 
         async with client:
@@ -295,9 +280,7 @@ class TestCookies:
 # ---------------------------------------------------------------------------
 
 
-def _redirecting_blob_handler(
-    seen: list[httpx.Request], blobs: dict[str, bytes], manifest: dict
-):
+def _redirecting_blob_handler(seen: list[httpx.Request], blobs: dict[str, bytes], manifest: dict):
     def handler(request: httpx.Request) -> httpx.Response:
         seen.append(request)
         path = request.url.path
@@ -307,9 +290,7 @@ def _redirecting_blob_handler(
             return httpx.Response(200, json=manifest)
         if "/blobs/" in path:
             digest = path.rsplit("/", 1)[-1]
-            return httpx.Response(
-                307, headers={"location": f"https://storage.example.com/{digest}"}
-            )
+            return httpx.Response(307, headers={"location": f"https://storage.example.com/{digest}"})
         return httpx.Response(404)
 
     return handler
@@ -319,9 +300,7 @@ class TestRedirects:
     async def test_follows_blob_redirect_without_forwarding_credentials(self, tmp_path):
         payload = b"file content"
         payload_digest = "sha256:" + hashlib.sha256(payload).hexdigest()
-        config = json.dumps(
-            {"files": [{"filename": "a.bin", "digest": payload_digest}]}
-        ).encode()
+        config = json.dumps({"files": [{"filename": "a.bin", "digest": payload_digest}]}).encode()
         config_digest = "sha256:" + hashlib.sha256(config).hexdigest()
         manifest = {
             "schemaVersion": 2,
@@ -336,9 +315,7 @@ class TestRedirects:
             password="pass",
             client_options={
                 "transport": httpx.MockTransport(
-                    _redirecting_blob_handler(
-                        seen, {config_digest: config, payload_digest: payload}, manifest
-                    )
+                    _redirecting_blob_handler(seen, {config_digest: config, payload_digest: payload}, manifest)
                 )
             },
         )
@@ -369,9 +346,7 @@ class TestRedirects:
             if str(request.url) == target:
                 return httpx.Response(
                     401,
-                    headers={
-                        "www-authenticate": 'Bearer realm="https://evil.example.com/token",service="evil"'
-                    },
+                    headers={"www-authenticate": 'Bearer realm="https://evil.example.com/token",service="evil"'},
                 )
             return httpx.Response(307, headers={"location": target})
 

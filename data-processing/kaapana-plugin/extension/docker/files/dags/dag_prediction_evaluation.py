@@ -1,8 +1,8 @@
-from airflow.utils.dates import days_ago
-from airflow.operators.empty import EmptyOperator
 from datetime import timedelta
 
 from airflow.models import DAG
+from airflow.operators.empty import EmptyOperator
+from airflow.utils.dates import days_ago
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.GetInputOperator import GetInputOperator

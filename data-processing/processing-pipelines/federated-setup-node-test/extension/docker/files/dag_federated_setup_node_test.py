@@ -1,8 +1,8 @@
 from datetime import timedelta
 
-from airflow.utils.dates import days_ago
-from airflow.operators.empty import EmptyOperator
 from airflow.models import DAG
+from airflow.operators.empty import EmptyOperator
+from airflow.utils.dates import days_ago
 from federated_setup_node_test.LocalFedartedSetupFederatedTestOperator import (
     LocalFedartedSetupFederatedTestOperator,
 )

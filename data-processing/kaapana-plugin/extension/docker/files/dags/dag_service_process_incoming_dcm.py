@@ -7,6 +7,7 @@ from uuid import uuid4
 
 import requests
 from airflow.models import DAG
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.trigger_rule import TriggerRule
 from kaapana.blueprints.kaapana_global_variables import (
@@ -38,7 +39,6 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 from kaapanapy.helper import get_minio_client
 from kaapanapy.helper.HelperOpensearch import DicomTags
 from kaapanapy.settings import KaapanaSettings
-from airflow.operators.empty import EmptyOperator
 
 args = {
     "ui_visible": False,

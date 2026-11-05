@@ -1,10 +1,10 @@
-from totalsegmentatorv2.TotalSegmentatorV2Operator import TotalSegmentatorV2Operator
 import glob
 import os
 import shutil
 from pathlib import Path
 
 from airflow.models import DAG
+from airflow.operators.empty import EmptyOperator
 from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR, BATCH_NAME
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
@@ -15,7 +15,7 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 from kaapana.operators.MinioOperator import MinioOperator
 from kaapana.operators.UpdateSegInfoJSONOperator import UpdateSegInfoJSONOperator
 from pyradiomics.PyRadiomicsOperator import PyRadiomicsOperator
-from airflow.operators.empty import EmptyOperator
+from totalsegmentatorv2.TotalSegmentatorV2Operator import TotalSegmentatorV2Operator
 
 max_active_runs = 10
 concurrency = max_active_runs * 3

@@ -95,11 +95,6 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True, namespace
 
 
 check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
-(
-    copy_from_pacs
-    >> extract_metadata
-    >> (add_to_dataset, assign_to_project, push_json)
-    >> clean
-)
+(copy_from_pacs >> extract_metadata >> (add_to_dataset, assign_to_project, push_json) >> clean)
 
 (add_to_dataset, assign_to_project, push_json) >> check_success

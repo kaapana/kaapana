@@ -203,11 +203,4 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 
 check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
-(
-    get_input
-    >> dcm2nifti
-    >> nnunet_predict
-    >> nrrd2dcmSeg_multi
-    >> dcmseg_send_multi
-    >> [clean, check_success]
-)
+(get_input >> dcm2nifti >> nnunet_predict >> nrrd2dcmSeg_multi >> dcmseg_send_multi >> [clean, check_success])

@@ -60,6 +60,20 @@ unit_tests:
         - unittest_report.xml
 
 ##############################################
+# dcm4chee Tests
+##############################################
+dcm4chee_tests:
+  extends: .test_template
+  # ci-base rather than python:3.12: the tests render the chart with helm
+  image: $CI_BASE_IMAGE
+  script:
+    - pytest $KAAPANA_DIR/services/store/dcm4chee/tests/ --junitxml=dcm4chee_report.xml
+  artifacts:
+    reports:
+      junit:
+        - dcm4chee_report.xml
+
+##############################################
 # Task API Tests
 ##############################################
 task_api_tests:
@@ -450,3 +464,16 @@ ci_config_tests:
     reports:
       junit:
         - ci_config_report.xml
+
+##############################################
+# Admin-Init (cert-init) Tests
+##############################################
+admin_init_tests:
+  extends: .test_template
+  script:
+    - pip install -r $KAAPANA_DIR/services/kaapana-admin/admin-init/tests/requirements.txt
+    - pytest $KAAPANA_DIR/services/kaapana-admin/admin-init/tests/ --junitxml=admin_init_report.xml
+  artifacts:
+    reports:
+      junit:
+        - admin_init_report.xml

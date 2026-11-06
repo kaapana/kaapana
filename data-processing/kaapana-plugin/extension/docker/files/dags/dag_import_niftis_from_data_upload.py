@@ -2,6 +2,7 @@ from datetime import timedelta
 from pathlib import Path
 
 from airflow.models import DAG
+from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import BranchPythonOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -125,7 +126,6 @@ remove_object_from_uploads = LocalVolumeMountOperator(
 
 clean = LocalWorkflowCleanerOperator(
     dag=dag,
-    trigger_rule="none_failed_min_one_success",
     clean_workflow_dir=True,
     namespace=SERVICES_NAMESPACE,
 )
@@ -173,7 +173,7 @@ def branching_cleaning_uploads_callable(**kwargs):
     if delete_original_file:
         return [remove_object_from_uploads.name]
     else:
-        return [clean.name]
+        return [clean.name, check_success.task_id]
 
 
 branching_cleaning_uploads = BranchPythonOperator(
@@ -184,6 +184,7 @@ branching_cleaning_uploads = BranchPythonOperator(
     dag=dag,
 )
 
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
 
 get_object_from_uploads >> branching_zipping
 branching_zipping >> unzip_files >> convert
@@ -191,5 +192,5 @@ branching_zipping >> convert
 convert >> branching_sending
 branching_sending >> convert_seg >> dcm_send_seg >> branching_cleaning_uploads
 branching_sending >> dcm_send_img >> branching_cleaning_uploads
-branching_cleaning_uploads >> remove_object_from_uploads >> clean
-branching_cleaning_uploads >> clean
+branching_cleaning_uploads >> remove_object_from_uploads >> [clean, check_success]
+branching_cleaning_uploads >> [clean, check_success]

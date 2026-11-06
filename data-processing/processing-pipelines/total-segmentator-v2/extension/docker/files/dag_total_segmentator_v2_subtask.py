@@ -4,6 +4,7 @@ import shutil
 from pathlib import Path
 
 from airflow.models import DAG
+from airflow.operators.empty import EmptyOperator
 from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR, BATCH_NAME
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
@@ -102,8 +103,9 @@ put_to_minio_subtask = MinioOperator(
 clean_subtask = LocalWorkflowCleanerOperator(
     dag=dag,
     clean_workflow_dir=True,
-    trigger_rule="none_failed",
 )
+
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
 
 (
     get_input
@@ -113,6 +115,6 @@ clean_subtask = LocalWorkflowCleanerOperator(
     >> combine_masks_subtask
     >> nrrd2dcmSeg_multi_subtask
     >> dcmseg_send_subtask
-    >> clean_subtask
+    >> [clean_subtask, check_success]
 )
-total_segmentator_subtask >> pyradiomics_subtask >> put_to_minio_subtask
+total_segmentator_subtask >> pyradiomics_subtask >> put_to_minio_subtask >> [clean_subtask, check_success]

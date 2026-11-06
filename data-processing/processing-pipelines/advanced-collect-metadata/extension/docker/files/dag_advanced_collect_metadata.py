@@ -10,6 +10,7 @@ from advanced_collect_metadata.LocalMergeBranchesOperator import (
     LocalMergeBranchesOperator,
 )
 from airflow.models import DAG
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
 from kaapana.operators.ConnectedComponentAnalysisOperator import (
@@ -128,11 +129,18 @@ put_to_minio = MinioOperator(
     zip_files=True,
 )
 
-clean = LocalWorkflowCleanerOperator(
-    dag=dag,
-    clean_workflow_dir=True,
-)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-(get_input >> anonymizer >> extract_metadata >> extract_img_intensities >> merge_branches >> put_to_minio >> clean)
+
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
+(
+    get_input
+    >> anonymizer
+    >> extract_metadata
+    >> extract_img_intensities
+    >> merge_branches
+    >> put_to_minio
+    >> [clean, check_success]
+)
 (extract_metadata >> dcm2nifti_seg >> extract_seg_metadata >> cca >> concat_metadata >> merge_branches)
 (get_input >> dcm2nifti_ct >> extract_seg_metadata)

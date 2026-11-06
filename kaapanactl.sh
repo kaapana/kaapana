@@ -4,8 +4,14 @@
 # if unusual home dir of user: sudo dpkg-reconfigure apparmor
 set -euf -o pipefail
 
+# The kubeconfig microk8s maintains for itself, the same file microk8s.kubectl reads.
+MICROK8S_KUBECONFIG="${MICROK8S_KUBECONFIG:-/var/snap/microk8s/current/credentials/client.config}"
+
 function main() {
     init_colors
+    # --kubeconfig beats $KUBECONFIG, so Helm calls in this script always target the local microk8s cluster.
+    HELM_EXECUTABLE="${HELM_EXECUTABLE:-helm} --kubeconfig=$MICROK8S_KUBECONFIG"
+    KUBECTL_EXECUTABLE="${KUBECTL_EXECUTABLE:-microk8s.kubectl}"
     local subcommand="help"
 
     if [[ $# -gt 0 ]]; then
@@ -212,25 +218,25 @@ function validate_platform_prefix() {
     echo -e "${GREEN}Using PLATFORM_PREFIX: $PLATFORM_PREFIX${NC}"
 }
 
-# Recover PLATFORM_PREFIX from the already-deployed kaapana-admin-chart release
-# (global.platform_prefix) instead of asking the operator, e.g. when undeploying
-# without --platform-prefix. Returns 1 without setting PLATFORM_PREFIX if the
-# release or the value cannot be found.
+# Recover PLATFORM_PREFIX from the already-deployed platform (global.platform_prefix)
+# instead of asking the operator, e.g. when undeploying without --platform-prefix.
+# Tries HELM_RELEASE_NAME first, then the other releases in HELM_NAMESPACE,
+# which covers a platform deployed under another release name. Returns 1
+# without setting PLATFORM_PREFIX if no release has the value.
 function get_platform_prefix_from_release() {
-    local release="kaapana-admin-chart"
     local namespace="$HELM_NAMESPACE"
-    local values_json
-    values_json=$($HELM_EXECUTABLE get values "$release" -n "$namespace" -o json 2>/dev/null)
-    if [ -z "$values_json" ]; then
-        return 1
-    fi
+    local release
     local prefix
-    prefix=$(printf '%s' "$values_json" | jq -r '.global.platform_prefix // empty' 2>/dev/null)
-    if [ -z "$prefix" ]; then
-        return 1
-    fi
-    PLATFORM_PREFIX="$prefix"
-    echo -e "${GREEN}Read PLATFORM_PREFIX from release '$release' (namespace '$namespace'): $PLATFORM_PREFIX${NC}"
+    for release in "$HELM_RELEASE_NAME" $($HELM_EXECUTABLE -n "$namespace" ls --short 2>/dev/null); do
+        prefix=$($HELM_EXECUTABLE get values "$release" -n "$namespace" -o json 2>/dev/null \
+            | jq -r '.global.platform_prefix // empty' 2>/dev/null || true)
+        if [ -n "$prefix" ]; then
+            PLATFORM_PREFIX="$prefix"
+            echo -e "${GREEN}Read PLATFORM_PREFIX from release '$release' (namespace '$namespace'): $PLATFORM_PREFIX${NC}"
+            return 0
+        fi
+    done
+    return 1
 }
 
 # Keycloak production policy: >=8 chars, 1 upper, 1 lower, 1 digit, 1 special.
@@ -348,6 +354,9 @@ function deploy() {
 
     PLATFORM_NAME="${PLATFORM_NAME:-}"
     PLATFORM_VERSION="${PLATFORM_VERSION:-}"
+    # Helm release name of the platform. Independent of the chart name, so
+    # a renamed platform chart (e.g. a distribution) is the same release.
+    HELM_RELEASE_NAME="${HELM_RELEASE_NAME:-kaapana-admin-chart}"
     CONTAINER_REGISTRY_URL="${CONTAINER_REGISTRY_URL:-}"
     CONTAINER_REGISTRY_USERNAME="${CONTAINER_REGISTRY_USERNAME:-}"
     CONTAINER_REGISTRY_PASSWORD="${CONTAINER_REGISTRY_PASSWORD:-}"
@@ -363,16 +372,13 @@ function deploy() {
         https_proxy=""
     fi
     export HELM_EXPERIMENTAL_OCI=1
-    HELM_EXECUTABLE="${HELM_EXECUTABLE:-helm}"
-    KUBECTL_EXECUTABLE="${KUBECTL_EXECUTABLE:-microk8s.kubectl}"
-
     load_kaapana_config
     ### Parsing command line arguments:
     usage="$(basename "$0")
 
     _Flag: --undeploy undeploys the current platform
     _Flag: --no-hooks will purge all kubernetes deployments and jobs as well as all helm charts. Use this if the undeployment fails or runs forever.
-    _Flag: --auto-no-hooks enables an automatic --no-hooks fallback during undeployment. When enabled, stuck 'uninstalling' charts are retried with --no-hooks after a short wait.
+    _Flag: --auto-no-hooks enables an automatic --no-hooks fallback during undeployment. When enabled, charts still 'uninstalling' after the normal uninstall pass are retried with --no-hooks.
     _Flag: --install-certs set new HTTPS-certificates for the platform
     _Flag: --remove-all-images-ctr will delete all images from Microk8s (containerd)
     _Flag: --remove-all-images-docker will delete all Docker images from the system
@@ -381,12 +387,13 @@ function deploy() {
     _Flag: --quiet, meaning non-interactive operation
     _Flag: --offline, using prebuilt tarball and chart (--chart-path required!)
     _Flag: --no-migration, disable automatic migration between versions
-    _Flag: --check-system, check health of all resources in kaapana-admin-chart and kaapana-platform-chart
+    _Flag: --check-system, check health of all resources in the platform release and kaapana-platform-chart
     _Flag: --report, create a report of the state of the microk8s cluster
     _Flag: --plain-http, use insecure HTTP when talking to the registry (default HTTPS, use --no-plain-http to force it)
 
     _Argument: --chart [registry/path/chart:version]
     _Argument: --platform-name [Helm chart name]
+    _Argument: --release-name [Helm release name of the platform, default: kaapana-admin-chart]
     _Argument: --platform-version [Helm chart version]
     _Argument: --platform-prefix [Prefix for project namespaces, required]
     _Argument: --registry-url [OCI registry URL]
@@ -424,6 +431,13 @@ function deploy() {
             --platform-name)
                 PLATFORM_NAME="$2"
                 echo -e "${GREEN}SET PLATFORM_NAME: $PLATFORM_NAME ${NC}"
+                shift
+                shift
+            ;;
+
+            --release-name)
+                HELM_RELEASE_NAME="$2"
+                echo -e "${GREEN}SET HELM_RELEASE_NAME: $HELM_RELEASE_NAME ${NC}"
                 shift
                 shift
             ;;
@@ -621,8 +635,9 @@ function deploy() {
     fi
 
     if [ "$DO_CHECK_SYSTEM" = "true" ]; then
+        require_microk8s_kubeconfig || exit 1
         validate_platform_prefix
-        check_system kaapana-admin-chart default
+        check_system "$HELM_RELEASE_NAME" default
         check_system kaapana-platform-chart default
         check_system "${PLATFORM_PREFIX}-project-admin" admin
         exit 0
@@ -686,6 +701,7 @@ function deploy() {
     fi
 
     preflight_checks
+    require_microk8s_kubeconfig || exit 1
 
     echo -e "${YELLOW}Get helm deployments...${NC}"
     deployments=$(
@@ -701,8 +717,8 @@ function deploy() {
     echo "Current deployments: "
     echo $deployments
 
-    if [[ $deployments == *"$PLATFORM_NAME"* ]] && [[ ! $QUIET = true ]];then
-        echo -e "${YELLOW}$PLATFORM_NAME already deployed!${NC}"
+    if grep -qxF "$HELM_RELEASE_NAME" <<< "$deployments" && [[ ! $QUIET = true ]];then
+        echo -e "${YELLOW}$HELM_RELEASE_NAME already deployed!${NC}"
         PS3='select option: '
         options=("Un- and Re-deploy" "Undeploy" "Quit")
         select opt in "${options[@]}"
@@ -726,7 +742,7 @@ function deploy() {
                 *) echo "invalid option $REPLY";;
             esac
         done
-    elif [[ $deployments == *"$PLATFORM_NAME"* ]] && [[ $QUIET = true ]];then
+    elif grep -qxF "$HELM_RELEASE_NAME" <<< "$deployments" && [[ $QUIET = true ]];then
         echo -e "${RED}Project already deployed!${NC}"
         echo -e "${RED}abort.${NC}"
         exit 1
@@ -760,7 +776,7 @@ function server_installation() {
     echo -e "${GREEN}USER_HOME: $USER_HOME ${NC}";
     echo ""
 
-    DEFAULT_MICRO_VERSION=1.36/stable
+    DEFAULT_MICROK8S_VERSION=1.36/stable
     DEFAULT_HELM_VERSION=latest/stable
 
     ### Parsing command line arguments:
@@ -770,9 +786,9 @@ function server_installation() {
     _Flag:      --uninstall  removes microk8s and helm from the system
     _Flag:      --offline    offline installation for snap packages (expects '*.snap' and '*.assert' files within the working dir)
 
-    _Argument: -v --version [opt]
+    _Argument: -mv --microk8s-version [opt]
     where opt is:
-        default: $DEFAULT_MICRO_VERSION
+        default: $DEFAULT_MICROK8S_VERSION
 
     _Argument: -os --operating-system [opt]
     where opt is:
@@ -782,6 +798,7 @@ function server_installation() {
 
     QUIET=NA
     OFFLINE_SNAPS=NA
+    SET_MICROK8S_VERSION=false
     DNS=""
 
     POSITIONAL=()
@@ -803,9 +820,10 @@ function server_installation() {
                 shift # past value
             ;;
 
-            -v|--version)
-                DEFAULT_MICRO_VERSION="$2"
-                echo -e "${GREEN}Kubernetes version set to: $DEFAULT_MICRO_VERSION ${NC}";
+            -mv|--microk8s-version)
+                DEFAULT_MICROK8S_VERSION="$2"
+                SET_MICROK8S_VERSION=true
+                echo -e "${GREEN}Kubernetes version set to: $DEFAULT_MICROK8S_VERSION ${NC}";
                 shift # past argument
                 shift # past value
             ;;
@@ -845,6 +863,15 @@ function server_installation() {
         esac
     done
 
+
+    # In offline mode the bundled *.snap file decides the Kubernetes version, so -mv cannot
+    # influence what is installed. It would only mis-pin the snap channel, making a later
+    # refresh cross Kubernetes minor versions.
+    if [ "$OFFLINE_SNAPS" = "true" ] && [ "$SET_MICROK8S_VERSION" = "true" ]; then
+        echo -e "${RED}ERROR: -mv/--microk8s-version cannot be combined with --offline.${NC}"
+        echo -e "${RED}       The offline installer ships a fixed microk8s version; rerun without -mv.${NC}"
+        exit 1
+    fi
 
     case "$OS_PRESENT" in
         "AlmaLinux")
@@ -912,7 +939,6 @@ function install_no_proxy_environment {
         echo "${YELLOW}no_proxy not found, setting it and adding ${HOSTNAME}${NC}"
         echo "NO_PROXY=127.0.0.1,$HOSTNAME,10.0.0.0/8,192.168.0.0/16,172.16.0.0/16" >> /etc/environment
         echo "no_proxy=127.0.0.1,$HOSTNAME,10.0.0.0/8,192.168.0.0/16,172.16.0.0/16" >> /etc/environment
-        sed -i "$ a\\${INSERTLINE}" /etc/environment && echo "Adding $HOSTNAME to no_proxy"
     else
         echo "${YELLOW}no_proxy | NO_PROXY found - check if complete ...!${NC}"
 
@@ -1238,6 +1264,12 @@ function install_microk8s {
 
             snap ack $assert_path
             snap install --classic $snap_path
+            # A snap installed from a local file tracks no channel, so a later refresh would
+            # jump to latest/stable - across Kubernetes minor versions, which microk8s does
+            # not support. Pin the track the online install uses (sets the channel only, no
+            # download and no restart).
+            snap switch microk8s --channel=$DEFAULT_MICROK8S_VERSION \
+                || echo "${YELLOW}WARNING: could not pin the microk8s snap channel -> a later 'snap refresh' may cross Kubernetes minor versions.${NC}"
             MICROK8S_BASE_IMAGES_TAR_PATH="$SCRIPT_DIR/microk8s_base_images.tar"
             echo "${YELLOW}Start Microk8s image import from $MICROK8S_BASE_IMAGES_TAR_PATH ... ${NC}"
             [ -f $MICROK8S_BASE_IMAGES_TAR_PATH ] && echo "${GREEN}MICROK8S_BASE_IMAGES_TAR exists ... ${NC}" || (echo "${RED}Images tar does not exist -> exit ${NC}" && exit 1)
@@ -1248,8 +1280,8 @@ function install_microk8s {
             microk8s kubectl apply -f /var/snap/microk8s/current/args/cni-network/cni.yaml
             echo "${GREEN}Microk8s offline installation done!${NC}"
         else
-            echo "${YELLOW}Installing microk8s v$DEFAULT_MICRO_VERSION ...${NC}"
-            snap install microk8s --classic --channel=$DEFAULT_MICRO_VERSION
+            echo "${YELLOW}Installing microk8s v$DEFAULT_MICROK8S_VERSION ...${NC}"
+            snap install microk8s --classic --channel=$DEFAULT_MICROK8S_VERSION
         fi
 
         echo "${YELLOW}Stopping microk8s for configuration ...${NC}"
@@ -1377,7 +1409,7 @@ install_gpu_operator() {
 
   # Constants
   local chart_name="gpu-operator"
-  local chart_version="v25.3.0"
+  local chart_version="v25.10.0"
   local helm="/snap/bin/helm"
   local containerd_socket="/var/snap/microk8s/common/run/containerd.sock"
   local containerd_toml="/var/snap/microk8s/current/args/containerd-template.toml"
@@ -1405,7 +1437,7 @@ install_gpu_operator() {
   fi
 
   # Feed JSON values to Helm via stdin (equivalent to -f - in the Python script)
-  cat <<EOF | "${helm}" install "${chart_name}" "${chart_path}" \
+  cat <<EOF | "${helm}" upgrade --install "${chart_name}" "${chart_path}" \
     --version="${chart_version}" \
     --create-namespace \
     --namespace="${chart_name}-resources" \
@@ -1413,6 +1445,9 @@ install_gpu_operator() {
 {
   "operator": {
     "defaultRuntime": "containerd"
+  },
+  "cdi": {
+    "enabled": false
   },
   "driver": {
     "enabled": "${driver_enabled}"
@@ -1557,11 +1592,23 @@ function load_kaapana_config {
     SMTP_USERNAME=""
     SMTP_PASSWORD=""
 
+    # List the CIDRs of the site's LDAP or AD servers, separated by commas, e.g. "10.20.30.40/32".
+    # Keycloak can only reach servers outside the cluster if they are listed here.
+    KEYCLOAK_LDAP_EGRESS_CIDRS=""
+
     VERSION_IMAGE_COUNT="20"
     DEPLOYMENT_TIMESTAMP=`date  --iso-8601=seconds`
     MOUNT_POINTS_TO_MONITOR=""
 
     INSTANCE_NAME=""
+
+    # How the PACS identifies a patient: archive_default (dcm4chee's own behaviour),
+    # patient_id_only, fixed_issuer or supplement_issuer; see the deployment guide in the docs.
+    # Changing it needs --re-deploy and does not merge patients that were already split.
+    PACS_PATIENT_ISSUER_POLICY="archive_default"
+    # The local issuer written by fixed_issuer and supplement_issuer: 1-64 letters, digits,
+    # space, dot, underscore or hyphen. It becomes part of every stored patient's identity.
+    PACS_PATIENT_ISSUER_VALUE=""
 
     ######################################################
     # Login page branding (shown on the Keycloak login page)
@@ -1641,70 +1688,114 @@ function get_domain {
     fi
 }
 
+# Nothing may install releases while they are being uninstalled. kube-helm - the installer behind
+# preinstall, auto-launch and the extension store - is part of the admin chart and would otherwise
+# keep creating releases behind the snapshot the undeploy acts on, until its own release happens to
+# go. Stopping it first is what makes "no release left" a meaningful check at the end.
+function stop_platform_installer {
+    echo -e "${YELLOW}Stopping the extension installer (kube-helm) ...${NC}"
+    # Foreground cascade: --wait then also waits until the job's pod is gone.
+    $KUBECTL_EXECUTABLE -n "$ADMIN_NAMESPACE" delete job init-extensions --ignore-not-found --cascade=foreground --wait=true >/dev/null 2>&1 || true
+    if $KUBECTL_EXECUTABLE -n "$ADMIN_NAMESPACE" get deployment kube-helm-deployment >/dev/null 2>&1; then
+        $KUBECTL_EXECUTABLE -n "$ADMIN_NAMESPACE" scale deployment kube-helm-deployment --replicas=0 >/dev/null 2>&1 || true
+        $KUBECTL_EXECUTABLE -n "$ADMIN_NAMESPACE" wait --for=delete pod -l app.kubernetes.io/name=kube-helm --timeout=60s >/dev/null 2>&1 || true
+    fi
+}
+
+# Releases in 'uninstalling' in the platform's helm namespaces, one "namespace/release" per line.
+function list_uninstalling_releases {
+    local namespace
+    for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
+        $HELM_EXECUTABLE -n "$namespace" ls --uninstalling --short 2>/dev/null | sed "s|^|${namespace}/|" || true
+    done
+}
+
 function delete_deployment {
+    require_microk8s_kubeconfig || return 1
+
     if [ -z "${PLATFORM_PREFIX:-}" ]; then
         if get_platform_prefix_from_release; then
             validate_platform_prefix
         else
-            echo -e "${YELLOW}Could not determine PLATFORM_PREFIX from release 'kaapana-admin-chart' in namespace '$HELM_NAMESPACE'; project namespace cleanup will be skipped.${NC}"
+            echo -e "${YELLOW}Could not determine PLATFORM_PREFIX from the releases in namespace '$HELM_NAMESPACE'; project namespace cleanup will be skipped.${NC}"
         fi
     fi
 
     echo -e "${YELLOW}Undeploy releases${NC}"
     local failed=0
     local namespace
-    local helm_status_flags="--deployed --failed --pending --superseded"
+    local helm_status_flags="--deployed --failed --pending --superseded --uninstalling"
 
-    if [ -n "${NO_HOOKS:-}" ]; then
-        helm_status_flags="$helm_status_flags --uninstalling"
+    # Per-release uninstall budget. Hooks run inside it, so on a stuck hook this is also how long
+    # the undeploy blocks on that one release.
+    HELM_UNINSTALL_TIMEOUT="${HELM_UNINSTALL_TIMEOUT:-5m30s}"
+    # --ignore-not-found (Helm >= 3.13, so probed): a release removed by another helm client between
+    # `helm ls` and its uninstall is not a failure. Older Helm 3 behaves as before.
+    local ignore_not_found=""
+    if $HELM_EXECUTABLE uninstall --help 2>/dev/null | grep -q -- '--ignore-not-found'; then
+        ignore_not_found="--ignore-not-found"
     fi
 
+    stop_platform_installer
+
+    # Normal undeploy: uninstall all releases in parallel, hooks included unless --no-hooks is set.
     for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
         if ! $HELM_EXECUTABLE -n "$namespace" ls $helm_status_flags | awk 'NR > 1 { print  "-n "$2, $1}' \
-            | xargs -r -P 0 -I % sh -c "$HELM_EXECUTABLE uninstall ${NO_HOOKS} --timeout 5m30s % 2>&1"; then
+            | xargs -r -P 0 -I % sh -c "$HELM_EXECUTABLE uninstall ${NO_HOOKS} ${ignore_not_found} --timeout ${HELM_UNINSTALL_TIMEOUT} % 2>&1"; then
             failed=1
         fi
     done
 
+    # Helm has no controller: a release still in 'uninstalling' now stays that way until another
+    # helm uninstall acts on it - its hooks failed or timed out in this run. --auto-no-hooks retries
+    # those, and only those, without hooks; otherwise they are reported below.
+    local stuck_releases
+    stuck_releases="$(list_uninstalling_releases)"
+    if [ -n "$stuck_releases" ] && [ "$AUTO_NO_HOOKS" != "true" ]; then
+        echo -e "${RED}Releases stuck in 'uninstalling': $(echo $stuck_releases)${NC}"
+    fi
+    if [ -n "$stuck_releases" ] && [ "$AUTO_NO_HOOKS" = "true" ]; then
+        echo -e "${YELLOW}Retrying releases stuck in 'uninstalling' with --no-hooks: $(echo $stuck_releases)${NC}"
+        for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
+            if ! $HELM_EXECUTABLE -n "$namespace" ls --uninstalling | awk 'NR > 1 { print  "-n "$2, $1}' \
+                | xargs -r -P 0 -I % sh -c "$HELM_EXECUTABLE uninstall --no-hooks ${ignore_not_found} --timeout 60s % 2>&1"; then
+                failed=1
+            fi
+        done
+    fi
+
+    # From here on only pods still change on their own: wait for the terminating ones.
     echo -e "${YELLOW}Waiting until everything is terminated ...${NC}"
     WAIT_UNINSTALL_COUNT=100
     for idx in $(seq 0 $WAIT_UNINSTALL_COUNT)
     do
-        # Increase timeout or -no-hooks. This can cause inconsistencies
         sleep 3
-        if [ "$idx" -eq 2 ] && [ "$AUTO_NO_HOOKS" = "true" ]; then
-            echo "Deleting helm charts in 'uninstalling' state with --no-hooks"
-            for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
-                if ! $HELM_EXECUTABLE -n "$namespace" ls --uninstalling | awk 'NR > 1 { print  "-n "$2, $1}' \
-                    | xargs -r -P 0 -I % sh -c "$HELM_EXECUTABLE uninstall --no-hooks --wait --timeout 60s % 2>&1"; then
-                    failed=1
-                fi
-            done
+        # Under set -e/pipefail a failing kubectl would end the undeploy silently; retry instead.
+        if ! TERMINATING_PODS=$($KUBECTL_EXECUTABLE get pods --all-namespaces --no-headers 2>/dev/null | awk '$4 == "Terminating" { print $1 "/" $2 }'); then
+            echo -e "${YELLOW}Could not list pods, retrying ...${NC}"
+            continue
         fi
-        TERMINATING_PODS=$(/bin/bash -i -c "kubectl get pods --all-namespaces | grep -E 'Terminating' | awk '{print \$1 \"/\" \$2}'")
         echo -e ""
-        UNINSTALL_TEST=$TERMINATING_PODS
-        if [ -z "$UNINSTALL_TEST" ]; then
+        if [ -z "$TERMINATING_PODS" ]; then
             break
-        else
-            echo -e "${YELLOW}Waiting for $TERMINATING_PODS ${NC}"
         fi
+        echo -e "${YELLOW}Waiting for terminating pods: $TERMINATING_PODS ${NC}"
     done
 
     echo -e "${YELLOW}Cleaning up orphaned pods in Kubernetes namespaces ...${NC}"
 
     # Clean SERVICES_NAMESPACE
-    if microk8s.kubectl get namespace $SERVICES_NAMESPACE &>/dev/null; then
+    if $KUBECTL_EXECUTABLE get namespace $SERVICES_NAMESPACE &>/dev/null; then
         echo "Deleting all pods in $SERVICES_NAMESPACE"
-        microk8s.kubectl delete pods --all -n $SERVICES_NAMESPACE --grace-period=0 --force 2>/dev/null || true
+        $KUBECTL_EXECUTABLE delete pods --all -n $SERVICES_NAMESPACE --grace-period=0 --force 2>/dev/null || true
     fi
 
     # Clean all project-* namespaces when the platform prefix is known.
     if [ -n "${PLATFORM_PREFIX:-}" ]; then
-        PROJECT_NAMESPACES=$(microk8s.kubectl get namespaces --no-headers -o custom-columns=NAME:.metadata.name | grep "^${PLATFORM_PREFIX}-project-" || true)
+        PROJECT_NAMESPACES=$($KUBECTL_EXECUTABLE get namespaces --no-headers -o custom-columns=NAME:.metadata.name | grep "^${PLATFORM_PREFIX}-project-" || true)
         for ns in $PROJECT_NAMESPACES; do
             echo "Deleting all pods in $ns"
-            microk8s.kubectl delete pods --all -n $ns --grace-period=0 --force 2>/dev/null || true
+            $KUBECTL_EXECUTABLE delete pods --all -n $ns --grace-period=0 --force 2>/dev/null || true
         done
     else
         echo "${YELLOW}Skipping project namespace pod cleanup because PLATFORM_PREFIX is not set.${NC}"
@@ -1716,33 +1807,39 @@ function delete_deployment {
         pods_still_terminating=1
     fi
 
-    # Check whether any relevant Helm releases remain
-    local remaining_releases=0
-    local remaining_namespace_releases
+    # Collect every release Helm still knows about and print them as "namespace/release (status)",
+    # with "<unknown>" as the fallback when helm ls fails.
+    local remaining_releases=""
+    local namespace_releases
     for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
-        if ! remaining_namespace_releases=$($HELM_EXECUTABLE -n "$namespace" ls --short --deployed --failed --pending --superseded --uninstalling); then
+        if namespace_releases=$($HELM_EXECUTABLE -n "$namespace" ls -o json $helm_status_flags | jq -r '[.[] | "\(.namespace)/\(.name) (\(.status))"] | join(" ")'); then
+            if [ -n "$namespace_releases" ]; then
+                remaining_releases="${remaining_releases}${namespace_releases} "
+            fi
+        else
             echo "${RED}Could not check remaining Helm releases in namespace $namespace.${NC}"
-            remaining_releases=1
-        elif [ -n "$remaining_namespace_releases" ]; then
-            remaining_releases=1
+            remaining_releases="${remaining_releases}${namespace}/<unknown> "
         fi
     done
 
-    if [ "$failed" -ne 0 ] || [ "$remaining_releases" -ne 0 ] || [ "$pods_still_terminating" -ne 0 ]; then
+    if [ "$failed" -ne 0 ] || [ -n "$remaining_releases" ] || [ "$pods_still_terminating" -ne 0 ]; then
         echo "${RED}Undeployment did not finish cleanly.${NC}"
         if [ "$pods_still_terminating" -ne 0 ]; then
-            echo "${RED}Some pods are still terminating. Please check manually if there are still namespaces or pods floating around. Everything must be deleted before the deployment:${NC}"
-            echo "${RED}kubectl get pods -A${NC}"
-            echo "${RED}kubectl get namespaces${NC}"
-            echo "${RED}Executing './kaapanactl.sh deploy --no-hooks' is an option to force the resources to be removed.${NC}"
-            echo "${RED}Once everything is deleted you can re-deploy the platform!${NC}"
+            echo "${RED}Some pods were still terminating when the wait ran out: $(echo $TERMINATING_PODS)${NC}"
+            echo "${RED}Please check manually that nothing is left before redeploying: kubectl get pods -A${NC}"
         fi
-        if [ "$failed" -ne 0 ] || [ "$remaining_releases" -ne 0 ]; then
-            echo "${RED}Some Helm uninstalls failed or releases remain:${NC}"
+        if [[ "$remaining_releases" == *"<unknown>"* ]]; then
+            echo "${RED}Error while checking Helm releases. Run 'helm ls -A' manually to diagnose, then re-run './kaapanactl.sh deploy --undeploy'.${NC}"
+        elif [ -n "$remaining_releases" ]; then
+            echo "${RED}Helm releases remain: ${remaining_releases}${NC}"
+            echo "${RED}Re-run './kaapanactl.sh deploy --undeploy' first: it uninstalls these with their hooks, including releases in 'uninstalling'.${NC}"
+            echo "${RED}If a release stays 'uninstalling', './kaapanactl.sh deploy --auto-no-hooks --undeploy' forces only those (skips their hooks); './kaapanactl.sh deploy --no-hooks' purges everything without hooks.${NC}"
+        elif [ "$failed" -ne 0 ]; then
+            echo "${RED}Some helm uninstalls reported errors (see above).${NC}"
         fi
-        for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
-            $HELM_EXECUTABLE -n "$namespace" ls --deployed --failed --pending --superseded --uninstalling || true
-        done
+        if [ "$AUTO_NO_HOOKS" = "true" ] && [ -n "$stuck_releases" ]; then
+            echo "${RED}--auto-no-hooks removed $(echo $stuck_releases) without running their hooks, leftovers are possible.${NC}"
+        fi
         exit 1
     fi
 
@@ -1790,6 +1887,16 @@ function import_container_images_tar {
 function run_migration_chart() {
     local FROM_VERSION="$1"
     local TO_VERSION="$2"
+
+    # Under another release name, helm would refuse the platform's objects only
+    # after the migration, and a retry would migrate again.
+    local admin_owner
+    admin_owner=$($KUBECTL_EXECUTABLE get namespace "$ADMIN_NAMESPACE" \
+        -o jsonpath='{.metadata.annotations.meta\.helm\.sh/release-name}' 2>/dev/null || true)
+    if [[ -n "$admin_owner" && "$admin_owner" != "$HELM_RELEASE_NAME" ]]; then
+        echo -e "${RED}The platform belongs to release '$admin_owner', not '$HELM_RELEASE_NAME'. Not migrating.${NC}"
+        exit 1
+    fi
 
     echo -e "${YELLOW}Deploying migration chart: $FROM_VERSION -> $TO_VERSION${NC}"
 
@@ -2185,6 +2292,8 @@ function migrate() {
 }
 
 function setup_storage_classes() {
+    require_microk8s_kubeconfig || return 1
+
     WORKDIR=$(mktemp -d)
     tar -xzf "$CHART_PATH" -C "$WORKDIR"
     KAAPANA_STORAGE_CHARTPATH="$WORKDIR/$PLATFORM_NAME/charts/kaapana-storage-chart"
@@ -2209,12 +2318,38 @@ function deploy_chart {
         exit 1
     fi
 
+    # Helm keeps spaces and empty entries in a list, and the API server rejects them as CIDRs.
+    # A single invalid entry would fail the whole installation, so the input is checked first.
+    # Only IPv4 is accepted because the cluster network of the platform uses IPv4.
+    local octet='(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])'
+    local cidr_re="^$octet\.$octet\.$octet\.$octet/([0-9]|[12][0-9]|3[0-2])\$"
+    local ldap_cidrs=()
+    for cidr in ${KEYCLOAK_LDAP_EGRESS_CIDRS//,/ }; do
+        if [[ ! "$cidr" =~ $cidr_re ]]; then
+            echo "${RED}ERROR: KEYCLOAK_LDAP_EGRESS_CIDRS entry '$cidr' is not an IPv4 CIDR (e.g. 10.20.30.40/32)!${NC}"
+            exit 1
+        fi
+        ldap_cidrs+=("$cidr")
+    done
+    KEYCLOAK_LDAP_EGRESS_CIDRS=$(IFS=,; echo "${ldap_cidrs[*]}")
+
     get_domain
 
     if [ -z "$INSTANCE_NAME" ]; then
         INSTANCE_NAME=$DOMAIN
         echo "${YELLOW}No INSTANCE_NAME is set, setting it to $DOMAIN!${NC}"
     fi
+
+    # Checked here as well as in the chart: helm --set-string drops backslashes and splits on
+    # commas before the chart sees the value, so those would deploy silently altered.
+    case "$PACS_PATIENT_ISSUER_POLICY" in
+        fixed_issuer|supplement_issuer)
+            local issuer_pattern='^[A-Za-z0-9._-]([A-Za-z0-9 ._-]{0,62}[A-Za-z0-9._-])?$'
+            if ! [[ "$PACS_PATIENT_ISSUER_VALUE" =~ $issuer_pattern ]]; then
+                echo "${RED}PACS_PATIENT_ISSUER_VALUE='$PACS_PATIENT_ISSUER_VALUE' is not valid for PACS_PATIENT_ISSUER_POLICY=$PACS_PATIENT_ISSUER_POLICY: use 1-64 letters, digits, space, dot, underscore or hyphen, not starting or ending with a space.${NC}"
+                exit 1
+            fi;;
+    esac
 
     if [ "${GPU_SUPPORT,,}" == true ];then
         echo -e "${GREEN} -> GPU found ...${NC}"
@@ -2236,7 +2371,9 @@ function deploy_chart {
     echo -e "${YELLOW}GPU_SUPPORT: $GPU_SUPPORT ${NC}"
     if [ "${GPU_SUPPORT,,}" == true ];then
         echo -e "-> enabling GPU in Microk8s ..."
-        if [[ $deployments == *"gpu-operator"* ]];then
+        # gpu-operator is installed into its own namespace (gpu-operator-resources),
+        # so it never appears in $deployments (helm ls -n $HELM_NAMESPACE) - check it directly
+        if [[ $deployments == *"gpu-operator"* ]] || $HELM_EXECUTABLE status gpu-operator -n gpu-operator-resources >/dev/null 2>&1;then
             echo -e "-> gpu-operator chart already exists"
         else
             if [ "${OFFLINE_MODE,,}" == true ];then
@@ -2373,7 +2510,7 @@ function deploy_chart {
     fi
     # ---------------------------------------------------------------------------
 
-    echo "${GREEN}Deploying $PLATFORM_NAME:$PLATFORM_VERSION${NC}"
+    echo "${GREEN}Deploying $PLATFORM_NAME:$PLATFORM_VERSION as release $HELM_RELEASE_NAME${NC}"
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
 
     local -a kube_helm_timeout_args=()
@@ -2433,7 +2570,8 @@ function deploy_chart {
     --set-string global.pull_policy_jobs="$PULL_POLICY_IMAGES" \
     --set-string global.pull_policy_pods="$PULL_POLICY_IMAGES" \
     --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
-    --set-string global.release_name="$PLATFORM_NAME" \
+    --set-string global.helm_release_name="$HELM_RELEASE_NAME" \
+    --set-string global.helm_chart_name="$PLATFORM_NAME" \
     --set-string global.platform_prefix="$PLATFORM_PREFIX" \
     --set-string global.deployment_timestamp="$DEPLOYMENT_TIMESTAMP" \
     --set-string global.mount_points_to_monitor="$MOUNT_POINTS_TO_MONITOR" \
@@ -2449,6 +2587,8 @@ function deploy_chart {
     --set global.patch_workflows_if_conflict=$PATCH_WORKFLOWS_IF_CONFLICT \
     --set-string global.kaapana_init_password="$KAAPANA_INIT_PASSWORD" \
     --set-string global.pacs_memory_limit="$PACS_MEMORY_LIMIT" \
+    --set-string global.pacs_patient_issuer_policy="$PACS_PATIENT_ISSUER_POLICY" \
+    --set-string global.pacs_patient_issuer_value="$PACS_PATIENT_ISSUER_VALUE" \
     --set-string global.airflow_memory_limit="$AIRFLOW_MEMORY_LIMIT" \
     --set-string global.opensearch_memory_limit="$OPENSEARCH_MEMORY_LIMIT" \
     --set-string global.pacs_memory_request="$PACS_MEMORY_REQUEST" \
@@ -2468,8 +2608,9 @@ function deploy_chart {
     --set-string global.main_node_name="$MAIN_NODE_NAME" \
     --set-string global.volume_slow_data="$VOLUME_SLOW_DATA" \
     --set-string global.storage_node="$STORAGE_NODE" \
+    ${KEYCLOAK_LDAP_EGRESS_CIDRS:+--set global.keycloak_ldap_egress_cidrs="{$KEYCLOAK_LDAP_EGRESS_CIDRS}"} \
     "${kube_helm_timeout_args[@]}" \
-    --name-template "$PLATFORM_NAME"
+    --name-template "$HELM_RELEASE_NAME"
 
     echo -e ""
     echo -e "${YELLOW}══════════════════════════════════════════════════${NC}"
@@ -2628,6 +2769,58 @@ function print_resource_configs {
     echo ""
 }
 
+# Validate if a given kubeconfig file matches the current MicroK8s cluster.
+function kubeconfig_matches_microk8s {
+    local kubeconfig_path="$1"
+    local USER_KUBE_CONFIG
+    local MICROK8S_KUBE_CONFIG
+    local USER_KUBE_SYSTEM_UID
+    local MICROK8S_KUBE_SYSTEM_UID
+    local KUBECONFIG_MATCHES=false
+
+    USER_KUBE_CONFIG="$(microk8s.kubectl --kubeconfig "$kubeconfig_path" config view --raw 2>/dev/null)"
+    MICROK8S_KUBE_CONFIG="$(microk8s.kubectl config view --raw 2>/dev/null)"
+    if [ -n "$USER_KUBE_CONFIG" ] && [ "$USER_KUBE_CONFIG" = "$MICROK8S_KUBE_CONFIG" ]; then
+        KUBECONFIG_MATCHES=true
+    elif [ "$(sed -E "s#^([[:space:]]*server:[[:space:]]*https://)[^:]+(:[0-9]+)\$#\1<host>\2#" <<<"$USER_KUBE_CONFIG")" = "$(sed -E "s#^([[:space:]]*server:[[:space:]]*https://)[^:]+(:[0-9]+)\$#\1<host>\2#" <<<"$MICROK8S_KUBE_CONFIG")" ]; then
+        USER_KUBE_SYSTEM_UID="$(microk8s.kubectl --kubeconfig "$kubeconfig_path" get namespace kube-system -o "jsonpath={.metadata.uid}" 2>/dev/null)"
+        MICROK8S_KUBE_SYSTEM_UID="$(microk8s.kubectl get namespace kube-system -o "jsonpath={.metadata.uid}" 2>/dev/null)"
+        if [ -n "$USER_KUBE_SYSTEM_UID" ] && [ "$USER_KUBE_SYSTEM_UID" = "$MICROK8S_KUBE_SYSTEM_UID" ]; then
+            KUBECONFIG_MATCHES=true
+        fi
+    fi
+
+    [ "$KUBECONFIG_MATCHES" = true ]
+}
+
+# Hard gate before any Helm call. Not in main() so that install/help still work
+# without microk8s, and not only in preflight, which the user can click past.
+function require_microk8s_kubeconfig {
+    # $HELM_EXECUTABLE carries the --kubeconfig flag and is expanded unquoted,
+    # so spaces or globs in the path would split it.
+    case "$MICROK8S_KUBECONFIG" in
+        *[[:space:]]*|*'*'*|*'?'*|*'['*)
+            echo -e "${RED}\$MICROK8S_KUBECONFIG must not contain whitespace or glob characters.${NC}"
+            echo -e "${RED}Got: $MICROK8S_KUBECONFIG${NC}"
+            return 1
+            ;;
+    esac
+
+    # Check that the kubeconfig file exists and is readable.
+    if [ ! -f "$MICROK8S_KUBECONFIG" ]; then
+        echo -e "${RED}MicroK8s kubeconfig not found: $MICROK8S_KUBECONFIG${NC}"
+        echo -e "${RED}Is MicroK8s installed? Set \$MICROK8S_KUBECONFIG if it lives elsewhere.${NC}"
+        return 1
+    fi
+
+    # Check that the kubeconfig file is readable by the current user.
+    if [ ! -r "$MICROK8S_KUBECONFIG" ]; then
+        echo -e "${RED}MicroK8s kubeconfig is not readable: $MICROK8S_KUBECONFIG${NC}"
+        echo -e "${RED}Add your user to the 'microk8s' group and start a new session, then retry.${NC}"
+        return 1
+    fi
+}
+
 function preflight_checks {
     echo -e "${GREEN}#################################  RUNNING PREFLIGHT CHECKS  #########################################${NC}"
 
@@ -2685,41 +2878,26 @@ function preflight_checks {
         RESULT_MSGS+=("")
     fi
 
-    SEVERITY+=(100)
-    TEST_NAMES+=("Check that \$KUBECONFIG is untouched")
-    if [ -v KUBECONFIG ]; then
-        TEST_FAILDS+=(true)
-        RESULT_MSGS+=("In your environment the \$KUBECONFIG variable is set, this is unconventional and can cause to problems (KUBECONFIG=$KUBECONFIG)")
-    else
+    SEVERITY+=(300)
+    TEST_NAMES+=("Check that the microk8s kubeconfig is readable")
+    if [ -r "$MICROK8S_KUBECONFIG" ]; then
         TEST_FAILDS+=(false)
         RESULT_MSGS+=("")
+    else
+        TEST_FAILDS+=(true)
+        RESULT_MSGS+=("Helm needs $MICROK8S_KUBECONFIG. Install microk8s and make sure you are in the 'microk8s' group.")
     fi
 
-    SEVERITY+=(100)
+    # Advisory only: Helm in this script uses $MICROK8S_KUBECONFIG, not this file.
+    # But a user executing manual helm commands may run into issues if this file does not match the current cluster.
+    SEVERITY+=(50)
     TEST_NAMES+=("Check if ~/.kube/config matches this microk8s cluster")
-    # Allow for the server address to differ, if it points to the same cluster (same kube-system namespace uid)
-    local USER_KUBE_CONFIG
-    local MICROK8S_KUBE_CONFIG
-    local USER_KUBE_SYSTEM_UID
-    local MICROK8S_KUBE_SYSTEM_UID
-    local KUBECONFIG_MATCHES=false
-    USER_KUBE_CONFIG="$(microk8s.kubectl --kubeconfig "/home/$USER/.kube/config" config view --raw 2>/dev/null)"
-    MICROK8S_KUBE_CONFIG="$(microk8s.kubectl config view --raw 2>/dev/null)"
-    if [ -n "$USER_KUBE_CONFIG" ] && [ "$USER_KUBE_CONFIG" = "$MICROK8S_KUBE_CONFIG" ]; then
-        KUBECONFIG_MATCHES=true
-    elif [ "$(sed -E "s#^([[:space:]]*server:[[:space:]]*https://)[^:]+(:[0-9]+)\$#\1<host>\2#" <<<"$USER_KUBE_CONFIG")" = "$(sed -E "s#^([[:space:]]*server:[[:space:]]*https://)[^:]+(:[0-9]+)\$#\1<host>\2#" <<<"$MICROK8S_KUBE_CONFIG")" ]; then
-        USER_KUBE_SYSTEM_UID="$(microk8s.kubectl --kubeconfig "/home/$USER/.kube/config" get namespace kube-system -o "jsonpath={.metadata.uid}" 2>/dev/null)"
-        MICROK8S_KUBE_SYSTEM_UID="$(microk8s.kubectl get namespace kube-system -o "jsonpath={.metadata.uid}" 2>/dev/null)"
-        if [ -n "$USER_KUBE_SYSTEM_UID" ] && [ "$USER_KUBE_SYSTEM_UID" = "$MICROK8S_KUBE_SYSTEM_UID" ]; then
-            KUBECONFIG_MATCHES=true
-        fi
-    fi
-    if [ "$KUBECONFIG_MATCHES" = true ]; then
+    if kubeconfig_matches_microk8s "$HOME/.kube/config"; then
         TEST_FAILDS+=(false)
         RESULT_MSGS+=("")
     else
         TEST_FAILDS+=(true)
-        RESULT_MSGS+=("Your kubeconfig differs from the microk8s config beyond its server address or points to another cluster.")
+        RESULT_MSGS+=("Your kubeconfig does not address this microk8s cluster. kaapanactl passes $MICROK8S_KUBECONFIG to Helm, so this does not affect the deployment. However, if you run Helm commands manually, you may need to set KUBECONFIG=$MICROK8S_KUBECONFIG or merge the configs.")
     fi
 
     SEVERITY+=(100)
@@ -3096,9 +3274,11 @@ modinfo nvidia | grep ^version
 nvidia-smi
 
 --- "Resource Health"
-check_system kaapana-admin-chart default
-check_system kaapana-platform-chart default
-check_system "${PLATFORM_PREFIX}-project-admin" admin
+if require_microk8s_kubeconfig; then
+    check_system "${HELM_RELEASE_NAME:-kaapana-admin-chart}" default
+    check_system kaapana-platform-chart default
+    check_system "${PLATFORM_PREFIX}-project-admin" admin
+fi
 
 --- "END"
 }

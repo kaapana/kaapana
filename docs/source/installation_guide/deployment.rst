@@ -36,6 +36,7 @@ The platform is deployed using the script :code:`kaapanactl.sh` also used during
            - :code:`KAAPANA_ADMIN_CHART` referes to the platform chart which is about to be installed. It has the form :code:`<registry>/<chart>:<version>` (e.g. :code:`localhost:5000/kaapana-admin-chart:0.5.3-latest`)`
            - :code:`REGISTRY_USERNAME` and :code:`REGISTRY_PASSWORD` refere to the username and password used to access the private registry.
            - Hint: If your registry is plain HTTP (e.g. when you use a local registry) use the :code:`--plain-http` flag to enable pulling from plain HTTP registries.
+           - Hint: The helm release is named ``kaapana-admin-chart`` by default, also when the chart itself has a different name (see ``HELM_RELEASE_NAME`` :ref:`below<platform_config>`).
 
       .. tab:: Tarball
 
@@ -136,6 +137,10 @@ Deployment configurations
      - ``"false"``
      - string
      - If true, installs extensions listed in ``deployment_config.yaml`` under ``preinstall_extensions``.
+   * - ``HELM_RELEASE_NAME``
+     - ``"kaapana-admin-chart"``
+     - string
+     - Helm release name of the platform, independent of the chart name. A platform chart under a different name (e.g. a downstream distribution) is deployed as the same release, so it is recognised as the platform that is already deployed instead of being installed next to it. Set via ``--release-name`` or the ``HELM_RELEASE_NAME`` env var. If the platform runs under another release name (e.g. deployed by an older :code:`kaapanactl.sh`, which used the chart name), the installation fails on the objects that release owns: pass ``--release-name <name>`` to keep that name. Moving an undeployed platform to another release name needs manual work: the objects it kept (``helm.sh/resource-policy: keep``, e.g. the admin namespace, secrets and persistent volume claims) still name the old release, and the installation fails on them until they are removed or re-annotated. A deployment that would also run a version migration stops before the migration instead.
    * - ``CHART_PATH``
      - ``""``
      - string
@@ -208,6 +213,54 @@ Resource configurations
      - 20
      - int
      - % of allocable memory for Opensearch metadata and search system.
+
+PACS configurations
+--------------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 20 10 50
+
+   * - Variable
+     - Default
+     - Type
+     - Description
+   * - ``PACS_PATIENT_ISSUER_POLICY``
+     - ``"archive_default"``
+     - string
+     - How dcm4chee identifies a patient, see the policies below. Set it before the first data arrives, see the warning below. Changing it needs a re-deploy.
+   * - ``PACS_PATIENT_ISSUER_VALUE``
+     - ``""``
+     - string
+     - Issuer written by ``fixed_issuer`` and ``supplement_issuer``, required for those two. 1-64 letters, digits, space, dot, underscore or hyphen. Changing it later has the same effect as changing the policy.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 25 75
+
+   * - Policy
+     - Behaviour
+   * - ``archive_default``
+     - dcm4chee's own behaviour: a missing issuer is filled with a hash of ``PatientName`` and ``PatientBirthDate``, so the same ``PatientID`` with different names or birth dates becomes different patients.
+   * - ``patient_id_only``
+     - Clears the issuer on every received object, so patients match by ``PatientID`` alone.
+   * - ``fixed_issuer``
+     - Writes ``PACS_PATIENT_ISSUER_VALUE`` as issuer on every object, also where the sender supplied one.
+   * - ``supplement_issuer``
+     - Writes ``PACS_PATIENT_ISSUER_VALUE`` only where the sender supplied no issuer.
+
+.. warning::
+
+   Choose the policy and issuer before the first data arrives. Changing either later does not rewrite stored data,
+   so existing studies keep the issuer they were stored with. A new series for such a study then gets a different issuer,
+   and dcm4chee rejects it because the study already belongs to another patient (HTTP 409 over STOW-RS).
+   For example, after switching from ``archive_default`` to ``fixed_issuer`` or ``supplement_issuer``,
+   new series for studies received before the switch are rejected.
+   Patients that were already split are not merged either.
+
+.. note::
+
+   An instance whose archive rules were already changed by hand, for example by an earlier nullify rule, can be reset to dcm4chee's defaults with ``services/store/dcm4chee/scripts/restore-stock-issuer-rules.sh`` before the re-deploy.
 
 Data configurations
 ---------------------

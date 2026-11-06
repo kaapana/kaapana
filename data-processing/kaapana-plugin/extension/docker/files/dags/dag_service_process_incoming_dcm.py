@@ -7,6 +7,7 @@ from uuid import uuid4
 
 import requests
 from airflow.models import DAG
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.trigger_rule import TriggerRule
 from kaapana.blueprints.kaapana_global_variables import (
@@ -510,9 +511,10 @@ upload_to_data_api = KaapanaPythonBaseOperator(
 clean = LocalWorkflowCleanerOperator(
     dag=dag,
     clean_workflow_dir=True,
-    trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
     namespace=SERVICES_NAMESPACE,
 )
+
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
 
 get_input >> (auto_trigger_operator, extract_metadata)
 
@@ -540,3 +542,12 @@ generate_thumbnail >> upload_to_data_api
     put_thumbnail_to_project_bucket,
     upload_to_data_api,
 ] >> clean
+
+[
+    add_to_dataset,
+    assign_to_project,
+    put_html_to_minio,
+    put_results_html_to_minio_admin_bucket,
+    put_thumbnail_to_project_bucket,
+    upload_to_data_api,
+] >> check_success

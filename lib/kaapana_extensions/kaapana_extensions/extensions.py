@@ -94,7 +94,7 @@ class ExtensionUtilityLibrary:
             repository=repo,
             username=username,
             password=password,
-            timeout=timeout,
+            client_options=None if timeout is httpx.USE_CLIENT_DEFAULT else {"timeout": timeout},
         )
         self.logger = self._manager.logger
 

@@ -4,6 +4,7 @@ from advanced_collect_metadata_federated.AdvancedCollectMetadataFederatedOperato
     AdvancedCollectMetadataFederatedOperator,
 )
 from airflow.models import DAG
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
@@ -84,10 +85,8 @@ put_to_minio = MinioOperator(
     whitelisted_file_extensions=(".json", ".tar"),
 )
 
-clean = LocalWorkflowCleanerOperator(
-    dag=dag,
-    clean_workflow_dir=True,
-)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 
-acmd_federated >> put_to_minio >> clean
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
+acmd_federated >> put_to_minio >> [clean, check_success]

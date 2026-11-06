@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 from airflow.models import DAG
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
 from kaapana.blueprints.json_schema_templates import properties_external_federated_form
@@ -163,5 +164,7 @@ put_to_minio = MinioOperator(
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
-nnunet_federated >> zip_model >> bin2dcm >> dcm_send_int >> clean
-nnunet_federated >> put_to_minio >> clean
+
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
+nnunet_federated >> zip_model >> bin2dcm >> dcm_send_int >> [clean, check_success]
+nnunet_federated >> put_to_minio >> [clean, check_success]

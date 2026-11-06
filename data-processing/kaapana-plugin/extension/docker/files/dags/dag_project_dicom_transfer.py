@@ -7,6 +7,7 @@ from pathlib import Path
 
 import requests
 from airflow.models import DAG
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
 from kaapana.blueprints.json_schema_templates import get_all_project_names
@@ -184,6 +185,9 @@ push_json = LocalJson2MetaOperator(dag=dag, json_operator=clean_tags, from_other
 copy_thumbnails = LocalCopyThumbnails(dag=dag, input_operator=clean_tags)
 
 
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True, trigger_rule="none_failed_or_skipped")
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
 
 (get_input >> clean_tags >> assign_to_project >> push_json >> add_datasets >> copy_thumbnails >> clean)
+
+copy_thumbnails >> check_success

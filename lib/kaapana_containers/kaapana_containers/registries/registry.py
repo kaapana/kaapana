@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import http.cookiejar
 import json
 import logging
 import re
@@ -12,6 +13,10 @@ import httpx
 
 SHA256Digest = NewType("SHA256Digest", str)
 """Type alias for SHA256 digest strings in format 'sha256:<hexdigest>'."""
+
+
+def _same_origin(a: httpx.URL, b: httpx.URL) -> bool:
+    return (a.scheme, a.host, a.port) == (b.scheme, b.host, b.port)
 
 
 class OCIError(Exception):
@@ -93,7 +98,8 @@ class OCIRegistryDiscovery:
         repository: str,
         username: Optional[str] = None,
         password: Optional[str] = None,
-        timeout: Any = httpx.USE_CLIENT_DEFAULT,
+        client_options: Optional[Dict[str, Any]] = None,
+        finalize_timeout: Optional[float] = 1800.0,
     ):
         """Initialize the OCIRegistryDiscovery client.
 
@@ -102,8 +108,16 @@ class OCIRegistryDiscovery:
             repository: Repository name within the registry (e.g., 'user.name/kaapana/extensions').
             username: Optional username for basic authentication.
             password: Optional password for basic authentication.
-            timeout: Per-request timeout, seconds or an :class:`httpx.Timeout`;
-                     ``None`` waits forever, the default leaves it to httpx.
+            client_options: Options forwarded to :class:`httpx.AsyncClient`
+                (e.g. ``{"timeout": 60.0, "verify": False}``). ``cookies`` and
+                ``follow_redirects`` entries are not accepted because the client
+                never keeps cookies and always follows redirects.
+            finalize_timeout: Read timeout in seconds for the request that closes a
+                blob upload. That request returns only after the registry has stored
+                the whole blob, so it can take much longer than any other request.
+                If the client's read timeout is longer or ``None``, the request
+                keeps it. ``None`` here waits without limit. The other timeouts of
+                that request are the timeouts of the client.
         """
         self.logger = logging.getLogger(__name__)
         self.registry_url = registry_url.rstrip("/")
@@ -112,12 +126,15 @@ class OCIRegistryDiscovery:
         self.password = password
         self.bearer_token: Optional[str] = None
         self.basic_auth_header = self._build_basic_auth_header()
-        self.timeout = timeout
         self._client: Optional[httpx.AsyncClient] = None
+        self._client_options: Dict[str, Any] = client_options or {}
+        self._finalize_timeout = finalize_timeout
 
     async def __aenter__(self) -> "OCIRegistryDiscovery":
-        overrides = {} if self.timeout is httpx.USE_CLIENT_DEFAULT else {"timeout": self.timeout}
-        self._client = httpx.AsyncClient(**overrides)
+        # Keep no cookies, as the OCI distribution-spec conformance client does.
+        jar = http.cookiejar.CookieJar(policy=http.cookiejar.DefaultCookiePolicy(allowed_domains=[]))
+        # Registries may redirect any request. httpx drops Authorization when a redirect leaves the origin.
+        self._client = httpx.AsyncClient(**self._client_options, cookies=jar, follow_redirects=True)
         return self
 
     async def __aexit__(self, *args: Any) -> None:
@@ -186,11 +203,21 @@ class OCIRegistryDiscovery:
         Raises:
             OCIError: On any non-2xx response.
         """
+        # Registry credentials go only to the registry's own origin, never to a
+        # redirect target, upload location or link on another host.
+        registry = httpx.URL(self.registry_url)
+        on_registry = _same_origin(httpx.URL(url), registry)
         headers = kwargs.pop("headers", {})
-        headers.update(self._auth_headers())
+        if on_registry:
+            headers.update(self._auth_headers())
         response = await self._client.request(method, url, headers=headers, **kwargs)
 
-        if response.status_code == 401 and "WWW-Authenticate" in response.headers:
+        if (
+            response.status_code == 401
+            and "WWW-Authenticate" in response.headers
+            and on_registry
+            and _same_origin(response.url, registry)
+        ):
             token = await self._get_bearer_token(response.headers["WWW-Authenticate"])
             self.bearer_token = token
             headers["Authorization"] = f"Bearer {token}"
@@ -222,6 +249,10 @@ class OCIRegistryDiscovery:
         3. PUT blob data to that URL with the digest query parameter
         4. Registry stores the blob and returns 201 Created
 
+        The whole blob is uploaded in a single PUT, so ``data`` is held in
+        memory for the duration of the request. Blobs larger than the available memory
+        cannot be uploaded and will fail with a memory error.
+
         Args:
             data: Raw bytes or string data to upload
             media_type: OCI media type (e.g., application/vnd.oci.image.config.v1+json)
@@ -248,11 +279,16 @@ class OCIRegistryDiscovery:
         digest = SHA256Digest(f"sha256:{hashlib.sha256(data_bytes).hexdigest()}")
 
         separator = "&" if "?" in location else "?"
+        client_read = self._client.timeout.read
+        no_limit = client_read is None or self._finalize_timeout is None
+        read = None if no_limit else max(client_read, self._finalize_timeout)
+        finalize = httpx.Timeout(**{**self._client.timeout.as_dict(), "read": read})
         await self._request_with_auth_retry(
             "PUT",
             f"{location}{separator}digest={digest}",
             headers={"Content-Type": media_type},
             content=data_bytes,
+            timeout=finalize,
         )
         return digest
 
@@ -293,6 +329,9 @@ class OCIRegistryDiscovery:
         Reads the file content, determines the appropriate media type,
         uploads it as a blob, and returns metadata.
 
+        The file is held fully in memory before being uploaded (see
+        :meth:`_upload_blob`); the host needs free RAM of at least the size of the file.
+
         Args:
             file_path: Absolute (or cwd-relative) path to the file to read.
             stored_name: The filename to record in the registry metadata.
@@ -309,12 +348,7 @@ class OCIRegistryDiscovery:
         media_type = self._media_type_from_ext(Path(file_path).suffix)
         digest = await self._upload_blob(data, media_type)
         name = stored_name if stored_name is not None else file_path
-        return {
-            "digest": digest,
-            "filename": name,
-            "mediaType": media_type,
-            "size": len(data),
-        }
+        return {"digest": digest, "filename": name, "mediaType": media_type, "size": len(data)}
 
     async def create_or_update_tag(
         self,
@@ -384,6 +418,9 @@ class OCIRegistryDiscovery:
     async def _download_blob(self, digest: SHA256Digest) -> bytes:
         """Download a blob by its digest.
 
+        The response body is buffered completely in memory (``resp.content``), so a
+        blob larger than the available memory will fail with a memory error.
+
         Args:
             digest: Blob digest in 'sha256:<hexdigest>' format
 
@@ -428,10 +465,7 @@ class OCIRegistryDiscovery:
         try:
             return config_resp.json()
         except json.JSONDecodeError as exc:
-            raise OCIError(
-                f"config blob for {tag!r} is not valid JSON: {exc}",
-                code="MANIFEST_INVALID",
-            ) from exc
+            raise OCIError(f"config blob for {tag!r} is not valid JSON: {exc}", code="MANIFEST_INVALID") from exc
 
     async def list_tags(self) -> List[str]:
         """List all tags in the repository.
@@ -492,6 +526,10 @@ class OCIRegistryDiscovery:
 
         Fetches the tag's metadata, downloads each referenced file as a blob,
         and writes them to the output directory with their original filenames.
+
+        Each file is held fully in memory before being written (see
+        :meth:`_download_blob`); the host needs free RAM of at least the size of the
+        largest file.
 
         Args:
             tag: Tag name to download files from

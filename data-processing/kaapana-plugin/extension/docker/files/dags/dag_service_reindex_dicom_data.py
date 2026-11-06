@@ -3,6 +3,7 @@ from shutil import copyfile
 
 import pydicom
 from airflow.models import DAG
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.dates import days_ago
 from kaapana.blueprints.kaapana_global_variables import (
     AIRFLOW_WORKFLOW_DIR,
@@ -92,4 +93,8 @@ assign_to_project = LocalAssignDataToProjectOperator(dag=dag, input_operator=ext
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True, namespace=SERVICES_NAMESPACE)
 
+
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
 (copy_from_pacs >> extract_metadata >> (add_to_dataset, assign_to_project, push_json) >> clean)
+
+(add_to_dataset, assign_to_project, push_json) >> check_success

@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from airflow.models import DAG
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.dates import days_ago
 from bodypartregression.BprOperator import BprOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
@@ -59,4 +60,6 @@ push_json = Json2MetaOperator(dag=dag, dicom_operator=get_input, json_operator=b
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_input >> dcm2nifti >> bodypartregression >> push_json >> clean
+
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
+get_input >> dcm2nifti >> bodypartregression >> push_json >> [clean, check_success]

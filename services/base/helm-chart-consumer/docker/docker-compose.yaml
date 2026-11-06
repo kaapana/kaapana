@@ -1,0 +1,28 @@
+# Click-through UI mock of the Helm Chart Consumer (ticket #2449).
+# No backend: the mock makes no API calls and keeps all data in the browser tab.
+#
+#   docker compose up --build
+#
+# then open http://localhost:5050
+name: helm-chart-consumer-ui-mock
+
+services:
+  # The shared base-ui library. The mock's Dockerfile starts FROM its image; it is
+  # built here so a plain `docker compose up --build` works without kaapana-build.
+  # It is a build stage only: zero replicas, so it never runs as a container.
+  base-ui:
+    build:
+      context: ../../base-ui/docker
+    image: local-only/base-ui:latest
+    scale: 0
+
+  helm-chart-consumer-ui-mock:
+    build:
+      context: .
+      additional_contexts:
+        # Resolve `FROM local-only/base-ui:latest` to the image built above. BuildKit
+        # drops the `:latest` tag when it matches a FROM line to a context name.
+        local-only/base-ui: service:base-ui
+    image: helm-chart-consumer-ui-mock:latest
+    ports:
+      - "5050:5000"

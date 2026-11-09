@@ -126,7 +126,7 @@
         />
         <v-list-item to="/applications" prepend-icon="mdi-apps-box" title="Applications" />
         <v-list-item
-          v-if="mock.can.deploy"
+          v-if="mock.can.catalog"
           to="/catalog"
           prepend-icon="mdi-view-grid-plus-outline"
           title="Application Catalog"

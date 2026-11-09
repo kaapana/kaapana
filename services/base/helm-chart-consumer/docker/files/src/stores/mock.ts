@@ -1,9 +1,9 @@
-import { computed, reactive, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { notify } from '@kyvg/vue3-notification'
 import type { ApiErrorInfo } from '@kaapana/base-ui'
 import {
-  appDefinitions,
+  applications,
   MOCK_HOST,
   otherPeople,
   personas,
@@ -12,12 +12,15 @@ import {
   seedProjects,
 } from '@/mock/data'
 import type {
-  AppDefinition,
+  Application,
+  AppScope,
+  AppVersion,
   DeployedApp,
   ParamValue,
   Pod,
   Project,
   Role,
+  Scope,
   ShellNotification,
 } from '@/mock/types'
 
@@ -28,28 +31,36 @@ import type {
 export type PendingLeave =
   { kind: 'route'; to: string } | { kind: 'project'; id: string } | { kind: 'persona'; id: string }
 
-export type AppWindow =
-  { kind: 'app'; id: string } | { kind: 'denied'; projectId: string; name: string }
-
-export interface ConceptOptions {
-  /** Q5 — what happens to persistent volumes on undeploy. */
-  volumesOnUndeploy: 'ask' | 'delete' | 'keep'
-  /** Q8 — whether a newly registered application starts enabled. */
-  newAppDefault: 'disabled' | 'enabled'
-  /** Q9 — deleting a project that still has deployed applications. */
-  projectDeletion: 'undeploy' | 'refuse'
-}
-
 export interface DryRunResult {
   ok: boolean
   message: string
   error?: ApiErrorInfo
 }
 
+export type VersionStatus =
+  | { kind: 'newest' }
+  | { kind: 'newer-registered'; newest: string }
+  | { kind: 'deregistered'; newest: string | null }
+
+export interface ScopeOption {
+  scope: Scope
+  blockedBy: DeployedApp | null
+}
+
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value))
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 // newId() only exists in secure contexts; the mock may be served over plain http.
 const newId = () => Math.random().toString(36).slice(2) + Date.now().toString(36)
+
+function compareVersions(a: string, b: string): number {
+  const pa = a.split('.').map(Number)
+  const pb = b.split('.').map(Number)
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const diff = (pa[i] ?? 0) - (pb[i] ?? 0)
+    if (diff) return diff
+  }
+  return 0
+}
 
 export const roleLabels: Record<Role, string> = {
   scientist: 'Scientist',
@@ -64,11 +75,6 @@ export const useMockStore = defineStore('mock', () => {
   const storyPanel = ref(false)
   const dark = ref(false)
   const highlightStory = ref<string | null>(null)
-  const options = reactive<ConceptOptions>({
-    volumesOnUndeploy: 'ask',
-    newAppDefault: 'disabled',
-    projectDeletion: 'undeploy',
-  })
 
   const projects = ref<Project[]>(clone(seedProjects))
   const deployed = ref<DeployedApp[]>(seedDeployed(Date.now()))
@@ -80,7 +86,7 @@ export const useMockStore = defineStore('mock', () => {
   // Shell state: the view reports unsaved changes, the shell asks before leaving.
   const dirty = ref(false)
   const pendingLeave = ref<PendingLeave | null>(null)
-  const appWindow = ref<AppWindow | null>(null)
+  const openedAppId = ref<string | null>(null)
 
   // Timers of the previous mock run must not touch the data after a reset.
   let generation = 0
@@ -99,26 +105,115 @@ export const useMockStore = defineStore('mock', () => {
     return project.value?.members[persona.value.id] ?? null
   })
 
-  // Story 5.1 — the default mapping of roles to actions.
-  const can = computed(() => ({
-    deploy: role.value === 'principal-investigator' || role.value === 'kaapana-system-admin',
-    undeploy: role.value === 'principal-investigator' || role.value === 'kaapana-system-admin',
-    open: role.value !== null,
-    manageAvailability: role.value === 'kaapana-system-admin',
-    manageProjects: role.value === 'kaapana-system-admin',
-  }))
+  const can = computed(() => {
+    const admin = role.value === 'kaapana-system-admin'
+    const pi = role.value === 'principal-investigator'
+    const deploy: Record<Scope, boolean> = { project: pi || admin, platform: admin }
+    const undeploy: Record<Scope, boolean> = { project: pi || admin, platform: admin }
+    return {
+      deploy,
+      undeploy,
+      catalog: deploy.project || deploy.platform,
+      manageAvailability: admin,
+      manageProjects: admin,
+    }
+  })
 
-  const projectApps = computed(() => deployed.value.filter((d) => d.projectId === projectId.value))
+  function canOpen(scope: AppScope): boolean {
+    return (
+      scope.kind === 'platform' ||
+      persona.value.admin ||
+      persona.value.id in (projects.value.find((p) => p.id === scope.projectId)?.members ?? {})
+    )
+  }
 
-  const enabledApps = computed(() =>
-    appDefinitions.filter((a) => availability.value[projectId.value]?.includes(a.id)),
+  function projectAppsOf(id: string): DeployedApp[] {
+    return deployed.value.filter((d) => d.scope.kind === 'project' && d.scope.projectId === id)
+  }
+
+  function liveInstances(appId: string, where: { projectId: string } | 'platform'): DeployedApp[] {
+    const pool =
+      where === 'platform'
+        ? deployed.value.filter((d) => d.scope.kind === 'platform')
+        : projectAppsOf(where.projectId)
+    return pool.filter((d) => d.appId === appId && d.state !== 'UNDEPLOYING')
+  }
+
+  const listedApps = computed(() =>
+    deployed.value.filter(
+      (d) => d.scope.kind === 'platform' || d.scope.projectId === projectId.value,
+    ),
   )
 
   const unreadCount = computed(() => notifications.value.filter((n) => !n.read).length)
 
-  function definition(appId: string): AppDefinition {
-    return appDefinitions.find((a) => a.id === appId)!
+  function application(appId: string): Application {
+    return applications.find((a) => a.id === appId)!
   }
+
+  function versionOf(app: Pick<DeployedApp, 'appId' | 'version'>): AppVersion {
+    return application(app.appId).versions.find((v) => v.version === app.version)!
+  }
+
+  function registeredVersions(appId: string): AppVersion[] {
+    return application(appId)
+      .versions.filter((v) => v.registered)
+      .sort((a, b) => compareVersions(b.version, a.version))
+  }
+
+  function newestRegisteredVersion(appId: string): AppVersion | undefined {
+    return registeredVersions(appId)[0]
+  }
+
+  function versionStatus(app: DeployedApp): VersionStatus {
+    const newest = newestRegisteredVersion(app.appId)?.version ?? null
+    if (!versionOf(app).registered) return { kind: 'deregistered', newest }
+    if (newest !== null && compareVersions(newest, app.version) > 0)
+      return { kind: 'newer-registered', newest }
+    return { kind: 'newest' }
+  }
+
+  function isEnabled(project: string, appId: string): boolean {
+    return availability.value[project]?.includes(appId) ?? false
+  }
+
+  function deployOptions(appId: string): ScopeOption[] {
+    const app = application(appId)
+    const options: ScopeOption[] = []
+    if (
+      app.scopes.includes('project') &&
+      can.value.deploy.project &&
+      isEnabled(projectId.value, appId)
+    ) {
+      const blockedBy = app.multiDeployable
+        ? null
+        : (liveInstances(appId, { projectId: projectId.value })[0] ?? null)
+      options.push({ scope: 'project', blockedBy })
+    }
+    if (app.scopes.includes('platform') && can.value.deploy.platform) {
+      options.push({ scope: 'platform', blockedBy: liveInstances(appId, 'platform')[0] ?? null })
+    }
+    return options
+  }
+
+  function blockingInstance(appId: string): DeployedApp | null {
+    const options = deployOptions(appId)
+    return options.length > 0 && options.every((o) => o.blockedBy) ? options[0].blockedBy : null
+  }
+
+  function singleInstanceNotice(instance: DeployedApp): { title: string; text: string } {
+    const once = instance.scope.kind === 'platform' ? 'platform-wide' : 'per project'
+    return {
+      title: `${application(instance.appId).name} is already deployed ${scopePhrase(instance.scope)}`,
+      text: `It can be deployed once ${once}. The existing instance is ${instance.name}.`,
+    }
+  }
+
+  const catalog = computed(() =>
+    applications.filter(
+      (a) => registeredVersions(a.id).length > 0 && deployOptions(a.id).length > 0,
+    ),
+  )
 
   function personName(id: string | null): string {
     if (!id) return ''
@@ -129,23 +224,28 @@ export const useMockStore = defineStore('mock', () => {
     return projects.value.find((p) => p.id === id)?.name ?? id
   }
 
-  function instanceUrl(app: Pick<DeployedApp, 'projectId' | 'name' | 'appId'>): string {
-    const entry = definition(app.appId).entryPath
-    return `${MOCK_HOST}/project/${app.projectId}/applications/${app.name}/${entry}`
+  function scopePhrase(scope: AppScope): string {
+    return scope.kind === 'project' ? `in ${projectName(scope.projectId)}` : 'platform-wide'
+  }
+
+  function instanceUrl(app: Pick<DeployedApp, 'scope' | 'name' | 'appId' | 'version'>): string {
+    const base =
+      app.scope.kind === 'project' ? `${MOCK_HOST}/project/${app.scope.projectId}` : MOCK_HOST
+    return `${base}/applications/${app.name}/${versionOf(app).entryPath}`
   }
 
   function findByName(name: string): DeployedApp | undefined {
-    return projectApps.value.find((d) => d.name === name)
+    return listedApps.value.find((d) => d.name === name)
   }
 
-  function nameTaken(name: string): boolean {
-    return projectApps.value.some((d) => d.name === name)
+  function nameTaken(name: string, scope: Scope): boolean {
+    return (scope === 'platform' ? deployed.value : listedApps.value).some((d) => d.name === name)
   }
 
-  function suggestName(appId: string): string {
+  function suggestName(appId: string, scope: Scope): string {
     for (let n = 1; ; n++) {
       const candidate = `${appId}-${n}`
-      if (!nameTaken(candidate)) return candidate
+      if (!nameTaken(candidate, scope)) return candidate
     }
   }
 
@@ -185,43 +285,49 @@ export const useMockStore = defineStore('mock', () => {
   // ---- Helm Chart Consumer, simulated -----------------------------------
 
   /** Story 2.1 / 2.2 — the dry-run that precedes every deploy. */
-  async function dryRun(appId: string, values: Record<string, ParamValue>): Promise<DryRunResult> {
+  async function dryRun(
+    appId: string,
+    version: string,
+    values: Record<string, ParamValue>,
+  ): Promise<DryRunResult> {
     await wait(1200)
     const memory = Number(values.memory ?? 0)
     if (values.gpu === true && memory > 32) {
       const detail =
-        `Error: INSTALLATION FAILED: admission webhook "resources.kaapana.ai" denied the request: ` +
-        `pods requesting nvidia.com/gpu may request at most 32Gi memory, requested ${memory}Gi`
+        `Error: INSTALLATION FAILED: values don't meet the specifications of the schema(s) in the following chart(s):\n` +
+        `${appId}:\n- resources.limits.memory: Must be at most 32 when resources.gpu.enabled is true, ${memory} is set`
       return {
         ok: false,
         message: `The chart rejects this configuration: GPU nodes allow at most 32 GiB memory, and ${memory} GiB is set. Lower the memory or turn off the GPU.`,
+        // A dry-run reports its problems in a successful response, so there is no failed
+        // request to show. The details therefore show only the output of helm.
         error: {
-          status: 422,
-          statusText: 'Unprocessable Entity',
-          method: 'POST',
-          url: `/helm-chart-consumer/v1/projects/${projectId.value}/applications/dry-run`,
+          status: null,
+          statusText: null,
+          method: null,
+          url: null,
           detail,
-          requestId: 'mock-' + Math.random().toString(16).slice(2, 10),
-          message: 'Request failed with status code 422',
+          requestId: null,
+          message: null,
         },
       }
     }
     return {
       ok: true,
-      message: `Dry run passed: helm can install ${definition(appId).name} with this configuration.`,
+      message: `Dry run passed: helm can install ${application(appId).name} ${version} with this configuration.`,
     }
   }
 
   function deploy(input: {
     appId: string
+    version: string
+    scope: AppScope
     name: string
     description: string
-    forPerson: string | null
     values: Record<string, ParamValue>
   }): DeployedApp {
-    const def = definition(input.appId)
     const now = Date.now()
-    const podName = `${input.name}-${def.id}-${Math.random().toString(36).slice(2, 11)}`
+    const podName = `${input.name}-${input.appId}-${Math.random().toString(36).slice(2, 11)}`
     const pod = (status: string, ready: string): Pod => ({
       name: podName,
       status,
@@ -232,11 +338,10 @@ export const useMockStore = defineStore('mock', () => {
     const app: DeployedApp = {
       id: newId(),
       name: input.name,
-      appId: def.id,
-      version: def.version,
-      projectId: projectId.value,
+      appId: input.appId,
+      version: input.version,
+      scope: input.scope,
       description: input.description,
-      forPerson: input.forPerson,
       deployedBy: personaId.value,
       deployedAt: now,
       values: { ...input.values },
@@ -247,7 +352,7 @@ export const useMockStore = defineStore('mock', () => {
           type: 'Normal',
           reason: 'Scheduled',
           object: `pod/${podName}`,
-          message: `Successfully assigned ${projectId.value}/${podName} to node worker-1`,
+          message: `Successfully assigned ${podName} to node worker-1`,
           at: now,
         },
       ],
@@ -269,7 +374,7 @@ export const useMockStore = defineStore('mock', () => {
           addNotification({
             type: 'success',
             title: 'Application ready',
-            text: `${d.name} in ${projectName(d.projectId)} is ready to open.`,
+            text: `${d.name} is ready to open ${scopePhrase(d.scope)}.`,
           })
         }),
       7000,
@@ -277,8 +382,7 @@ export const useMockStore = defineStore('mock', () => {
     return app
   }
 
-  /** Story 2.3. `deleteVolume` follows Q5 (concept options). */
-  function undeploy(id: string, deleteVolume: boolean) {
+  function undeploy(id: string) {
     const app = deployed.value.find((d) => d.id === id)
     if (!app) return
     app.state = 'UNDEPLOYING'
@@ -287,16 +391,11 @@ export const useMockStore = defineStore('mock', () => {
     setTimeout(() => {
       if (gen !== generation) return
       deployed.value = deployed.value.filter((d) => d.id !== id)
-      const def = definition(app.appId)
-      const volume = def.workspaceParam
-        ? deleteVolume
-          ? ' Its volume was deleted.'
-          : ' Its volume was kept.'
-        : ''
+      const volume = versionOf(app).workspaceParam ? ' Its workspace volume was deleted.' : ''
       notify({
         type: 'success',
         title: 'Application undeployed',
-        text: `${app.name} was removed from ${projectName(app.projectId)}.${volume}`,
+        text: `${app.name} was undeployed ${scopePhrase(app.scope)}.${volume}`,
       })
     }, 2500)
   }
@@ -309,7 +408,7 @@ export const useMockStore = defineStore('mock', () => {
       notify({
         type: 'success',
         title: 'Removed from the list',
-        text: `${app.name} no longer appears in ${projectName(app.projectId)}.`,
+        text: `${app.name} is no longer listed ${scopePhrase(app.scope)}.`,
       })
   }
 
@@ -319,9 +418,7 @@ export const useMockStore = defineStore('mock', () => {
     if (enabled) current.add(appId)
     else current.delete(appId)
     availability.value[project] = [...current]
-    const running = deployed.value.filter(
-      (d) => d.projectId === project && d.appId === appId,
-    ).length
+    const running = liveInstances(appId, { projectId: project }).length
     const keep =
       !enabled && running
         ? ` ${running} deployed ${running === 1 ? 'instance keeps' : 'instances keep'} running.`
@@ -329,25 +426,19 @@ export const useMockStore = defineStore('mock', () => {
     notify({
       type: 'success',
       title: enabled ? 'Application enabled' : 'Application disabled',
-      text: `${definition(appId).name} ${enabled ? 'can now be' : 'can no longer be'} deployed in ${projectName(project)}.${keep}`,
+      text: `${application(appId).name} ${enabled ? 'can now be' : 'can no longer be'} deployed in ${projectName(project)}.${keep}`,
     })
   }
 
-  /** Story 12.2 — only called when Q9 allows the deletion. */
-  function deleteProject(id: string) {
+  function deleteProject(id: string): DeployedApp[] {
+    const blocking = projectAppsOf(id)
+    if (blocking.length > 0) return blocking
     const name = projectName(id)
-    const removed = deployed.value.filter((d) => d.projectId === id).length
-    deployed.value = deployed.value.filter((d) => d.projectId !== id)
     projects.value = projects.value.filter((p) => p.id !== id)
     delete availability.value[id]
     if (projectId.value === id) projectId.value = accessibleProjects.value[0]?.id ?? ''
-    notify({
-      type: 'success',
-      title: 'Project deleted',
-      text: removed
-        ? `${name} was deleted. ${removed} ${removed === 1 ? 'application was' : 'applications were'} undeployed.`
-        : `${name} was deleted.`,
-    })
+    notify({ type: 'success', title: 'Project deleted', text: `${name} was deleted.` })
+    return []
   }
 
   /** Story 12.1 — the list reloads and is reconciled with the helm releases. */
@@ -362,7 +453,7 @@ export const useMockStore = defineStore('mock', () => {
   }
 
   function openApp(app: DeployedApp) {
-    appWindow.value = { kind: 'app', id: app.id }
+    openedAppId.value = app.id
   }
 
   function reset() {
@@ -375,12 +466,7 @@ export const useMockStore = defineStore('mock', () => {
     reconciledAt.value = Date.now() - 2 * 60_000
     dirty.value = false
     pendingLeave.value = null
-    appWindow.value = null
-    Object.assign(options, {
-      volumesOnUndeploy: 'ask',
-      newAppDefault: 'disabled',
-      projectDeletion: 'undeploy',
-    })
+    openedAppId.value = null
     projectId.value = accessibleProjects.value.some((p) => p.id === 'lung-ct')
       ? 'lung-ct'
       : (accessibleProjects.value[0]?.id ?? 'lung-ct')
@@ -398,7 +484,6 @@ export const useMockStore = defineStore('mock', () => {
     storyPanel,
     dark,
     highlightStory,
-    options,
     projects,
     deployed,
     availability,
@@ -407,18 +492,30 @@ export const useMockStore = defineStore('mock', () => {
     reconciledAt,
     dirty,
     pendingLeave,
-    appWindow,
+    openedAppId,
     persona,
     project,
     accessibleProjects,
     role,
     can,
-    projectApps,
-    enabledApps,
+    canOpen,
+    projectAppsOf,
+    liveInstances,
+    listedApps,
+    catalog,
     unreadCount,
-    definition,
+    application,
+    versionOf,
+    registeredVersions,
+    newestRegisteredVersion,
+    versionStatus,
+    isEnabled,
+    deployOptions,
+    blockingInstance,
+    singleInstanceNotice,
     personName,
     projectName,
+    scopePhrase,
     instanceUrl,
     findByName,
     nameTaken,

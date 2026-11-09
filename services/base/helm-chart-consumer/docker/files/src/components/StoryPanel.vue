@@ -13,8 +13,9 @@
         />
       </div>
       <p class="text-body-2 text-medium-emphasis mb-4">
-        {{ coveredStories.length }} of the 24 MVP stories. "Show me" switches to a fitting person,
-        opens the view and marks where the story is covered.
+        {{ mvpCount }} of the 24 MVP stories, and the Release 2 stories
+        {{ release2.join(', ') }} where an answer in QandA.md needs them. "Show me" switches to a
+        fitting person, opens the view and marks where the story is covered.
       </p>
 
       <template v-for="group in groups" :key="group.epic">
@@ -31,7 +32,12 @@
               story.id
             }}</v-chip>
             <div class="flex-grow-1">
-              <div class="text-subtitle-2">{{ story.title }}</div>
+              <div class="text-subtitle-2">
+                {{ story.title }}
+                <v-chip v-if="story.priority !== 'MVP'" size="x-small" variant="tonal" class="ml-1">
+                  {{ story.priority }}
+                </v-chip>
+              </div>
               <div class="text-body-2 text-medium-emphasis">{{ story.statement }}</div>
               <div class="text-caption mt-1">{{ story.where }}</div>
             </div>
@@ -54,8 +60,8 @@
         />
       </v-list>
       <p class="text-caption text-medium-emphasis mt-2">
-        Open questions Q1, Q5, Q8 and Q9 can be tried out in Mock menu › Concept options or appear
-        as marked fields.
+        With Story references on, chips such as Q5 mark where the mock shows an answer from
+        QandA.md, or a question that is not decided yet.
       </p>
     </div>
   </v-navigation-drawer>
@@ -70,6 +76,9 @@ import { useMockStore } from '@/stores/mock'
 
 const mock = useMockStore()
 const router = useRouter()
+
+const mvpCount = coveredStories.filter((s) => s.priority === 'MVP').length
+const release2 = coveredStories.filter((s) => s.priority === 'Release 2').map((s) => s.id)
 
 const groups = computed(() => {
   const out: { epic: string; stories: StoryLink[] }[] = []

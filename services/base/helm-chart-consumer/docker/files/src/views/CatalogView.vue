@@ -1,12 +1,10 @@
 <template>
-  <UnavailableState v-if="!mock.can.deploy" view="Application Catalog" />
+  <UnavailableState v-if="!mock.can.catalog" view="Application Catalog" />
   <v-container v-else class="text-left">
     <div class="d-flex flex-wrap align-end justify-space-between ga-4 mb-4">
       <div>
         <h1 class="text-h4">Application Catalog <StoryRef ids="2.1" /></h1>
-        <p class="text-body-2 text-medium-emphasis mt-1">
-          Applications you can deploy in {{ mock.project?.name }}.
-        </p>
+        <p class="text-body-2 text-medium-emphasis mt-1">{{ intro }}</p>
       </div>
       <v-text-field
         v-model="search"
@@ -19,7 +17,7 @@
       />
     </div>
 
-    <v-card v-if="!mock.enabledApps.length" :elevation="2">
+    <v-card v-if="!mock.catalog.length" :elevation="2">
       <v-empty-state
         size="56"
         title="No applications are enabled for this project"
@@ -47,47 +45,42 @@
     </v-card>
 
     <v-row v-else>
-      <v-col v-for="def in visible" :key="def.id" cols="12" sm="6" xl="4">
+      <v-col v-for="{ app, blocking } in cards" :key="app.id" cols="12" sm="6" xl="4">
         <v-card :elevation="2" rounded="lg" class="h-100 d-flex flex-column">
           <v-card-item>
             <template #prepend>
               <v-avatar color="primary" variant="tonal" rounded="lg">
-                <v-icon :icon="def.icon" />
+                <v-icon :icon="app.icon" />
               </v-avatar>
             </template>
-            <v-card-title>{{ def.name }}</v-card-title>
-            <v-card-subtitle>Version {{ def.version }}</v-card-subtitle>
+            <v-card-title>{{ app.name }}</v-card-title>
+            <v-card-subtitle>
+              {{ versionsText(app) }}
+              <StoryRef ids="11.1 Q3" />
+            </v-card-subtitle>
           </v-card-item>
           <v-card-text class="flex-grow-1">
-            <p class="mb-3">{{ def.description }}</p>
+            <p class="mb-3">{{ app.description }}</p>
             <div class="d-flex flex-wrap align-center ga-2">
               <v-chip
+                v-for="chip in chips(app)"
+                :key="chip.label"
                 size="small"
                 variant="tonal"
-                :prepend-icon="
-                  def.multiDeployable ? 'mdi-content-duplicate' : 'mdi-numeric-1-box-outline'
-                "
+                :prepend-icon="chip.icon"
               >
-                {{
-                  def.multiDeployable ? 'Several instances per project' : 'One instance per project'
-                }}
+                {{ chip.label }}
               </v-chip>
-              <v-chip v-if="instances(def.id).length" size="small" variant="tonal">
-                {{ instances(def.id).length }} deployed here
-              </v-chip>
-              <StoryRef ids="8.1" />
+              <StoryRef :ids="mock.can.deploy.platform ? '8.1 9.1' : '8.1'" />
             </div>
           </v-card-text>
           <v-card-actions>
             <v-spacer />
-            <template v-if="blockedBy(def)">
-              <v-btn variant="text" :to="`/applications/${blockedBy(def)!.name}`"
-                >View {{ blockedBy(def)!.name }}</v-btn
+            <template v-if="blocking">
+              <v-btn variant="text" :to="`/applications/${blocking.name}`"
+                >View {{ blocking.name }}</v-btn
               >
-              <v-tooltip
-                location="top"
-                :text="`${def.name} is already deployed in this project as ${blockedBy(def)!.name}. It can be deployed once per project.`"
-              >
+              <v-tooltip location="top" :text="blockedText(blocking)">
                 <template #activator="{ props: activator }">
                   <span v-bind="activator" tabindex="0">
                     <v-btn color="primary" disabled>Deploy</v-btn>
@@ -95,7 +88,7 @@
                 </template>
               </v-tooltip>
             </template>
-            <v-btn v-else color="primary" :to="`/catalog/${def.id}/deploy`">Deploy</v-btn>
+            <v-btn v-else color="primary" :to="`/catalog/${app.id}/deploy`">Deploy</v-btn>
           </v-card-actions>
         </v-card>
       </v-col>
@@ -114,26 +107,53 @@ import { computed, ref } from 'vue'
 import { kaapanaIcons } from '@kaapana/base-ui'
 import StoryRef from '@/components/StoryRef.vue'
 import UnavailableState from '@/components/UnavailableState.vue'
-import type { AppDefinition } from '@/mock/types'
+import type { Application, DeployedApp } from '@/mock/types'
 import { useMockStore } from '@/stores/mock'
 
 const mock = useMockStore()
 const search = ref<string | null>('')
 
+const intro = computed(() =>
+  mock.can.deploy.platform
+    ? `Applications you can deploy in ${mock.project?.name}, and the ones you can deploy platform-wide.`
+    : `Applications you can deploy in ${mock.project?.name}.`,
+)
+
 const visible = computed(() => {
   const q = (search.value ?? '').trim().toLowerCase()
-  return mock.enabledApps.filter(
-    (d) => !q || `${d.name} ${d.description}`.toLowerCase().includes(q),
-  )
+  return mock.catalog.filter((a) => !q || `${a.name} ${a.description}`.toLowerCase().includes(q))
 })
+const cards = computed(() =>
+  visible.value.map((app) => ({ app, blocking: mock.blockingInstance(app.id) })),
+)
 
-function instances(appId: string) {
-  return mock.projectApps.filter((d) => d.appId === appId && d.state !== 'UNDEPLOYING')
+function versionsText(app: Application): string {
+  const versions = mock.registeredVersions(app.id)
+  return versions.length === 1
+    ? `Version ${versions[0].version}`
+    : `Version ${versions[0].version} · ${versions.length} versions registered`
 }
 
-/** Story 8.1: a content that is not multi-deployable blocks a second instance. */
-function blockedBy(def: AppDefinition) {
-  return def.multiDeployable ? undefined : instances(def.id)[0]
+function chips(app: Application) {
+  const options = mock.deployOptions(app.id)
+  const out: { label: string; icon: string }[] = []
+  if (options.some((o) => o.scope === 'project')) {
+    out.push(
+      app.multiDeployable
+        ? { label: 'Several instances per project', icon: 'mdi-content-duplicate' }
+        : { label: 'One instance per project', icon: 'mdi-numeric-1-box-outline' },
+    )
+    const here = mock.liveInstances(app.id, { projectId: mock.projectId }).length
+    if (here) out.push({ label: `${here} deployed here`, icon: 'mdi-check' })
+  }
+  if (options.some((o) => o.scope === 'platform'))
+    out.push({ label: 'Once platform-wide', icon: 'mdi-earth' })
+  return out
+}
+
+function blockedText(instance: DeployedApp): string {
+  const notice = mock.singleInstanceNotice(instance)
+  return `${notice.title}. ${notice.text}`
 }
 </script>
 

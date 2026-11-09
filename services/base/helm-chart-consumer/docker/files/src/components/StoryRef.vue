@@ -34,6 +34,7 @@ const list = computed(() => props.ids.split(/[\s,]+/).filter(Boolean))
 
 function tooltip(id: string) {
   const title = storyTitles[id]
-  return id.startsWith('Q') ? (title ?? id) : `Story ${id}${title ? ` · ${title}` : ''}`
+  const label = id.startsWith('Q') ? id : `Story ${id}`
+  return title ? `${label} · ${title}` : label
 }
 </script>

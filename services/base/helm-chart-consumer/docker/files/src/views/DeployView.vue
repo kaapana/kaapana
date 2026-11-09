@@ -1,11 +1,11 @@
 <template>
-  <UnavailableState v-if="!mock.can.deploy" view="Deploying applications" />
+  <UnavailableState v-if="!mock.can.catalog" view="Deploying applications" />
   <v-container v-else class="text-left">
     <v-btn variant="text" prepend-icon="mdi-arrow-left" to="/catalog" class="mb-2 ml-n2"
       >Application Catalog</v-btn
     >
 
-    <v-card v-if="!def" :elevation="2">
+    <v-card v-if="!application || !version" :elevation="2">
       <v-empty-state
         size="56"
         :title="`This application cannot be deployed in ${mock.project?.name}`"
@@ -17,24 +17,24 @@
       </v-empty-state>
     </v-card>
 
-    <v-card v-else-if="blocked" :elevation="2">
-      <v-empty-state
-        size="56"
-        :title="`${def.name} is already deployed in ${mock.project?.name}`"
-        :text="`It can be deployed once per project. The existing instance is ${blocked.name}.`"
-      >
+    <v-card v-else-if="block" :elevation="2">
+      <v-empty-state size="56" :title="block.title" :text="block.text">
         <template #actions>
-          <v-btn color="primary" variant="text" :to="`/applications/${blocked.name}`"
-            >View {{ blocked.name }}</v-btn
+          <v-btn color="primary" variant="text" :to="`/applications/${block.instance.name}`"
+            >View {{ block.instance.name }}</v-btn
           >
         </template>
       </v-empty-state>
     </v-card>
 
     <template v-else>
-      <h1 class="text-h4">Deploy {{ def.name }} <StoryRef ids="2.1" /></h1>
+      <h1 class="text-h4">Deploy {{ application.name }} <StoryRef ids="2.1" /></h1>
       <p class="text-body-2 text-medium-emphasis mt-1 mb-4">
-        Version {{ def.version }} · into {{ mock.project?.name }}
+        {{
+          form.scope === 'platform'
+            ? 'Platform-wide, listed in every project'
+            : `Into ${mock.project?.name}`
+        }}
       </p>
 
       <v-form ref="formRef" @submit.prevent="submit">
@@ -43,18 +43,53 @@
             <v-card :elevation="2" class="mb-4">
               <v-card-title>Instance</v-card-title>
               <v-card-text>
+                <v-select
+                  id="field-version"
+                  v-model="form.version"
+                  :items="versionItems"
+                  label="Version *"
+                  hint="Registered versions. The parameters below follow the chosen version."
+                  persistent-hint
+                  class="mb-2"
+                >
+                  <template #append><StoryRef ids="2.1 11.1 Q3" /></template>
+                </v-select>
+                <v-radio-group
+                  v-if="scopeOptions.length > 1"
+                  v-model="form.scope"
+                  label="Scope"
+                  inline
+                  hint="Platform-wide applications are listed in every project, and every user can open them."
+                  persistent-hint
+                  class="mb-2"
+                >
+                  <v-radio
+                    v-for="o in scopeOptions"
+                    :key="o.scope"
+                    :value="o.scope"
+                    :label="scopeLabel(o)"
+                    :disabled="!!o.blockedBy"
+                  />
+                  <template #append><StoryRef ids="9.1 Q11" /></template>
+                </v-radio-group>
+                <p v-else-if="platformOnlyForAdmins" class="text-body-2 text-medium-emphasis mb-4">
+                  Only a Kaapana system admin can deploy {{ application.name }} platform-wide.
+                  <StoryRef ids="Q11" />
+                </p>
                 <v-text-field
                   id="field-name"
+                  ref="nameField"
                   v-model="form.name"
                   label="Name *"
                   :rules="nameRules"
-                  hint="Unique in the project and part of the address."
+                  :hint="`Unique ${form.scope === 'platform' ? 'on the platform' : 'in the project'} and part of the address.`"
                   persistent-hint
                   class="mb-2"
                 >
                   <template #append><StoryRef ids="8.3" /></template>
                 </v-text-field>
                 <v-select
+                  v-if="form.scope === 'project'"
                   id="field-for"
                   v-model="form.forPerson"
                   :items="people"
@@ -84,11 +119,12 @@
             <v-card :elevation="2">
               <v-card-title>Parameters <StoryRef ids="2.2" /></v-card-title>
               <v-card-subtitle class="wrap">
-                Declared by the {{ def.name }} extension. Fields marked * are required.
+                Declared by version {{ version.version }} of the {{ application.name }} extension.
+                Fields marked * are required.
               </v-card-subtitle>
               <v-card-text>
                 <ParamField
-                  v-for="p in def.params"
+                  v-for="p in version.params"
                   :key="p.key"
                   v-model="form.values[p.key]"
                   :decl="p"
@@ -116,7 +152,7 @@
                 <p class="text-caption text-medium-emphasis mt-2 mb-0">
                   Only the parameters on this page change the chart. All other chart values keep the
                   defaults of the
-                  {{ def.name }} extension.
+                  {{ application.name }} extension.
                 </p>
               </v-card-text>
             </v-card>
@@ -160,16 +196,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { notify } from '@kyvg/vue3-notification'
-import type { VForm } from 'vuetify/components'
+import type { VForm, VTextField } from 'vuetify/components'
 import { ConfirmDialog, ErrorDetailsDialog } from '@kaapana/base-ui'
 import ParamField from '@/components/ParamField.vue'
 import StoryRef from '@/components/StoryRef.vue'
 import UnavailableState from '@/components/UnavailableState.vue'
-import type { ParamDecl, ParamValue } from '@/mock/types'
-import { roleLabels, useMockStore, type DryRunResult } from '@/stores/mock'
+import type { AppScope, AppVersion, ParamDecl, ParamValue, Scope } from '@/mock/types'
+import { roleLabels, useMockStore, type DryRunResult, type ScopeOption } from '@/stores/mock'
 
 const props = defineProps<{ appId: string }>()
 const mock = useMockStore()
@@ -178,22 +214,67 @@ const router = useRouter()
 // A select cannot show null as a chosen item, so the whole project gets a sentinel.
 const WHOLE_PROJECT = '__project__'
 
-const def = computed(() => mock.enabledApps.find((a) => a.id === props.appId))
-const blocked = computed(() =>
-  def.value && !def.value.multiDeployable
-    ? mock.projectApps.find((d) => d.appId === def.value!.id && d.state !== 'UNDEPLOYING')
-    : undefined,
+const application = computed(() => mock.catalog.find((a) => a.id === props.appId))
+const versions = computed(() =>
+  application.value ? mock.registeredVersions(application.value.id) : [],
+)
+const newest = computed(() =>
+  application.value ? mock.newestRegisteredVersion(application.value.id) : undefined,
+)
+const scopeOptions = computed(() =>
+  application.value ? mock.deployOptions(application.value.id) : [],
+)
+const block = computed(() => {
+  const instance = application.value ? mock.blockingInstance(application.value.id) : null
+  return instance ? { instance, ...mock.singleInstanceNotice(instance) } : null
+})
+const platformOnlyForAdmins = computed(
+  () => !!application.value?.scopes.includes('platform') && !mock.can.deploy.platform,
 )
 
+function valuesFor(version: AppVersion | undefined, previous: Record<string, ParamValue>) {
+  return Object.fromEntries(
+    (version?.params ?? []).map((p) => [p.key, p.key in previous ? previous[p.key] : p.default]),
+  ) as Record<string, ParamValue>
+}
+
+const firstScope: Scope = scopeOptions.value.find((o) => !o.blockedBy)?.scope ?? 'project'
 const form = reactive({
-  name: def.value ? mock.suggestName(def.value.id) : '',
+  version: newest.value?.version ?? '',
+  scope: firstScope,
+  name: application.value ? mock.suggestName(application.value.id, firstScope) : '',
   forPerson: WHOLE_PROJECT,
   description: '',
-  values: Object.fromEntries((def.value?.params ?? []).map((p) => [p.key, p.default])) as Record<
-    string,
-    ParamValue
-  >,
+  values: valuesFor(newest.value, {}),
 })
+
+const version = computed(() => versions.value.find((v) => v.version === form.version))
+watch(
+  () => form.version,
+  () => (form.values = valuesFor(version.value, form.values)),
+)
+
+const versionItems = computed(() =>
+  versions.value.map((v, i) => ({
+    title: i === 0 ? `${v.version} (newest)` : v.version,
+    value: v.version,
+  })),
+)
+
+function scopeLabel(o: ScopeOption): string {
+  const label = o.scope === 'platform' ? 'Platform-wide' : (mock.project?.name ?? '')
+  return o.blockedBy ? `${label} (already deployed as ${o.blockedBy.name})` : label
+}
+
+const targetScope = computed<AppScope>(() =>
+  form.scope === 'platform'
+    ? { kind: 'platform' }
+    : {
+        kind: 'project',
+        projectId: mock.projectId,
+        forPerson: form.forPerson === WHOLE_PROJECT ? null : form.forPerson,
+      },
+)
 
 // Dirty means "differs from what the form opened with": a prefilled form that was
 // never touched must not block navigation (base-ui guideline "Unsaved changes").
@@ -218,6 +299,19 @@ watch(
 )
 onBeforeUnmount(() => (mock.dirty = false))
 
+const nameField = ref<InstanceType<typeof VTextField> | null>(null)
+watch(
+  () => form.scope,
+  async (scope, previous) => {
+    const appId = application.value?.id
+    if (appId && form.name === mock.suggestName(appId, previous))
+      form.name = mock.suggestName(appId, scope)
+    await nextTick()
+    if (invalidFields.value.length > 0) await validate()
+    else await nameField.value?.validate()
+  },
+)
+
 const people = computed(() => {
   const members = Object.entries(mock.project?.members ?? {}).map(([id, role]) => ({
     title: mock.personName(id),
@@ -240,17 +334,18 @@ const nameRules = [
     'Use lowercase letters, digits and hyphens. Start with a letter and do not end with a hyphen.',
   (v: string) =>
     !v ||
-    !mock.nameTaken(v) ||
-    `${v} is already used in ${mock.project?.name}. Choose another name.`,
+    !mock.nameTaken(v, form.scope) ||
+    `${v} is already used ${form.scope === 'platform' ? 'by another application' : `in ${mock.project?.name}`}. Choose another name.`,
 ]
 const descriptionRule = (v: string) => !v || v.length <= 200 || 'Use at most 200 characters.'
 
 const address = computed(() =>
-  def.value
+  application.value && version.value
     ? mock.instanceUrl({
-        projectId: mock.projectId,
+        scope: targetScope.value,
         name: form.name || '<name>',
-        appId: def.value.id,
+        appId: application.value.id,
+        version: version.value.version,
       })
     : '',
 )
@@ -268,7 +363,7 @@ function chartValue(p: ParamDecl): string {
 const chartValues = computed(() => {
   type Tree = { [key: string]: Tree | string }
   const tree: Tree = {}
-  for (const p of def.value?.params ?? []) {
+  for (const p of version.value?.params ?? []) {
     const path = p.chartValue.split('.')
     let node = tree
     path.slice(0, -1).forEach((segment) => {
@@ -287,10 +382,11 @@ const chartValues = computed(() => {
 })
 
 function fieldLabel(id: string): string {
+  if (id === 'field-version') return 'Version'
   if (id === 'field-name') return 'Name'
   if (id === 'field-description') return 'Use case'
   const key = id.replace(/^param-/, '')
-  return def.value?.params.find((p) => p.key === key)?.label ?? id
+  return version.value?.params.find((p) => p.key === key)?.label ?? id
 }
 
 async function validate(): Promise<boolean> {
@@ -300,40 +396,41 @@ async function validate(): Promise<boolean> {
 }
 
 async function check() {
-  if (!def.value || !(await validate())) return
+  if (!application.value || !(await validate())) return
   checking.value = true
-  dryRun.value = await mock.dryRun(def.value.id, form.values)
+  dryRun.value = await mock.dryRun(application.value.id, form.version, form.values)
   checking.value = false
 }
 
 async function submit() {
-  if (!def.value || !(await validate())) return
+  if (!application.value || !(await validate())) return
   // High-impact: a GPU is a shared, scarce resource that stays reserved.
   if (form.values.gpu === true) gpuConfirm.value = true
   else runDeploy()
 }
 
 async function runDeploy() {
-  if (!def.value) return
+  if (!application.value) return
   deploying.value = true
-  const result = await mock.dryRun(def.value.id, form.values)
+  const result = await mock.dryRun(application.value.id, form.version, form.values)
   if (!result.ok) {
     dryRun.value = result
     deploying.value = false
     return
   }
   const app = mock.deploy({
-    appId: def.value.id,
+    appId: application.value.id,
+    version: form.version,
+    scope: targetScope.value,
     name: form.name,
     description: form.description.trim(),
-    forPerson: form.forPerson === WHOLE_PROJECT ? null : form.forPerson,
     values: { ...form.values },
   })
   mock.dirty = false
   notify({
     type: 'success',
     title: 'Deployment started',
-    text: `${app.name} is starting in ${mock.project?.name}. Its state changes to Ready when you can open it.`,
+    text: `${app.name} is starting ${mock.scopePhrase(app.scope)}. Its state changes to Ready when you can open it.`,
   })
   router.push('/applications')
 }

@@ -45,11 +45,6 @@
         </template>
         <v-list density="compact">
           <v-list-item
-            :prepend-icon="kaapanaIcons.settings"
-            title="Concept options…"
-            @click="optionsOpen = true"
-          />
-          <v-list-item
             :prepend-icon="kaapanaIcons.restart"
             title="Simulate platform restart"
             subtitle="Story 12.1"
@@ -71,47 +66,9 @@
       </v-menu>
     </div>
   </v-app-bar>
-
-  <v-dialog v-model="optionsOpen" max-width="600">
-    <v-card :elevation="5">
-      <v-card-title>Concept options</v-card-title>
-      <v-card-text>
-        <p class="text-body-2 text-medium-emphasis mb-4">
-          Open questions of the concept change how the mock behaves. Pick an answer to try it out.
-        </p>
-        <v-radio-group v-model="mock.options.volumesOnUndeploy" color="primary">
-          <template #label>
-            <span class="text-subtitle-2">Q5 · Workspace volumes on undeploy</span>
-          </template>
-          <v-radio value="ask" label="The principal investigator decides in the undeploy dialog" />
-          <v-radio value="delete" label="Always delete them with the application" />
-          <v-radio value="keep" label="Always keep them" />
-        </v-radio-group>
-        <v-radio-group v-model="mock.options.newAppDefault" color="primary">
-          <template #label>
-            <span class="text-subtitle-2">Q8 · Newly registered applications</span>
-          </template>
-          <v-radio value="disabled" label="Disabled in all projects until an admin enables them" />
-          <v-radio value="enabled" label="Enabled in all projects" />
-        </v-radio-group>
-        <v-radio-group v-model="mock.options.projectDeletion" color="primary" hide-details>
-          <template #label>
-            <span class="text-subtitle-2">Q9 · Deleting a project with deployed applications</span>
-          </template>
-          <v-radio value="undeploy" label="Undeploy the applications together with the project" />
-          <v-radio value="refuse" label="Refuse until all applications are undeployed" />
-        </v-radio-group>
-      </v-card-text>
-      <v-card-actions>
-        <v-spacer />
-        <v-btn @click="optionsOpen = false">Close</v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { kaapanaIcons } from '@kaapana/base-ui'
 import { personas } from '@/mock/data'
@@ -120,7 +77,6 @@ import StoryRef from './StoryRef.vue'
 
 const mock = useMockStore()
 const router = useRouter()
-const optionsOpen = ref(false)
 
 function restart() {
   router.push('/applications')

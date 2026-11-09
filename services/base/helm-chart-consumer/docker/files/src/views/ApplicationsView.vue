@@ -4,12 +4,12 @@
       <div>
         <h1 class="text-h4">Applications</h1>
         <p class="text-body-2 text-medium-emphasis mt-1">
-          Applications deployed in {{ mock.project?.name }}. Only members of this project can open
-          them.
-          <StoryRef ids="5.3" />
+          Applications deployed in {{ mock.project?.name }}, which only members of this project can
+          open, and the platform-wide applications, which every user can open.
+          <StoryRef ids="5.3 9.2" />
         </p>
       </div>
-      <div v-if="mock.can.deploy" class="d-flex align-center">
+      <div v-if="mock.can.catalog" class="d-flex align-center">
         <v-btn color="primary" :prepend-icon="kaapanaIcons.add" to="/catalog"
           >Deploy application</v-btn
         >
@@ -17,7 +17,7 @@
       </div>
     </div>
 
-    <v-alert v-if="!mock.can.deploy" type="info" variant="tonal" density="compact" class="mb-4">
+    <v-alert v-if="!mock.can.catalog" type="info" variant="tonal" density="compact" class="mb-4">
       Principal investigators of {{ mock.project?.name }} deploy and undeploy applications. Ask one
       if you need a new instance.
       <StoryRef ids="5.1" />
@@ -91,6 +91,10 @@
         <template #header.name="{ column }">
           {{ column.title }} <StoryRef ids="8.3 8.2" />
         </template>
+        <template #header.app="{ column }">
+          {{ column.title }} <StoryRef ids="1.2 11.1" />
+        </template>
+        <template #header.for="{ column }"> {{ column.title }} <StoryRef ids="9.2" /> </template>
         <template #header.state="{ column }"> {{ column.title }} <StoryRef ids="3.1" /> </template>
         <template #header.actions>
           <StoryRef ids="2.4" />
@@ -106,10 +110,12 @@
         </template>
         <template #item.app="{ item }">
           <div class="d-flex align-center ga-2 text-no-wrap">
-            <v-icon :icon="mock.definition(item.appId).icon" size="small" />
+            <v-icon :icon="mock.application(item.appId).icon" size="small" />
             <div>
-              <div>{{ mock.definition(item.appId).name }}</div>
-              <div class="text-caption text-medium-emphasis">{{ item.version }}</div>
+              <div>{{ mock.application(item.appId).name }}</div>
+              <div class="d-flex align-center ga-1 text-caption text-medium-emphasis">
+                {{ item.version }} <VersionMarker :app="item" />
+              </div>
             </div>
           </div>
         </template>
@@ -117,8 +123,16 @@
           <StateChip :app="item" />
         </template>
         <template #item.for="{ item }">
-          <span v-if="item.forPerson" class="text-no-wrap">{{
-            mock.personName(item.forPerson)
+          <v-chip
+            v-if="item.scope.kind === 'platform'"
+            size="small"
+            variant="tonal"
+            prepend-icon="mdi-earth"
+          >
+            Platform-wide
+          </v-chip>
+          <span v-else-if="item.scope.forPerson" class="text-no-wrap">{{
+            mock.personName(item.scope.forPerson)
           }}</span>
           <span v-else class="text-medium-emphasis text-no-wrap">Whole project</span>
         </template>
@@ -148,7 +162,7 @@
                   title="Details"
                   :to="`/applications/${item.name}`"
                 />
-                <template v-if="mock.can.undeploy">
+                <template v-if="mock.can.undeploy[item.scope.kind]">
                   <v-list-item
                     v-if="item.drift?.kind === 'removed'"
                     :prepend-icon="kaapanaIcons.delete"
@@ -186,12 +200,12 @@
             size="56"
             :title="`No applications in ${mock.project?.name}`"
             :text="
-              mock.can.deploy
+              mock.can.catalog
                 ? 'Deploy an application to see it here.'
                 : 'When a principal investigator deploys an application in this project, it appears here.'
             "
           >
-            <template v-if="mock.can.deploy" #actions>
+            <template v-if="mock.can.catalog" #actions>
               <v-btn color="primary" variant="text" to="/catalog">Deploy application</v-btn>
             </template>
           </v-empty-state>
@@ -219,6 +233,7 @@ import OpenButton from '@/components/OpenButton.vue'
 import StateChip from '@/components/StateChip.vue'
 import StoryRef from '@/components/StoryRef.vue'
 import UndeployDialog from '@/components/UndeployDialog.vue'
+import VersionMarker from '@/components/VersionMarker.vue'
 import type { AppState, DeployedApp } from '@/mock/types'
 import { useMockStore } from '@/stores/mock'
 import { relative } from '@/utils/format'
@@ -267,7 +282,7 @@ const headers = [
   { title: '', key: 'actions', sortable: false, align: 'end' as const },
 ]
 
-const drifted = computed(() => mock.projectApps.filter((d) => d.drift))
+const drifted = computed(() => mock.listedApps.filter((d) => d.drift))
 
 const filtersActive = computed(
   () => !!search.value || stateFilter.value !== 'ALL' || onlyMine.value,
@@ -275,18 +290,18 @@ const filtersActive = computed(
 
 const rows = computed(() => {
   const q = (search.value ?? '').trim().toLowerCase()
-  return mock.projectApps
+  return mock.listedApps
     .filter((d) => stateFilter.value === 'ALL' || d.state === stateFilter.value)
     .filter(
-      (d) => !onlyMine.value || d.forPerson === mock.personaId || d.deployedBy === mock.personaId,
+      (d) => !onlyMine.value || forPerson(d) === mock.personaId || d.deployedBy === mock.personaId,
     )
     .filter((d) => {
       if (!q) return true
       const hay = [
         d.name,
         d.description,
-        mock.definition(d.appId).name,
-        mock.personName(d.forPerson),
+        mock.application(d.appId).name,
+        mock.personName(forPerson(d)),
       ]
         .join(' ')
         .toLowerCase()
@@ -295,6 +310,10 @@ const rows = computed(() => {
     .slice()
     .sort((a, b) => b.deployedAt - a.deployedAt)
 })
+
+function forPerson(d: DeployedApp): string | null {
+  return d.scope.kind === 'project' ? d.scope.forPerson : null
+}
 
 function clearFilters() {
   search.value = ''

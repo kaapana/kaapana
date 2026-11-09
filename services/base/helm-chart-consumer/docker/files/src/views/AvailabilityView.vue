@@ -8,12 +8,11 @@
     </p>
 
     <v-alert type="info" variant="tonal" density="compact" class="mb-4">
-      {{
-        mock.options.newAppDefault === 'disabled'
-          ? 'Applications added by an extension start disabled in every project until you enable them here.'
-          : 'Applications added by an extension start enabled in every project.'
-      }}
-      <StoryRef ids="Q8" />
+      Applications added by an extension start disabled in every project until you enable them here.
+      Enabling covers all registered versions of an application. Whether a newly registered version
+      should start disabled is not decided yet. Deploying platform-wide does not depend on these
+      switches.
+      <StoryRef ids="Q8 Q12" />
     </v-alert>
 
     <v-card :elevation="2">
@@ -25,32 +24,41 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="def in appDefinitions" :key="def.id">
+          <tr v-for="app in applications" :key="app.id">
             <td>
               <div class="d-flex align-center ga-2 py-2">
-                <v-icon :icon="def.icon" />
+                <v-icon :icon="app.icon" />
                 <div>
-                  <div class="font-weight-medium">{{ def.name }}</div>
-                  <div class="text-caption text-medium-emphasis">Version {{ def.version }}</div>
+                  <div class="font-weight-medium">{{ app.name }}</div>
+                  <div class="text-caption text-medium-emphasis">{{ versionsText(app) }}</div>
                 </div>
               </div>
             </td>
-            <td v-for="p in mock.projects" :key="p.id" class="text-center">
-              <div class="d-inline-flex flex-column align-center">
-                <v-switch
-                  :model-value="isEnabled(p.id, def.id)"
-                  color="primary"
-                  density="compact"
-                  hide-details
-                  inset
-                  :aria-label="`${def.name} in ${p.name}`"
-                  @update:model-value="mock.setEnabled(p.id, def.id, !!$event)"
-                />
-                <span v-if="count(p.id, def.id)" class="text-caption text-medium-emphasis">
-                  {{ count(p.id, def.id) }} deployed
-                </span>
-              </div>
+            <td
+              v-if="!app.scopes.includes('project')"
+              :colspan="mock.projects.length"
+              class="text-center text-medium-emphasis"
+            >
+              Platform-wide only. Projects do not enable it.
             </td>
+            <template v-else>
+              <td v-for="p in mock.projects" :key="p.id" class="text-center">
+                <div class="d-inline-flex flex-column align-center">
+                  <v-switch
+                    :model-value="mock.isEnabled(p.id, app.id)"
+                    color="primary"
+                    density="compact"
+                    hide-details
+                    inset
+                    :aria-label="`${app.name} in ${p.name}`"
+                    @update:model-value="mock.setEnabled(p.id, app.id, !!$event)"
+                  />
+                  <span v-if="count(p.id, app.id)" class="text-caption text-medium-emphasis">
+                    {{ count(p.id, app.id) }} deployed
+                  </span>
+                </div>
+              </td>
+            </template>
           </tr>
         </tbody>
       </v-table>
@@ -61,17 +69,19 @@
 <script setup lang="ts">
 import StoryRef from '@/components/StoryRef.vue'
 import UnavailableState from '@/components/UnavailableState.vue'
-import { appDefinitions } from '@/mock/data'
+import { applications } from '@/mock/data'
+import type { Application } from '@/mock/types'
 import { useMockStore } from '@/stores/mock'
 
 const mock = useMockStore()
 
-function isEnabled(projectId: string, appId: string) {
-  return mock.availability[projectId]?.includes(appId) ?? false
+function versionsText(app: Application): string {
+  const versions = mock.registeredVersions(app.id).map((v) => v.version)
+  return `${versions.length === 1 ? 'Version' : 'Versions'} ${versions.join(', ')}`
 }
 
 function count(projectId: string, appId: string) {
-  return mock.deployed.filter((d) => d.projectId === projectId && d.appId === appId).length
+  return mock.liveInstances(appId, { projectId }).length
 }
 </script>
 

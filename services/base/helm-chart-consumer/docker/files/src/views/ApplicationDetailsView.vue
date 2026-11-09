@@ -4,7 +4,7 @@
       >Applications</v-btn
     >
 
-    <v-card v-if="!app" :elevation="2">
+    <v-card v-if="!entry" :elevation="2">
       <v-empty-state
         size="56"
         :title="`${name} is not deployed in ${mock.project?.name}`"
@@ -20,19 +20,21 @@
       <div class="d-flex flex-wrap align-start justify-space-between ga-4 mb-4">
         <div>
           <div class="d-flex flex-wrap align-center ga-3">
-            <h1 class="text-h4">{{ app.name }}</h1>
-            <StateChip :app="app" />
+            <h1 class="text-h4">{{ entry.app.name }}</h1>
+            <StateChip :app="entry.app" />
           </div>
-          <p class="text-body-2 text-medium-emphasis mt-1">
-            {{ def!.name }} {{ app.version }} · {{ app.description || 'No description' }}
+          <p class="d-flex flex-wrap align-center ga-1 text-body-2 text-medium-emphasis mt-1">
+            {{ entry.application.name }} {{ entry.app.version }}
+            <VersionMarker :app="entry.app" /> ·
+            {{ entry.app.description || 'No description' }}
           </p>
         </div>
         <div class="d-flex align-center ga-2">
-          <OpenButton :app="app" color="primary" variant="flat" size="default" />
+          <OpenButton :app="entry.app" color="primary" variant="flat" size="default" />
           <StoryRef ids="2.4" />
-          <template v-if="mock.can.undeploy">
+          <template v-if="mock.can.undeploy[entry.app.scope.kind]">
             <v-btn
-              v-if="app.drift?.kind === 'removed'"
+              v-if="entry.app.drift?.kind === 'removed'"
               color="error"
               :prepend-icon="kaapanaIcons.delete"
               @click="removeOpen = true"
@@ -43,43 +45,59 @@
               v-else
               color="error"
               :prepend-icon="kaapanaIcons.delete"
-              :disabled="app.state === 'UNDEPLOYING'"
+              :disabled="entry.app.state === 'UNDEPLOYING'"
               @click="undeployOpen = true"
             >
               Undeploy
             </v-btn>
-            <StoryRef ids="2.3" />
+            <StoryRef ids="2.3 Q5" />
           </template>
         </div>
       </div>
 
       <!-- Inline alerts: conditions of this application, shown for as long as they hold. -->
-      <v-alert v-if="app.drift?.kind === 'removed'" type="error" variant="tonal" class="mb-4">
-        The helm release of {{ app.name }} was removed outside Kaapana. The application no longer
-        runs; remove it from the list.
+      <v-alert v-if="entry.app.drift?.kind === 'removed'" type="error" variant="tonal" class="mb-4">
+        The helm release of {{ entry.app.name }} was removed outside Kaapana. The application no
+        longer runs; remove it from the list.
         <StoryRef ids="12.1" />
         <template #append>
           <v-btn variant="text" size="small" @click="failureOpen = true">Details</v-btn>
         </template>
       </v-alert>
-      <v-alert v-else-if="app.state === 'FAILED'" type="error" variant="tonal" class="mb-4">
-        Could not start {{ app.name }}. {{ app.failure?.reason }}
+      <v-alert v-else-if="entry.app.state === 'FAILED'" type="error" variant="tonal" class="mb-4">
+        Could not start {{ entry.app.name }}. {{ entry.app.failure?.reason }}
         <StoryRef ids="3.1" />
         <template #append>
           <v-btn variant="text" size="small" @click="failureOpen = true">Details</v-btn>
         </template>
       </v-alert>
-      <v-alert v-else-if="app.state === 'DEPLOYING'" type="info" variant="tonal" class="mb-4">
-        {{ app.name }} is starting. You can open it when its state is Ready.
+      <v-alert v-else-if="entry.app.state === 'DEPLOYING'" type="info" variant="tonal" class="mb-4">
+        {{ entry.app.name }} is starting. You can open it when its state is Ready.
       </v-alert>
-      <v-alert v-else-if="app.state === 'UNDEPLOYING'" type="info" variant="tonal" class="mb-4">
-        {{ app.name }} is being undeployed.
+      <v-alert
+        v-else-if="entry.app.state === 'UNDEPLOYING'"
+        type="info"
+        variant="tonal"
+        class="mb-4"
+      >
+        {{ entry.app.name }} is being undeployed.
       </v-alert>
-      <v-alert v-if="app.drift?.kind === 'changed'" type="warning" variant="tonal" class="mb-4">
-        The helm release of {{ app.name }} was changed outside Kaapana: it is at revision
-        {{ app.drift.revision }}, Kaapana deployed revision {{ app.drift.recordedRevision }}. The
-        configuration below may not match what runs.
+      <v-alert
+        v-if="entry.app.drift?.kind === 'changed'"
+        type="warning"
+        variant="tonal"
+        class="mb-4"
+      >
+        The helm release of {{ entry.app.name }} was changed outside Kaapana: it is at revision
+        {{ entry.app.drift.revision }}, Kaapana deployed revision
+        {{ entry.app.drift.recordedRevision }}. The configuration below may not match what runs.
         <StoryRef ids="12.1" />
+      </v-alert>
+      <v-alert v-if="!entry.version.registered" type="info" variant="tonal" class="mb-4">
+        Version {{ entry.app.version }} of {{ entry.application.name }} is no longer registered,
+        because its extension was uninstalled. {{ entry.app.name }} keeps running and can still be
+        opened and undeployed.
+        <StoryRef ids="1.2" />
       </v-alert>
 
       <v-row>
@@ -89,14 +107,29 @@
             <v-card-text>
               <dl class="facts">
                 <dt>Use case <StoryRef ids="8.2" /></dt>
-                <dd>{{ app.description || 'No description' }}</dd>
-                <dt>For <StoryRef ids="2.1 Q1" /></dt>
-                <dd>{{ app.forPerson ? mock.personName(app.forPerson) : 'Whole project' }}</dd>
+                <dd>{{ entry.app.description || 'No description' }}</dd>
+                <template v-if="entry.app.scope.kind === 'project'">
+                  <dt>For <StoryRef ids="2.1 Q1" /></dt>
+                  <dd>
+                    {{
+                      entry.app.scope.forPerson
+                        ? mock.personName(entry.app.scope.forPerson)
+                        : 'Whole project'
+                    }}
+                  </dd>
+                </template>
+                <template v-else>
+                  <dt>Scope <StoryRef ids="9.2" /></dt>
+                  <dd>Platform-wide, listed in every project</dd>
+                </template>
                 <dt>Deployed</dt>
-                <dd>{{ formatDate(app.deployedAt) }} by {{ mock.personName(app.deployedBy) }}</dd>
+                <dd>
+                  {{ formatDate(entry.app.deployedAt) }} by
+                  {{ mock.personName(entry.app.deployedBy) }}
+                </dd>
                 <dt>Address <StoryRef ids="8.1" /></dt>
                 <dd class="d-flex align-center">
-                  <span class="text-break">{{ mock.instanceUrl(app) }}</span>
+                  <span class="text-break">{{ mock.instanceUrl(entry.app) }}</span>
                   <v-btn
                     :icon="copied ? kaapanaIcons.confirm : kaapanaIcons.copy"
                     variant="text"
@@ -106,7 +139,7 @@
                   />
                 </dd>
                 <dt>Helm release</dt>
-                <dd>{{ app.name }} in namespace {{ project?.bucket }}</dd>
+                <dd>{{ entry.app.name }}</dd>
               </dl>
             </v-card-text>
           </v-card>
@@ -116,17 +149,17 @@
           <v-card :elevation="2" class="h-100">
             <v-card-title>Configuration <StoryRef ids="3.2" /></v-card-title>
             <v-card-subtitle
-              >Version {{ app.version }} · values set at deploy. Secrets are never
+              >Version {{ entry.app.version }} · values set at deploy. Secrets are never
               shown.</v-card-subtitle
             >
             <v-card-text>
               <v-table density="compact">
                 <tbody>
-                  <tr v-for="p in def!.params" :key="p.key">
+                  <tr v-for="p in entry.version.params" :key="p.key">
                     <td class="text-medium-emphasis">{{ p.label }}</td>
                     <td>
                       <span v-if="p.secret" class="text-medium-emphasis">
-                        {{ app.values[p.key] ? '•••••••• hidden' : 'Not set' }}
+                        {{ entry.app.values[p.key] ? '•••••••• hidden' : 'Not set' }}
                       </span>
                       <span v-else>{{ display(p.key) }}</span>
                     </td>
@@ -142,7 +175,7 @@
             <v-card-title>Status <StoryRef ids="3.1" /></v-card-title>
             <v-card-subtitle>From the helm release and the readiness of its pods.</v-card-subtitle>
             <v-card-text>
-              <v-table v-if="app.pods.length" density="compact">
+              <v-table v-if="entry.app.pods.length" density="compact">
                 <thead>
                   <tr>
                     <th>Pod</th>
@@ -153,7 +186,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="pod in app.pods" :key="pod.name">
+                  <tr v-for="pod in entry.app.pods" :key="pod.name">
                     <td class="text-break">{{ pod.name }}</td>
                     <td>
                       <v-icon
@@ -189,30 +222,60 @@
             <v-card-title>Data and storage</v-card-title>
             <v-card-text>
               <v-list density="compact" lines="two" class="py-0">
-                <v-list-item prepend-icon="mdi-folder-eye-outline">
-                  <v-list-item-title>Reads project data <StoryRef ids="2.5" /></v-list-item-title>
+                <template v-if="project">
+                  <v-list-item prepend-icon="mdi-folder-eye-outline">
+                    <v-list-item-title>Reads project data <StoryRef ids="2.5" /></v-list-item-title>
+                    <v-list-item-subtitle class="wrap">
+                      {{ dataPath }} in the project bucket, read-only, and the Data API of
+                      {{ project.name }}
+                    </v-list-item-subtitle>
+                  </v-list-item>
+                  <v-list-item prepend-icon="mdi-folder-upload-outline">
+                    <v-list-item-title>Saves results <StoryRef ids="2.6" /></v-list-item-title>
+                    <v-list-item-subtitle class="wrap">{{ resultsPath }}</v-list-item-subtitle>
+                    <template #append>
+                      <v-btn color="primary" variant="text" size="small" @click="useAsInput"
+                        >Use as workflow input</v-btn
+                      >
+                    </template>
+                  </v-list-item>
+                </template>
+                <v-list-item v-else prepend-icon="mdi-folder-eye-outline">
+                  <v-list-item-title>Shows project data</v-list-item-title>
                   <v-list-item-subtitle class="wrap">
-                    {{ dataPath }} in the project bucket, read-only, and the Data API of
-                    {{ project?.name }}
+                    Opened from a project, it shows the data of that project and data shared with
+                    all projects (Story 9.3).
                   </v-list-item-subtitle>
-                </v-list-item>
-                <v-list-item prepend-icon="mdi-folder-upload-outline">
-                  <v-list-item-title>Saves results <StoryRef ids="2.6" /></v-list-item-title>
-                  <v-list-item-subtitle class="wrap">{{ resultsPath }}</v-list-item-subtitle>
-                  <template #append>
-                    <v-btn color="primary" variant="text" size="small" @click="useAsInput"
-                      >Use as workflow input</v-btn
-                    >
-                  </template>
                 </v-list-item>
                 <v-list-item v-if="workspaceSize !== null" prepend-icon="mdi-harddisk">
-                  <v-list-item-title>Persistent workspace <StoryRef ids="2.7" /></v-list-item-title>
+                  <v-list-item-title
+                    >Persistent workspace <StoryRef ids="2.7 Q5"
+                  /></v-list-item-title>
                   <v-list-item-subtitle class="wrap">
                     {{ workspaceSize }} GiB, kept when the application restarts or is updated.
-                    {{ volumeOnUndeploy }}
+                    Deleted with all data on it when the application is undeployed.
                   </v-list-item-subtitle>
                 </v-list-item>
-                <v-list-item prepend-icon="mdi-shield-lock-outline">
+                <v-list-item v-if="project" prepend-icon="mdi-account-key-outline">
+                  <v-list-item-title
+                    >Acts on behalf of {{ project.name }} <StoryRef ids="4.5 Q7"
+                  /></v-list-item-title>
+                  <v-list-item-subtitle class="wrap">
+                    With the permissions of a scientist of the project, no matter who deployed or
+                    opens it. Its credentials belong to a technical user or a dedicated client of
+                    the project.
+                  </v-list-item-subtitle>
+                </v-list-item>
+                <v-list-item v-else prepend-icon="mdi-account-question-outline">
+                  <v-list-item-title
+                    >Acts on behalf of whom? <StoryRef ids="Q13"
+                  /></v-list-item-title>
+                  <v-list-item-subtitle class="wrap">
+                    Not decided yet: on whose behalf a platform-wide application acts when it is
+                    opened from a project.
+                  </v-list-item-subtitle>
+                </v-list-item>
+                <v-list-item v-if="project" prepend-icon="mdi-shield-lock-outline">
                   <v-list-item-title>Project boundary</v-list-item-title>
                   <v-list-item-subtitle class="wrap">
                     Cannot read or write the data of other projects.
@@ -225,8 +288,11 @@
 
         <v-col cols="12" lg="5">
           <v-card :elevation="2" class="h-100">
-            <v-card-title>Access <StoryRef ids="5.3" /></v-card-title>
-            <v-card-text>
+            <v-card-title>Access <StoryRef :ids="project ? '5.3' : '9.2'" /></v-card-title>
+            <v-card-text v-if="!project">
+              Every Kaapana user can open this application, from every project.
+            </v-card-text>
+            <v-card-text v-else>
               <p class="mb-3">
                 The {{ memberCount }} members of {{ project?.name }} can open this application.
                 Anyone else gets an access-denied page, also when they use the address directly.
@@ -252,13 +318,13 @@
 
       <UndeployDialog
         v-model="undeployOpen"
-        :app="app"
+        :app="entry.app"
         @undeployed="router.push('/applications')"
       />
-      <FailureDetailsDialog v-model="failureOpen" :app="app" />
+      <FailureDetailsDialog v-model="failureOpen" :app="entry.app" />
       <ConfirmDialog
         v-model="removeOpen"
-        :title="`Remove “${app.name}” from the list?`"
+        :title="`Remove “${entry.app.name}” from the list?`"
         text="Its helm release no longer exists. Removing the entry does not delete any data in the project storage."
         confirm-text="Remove from list"
         color="error"
@@ -277,6 +343,7 @@ import OpenButton from '@/components/OpenButton.vue'
 import StateChip from '@/components/StateChip.vue'
 import StoryRef from '@/components/StoryRef.vue'
 import UndeployDialog from '@/components/UndeployDialog.vue'
+import VersionMarker from '@/components/VersionMarker.vue'
 import { useMockStore } from '@/stores/mock'
 import { age, formatDate } from '@/utils/format'
 
@@ -292,48 +359,38 @@ const now = ref(Date.now())
 const ticker = setInterval(() => (now.value = Date.now()), 5_000)
 onBeforeUnmount(() => clearInterval(ticker))
 
-const app = computed(() => mock.findByName(props.name))
-const def = computed(() => (app.value ? mock.definition(app.value.appId) : undefined))
-const project = computed(() => mock.projects.find((p) => p.id === app.value?.projectId))
+const entry = computed(() => {
+  const app = mock.findByName(props.name)
+  return app
+    ? { app, application: mock.application(app.appId), version: mock.versionOf(app) }
+    : undefined
+})
+const project = computed(() => {
+  const scope = entry.value?.app.scope
+  return scope?.kind === 'project' ? mock.projects.find((p) => p.id === scope.projectId) : undefined
+})
 const memberCount = computed(() => Object.keys(project.value?.members ?? {}).length)
-const warnings = computed(() => (app.value?.events ?? []).filter((e) => e.type === 'Warning'))
+const warnings = computed(() => (entry.value?.app.events ?? []).filter((e) => e.type === 'Warning'))
 
-const dataFolder = computed(() =>
-  def.value?.dataFolderParam ? String(app.value?.values[def.value.dataFolderParam] ?? '/') : '/',
-)
+const dataFolder = computed(() => {
+  const e = entry.value
+  return e?.version.dataFolderParam ? String(e.app.values[e.version.dataFolderParam] ?? '/') : '/'
+})
 const dataPath = computed(() => (dataFolder.value === '/' ? 'Everything' : `${dataFolder.value}/`))
 const resultsPath = computed(
-  () => `${project.value?.bucket}/applications/${app.value?.name}/results/`,
+  () => `${project.value?.bucket}/applications/${entry.value?.app.name}/results/`,
 )
-const workspaceSize = computed(() =>
-  def.value?.workspaceParam && app.value
-    ? Number(app.value.values[def.value.workspaceParam])
-    : null,
-)
-const volumeOnUndeploy = computed(() => {
-  switch (mock.options.volumesOnUndeploy) {
-    case 'delete':
-      return 'Deleted when the application is undeployed.'
-    case 'keep':
-      return 'Kept when the application is undeployed.'
-    default:
-      return 'Undeploying asks whether to keep it.'
-  }
+const workspaceSize = computed(() => {
+  const e = entry.value
+  return e?.version.workspaceParam ? Number(e.app.values[e.version.workspaceParam]) : null
 })
 
 /** An application of a project this person is not a member of, to demonstrate Story 5.3. */
-const foreign = computed(() =>
-  mock.persona.admin
-    ? undefined
-    : mock.deployed.find(
-        (d) =>
-          !(mock.persona.id in (mock.projects.find((p) => p.id === d.projectId)?.members ?? {})),
-      ),
-)
+const foreign = computed(() => mock.deployed.find((d) => !mock.canOpen(d.scope)))
 
 function display(key: string): string {
-  const decl = def.value?.params.find((p) => p.key === key)
-  const v = app.value?.values[key]
+  const decl = entry.value?.version.params.find((p) => p.key === key)
+  const v = entry.value?.app.values[key]
   if (v === '' || v === null || v === undefined) return 'Not set'
   if (decl?.type === 'boolean') return v ? 'Yes' : 'No'
   if (decl?.choices === 'project-folders') return v === '/' ? 'Whole bucket (/)' : `${v}/`
@@ -350,9 +407,9 @@ function podLook(status: string) {
 }
 
 async function copyUrl() {
-  if (!app.value) return
+  if (!entry.value) return
   try {
-    await navigator.clipboard.writeText(mock.instanceUrl(app.value))
+    await navigator.clipboard.writeText(mock.instanceUrl(entry.value.app))
     copied.value = true
     setTimeout(() => (copied.value = false), 2000)
   } catch {
@@ -365,13 +422,12 @@ function useAsInput() {
 }
 
 function tryForeign() {
-  const f = foreign.value
-  if (f) mock.appWindow = { kind: 'denied', projectId: f.projectId, name: f.name }
+  if (foreign.value) mock.openApp(foreign.value)
 }
 
 function remove() {
-  if (!app.value) return
-  mock.removeFromList(app.value.id)
+  if (!entry.value) return
+  mock.removeFromList(entry.value.app.id)
   router.push('/applications')
 }
 </script>

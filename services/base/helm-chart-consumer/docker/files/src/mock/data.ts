@@ -1,4 +1,4 @@
-import type { AppDefinition, DeployedApp, ParamDecl, Person, Persona, Project } from './types'
+import type { Application, DeployedApp, ParamDecl, Person, Persona, Project } from './types'
 
 // Seed data of the mock. Everything is invented; the names only have to make the
 // stories believable.
@@ -113,187 +113,326 @@ const memory = (fallback: number, max: number): ParamDecl => ({
   chartSuffix: 'Gi',
 })
 
-export const appDefinitions: AppDefinition[] = [
+const jupyterParams: ParamDecl[] = [
+  dataFolder(
+    'Folder of the project bucket that appears read-only as project-data/ in the notebook.',
+  ),
+  {
+    key: 'flavour',
+    label: 'Image',
+    type: 'choice',
+    choices: [
+      { title: 'Minimal (Python 3.12)', value: 'minimal' },
+      { title: 'Scientific (NumPy, SciPy, pandas)', value: 'scipy' },
+      { title: 'Deep learning (PyTorch, MONAI)', value: 'pytorch' },
+    ],
+    default: 'scipy',
+    required: true,
+    description: 'Preinstalled Python packages.',
+    chartValue: 'image.flavour',
+  },
+  gpu,
+  {
+    key: 'cpu',
+    label: 'CPU cores',
+    type: 'integer',
+    default: 2,
+    min: 1,
+    max: 8,
+    required: true,
+    description: 'Number of CPU cores the notebook may use.',
+    chartValue: 'resources.limits.cpu',
+  },
+  memory(8, 64),
+  workspace(10),
+  {
+    key: 'gitToken',
+    label: 'Git access token',
+    type: 'string',
+    default: '',
+    secret: true,
+    description:
+      'Lets the notebook clone private repositories. Stored as a Kubernetes secret and never shown again.',
+    chartValue: 'git.token',
+  },
+]
+
+const idleShutdown: ParamDecl = {
+  key: 'idleHours',
+  label: 'Stop idle kernels after (hours)',
+  type: 'integer',
+  default: 12,
+  min: 1,
+  max: 72,
+  required: true,
+  description: 'Frees memory and a reserved GPU when nobody has used a kernel for this long.',
+  chartValue: 'jupyter.culling.idleHours',
+}
+
+const mitkParams: ParamDecl[] = [
+  dataFolder('Folder of the project bucket that MITK opens images and segmentations from.'),
+  {
+    key: 'resolution',
+    label: 'Screen resolution',
+    type: 'choice',
+    choices: [
+      { title: '1280 × 800', value: '1280x800' },
+      { title: '1920 × 1080', value: '1920x1080' },
+      { title: '2560 × 1440', value: '2560x1440' },
+    ],
+    default: '1920x1080',
+    required: true,
+    description: 'Size of the remote desktop.',
+    chartValue: 'display.resolution',
+  },
+  gpu,
+  workspace(5),
+]
+
+const cvatParams: ParamDecl[] = [
+  dataFolder('Folder of the project bucket that CVAT imports tasks from.'),
+  {
+    key: 'storage',
+    label: 'Annotation storage (GiB)',
+    type: 'integer',
+    default: 20,
+    min: 5,
+    max: 500,
+    required: true,
+    description: 'Persistent volume for annotations and the CVAT database.',
+    chartValue: 'persistence.data.size',
+    chartSuffix: 'Gi',
+  },
+  {
+    key: 'modelAssist',
+    label: 'Model-assisted labelling',
+    type: 'boolean',
+    default: false,
+    description: 'Suggests annotations with a pretrained model. Needs a GPU.',
+    chartValue: 'nuclio.enabled',
+  },
+  {
+    key: 'adminPassword',
+    label: 'CVAT admin password',
+    type: 'string',
+    default: '',
+    required: true,
+    minLength: 12,
+    secret: true,
+    description:
+      'Password of the CVAT superuser. Stored as a Kubernetes secret and never shown again.',
+    chartValue: 'cvat.superuser.password',
+  },
+]
+
+export const applications: Application[] = [
   {
     id: 'jupyterlab',
     name: 'JupyterLab',
-    version: '1.4.0',
     description: 'Notebooks and a terminal for analysing the data of your project in Python.',
     icon: 'mdi-notebook-outline',
     multiDeployable: true,
-    entryPath: 'lab',
-    workspaceParam: 'workspace',
-    dataFolderParam: 'dataFolder',
-    params: [
-      dataFolder(
-        'Folder of the project bucket that appears read-only as project-data/ in the notebook.',
-      ),
+    scopes: ['project'],
+    versions: [
       {
-        key: 'flavour',
-        label: 'Image',
-        type: 'choice',
-        choices: [
-          { title: 'Minimal (Python 3.12)', value: 'minimal' },
-          { title: 'Scientific (NumPy, SciPy, pandas)', value: 'scipy' },
-          { title: 'Deep learning (PyTorch, MONAI)', value: 'pytorch' },
-        ],
-        default: 'scipy',
-        required: true,
-        description: 'Preinstalled Python packages.',
-        chartValue: 'image.flavour',
+        version: '4.3.0',
+        registered: true,
+        entryPath: 'lab',
+        workspaceParam: 'workspace',
+        dataFolderParam: 'dataFolder',
+        params: [...jupyterParams, idleShutdown],
       },
-      gpu,
       {
-        key: 'cpu',
-        label: 'CPU cores',
-        type: 'integer',
-        default: 2,
-        min: 1,
-        max: 8,
-        required: true,
-        description: 'Number of CPU cores the notebook may use.',
-        chartValue: 'resources.limits.cpu',
-      },
-      memory(8, 64),
-      workspace(10),
-      {
-        key: 'gitToken',
-        label: 'Git access token',
-        type: 'string',
-        default: '',
-        secret: true,
-        description:
-          'Lets the notebook clone private repositories. Stored as a Kubernetes secret and never shown again.',
-        chartValue: 'git.token',
+        version: '4.2.5',
+        registered: true,
+        entryPath: 'lab',
+        workspaceParam: 'workspace',
+        dataFolderParam: 'dataFolder',
+        params: jupyterParams,
       },
     ],
   },
   {
     id: 'mitk',
     name: 'MITK Workbench',
-    version: '2024.12.0',
     description: 'MITK Workbench in the browser for viewing images and correcting segmentations.',
     icon: 'mdi-brain',
     multiDeployable: true,
-    entryPath: 'vnc.html',
-    workspaceParam: 'workspace',
-    dataFolderParam: 'dataFolder',
-    params: [
-      dataFolder('Folder of the project bucket that MITK opens images and segmentations from.'),
+    scopes: ['project'],
+    versions: [
       {
-        key: 'resolution',
-        label: 'Screen resolution',
-        type: 'choice',
-        choices: [
-          { title: '1280 × 800', value: '1280x800' },
-          { title: '1920 × 1080', value: '1920x1080' },
-          { title: '2560 × 1440', value: '2560x1440' },
-        ],
-        default: '1920x1080',
-        required: true,
-        description: 'Size of the remote desktop.',
-        chartValue: 'display.resolution',
+        version: '2024.12.0',
+        registered: true,
+        entryPath: 'vnc.html',
+        workspaceParam: 'workspace',
+        dataFolderParam: 'dataFolder',
+        params: mitkParams,
       },
-      gpu,
-      workspace(5),
+      {
+        version: '2024.06.1',
+        registered: false,
+        entryPath: 'vnc.html',
+        workspaceParam: 'workspace',
+        dataFolderParam: 'dataFolder',
+        params: mitkParams,
+      },
     ],
   },
   {
     id: 'cvat',
     name: 'CVAT',
-    version: '2.11.0',
     description: 'Annotation tool for labelling images as a team. One shared instance per project.',
     icon: 'mdi-vector-square-edit',
     multiDeployable: false,
-    entryPath: '',
-    workspaceParam: 'storage',
-    dataFolderParam: 'dataFolder',
-    params: [
-      dataFolder('Folder of the project bucket that CVAT imports tasks from.'),
+    scopes: ['project'],
+    versions: [
       {
-        key: 'storage',
-        label: 'Annotation storage (GiB)',
-        type: 'integer',
-        default: 20,
-        min: 5,
-        max: 500,
-        required: true,
-        description: 'Persistent volume for annotations and the CVAT database.',
-        chartValue: 'persistence.data.size',
-        chartSuffix: 'Gi',
+        version: '2.11.0',
+        registered: true,
+        entryPath: '',
+        workspaceParam: 'storage',
+        dataFolderParam: 'dataFolder',
+        params: cvatParams,
       },
       {
-        key: 'modelAssist',
-        label: 'Model-assisted labelling',
-        type: 'boolean',
-        default: false,
-        description: 'Suggests annotations with a pretrained model. Needs a GPU.',
-        chartValue: 'nuclio.enabled',
-      },
-      {
-        key: 'adminPassword',
-        label: 'CVAT admin password',
-        type: 'string',
-        default: '',
-        required: true,
-        minLength: 12,
-        secret: true,
-        description:
-          'Password of the CVAT superuser. Stored as a Kubernetes secret and never shown again.',
-        chartValue: 'cvat.superuser.password',
+        version: '2.10.3',
+        registered: true,
+        entryPath: '',
+        workspaceParam: 'storage',
+        dataFolderParam: 'dataFolder',
+        params: cvatParams,
       },
     ],
   },
   {
     id: 'slicer',
     name: '3D Slicer',
-    version: '5.6.2',
     description: '3D Slicer in the browser for segmentation and 3D visualisation.',
     icon: 'mdi-cube-scan',
     multiDeployable: true,
-    entryPath: 'vnc.html',
-    workspaceParam: 'workspace',
-    dataFolderParam: 'dataFolder',
-    params: [
-      dataFolder('Folder of the project bucket that Slicer opens data from.'),
-      memory(8, 32),
-      workspace(10),
+    scopes: ['project'],
+    versions: [
+      {
+        version: '5.6.2',
+        registered: true,
+        entryPath: 'vnc.html',
+        workspaceParam: 'workspace',
+        dataFolderParam: 'dataFolder',
+        params: [
+          dataFolder('Folder of the project bucket that Slicer opens data from.'),
+          memory(8, 32),
+          workspace(10),
+        ],
+      },
     ],
   },
   {
     id: 'code-server',
     name: 'VS Code',
-    version: '4.89.1',
     description:
       'VS Code (code-server) in the browser for writing and testing code on project data.',
     icon: 'mdi-microsoft-visual-studio-code',
     multiDeployable: true,
-    entryPath: '',
-    workspaceParam: 'workspace',
-    dataFolderParam: 'dataFolder',
-    params: [
-      dataFolder('Folder of the project bucket that appears read-only in the workspace.'),
-      memory(4, 32),
-      workspace(10),
+    scopes: ['project'],
+    versions: [
+      {
+        version: '4.89.1',
+        registered: true,
+        entryPath: '',
+        workspaceParam: 'workspace',
+        dataFolderParam: 'dataFolder',
+        params: [
+          dataFolder('Folder of the project bucket that appears read-only in the workspace.'),
+          memory(4, 32),
+          workspace(10),
+        ],
+      },
     ],
   },
   {
     id: 'tensorboard',
     name: 'TensorBoard',
-    version: '2.17.0',
     description: 'Training curves of the models trained in this project.',
     icon: 'mdi-chart-line',
     multiDeployable: false,
-    entryPath: '',
-    dataFolderParam: 'dataFolder',
-    params: [dataFolder('Folder of the project bucket that holds the training logs.')],
+    scopes: ['project'],
+    versions: [
+      {
+        version: '2.17.0',
+        registered: true,
+        entryPath: '',
+        dataFolderParam: 'dataFolder',
+        params: [dataFolder('Folder of the project bucket that holds the training logs.')],
+      },
+    ],
+  },
+  {
+    id: 'collabora',
+    name: 'Collabora Online',
+    description: 'Edit documents and spreadsheets together in the browser.',
+    icon: 'mdi-file-document-edit-outline',
+    multiDeployable: false,
+    scopes: ['project', 'platform'],
+    versions: [
+      {
+        version: '24.04.6',
+        registered: true,
+        entryPath: '',
+        params: [
+          {
+            key: 'language',
+            label: 'Default language',
+            type: 'choice',
+            choices: [
+              { title: 'English', value: 'en' },
+              { title: 'German', value: 'de' },
+            ],
+            default: 'en',
+            required: true,
+            description: 'Language of menus and spell checking.',
+            chartValue: 'collabora.language',
+          },
+          memory(4, 16),
+        ],
+      },
+    ],
+  },
+  {
+    id: 'ohif',
+    name: 'OHIF Viewer',
+    description: 'Zero-footprint DICOM viewer for the images of the project you work in.',
+    icon: 'mdi-image-filter-center-focus-weak',
+    multiDeployable: false,
+    scopes: ['platform'],
+    versions: [
+      {
+        version: '3.8.2',
+        registered: true,
+        entryPath: 'viewer',
+        params: [
+          {
+            key: 'layout',
+            label: 'Default layout',
+            type: 'choice',
+            choices: [
+              { title: 'One viewport', value: '1x1' },
+              { title: 'Two viewports side by side', value: '1x2' },
+            ],
+            default: '1x1',
+            required: true,
+            description: 'Viewport layout a study opens with.',
+            chartValue: 'ohif.defaultLayout',
+          },
+        ],
+      },
+    ],
   },
 ]
 
 /** Applications enabled per project (Story 5.2). */
 export const seedAvailability: Record<string, string[]> = {
-  'lung-ct': ['jupyterlab', 'mitk', 'cvat', 'slicer'],
-  'brain-mri': ['jupyterlab', 'slicer', 'code-server', 'tensorboard'],
+  'lung-ct': ['jupyterlab', 'mitk', 'cvat', 'slicer', 'collabora'],
+  'brain-mri': ['jupyterlab', 'slicer', 'code-server', 'tensorboard', 'collabora'],
   'prostate-pet': ['jupyterlab', 'mitk'],
 }
 
@@ -308,15 +447,14 @@ function running(name: string, startedAt: number, restarts = 0) {
 /** Fresh copies of the deployed applications, relative to `now`. */
 export function seedDeployed(now: number): DeployedApp[] {
   const ago = (ms: number) => now - ms
-  return [
+  const seed: DeployedApp[] = [
     {
       id: 'd1',
       name: 'anna-notebook',
       appId: 'jupyterlab',
-      version: '1.4.0',
-      projectId: 'lung-ct',
+      version: '4.2.5',
+      scope: { kind: 'project', projectId: 'lung-ct', forPerson: 'anna' },
       description: 'Radiomics feature exploration on cohort A',
-      forPerson: 'anna',
       deployedBy: 'paul',
       deployedAt: ago(3 * DAY + 2 * HOUR),
       values: {
@@ -336,10 +474,9 @@ export function seedDeployed(now: number): DeployedApp[] {
       id: 'd2',
       name: 'jonas-notebook',
       appId: 'jupyterlab',
-      version: '1.4.0',
-      projectId: 'lung-ct',
+      version: '4.3.0',
+      scope: { kind: 'project', projectId: 'lung-ct', forPerson: 'jonas' },
       description: 'Training data preparation for nodule detection',
-      forPerson: 'jonas',
       deployedBy: 'paul',
       deployedAt: ago(12 * DAY),
       values: {
@@ -350,6 +487,7 @@ export function seedDeployed(now: number): DeployedApp[] {
         memory: 32,
         workspace: 50,
         gitToken: '',
+        idleHours: 24,
       },
       state: 'READY',
       pods: [running('jonas-notebook-jupyterlab-84d6b9c7f-mm2tw', ago(2 * DAY), 2)],
@@ -359,10 +497,9 @@ export function seedDeployed(now: number): DeployedApp[] {
       id: 'd3',
       name: 'segmentation-review',
       appId: 'mitk',
-      version: '2024.12.0',
-      projectId: 'lung-ct',
+      version: '2024.06.1',
+      scope: { kind: 'project', projectId: 'lung-ct', forPerson: null },
       description: 'Review and correct lung lobe segmentations before training',
-      forPerson: null,
       deployedBy: 'paul',
       deployedAt: ago(26 * HOUR),
       values: { dataFolder: 'annotations', resolution: '1920x1080', gpu: false, workspace: 5 },
@@ -375,9 +512,8 @@ export function seedDeployed(now: number): DeployedApp[] {
       name: 'nodule-labelling',
       appId: 'cvat',
       version: '2.11.0',
-      projectId: 'lung-ct',
+      scope: { kind: 'project', projectId: 'lung-ct', forPerson: null },
       description: 'Label nodules in cohort B with the clinical team',
-      forPerson: null,
       deployedBy: 'paul',
       deployedAt: ago(42 * MIN),
       values: {
@@ -403,7 +539,7 @@ export function seedDeployed(now: number): DeployedApp[] {
           reason: 'Scheduled',
           object: 'pod/nodule-labelling-cvat-server-7d9f8c6b5-h4kz2',
           message:
-            'Successfully assigned project-lung-ct/nodule-labelling-cvat-server-7d9f8c6b5-h4kz2 to node gpu-worker-2',
+            'Successfully assigned nodule-labelling-cvat-server-7d9f8c6b5-h4kz2 to node gpu-worker-2',
           at: ago(42 * MIN),
         },
         {
@@ -440,9 +576,8 @@ export function seedDeployed(now: number): DeployedApp[] {
       name: 'airway-segmentation',
       appId: 'slicer',
       version: '5.6.2',
-      projectId: 'lung-ct',
+      scope: { kind: 'project', projectId: 'lung-ct', forPerson: 'paul' },
       description: 'Airway segmentation experiments',
-      forPerson: 'paul',
       deployedBy: 'paul',
       deployedAt: ago(6 * DAY),
       values: { dataFolder: 'cohort-a', memory: 16, workspace: 10 },
@@ -455,10 +590,9 @@ export function seedDeployed(now: number): DeployedApp[] {
       id: 'd6',
       name: 'pilot-notebook',
       appId: 'jupyterlab',
-      version: '1.4.0',
-      projectId: 'lung-ct',
+      version: '4.2.5',
+      scope: { kind: 'project', projectId: 'lung-ct', forPerson: 'sofia' },
       description: 'Pilot analysis from the project kick-off',
-      forPerson: 'sofia',
       deployedBy: 'paul',
       deployedAt: ago(40 * DAY),
       values: {
@@ -484,10 +618,9 @@ export function seedDeployed(now: number): DeployedApp[] {
       id: 'd7',
       name: 'flair-notebook',
       appId: 'jupyterlab',
-      version: '1.4.0',
-      projectId: 'brain-mri',
+      version: '4.3.0',
+      scope: { kind: 'project', projectId: 'brain-mri', forPerson: 'anna' },
       description: 'FLAIR lesion statistics',
-      forPerson: 'anna',
       deployedBy: 'lea',
       deployedAt: ago(8 * DAY),
       values: {
@@ -498,6 +631,7 @@ export function seedDeployed(now: number): DeployedApp[] {
         memory: 8,
         workspace: 20,
         gitToken: '',
+        idleHours: 12,
       },
       state: 'READY',
       pods: [running('flair-notebook-jupyterlab-7c5d8f9b6-t6wq1', ago(8 * DAY))],
@@ -508,9 +642,8 @@ export function seedDeployed(now: number): DeployedApp[] {
       name: 'training-curves',
       appId: 'tensorboard',
       version: '2.17.0',
-      projectId: 'brain-mri',
+      scope: { kind: 'project', projectId: 'brain-mri', forPerson: null },
       description: 'Monitor the nnU-Net training runs',
-      forPerson: null,
       deployedBy: 'lea',
       deployedAt: ago(2 * DAY),
       values: { dataFolder: 'results' },
@@ -523,9 +656,8 @@ export function seedDeployed(now: number): DeployedApp[] {
       name: 'psma-review',
       appId: 'mitk',
       version: '2024.12.0',
-      projectId: 'prostate-pet',
+      scope: { kind: 'project', projectId: 'prostate-pet', forPerson: 'mehmet' },
       description: 'PSMA PET lesion review',
-      forPerson: 'mehmet',
       deployedBy: 'lea',
       deployedAt: ago(4 * DAY),
       values: { dataFolder: 'psma', resolution: '1920x1080', gpu: false, workspace: 5 },
@@ -533,5 +665,29 @@ export function seedDeployed(now: number): DeployedApp[] {
       pods: [running('psma-review-mitk-6d8b7c5f4-k9p3s', ago(4 * DAY))],
       events: [],
     },
+    {
+      id: 'd10',
+      name: 'ohif',
+      appId: 'ohif',
+      version: '3.8.2',
+      scope: { kind: 'platform' },
+      description: 'DICOM viewer for all projects',
+      deployedBy: 'kim',
+      deployedAt: ago(21 * DAY),
+      values: { layout: '1x1' },
+      state: 'READY',
+      pods: [running('ohif-7f6c9d8b4-w2n5h', ago(9 * DAY))],
+      events: [],
+    },
   ]
+  for (const d of seed) {
+    const known = applications
+      .find((a) => a.id === d.appId)
+      ?.versions.some((v) => v.version === d.version)
+    if (!known)
+      throw new Error(
+        `Seed instance ${d.name} runs ${d.appId} ${d.version}, which no application declares.`,
+      )
+  }
+  return seed
 }

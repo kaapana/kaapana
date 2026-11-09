@@ -32,14 +32,21 @@ export interface ParamDecl {
   chartSuffix?: string
 }
 
-/** A registered helm-chart content, shown to users as an application. */
-export interface AppDefinition {
+export type Scope = 'project' | 'platform'
+
+export interface Application {
   id: string
   name: string
-  version: string
   description: string
   icon: string
   multiDeployable: boolean
+  scopes: readonly [Scope, ...Scope[]]
+  versions: AppVersion[]
+}
+
+export interface AppVersion {
+  version: string
+  registered: boolean
   /** Path below the instance URL that the web interface serves (Story 4.4). */
   entryPath: string
   params: ParamDecl[]
@@ -86,16 +93,29 @@ export interface K8sEvent {
   at: number
 }
 
+export type AppScope =
+  | {
+      kind: 'project'
+      projectId: string
+      /**
+       * This is the member the instance was deployed for, or null if it was deployed for the whole
+       * project. It does not limit who can open the instance.
+       */
+      forPerson: string | null
+    }
+  | { kind: 'platform' }
+
 export interface DeployedApp {
   id: string
-  /** Human readable name, unique within the project (Story 8.3). */
+  /**
+   * The details page finds an instance by its name. The name is therefore unique among the
+   * applications listed in a project, including the platform-wide ones.
+   */
   name: string
   appId: string
   version: string
-  projectId: string
+  scope: AppScope
   description: string
-  /** The scientist the instance was deployed for, or null for the whole project (Story 2.1). */
-  forPerson: string | null
   deployedBy: string
   deployedAt: number
   values: Record<string, ParamValue>

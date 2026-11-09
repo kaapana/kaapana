@@ -26,3 +26,6 @@ Without Docker, run `pip install -r requirements.txt` in a virtual environment, 
 | `app/routers/deployments.py` | Deploy, update, undeploy, status and logs of deployed applications |
 | `app/routers/projects.py` | Which applications are enabled in which project |
 | `app/examples.py` | The example data the routes return |
+
+See [../handoff.md](../handoff.md) for the reasons behind the API, the facts about the Extension Manager and the
+gateway that the API depends on, and what an implementation has to take care of.

@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { apiErrorInfo, kaapanaIcons } from '@kaapana/base-ui'
 import { fetchExtensions, uninstallExtension } from '@/features/extensions/api'
 import InstalledExtensionDialog from '@/features/extensions/components/InstalledExtensionDialog.vue'
+import UploadExtensionDialog from '@/features/extensions/components/UploadExtensionDialog.vue'
 import { fetchRepositories } from '@/features/repositories/api'
 import BaseCardIterator from '@/shared/components/BaseCardIterator.vue'
 import StatusIndicator from '@/shared/components/StatusIndicator.vue'
@@ -21,6 +22,7 @@ const loaded = ref(false)
 const loadFailure = ref<FailureDetails | null>(null)
 const selectedId = ref<string | null>(null)
 const uninstalling = ref(false)
+const showUpload = ref(false)
 
 const selectedExtension = computed(
   () => installedExtensions.value.find((extension) => extension.id === selectedId.value) ?? null,
@@ -109,16 +111,27 @@ onMounted(refreshAll)
       <div class="text-body-2 text-medium-emphasis">
         {{ plural(activeCount, 'extension') }} on the platform
       </div>
-      <v-btn
-        variant="text"
-        color="primary"
-        :prepend-icon="kaapanaIcons.refresh"
-        :loading="loading"
-        :disabled="loading"
-        @click="refreshAll"
-      >
-        Refresh
-      </v-btn>
+      <div class="d-flex flex-wrap ga-2">
+        <v-btn
+          variant="text"
+          color="primary"
+          :prepend-icon="kaapanaIcons.refresh"
+          :loading="loading"
+          :disabled="loading"
+          @click="refreshAll"
+        >
+          Refresh
+        </v-btn>
+        <v-btn
+          color="primary"
+          variant="flat"
+          :prepend-icon="kaapanaIcons.upload"
+          data-testid="install-from-file"
+          @click="showUpload = true"
+        >
+          Install from file
+        </v-btn>
+      </div>
     </div>
 
     <v-alert
@@ -183,10 +196,13 @@ onMounted(refreshAll)
             v-else
             size="56"
             title="No extensions installed yet"
-            text="Extensions you install from the catalog appear here, together with their installation state."
+            text="Extensions you install from the catalog or from a file appear here, together with their installation state."
           >
             <template #actions>
               <v-btn color="primary" variant="text" to="/catalog">Browse the catalog</v-btn>
+              <v-btn color="primary" variant="text" @click="showUpload = true">
+                Install from file
+              </v-btn>
             </template>
           </v-empty-state>
         </div>
@@ -200,5 +216,7 @@ onMounted(refreshAll)
       @close="selectedId = null"
       @uninstall="uninstallSelectedExtension"
     />
+
+    <UploadExtensionDialog v-model="showUpload" @uploaded="refreshAll" />
   </div>
 </template>

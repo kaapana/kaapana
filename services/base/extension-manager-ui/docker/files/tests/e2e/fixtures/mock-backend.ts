@@ -7,6 +7,7 @@ export interface RepositoryMock {
   name: string
   description: string
   repository_url: string
+  built_in?: boolean
 }
 
 export interface ManifestMock {
@@ -59,6 +60,14 @@ export const LAB_REPO: RepositoryMock = {
   repository_url: 'https://registry.lab.example.org/team/extensions',
 }
 
+export const UPLOAD_REPO: RepositoryMock = {
+  id: '8f49216f-786c-42ba-9413-0722e781ea28',
+  name: 'Upload',
+  description: 'Extensions installed from a file.',
+  repository_url: 'upload://local',
+  built_in: true,
+}
+
 export function manifest(
   name: string,
   version: string,
@@ -93,6 +102,11 @@ export const TOTALSEG = manifest(
   'bbbbbbbb-0000-0000-0000-000000000002',
 )
 export const RADIOMICS = manifest('radiomics', '0.3.0', 'cccccccc-0000-0000-0000-000000000003')
+export const HELLO_UPLOAD = manifest(
+  'hello-upload',
+  '1.0.0',
+  'ffffffff-0000-0000-0000-000000000004',
+)
 
 export function installation(
   repository: RepositoryMock,
@@ -222,6 +236,21 @@ export async function installMockBackend(
         `dddddddd-0000-0000-0000-${String(nextId++).padStart(12, '0')}`,
       )
       data.extensions.push(created)
+      return route.fulfill(json(created, 201))
+    }
+
+    if (path === '/extensions/upload' && method === 'POST') {
+      const created = installation(
+        UPLOAD_REPO,
+        HELLO_UPLOAD,
+        'pending',
+        `dddddddd-0000-0000-0000-${String(nextId++).padStart(12, '0')}`,
+      )
+      data.extensions.push(created)
+      data.manifests[UPLOAD_REPO.id] = [
+        ...(data.manifests[UPLOAD_REPO.id] ?? []),
+        manifestResponse(UPLOAD_REPO, HELLO_UPLOAD),
+      ]
       return route.fulfill(json(created, 201))
     }
 

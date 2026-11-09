@@ -18,9 +18,9 @@ Using it
 
 The web UI has three views:
 
-- **Repositories**: add, edit or remove the OCI registries to pull from.
+- **Repositories**: add, edit or remove the OCI registries to pull from. The built-in **Upload** repository holds the extensions installed from a file and cannot be changed or removed.
 - **Catalog**: browse the extensions available in those registries.
-- **Extensions**: install / uninstall extensions and see their state.
+- **Extensions**: install / uninstall extensions and see their state. **Install from file** installs a ``.tar.gz`` built with ``extensionctl build``, without a registry.
 
 Packaging an extension
 **********************

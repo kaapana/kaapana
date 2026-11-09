@@ -81,6 +81,20 @@ workflow interface.
    registries at the time the workflow is first triggered.
 
 
+Installing an Extension from a File
+------------------------------------
+
+An extension can also be installed without a registry.
+
+1. Build the archive with ``extensionctl build ./my-extension``.
+2. In the **Extensions** tab, click **Install from file**.
+3. Choose the ``.tar.gz`` archive and click **Install**.
+
+The archive can be at most 100 MB. The extension is listed under the built-in
+**Upload** repository. The same version cannot be installed from a file and
+from a registry at the same time.
+
+
 Uninstalling an Extension
 --------------------------
 

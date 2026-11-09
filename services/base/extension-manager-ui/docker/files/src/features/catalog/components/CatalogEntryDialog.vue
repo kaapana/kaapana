@@ -30,7 +30,11 @@ const emit = defineEmits<{
 
 const showRemoveConfirm = ref(false)
 
-const availability = computed(() => installAvailability(props.installation))
+const availability = computed(() =>
+  props.entry
+    ? installAvailability(props.entry, props.installation)
+    : ({ kind: 'available', label: 'Install' } as const),
+)
 const installationStatus = computed(() =>
   props.installation ? presentExtensionStatus(props.installation.status) : null,
 )

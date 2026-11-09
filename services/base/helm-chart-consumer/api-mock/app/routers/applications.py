@@ -40,7 +40,7 @@ def get_application(application_id: str) -> Application:
 def list_versions(
     application_id: str,
     include_deregistered: Annotated[
-        bool, Query(description="Also list versions that deployments still run after their extension was uninstalled.")
+        bool, Query(description="Also list versions that releases still run after their extension was uninstalled.")
     ] = False,
 ) -> list[ApplicationVersion]:
     """List the versions of an application, newest first.
@@ -55,7 +55,7 @@ def get_version(application_id: str, version: str) -> ApplicationVersion:
     """Get one version with its deploy parameters.
 
     `content.parameters` declares which values a deploy accepts, with their types, limits and
-    defaults. Deregistered versions stay readable while deployments run them, so that their
+    defaults. Deregistered versions stay readable while releases run them, so that their
     parameters can still be changed.
     """
     return examples.JUPYTERLAB_VERSIONS[0]
@@ -96,7 +96,7 @@ def register_version(
     `application_id` must equal `content.name`, and `version` must equal the version of the
     extension. If a check fails, the route answers 400. Repeating the same registration changes
     nothing and answers 200, so the Extension Manager can retry. A registration that differs from
-    the stored one answers 409. This also holds for a deregistered version that deployments still
+    the stored one answers 409. This also holds for a deregistered version that releases still
     run, because they depend on the stored chart. To deregister the version, the Extension Manager
     sends DELETE to the path in the `Location` header.
 
@@ -112,7 +112,7 @@ def register_version(
 def deregister_version(application_id: str, version: str) -> None:
     """Deregister a version. The Extension Manager calls this when it uninstalls the extension.
 
-    The version can no longer be deployed. Its deployments keep running and are marked with
+    The version can no longer be deployed. Its releases keep running and are marked with
     `version_registered: false`. Other versions of the application are not affected. Deleting a
     version that is not registered also answers 204, so the Extension Manager can retry.
     """

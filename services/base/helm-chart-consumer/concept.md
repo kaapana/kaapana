@@ -548,7 +548,7 @@ The answers to Q1 to Q11, except Q6, are recorded in [QandA.md](QandA.md) and ar
 * Helm-chart content: The content type of an extension that is managed by the Helm Chart Consumer. It consists of `helm-chart-content.json` and a helm chart.
 * Helm Chart Consumer: The system component that registers the helm-chart contents of extensions and deploys, updates and undeploys applications.
 * Application: The user facing name of a registered helm-chart content, i.e. something that can be deployed (e.g. JupyterLab).
-* Deployed application: An instance of an application, i.e. a helm release that the Helm Chart Consumer created from a helm-chart content, either in a project or platform-wide.
+* Deployed application: An instance of an application, i.e. a helm release that the Helm Chart Consumer created from a helm-chart content, either in a project or platform-wide. The API calls it a release.
 * Register / deregister: Make a helm-chart content deployable / no longer deployable at the Helm Chart Consumer. Triggered by installing / uninstalling its extension.
 * Deploy / undeploy: Create / remove a deployed application. "Install" and "uninstall" are only used for extensions.
 * Deploy parameter: A value declared in `helm-chart-content.json` that a user sets when deploying or updating an application. It is mapped onto a chart value.

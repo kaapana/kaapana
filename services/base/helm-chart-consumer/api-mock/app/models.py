@@ -20,7 +20,13 @@ class Scope(StrEnum):
     PLATFORM = "platform"
 
 
-class DeploymentState(StrEnum):
+class ReleaseState(StrEnum):
+    """The state of a release.
+
+    Helm reports a helm release as `deployed` as soon as it has applied the manifests. This state
+    also says whether the application is ready to use.
+    """
+
     DEPLOYING = "deploying"
     READY = "ready"
     FAILED = "failed"
@@ -142,7 +148,7 @@ class ProjectPlacement(Strict):
     project_id: str
     deployed_for: str | None = Field(
         None,
-        description="User the deployment is meant for, or null for the whole project. "
+        description="User the release is meant for, or null for the whole project. "
         "Every member of the project can open it either way.",
     )
 
@@ -159,7 +165,7 @@ class WorkflowOrigin(Strict):
     task_id: str
 
 
-class DeploymentCreate(Strict):
+class ReleaseCreate(Strict):
     application_id: str
     version: str | None = Field(None, description="A registered version. The newest one if omitted.")
     name: str = Field(min_length=3, max_length=30, pattern=r"^[a-z]([a-z0-9-]*[a-z0-9])?$")
@@ -171,7 +177,7 @@ class DeploymentCreate(Strict):
     workflow: WorkflowOrigin | None = Field(None, description="Set when a workflow task deploys the application.")
 
 
-class DeploymentUpdate(Strict):
+class ReleaseUpdate(Strict):
     version: str | None = Field(None, description="Another registered version. The current one if omitted.")
     parameters: dict[str, ParameterValue | None] = Field(
         {},
@@ -207,8 +213,14 @@ class Drift(BaseModel):
     detected_at: datetime
 
 
-class Deployment(BaseModel):
-    """An instance of an application, i.e. a helm release created by the Helm Chart Consumer."""
+class Release(BaseModel):
+    """The Helm Chart Consumer's record of the helm release it creates from a version of an application.
+
+    The record also holds what helm does not know, such as the placement and who deployed it. It
+    exists as soon as a deploy passes its checks, before helm has installed anything. It stays when
+    someone removes the helm release outside the Helm Chart Consumer, and its `drift` then has the
+    kind `removed`.
+    """
 
     id: str
     name: str = Field(description="Human-readable name. Part of the path of the web interface.")
@@ -218,7 +230,7 @@ class Deployment(BaseModel):
     version_registered: bool = Field(description="False if the version was deregistered after the deploy.")
     newer_version: str | None = Field(description="The newest registered version, if it is newer than `version`.")
     placement: Placement
-    state: DeploymentState
+    state: ReleaseState
     state_reason: str | None = None
     drift: Drift | None = Field(
         None, description="Set when the helm release was changed or removed outside the Helm Chart Consumer."
@@ -250,8 +262,8 @@ class Event(BaseModel):
     timestamp: datetime
 
 
-class DeploymentStatus(BaseModel):
-    """What the cluster reports about a deployment. The state and its reason are fields of the deployment."""
+class ReleaseStatus(BaseModel):
+    """What the cluster reports about a release. The state and its reason are fields of the release."""
 
     helm_error: str | None = Field(None, description="Output of the last failed helm command.")
     pods: list[Pod]

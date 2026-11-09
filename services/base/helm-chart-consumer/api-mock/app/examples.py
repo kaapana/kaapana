@@ -1,6 +1,6 @@
 """Example data that the mock returns.
 
-It reuses some applications and deployments from the seed data of the UI mock in
+It reuses some of the applications and their deployed instances from the seed data of the UI mock in
 ../../docker/files/src/mock/data.ts.
 """
 
@@ -13,9 +13,6 @@ from .models import (
     Choice,
     ChoiceParameter,
     ConfiguredParameter,
-    Deployment,
-    DeploymentState,
-    DeploymentStatus,
     DryRunResult,
     Enablement,
     Event,
@@ -25,6 +22,9 @@ from .models import (
     PlatformPlacement,
     Pod,
     ProjectPlacement,
+    Release,
+    ReleaseState,
+    ReleaseStatus,
     Scope,
     StringParameter,
     Volume,
@@ -182,7 +182,7 @@ APPLICATIONS = [
     ),
 ]
 
-ANNA_NOTEBOOK = Deployment(
+ANNA_NOTEBOOK = Release(
     id="d1",
     name="anna-notebook",
     description="Radiomics feature exploration on cohort A",
@@ -191,7 +191,7 @@ ANNA_NOTEBOOK = Deployment(
     version_registered=True,
     newer_version="4.3.0",
     placement=ProjectPlacement(project_id="lung-ct", deployed_for="anna"),
-    state=DeploymentState.READY,
+    state=ReleaseState.READY,
     url="/project/lung-ct/applications/anna-notebook/lab",
     parameters=[
         ConfiguredParameter(key="dataFolder", value="cohort-a", is_default=False),
@@ -207,7 +207,7 @@ ANNA_NOTEBOOK = Deployment(
     updated_at=at(6, 10),
 )
 
-SEGMENTATION_REVIEW = Deployment(
+SEGMENTATION_REVIEW = Release(
     id="d3",
     name="segmentation-review",
     description="Review and correct lung lobe segmentations before training",
@@ -216,7 +216,7 @@ SEGMENTATION_REVIEW = Deployment(
     version_registered=False,
     newer_version="2024.12.0",
     placement=ProjectPlacement(project_id="lung-ct"),
-    state=DeploymentState.READY,
+    state=ReleaseState.READY,
     url="/project/lung-ct/applications/segmentation-review/vnc.html",
     parameters=[
         ConfiguredParameter(key="dataFolder", value="annotations", is_default=False),
@@ -228,7 +228,7 @@ SEGMENTATION_REVIEW = Deployment(
     updated_at=at(8, 10),
 )
 
-NODULE_LABELLING = Deployment(
+NODULE_LABELLING = Release(
     id="d4",
     name="nodule-labelling",
     description="Label nodules in cohort B with the clinical team",
@@ -237,7 +237,7 @@ NODULE_LABELLING = Deployment(
     version_registered=True,
     newer_version=None,
     placement=ProjectPlacement(project_id="lung-ct"),
-    state=DeploymentState.FAILED,
+    state=ReleaseState.FAILED,
     state_reason="The container image cvat/server:2.11.0 could not be downloaded.",
     url="/project/lung-ct/applications/nodule-labelling/",
     parameters=[
@@ -250,7 +250,7 @@ NODULE_LABELLING = Deployment(
     updated_at=at(9, 11),
 )
 
-OHIF = Deployment(
+OHIF = Release(
     id="d10",
     name="ohif",
     description="DICOM viewer for all projects",
@@ -259,7 +259,7 @@ OHIF = Deployment(
     version_registered=True,
     newer_version=None,
     placement=PlatformPlacement(),
-    state=DeploymentState.READY,
+    state=ReleaseState.READY,
     url="/applications/ohif/viewer",
     parameters=[ConfiguredParameter(key="layout", value="1x1", is_default=True)],
     volumes=[],
@@ -268,16 +268,16 @@ OHIF = Deployment(
     updated_at=at(19, 9),
 )
 
-DEPLOYMENTS = [ANNA_NOTEBOOK, SEGMENTATION_REVIEW, NODULE_LABELLING, OHIF]
+RELEASES = [ANNA_NOTEBOOK, SEGMENTATION_REVIEW, NODULE_LABELLING, OHIF]
 
-ANNA_NOTEBOOK_UNDEPLOYING = ANNA_NOTEBOOK.model_copy(update={"state": DeploymentState.UNDEPLOYING})
+ANNA_NOTEBOOK_UNDEPLOYING = ANNA_NOTEBOOK.model_copy(update={"state": ReleaseState.UNDEPLOYING})
 
 # This matches UPDATE_REQUEST, so that the example response fits the example request.
 ANNA_NOTEBOOK_UPDATING = ANNA_NOTEBOOK.model_copy(
     update={
         "version": "4.3.0",
         "newer_version": None,
-        "state": DeploymentState.UPDATING,
+        "state": ReleaseState.UPDATING,
         "parameters": [
             ConfiguredParameter(key="dataFolder", value="cohort-a", is_default=False),
             ConfiguredParameter(key="flavour", value="scipy", is_default=True),
@@ -292,7 +292,7 @@ ANNA_NOTEBOOK_UPDATING = ANNA_NOTEBOOK.model_copy(
 )
 
 # This matches DEPLOY_REQUEST, so that the example response fits the example request.
-NEW_DEPLOYMENT = ANNA_NOTEBOOK.model_copy(
+NEW_RELEASE = ANNA_NOTEBOOK.model_copy(
     update={
         "id": "d11",
         "name": "jonas-notebook-2",
@@ -300,7 +300,7 @@ NEW_DEPLOYMENT = ANNA_NOTEBOOK.model_copy(
         "version": "4.3.0",
         "newer_version": None,
         "placement": ProjectPlacement(project_id="lung-ct", deployed_for="jonas"),
-        "state": DeploymentState.DEPLOYING,
+        "state": ReleaseState.DEPLOYING,
         "parameters": [
             ConfiguredParameter(key="dataFolder", value="cohort-a", is_default=False),
             ConfiguredParameter(key="flavour", value="scipy", is_default=True),
@@ -317,7 +317,7 @@ NEW_DEPLOYMENT = ANNA_NOTEBOOK.model_copy(
     }
 )
 
-ANNA_NOTEBOOK_STATUS = DeploymentStatus(
+ANNA_NOTEBOOK_STATUS = ReleaseStatus(
     pods=[
         Pod(
             name="anna-notebook-jupyterlab-6c9f7d8b5-x2k4q",

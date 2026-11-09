@@ -58,7 +58,7 @@ This has consequences for the consumer API:
 - The contents of an extension are installed one after the other, and nothing is rolled back. If a later content
   fails, a helm-chart content that was installed before stays registered, although the extension shows as failed.
 - The uninstall route asks no consumer before it starts. Story 1.2 wants the admin to see the affected deployed
-  applications first, which `GET /v1/deployments?application_id=<id>&version=<version>` answers. The Extension
+  applications first, which `GET /v1/releases?application_id=<id>&version=<version>` answers. The Extension
   Manager needs a change to show them.
 - The `contentType` name for helm-chart contents is not defined yet. `concept.md` suggests `helm-chart-v1`.
 - How the packaged chart reaches the consumer is not decided. The workflow installer sends JSON. A chart needs a
@@ -147,29 +147,36 @@ from the versions instead of storing them. A stored copy would have to be kept i
 Q14 is open: two different extensions may bring the same name and version. The mock answers 409. Settle it before
 the registration route is final, because it decides the key.
 
-### Keep the chart and the declarations of every deployment
+### Keep a record of every release
 
-A deployment whose version was deregistered can still change its parameters (Q4). `helm upgrade` needs the chart
+The API calls a deployed application a release, because every deploy creates exactly one helm release. The
+consumer's record holds more than helm knows, such as the placement, the parameters and the workflow origin. The
+record exists before `helm install` finishes and stays after someone removes the helm release by hand. List
+releases from the records, not from `helm list`, which also shows the releases of the platform itself.
+
+### Keep the chart and the declarations of every release
+
+A release whose version was deregistered can still change its parameters (Q4). `helm upgrade` needs the chart
 as an argument. Helm stores the chart of each release in a Kubernetes secret, but reading it back needs the helm
 SDK or decoding that secret, and `helm-chart-content.json` is not stored at all. Copy the chart archive and the
 content at registration, because `chart_reference` can point at an extension that is uninstalled later. Keep
-both while any deployment runs that version. The API mock keeps deregistered versions readable for this:
+both while any release runs that version. The API mock keeps deregistered versions readable for this:
 `GET /v1/applications/{id}/versions/{version}` also answers for a deregistered version.
 
 ### Make the placement a union
 
-A deployment is either in a project, optionally for one user, or platform-wide (Q1, Q11). Model this as
-`ProjectPlacement | PlatformPlacement`, as in `api-mock/app/models.py`, so that a platform-wide deployment
+A release is either in a project, optionally for one user, or platform-wide (Q1, Q11). Model this as
+`ProjectPlacement | PlatformPlacement`, as in `api-mock/app/models.py`, so that a platform-wide release
 cannot carry a project or a "deployed for". "Deployed for" never restricts access. Every member of the project can
-open every deployment of the project.
+open every release of the project.
 
 ### Derive the state, do not store it
 
-The state of a deployment comes from its helm release and the readiness of its pods (Story 3.1). Store the last
+The state of a release comes from its helm release and the readiness of its pods (Story 3.1). Store the last
 requested operation and read the rest from the cluster. A stored `state` column goes stale as soon as a pod
 crashes or someone runs `helm` by hand. A reconciler compares the records with the helm releases after a restart
 and marks releases that were changed or removed outside the consumer (Story 12.1). The API returns this as
-`drift`. Clients learn about state changes by polling `GET /v1/deployments/{id}`. workflow-api already pushes
+`drift`. Clients learn about state changes by polling `GET /v1/releases/{id}`. workflow-api already pushes
 updates over a websocket at `/ws` (`services/base/workflow-api/docker/files/app/main.py`), which is a model
 for a later push channel.
 
@@ -182,21 +189,21 @@ The rules are short (Story 5.1, Q2, Q11):
 | List, open, status | yes | yes | yes |
 | Deploy, update, undeploy in the project | no | yes | yes |
 | Logs | no | yes | yes |
-| Complete a workflow deployment | yes | yes | yes |
+| Complete the work in a release that a workflow started | yes | yes | yes |
 | Deploy, update, undeploy platform-wide | no | no | yes |
 | Enable and disable applications | no | no | yes |
 
-Everyone may list and open platform-wide deployments. Keep this as one table that the service layer checks for
-every call, and authorize an operation on one deployment against that deployment's own project. A check per route
+Everyone may list and open platform-wide releases. Keep this as one table that the service layer checks for
+every call, and authorize an operation on one release against that release's own project. A check per route
 is easy to forget on the next route. Write the permission tests from this table and the concept, not from the code.
 
 The columns name the default roles. Check the rights in the token instead of the role names, so that the table
 also holds for custom roles (Story 5.4). The existing rights fit some rows, for example `launch_application` for
 deploy and `delete_active_apps` for undeploy. Other rows need new rights, for example logs.
 
-`DeploymentCreate.workflow` marks a deployment as started by a workflow. Only workflow-api may set it. Otherwise any
-principal investigator could create deployments that look like workflow steps. As with the registrations, Kaapana
-has no service identity that workflow-api could use to prove who it is. The open question about callers inside the
+`ReleaseCreate.workflow` marks a release as started by a workflow. Only workflow-api may set it. Otherwise any
+principal investigator could create releases that look like workflow steps. As with the registrations, Kaapana has
+no service identity that workflow-api could use to prove who it is. The open question about callers inside the
 cluster covers both. Q15 is open: may a workflow task deploy when a scientist started the run, although scientists
 cannot deploy?
 
@@ -208,16 +215,16 @@ Deploy and update run the same checks in the same order, and the dry-run routes 
 2. The application is enabled in the project. Enabling covers all versions, and platform-wide deploys do not need
    it (Q12 is open).
 3. The version is registered, and the application supports the scope.
-4. Single instance: an application that is not multi-deployable has at most one deployment per project, counted
+4. Single instance: an application that is not multi-deployable has at most one release per project, counted
    over all versions, and at most one platform-wide.
-5. The name is unique among the deployments a project lists, platform-wide ones included.
+5. The name is unique among the releases a project lists, platform-wide ones included.
 6. The values match the declarations: type, minimum and maximum, pattern, choices, and required.
 7. The values are mapped onto chart values. A value that is not declared cannot be set.
 8. `helm install --dry-run` or `helm upgrade --dry-run`.
 
 If the dry-run and the real call use different code, they will disagree, and the dry-run then promises a deploy
-that fails. The API mock offers the dry-run as separate routes, `POST /v1/deployments/dry-run` and
-`POST /v1/deployments/{id}/dry-run`. They answer 200 with all problems and the chart values. Only a missing
+that fails. The API mock offers the dry-run as separate routes, `POST /v1/releases/dry-run` and
+`POST /v1/releases/{id}/dry-run`. They answer 200 with all problems and the chart values. Only a missing
 permission answers 403, as in the real call. The real calls stop at the first problem and answer 400, 403 or 409.
 
 A helm dry-run renders the chart and checks the objects against the schemas of the cluster, but it sends no
@@ -242,12 +249,12 @@ has to read the secret by its name.
 
 ### Undeploying deletes the data, and helm does not do that alone
 
-Undeploying deletes the persistent volumes and their data (Q5), also for workflow deployments and admin
-undeploys. `helm uninstall` does not delete the PVCs that a StatefulSet creates from `volumeClaimTemplates`, and
-it keeps resources annotated with `helm.sh/resource-policy: keep`. The consumer has to delete those PVCs itself.
-Whether the data on the disk is gone also depends on the reclaim policy of the storage class. Define which PVCs
-belong to a deployment, for example by a label that the consumer passes to every chart. `helm uninstall` also keeps
-what a hook created, unless the hook has a delete policy.
+Undeploying deletes the persistent volumes and their data (Q5), also for releases that a workflow started and for
+undeploys by an admin. `helm uninstall` does not delete the PVCs that a StatefulSet creates from
+`volumeClaimTemplates`, and it keeps resources annotated with `helm.sh/resource-policy: keep`. The consumer has to
+delete those PVCs itself. Whether the data on the disk is gone also depends on the reclaim policy of the storage
+class. Define which PVCs belong to a release, for example by a label that the consumer passes to every chart.
+`helm uninstall` also keeps what a hook created, unless the hook has a delete policy.
 
 The container diagram in `concept.md` gives the consumer read-only access to Kubernetes. Deleting PVCs needs
 write access, and so does writing the secrets of secret parameters. The service account of the consumer needs
@@ -257,7 +264,7 @@ these rights in every namespace it deploys to, and the diagram has to follow thi
 
 Every deploy passes the values that the platform owns, so that charts can rely on them (Stories 4.3, 4.4, 4.5):
 
-- a unique release name and a name prefix for Kubernetes objects,
+- a unique helm release name and a name prefix for Kubernetes objects,
 - the URL path of the web interface, for settings like JupyterLab's `base_url`,
 - the project id, its bucket and its namespace (Q6 decides the namespace),
 - the credentials of the project's technical user or a dedicated client (Q7). They have the rights of a scientist
@@ -267,33 +274,34 @@ Document these values for extension developers together with the schema of `helm
 
 ### Make every repeatable call converge
 
-Registering the same version twice, deregistering twice, undeploying a deployment that is already undeploying, and
-completing a workflow deployment twice must each end in the same state. The Extension Manager and the workflow
-tasks retry.
+Registering the same version twice, deregistering twice, undeploying a release that is already undeploying, and
+calling `POST /v1/releases/{id}/complete` twice must each end in the same state. The Extension Manager and the
+workflow tasks retry.
 
-Deregistering a version that is not registered answers 204. Undeploy and complete answer 404 once the deployment is
+Deregistering a version that is not registered answers 204. Undeploy and complete answer 404 once the release is
 gone, because an unknown id can also be a mistake. A client that retries takes this 404 as success.
 
 ### Let project management ask before deleting a project
 
-Deleting a project is refused while it has deployments (Q9). The project management in AII has to ask the consumer
-first, for example with `GET /v1/deployments?project_id=<id>`. Platform-wide deployments never block. The AII side
+Deleting a project is refused while it has releases (Q9). The project management in AII has to ask the consumer
+first, for example with `GET /v1/releases?project_id=<id>`. Platform-wide releases never block. The AII side
 does not exist yet.
 
-The check and the deletion are two steps, and a deploy between them leaves a deployment in a deleted project. Close
+The check and the deletion are two steps, and a deploy between them leaves a release in a deleted project. Close
 this gap, for example by archiving the project before the check and refusing deploys in an archived project.
 
-### Give workflow deployments a durable outcome
+### Keep the outcome of a workflow step after its release is gone
 
 A workflow task deploys an application, waits, and continues when the user completes the work (Epic 7). The task
-needs to read the outcome, finished or abandoned, after the deployment is gone. The API mock does not model this
-yet, because `POST /v1/deployments/{id}/complete` undeploys and the record then disappears. Either keep completed
-workflow deployments readable with their outcome, or tell workflow-api directly. Undeploy the deployment when its
+needs to read the outcome, finished or abandoned, after the release is gone. The API mock does not model this
+yet, because `POST /v1/releases/{id}/complete` undeploys and the record then disappears. Either keep the record
+readable with the outcome after the work is complete, or tell workflow-api directly. Undeploy the release when its
 task fails, is retried or times out (Story 7.4).
 
 ## Open questions
 
-- Q6: one namespace per project, per deployment, or shared. This decides the conflict rules of Story 4.3.
+- Q6: one namespace per project, per release, or shared. This decides the conflict rules of Story 4.3, and
+  whether the `name` of a release can be its helm release name.
 - Q12: whether a new version of an enabled application starts disabled.
 - Q13: on whose behalf a platform-wide application acts.
 - Q14: what identifies a helm-chart content across extensions.
@@ -305,15 +313,15 @@ task fails, is retried or times out (Story 7.4).
   as semantic versions.
 - Whether a parameter can take its choices from the project, such as the folders of its bucket, and whether a
   mapping can add a unit to a value. The UI mock shows both, and the API mock has neither.
-- How a workflow task learns the outcome of a workflow deployment after the deployment is gone.
-- Whether names have to be unique across a project's deployments and all platform-wide ones, as the mocks assume,
+- How a workflow task learns the outcome of the work in a release after the release is gone.
+- Whether names have to be unique across a project's releases and all platform-wide ones, as the mocks assume,
   or only per scope.
 
 ## A possible order for the MVP
 
 1. `HelmChartInstaller` in the Extension Manager, and register and deregister in the consumer.
 2. Enablement per project and the list of deployable applications.
-3. Deploy with the check sequence and the helm dry-run, and the state derived from the release and the pods.
+3. Deploy with the check sequence and the helm dry-run, and the state derived from the helm release and the pods.
 4. The web interface behind the gateway: IngressRoute, OPA rules and the platform values.
 5. Undeploy, including the PVCs.
 6. The reconciler for restarts and drift.

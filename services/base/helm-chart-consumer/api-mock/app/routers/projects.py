@@ -39,6 +39,6 @@ def enable_application(project_id: str, application_id: str) -> Enablement:
 def disable_application(project_id: str, application_id: str) -> None:
     """Disable an application in a project. Only a kaapana-system-admin may do this.
 
-    Existing deployments of the application keep running. Disabling an application that is not
+    Existing releases of the application keep running. Disabling an application that is not
     enabled changes nothing.
     """

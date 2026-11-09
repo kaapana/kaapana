@@ -1,19 +1,21 @@
 from fastapi import FastAPI
 
-from .routers import applications, deployments, projects
+from .routers import applications, projects, releases
 
 DESCRIPTION = """\
 This is a proposal for the API of the Helm Chart Consumer. Every route returns fixed example data
 and changes nothing.
 
 The Helm Chart Consumer registers the helm-chart contents of installed extensions and deploys,
-updates and undeploys them as applications, in a project or platform-wide.
+updates and undeploys them as applications, in a project or platform-wide. Each deployed
+application is one helm release, which this API calls a release.
 
 Kaapana's gateway authenticates every request and passes the user and their roles in headers.
 The Helm Chart Consumer decides from these roles what each caller may do:
 
-- Scientists open the deployments of their projects and all platform-wide deployments and see their
-  status and configuration. They also complete deployments that a workflow started.
+- Scientists open the releases of their projects and all platform-wide releases and see their
+  status and configuration. They also report when they finish the work in a release that a
+  workflow started.
 - Principal investigators also deploy, update and undeploy in their projects and read the logs.
 - Kaapana-system-admins may do everything, and only they deploy platform-wide and enable
   applications in projects.
@@ -32,7 +34,7 @@ app = FastAPI(
     openapi_url="/openapi.json",
 )
 
-for router in (applications.router, deployments.router, projects.router):
+for router in (applications.router, releases.router, projects.router):
     app.include_router(router, prefix="/v1")
 
 

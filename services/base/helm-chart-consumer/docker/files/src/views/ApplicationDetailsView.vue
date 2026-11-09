@@ -173,7 +173,7 @@
         <v-col cols="12">
           <v-card :elevation="2">
             <v-card-title>Status <StoryRef ids="3.1" /></v-card-title>
-            <v-card-subtitle>From the helm release and the readiness of its pods.</v-card-subtitle>
+            <v-card-subtitle>From the helm release and the state of its objects.</v-card-subtitle>
             <v-card-text>
               <v-table v-if="entry.app.pods.length" density="compact">
                 <thead>

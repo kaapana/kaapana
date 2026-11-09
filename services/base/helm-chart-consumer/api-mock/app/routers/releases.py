@@ -180,7 +180,12 @@ def delete_release(release_id: str) -> Release:
 
 @router.get("/releases/{release_id}/status", responses={404: {"model": Error}})
 def get_release_status(release_id: str) -> ReleaseStatus:
-    """Get the pods and Kubernetes events of a release, and the helm error if a helm command failed."""
+    """Get what the cluster reports about a release.
+
+    The result lists every Kubernetes object of the helm release with its readiness. It also lists
+    the pods, the events, and the helm error if a helm command failed. To follow the state, poll
+    the release itself, which leaves out these details.
+    """
     return examples.ANNA_NOTEBOOK_STATUS
 
 

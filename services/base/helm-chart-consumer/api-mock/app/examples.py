@@ -25,6 +25,7 @@ from .models import (
     Release,
     ReleaseState,
     ReleaseStatus,
+    Resource,
     Scope,
     StringParameter,
     Volume,
@@ -318,6 +319,16 @@ NEW_RELEASE = ANNA_NOTEBOOK.model_copy(
 )
 
 ANNA_NOTEBOOK_STATUS = ReleaseStatus(
+    resources=[
+        Resource(
+            kind="Deployment",
+            name="anna-notebook-jupyterlab",
+            state="ready",
+            message="1 of 1 replicas available",
+        ),
+        Resource(kind="Service", name="anna-notebook-jupyterlab", state="ready"),
+        Resource(kind="PersistentVolumeClaim", name="anna-notebook-workspace", state="ready", message="Bound"),
+    ],
     pods=[
         Pod(
             name="anna-notebook-jupyterlab-6c9f7d8b5-x2k4q",

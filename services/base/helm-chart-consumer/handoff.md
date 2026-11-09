@@ -172,13 +172,33 @@ open every release of the project.
 
 ### Derive the state, do not store it
 
-The state of a release comes from its helm release and the readiness of its pods (Story 3.1). Store the last
-requested operation and read the rest from the cluster. A stored `state` column goes stale as soon as a pod
-crashes or someone runs `helm` by hand. A reconciler compares the records with the helm releases after a restart
-and marks releases that were changed or removed outside the consumer (Story 12.1). The API returns this as
-`drift`. Clients learn about state changes by polling `GET /v1/releases/{id}`. workflow-api already pushes
-updates over a websocket at `/ws` (`services/base/workflow-api/docker/files/app/main.py`), which is a model
-for a later push channel.
+The state of a release comes from its helm release and the readiness of the objects it created (Story 3.1). Not
+every chart runs long-running pods. A chart may consist of a Job or only ConfigMaps, so pods alone cannot tell
+whether a release is ready. The pod of a Job is ready only while it runs, and no longer once it has succeeded.
+
+- `helm get manifest` lists the objects of a release, without those that hooks create. Read each one from the
+  Kubernetes API and judge it by the rules of kstatus, which Flux uses for its health checks: a Deployment is
+  ready when all its replicas are updated and available, a StatefulSet when they are updated and ready, a PVC
+  when it is bound, an object without a status when it exists, and a custom resource by its `Ready` condition.
+  Wait for a Job's `Complete` condition, as `helm --wait-for-jobs` does. kstatus counts a Job as ready as soon as
+  it has started, but a setup job that has not finished leaves the application unusable.
+- Pods are not in the manifest, because controllers create them. Follow their owner references up to a workload
+  in the manifest. A Deployment owns its pods through a ReplicaSet. This way the charts do not have to label their
+  pods.
+- The release is `ready` when every object is ready, and `failed` when a helm command or an object failed. A
+  crash-looping pod does not always make its object fail. A StatefulSet stays in progress, and a Deployment fails
+  only when its rollout passes the progress deadline. So a release that is not ready after a deadline turns
+  `failed` with a reason.
+
+`GET /v1/releases/{id}/status` returns the objects with their readiness, and the pods and events. Lists and
+polling need only `state`, so these details have a separate route.
+
+Store the last requested operation and read the rest from the cluster. A stored `state` column goes stale as soon as
+a pod crashes or someone runs `helm` by hand. A reconciler compares the records with the helm releases after a
+restart and marks releases that were changed or removed outside the consumer (Story 12.1). The API returns this as
+`drift`. Clients learn about state changes by polling `GET /v1/releases/{id}`. workflow-api already pushes updates
+over a websocket at `/ws` (`services/base/workflow-api/docker/files/app/main.py`), which is a model for a later push
+channel.
 
 ### Put every permission rule in one table
 
@@ -321,7 +341,7 @@ task fails, is retried or times out (Story 7.4).
 
 1. `HelmChartInstaller` in the Extension Manager, and register and deregister in the consumer.
 2. Enablement per project and the list of deployable applications.
-3. Deploy with the check sequence and the helm dry-run, and the state derived from the helm release and the pods.
+3. Deploy with the check sequence and the helm dry-run, and the state derived from the helm release and its objects.
 4. The web interface behind the gateway: IngressRoute, OPA rules and the platform values.
 5. Undeploy, including the PVCs.
 6. The reconciler for restarts and drift.

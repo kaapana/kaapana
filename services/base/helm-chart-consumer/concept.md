@@ -178,7 +178,7 @@ As a scientist I want to see whether my deployed application is starting, ready 
 
 Acceptance criteria:
 * Each deployed application shows one of the states DEPLOYING, READY, FAILED, UPDATING or UNDEPLOYING.
-* The state is derived from the helm release and from the readiness of the application's pods.
+* The state is derived from the helm release and from the readiness of every Kubernetes object that the release created, e.g. available replicas, a completed Job or a bound volume claim, so that an application without long-running pods can be READY too *(proposed)*.
 * Details show the underlying pods (status, restarts, age).
 * A failed deployment shows an understandable reason and the error details (e.g. helm error, Kubernetes events).
 

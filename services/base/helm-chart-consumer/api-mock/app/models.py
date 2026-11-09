@@ -24,7 +24,10 @@ class ReleaseState(StrEnum):
     """The state of a release.
 
     Helm reports a helm release as `deployed` as soon as it has applied the manifests. This state
-    also says whether the application is ready to use.
+    also says whether the application is ready to use. A release is `ready` when every object of
+    its helm release is ready. It is `failed` when a helm command or an object failed. It is also
+    `failed` when it is not ready after a deadline, because an object whose pods crash-loop can
+    stay in progress forever.
     """
 
     DEPLOYING = "deploying"
@@ -244,6 +247,17 @@ class Release(BaseModel):
     updated_at: datetime
 
 
+class Resource(BaseModel):
+    """A Kubernetes object in the manifest of the helm release."""
+
+    kind: str
+    name: str
+    state: Literal["ready", "in_progress", "failed", "missing"] = Field(
+        description="`missing` means that the object is in the manifest but not in the cluster."
+    )
+    message: str | None = Field(None, description="What the object reports, e.g. 1 of 2 replicas available.")
+
+
 class Pod(BaseModel):
     name: str
     phase: Literal["Pending", "Running", "Succeeded", "Failed", "Unknown"]
@@ -266,7 +280,8 @@ class ReleaseStatus(BaseModel):
     """What the cluster reports about a release. The state and its reason are fields of the release."""
 
     helm_error: str | None = Field(None, description="Output of the last failed helm command.")
-    pods: list[Pod]
+    resources: list[Resource]
+    pods: list[Pod] = Field(description="Pods are not in the manifest, because controllers create them.")
     events: list[Event]
     checked_at: datetime
 

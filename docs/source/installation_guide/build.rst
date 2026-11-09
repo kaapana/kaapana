@@ -216,7 +216,7 @@ Choose the tab that matches how you build: **Remote Registry** for a normal buil
 
       .. code-block:: python
 
-         kaapana-build --default-registry <registry-url> registry-username --registry-pw <registry-password>
+         kaapana-build --default-registry <registry-url> --registry-username <registry-username> --registry-password <registry-password>
 
       .. note::
          1. If the username and password are not working, you may need to use an **access token** instead.
@@ -227,7 +227,7 @@ Choose the tab that matches how you build: **Remote Registry** for a normal buil
       | Not recommended.
       | If a private registry is not available, it is possible to setup a local registry.
       | This may be helpful for one-time show-casing, testing, developing, or if there are any issues with connection to the remote registry.
-      | This solution is only persistent while the docker container containing the registry is running. It also works only locally and cannot be distributed.
+      | This solution is only persistent while the docker container containing the registry is running. The registry uses plain HTTP and is meant for a single server, on which you build and deploy Kaapana.
       | For building with a local registry, you need to set up a local Docker registry with basic authentication with following steps:
 
       1. Create credentials (replace **<registry user>** and **<registry password>**):
@@ -248,22 +248,10 @@ Choose the tab that matches how you build: **Remote Registry** for a normal buil
          | The registry should be reachable from inside the cluster, because the Extension Manager reads the default extension repository from it. On a server with MicroK8s, pods could not reach a registry that Docker published with :code:`-p 5000:5000` on the IP address of the server.
 
 
-      3. Allow the Docker daemon to use the registry without TLS. This step is required because the registry is called by the IP address of the server, and Docker only treats :code:`localhost` and :code:`127.0.0.1` as insecure registries. Add the registry to :code:`/etc/docker/daemon.json`, keep existing keys, and restart Docker:
-
-         .. code-block:: json
-
-            {
-              "insecure-registries": ["<node-ip>:5000"]
-            }
-
-         .. code-block:: bash
-
-            sudo systemctl restart docker
-
-         | The restart stops running containers, unless :code:`live-restore` is enabled. The file is in another place for snap, rootless and Docker Desktop installations. See :ref:`plain_http_registry`.
+      3. Allow the container engine to use the registry without TLS. Replace **<node-ip>** by the IP address of the server, which the cluster can reach. Add :code:`<node-ip>:5000` to the insecure registries of the container engine and restart the engine. The place of this setting depends on the installation. See :ref:`plain_http_registry`.
 
 
-      4. Run the build against the registry. Replace **<node-ip>** by the IP address of the server, which the cluster can reach:
+      4. Run the build against the registry:
 
          .. code-block:: python
 
@@ -301,77 +289,97 @@ You can find the build-logs and results at :code:`./kaapana/build`
    For a full list of all options execute :code:`kaapana-build --help`
 
 
-The next step will explain how to install the Kubernetes cluster via the :code:`kaapanactl.sh` script.
-
-
 .. _plain_http_registry:
 
 Using a Plain HTTP Registry
----------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-A registry without TLS needs two settings, if it is not called :code:`localhost` or :code:`127.0.0.1`, for example :code:`10.0.0.5:5000`. Docker and BuildKit treat only loopback addresses as insecure without any setting. This is why the registry :code:`localhost:5000` works without them.
+Read this section if your registry uses plain HTTP instead of HTTPS, for example the registry from the tab **Build With Local Registry**.
+Docker, BuildKit and Helm use HTTPS by default, so the build cannot connect to such a registry without the two steps below.
+The steps cover only the build.
+For the deployment, the cluster needs its own setting, see :ref:`the installation <deployment>`.
 
-.. list-table::
-   :header-rows: 1
-   :widths: 30 70
+In the examples, replace :code:`<registry>` by the host and port of your registry, without a path, for example :code:`10.0.0.5:5000`.
 
-   * - Setting
-     - Who sets it
-   * - Helm and the buildx builder
-     - The flag :code:`--plain-http` of :code:`kaapana-build`. The buildx builder is used with :code:`--cache-from` and :code:`--cache-to`. If it exists from an earlier run, the build removes it and creates it again.
-   * - Container engine (login, push and pull of images)
-     - You. The build tool cannot set it, because it needs root rights and a restart of the engine. If it is missing, the login fails with ``http: server gave HTTP response to HTTPS client``.
+.. note::
+   Docker and BuildKit accept plain HTTP for :code:`localhost` and :code:`127.0.0.1` without any setting, so such a registry does not need step 1.
+   However, do not use such a registry if you want to deploy Kaapana from it.
+   The Extension Manager reads the default extension repository from the registry, and inside a pod :code:`localhost` is the pod itself.
+   See :ref:`extension_manager`.
 
-Add the registry to the insecure registries of the container engine. The place depends on the installation:
+#. Allow the registry in the container engine.
 
-.. list-table::
-   :header-rows: 1
-   :widths: 25 45 30
+   :code:`kaapana-build` uses the container engine to log in to the registry and to push and pull images.
+   The build tool cannot change this setting, because the change needs root rights and a restart of the engine.
+   If the setting is missing, the login fails with ``http: server gave HTTP response to HTTPS client``.
 
-   * - Installation
-     - File or setting
-     - Restart
-   * - Docker Engine (apt, convenience script)
-     - :code:`/etc/docker/daemon.json`
-     - :code:`sudo systemctl restart docker`
-   * - Docker as snap
-     - :code:`/var/snap/docker/current/config/daemon.json`
-     - :code:`sudo snap restart docker`
-   * - Docker rootless
-     - :code:`~/.config/docker/daemon.json`
-     - :code:`systemctl --user restart docker`
-   * - Docker Desktop
-     - **Settings** > **Docker Engine**
-     - **Apply & restart**
-   * - Podman (:code:`--container-engine podman`)
-     - :code:`/etc/containers/registries.conf`
-     - none
+   The file and the restart command depend on how the container engine is installed.
+   If you installed Docker as described in the build requirements above, use the row **Docker Engine**.
+   Ubuntu can also install Docker as a snap. Run :code:`snap list docker` to find out if this is the case.
 
-To find out how Docker is installed, run :code:`snap list docker`, :code:`systemctl cat docker` or :code:`docker info`.
+   .. list-table::
+      :header-rows: 1
+      :widths: 25 45 30
 
-For Docker, add the registry under the key :code:`insecure-registries` and keep all other keys of the file:
+      * - Installation
+        - File
+        - Restart command
+      * - Docker Engine (apt, convenience script)
+        - :code:`/etc/docker/daemon.json`
+        - :code:`sudo systemctl restart docker`
+      * - Docker as snap
+        - :code:`/var/snap/docker/current/config/daemon.json`
+        - :code:`sudo snap restart docker`
+      * - Docker rootless
+        - :code:`~/.config/docker/daemon.json`
+        - :code:`systemctl --user restart docker`
+      * - Docker Desktop
+        - **Settings** > **Docker Engine**
+        - **Apply & restart**
+      * - Podman (:code:`--container-engine podman`)
+        - :code:`/etc/containers/registries.conf`
+        - Not needed
 
-.. code-block:: json
+   For Docker, add the registry to the list :code:`insecure-registries`.
+   If the file does not exist, create it with the following content.
+   If it exists, keep its content and only add the list or the entry:
 
-   {
-     "insecure-registries": ["10.0.0.5:5000"]
-   }
+   .. code-block:: json
 
-For Podman, add a block to :code:`registries.conf`:
+      {
+        "insecure-registries": ["<registry>"]
+      }
 
-.. code-block:: toml
+   For Podman, add the following block to :code:`registries.conf`:
 
-   [[registry]]
-   location = "10.0.0.5:5000"
-   insecure = true
+   .. code-block:: toml
 
-After the restart, check the setting:
+      [[registry]]
+      location = "<registry>"
+      insecure = true
 
-.. code-block:: bash
+   .. warning::
+      Restarting Docker stops all running containers, unless :code:`live-restore` is enabled in :code:`daemon.json`.
+      Containers with a restart policy start again, for example the registry from the tab **Build With Local Registry**.
+      Containers without a restart policy stay stopped, and you must start them again yourself.
 
-   docker info | grep -A4 "Insecure Registries"
+   Restart the container engine with the command from the table.
+   Then check that Docker lists the registry. The output must contain :code:`<registry>`:
 
-.. warning::
-   The restart of Docker stops all running containers, unless :code:`live-restore` is enabled in :code:`daemon.json`. This includes a registry container that runs on the same machine, if it has no restart policy.
+   .. code-block:: bash
 
-The container runtime of the cluster has its own registry setting. :code:`kaapanactl.sh --plain-http` only applies to Helm. See :ref:`the installation <deployment>`.
+      docker info | sed -n '/Insecure Registries/,/Live Restore/p'
+
+#. Add the flag :code:`--plain-http` to the build command, for example:
+
+   .. code-block:: bash
+
+      kaapana-build --default-registry <registry> --registry-username <registry-username> --registry-password <registry-password> --plain-http
+
+   The setting from step 1 does not apply to Helm, which pushes the charts.
+   It also does not apply to the BuildKit builder, which builds and pushes the images if you use :code:`--cache-from` or :code:`--cache-to`.
+   The flag :code:`--plain-http` sets up both.
+   If a builder from an earlier run exists, the build removes it and creates it again, because the setting of an existing builder cannot be changed.
+
+
+The next step will explain how to install the Kubernetes cluster via the :code:`kaapanactl.sh` script.

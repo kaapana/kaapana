@@ -238,6 +238,7 @@ async def update_content(
     content_id: UUID,
     location: Optional[str] = None,
     status: Optional[ContentStatus] = None,
+    applied_version: Optional[str] = None,
 ) -> Content:
 
     try:
@@ -251,6 +252,8 @@ async def update_content(
             db_content.status = status
         if location and location != db_content.location:
             db_content.location = location
+        if applied_version:
+            db_content.applied_version = applied_version
         await session.commit()
         await session.refresh(db_content)
         return db_content

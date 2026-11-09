@@ -57,6 +57,7 @@ async def test_post_repo_read_extensions_install_extension(client: AsyncClient, 
     assert response.json()["tag"] == tag
     assert response.json()["repository_id"] == repository_id
     assert response.json()["status"] == "installed"
+    assert response.json()["contents"][0]["applied_version"] == "0.0.0"
 
 
 @pytest.mark.asyncio

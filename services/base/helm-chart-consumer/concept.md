@@ -24,6 +24,7 @@ This image shows how the Helm Chart Consumer is embedded in the system architect
 
 
 ## API requirements
+A proposal for the routes and models that cover these requirements is in [api-mock/](api-mock/).
 
 ### Given by the extension system
 The Extension Manager dispatches every content of type helm-chart to the Helm Chart Consumer (Epic 1).

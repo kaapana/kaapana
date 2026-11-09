@@ -11,18 +11,27 @@ repos:
     hooks:
       - id: helm-lint
         name: helm lint
-        entry: ci/ci-code/lint/helm_lint.sh
+        entry: ci/ci-code/lint/helm_lint.sh validate
         language: python
         require_serial: true
         files: (^|/)(Chart\.yaml|requirements\.yaml|values\.yaml|templates/.*)$
   - repo: local
     hooks:
       - id: ui-lint
-        name: ESLint/Prettier
-        entry: ci/ci-code/lint/ui_lint.sh
+        name: ESLint
+        entry: ci/ci-code/lint/ui_lint.sh validate
         language: system
-        files: \.(ts|mts|tsx|vue)$
+        files: \.(js|mjs|cjs|jsx|ts|mts|tsx|vue)$
         require_serial: true
+  - repo: local
+    hooks:
+      - id: prettier
+        name: Prettier
+        entry: ci/ci-code/lint/prettier_lint.sh format
+        language: system
+        files: \.(js|mjs|cjs|jsx|ts|mts|tsx|vue|md|json|ya?ml)$
+        require_serial: true
+        stages: [manual]
   - repo: https://github.com/AleksaC/hadolint-py
     rev: v2.15.1
     hooks:

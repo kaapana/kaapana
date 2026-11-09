@@ -146,6 +146,10 @@
       "groupName": "ruff"
     },
     {
+      "matchPackageNames": ["hadolint/hadolint", "AleksaC/hadolint-py"],
+      "groupName": "hadolint"
+    },
+    {
       "matchPackageNames": ["docker.io/openpolicyagent/opa", "open-policy-agent/opa"],
       "groupName": "opa"
     },

@@ -87,9 +87,9 @@ timeout**, and a shared pip cache (`key: pip-test-jobs`).
 `build_documentation` uploads the built HTML and its log. `check_readthedocs`
 runs only on scheduled `develop` pipelines. 
 
-`lint` is a matrix over `LINTER` (`ruff`, `ui`, `hadolint`) on `ci-base`; the script picks
-each entry's commands by `$LINTER`, and each entry publishes its Code Quality report.
-Each entry fails on formatting or its enforced ruleset.
+`format`, `validate` and `lint` are matrices over `LINTER` on `ci-base`. Each entry runs
+`ci/ci-code/lint/${LINTER}_lint.sh <job>`: `format` fails on formatting drift, `validate` on
+the blocking rulesets, and `lint` only publishes its Code Quality report.
 
 ### build
 

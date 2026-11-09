@@ -36,10 +36,19 @@
       </v-btn>
       <v-menu location="bottom end">
         <template #activator="{ props: activator }">
-          <v-btn v-bind="activator" :icon="kaapanaIcons.more" variant="text" aria-label="Mock menu" />
+          <v-btn
+            v-bind="activator"
+            :icon="kaapanaIcons.more"
+            variant="text"
+            aria-label="Mock menu"
+          />
         </template>
         <v-list density="compact">
-          <v-list-item :prepend-icon="kaapanaIcons.settings" title="Concept options…" @click="optionsOpen = true" />
+          <v-list-item
+            :prepend-icon="kaapanaIcons.settings"
+            title="Concept options…"
+            @click="optionsOpen = true"
+          />
           <v-list-item
             :prepend-icon="kaapanaIcons.restart"
             title="Simulate platform restart"
@@ -53,7 +62,11 @@
             @click="mock.dark = !mock.dark"
           />
           <v-divider />
-          <v-list-item :prepend-icon="kaapanaIcons.refresh" title="Reset mock data" @click="mock.reset()" />
+          <v-list-item
+            :prepend-icon="kaapanaIcons.refresh"
+            title="Reset mock data"
+            @click="mock.reset()"
+          />
         </v-list>
       </v-menu>
     </div>

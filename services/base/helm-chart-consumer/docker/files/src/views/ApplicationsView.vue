@@ -4,29 +4,38 @@
       <div>
         <h1 class="text-h4">Applications</h1>
         <p class="text-body-2 text-medium-emphasis mt-1">
-          Applications deployed in {{ mock.project?.name }}. Only members of this project can open them.
+          Applications deployed in {{ mock.project?.name }}. Only members of this project can open
+          them.
           <StoryRef ids="5.3" />
         </p>
       </div>
       <div v-if="mock.can.deploy" class="d-flex align-center">
-        <v-btn color="primary" :prepend-icon="kaapanaIcons.add" to="/catalog">Deploy application</v-btn>
+        <v-btn color="primary" :prepend-icon="kaapanaIcons.add" to="/catalog"
+          >Deploy application</v-btn
+        >
         <StoryRef ids="2.1" />
       </div>
     </div>
 
     <v-alert v-if="!mock.can.deploy" type="info" variant="tonal" density="compact" class="mb-4">
-      Principal investigators of {{ mock.project?.name }} deploy and undeploy applications. Ask one if you need a new
-      instance.
+      Principal investigators of {{ mock.project?.name }} deploy and undeploy applications. Ask one
+      if you need a new instance.
       <StoryRef ids="5.1" />
     </v-alert>
 
     <v-alert v-if="mock.restarting" type="info" variant="tonal" density="compact" class="mb-4">
       The Helm Chart Consumer is restarting (simulated). The list reloads when it is back.
     </v-alert>
-    <v-alert v-else-if="drifted.length" type="warning" variant="tonal" density="compact" class="mb-4">
-      {{ drifted.length === 1 ? '1 application was' : `${drifted.length} applications were` }} changed outside Kaapana:
-      {{ drifted.map((d) => d.name).join(', ') }}. Check {{ drifted.length === 1 ? 'it' : 'them' }} before relying on the
-      configuration shown here.
+    <v-alert
+      v-else-if="drifted.length"
+      type="warning"
+      variant="tonal"
+      density="compact"
+      class="mb-4"
+    >
+      {{ drifted.length === 1 ? '1 application was' : `${drifted.length} applications were` }}
+      changed outside Kaapana: {{ drifted.map((d) => d.name).join(', ') }}. Check
+      {{ drifted.length === 1 ? 'it' : 'them' }} before relying on the configuration shown here.
       <StoryRef ids="12.1" />
     </v-alert>
 
@@ -49,7 +58,14 @@
         class="filter-state"
       />
       <div class="d-flex align-center">
-        <v-switch v-model="onlyMine" label="For me" color="primary" density="compact" hide-details inset />
+        <v-switch
+          v-model="onlyMine"
+          label="For me"
+          color="primary"
+          density="compact"
+          hide-details
+          inset
+        />
         <StoryRef ids="8.3 2.7" />
       </div>
       <v-spacer />
@@ -67,14 +83,15 @@
         hover
         :items-per-page="10"
         class="apps-table"
-        @click:row="(_e: unknown, { item }: { item: DeployedApp }) => router.push(`/applications/${item.name}`)"
+        @click:row="
+          (_e: unknown, { item }: { item: DeployedApp }) =>
+            router.push(`/applications/${item.name}`)
+        "
       >
         <template #header.name="{ column }">
           {{ column.title }} <StoryRef ids="8.3 8.2" />
         </template>
-        <template #header.state="{ column }">
-          {{ column.title }} <StoryRef ids="3.1" />
-        </template>
+        <template #header.state="{ column }"> {{ column.title }} <StoryRef ids="3.1" /> </template>
         <template #header.actions>
           <StoryRef ids="2.4" />
         </template>
@@ -82,7 +99,9 @@
         <template #item.name="{ item }">
           <div class="py-2">
             <div class="font-weight-medium">{{ item.name }}</div>
-            <div class="text-body-2 text-medium-emphasis">{{ item.description || 'No description' }}</div>
+            <div class="text-body-2 text-medium-emphasis">
+              {{ item.description || 'No description' }}
+            </div>
           </div>
         </template>
         <template #item.app="{ item }">
@@ -98,12 +117,16 @@
           <StateChip :app="item" />
         </template>
         <template #item.for="{ item }">
-          <span v-if="item.forPerson" class="text-no-wrap">{{ mock.personName(item.forPerson) }}</span>
+          <span v-if="item.forPerson" class="text-no-wrap">{{
+            mock.personName(item.forPerson)
+          }}</span>
           <span v-else class="text-medium-emphasis text-no-wrap">Whole project</span>
         </template>
         <template #item.deployed="{ item }">
           <div class="text-no-wrap">{{ relative(item.deployedAt, now) }}</div>
-          <div class="text-caption text-medium-emphasis text-no-wrap">by {{ mock.personName(item.deployedBy) }}</div>
+          <div class="text-caption text-medium-emphasis text-no-wrap">
+            by {{ mock.personName(item.deployedBy) }}
+          </div>
         </template>
         <template #item.actions="{ item }">
           <div class="d-flex align-center justify-end ga-1">
@@ -120,7 +143,11 @@
                 />
               </template>
               <v-list density="compact">
-                <v-list-item :prepend-icon="kaapanaIcons.preview" title="Details" :to="`/applications/${item.name}`" />
+                <v-list-item
+                  :prepend-icon="kaapanaIcons.preview"
+                  title="Details"
+                  :to="`/applications/${item.name}`"
+                />
                 <template v-if="mock.can.undeploy">
                   <v-list-item
                     v-if="item.drift?.kind === 'removed'"
@@ -242,16 +269,27 @@ const headers = [
 
 const drifted = computed(() => mock.projectApps.filter((d) => d.drift))
 
-const filtersActive = computed(() => !!search.value || stateFilter.value !== 'ALL' || onlyMine.value)
+const filtersActive = computed(
+  () => !!search.value || stateFilter.value !== 'ALL' || onlyMine.value,
+)
 
 const rows = computed(() => {
   const q = (search.value ?? '').trim().toLowerCase()
   return mock.projectApps
     .filter((d) => stateFilter.value === 'ALL' || d.state === stateFilter.value)
-    .filter((d) => !onlyMine.value || d.forPerson === mock.personaId || d.deployedBy === mock.personaId)
+    .filter(
+      (d) => !onlyMine.value || d.forPerson === mock.personaId || d.deployedBy === mock.personaId,
+    )
     .filter((d) => {
       if (!q) return true
-      const hay = [d.name, d.description, mock.definition(d.appId).name, mock.personName(d.forPerson)].join(' ').toLowerCase()
+      const hay = [
+        d.name,
+        d.description,
+        mock.definition(d.appId).name,
+        mock.personName(d.forPerson),
+      ]
+        .join(' ')
+        .toLowerCase()
       return hay.includes(q)
     })
     .slice()

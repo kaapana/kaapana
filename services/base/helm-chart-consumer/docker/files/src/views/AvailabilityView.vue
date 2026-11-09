@@ -3,8 +3,8 @@
   <v-container v-else class="text-left">
     <h1 class="text-h4">Application Availability <StoryRef ids="5.2" /></h1>
     <p class="text-body-2 text-medium-emphasis mt-1 mb-4">
-      Choose which applications can be deployed in each project. Disabling an application does not remove instances
-      that are already deployed.
+      Choose which applications can be deployed in each project. Disabling an application does not
+      remove instances that are already deployed.
     </p>
 
     <v-alert type="info" variant="tonal" density="compact" class="mb-4">

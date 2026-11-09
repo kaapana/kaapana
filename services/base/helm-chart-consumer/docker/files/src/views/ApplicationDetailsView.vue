@@ -1,6 +1,8 @@
 <template>
   <v-container class="text-left">
-    <v-btn variant="text" prepend-icon="mdi-arrow-left" to="/applications" class="mb-2 ml-n2">Applications</v-btn>
+    <v-btn variant="text" prepend-icon="mdi-arrow-left" to="/applications" class="mb-2 ml-n2"
+      >Applications</v-btn
+    >
 
     <v-card v-if="!app" :elevation="2">
       <v-empty-state
@@ -29,7 +31,12 @@
           <OpenButton :app="app" color="primary" variant="flat" size="default" />
           <StoryRef ids="2.4" />
           <template v-if="mock.can.undeploy">
-            <v-btn v-if="app.drift?.kind === 'removed'" color="error" :prepend-icon="kaapanaIcons.delete" @click="removeOpen = true">
+            <v-btn
+              v-if="app.drift?.kind === 'removed'"
+              color="error"
+              :prepend-icon="kaapanaIcons.delete"
+              @click="removeOpen = true"
+            >
               Remove from list
             </v-btn>
             <v-btn
@@ -48,8 +55,8 @@
 
       <!-- Inline alerts: conditions of this application, shown for as long as they hold. -->
       <v-alert v-if="app.drift?.kind === 'removed'" type="error" variant="tonal" class="mb-4">
-        The helm release of {{ app.name }} was removed outside Kaapana. The application no longer runs; remove it from
-        the list.
+        The helm release of {{ app.name }} was removed outside Kaapana. The application no longer
+        runs; remove it from the list.
         <StoryRef ids="12.1" />
         <template #append>
           <v-btn variant="text" size="small" @click="failureOpen = true">Details</v-btn>
@@ -69,8 +76,9 @@
         {{ app.name }} is being undeployed.
       </v-alert>
       <v-alert v-if="app.drift?.kind === 'changed'" type="warning" variant="tonal" class="mb-4">
-        The helm release of {{ app.name }} was changed outside Kaapana: it is at revision {{ app.drift.revision }}, Kaapana
-        deployed revision {{ app.drift.recordedRevision }}. The configuration below may not match what runs.
+        The helm release of {{ app.name }} was changed outside Kaapana: it is at revision
+        {{ app.drift.revision }}, Kaapana deployed revision {{ app.drift.recordedRevision }}. The
+        configuration below may not match what runs.
         <StoryRef ids="12.1" />
       </v-alert>
 
@@ -107,7 +115,10 @@
         <v-col cols="12" lg="6">
           <v-card :elevation="2" class="h-100">
             <v-card-title>Configuration <StoryRef ids="3.2" /></v-card-title>
-            <v-card-subtitle>Version {{ app.version }} · values set at deploy. Secrets are never shown.</v-card-subtitle>
+            <v-card-subtitle
+              >Version {{ app.version }} · values set at deploy. Secrets are never
+              shown.</v-card-subtitle
+            >
             <v-card-text>
               <v-table density="compact">
                 <tbody>
@@ -163,7 +174,10 @@
                 <div class="text-subtitle-2 mt-4 mb-1">Recent warnings</div>
                 <div v-for="(e, i) in warnings" :key="i" class="d-flex ga-2 text-body-2 mb-1">
                   <v-icon size="small" color="warning" :icon="kaapanaIcons.warning" />
-                  <span><strong>{{ e.reason }}</strong> · {{ e.message }} · {{ age(e.at, now) }} ago</span>
+                  <span
+                    ><strong>{{ e.reason }}</strong> · {{ e.message }} ·
+                    {{ age(e.at, now) }} ago</span
+                  >
                 </div>
               </template>
             </v-card-text>
@@ -178,20 +192,24 @@
                 <v-list-item prepend-icon="mdi-folder-eye-outline">
                   <v-list-item-title>Reads project data <StoryRef ids="2.5" /></v-list-item-title>
                   <v-list-item-subtitle class="wrap">
-                    {{ dataPath }} in the project bucket, read-only, and the Data API of {{ project?.name }}
+                    {{ dataPath }} in the project bucket, read-only, and the Data API of
+                    {{ project?.name }}
                   </v-list-item-subtitle>
                 </v-list-item>
                 <v-list-item prepend-icon="mdi-folder-upload-outline">
                   <v-list-item-title>Saves results <StoryRef ids="2.6" /></v-list-item-title>
                   <v-list-item-subtitle class="wrap">{{ resultsPath }}</v-list-item-subtitle>
                   <template #append>
-                    <v-btn color="primary" variant="text" size="small" @click="useAsInput">Use as workflow input</v-btn>
+                    <v-btn color="primary" variant="text" size="small" @click="useAsInput"
+                      >Use as workflow input</v-btn
+                    >
                   </template>
                 </v-list-item>
                 <v-list-item v-if="workspaceSize !== null" prepend-icon="mdi-harddisk">
                   <v-list-item-title>Persistent workspace <StoryRef ids="2.7" /></v-list-item-title>
                   <v-list-item-subtitle class="wrap">
-                    {{ workspaceSize }} GiB, kept when the application restarts or is updated. {{ volumeOnUndeploy }}
+                    {{ workspaceSize }} GiB, kept when the application restarts or is updated.
+                    {{ volumeOnUndeploy }}
                   </v-list-item-subtitle>
                 </v-list-item>
                 <v-list-item prepend-icon="mdi-shield-lock-outline">
@@ -210,23 +228,33 @@
             <v-card-title>Access <StoryRef ids="5.3" /></v-card-title>
             <v-card-text>
               <p class="mb-3">
-                The {{ memberCount }} members of {{ project?.name }} can open this application. Anyone else gets an
-                access-denied page, also when they use the address directly.
+                The {{ memberCount }} members of {{ project?.name }} can open this application.
+                Anyone else gets an access-denied page, also when they use the address directly.
               </p>
-              <v-tooltip v-if="!foreign" location="top" text="You are a member of every project, so there is no foreign link to try.">
+              <v-tooltip
+                v-if="!foreign"
+                location="top"
+                text="You are a member of every project, so there is no foreign link to try."
+              >
                 <template #activator="{ props: activator }">
                   <span v-bind="activator" tabindex="0">
                     <v-btn variant="outlined" disabled>Try a link from another project</v-btn>
                   </span>
                 </template>
               </v-tooltip>
-              <v-btn v-else variant="outlined" @click="tryForeign">Try a link from another project</v-btn>
+              <v-btn v-else variant="outlined" @click="tryForeign"
+                >Try a link from another project</v-btn
+              >
             </v-card-text>
           </v-card>
         </v-col>
       </v-row>
 
-      <UndeployDialog v-model="undeployOpen" :app="app" @undeployed="router.push('/applications')" />
+      <UndeployDialog
+        v-model="undeployOpen"
+        :app="app"
+        @undeployed="router.push('/applications')"
+      />
       <FailureDetailsDialog v-model="failureOpen" :app="app" />
       <ConfirmDialog
         v-model="removeOpen"
@@ -274,9 +302,13 @@ const dataFolder = computed(() =>
   def.value?.dataFolderParam ? String(app.value?.values[def.value.dataFolderParam] ?? '/') : '/',
 )
 const dataPath = computed(() => (dataFolder.value === '/' ? 'Everything' : `${dataFolder.value}/`))
-const resultsPath = computed(() => `${project.value?.bucket}/applications/${app.value?.name}/results/`)
+const resultsPath = computed(
+  () => `${project.value?.bucket}/applications/${app.value?.name}/results/`,
+)
 const workspaceSize = computed(() =>
-  def.value?.workspaceParam && app.value ? Number(app.value.values[def.value.workspaceParam]) : null,
+  def.value?.workspaceParam && app.value
+    ? Number(app.value.values[def.value.workspaceParam])
+    : null,
 )
 const volumeOnUndeploy = computed(() => {
   switch (mock.options.volumesOnUndeploy) {
@@ -293,7 +325,10 @@ const volumeOnUndeploy = computed(() => {
 const foreign = computed(() =>
   mock.persona.admin
     ? undefined
-    : mock.deployed.find((d) => !(mock.persona.id in (mock.projects.find((p) => p.id === d.projectId)?.members ?? {}))),
+    : mock.deployed.find(
+        (d) =>
+          !(mock.persona.id in (mock.projects.find((p) => p.id === d.projectId)?.members ?? {})),
+      ),
 )
 
 function display(key: string): string {
@@ -302,13 +337,15 @@ function display(key: string): string {
   if (v === '' || v === null || v === undefined) return 'Not set'
   if (decl?.type === 'boolean') return v ? 'Yes' : 'No'
   if (decl?.choices === 'project-folders') return v === '/' ? 'Whole bucket (/)' : `${v}/`
-  if (Array.isArray(decl?.choices)) return decl.choices.find((c) => c.value === v)?.title ?? String(v)
+  if (Array.isArray(decl?.choices))
+    return decl.choices.find((c) => c.value === v)?.title ?? String(v)
   return String(v)
 }
 
 function podLook(status: string) {
   if (status === 'Running') return { icon: kaapanaIcons.success, color: 'success' }
-  if (['Pending', 'ContainerCreating', 'Terminating'].includes(status)) return { icon: 'mdi-timer-sand', color: 'info' }
+  if (['Pending', 'ContainerCreating', 'Terminating'].includes(status))
+    return { icon: 'mdi-timer-sand', color: 'info' }
   return { icon: kaapanaIcons.error, color: 'error' }
 }
 

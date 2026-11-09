@@ -1,7 +1,9 @@
 <template>
   <UnavailableState v-if="!mock.can.deploy" view="Deploying applications" />
   <v-container v-else class="text-left">
-    <v-btn variant="text" prepend-icon="mdi-arrow-left" to="/catalog" class="mb-2 ml-n2">Application Catalog</v-btn>
+    <v-btn variant="text" prepend-icon="mdi-arrow-left" to="/catalog" class="mb-2 ml-n2"
+      >Application Catalog</v-btn
+    >
 
     <v-card v-if="!def" :elevation="2">
       <v-empty-state
@@ -22,14 +24,18 @@
         :text="`It can be deployed once per project. The existing instance is ${blocked.name}.`"
       >
         <template #actions>
-          <v-btn color="primary" variant="text" :to="`/applications/${blocked.name}`">View {{ blocked.name }}</v-btn>
+          <v-btn color="primary" variant="text" :to="`/applications/${blocked.name}`"
+            >View {{ blocked.name }}</v-btn
+          >
         </template>
       </v-empty-state>
     </v-card>
 
     <template v-else>
       <h1 class="text-h4">Deploy {{ def.name }} <StoryRef ids="2.1" /></h1>
-      <p class="text-body-2 text-medium-emphasis mt-1 mb-4">Version {{ def.version }} · into {{ mock.project?.name }}</p>
+      <p class="text-body-2 text-medium-emphasis mt-1 mb-4">
+        Version {{ def.version }} · into {{ mock.project?.name }}
+      </p>
 
       <v-form ref="formRef" @submit.prevent="submit">
         <v-row>
@@ -97,7 +103,9 @@
               <v-card-title>Address <StoryRef ids="8.1" /></v-card-title>
               <v-card-text>
                 <div class="text-break">{{ address }}</div>
-                <div class="text-caption text-medium-emphasis mt-1">Each instance gets its own address.</div>
+                <div class="text-caption text-medium-emphasis mt-1">
+                  Each instance gets its own address.
+                </div>
               </v-card-text>
             </v-card>
             <v-card :elevation="2">
@@ -106,7 +114,8 @@
               <v-card-text>
                 <pre class="values pa-3">{{ chartValues }}</pre>
                 <p class="text-caption text-medium-emphasis mt-2 mb-0">
-                  Only the parameters on this page change the chart. All other chart values keep the defaults of the
+                  Only the parameters on this page change the chart. All other chart values keep the
+                  defaults of the
                   {{ def.name }} extension.
                 </p>
               </v-card-text>
@@ -115,7 +124,8 @@
         </v-row>
 
         <v-alert v-if="invalidFields.length" type="error" variant="tonal" class="mt-4">
-          Check {{ invalidFields.length === 1 ? 'this field' : 'these fields' }}: {{ invalidFields.join(', ') }}.
+          Check {{ invalidFields.length === 1 ? 'this field' : 'these fields' }}:
+          {{ invalidFields.join(', ') }}.
         </v-alert>
         <v-alert v-if="dryRun" :type="dryRun.ok ? 'success' : 'error'" variant="tonal" class="mt-4">
           {{ dryRun.message }}
@@ -179,7 +189,10 @@ const form = reactive({
   name: def.value ? mock.suggestName(def.value.id) : '',
   forPerson: WHOLE_PROJECT,
   description: '',
-  values: Object.fromEntries((def.value?.params ?? []).map((p) => [p.key, p.default])) as Record<string, ParamValue>,
+  values: Object.fromEntries((def.value?.params ?? []).map((p) => [p.key, p.default])) as Record<
+    string,
+    ParamValue
+  >,
 })
 
 // Dirty means "differs from what the form opened with": a prefilled form that was
@@ -212,7 +225,10 @@ const people = computed(() => {
     value: id,
   }))
   members.sort((a, b) => a.title.localeCompare(b.title))
-  return [{ title: 'Whole project', subtitle: 'No single scientist', value: WHOLE_PROJECT }, ...members]
+  return [
+    { title: 'Whole project', subtitle: 'No single scientist', value: WHOLE_PROJECT },
+    ...members,
+  ]
 })
 
 const nameRules = [
@@ -222,12 +238,21 @@ const nameRules = [
     !v ||
     /^[a-z]([a-z0-9-]*[a-z0-9])?$/.test(v) ||
     'Use lowercase letters, digits and hyphens. Start with a letter and do not end with a hyphen.',
-  (v: string) => !v || !mock.nameTaken(v) || `${v} is already used in ${mock.project?.name}. Choose another name.`,
+  (v: string) =>
+    !v ||
+    !mock.nameTaken(v) ||
+    `${v} is already used in ${mock.project?.name}. Choose another name.`,
 ]
 const descriptionRule = (v: string) => !v || v.length <= 200 || 'Use at most 200 characters.'
 
 const address = computed(() =>
-  def.value ? mock.instanceUrl({ projectId: mock.projectId, name: form.name || '<name>', appId: def.value.id }) : '',
+  def.value
+    ? mock.instanceUrl({
+        projectId: mock.projectId,
+        name: form.name || '<name>',
+        appId: def.value.id,
+      })
+    : '',
 )
 
 function chartValue(p: ParamDecl): string {
@@ -254,7 +279,9 @@ const chartValues = computed(() => {
   }
   const render = (node: Tree, indent: string): string[] =>
     Object.entries(node).flatMap(([key, value]) =>
-      typeof value === 'string' ? [`${indent}${key}: ${value}`] : [`${indent}${key}:`, ...render(value, indent + '  ')],
+      typeof value === 'string'
+        ? [`${indent}${key}: ${value}`]
+        : [`${indent}${key}:`, ...render(value, indent + '  ')],
     )
   return render(tree, '').join('\n')
 })

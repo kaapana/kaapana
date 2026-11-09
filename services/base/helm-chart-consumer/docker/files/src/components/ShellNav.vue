@@ -15,7 +15,14 @@
         <v-spacer />
         <v-menu location="bottom start" :close-on-content-click="false">
           <template #activator="{ props: activator }">
-            <v-btn v-bind="activator" icon variant="text" density="comfortable" aria-label="Notifications" class="mr-1">
+            <v-btn
+              v-bind="activator"
+              icon
+              variant="text"
+              density="comfortable"
+              aria-label="Notifications"
+              class="mr-1"
+            >
               <v-badge v-if="mock.unreadCount" :content="mock.unreadCount" color="error">
                 <v-icon :icon="kaapanaIcons.notificationsUnread" />
               </v-badge>
@@ -48,7 +55,13 @@
               >
                 <template #prepend>
                   <v-icon
-                    :icon="n.type === 'error' ? kaapanaIcons.error : n.type === 'success' ? kaapanaIcons.success : kaapanaIcons.info"
+                    :icon="
+                      n.type === 'error'
+                        ? kaapanaIcons.error
+                        : n.type === 'success'
+                          ? kaapanaIcons.success
+                          : kaapanaIcons.info
+                    "
                     :color="n.read ? undefined : n.type"
                   />
                 </template>
@@ -58,7 +71,13 @@
         </v-menu>
         <v-menu location="bottom start">
           <template #activator="{ props: activator }">
-            <v-btn v-bind="activator" icon variant="text" density="comfortable" :aria-label="`Account of ${mock.persona.name}`">
+            <v-btn
+              v-bind="activator"
+              icon
+              variant="text"
+              density="comfortable"
+              :aria-label="`Account of ${mock.persona.name}`"
+            >
               <v-icon :icon="kaapanaIcons.account" />
             </v-btn>
           </template>
@@ -68,7 +87,9 @@
               <div class="text-body-2 text-medium-emphasis">
                 {{ mock.role ? roleLabels[mock.role] : 'No role' }} in {{ mock.project?.name }}
               </div>
-              <div class="text-caption text-medium-emphasis mt-2">Switch the person in the mock bar at the top.</div>
+              <div class="text-caption text-medium-emphasis mt-2">
+                Switch the person in the mock bar at the top.
+              </div>
             </v-card-text>
           </v-card>
         </v-menu>
@@ -90,13 +111,7 @@
       </div>
     </div>
 
-    <v-list
-      v-model:opened="opened"
-      density="compact"
-      nav
-      color="primary"
-      open-strategy="multiple"
-    >
+    <v-list v-model:opened="opened" density="compact" nav color="primary" open-strategy="multiple">
       <v-list-group value="workflows">
         <template #activator="{ props: activator }">
           <v-list-item v-bind="activator" prepend-icon="mdi-gamepad-variant" title="Workflows" />
@@ -110,13 +125,26 @@
           class="text-medium-emphasis"
         />
         <v-list-item to="/applications" prepend-icon="mdi-apps-box" title="Applications" />
-        <v-list-item v-if="mock.can.deploy" to="/catalog" prepend-icon="mdi-view-grid-plus-outline" title="Application Catalog" />
+        <v-list-item
+          v-if="mock.can.deploy"
+          to="/catalog"
+          prepend-icon="mdi-view-grid-plus-outline"
+          title="Application Catalog"
+        />
       </v-list-group>
       <v-list-group v-if="mock.can.manageAvailability" value="system">
         <template #activator="{ props: activator }">
-          <v-list-item v-bind="activator" prepend-icon="mdi-view-dashboard-variant" title="System" />
+          <v-list-item
+            v-bind="activator"
+            prepend-icon="mdi-view-dashboard-variant"
+            title="System"
+          />
         </template>
-        <v-list-item to="/availability" prepend-icon="mdi-toggle-switch-outline" title="Application Availability" />
+        <v-list-item
+          to="/availability"
+          prepend-icon="mdi-toggle-switch-outline"
+          title="Application Availability"
+        />
         <v-list-item to="/projects" prepend-icon="mdi-folder-account-outline" title="Projects" />
       </v-list-group>
     </v-list>

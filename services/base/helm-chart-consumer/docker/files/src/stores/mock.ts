@@ -26,13 +26,10 @@ import type {
 // deployment through its states the way the Helm Chart Consumer would report them.
 
 export type PendingLeave =
-  | { kind: 'route'; to: string }
-  | { kind: 'project'; id: string }
-  | { kind: 'persona'; id: string }
+  { kind: 'route'; to: string } | { kind: 'project'; id: string } | { kind: 'persona'; id: string }
 
 export type AppWindow =
-  | { kind: 'app'; id: string }
-  | { kind: 'denied'; projectId: string; name: string }
+  { kind: 'app'; id: string } | { kind: 'denied'; projectId: string; name: string }
 
 export interface ConceptOptions {
   /** Q5 — what happens to persistent volumes on undeploy. */
@@ -92,7 +89,9 @@ export const useMockStore = defineStore('mock', () => {
   const project = computed(() => projects.value.find((p) => p.id === projectId.value)!)
 
   const accessibleProjects = computed(() =>
-    persona.value.admin ? projects.value : projects.value.filter((p) => persona.value.id in p.members),
+    persona.value.admin
+      ? projects.value
+      : projects.value.filter((p) => persona.value.id in p.members),
   )
 
   const role = computed<Role | null>(() => {
@@ -207,7 +206,10 @@ export const useMockStore = defineStore('mock', () => {
         },
       }
     }
-    return { ok: true, message: `Dry run passed: helm can install ${definition(appId).name} with this configuration.` }
+    return {
+      ok: true,
+      message: `Dry run passed: helm can install ${definition(appId).name} with this configuration.`,
+    }
   }
 
   function deploy(input: {
@@ -220,7 +222,13 @@ export const useMockStore = defineStore('mock', () => {
     const def = definition(input.appId)
     const now = Date.now()
     const podName = `${input.name}-${def.id}-${Math.random().toString(36).slice(2, 11)}`
-    const pod = (status: string, ready: string): Pod => ({ name: podName, status, ready, restarts: 0, startedAt: now })
+    const pod = (status: string, ready: string): Pod => ({
+      name: podName,
+      status,
+      ready,
+      restarts: 0,
+      startedAt: now,
+    })
     const app: DeployedApp = {
       id: newId(),
       name: input.name,
@@ -235,7 +243,13 @@ export const useMockStore = defineStore('mock', () => {
       state: 'DEPLOYING',
       pods: [pod('Pending', '0/1')],
       events: [
-        { type: 'Normal', reason: 'Scheduled', object: `pod/${podName}`, message: `Successfully assigned ${projectId.value}/${podName} to node worker-1`, at: now },
+        {
+          type: 'Normal',
+          reason: 'Scheduled',
+          object: `pod/${podName}`,
+          message: `Successfully assigned ${projectId.value}/${podName} to node worker-1`,
+          at: now,
+        },
       ],
     }
     deployed.value.push(app)
@@ -291,7 +305,12 @@ export const useMockStore = defineStore('mock', () => {
   function removeFromList(id: string) {
     const app = deployed.value.find((d) => d.id === id)
     deployed.value = deployed.value.filter((d) => d.id !== id)
-    if (app) notify({ type: 'success', title: 'Removed from the list', text: `${app.name} no longer appears in ${projectName(app.projectId)}.` })
+    if (app)
+      notify({
+        type: 'success',
+        title: 'Removed from the list',
+        text: `${app.name} no longer appears in ${projectName(app.projectId)}.`,
+      })
   }
 
   /** Story 5.2. */
@@ -300,8 +319,13 @@ export const useMockStore = defineStore('mock', () => {
     if (enabled) current.add(appId)
     else current.delete(appId)
     availability.value[project] = [...current]
-    const running = deployed.value.filter((d) => d.projectId === project && d.appId === appId).length
-    const keep = !enabled && running ? ` ${running} deployed ${running === 1 ? 'instance keeps' : 'instances keep'} running.` : ''
+    const running = deployed.value.filter(
+      (d) => d.projectId === project && d.appId === appId,
+    ).length
+    const keep =
+      !enabled && running
+        ? ` ${running} deployed ${running === 1 ? 'instance keeps' : 'instances keep'} running.`
+        : ''
     notify({
       type: 'success',
       title: enabled ? 'Application enabled' : 'Application disabled',
@@ -352,11 +376,19 @@ export const useMockStore = defineStore('mock', () => {
     dirty.value = false
     pendingLeave.value = null
     appWindow.value = null
-    Object.assign(options, { volumesOnUndeploy: 'ask', newAppDefault: 'disabled', projectDeletion: 'undeploy' })
+    Object.assign(options, {
+      volumesOnUndeploy: 'ask',
+      newAppDefault: 'disabled',
+      projectDeletion: 'undeploy',
+    })
     projectId.value = accessibleProjects.value.some((p) => p.id === 'lung-ct')
       ? 'lung-ct'
       : (accessibleProjects.value[0]?.id ?? 'lung-ct')
-    notify({ type: 'info', title: 'Mock reset', text: 'All mock data is back to its initial state.' })
+    notify({
+      type: 'info',
+      title: 'Mock reset',
+      text: 'All mock data is back to its initial state.',
+    })
   }
 
   return {

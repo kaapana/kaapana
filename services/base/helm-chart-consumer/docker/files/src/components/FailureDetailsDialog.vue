@@ -1,7 +1,11 @@
 <template>
   <!-- Large (900 px): it holds a table. The technical detail stays behind this
        disclosure; the alert on the page carries the sentence a scientist can act on. -->
-  <v-dialog :model-value="modelValue" max-width="900" @update:model-value="emit('update:modelValue', $event)">
+  <v-dialog
+    :model-value="modelValue"
+    max-width="900"
+    @update:model-value="emit('update:modelValue', $event)"
+  >
     <v-card v-if="app" :elevation="5">
       <v-card-title class="text-wrap">Why "{{ app.name }}" is not running</v-card-title>
       <v-card-text>
@@ -40,7 +44,11 @@
         </template>
       </v-card-text>
       <v-card-actions>
-        <v-btn variant="text" :prepend-icon="copied ? kaapanaIcons.confirm : kaapanaIcons.copy" @click="copy">
+        <v-btn
+          variant="text"
+          :prepend-icon="copied ? kaapanaIcons.confirm : kaapanaIcons.copy"
+          @click="copy"
+        >
           {{ copied ? 'Copied' : 'Copy details' }}
         </v-btn>
         <v-spacer />

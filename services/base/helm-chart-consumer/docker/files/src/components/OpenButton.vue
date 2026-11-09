@@ -14,7 +14,9 @@
   <v-tooltip v-else location="top" :text="reason">
     <template #activator="{ props: activator }">
       <span v-bind="activator" tabindex="0" @click.stop>
-        <v-btn :variant="variant" :size="size" :prepend-icon="kaapanaIcons.externalLink" disabled>Open</v-btn>
+        <v-btn :variant="variant" :size="size" :prepend-icon="kaapanaIcons.externalLink" disabled
+          >Open</v-btn
+        >
       </span>
     </template>
   </v-tooltip>
@@ -27,14 +29,20 @@ import { useMockStore } from '@/stores/mock'
 import type { DeployedApp } from '@/mock/types'
 
 const props = withDefaults(
-  defineProps<{ app: DeployedApp; color?: string; variant?: 'outlined' | 'flat' | 'text'; size?: string }>(),
+  defineProps<{
+    app: DeployedApp
+    color?: string
+    variant?: 'outlined' | 'flat' | 'text'
+    size?: string
+  }>(),
   { color: undefined, variant: 'outlined', size: 'small' },
 )
 const mock = useMockStore()
 
 const reason = computed(() => {
   const { name, state, drift } = props.app
-  if (drift?.kind === 'removed') return `${name} no longer runs: its helm release was removed outside Kaapana.`
+  if (drift?.kind === 'removed')
+    return `${name} no longer runs: its helm release was removed outside Kaapana.`
   switch (state) {
     case 'DEPLOYING':
       return `${name} is still starting. You can open it when its state is Ready.`

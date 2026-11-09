@@ -1,20 +1,26 @@
 <template>
   <!-- ConfirmDialog takes only a sentence; this one also needs the volume choice (Q5),
        so it repeats ConfirmDialog's contract: 400 px, Cancel focused, Escape cancels. -->
-  <v-dialog :model-value="modelValue" max-width="400" @update:model-value="onUpdate" @after-leave="restoreFocus">
+  <v-dialog
+    :model-value="modelValue"
+    max-width="400"
+    @update:model-value="onUpdate"
+    @after-leave="restoreFocus"
+  >
     <v-card v-if="app" :elevation="5">
       <v-card-title class="text-wrap">Undeploy "{{ app.name }}"?</v-card-title>
       <v-card-text>
         <p>
-          This stops the application and removes it from {{ mock.projectName(app.projectId) }}. Files that were not
-          saved to the project storage are lost.
+          This stops the application and removes it from {{ mock.projectName(app.projectId) }}.
+          Files that were not saved to the project storage are lost.
         </p>
         <template v-if="volumeSize !== null">
           <p v-if="mock.options.volumesOnUndeploy === 'delete'" class="mt-3">
             Its workspace volume ({{ volumeSize }} GiB) is deleted too.
           </p>
           <p v-else-if="mock.options.volumesOnUndeploy === 'keep'" class="mt-3">
-            Its workspace volume ({{ volumeSize }} GiB) is kept. A Kaapana system admin can delete it later.
+            Its workspace volume ({{ volumeSize }} GiB) is kept. A Kaapana system admin can delete
+            it later.
           </p>
           <div v-else class="d-flex align-center mt-2">
             <v-checkbox

@@ -1,7 +1,11 @@
 <template>
   <!-- The shell, not the view, asks before unsaved work is left: the view only reports
        that it is dirty (base-ui guideline "Unsaved changes"). -->
-  <v-dialog :model-value="!!mock.pendingLeave" max-width="400" @update:model-value="(open: boolean) => !open && keep()">
+  <v-dialog
+    :model-value="!!mock.pendingLeave"
+    max-width="400"
+    @update:model-value="(open: boolean) => !open && keep()"
+  >
     <v-card :elevation="5">
       <v-card-title>Leave without saving?</v-card-title>
       <v-card-text>{{ text }}</v-card-text>
@@ -24,8 +28,10 @@ const router = useRouter()
 
 const text = computed(() => {
   const p = mock.pendingLeave
-  if (p?.kind === 'project') return `Switching to ${mock.projectName(p.id)} reloads this view. The deploy form you started will be lost.`
-  if (p?.kind === 'persona') return 'Switching the person reloads this view. The deploy form you started will be lost.'
+  if (p?.kind === 'project')
+    return `Switching to ${mock.projectName(p.id)} reloads this view. The deploy form you started will be lost.`
+  if (p?.kind === 'persona')
+    return 'Switching the person reloads this view. The deploy form you started will be lost.'
   return 'The deploy form you started will be lost.'
 })
 

@@ -10,7 +10,9 @@
         :text="`In Kaapana, Workflow Execution opens here with ${input} preselected as input data. The mock stops at this point.`"
       >
         <template #actions>
-          <v-btn color="primary" variant="text" @click="router.back()">Back to the application</v-btn>
+          <v-btn color="primary" variant="text" @click="router.back()"
+            >Back to the application</v-btn
+          >
         </template>
       </v-empty-state>
       <v-empty-state

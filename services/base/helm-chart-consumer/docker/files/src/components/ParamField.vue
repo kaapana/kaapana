@@ -79,13 +79,21 @@ const items = computed(() => {
 const rules = computed(() => {
   const d = props.decl
   const out: ((v: unknown) => true | string)[] = []
-  if (d.required) out.push((v) => (v !== '' && v !== null && v !== undefined) || `${d.label} is required.`)
+  if (d.required)
+    out.push((v) => (v !== '' && v !== null && v !== undefined) || `${d.label} is required.`)
   if (d.type === 'integer') {
-    out.push((v) => v === '' || v === null || Number.isInteger(Number(v)) || `${d.label}: use a whole number.`)
+    out.push(
+      (v) =>
+        v === '' || v === null || Number.isInteger(Number(v)) || `${d.label}: use a whole number.`,
+    )
     if (d.min !== undefined && d.max !== undefined) {
       const { min, max } = d
       out.push(
-        (v) => v === '' || v === null || (Number(v) >= min && Number(v) <= max) || `${d.label}: use a value from ${min} to ${max}.`,
+        (v) =>
+          v === '' ||
+          v === null ||
+          (Number(v) >= min && Number(v) <= max) ||
+          `${d.label}: use a value from ${min} to ${max}.`,
       )
     }
   }

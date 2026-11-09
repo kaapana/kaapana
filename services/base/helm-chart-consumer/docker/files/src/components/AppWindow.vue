@@ -1,7 +1,12 @@
 <template>
   <!-- In Kaapana, Open starts a new browser tab. The mock shows that tab in a window so
        its own state survives. -->
-  <v-dialog :model-value="!!mock.appWindow" fullscreen transition="dialog-bottom-transition" @update:model-value="close">
+  <v-dialog
+    :model-value="!!mock.appWindow"
+    fullscreen
+    transition="dialog-bottom-transition"
+    @update:model-value="close"
+  >
     <v-card v-if="mock.appWindow" :elevation="5" class="d-flex flex-column">
       <v-toolbar color="surface-light" density="compact">
         <v-icon :icon="tabIcon" class="ml-4 mr-2" />
@@ -39,7 +44,10 @@
           <div class="text-overline">Files</div>
           <v-list density="compact" class="py-0" bg-color="transparent">
             <v-list-item prepend-icon="mdi-folder-home-outline" title="work/">
-              <template #subtitle>Your workspace{{ workspaceSize ? `, ${workspaceSize} GiB` : '' }}, kept across restarts</template>
+              <template #subtitle
+                >Your workspace{{ workspaceSize ? `, ${workspaceSize} GiB` : '' }}, kept across
+                restarts</template
+              >
               <template #append><StoryRef ids="2.7" /></template>
             </v-list-item>
             <v-list-item prepend-icon="mdi-folder-eye-outline" title="project-data/">
@@ -56,12 +64,12 @@
           <v-empty-state :icon="def.icon" size="72" :title="`${def.name} runs here`">
             <template #text>
               <p>
-                The mock stops at the door. In Kaapana this tab shows {{ def.name }} {{ def.version }}, served at the
-                address above and protected by the Kaapana login.
+                The mock stops at the door. In Kaapana this tab shows {{ def.name }}
+                {{ def.version }}, served at the address above and protected by the Kaapana login.
               </p>
               <p class="mt-2">
-                Files in work/ stay when the application restarts or is updated. Whatever you save to results/ lands
-                in the project storage and can be picked as workflow input.
+                Files in work/ stay when the application restarts or is updated. Whatever you save
+                to results/ lands in the project storage and can be picked as workflow input.
               </p>
             </template>
           </v-empty-state>
@@ -94,7 +102,9 @@ const denied = computed(() => {
   const projectId = w.kind === 'denied' ? w.projectId : app.value?.projectId
   const name = w.kind === 'denied' ? w.name : app.value?.name
   if (!projectId || !name) return null
-  const member = mock.persona.admin || mock.persona.id in (mock.projects.find((p) => p.id === projectId)?.members ?? {})
+  const member =
+    mock.persona.admin ||
+    mock.persona.id in (mock.projects.find((p) => p.id === projectId)?.members ?? {})
   return member ? null : { projectId, name }
 })
 
@@ -105,18 +115,27 @@ const deniedText = computed(() =>
 )
 
 const url = computed(() => {
-  if (denied.value) return `${MOCK_HOST}/project/${denied.value.projectId}/applications/${denied.value.name}/`
+  if (denied.value)
+    return `${MOCK_HOST}/project/${denied.value.projectId}/applications/${denied.value.name}/`
   return app.value ? mock.instanceUrl(app.value) : ''
 })
-const tabTitle = computed(() => (denied.value ? 'Access denied' : app.value ? `${app.value.name} · ${def.value?.name}` : ''))
-const tabIcon = computed(() => (denied.value ? 'mdi-lock-outline' : (def.value?.icon ?? 'mdi-application')))
+const tabTitle = computed(() =>
+  denied.value ? 'Access denied' : app.value ? `${app.value.name} · ${def.value?.name}` : '',
+)
+const tabIcon = computed(() =>
+  denied.value ? 'mdi-lock-outline' : (def.value?.icon ?? 'mdi-application'),
+)
 
 const project = computed(() => mock.projects.find((p) => p.id === app.value?.projectId))
 const dataPath = computed(() => {
-  const folder = def.value?.dataFolderParam ? String(app.value?.values[def.value.dataFolderParam] ?? '/') : '/'
+  const folder = def.value?.dataFolderParam
+    ? String(app.value?.values[def.value.dataFolderParam] ?? '/')
+    : '/'
   return `${project.value?.bucket}/${folder === '/' ? '' : folder}`
 })
-const resultsPath = computed(() => `${project.value?.bucket}/applications/${app.value?.name}/results`)
+const resultsPath = computed(
+  () => `${project.value?.bucket}/applications/${app.value?.name}/results`,
+)
 const workspaceSize = computed(() =>
   def.value?.workspaceParam ? Number(app.value?.values[def.value.workspaceParam]) : null,
 )

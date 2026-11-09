@@ -4,7 +4,9 @@
     <div class="d-flex flex-wrap align-end justify-space-between ga-4 mb-4">
       <div>
         <h1 class="text-h4">Application Catalog <StoryRef ids="2.1" /></h1>
-        <p class="text-body-2 text-medium-emphasis mt-1">Applications you can deploy in {{ mock.project?.name }}.</p>
+        <p class="text-body-2 text-medium-emphasis mt-1">
+          Applications you can deploy in {{ mock.project?.name }}.
+        </p>
       </div>
       <v-text-field
         v-model="search"
@@ -24,7 +26,9 @@
         text="Kaapana system admins choose which applications can be deployed in each project."
       >
         <template v-if="mock.can.manageAvailability" #actions>
-          <v-btn color="primary" variant="text" to="/availability">Open Application Availability</v-btn>
+          <v-btn color="primary" variant="text" to="/availability"
+            >Open Application Availability</v-btn
+          >
         </template>
       </v-empty-state>
     </v-card>
@@ -57,8 +61,16 @@
           <v-card-text class="flex-grow-1">
             <p class="mb-3">{{ def.description }}</p>
             <div class="d-flex flex-wrap align-center ga-2">
-              <v-chip size="small" variant="tonal" :prepend-icon="def.multiDeployable ? 'mdi-content-duplicate' : 'mdi-numeric-1-box-outline'">
-                {{ def.multiDeployable ? 'Several instances per project' : 'One instance per project' }}
+              <v-chip
+                size="small"
+                variant="tonal"
+                :prepend-icon="
+                  def.multiDeployable ? 'mdi-content-duplicate' : 'mdi-numeric-1-box-outline'
+                "
+              >
+                {{
+                  def.multiDeployable ? 'Several instances per project' : 'One instance per project'
+                }}
               </v-chip>
               <v-chip v-if="instances(def.id).length" size="small" variant="tonal">
                 {{ instances(def.id).length }} deployed here
@@ -69,8 +81,13 @@
           <v-card-actions>
             <v-spacer />
             <template v-if="blockedBy(def)">
-              <v-btn variant="text" :to="`/applications/${blockedBy(def)!.name}`">View {{ blockedBy(def)!.name }}</v-btn>
-              <v-tooltip location="top" :text="`${def.name} is already deployed in this project as ${blockedBy(def)!.name}. It can be deployed once per project.`">
+              <v-btn variant="text" :to="`/applications/${blockedBy(def)!.name}`"
+                >View {{ blockedBy(def)!.name }}</v-btn
+              >
+              <v-tooltip
+                location="top"
+                :text="`${def.name} is already deployed in this project as ${blockedBy(def)!.name}. It can be deployed once per project.`"
+              >
                 <template #activator="{ props: activator }">
                   <span v-bind="activator" tabindex="0">
                     <v-btn color="primary" disabled>Deploy</v-btn>
@@ -85,7 +102,8 @@
     </v-row>
 
     <p class="text-caption text-medium-emphasis mt-4">
-      Missing an application? Kaapana system admins choose which applications can be deployed in each project.
+      Missing an application? Kaapana system admins choose which applications can be deployed in
+      each project.
       <StoryRef ids="5.2" />
     </p>
   </v-container>
@@ -104,7 +122,9 @@ const search = ref<string | null>('')
 
 const visible = computed(() => {
   const q = (search.value ?? '').trim().toLowerCase()
-  return mock.enabledApps.filter((d) => !q || `${d.name} ${d.description}`.toLowerCase().includes(q))
+  return mock.enabledApps.filter(
+    (d) => !q || `${d.name} ${d.description}`.toLowerCase().includes(q),
+  )
 })
 
 function instances(appId: string) {

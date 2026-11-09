@@ -108,7 +108,12 @@ export interface DeployedApp {
    * Reconciliation with the helm releases in the cluster (Story 12.1):
    * 'changed' — the release was upgraded outside Kaapana, 'removed' — it no longer exists.
    */
-  drift?: { kind: 'changed' | 'removed'; detectedAt: number; revision?: number; recordedRevision?: number }
+  drift?: {
+    kind: 'changed' | 'removed'
+    detectedAt: number
+    revision?: number
+    recordedRevision?: number
+  }
 }
 
 export interface ShellNotification {

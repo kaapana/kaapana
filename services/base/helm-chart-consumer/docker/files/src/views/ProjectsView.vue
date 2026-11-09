@@ -7,7 +7,13 @@
     </p>
 
     <v-card :elevation="2">
-      <v-data-table :headers="headers" :items="mock.projects" item-value="id" :items-per-page="-1" hide-default-footer>
+      <v-data-table
+        :headers="headers"
+        :items="mock.projects"
+        item-value="id"
+        :items-per-page="-1"
+        hide-default-footer
+      >
         <template #item.name="{ item }">
           <div class="py-2">
             <div class="font-weight-medium">{{ item.name }}</div>
@@ -17,7 +23,11 @@
         <template #item.members="{ item }">{{ Object.keys(item.members).length }}</template>
         <template #item.apps="{ item }">
           <span v-if="!appsOf(item.id).length" class="text-medium-emphasis">None</span>
-          <span v-else>{{ appsOf(item.id).map((d) => d.name).join(', ') }}</span>
+          <span v-else>{{
+            appsOf(item.id)
+              .map((d) => d.name)
+              .join(', ')
+          }}</span>
         </template>
         <template #item.actions="{ item }">
           <v-btn
@@ -30,7 +40,11 @@
           />
         </template>
         <template #no-data>
-          <v-empty-state size="56" title="No projects" text="All projects were deleted. Reset the mock data to start over." />
+          <v-empty-state
+            size="56"
+            title="No projects"
+            text="All projects were deleted. Reset the mock data to start over."
+          />
         </template>
       </v-data-table>
     </v-card>
@@ -49,9 +63,17 @@
     <!-- Q9, answer "refuse": nothing to confirm, only what to do first. -->
     <v-dialog :model-value="open && refused" max-width="400" @update:model-value="open = $event">
       <v-card v-if="target" :elevation="5">
-        <v-card-title class="text-wrap">“{{ target.name }}” still has deployed applications</v-card-title>
+        <v-card-title class="text-wrap"
+          >“{{ target.name }}” still has deployed applications</v-card-title
+        >
         <v-card-text>
-          Undeploy {{ appsOf(target.id).map((d) => d.name).join(', ') }} first, then delete the project.
+          Undeploy
+          {{
+            appsOf(target.id)
+              .map((d) => d.name)
+              .join(', ')
+          }}
+          first, then delete the project.
           <StoryRef ids="Q9" />
         </v-card-text>
         <v-card-actions>
@@ -96,7 +118,10 @@ function appsOf(projectId: string) {
 }
 
 const refused = computed(
-  () => !!target.value && mock.options.projectDeletion === 'refuse' && appsOf(target.value.id).length > 0,
+  () =>
+    !!target.value &&
+    mock.options.projectDeletion === 'refuse' &&
+    appsOf(target.value.id).length > 0,
 )
 
 const confirmText = computed(() => {

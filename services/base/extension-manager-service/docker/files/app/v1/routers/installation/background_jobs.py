@@ -92,6 +92,7 @@ async def install_extension_background_task(
                             content_id=content.id,
                             status=models.ContentStatus.INSTALLED,
                             location=result.location,
+                            applied_version=extension_manifest["version"],
                         )
                     except Exception as e:
                         logger.error("Failed to install content '%s': %s", content.name, e, exc_info=True)

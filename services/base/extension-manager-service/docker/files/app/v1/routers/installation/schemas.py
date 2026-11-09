@@ -10,6 +10,7 @@ class InstalledContent(BaseModel):
     content_type: str
     status: str
     location: Optional[str] = None
+    applied_version: Optional[str] = None
 
 
 class InstalledExtension(BaseModel):

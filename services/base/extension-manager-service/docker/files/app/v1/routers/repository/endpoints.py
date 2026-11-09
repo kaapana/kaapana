@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
-from v1.services import encryption
+from v1.services import encryption, upload
 from v1.services.database import crud, database
 from v1.services.database import exceptions as db_exceptions
 from v1.services.oci.service import ociService
@@ -13,6 +13,14 @@ from ..dependencies import get_oci_service_for_repository
 from . import schemas
 
 router = APIRouter(prefix="/repositories", tags=["repositories"])
+
+
+def _ensure_not_upload_repository(repository_id: UUID) -> None:
+    if upload.is_upload_repository(repository_id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="The Upload repository is built in and cannot be changed or removed.",
+        )
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=schemas.Repository)
@@ -68,6 +76,7 @@ async def update_repository(
     update_repository: schemas.PutRepositoryRequest,
     db: AsyncSession = Depends(database.get_async_db),
 ):
+    _ensure_not_upload_repository(repository_id)
     encrypted_auth = None
     if update_repository.username is not None and update_repository.password is not None:
         encrypted_auth = encryption.encrypt(
@@ -93,6 +102,7 @@ async def update_repository(
 
 @router.delete("/{repository_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_repository(repository_id: UUID, db: AsyncSession = Depends(database.get_async_db)):
+    _ensure_not_upload_repository(repository_id)
     repository = await crud.get_registered_repository(db, repository_id)
     if not repository:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found")

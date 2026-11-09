@@ -62,7 +62,7 @@ def mocked_installer():
 from uuid import UUID
 
 from v1.routers.dependencies import get_oci_service_for_repository
-from v1.services import encryption
+from v1.services import encryption, upload
 from v1.services.oci.mock_service import ociService as MockOciService
 
 
@@ -72,12 +72,16 @@ async def mock_ociService(session: AsyncSession):
         repository = await crud.get_registered_repository(session, repository_id)
         if not repository:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found")
+        if upload.is_upload_repository(repository_id):
+            async with upload.UploadRepositoryService() as svc:
+                yield svc
+            return
         async with MockOciService(repository_url="test", authentication=encryption.encrypt("", "")) as svc:
             yield svc
 
     app.dependency_overrides[get_oci_service_for_repository] = override
 
-    with patch("v1.routers.installation.background_jobs.ociService", new=MockOciService):
+    with patch("v1.routers.dependencies.ociService", new=MockOciService):
         yield
 
     app.dependency_overrides.pop(get_oci_service_for_repository, None)

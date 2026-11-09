@@ -5,11 +5,11 @@ from pathlib import Path
 from uuid import UUID
 
 from sqlalchemy.exc import NoResultFound
-from v1.services import dispatch
+from v1.routers.dependencies import repository_service
+from v1.services import dispatch, upload
 from v1.services.database import crud, database, models
 from v1.services.database.exceptions import NotSupportedExtensionStateTransition
 from v1.services.logger import get_logger
-from v1.services.oci.service import ociService
 
 logger = get_logger(__name__)
 
@@ -40,10 +40,7 @@ async def install_extension_background_task(
             )
             return
 
-        async with ociService(
-            db_repository.repository_url,
-            db_repository.authentication,
-        ) as oci:
+        async with repository_service(db_repository) as oci:
             try:
                 extension_path = await oci.pull_extension(tag=db_extension.tag)
             except Exception as e:
@@ -220,6 +217,8 @@ async def uninstall_extension_background_task(
             )
 
         await crud.update_extension(db, extension_id=extension_id, status=models.ExtensionStatus.UNINSTALLED)
+        if upload.is_upload_repository(db_extension.repository_id):
+            upload.remove_extension(db_extension.tag)
 
     await asyncio.sleep(30)
     async with database.async_session() as db2:

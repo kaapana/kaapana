@@ -233,6 +233,11 @@ async def get_content(session: AsyncSession, content_id: UUID) -> Optional[Conte
     return result.scalar_one_or_none()
 
 
+async def delete_content(session: AsyncSession, content_id: UUID) -> None:
+    await session.execute(delete(Content).where(Content.id == content_id))
+    await session.commit()
+
+
 async def update_content(
     session: AsyncSession,
     content_id: UUID,

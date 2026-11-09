@@ -1,6 +1,7 @@
 import enum
 import uuid
 from datetime import datetime
+from typing import Optional
 
 from sqlalchemy import DateTime, Enum, ForeignKey, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
@@ -22,6 +23,8 @@ class ExtensionStatus(enum.StrEnum):
     UNINSTALLING = "uninstalling"
     UNINSTALLED = "uninstalled"
     UNINSTALLING_FAILED = "uninstalling_failed"
+    UPDATING = "updating"
+    UPDATE_FAILED = "update_failed"
 
 
 class RegisteredRepository(Base):
@@ -83,6 +86,7 @@ class Extension(Base):
 
     manifest: Mapped[JSON] = mapped_column(JSON, nullable=False)
 
+    pending_update: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     status: Mapped[ExtensionStatus] = mapped_column(
         Enum(
             ExtensionStatus,
@@ -122,6 +126,8 @@ class ContentStatus(enum.StrEnum):
     UNINSTALLING = "uninstalling"
     UNINSTALLATION_FAILED = "uninstallation_failed"
     UNINSTALLED = "uninstalled"
+    UPDATING = "updating"
+    UPDATE_FAILED = "update_failed"
 
 
 class Content(Base):
@@ -142,6 +148,7 @@ class Content(Base):
 
     content_type: Mapped[str] = mapped_column(String(255), nullable=False)
     location: Mapped[str] = mapped_column(String(255), nullable=True)
+    applied_version: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
     status: Mapped[ContentStatus] = mapped_column(
         Enum(
@@ -183,6 +190,7 @@ ALLOWED_EXTENSION_STATUS_TRANSITIONS = {
     ],
     ExtensionStatus.INSTALLED: [
         ExtensionStatus.UNINSTALLING,
+        ExtensionStatus.UPDATING,
     ],
     ExtensionStatus.UNINSTALLING: [
         ExtensionStatus.UNINSTALLED,
@@ -190,6 +198,11 @@ ALLOWED_EXTENSION_STATUS_TRANSITIONS = {
         ExtensionStatus.UNINSTALLING,
     ],
     ExtensionStatus.UNINSTALLED: [],
+    # No uninstall while updating: the job does not check for cancellation, so PATCH and DELETE would race.
+    ExtensionStatus.UPDATING: [
+        ExtensionStatus.INSTALLED,
+        ExtensionStatus.UPDATE_FAILED,
+    ],
     ### ERROR STATES ###
     ExtensionStatus.PULLING_FAILED: [
         ExtensionStatus.PENDING,
@@ -200,6 +213,10 @@ ALLOWED_EXTENSION_STATUS_TRANSITIONS = {
         ExtensionStatus.UNINSTALLING,
     ],
     ExtensionStatus.UNINSTALLING_FAILED: [
+        ExtensionStatus.UNINSTALLING,
+    ],
+    ExtensionStatus.UPDATE_FAILED: [
+        ExtensionStatus.UPDATING,
         ExtensionStatus.UNINSTALLING,
     ],
 }
@@ -217,18 +234,27 @@ ALLOWED_CONTENT_STATUS_TRANSITIONS = {
     ],
     ContentStatus.INSTALLED: [
         ContentStatus.UNINSTALLING,
+        ContentStatus.UPDATING,
     ],
     ContentStatus.UNINSTALLING: [
         ContentStatus.UNINSTALLED,
         ContentStatus.UNINSTALLATION_FAILED,
     ],
     ContentStatus.UNINSTALLED: [],
+    ContentStatus.UPDATING: [
+        ContentStatus.INSTALLED,
+        ContentStatus.UPDATE_FAILED,
+    ],
     ### ERROR STATES ###
     ContentStatus.INSTALLATION_FAILED: [
         ContentStatus.INSTALLING,
         ContentStatus.UNINSTALLING,
     ],
     ContentStatus.UNINSTALLATION_FAILED: [
+        ContentStatus.UNINSTALLING,
+    ],
+    ContentStatus.UPDATE_FAILED: [
+        ContentStatus.UPDATING,
         ContentStatus.UNINSTALLING,
     ],
 }

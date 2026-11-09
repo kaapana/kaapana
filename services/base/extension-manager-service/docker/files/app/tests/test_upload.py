@@ -268,6 +268,21 @@ async def test_upload_rejects_an_extension_that_is_already_installed(client: Asy
 
 
 @pytest.mark.asyncio
+async def test_a_newer_upload_updates_the_uploaded_extension(client: AsyncClient, mocked_installer, upload_dir):
+    manifest = _manifest()
+    location = (await _upload(client, _archive(manifest))).headers["Location"]
+
+    response = await _upload(client, _archive({**manifest, "version": "1.1.0"}))
+    assert response.status_code == 202
+    assert response.headers["Location"] == location
+
+    extension = (await client.get(location)).json()
+    assert extension["status"] == "installed"
+    assert extension["tag"] == f"{manifest['id']}-v1.1.0"
+    assert [path.name for path in upload_dir.iterdir()] == [extension["tag"]]
+
+
+@pytest.mark.asyncio
 async def test_upload_retries_a_failed_installation(client: AsyncClient, mocked_installer, upload_dir):
     manifest = _manifest()
     install_content = mocked_installer.install_content

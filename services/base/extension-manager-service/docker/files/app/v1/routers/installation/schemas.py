@@ -13,10 +13,17 @@ class InstalledContent(BaseModel):
     applied_version: Optional[str] = None
 
 
+class PendingUpdate(BaseModel):
+    repository_id: UUID
+    tag: str
+    manifest: ExtensionManifest
+
+
 class InstalledExtension(BaseModel):
     id: UUID
     repository_id: UUID
     tag: str
     manifest: ExtensionManifest
+    pending_update: Optional[PendingUpdate] = None
     status: str
     contents: list[InstalledContent]

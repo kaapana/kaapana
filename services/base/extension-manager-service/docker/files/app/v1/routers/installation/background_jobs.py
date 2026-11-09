@@ -7,9 +7,11 @@ from uuid import UUID
 from sqlalchemy.exc import NoResultFound
 from v1.routers.dependencies import repository_service
 from v1.services import dispatch, upload
+from v1.services.content_update import apply_content_changes
 from v1.services.database import crud, database, models
 from v1.services.database.exceptions import NotSupportedExtensionStateTransition
 from v1.services.logger import get_logger
+from v1.services.oci.models import ExtensionManifest
 
 logger = get_logger(__name__)
 
@@ -137,6 +139,50 @@ async def install_extension_background_task(
             )
 
     shutil.rmtree(Path(extension_path))
+
+
+async def update_extension_background_task(
+    extension_id: UUID,
+):
+    logger.info(f"Updating extension with id {extension_id} in background task")
+    async with database.async_session() as db:
+        db_extension = await crud.get_extension(db, extension_id=extension_id)
+        if not db_extension or db_extension.status != models.ExtensionStatus.UPDATING:
+            logger.warning(f"Extension with id {extension_id} is not being updated. Cancel update.")
+            return
+        pending_update = db_extension.pending_update
+        assert pending_update is not None
+        target = ExtensionManifest(**pending_update["manifest"])
+
+        db_repository = await crud.get_registered_repository(db, UUID(pending_update["repository_id"]))
+        if not db_repository:
+            logger.warning("Repository not found. Cancel update.")
+            await crud.update_extension(db, extension_id=extension_id, status=models.ExtensionStatus.UPDATE_FAILED)
+            return
+
+        async with repository_service(db_repository) as service:
+            try:
+                extension_path = await service.pull_extension(tag=pending_update["tag"])
+            except Exception as e:
+                logger.error("Failed to pull extension '%s': %s", pending_update["tag"], e, exc_info=True)
+                await crud.update_extension(db, extension_id=extension_id, status=models.ExtensionStatus.UPDATE_FAILED)
+                raise
+
+        try:
+            with open(extension_path / "extension_manifest.json") as f:
+                assert ExtensionManifest(**json.load(f)).model_dump(mode="json") == pending_update["manifest"]
+            await apply_content_changes(db, db_extension, target, extension_path)
+        except Exception as e:
+            logger.error("Failed to update extension '%s': %s", pending_update["tag"], e, exc_info=True)
+            await crud.update_extension(db, extension_id=extension_id, status=models.ExtensionStatus.UPDATE_FAILED)
+            raise
+        finally:
+            shutil.rmtree(Path(extension_path))
+
+        previous_tag = db_extension.tag
+        db_extension = await crud.complete_extension_update(db, extension_id=extension_id)
+        if upload.is_upload_repository(db_extension.repository_id) and previous_tag != db_extension.tag:
+            upload.remove_extension(previous_tag)
 
 
 async def uninstall_extension_background_task(

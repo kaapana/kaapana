@@ -5,12 +5,20 @@ from uuid import UUID
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, UploadFile, status
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from v1.services import dispatch, upload
+from v1.services.content_changes import ContentTypeChangedError
+from v1.services.content_update import plan_extension_update
 from v1.services.database import crud, database
 from v1.services.database.exceptions import (
     LockedExtensionException,
     NotSupportedExtensionStateTransition,
 )
 from v1.services.dispatch.exceptions import ContentError
+from v1.services.install_target import (
+    ActiveExtension,
+    InstallConflictError,
+    InstallTargetKind,
+    resolve_install_target,
+)
 from v1.services.oci.exceptions import ExtensionNotFoundException
 from v1.services.oci.models import ExtensionManifest
 from v1.services.oci.service import ociService
@@ -20,6 +28,7 @@ from . import schemas
 from .background_jobs import (
     install_extension_background_task,
     uninstall_extension_background_task,
+    update_extension_background_task,
 )
 
 router = APIRouter(prefix="/extensions", tags=["extensions"])
@@ -90,6 +99,85 @@ async def _create_or_reset_extension(db, repository_id: UUID, tag: str, extensio
     return db_extension
 
 
+async def _active_extension(
+    db, repository_id: UUID, tag: str, extension_manifest: ExtensionManifest
+) -> Optional[ActiveExtension]:
+    for db_extension in await crud.list_extensions(db, manifest_id=extension_manifest.id):
+        if db_extension.status == crud.ExtensionStatus.UNINSTALLED:
+            continue
+        pending_update = db_extension.pending_update
+        return ActiveExtension(
+            id=db_extension.id,
+            status=db_extension.status,
+            version=ExtensionManifest.model_validate(db_extension.manifest).version,
+            pending_version=pending_update["manifest"]["version"] if pending_update else None,
+            same_repository=db_extension.repository_id == repository_id,
+            same_tag=db_extension.tag == tag,
+        )
+    return None
+
+
+async def _start_update(db, extension_id: UUID, repository_id: UUID, tag: str, extension_manifest: ExtensionManifest):
+    db_extension = await crud.get_extension(db, extension_id=extension_id)
+    assert db_extension is not None
+    try:
+        plan_extension_update(db_extension, extension_manifest)
+    except ContentTypeChangedError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+    # An uninstalled row keeps its (repository_id, tag) until the uninstall job deletes it, and the update takes over that pair
+    for db_uninstalled in await crud.list_extensions(
+        db, repository_id=repository_id, tag=tag, status=crud.ExtensionStatus.UNINSTALLED
+    ):
+        await crud.delete_extension(db, extension_id=db_uninstalled.id)
+    try:
+        return await crud.update_extension(
+            db,
+            extension_id=extension_id,
+            status=crud.ExtensionStatus.UPDATING,
+            pending_update={
+                "repository_id": str(repository_id),
+                "tag": tag,
+                "manifest": extension_manifest.model_dump(mode="json"),
+            },
+        )
+    except LockedExtensionException as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Cannot update extension {extension_manifest.name} because it is currently being processed",
+        ) from e
+
+
+async def _install_or_update(
+    db,
+    repository_id: UUID,
+    tag: str,
+    extension_manifest: ExtensionManifest,
+    response: Response,
+    background_tasks: BackgroundTasks,
+):
+    active = await _active_extension(db, repository_id, tag, extension_manifest)
+    try:
+        target = resolve_install_target(active, extension_manifest.version)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+    except InstallConflictError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=f"{extension_manifest.name} {extension_manifest.version}: {e}"
+        ) from e
+
+    if target.kind == InstallTargetKind.UPDATE:
+        assert target.extension_id is not None
+        db_extension = await _start_update(db, target.extension_id, repository_id, tag, extension_manifest)
+        background_tasks.add_task(update_extension_background_task, db_extension.id)
+        response.status_code = status.HTTP_202_ACCEPTED
+    else:
+        db_extension = await _create_or_reset_extension(db, repository_id, tag, extension_manifest)
+        background_tasks.add_task(install_extension_background_task, db_extension.id)
+
+    response.headers["Location"] = f"/extensions/{db_extension.id}"
+    return db_extension
+
+
 @router.post(
     "/install",
     response_model=schemas.InstalledExtension,
@@ -113,11 +201,7 @@ async def install_extension(
 
     _ensure_installers_exist(extension_manifest)
     await _ensure_not_in_other_repository(db, repository_id, tag)
-    db_extension = await _create_or_reset_extension(db, repository_id, tag, extension_manifest)
-
-    background_tasks.add_task(install_extension_background_task, db_extension.id)
-
-    response.headers["Location"] = f"/extensions/{db_extension.id}"
+    db_extension = await _install_or_update(db, repository_id, tag, extension_manifest, response, background_tasks)
     return await crud.get_extension(db, extension_id=db_extension.id)
 
 
@@ -177,14 +261,13 @@ async def upload_extension(
                     "with a different manifest. Uninstall it first."
                 ),
             )
-        db_extension = await _create_or_reset_extension(db, upload.UPLOAD_REPOSITORY_ID, tag, extension_manifest)
+        db_extension = await _install_or_update(
+            db, upload.UPLOAD_REPOSITORY_ID, tag, extension_manifest, response, background_tasks
+        )
         upload.store_extension(extracted_dir, tag)
     finally:
         shutil.rmtree(staging_dir, ignore_errors=True)
 
-    background_tasks.add_task(install_extension_background_task, db_extension.id)
-
-    response.headers["Location"] = f"/extensions/{db_extension.id}"
     return await crud.get_extension(db, extension_id=db_extension.id)
 
 

@@ -2668,6 +2668,30 @@ function check_credentials {
     $HELM_LOGIN_CMD -u $CONTAINER_REGISTRY_USERNAME -p $CONTAINER_REGISTRY_PASSWORD $(echo "$CONTAINER_REGISTRY_URL" | cut -d/ -f1)
 }
 
+# Every deploy's cert-init job installs tls.crt/tls.key from the tls-pv-claim volume
+# (mounted at /cert/tls), and the undeploy deletes the certificate secret. So the files
+# outlast a redeploy only inside that volume.
+function store_certs_in_tls_volume {
+    local pv_name="" tls_dir=""
+    # "|| true": a missing claim must reach the warning below, not end the script (set -e).
+    pv_name=$(microk8s.kubectl -n "$ADMIN_NAMESPACE" get pvc tls-pv-claim \
+        -o jsonpath='{.spec.volumeName}' 2>/dev/null) || true
+    # Only a hostpath volume has a host folder to write into; CSI volumes (Longhorn) do not.
+    if [ -n "$pv_name" ]; then
+        tls_dir=$(microk8s.kubectl get pv "$pv_name" -o jsonpath='{.spec.hostPath.path}' 2>/dev/null) || true
+    fi
+
+    if [ -z "$tls_dir" ] || [ ! -d "$tls_dir" ]; then
+        echo -e "${YELLOW}Warning: no host folder found for the TLS volume (tls-pv-claim in namespace $ADMIN_NAMESPACE): the claim is missing, or its storage (e.g. Longhorn) has none.${NC}"
+        echo -e "${YELLOW}The certificate is not stored for the next deploy: after a redeploy, run --install-certs again.${NC}"
+        return 0
+    fi
+
+    install -m 644 ./tls.crt "$tls_dir/tls.crt"
+    install -m 600 ./tls.key "$tls_dir/tls.key"
+    echo -e "\nCertificate stored in the TLS volume, every deploy installs it again: $tls_dir"
+}
+
 function install_certs {
     if [ "$EUID" -ne 0 ]
     then echo -e "${RED}The installation of certs requires root privileges!";
@@ -2709,8 +2733,9 @@ function install_certs {
 
     update_namespace "$ADMIN_NAMESPACE"
     update_namespace "$SERVICES_NAMESPACE"
+    store_certs_in_tls_volume
 
-    # copy certificates
+    # Kept because earlier versions of the FAQ named this folder; the deploy does not read it.
     if [ -n "$FAST_DATA_DIR" ]; then
         mkdir -p "$FAST_DATA_DIR/tls"
         cp ./tls.key ./tls.crt "$FAST_DATA_DIR/tls/"

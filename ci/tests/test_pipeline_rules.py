@@ -125,6 +125,8 @@ TOGGLED_JOBS = [
     ("exec_unit_tests", "unit_tests"),
     ("exec_unit_tests", "ci_config_tests"),
     ("exec_unit_tests", "build_documentation"),
+    ("exec_lint", "format"),
+    ("exec_lint", "validate"),
     ("exec_lint", "lint"),
     ("exec_build", "build_packages"),
     ("exec_deploy", "prepare_deployment"),
@@ -202,17 +204,23 @@ def test_the_admin_chart_and_namespace_come_from_the_variables():
 
 
 def test_build_does_not_lint_charts(default_config):
-    """Charts are linted by lint: [helm] in the unittest stage; the build must not repeat it."""
+    """Charts are checked by validate: [helm] in the unittest stage; the build must not repeat it."""
     script = "\n".join(jobs(default_config)["build_packages"]["script"])
     assert "--no-linting" in script
 
 
-def test_every_linter_has_its_script(default_config):
-    """A LINTER added to the lint matrix without ci/ci-code/lint/<linter>_lint.sh would fail every pipeline."""
-    job = jobs(default_config)["lint"]
+@pytest.mark.parametrize("mode", ["format", "validate", "lint"])
+def test_every_linter_has_its_script(default_config, mode):
+    """A LINTER added to a matrix without ci/ci-code/lint/<linter>_lint.sh handling the mode would fail every pipeline."""
+    job = jobs(default_config)[mode]
     linters = [linter for entry in job["parallel"]["matrix"] for linter in entry["LINTER"]]
     assert linters
-    assert job["script"] == ["ci/ci-code/lint/${LINTER}_lint.sh"]
+    assert job["script"] == [f"ci/ci-code/lint/${{LINTER}}_lint.sh {mode}"]
     for linter in linters:
-        assert (CI_DIR / "ci-code" / "lint" / f"{linter}_lint.sh").is_file(), linter
-    assert job["artifacts"]["reports"]["codequality"] == "gl-code-quality-report.json"
+        script = CI_DIR / "ci-code" / "lint" / f"{linter}_lint.sh"
+        assert script.is_file(), linter
+        assert mode in script.read_text(), (linter, mode)
+
+
+def test_lint_publishes_the_code_quality_report(default_config):
+    assert jobs(default_config)["lint"]["artifacts"]["reports"]["codequality"] == "gl-code-quality-report.json"

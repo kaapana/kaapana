@@ -11,6 +11,7 @@ import {
   findInstallation,
   groupCatalogEntries,
   hasActiveFilters,
+  installAvailability,
 } from '@/features/catalog/utils'
 import BaseCardIterator from '@/shared/components/BaseCardIterator.vue'
 import DetailMetaLine from '@/shared/components/DetailMetaLine.vue'
@@ -54,6 +55,11 @@ const selectedEntry = computed(
 const selectedInstallation = computed(() =>
   selectedEntry.value ? findInstallation(selectedEntry.value, installed.value) : undefined,
 )
+const selectedIsUpdate = computed(
+  () =>
+    selectedEntry.value !== null &&
+    installAvailability(selectedEntry.value, selectedInstallation.value).kind === 'update',
+)
 
 const emptyState = computed(() => {
   if (loadFailure.value) return 'error'
@@ -74,16 +80,13 @@ const anyTransitional = computed(() =>
 usePolling(refreshInstalled, anyTransitional)
 
 function latestInstallation(group: CatalogEntryGroup) {
-  for (const entry of group.entries) {
-    const installation = findInstallation(entry, installed.value)
-    if (installation && installation.status !== 'uninstalled') {
-      return {
-        version: entry.manifest.version,
-        status: presentExtensionStatus(installation.status),
-      }
-    }
+  const entry = group.entries[0]
+  const installation = entry ? findInstallation(entry, installed.value) : undefined
+  if (!installation || installation.status === 'uninstalled') return null
+  return {
+    version: installation.manifest.version,
+    status: presentExtensionStatus(installation.status),
   }
-  return null
 }
 
 function selectGroup(group: CatalogEntryGroup) {
@@ -166,16 +169,23 @@ async function installSelectedEntry() {
   if (!entry || installing.value) return
 
   const label = `${entry.manifest.name} ${entry.manifest.version}`
+  const update = selectedIsUpdate.value
   installing.value = true
   try {
     await installExtension(entry.repository.id, entry.tag)
     notifySuccess(
-      'Installation started',
-      `${label} is being installed. Follow its progress on the Extensions page.`,
+      update ? 'Update started' : 'Installation started',
+      update
+        ? `${entry.manifest.name} is being updated to ${entry.manifest.version}. Follow its progress on the Extensions page.`
+        : `${label} is being installed. Follow its progress on the Extensions page.`,
     )
     await refreshInstalled()
   } catch (err) {
-    notifyFailure('Installation failed to start', `Could not start installing ${label}.`, err)
+    notifyFailure(
+      update ? 'Update failed to start' : 'Installation failed to start',
+      `Could not start ${update ? 'updating to' : 'installing'} ${label}.`,
+      err,
+    )
   } finally {
     installing.value = false
   }

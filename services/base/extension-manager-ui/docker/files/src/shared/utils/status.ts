@@ -17,6 +17,8 @@ export const extensionStatus: Record<ExtensionStatus, StatusPresentation> = {
   uninstalling: { label: 'Uninstalling', tone: 'progress' },
   uninstalled: { label: 'Uninstalled', tone: 'neutral' },
   uninstalling_failed: { label: 'Uninstall failed', tone: 'error' },
+  updating: { label: 'Updating', tone: 'progress' },
+  update_failed: { label: 'Update failed', tone: 'error' },
 }
 
 export const contentStatus: Record<ContentStatus, StatusPresentation> = {
@@ -27,6 +29,8 @@ export const contentStatus: Record<ContentStatus, StatusPresentation> = {
   uninstalling: { label: 'Uninstalling', tone: 'progress' },
   uninstallation_failed: { label: 'Uninstall failed', tone: 'error' },
   uninstalled: { label: 'Uninstalled', tone: 'neutral' },
+  updating: { label: 'Updating', tone: 'progress' },
+  update_failed: { label: 'Update failed', tone: 'error' },
 }
 
 export function presentExtensionStatus(status: string): StatusPresentation {
@@ -42,6 +46,7 @@ export const UNINSTALLABLE_STATUSES: readonly ExtensionStatus[] = [
   'pulling_failed',
   'installing_failed',
   'uninstalling_failed',
+  'update_failed',
 ]
 
 export const RETRYABLE_INSTALL_STATUSES: readonly ExtensionStatus[] = [

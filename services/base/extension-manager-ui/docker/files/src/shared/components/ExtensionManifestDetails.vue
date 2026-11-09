@@ -27,27 +27,41 @@ function contentKey(name: string, contentType: string): string {
   return `${contentType}:${name}`
 }
 
-const installedStatusByKey = computed(() => {
-  const statusByKey = new Map<string, string>()
+const installedContentByKey = computed(() => {
+  const contentByKey = new Map<string, InstalledContent>()
   for (const entry of props.installedContents ?? []) {
-    statusByKey.set(contentKey(entry.name, entry.content_type), entry.status)
+    contentByKey.set(contentKey(entry.name, entry.content_type), entry)
   }
-  return statusByKey
+  return contentByKey
 })
 
-const contentRows = computed(() =>
-  (props.extensionManifest.contents ?? []).map((content) => {
+const contentRows = computed(() => {
+  const manifestRows = (props.extensionManifest.contents ?? []).map((content) => {
     const key = contentKey(content.name, content.contentType)
-    const status = installedStatusByKey.value.get(key)
+    const installed = installedContentByKey.value.get(key)
     return {
       key,
       name: content.name,
       contentType: content.contentType,
       files: content.files ?? [],
-      status: status ? presentContentStatus(status) : null,
+      status: installed ? presentContentStatus(installed.status) : null,
+      appliedVersion: installed?.applied_version ?? null,
     }
-  }),
-)
+  })
+  // Contents that a failed update added are missing from the installed manifest
+  const manifestKeys = new Set(manifestRows.map((row) => row.key))
+  const otherRows = [...installedContentByKey.value]
+    .filter(([key]) => !manifestKeys.has(key))
+    .map(([key, installed]) => ({
+      key,
+      name: installed.name,
+      contentType: installed.content_type,
+      files: null,
+      status: presentContentStatus(installed.status),
+      appliedVersion: installed.applied_version ?? null,
+    }))
+  return [...manifestRows, ...otherRows]
+})
 
 const dependencies = computed(() =>
   (props.extensionManifest.dependencies ?? []).map((dep, index) => ({
@@ -89,11 +103,17 @@ const extensionManifestJson = computed(() => JSON.stringify(props.extensionManif
             <dl class="manifest-details text-body-2">
               <dt class="text-medium-emphasis">Type</dt>
               <dd>{{ row.contentType }}</dd>
-              <dt class="text-medium-emphasis">Files</dt>
-              <dd>
-                <div v-for="file in row.files" :key="file.path">{{ file.path }}</div>
-                <span v-if="row.files.length === 0" class="text-medium-emphasis">No files</span>
-              </dd>
+              <template v-if="row.appliedVersion">
+                <dt class="text-medium-emphasis">Installed version</dt>
+                <dd data-testid="applied-version">{{ row.appliedVersion }}</dd>
+              </template>
+              <template v-if="row.files">
+                <dt class="text-medium-emphasis">Files</dt>
+                <dd>
+                  <div v-for="file in row.files" :key="file.path">{{ file.path }}</div>
+                  <span v-if="row.files.length === 0" class="text-medium-emphasis">No files</span>
+                </dd>
+              </template>
             </dl>
           </v-expansion-panel-text>
         </v-expansion-panel>

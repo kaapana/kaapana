@@ -31,6 +31,12 @@ const canBeUninstalled = computed(() =>
   Boolean(props.extension && UNINSTALLABLE_STATUSES.includes(props.extension.status)),
 )
 const showsUninstall = computed(() => props.extension?.status !== 'uninstalled')
+const pendingUpdateText = computed(() => {
+  const target = props.extension?.pending_update?.manifest.version
+  if (!target) return null
+  if (props.extension?.status !== 'update_failed') return `Updating to version ${target}.`
+  return `The update to version ${target} failed. Contents with an older installed version below were not updated; retry the update from the catalog or upload the archive again.`
+})
 const repositoryName = computed(
   () => props.repository?.name ?? props.extension?.repository_id ?? '',
 )
@@ -96,6 +102,13 @@ const advancedSourceRows = computed<SourceDetailsRow[]>(() => {
         data-testid="uninstall-unavailable"
       >
         Uninstall becomes available once the current operation has finished.
+      </p>
+      <p
+        v-if="pendingUpdateText"
+        class="px-6 pb-3 text-body-2 text-medium-emphasis"
+        data-testid="pending-update"
+      >
+        {{ pendingUpdateText }}
       </p>
     </template>
 

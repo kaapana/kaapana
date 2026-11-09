@@ -21,4 +21,5 @@ export interface CatalogFilters {
 export type InstallAvailability =
   | { kind: 'available'; label: string }
   | { kind: 'retry'; label: string; reason: string }
+  | { kind: 'update'; label: string; reason: string }
   | { kind: 'unavailable'; label: string; reason: string }

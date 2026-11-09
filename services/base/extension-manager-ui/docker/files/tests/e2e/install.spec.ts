@@ -1,5 +1,13 @@
 import { test, expect } from '@playwright/test'
-import { defaultMockData, LAB_REPO, PUBLIC_REPO } from './fixtures/mock-backend'
+import {
+  defaultMockData,
+  installation,
+  LAB_REPO,
+  manifestResponse,
+  NNUNET_V1,
+  NNUNET_V11,
+  PUBLIC_REPO,
+} from './fixtures/mock-backend'
 import {
   API,
   card,
@@ -126,4 +134,70 @@ test('a just-uninstalled version becomes installable once its record is gone', a
 
   state.extensions = state.extensions.slice(1)
   await expect(dialog(page).getByTestId('install')).toBeEnabled({ timeout: 10_000 })
+})
+
+function withNnunetInstalled(version = NNUNET_V1, status = 'installed') {
+  const data = defaultMockData()
+  data.extensions.push(
+    installation(PUBLIC_REPO, version, status, 'eeeeeeee-0000-0000-0000-000000000010'),
+  )
+  return data
+}
+
+test('a newer version of an installed extension is offered as an update', async ({ page }) => {
+  await openView(page, 'catalog', withNnunetInstalled())
+  await card(page, 'nnunet').click()
+
+  const update = dialog(page).getByTestId('install')
+  await expect(update).toHaveText('Update to 1.1.0')
+  await expect(dialog(page).getByTestId('install-state')).toContainText(
+    'Version 1.0.0 is installed.',
+  )
+
+  const request = nextRequest(page, API.install, 'POST')
+  await update.click()
+  expect(new URL((await request).url()).searchParams.get('tag')).toBe(
+    'aaaaaaaa-0000-0000-0000-000000000001-v1.1.0',
+  )
+  await expect(toasts(page).filter({ hasText: 'Update started' })).toContainText(
+    'nnunet is being updated to 1.1.0',
+  )
+  await expect(dialog(page).getByTestId('install-state')).toContainText('Updating')
+})
+
+test('a failed update offers a retry of the same version', async ({ page }) => {
+  const data = withNnunetInstalled(NNUNET_V1, 'update_failed')
+  data.extensions.at(-1)!.pending_update = manifestResponse(PUBLIC_REPO, NNUNET_V11)
+  await openView(page, 'catalog', data)
+  await card(page, 'nnunet').click()
+
+  await expect(dialog(page).getByTestId('install')).toHaveText('Retry update')
+  await expect(dialog(page).getByTestId('install-state')).toContainText(
+    'The update to this version failed. Version 1.0.0 is still installed.',
+  )
+})
+
+test('an older version cannot be installed over a newer one', async ({ page }) => {
+  await openView(page, 'catalog', withNnunetInstalled(NNUNET_V11))
+  await card(page, 'nnunet').click()
+  await selectVersion(page, '1.0.0')
+
+  await expect(dialog(page).getByTestId('install')).toBeDisabled()
+  await expect(dialog(page).getByTestId('install-state')).toContainText(
+    'Version 1.1.0 is installed. Downgrades are not supported.',
+  )
+})
+
+test('a version from another repository cannot update the installed extension', async ({
+  page,
+}) => {
+  const data = withNnunetInstalled()
+  data.manifests[LAB_REPO.id]!.push(manifestResponse(LAB_REPO, NNUNET_V11))
+  await openView(page, 'catalog', data)
+  await card(page, 'nnunet').filter({ hasText: 'lab-internal' }).click()
+
+  await expect(dialog(page).getByTestId('install')).toBeDisabled()
+  await expect(dialog(page).getByTestId('install-state')).toContainText(
+    'Version 1.0.0 is installed from another repository.',
+  )
 })

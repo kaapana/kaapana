@@ -63,8 +63,18 @@ async function install() {
   progress.value = 0
   try {
     const extension = await uploadExtension(selected, (fraction) => (progress.value = fraction))
-    const label = `${extension.manifest.name} ${extension.manifest.version}`
-    notifySuccess('Installation started', `${label} is being installed from ${selected.name}.`)
+    const target = extension.pending_update?.manifest ?? extension.manifest
+    if (extension.status === 'updating') {
+      notifySuccess(
+        'Update started',
+        `${target.name} is being updated to ${target.version} from ${selected.name}.`,
+      )
+    } else {
+      notifySuccess(
+        'Installation started',
+        `${target.name} ${target.version} is being installed from ${selected.name}.`,
+      )
+    }
     emit('uploaded', extension)
     uploading.value = false
     close()

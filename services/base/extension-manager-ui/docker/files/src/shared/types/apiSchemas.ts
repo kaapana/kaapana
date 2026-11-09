@@ -32,6 +32,8 @@ export type ExtensionStatus =
   | 'uninstalling'
   | 'uninstalled'
   | 'uninstalling_failed'
+  | 'updating'
+  | 'update_failed'
 
 export type ContentStatus =
   | 'pending'
@@ -41,6 +43,8 @@ export type ContentStatus =
   | 'uninstalling'
   | 'uninstallation_failed'
   | 'uninstalled'
+  | 'updating'
+  | 'update_failed'
 
 export interface ContentFile {
   path: string
@@ -71,6 +75,13 @@ export interface InstalledContent {
   content_type: string
   status: ContentStatus
   location?: string | null
+  applied_version?: string | null
+}
+
+export interface PendingUpdate {
+  repository_id: string
+  tag: string
+  manifest: ExtensionManifest
 }
 
 export interface InstalledExtension {
@@ -78,6 +89,7 @@ export interface InstalledExtension {
   repository_id: string
   tag: string
   manifest: ExtensionManifest
+  pending_update?: PendingUpdate | null
   status: ExtensionStatus
   contents: InstalledContent[]
 }

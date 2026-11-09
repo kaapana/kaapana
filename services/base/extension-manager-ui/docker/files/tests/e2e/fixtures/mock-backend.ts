@@ -29,6 +29,7 @@ export interface InstalledContentMock {
   content_type: string
   status: string
   location?: string | null
+  applied_version?: string | null
 }
 
 export interface InstalledExtensionMock {
@@ -36,6 +37,7 @@ export interface InstalledExtensionMock {
   repository_id: string
   tag: string
   manifest: ManifestMock
+  pending_update?: ManifestResponseMock | null
   status: string
   contents: InstalledContentMock[]
 }
@@ -227,6 +229,17 @@ export async function installMockBackend(
       if (existing) {
         existing.status = 'pending'
         return route.fulfill(json(existing, 201))
+      }
+      const updated = data.extensions.find(
+        (entry) =>
+          entry.repository_id === repositoryId &&
+          entry.manifest.id === response.manifest.id &&
+          ['installed', 'update_failed'].includes(entry.status),
+      )
+      if (updated) {
+        updated.status = 'updating'
+        updated.pending_update = response
+        return route.fulfill(json(updated, 202))
       }
       const repositoryMock = data.repositories.find((entry) => entry.id === repositoryId)!
       const created = installation(

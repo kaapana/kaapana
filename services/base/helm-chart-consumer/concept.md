@@ -3,10 +3,10 @@
 ## Extension Mechanism Overview
 This image shows how the Helm Chart Consumer is embedded in the system architecture and how it interacts with the Extension Manager.
 
-![](https://s3.desy.de/hackmd/uploads/60929317-c85c-4cf7-a110-43dd963e88a3.png)
+![](60929317-c85c-4cf7-a110-43dd963e88a3.png)
 
 ### System context diagram
-![](https://s3.desy.de/hackmd/uploads/24431a6d-e807-4f63-9fc7-d8b146aa9871.png)
+![](24431a6d-e807-4f63-9fc7-d8b146aa9871.png)
 
 
 ## Extension source code with content helm-chart
@@ -20,7 +20,7 @@ This image shows how the Helm Chart Consumer is embedded in the system architect
 
 ## Container diagram for helm-chart consumer
 
-![](https://s3.desy.de/hackmd/uploads/265a2d89-5730-4c89-8373-4cbed649cd48.png)
+![](265a2d89-5730-4c89-8373-4cbed649cd48.png)
 
 
 ## API requirements

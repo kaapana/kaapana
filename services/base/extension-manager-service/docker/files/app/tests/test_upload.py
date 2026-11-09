@@ -370,6 +370,26 @@ async def test_uploading_the_same_extension_again_replaces_it(client: AsyncClien
 
 
 @pytest.mark.asyncio
+async def test_a_newer_upload_is_installed_as_an_update(client: AsyncClient, mocked_installer):
+    manifest = _manifest()
+    await _upload(client, _archive(manifest))
+    extension_id = (await _install(client, _tag(manifest))).json()["id"]
+
+    newer = {**manifest, "version": "1.1.0"}
+    assert (await _upload(client, _archive(newer))).status_code == 201
+    assert (await client.get(f"/extensions/{extension_id}")).json()["tag"] == _tag(manifest)
+
+    response = await _install(client, _tag(newer))
+    assert response.status_code == 202
+    assert response.headers["Location"] == f"/extensions/{extension_id}"
+
+    extension = (await client.get(f"/extensions/{extension_id}")).json()
+    assert extension["status"] == "installed"
+    assert extension["tag"] == _tag(newer)
+    assert sorted(await _catalog(client)) == sorted([_tag(manifest), _tag(newer)])
+
+
+@pytest.mark.asyncio
 async def test_upload_with_a_different_manifest_is_rejected_while_installed(client: AsyncClient, mocked_installer):
     manifest = _manifest()
     await _upload(client, _archive(manifest))

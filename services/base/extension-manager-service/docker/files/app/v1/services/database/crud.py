@@ -154,6 +154,7 @@ async def list_extensions(
     repository_id: Optional[UUID] = None,
     tag: Optional[str] = None,
     status: Optional[ExtensionStatus] = None,
+    manifest_id: Optional[UUID] = None,
 ) -> List[Extension]:
     stmt = select(Extension).options(selectinload(Extension.contents))
     filters = []
@@ -163,6 +164,8 @@ async def list_extensions(
         filters.append(Extension.tag == tag)
     if status is not None:
         filters.append(Extension.status == status)
+    if manifest_id is not None:
+        filters.append(Extension.manifest["id"].as_string() == str(manifest_id))
     if filters:
         stmt = stmt.where(and_(*filters))
     stmt = stmt.offset(skip).limit(limit)
@@ -174,6 +177,7 @@ async def update_extension(
     session: AsyncSession,
     extension_id: UUID,
     status: ExtensionStatus,
+    pending_update: Optional[dict] = None,
 ) -> Extension:
     try:
         selection = await session.execute(
@@ -188,6 +192,8 @@ async def update_extension(
             raise NotSupportedExtensionStateTransition(is_state=db_extension.status, soll_state=status)
 
         db_extension.status = status
+        if pending_update is not None:
+            db_extension.pending_update = pending_update
         await session.commit()
         await session.refresh(db_extension)
         return db_extension
@@ -198,6 +204,25 @@ async def update_extension(
             raise LockedExtensionException(extension_id=extension_id)
         else:
             raise e
+
+
+async def complete_extension_update(session: AsyncSession, extension_id: UUID) -> Extension:
+    selection = await session.execute(
+        select(Extension).where(Extension.id == extension_id).options(selectinload(Extension.contents))
+    )
+    db_extension = selection.scalar_one()
+    if ExtensionStatus.INSTALLED not in ALLOWED_EXTENSION_STATUS_TRANSITIONS[db_extension.status]:
+        raise NotSupportedExtensionStateTransition(is_state=db_extension.status, soll_state=ExtensionStatus.INSTALLED)
+    pending_update = db_extension.pending_update
+    assert pending_update is not None
+    db_extension.repository_id = UUID(pending_update["repository_id"])
+    db_extension.tag = pending_update["tag"]
+    db_extension.manifest = pending_update["manifest"]
+    db_extension.pending_update = None
+    db_extension.status = ExtensionStatus.INSTALLED
+    await session.commit()
+    await session.refresh(db_extension)
+    return db_extension
 
 
 async def delete_extension(session: AsyncSession, extension_id: UUID) -> None:

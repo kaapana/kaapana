@@ -27,15 +27,17 @@ This image shows how the Helm Chart Consumer is embedded in the system architect
 
 ### Given by the extension system
 The Extension Manager dispatches every content of type helm-chart to the Helm Chart Consumer (Epic 1).
-- install extension content of type helm-chart, i.e. register it (Story 1.1). Returns success or an error message, and the location of the registered content.
-- uninstall extension content of type helm-chart, i.e. deregister it (Story 1.2)
+- install extension content of type helm-chart, i.e. register it (Story 1.1). Returns success or an error message, and the location of the registered content. Registering is per version. Several versions of the same helm-chart content can be registered at the same time (Q3).
+- uninstall extension content of type helm-chart, i.e. deregister one version of it (Story 1.2)
 - [optional]: update extension content of type helm-chart (Story 1.3)
 
 ### Given by the frontend and by workflows (to be extended)
-- list the applications that can be deployed in a project (Stories 2.1, 5.2)
+- list the applications that can be deployed in a project, with their registered versions (Stories 2.1, 5.2, 11.1)
+- enable and disable applications per project (Story 5.2)
 - deploy, update and undeploy an application, each preceded by a dry-run (Stories 2.1, 2.3, 11.2–11.4)
 - list deployed applications with state, details, configuration and logs (Stories 2.4, 3.1–3.4)
 - deploy an application from a workflow task and mark it as finished (Epic 7)
+- tell the project management whether a project still has deployed applications, so that its deletion can be refused (Story 12.2)
 
 
 ## User groups
@@ -52,7 +54,7 @@ Priorities define in what stage of the development process the given user story 
 * Release 2 - Defines user stories that will be supported by the second release.
 * Later - Defines user stories that will only be supported at a later stage or if the user story is requested by a customer.
 
-A user story has the priority of its epic unless it states its own. Priorities marked *(proposed)* are suggestions that still have to be confirmed.
+A user story has the priority of its epic unless it states its own. Priorities marked *(proposed)* are suggestions that still have to be confirmed. Statements in acceptance criteria that are marked *(proposed)* fill in details that the answers in [QandA.md](QandA.md) leave open. They also still have to be confirmed.
 
 ## Epics
 
@@ -62,7 +64,7 @@ As a kaapana-system-admin I want the helm-chart content of an extension to be re
 Priority: MVP *(proposed)*
 
 Context:
-An extension can contain a helm-chart content. When the extension is installed, its helm-chart content is registered at the Helm Chart Consumer. The version of the helm-chart content is the version of the extension. When the extension is uninstalled, the helm-chart content of that version is deregistered. A deployed application is an instance of a helm-chart content that was deployed with the Helm Chart Consumer. A helm-chart content can be deregistered while its deployed applications keep running.
+An extension can contain a helm-chart content. When the extension is installed, its helm-chart content is registered at the Helm Chart Consumer. The version of the helm-chart content is the version of the extension. Several versions of the same helm-chart content can be registered at the same time, so that two extensions that bring different versions of it can both be installed (Q3). When the extension is uninstalled, only the helm-chart content of that version is deregistered. A deployed application is an instance of a helm-chart content that was deployed with the Helm Chart Consumer. A helm-chart content can be deregistered while its deployed applications keep running.
 
 #### Story 1.1: Registering a helm-chart content when its extension is installed
 As a kaapana-system-admin I want to install an extension that contains a helm-chart content, so that its application can be deployed.
@@ -73,25 +75,27 @@ Acceptance criteria:
 * Invalid content fails the installation with an understandable reason; the Extension Manager shows the content as `INSTALLATION_FAILED` together with this reason.
 * Valid content is registered with name and version, and the Helm Chart Consumer returns its location to the Extension Manager.
 * Retrying the installation of an already registered content version does not create a duplicate.
-* A registered helm-chart content is offered as an application that can be deployed (in the projects where it is enabled, Story 5.2).
+* Registering a new version of a helm-chart content keeps its other registered versions.
+* A registered helm-chart content is offered as an application that can be deployed in the projects where it is enabled (Story 5.2). A newly registered application is disabled in all projects (Q8).
 
 #### Story 1.2: Deregistering a helm-chart content when its extension is uninstalled
 As a kaapana-system-admin I want that the helm-chart content of an uninstalled extension can no longer be deployed, so that only applications of installed extensions are offered.
 
 Acceptance criteria:
-* Uninstalling the extension deregisters the helm-chart content of that version; it is no longer offered for deployment.
-* Deployed applications of this content are not affected: they keep running and can still be opened, monitored and undeployed.
-* Deployed applications whose helm-chart content is no longer registered are marked as such.
-* Before uninstalling, the kaapana-system-admin sees which deployed applications use the helm-chart content.
+* Uninstalling the extension deregisters the helm-chart content of that version; it is no longer offered for deployment. Other registered versions of the same helm-chart content stay deployable.
+* Deployed applications of this version are not affected. They keep running and can still be opened, monitored, reconfigured (Story 11.3, Q4) and undeployed. They can be updated to another registered version (Story 11.2).
+* Deployed applications whose version is no longer registered are marked as such.
+* Before uninstalling, the kaapana-system-admin sees which deployed applications use this version of the helm-chart content.
 
-#### Story 1.3: Updating a helm-chart content when its extension is updated
-As a kaapana-system-admin I want that only helm-chart content versions of installed extensions can be deployed, so that updating an extension also updates the application that can be deployed.
+#### Story 1.3: Replacing a helm-chart content version when its extension is updated
+As a kaapana-system-admin I want that updating an extension replaces the registered version of its helm-chart content, so that the new version is offered for deployment instead of the old one.
 
 Priority: Release 2 *(proposed; update is optional in the API requirements)*
 
 Acceptance criteria:
 * When an extension with a helm-chart content is updated, the helm-chart content of the old version is deregistered and the one of the new version is registered.
-* Deployed applications on the old version keep running and are marked that a new version is available (updating them: Epic 11).
+* Other registered versions of the same helm-chart content are not affected (Q3). Installing a new version next to the old one, instead of updating, keeps both registered (Story 1.1).
+* Deployed applications on the old version keep running and are marked that a newer version is registered (updating them: Epic 11).
 
 
 ### Epic 2: Applications with a web interface in a project
@@ -100,11 +104,13 @@ As a scientist I want to work with an application that has a web interface (e.g.
 Priority: MVP *(proposed)*
 
 #### Story 2.1: Deploying an application
-As a principal-investigator I want to deploy an application (e.g. a JupyterLab) for one of the scientists in my project, so that they can start working.
+As a principal-investigator I want to deploy an application (e.g. a JupyterLab) for my whole project or for one of its scientists, so that they can start working.
 
 Acceptance criteria:
-* A PI can browse all applications that they can deploy in their project, with name, description and version.
-* A PI can deploy an application in their project. The deployed application belongs to this project.
+* A PI can browse all applications that they can deploy in their project, with name, description and registered versions. These are the applications that are enabled in the project (Story 5.2) and that support the project scope (Story 4.2).
+* A PI can deploy an application in their project and chooses one of its registered versions. The newest registered version is preselected *(proposed)*. The deployed application belongs to this project.
+* When deploying, the PI chooses whether the application is deployed for the whole project or for one scientist of the project (Q1). This choice is shown with the deployed application (Story 8.3). It does not restrict access. Every member of the project can open it (Story 5.3).
+* Scientists cannot deploy (Q2). Besides the PI, only a kaapana-system-admin deploys in a project (Story 5.1). Whether a workflow task may deploy when a scientist started its run is open (Q15).
 * Before the helm release is created, the Helm Chart Consumer runs a dry-run installation; if it fails, nothing is deployed and the PI sees the error.
 
 #### Story 2.2: Configuring an application at deploy
@@ -124,7 +130,8 @@ As a principal-investigator I want to undeploy an application that is no longer 
 Acceptance criteria:
 * A PI can undeploy every deployed application of their project.
 * Undeploying removes the helm release and all Kubernetes resources it created.
-* Before undeploying, the PI is warned that data which was not saved to the project storage (Story 2.6) is lost, and whether persistent volumes are deleted or kept (Q5).
+* Undeploying deletes the persistent volumes of the application and the data on them (Q5). The same holds when a kaapana-system-admin or a workflow undeploys an application (Stories 3.4, 7.2, 7.4) *(proposed)*.
+* Before undeploying, the PI is warned that the persistent volumes are deleted and that data which was not saved to the project storage (Story 2.6) is lost.
 * An undeployed application no longer appears in the list of deployed applications.
 
 #### Story 2.4: Opening an application
@@ -156,8 +163,8 @@ As a scientist I want to continue working in my application where I left off las
 
 Acceptance criteria:
 * A helm-chart content can request persistent storage for the state of its application (e.g. the JupyterLab home directory).
-* This state survives restarts of the application's pods, restarts and upgrades of the platform (Story 12.1) and updates of the application (Epic 11).
-* The scientist finds their application again by its name (Story 8.3).
+* This state survives restarts of the application's pods, restarts and upgrades of the platform (Story 12.1) and updates of the application (Epic 11). It is deleted when the application is undeployed (Story 2.3).
+* The scientist finds their application again by its name or because it was deployed for them (Story 8.3).
 
 
 ### Epic 3: Monitoring deployed applications
@@ -196,7 +203,7 @@ As a kaapana-system-admin I want to see the deployed applications of all project
 Priority: Release 2 *(proposed)*
 
 Acceptance criteria:
-* A list shows all deployed applications with project (or platform-wide), application, version, state, deployed by and deployed at.
+* A list shows all deployed applications with project (or platform-wide), application, version, state, deployed for, deployed by and deployed at.
 * The list can be filtered by project and by state.
 * A kaapana-system-admin can undeploy every deployed application.
 
@@ -217,7 +224,8 @@ Acceptance criteria:
 As an extension-developer I want a documented format for `helm-chart-content.json`, so that I know which Kaapana facing information I have to provide.
 
 Acceptance criteria:
-* `helm-chart-content.json` is described by a JSON schema. It covers at least name, description, supported scope (project, platform-wide), whether the content is multi-deployable, the deploy parameters (Story 2.2) and the entry point of the web interface (Story 4.4).
+* `helm-chart-content.json` is described by a JSON schema. It covers at least name, description, the supported scopes (project, platform-wide or both, Q11), whether the content is multi-deployable, the deploy parameters (Story 2.2) and the entry point of the web interface (Story 4.4).
+* If `helm-chart-content.json` declares no scope, the content supports the project scope only *(proposed)*.
 * The schema is documented with an example.
 * The Helm Chart Consumer validates against this schema when it registers a content (Story 1.1).
 
@@ -244,7 +252,8 @@ As an extension-developer I want to give my application authenticated access to 
 Acceptance criteria:
 * The way an application obtains credentials for Kaapana APIs and storage (e.g. Data API, Workflow API, MinIO) is documented.
 * The platform provides the credentials when the application is deployed; the application never handles user passwords.
-* The credentials only grant access to the project of the deployed application (platform-wide applications: Story 9.3) and only to the actions of the identity they belong to (Q7).
+* An application deployed in a project acts on behalf of this project, with the same permissions as a scientist of the project (Q7). This holds no matter who deployed or opened it. The credentials are issued to a technical user of the project or to a dedicated client of the project.
+* The credentials only grant access to the project of the deployed application (platform-wide applications: Story 9.3, Q13).
 * The credentials become invalid when the application is undeployed.
 
 
@@ -258,8 +267,8 @@ As a kaapana-system-admin I want a default mapping of the user groups to the act
 
 Acceptance criteria:
 * kaapana-system-admin: install and uninstall extensions, enable applications for projects, deploy, update and undeploy platform-wide applications, and every action of a PI in every project.
-* principal-investigator: deploy, configure, update and undeploy applications in their project, view their logs, and every action of a scientist in this project.
-* scientist: browse and open the deployed applications of their project and the platform-wide applications, see status and configuration, and finish interactive steps (Story 7.2).
+* principal-investigator: deploy, configure, update and undeploy applications in their project, view their logs, and every action of a scientist in this project. A PI cannot deploy platform-wide (Q11).
+* scientist: browse and open the deployed applications of their project and the platform-wide applications, see status and configuration, and finish interactive steps (Story 7.2). A scientist cannot deploy applications (Q2), and cannot update or undeploy them either. Finishing an interactive step still undeploys its application (Story 7.2).
 * The API rejects requests without the required permission; hiding actions in the frontend is not sufficient.
 
 #### Story 5.2: Enabling applications for a project
@@ -269,13 +278,16 @@ Acceptance criteria:
 * Applications can be enabled and disabled per project.
 * Applications can only be deployed in projects where they are enabled.
 * Disabling an application does not affect its already deployed instances (consistent with Story 1.2).
-* Whether a newly registered application is enabled or disabled by default is defined (Q8).
+* A newly registered application is disabled in all projects until a kaapana-system-admin enables it (Q8).
+* Enabling applies to the application with all its registered versions, so a newly registered version is deployable wherever the application is enabled. Whether a new version should start disabled instead is open (Q12).
+* Enabling only controls deploying in a project. Deploying platform-wide (Epic 9) does not depend on it *(proposed)*.
 
 #### Story 5.3: Restricting who can open an application
 As a principal-investigator I want only members of my project to open the applications deployed in it, so that project data stays inside the project.
 
 Acceptance criteria:
 * The web interface of a deployed application is only reachable for authenticated members of its project, also when its URL is called directly.
+* Every member of the project can open every deployed application of the project, also one that was deployed for another scientist (Q1).
 * Browsing deployed applications only shows those of the current project.
 
 #### Story 5.4: Custom access control model
@@ -289,7 +301,7 @@ Acceptance criteria:
 * Kaapana users can be assigned to a role.
 
 #### Story 5.5: Restricting deploy parameters per role
-As a kaapana-system-admin I want to configure which deploy parameters are accessible to which role in the access control model (e.g. scientist).
+As a kaapana-system-admin I want to configure which deploy parameters are accessible to which role in the access control model (e.g. principal-investigator).
 
 Priority: Later
 
@@ -298,7 +310,7 @@ Acceptance criteria:
 * Deploy parameters the user cannot configure keep their default value at deploy and their current value at update.
 
 Context:
-If different user groups are able to deploy an application (Q2), then it may not be safe to let e.g. a scientist set deploy parameters like storage mounts or network rules. It is however safe to let them configure whether the application requires a GPU.
+Scientists cannot deploy applications (Q2). It may still not be safe to let a PI set deploy parameters like storage mounts or network rules, while it is safe to let them configure whether the application requires a GPU. A custom access control model (Story 5.4) may also allow other roles to deploy.
 
 #### Story 5.6: Audit log
 As a kaapana-system-admin I want to see who deployed, updated or undeployed which application and when, so that I can trace changes.
@@ -378,7 +390,7 @@ Priority: MVP *(proposed)*
 As a principal-investigator I want to deploy the same multi-deployable application several times in my project, so that several scientists can work in parallel.
 
 Acceptance criteria:
-* Only helm-chart contents declared as multi-deployable in `helm-chart-content.json` can be deployed more than once in the same project; a second deploy of any other content is rejected with an understandable message.
+* Only helm-chart contents declared as multi-deployable in `helm-chart-content.json` can be deployed more than once in the same project; a second deploy of any other content is rejected with an understandable message. This limit counts all versions of the application *(proposed)*.
 * Multiple instances can be deployed without conflicts (e.g. in release names, Kubernetes object names, storage), see Story 4.3.
 * The web interface of each instance has its own URL.
 * Updating or undeploying one instance does not affect the other instances.
@@ -395,7 +407,8 @@ As a scientist I want to know which applications I worked with in my last sessio
 
 Acceptance criteria:
 * Deployed applications have a human readable name that is unique within their project and shown in the user interface.
-* The list of deployed applications shows name, application, version, use case description, deployed by and deployed at.
+* The list of deployed applications shows name, application, version, use case description, deployed for (Story 2.1), deployed by and deployed at.
+* A scientist can filter the list to the applications that were deployed for them *(proposed)*.
 
 
 ### Epic 9: Platform-wide applications
@@ -407,7 +420,8 @@ Priority: Release 2 *(proposed)*
 As a kaapana-system-admin I want to deploy an application for the whole platform, so that not every project has to deploy its own instance.
 
 Acceptance criteria:
-* Only helm-chart contents that declare the platform-wide scope in `helm-chart-content.json` can be deployed platform-wide (Q11).
+* Only helm-chart contents that declare the platform-wide scope in `helm-chart-content.json` can be deployed platform-wide.
+* If a helm-chart content supports both scopes, the kaapana-system-admin chooses the scope at deploy. A PI always deploys in their project (Q11).
 * A helm-chart content is deployed at most once platform-wide (several instances: Epic 10).
 * Only kaapana-system-admins can deploy, update and undeploy platform-wide applications.
 
@@ -447,7 +461,7 @@ As a user I want to see which versions of an application are available, so that 
 
 Acceptance criteria:
 * A helm-chart content has a version; it is the version of the extension that contains it.
-* All registered versions of an application are listed, i.e. only versions of installed extensions (Story 1.3, Q3).
+* All registered versions of an application are listed, i.e. only versions of installed extensions. Several versions can be registered at the same time (Q3).
 * Each deployed application shows its version and whether a newer version is registered.
 
 #### Story 11.2: Updating a deployed application to a new version
@@ -466,6 +480,7 @@ As a user I want to update the deploy parameters of a deployed application, such
 
 Acceptance criteria:
 * The API supports updating the deploy parameters of a deployed application without changing its version.
+* This also works when the version of the deployed application is no longer registered (Story 1.2, Q4). To make this possible, the Helm Chart Consumer keeps the chart and the deploy parameter declarations of every deployed application after its version is deregistered.
 * The update form is prefilled with the current values, so that unchanged parameters keep their values.
 * Each parameter can be reset to the default of the helm-chart content.
 * The values are validated as at deploy (Story 2.2).
@@ -505,24 +520,25 @@ Acceptance criteria:
 * The records of the Helm Chart Consumer are reconciled with the helm releases in the cluster; releases that were changed or removed outside of the Helm Chart Consumer are detected and shown.
 
 #### Story 12.2: Deleting a project with deployed applications
-As a kaapana-system-admin I want that deleting a project does not leave its deployed applications behind, so that no resources keep running and no project data stays reachable.
+As a kaapana-system-admin I want that a project with deployed applications cannot be deleted, so that deleting a project never leaves running applications or reachable project data behind.
 
 Acceptance criteria:
-* After a project is deleted, no deployed application of this project remains (either undeployed automatically or deletion refused until they are undeployed, Q9).
+* Deleting a project is refused while it has deployed applications (Q9). This includes workflow-deployed applications *(proposed)*.
+* The refusal names the deployed applications that have to be undeployed first *(proposed)*.
+
+
+## Out of scope
+* Making the container images of a chart available in air-gapped Kaapana installations is not a task of the Helm Chart Consumer (Q10).
 
 
 ## Open questions
-* Q1 Ownership: Is a deployed application assigned to one scientist or shared by the whole project? Story 2.1 deploys "for one of the scientists" and Epic 8 aims at one instance per scientist, but Story 5.3 lets every project member open every application of the project.
-* Q2 Who deploys: Only PIs (Stories 2.1, 5.1), or scientists as well? Story 5.5 assumes that other user groups may deploy.
-* Q3 Parallel versions: Can several versions of the same helm-chart content be registered at the same time? The Extension Manager allows installing several tags of an extension, Story 1.3 deregisters the old version on update, Story 11.1 lists all available versions.
-* Q4 Deregistered content: Can a deployed application whose helm-chart content was deregistered (Story 1.2) still change its deploy parameters? Helm keeps the chart of every release, so it would be technically possible.
-* Q5 Persistent volumes on undeploy: Are they deleted, kept, or does the PI decide (Story 2.3)? Kept volumes need a way to be reattached or cleaned up.
-* Q6 Namespaces: Do deployed applications run in one namespace per project, one per deployed application, or a shared namespace? This affects Stories 4.3, 5.3 and 6.1.
-* Q7 Identity of API credentials: Does an application act on behalf of the PI who deployed it, of the scientist who opens it, or of the project (Story 4.5)?
-* Q8 Default enablement: Is a newly registered application enabled or disabled in all projects (Story 5.2)?
-* Q9 Project deletion: Are the deployed applications of a deleted project undeployed automatically, or is the deletion refused (Story 12.2)?
-* Q10 Offline installations: How are the container images referenced by a chart made available in air-gapped Kaapana installations?
-* Q11 Scope: Can a helm-chart content support both scopes (project and platform-wide), and does the kaapana-system-admin choose the scope at deploy (Stories 4.2, 9.1)?
+The answers to Q1 to Q11, except Q6, are recorded in [QandA.md](QandA.md) and are worked into the stories and the out-of-scope section above. The stories cite them as (Qn).
+
+* Q6 Namespaces: Do deployed applications run in one namespace per project, one per deployed application, or a shared namespace? This affects Stories 4.3, 5.3 and 6.1. The answer is needed at a later stage.
+* Q12 Enabling new versions: Story 5.2 enables an application with all its registered versions, so a new version is deployable at once wherever the application is enabled. Should a new version instead start disabled, like a new application (Q8)?
+* Q13 Identity of platform-wide applications: An application in a project acts on behalf of its project (Q7). On whose behalf does a platform-wide application act when it is opened in the context of a project (Story 9.3)?
+* Q14 Identity of a helm-chart content: Several extensions can bring versions of the same helm-chart content (Q3). What identifies a helm-chart content, its name alone or the extension name together with the content name? What happens when two different extensions register the same name and version (Story 1.1)?
+* Q15 Deploying from workflows: A workflow task deploys an application in the project of its run (Story 7.1). May it do so when a scientist started the run, although scientists cannot deploy (Q2)?
 
 
 ## Glossary
@@ -535,7 +551,8 @@ Acceptance criteria:
 * Register / deregister: Make a helm-chart content deployable / no longer deployable at the Helm Chart Consumer. Triggered by installing / uninstalling its extension.
 * Deploy / undeploy: Create / remove a deployed application. "Install" and "uninstall" are only used for extensions.
 * Deploy parameter: A value declared in `helm-chart-content.json` that a user sets when deploying or updating an application. It is mapped onto a chart value.
-* Project-scoped / platform-wide: A deployed application belongs either to one project or to the whole platform.
+* Project-scoped / platform-wide: A deployed application belongs either to one project or to the whole platform. A helm-chart content declares which of the two scopes it supports, or both.
+* Deployed for: A deployed application in a project is deployed either for the whole project or for one scientist of it. This does not restrict access, because every member of the project can open it.
 * Multi-deployable: A helm-chart content that can be deployed several times in the same project. Declared in `helm-chart-content.json` (e.g. as `multiinstallable`).
 * Interactive step: A workflow task that deploys an application and waits until a user finishes working in it (Epic 7).
 * Workflow-deployed application: A deployed application that was deployed by an interactive step.

@@ -76,3 +76,31 @@ Can a helm-chart content support both scopes (project and platform-wide), and do
 
 ### Answer
 Yes it can support both. But does not have to. If both are supported, then only the kaapana-system-admin can chose the scope on deploy. The principle-investigator can not install platform-wide.
+
+
+## Q12 Enabling new versions
+Story 5.2 enables an application with all its registered versions, so a new version is deployable at once wherever the application is enabled. Should a new version instead start disabled, like a new application (Q8)?
+
+### Answer
+TBD
+
+
+## Q13 Identity of platform-wide applications
+An application in a project acts on behalf of its project (Q7). On whose behalf does a platform-wide application act when it is opened in the context of a project (Story 9.3)?
+
+### Answer
+TBD
+
+
+## Q14 Identity of a helm-chart content
+Several extensions can bring versions of the same helm-chart content (Q3). What identifies a helm-chart content, its name alone or the extension name together with the content name? What happens when two different extensions register the same name and version (Story 1.1)?
+
+### Answer
+TBD
+
+
+## Q15 Deploying from workflows
+A workflow task deploys an application in the project of its run (Story 7.1). May it do so when a scientist started the run, although scientists cannot deploy (Q2)?
+
+### Answer
+TBD

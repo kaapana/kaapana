@@ -95,13 +95,28 @@ class WorkflowEngineAdapter(ABC):
     @abstractmethod
     async def retry_workflow_run(self, workflow_run_external_id: str) -> schemas.WorkflowRunStatus:
         """
-        Retries a workflow run in the engine.
+        Retries a failed or canceled workflow run in the engine.
+
+        Only the tasks that did not complete run again; completed tasks keep
+        their results. The run keeps its external ID.
 
         Args:
             workflow_run_external_id (str): The ID of the workflow run in the engine.
 
         Returns:
             WorkflowRunStatus: The updated status of the workflow run.
+        """
+        pass
+
+    @abstractmethod
+    async def delete_workflow_run(self, workflow_run_external_id: str) -> None:
+        """
+        Deletes a finished workflow run and its history from the engine.
+
+        Must be idempotent: a no-op if the engine no longer knows the run.
+
+        Args:
+            workflow_run_external_id (str): The ID of the workflow run in the engine.
         """
         pass
 

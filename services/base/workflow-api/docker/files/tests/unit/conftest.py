@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -96,6 +97,10 @@ async def session_fixture():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
+
+    @event.listens_for(engine.sync_engine, "connect")
+    def _register_postgres_functions(dbapi_connection, _):
+        dbapi_connection.create_function("set_config", 3, lambda *_: None)
 
     # Create all tables
     async with engine.begin() as conn:

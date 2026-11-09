@@ -8,12 +8,14 @@ from app import crud, models, schemas
 from app.adapters import WorkflowEngineAdapter, get_workflow_engine
 from app.api.v1.services.errors import (
     ConflictError,
+    DependencyError,
     InternalError,
     NotFoundError,
     ValidationError,
 )
 from app.api.v1.services.utils import run_in_background_with_retries
 from app.dependencies import get_async_db
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -55,6 +57,49 @@ TERMINAL_STATES = {
     schemas.WorkflowRunStatus.ERROR,
     schemas.WorkflowRunStatus.CANCELED,
 }
+
+RETRYABLE_STATES = {
+    schemas.WorkflowRunStatus.ERROR,
+    schemas.WorkflowRunStatus.CANCELED,
+}
+
+RUN_LOCK_TIMEOUT = "30s"
+LOCK_NOT_AVAILABLE = "55P03"
+
+
+async def _lock_run(db: AsyncSession, workflow_run_id: int) -> models.WorkflowRun:
+    """Load a workflow run and lock it until the caller commits.
+
+    Raises NotFoundError if the run does not exist, and ConflictError if
+    another request holds the lock for longer than RUN_LOCK_TIMEOUT.
+    """
+    try:
+        db_run = await crud.lock_workflow_run(db, workflow_run_id, RUN_LOCK_TIMEOUT)
+    except DBAPIError as e:
+        await db.rollback()
+        if getattr(e.orig, "sqlstate", None) == LOCK_NOT_AVAILABLE:
+            raise ConflictError("Another request is changing this workflow run. Try again in a moment.") from e
+        raise
+    if db_run is None:
+        raise NotFoundError("Workflow run not found")
+    return db_run
+
+
+async def _reload_run(db: AsyncSession, workflow_run_id: int) -> models.WorkflowRun:
+    """Read a workflow run again after a write. Raises NotFoundError if it was deleted meanwhile."""
+    db_run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
+    if db_run is None:
+        raise NotFoundError("Workflow run not found")
+    return db_run
+
+
+def _require_external_id(db_run: models.WorkflowRun) -> str:
+    """Return the engine ID of a run that left CREATED. Raises InternalError if it is missing."""
+    if db_run.external_id is None:
+        raise InternalError(
+            f"Workflow run {db_run.id} is {db_run.lifecycle_status.value} but has no run in the workflow engine."
+        )
+    return db_run.external_id
 
 
 def _should_clean(policy: schemas.CleanupPolicy, status: schemas.WorkflowRunStatus) -> bool:
@@ -205,14 +250,14 @@ async def get_workflow_runs(
             res.append(db_run)
             continue
 
-        assert db_run.external_id is not None, "external_id must exist for non-CREATED runs"
+        external_id = _require_external_id(db_run)
 
         engine = get_workflow_engine(db_run.workflow_revision.workflow.workflow_engine)
-        status = await engine.get_workflow_run_status(db_run.external_id)
+        status = await engine.get_workflow_run_status(external_id)
         if status != db_run.lifecycle_status:
             await _apply_engine_status(db, db_run, status)
 
-        task_run_updates = await engine.get_workflow_run_task_runs(db_run.external_id)
+        task_run_updates = await engine.get_workflow_run_task_runs(external_id)
         for t in task_run_updates:
             asyncio.create_task(
                 run_in_background_with_retries(
@@ -293,70 +338,65 @@ async def get_workflow_run_by_id(db: AsyncSession, workflow_run_id: int) -> sche
     ]:
         return _workflow_run_to_schema(db_run)
 
-    assert db_run.external_id is not None, "external_id must exist for non-CREATED runs"
+    external_id = _require_external_id(db_run)
 
     engine = get_workflow_engine(db_run.workflow_revision.workflow.workflow_engine)
-    status = await engine.get_workflow_run_status(db_run.external_id)
+    status = await engine.get_workflow_run_status(external_id)
     if status != db_run.lifecycle_status:
         await _apply_engine_status(db, db_run, status)
-        db_run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
-        assert db_run is not None
+        db_run = await _reload_run(db, workflow_run_id)
     return _workflow_run_to_schema(db_run)
 
 
 async def cancel_workflow_run(db: AsyncSession, workflow_run_id: int) -> schemas.WorkflowRun:
     """
-    Cancel a workflow run in the engine and persist the CANCELED state.
-    Returns the existing schema if the run is already in a terminal state or still in CREATED.
+    Cancel a workflow run and persist the CANCELED state.
+    A run still in CREATED has not reached the engine; it is canceled in the
+    database only, and the background submission skips it. A cancel during
+    the submission waits for it and then cancels the run in the engine.
+    Raises ConflictError if the run is already finished.
     """
-    db_run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
-    if not db_run:
-        logger.error(f"No workflow runs found to cancel {workflow_run_id}")
-        raise NotFoundError("Workflow run not found")
+    db_run = await _lock_run(db, workflow_run_id)
 
-    if db_run.lifecycle_status in [
-        schemas.WorkflowRunStatus.COMPLETED,
-        schemas.WorkflowRunStatus.ERROR,
-        schemas.WorkflowRunStatus.CANCELED,
-        schemas.WorkflowRunStatus.CREATED,
-    ]:
+    if db_run.lifecycle_status in TERMINAL_STATES:
+        raise ConflictError(f"Only active workflow runs can be canceled. This run is {db_run.lifecycle_status.value}.")
+
+    if db_run.lifecycle_status == schemas.WorkflowRunStatus.CREATED:
+        db_run.lifecycle_status = schemas.WorkflowRunStatus.CANCELED
+        await db.commit()
         return _workflow_run_to_schema(db_run)
 
-    assert db_run.external_id is not None, "external_id must exist for non-CREATED runs"
-
+    external_id = _require_external_id(db_run)
     engine = get_workflow_engine(db_run.workflow_revision.workflow.workflow_engine)
-    canceled = await engine.cancel_workflow_run(db_run.external_id)
+    canceled = await engine.cancel_workflow_run(external_id)
     if not canceled:
         logger.error(f"Failed to cancel workflow run in engine {workflow_run_id}")
         raise InternalError("Failed to cancel workflow run in engine")
     await _apply_engine_status(db, db_run, schemas.WorkflowRunStatus.CANCELED)
-    db_updated = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
-    assert db_updated is not None
-    return _workflow_run_to_schema(db_updated)
+    return _workflow_run_to_schema(await _reload_run(db, workflow_run_id))
 
 
 async def retry_workflow_run(db: AsyncSession, workflow_run_id: int) -> schemas.WorkflowRun:
     """
-    Retry a workflow run in the engine and persist the new lifecycle status.
-    Returns the existing schema if the run is in a terminal state or in CREATED."""
-    db_run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
-    if not db_run:
-        logger.error(f"No workflow runs found to retry {workflow_run_id}")
-        raise NotFoundError("Workflow run not found")
+    Retry a failed or canceled workflow run in the engine and persist the new lifecycle status.
+    The engine re-runs only the tasks that did not complete, so the run's data must still exist.
+    Raises ConflictError for every other state, for a run that never reached the engine,
+    and for a run whose data was cleaned or is being cleaned.
+    """
+    db_run = await _lock_run(db, workflow_run_id)
 
-    if db_run.lifecycle_status in [
-        schemas.WorkflowRunStatus.COMPLETED,
-        schemas.WorkflowRunStatus.ERROR,
-        schemas.WorkflowRunStatus.CANCELED,
-        schemas.WorkflowRunStatus.CREATED,
-    ]:
-        logger.info(
-            f"Workflow run {workflow_run_id} is already in terminal state or in CREATED state:"
-            f"{db_run.lifecycle_status.value} - returning existing state"
+    if db_run.lifecycle_status not in RETRYABLE_STATES:
+        raise ConflictError(
+            f"Only failed or canceled workflow runs can be retried. This run is {db_run.lifecycle_status.value}."
         )
-        return _workflow_run_to_schema(db_run)
-
-    assert db_run.external_id is not None, "external_id must exist for non-CREATED runs"
+    if db_run.external_id is None:
+        raise ConflictError("This workflow run was canceled before it started, so there is nothing to retry.")
+    if db_run.cleanup_status in {
+        schemas.CleanupStatus.PENDING,
+        schemas.CleanupStatus.RUNNING,
+        schemas.CleanupStatus.CLEANED,
+    }:
+        raise ConflictError("The data of this workflow run was cleaned or is being cleaned, so it cannot be retried.")
 
     engine = get_workflow_engine(db_run.workflow_revision.workflow.workflow_engine)
     new_run_status = await engine.retry_workflow_run(db_run.external_id)
@@ -393,9 +433,9 @@ async def get_workflow_run_task_runs(
         schemas.WorkflowRunStatus.CANCELED,
         schemas.WorkflowRunStatus.CREATED,
     ]:
-        assert db_run.external_id is not None, "external_id must exist for non-CREATED runs"
+        external_id = _require_external_id(db_run)
         engine = get_workflow_engine(db_run.workflow_revision.workflow.workflow_engine)
-        task_run_updates = await engine.get_workflow_run_task_runs(db_run.external_id)
+        task_run_updates = await engine.get_workflow_run_task_runs(external_id)
         logger.info(f"Got {len(task_run_updates)} task runs from the engine")
 
         for t in task_run_updates:
@@ -469,7 +509,17 @@ async def _submit_workflow_run_to_engine(
     workflow_engine: WorkflowEngineAdapter,
     project_id: str,
 ) -> None:
-    """Background task that submits a created workflow run to the engine and persists the engine-assigned `external_id` + initial lifecycle status."""
+    """Background task that submits a created workflow run to the engine and persists the engine-assigned `external_id` + initial lifecycle status.
+
+    Skips runs that were canceled before submission. The run stays locked
+    until the engine run is stored, so a cancel waits for the submission.
+    """
+    db_run = await crud.lock_workflow_run(db, workflow_run.id, RUN_LOCK_TIMEOUT)
+    if db_run is None or db_run.lifecycle_status != schemas.WorkflowRunStatus.CREATED:
+        logger.info(f"WorkflowRun {workflow_run.id} is no longer CREATED; not submitting it to the engine.")
+        await db.rollback()
+        return
+
     wf_run_update = await workflow_engine.submit_workflow_run(workflow_run, project_id=project_id)
     logger.info(f"Submitted WorkflowRun {workflow_run.id} to engine, received update: {wf_run_update}")
     if wf_run_update.external_id is None:
@@ -492,18 +542,18 @@ async def _sync_single_workflow_run(db: AsyncSession, run: models.WorkflowRun) -
         logger.debug(f"Skipping sync for terminal or CREATED run {run.id}")
         return
 
-    assert run.external_id is not None, "external_id must exist for non-CREATED runs"
+    external_id = _require_external_id(run)
 
     try:
         engine = get_workflow_engine(run.workflow_revision.workflow.workflow_engine)
         # update workflow run status
-        status = await engine.get_workflow_run_status(run.external_id)
+        status = await engine.get_workflow_run_status(external_id)
         if status != run.lifecycle_status:
             logger.info(f"Syncing Run {run.id}: {run.lifecycle_status} -> {status}")
             await _apply_engine_status(db, run, status)
 
         # update task runs in the background
-        task_run_updates = await engine.get_workflow_run_task_runs(run.external_id)
+        task_run_updates = await engine.get_workflow_run_task_runs(external_id)
         for t in task_run_updates:
             # await here to ensure DB integrity during the sync job
             await crud.create_or_update_task_run(
@@ -524,14 +574,14 @@ async def trigger_cleanup(db: AsyncSession, workflow_run_id: int) -> schemas.Wor
       - currently PENDING or RUNNING → raise ConflictError (caller renders 409).
       - NOT_REQUIRED → claim and dispatch.
       - FAILED → claim from FAILED and re-dispatch.
+      - The run is locked while it is checked and claimed, so a parallel
+        retry or delete cannot change it in between.
 
     Lifecycle precondition: the run must be in a terminal state OR have a
     null external_id (nothing to clean). Cleaning a still-running run is
     rejected to avoid yanking data out from under the engine.
     """
-    db_run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
-    if not db_run:
-        raise NotFoundError("Workflow run not found")
+    db_run = await _lock_run(db, workflow_run_id)
 
     if db_run.cleanup_status == schemas.CleanupStatus.CLEANED:
         return _workflow_run_to_schema(db_run)
@@ -559,9 +609,50 @@ async def trigger_cleanup(db: AsyncSession, workflow_run_id: int) -> schemas.Wor
     asyncio.create_task(_run_cleanup(workflow_run_id))
 
     # Re-read to return the up-to-date row (now PENDING).
-    db_run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
-    assert db_run is not None
-    return _workflow_run_to_schema(db_run)
+    return _workflow_run_to_schema(await _reload_run(db, workflow_run_id))
+
+
+async def delete_workflow_run(db: AsyncSession, workflow_run_id: int) -> None:
+    """
+    Permanently delete a finished workflow run: its data, its engine run and its records.
+
+    Raises ConflictError while the run is active or its data is being cleaned.
+    The records are removed only after the data and the engine run are gone,
+    so a failure leaves a run that can be deleted again. The run stays locked
+    until it is deleted, so a parallel cancel, retry or clean waits and then
+    finds no run.
+    """
+    db_run = await _lock_run(db, workflow_run_id)
+
+    if db_run.lifecycle_status not in TERMINAL_STATES:
+        raise ConflictError("Only finished workflow runs can be deleted. Cancel the run first.")
+    if db_run.cleanup_status in {
+        schemas.CleanupStatus.PENDING,
+        schemas.CleanupStatus.RUNNING,
+    }:
+        raise ConflictError("The data of this workflow run is being cleaned. Delete it once the cleanup has finished.")
+
+    if db_run.external_id is not None:
+        engine = get_workflow_engine(db_run.workflow_revision.workflow.workflow_engine)
+        if db_run.cleanup_status != schemas.CleanupStatus.CLEANED:
+            project_id = _project_id_from_run(db_run)
+            if project_id is None:
+                raise ConflictError(
+                    "The data of this workflow run cannot be located because it has no project label. "
+                    "It was not deleted."
+                )
+            try:
+                await engine.clean_workflow_run_data(db_run.external_id, project_id)
+            except Exception as e:
+                logger.exception(f"Deleting the data of workflow run {workflow_run_id} failed")
+                raise DependencyError(f"The data of this workflow run could not be deleted: {e}") from e
+        try:
+            await engine.delete_workflow_run(db_run.external_id)
+        except Exception as e:
+            logger.exception(f"Deleting workflow run {workflow_run_id} in the engine failed")
+            raise DependencyError(f"The workflow run could not be deleted in the workflow engine: {e}") from e
+
+    await crud.delete_workflow_run(db, workflow_run_id)
 
 
 async def sync_active_runs(db: AsyncSession):

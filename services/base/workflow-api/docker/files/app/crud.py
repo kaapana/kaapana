@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple, Type
 
 from fastapi.encoders import jsonable_encoder
-from sqlalchemy import Select, select, update
+from sqlalchemy import Select, delete, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -281,7 +281,6 @@ async def restore_workflow_revision(
     if target is None:
         raise ValueError(f"Workflow {db_workflow.id} has no revision with increment={target_increment}")
     current = latest_revision(db_workflow)
-    assert current is not None
     next_increment = current.increment + 1
     new_rev = models.WorkflowRevision(
         workflow_id=db_workflow.id,
@@ -373,6 +372,26 @@ async def get_workflow_run(
         eager_load=["task_runs", "workflow_revision"],
     )
 
+    result = await db.execute(query)
+    return result.scalars().first()
+
+
+async def lock_workflow_run(db: AsyncSession, run_id: int, lock_timeout: str) -> Optional[models.WorkflowRun]:
+    """Load a workflow run and lock its row until the transaction ends.
+
+    Other writers of the run wait for the lock, plain reads do not. Waiting
+    longer than `lock_timeout` raises the database's lock timeout error.
+    """
+    await db.execute(text("SELECT set_config('lock_timeout', :timeout, true)"), {"timeout": lock_timeout})
+    query = (
+        create_query(
+            model=models.WorkflowRun,
+            filters={"id": run_id},
+            eager_load=["task_runs", "workflow_revision"],
+        )
+        .with_for_update(of=models.WorkflowRun)
+        .execution_options(populate_existing=True)
+    )
     result = await db.execute(query)
     return result.scalars().first()
 
@@ -504,6 +523,17 @@ async def update_workflow_run(
     await db.refresh(db_workflow_run)
 
     return db_workflow_run
+
+
+async def delete_workflow_run(db: AsyncSession, run_id: int) -> None:
+    """Permanently delete a workflow run with its task runs and label links.
+
+    The labels themselves are shared with other runs and revisions and stay.
+    """
+    await db.execute(delete(models.TaskRun).where(models.TaskRun.workflow_run_id == run_id))
+    await db.execute(delete(models.workflowrun_label).where(models.workflowrun_label.c.workflowrun_id == run_id))
+    await db.execute(delete(models.WorkflowRun).where(models.WorkflowRun.id == run_id))
+    await db.commit()
 
 
 # Task

@@ -22,6 +22,8 @@ The web UI has three views:
 - **Catalog**: browse the extensions available in those registries.
 - **Extensions**: install / uninstall extensions and see their state. **Install from file** installs a ``.tar.gz`` built with ``extensionctl build``, without a registry.
 
+A newer version of an installed extension from the same repository updates it in place, and so does a newer upload of an extension installed from a file. Its workflows keep their IDs, revisions and runs. Older versions cannot be installed over a newer one.
+
 Packaging an extension
 **********************
 

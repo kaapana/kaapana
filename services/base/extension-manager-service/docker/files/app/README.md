@@ -78,12 +78,14 @@ Tracks an installed (or in-progress) extension.
 | `repository_id` | UUID (FK)         | Which registry this was pulled from                    |
 | `tag`           | string            | OCI tag used to pull this extension                    |
 | `manifest`      | JSON              | Full `ExtensionManifest` at install time               |
+| `pending_update` | JSON (null)      | Target of a running or failed update: repository, tag and manifest; taken over into the fields above when the update succeeds |
 | `status`        | `ExtensionStatus` | Current lifecycle state (see below)                    |
 | `created_at`    | datetime          | First seen timestamp                                   |
 | `updated_at`    | datetime          | Last status change timestamp                           |
 
 The pair `(repository_id, tag)` is unique — the same tag cannot be installed twice from the same registry.
 A tag that is installed from one repository cannot be installed from another one at the same time (409).
+Extensions with the same manifest `id` are the same extension: a newer version from the same repository updates it (see [Update path](#update-path)), other requests get a 409.
 
 ### `InstalledContent` (database)
 
@@ -97,6 +99,7 @@ Tracks each content item within an installed extension.
 | `type`       | string          | Content type (mirrors `contentType` in the manifest)           |
 | `status`     | `ContentStatus` | Current lifecycle state                                        |
 | `location`   | string \| null  | Resource URL returned by the installer after successful install |
+| `applied_version` | string \| null | Extension version this content last received; `null` until it is installed |
 
 ### Status Enums
 
@@ -116,6 +119,13 @@ graph LR
     INSTALLING --> UNINSTALLING
 
     INSTALLED --> UNINSTALLING
+    INSTALLED --> UPDATING
+
+    UPDATING --> INSTALLED
+    UPDATING --> UPDATE_FAILED
+
+    UPDATE_FAILED --> UPDATING
+    UPDATE_FAILED --> UNINSTALLING
 
     PULLING_FAILED --> PENDING
     PULLING_FAILED --> UNINSTALLING
@@ -130,7 +140,7 @@ graph LR
     UNINSTALLING_FAILED --> UNINSTALLING
 ```
 
-The `UNINSTALLING → UNINSTALLING` self-loop allows re-triggering an uninstall on an extension that is already transitioning (e.g. if a previous uninstall task was lost mid-flight). `PULLING_FAILED → PENDING` and `INSTALLATION_FAILED → PENDING` are the retry arcs triggered by calling `POST /extensions/install` again.
+The `UNINSTALLING → UNINSTALLING` self-loop allows re-triggering an uninstall on an extension that is already transitioning (e.g. if a previous uninstall task was lost mid-flight). `PULLING_FAILED → PENDING` and `INSTALLATION_FAILED → PENDING` are the retry arcs triggered by calling `POST /extensions/install` again. `UPDATING` has no arc to `UNINSTALLING`, because the update job does not check for cancellation and its requests would race with the uninstall. An update that a restart interrupted is moved to `UPDATE_FAILED` by `boot.sh` before the workers start, together with its contents that were still in progress, so the same request retries it.
 
 #### `ContentStatus`
 
@@ -144,6 +154,13 @@ graph LR
     INSTALLING --> UNINSTALLING
 
     INSTALLED --> UNINSTALLING
+    INSTALLED --> UPDATING
+
+    UPDATING --> INSTALLED
+    UPDATING --> UPDATE_FAILED
+
+    UPDATE_FAILED --> UPDATING
+    UPDATE_FAILED --> UNINSTALLING
 
     INSTALLATION_FAILED --> INSTALLING
     INSTALLATION_FAILED --> UNINSTALLING
@@ -180,8 +197,8 @@ Manages the install/uninstall lifecycle.
 
 | Method | Path                              | Description                                     |
 |--------|-----------------------------------|-------------------------------------------------|
-| `POST` | `/extensions/install`             | Install an extension by repository and tag      |
-| `POST` | `/extensions/upload`              | Install an extension from a `.tar.gz` file      |
+| `POST` | `/extensions/install`             | Install an extension by repository and tag, or update it to a newer version |
+| `POST` | `/extensions/upload`              | Install an extension from a `.tar.gz` file, or update it to a newer version |
 | `GET`  | `/extensions`                     | List installed extensions (filter by tag, repo) |
 | `GET`  | `/extensions/{id}`                | Get details for one installed extension         |
 | `POST` | `/extensions/{id}/uninstall`      | Uninstall an extension                          |
@@ -233,18 +250,20 @@ Routes each content item to the correct installer and abstracts the target platf
 **`ContentInstaller`** (ABC) — all installers implement:
 - `can_install(content_type: str) -> bool`
 - `install(content: Content) -> InstallationResult`
+- `update(content: Content) -> InstallationResult`
 - `uninstall(content: Content) -> None`
 
 `InstallationResult` carries a `location` string — typically a URL returned by the target service — that is persisted in `InstalledContent.location` and used later for uninstallation.
 
 **Adding a new content type** requires:
-1. Subclass `ContentInstaller` and implement the three methods.
+1. Subclass `ContentInstaller` and implement its methods.
 2. Register the instance with the `Dispatcher` at application startup.
 
 **`WorkflowConsumer`** — the built-in installer for `workflow-v1` content:
 - Reads `workflow.json` and `workflow_definition.py` from the extracted content directory.
 - `POST`s the workflow payload to `http://workflow-api.services.svc:80/v1/workflows`.
 - Stores the `Location` response header as `InstallationResult.location`.
+- On update, issues a `PATCH` to that stored URL; the workflow keeps its ID and gets a new revision.
 - On uninstall, issues a `DELETE` to that stored URL.
 
 ### Database Service
@@ -295,6 +314,21 @@ sequenceDiagram
     BG->>DB: update_extension_status(INSTALLED)
     BG->>BG: cleanup extracted files
 
+    Note over C,P: Update flow
+    C->>IR: POST /extensions/install {repository_id, tag of a newer version}
+    IR->>IR: resolve_install_target(active extension, version)
+    IR->>DB: update_extension_status(UPDATING, pending_update)
+    IR-->>C: 202 Accepted {extension_id}
+    IR->>BG: schedule background update task
+    BG->>OCI: pull_extension(pending tag)
+    loop For each content to install, update or uninstall
+        BG->>D: install_content / update_content / uninstall_content
+        D->>P: POST / PATCH / DELETE
+        BG->>DB: update_content_status(applied_version)
+    end
+    BG->>DB: complete_extension_update (INSTALLED, pending_update taken over)
+    BG->>BG: cleanup extracted files
+
     Note over C,P: Uninstall flow
     C->>IR: POST /extensions/{id}/uninstall
     IR->>DB: update_extension_status(UNINSTALLING)
@@ -323,3 +357,43 @@ sequenceDiagram
 1. **Trigger** — The router synchronously transitions the extension to `UNINSTALLING` (enforced by the state machine, returns 409 if the extension is not in an uninstallable state), then schedules a background uninstall task.
 2. **Uninstall contents** — Each `InstalledContent` that is not already `UNINSTALLED` is moved to `UNINSTALLING`, then the dispatcher calls the appropriate consumer which issues a `DELETE` to the stored `location` URL. Content still in `PENDING` state is driven through `UNINSTALLING → UNINSTALLED` as well (its `location` is `null`, the dispatcher throws a warning but succeeds).
 3. **Remove record** — After a 30-second grace period the extension row (and cascaded content rows) is deleted from the database.
+
+### Update path
+
+An update replaces an installed extension in place: it keeps its row, and its workflows keep their IDs and get a new revision. Runs that are active during an update finish on their revision, because the workflow API renders each revision as its own DAG. Versions are compared as `MAJOR.MINOR.PATCH` from the `version` field of the manifest; the tag is only the address to pull from.
+
+`resolve_install_target` (`v1/services/install_target.py`) decides what `POST /extensions/install` and `POST /extensions/upload` do when an extension with the same manifest `id` is not uninstalled:
+
+| Requested version | Active extension | Result |
+|-------------------|------------------|--------|
+| Any | none | Install, 201 |
+| Same repository and tag | any status | Install path above (retry, or 409 by the state machine) |
+| Any, from another repository | `INSTALLED` or `UPDATE_FAILED` | 409 |
+| Higher | `INSTALLED` or `UPDATE_FAILED` | Update, 202 |
+| Same or lower | `INSTALLED` or `UPDATE_FAILED` | 409, downgrades are not supported |
+| Any | other status | 409 |
+| Not `MAJOR.MINOR.PATCH` | any | 400 |
+
+Extensions installed from a file belong to the Upload repository, so a newer upload updates them.
+
+1. **Trigger**: The router moves the extension to `UPDATING` and stores the target (repository, tag, manifest) in `pending_update`. A content whose type changes is rejected with 400 before that.
+2. **Pull**: The background job pulls the target from its repository and checks that the pulled manifest matches `pending_update`.
+3. **Apply contents**: see below.
+4. **Finalise**: On success the target replaces `repository_id`, `tag` and `manifest`, `pending_update` is cleared and the extension moves to `INSTALLED`; the files of a replaced upload are removed. On failure it moves to `UPDATE_FAILED` and keeps `pending_update`, which the API shows; sending the request again retries.
+
+`apply_content_changes` (`v1/services/content_update.py`) brings the contents to the target manifest. Contents are matched by name:
+- **New in the manifest**: installed.
+- **In both, with an older `applied_version`**: updated through the installer's `update`.
+- **Already on the target version**: skipped, which is what makes a retry cheap.
+- **Gone from the manifest**: uninstalled; the row is deleted afterwards.
+- **Same name, different `contentType`**: rejected, no installer can update across types.
+
+A renamed content is therefore uninstalled and installed again, and a renamed workflow gets a new ID. A content that fails keeps its old `applied_version` and moves to `UPDATE_FAILED` (or `INSTALLATION_FAILED` if it was new); the failures are raised together as an `ExceptionGroup` after all other contents were handled.
+
+Limits:
+- There is no downgrade and no rollback. A broken update is fixed with a newer version, or by uninstalling and installing again, which gives the workflows new IDs.
+- A version pushed again with `extensionctl push --overwrite` does not reach a platform that has this version installed.
+- After a failed update, any version newer than the installed one is accepted, also one below the failed target. Contents that already reached the failed target are then patched back, which is only logged as a warning.
+- The workflow API stores a new revision before it submits it to the workflow engine. If the submission fails, the content stays on its old `applied_version`, but the workflow's latest revision is already the new one, and each retry adds another revision.
+- A workflow that was deleted outside the Extension Manager fails every update that changes or removes it. A retry does not help, and uninstalling fails the same way as long as the uninstall does not treat a missing workflow as removed.
+- A restart while a workflow is created can leave a workflow that the Extension Manager did not record; the retry then fails on its title.

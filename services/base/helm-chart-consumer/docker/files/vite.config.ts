@@ -20,7 +20,7 @@ export default defineConfig(() => ({
     extensions: ['.js', '.json', '.jsx', '.mjs', '.ts', '.tsx', '.vue'],
   },
   server: {
-    port: 5000,
+    port: 5050,
     host: true,
     allowedHosts: true,
   },

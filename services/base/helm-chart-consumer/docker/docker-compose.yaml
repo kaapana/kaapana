@@ -24,5 +24,6 @@ services:
         # drops the `:latest` tag when it matches a FROM line to a context name.
         local-only/base-ui: service:base-ui
     image: helm-chart-consumer-ui-mock:latest
-    ports:
-      - "5050:5000"
+    # Host networking (a port mapping would be ignored): nginx binds its own
+    # port, 5050 (see files/nginx.conf), because 5000 is taken on this machine.
+    network_mode: host

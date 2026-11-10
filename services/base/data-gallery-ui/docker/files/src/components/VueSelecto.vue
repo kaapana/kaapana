@@ -1,5 +1,6 @@
 <template>
   <!-- Selecto manages its own selection-box overlay imperatively. -->
+  <slot />
 </template>
 
 <script setup lang="ts">

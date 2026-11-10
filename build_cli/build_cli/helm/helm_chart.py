@@ -161,7 +161,7 @@ class HelmChart:
 
     @staticmethod
     def _resolve_kaapana_type(chart_yaml: dict, is_dag: bool) -> KaapanaType:
-        yaml_type = chart_yaml.get("kaapana_type")
+        yaml_type = (chart_yaml.get("annotations") or {}).get("kaapana_type")
         if yaml_type:
             return KaapanaType(yaml_type.lower())
 
@@ -773,7 +773,14 @@ class HelmChart:
         """
         self.build_chart_dir = target_dir
         logger.info(f"Building chart {self.name}:{self.version}")
-        shutil.copytree(self.chartfile.parent, target_dir, dirs_exist_ok=True)
+        source_dir = self.chartfile.parent
+        shutil.copytree(
+            source_dir,
+            target_dir,
+            dirs_exist_ok=True,
+            ignore=lambda directory, _names: ["deps"] if Path(directory) == source_dir else [],
+        )
+        (target_dir / "templates").mkdir(exist_ok=True)
 
         # update Chart.yaml version
         self._update_chart_version(target_dir, version=platform_build_version)

@@ -176,13 +176,17 @@ export async function installMockBackend(page: Page, data: MockData = defaultMoc
   await page.route('**/aii/**', (r) => r.fulfill(json({})))
 
   // Auth: dev server serves a static token file; the prod bundle asks oauth2.
-  await page.route('**/jsons/testingAuthenticationToken.json', (r) => r.fulfill(json(data.userinfo)))
+  await page.route('**/jsons/testingAuthenticationToken.json', (r) =>
+    r.fulfill(json(data.userinfo)),
+  )
   await page.route('**/oauth2/userinfo', (r) => r.fulfill(json(data.userinfo)))
 
   // Project scoping (aii).
   await page.route('**/aii/users/current', (r) => r.fulfill(json(data.aiiUser)))
   await page.route('**/aii/projects', (r) => r.fulfill(json(data.projects)))
-  await page.route(`**/aii/users/${data.aiiUser.id}/projects`, (r) => r.fulfill(json(data.projects)))
+  await page.route(`**/aii/users/${data.aiiUser.id}/projects`, (r) =>
+    r.fulfill(json(data.projects)),
+  )
 
   // A copy, so a test's writes never leak into the defaults. Like kaapana-backend,
   // a dataset is addressed by name AND access level, which defaults to "project".
@@ -317,11 +321,7 @@ export async function installMockBackend(page: Page, data: MockData = defaultMoc
  * Full boot: install mock backend, seed shell state, navigate to the view.
  * Pass `url` to deep-link (e.g. query-param filters).
  */
-export async function bootGallery(
-  page: Page,
-  data: MockData = defaultMockData,
-  url = VIEW_PATH,
-) {
+export async function bootGallery(page: Page, data: MockData = defaultMockData, url = VIEW_PATH) {
   await installMockBackend(page, data)
   await seedShellState(page, data)
   await page.goto(url)

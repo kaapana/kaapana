@@ -11,7 +11,8 @@ import {
 // The four services base-ui's httpClient rewrites onto /project/<short_id>/
 // (its PROJECT_SCOPED allowlist). Matched anywhere in the path so a call that
 // bypasses the interceptor entirely is still caught.
-const PROJECT_SCOPED_SERVICE = /(^|\/)(kaapana-backend|kube-helm-api|workflow-api|dicom-web-filter)\//
+const PROJECT_SCOPED_SERVICE =
+  /(^|\/)(kaapana-backend|kube-helm-api|workflow-api|dicom-web-filter)\//
 
 // The /project/<short_id> document prefix IS the project selection. This view
 // has no project store — served without the prefix it just sends its calls
@@ -74,8 +75,7 @@ test('no request to a project-scoped service escapes the /project/<slug>/ prefix
   await expect(page.getByLabel('Text Field')).toHaveValue('edited')
 
   const submitted = page.waitForResponse(
-    (r) =>
-      r.url().includes('/kaapana-backend/client/workflow') && r.request().method() === 'POST',
+    (r) => r.url().includes('/kaapana-backend/client/workflow') && r.request().method() === 'POST',
   )
   await page.getByRole('button', { name: 'Start Workflow' }).click()
   await submitted

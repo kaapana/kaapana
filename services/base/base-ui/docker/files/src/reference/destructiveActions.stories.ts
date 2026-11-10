@@ -54,13 +54,18 @@ const ActionsRequiringConfirmation = defineComponent({
         h(VCard, null, {
           default: () => [
             h(VCardTitle, null, {
-              default: () => (props.kind === 'destructive' ? 'Destructive action' : 'High-impact action'),
+              default: () =>
+                props.kind === 'destructive' ? 'Destructive action' : 'High-impact action',
             }),
             h(VCardText, null, {
               default: () => [
-                h(VBtn, { color: prompt.value.color, onClick: () => (open.value = true) }, {
-                  default: () => prompt.value.triggerText,
-                }),
+                h(
+                  VBtn,
+                  { color: prompt.value.color, onClick: () => (open.value = true) },
+                  {
+                    default: () => prompt.value.triggerText,
+                  },
+                ),
                 h('div', { class: 'mt-4 text-body-2 text-medium-emphasis' }, [
                   'Last answer: ',
                   h('strong', last.value),

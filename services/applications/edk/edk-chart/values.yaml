@@ -9,13 +9,13 @@ global:
   local_registry_disk_space: 30Gi
   local_registry_ui_path: /local-registry-ui
   dynamicVolumes:
-  - name: edk
-    storage: 10Gi
-  - name: local-registry
-    storage: 100Gi
+    - name: edk
+      storage: 10Gi
+    - name: local-registry
+      storage: 100Gi
   envVars:
-  - name: WORKSPACE
-    value: "/kaapana/app"
+    - name: WORKSPACE
+      value: "/kaapana/app"
   links:
     - /edk/
     - /local-registry-ui/

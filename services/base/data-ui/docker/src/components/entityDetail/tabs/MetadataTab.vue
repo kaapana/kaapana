@@ -36,14 +36,18 @@ function handleSubmitNew(entry: MetadataEntry) {
 <template>
   <div>
     <div class="metadata-tab-actions">
-      <v-btn color="primary" prepend-icon="mdi-plus" @click="addMetadataVisible = !addMetadataVisible">
+      <v-btn
+        color="primary"
+        prepend-icon="mdi-plus"
+        @click="addMetadataVisible = !addMetadataVisible"
+      >
         {{ addMetadataVisible ? 'Hide metadata form' : 'Add metadata' }}
       </v-btn>
     </div>
 
     <v-expand-transition>
       <div v-show="addMetadataVisible">
-          <MetadataAddCard :loading="loading" :dialog-open="dialogOpen" @submit="handleSubmitNew" />
+        <MetadataAddCard :loading="loading" :dialog-open="dialogOpen" @submit="handleSubmitNew" />
       </div>
     </v-expand-transition>
 

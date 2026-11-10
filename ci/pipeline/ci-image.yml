@@ -53,8 +53,8 @@ build_ci_image:
     # image attestations, as not all registries support them (matches
     # build_cli's Container.build()).
     - docker build --build-arg http_proxy="$HTTP_PROXY" --build-arg https_proxy="$HTTPS_PROXY"
-        --provenance=false --sbom=false
-        -f ci/images/ci-base/Dockerfile -t "$CI_BASE_IMAGE" ci
+      --provenance=false --sbom=false
+      -f ci/images/ci-base/Dockerfile -t "$CI_BASE_IMAGE" ci
     - docker push "$CI_BASE_IMAGE"
   after_script:
     # don't leave docker login sessions on the shared runner

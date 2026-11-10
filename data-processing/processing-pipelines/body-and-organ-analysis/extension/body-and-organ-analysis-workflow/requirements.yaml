@@ -1,6 +1,6 @@
 ---
 dependencies:
-- name: dag-installer-chart
-  version: 0.0.0
-- name: model_installer_chart
-  version: 0.0.0
+  - name: dag-installer-chart
+    version: 0.0.0
+  - name: model_installer_chart
+    version: 0.0.0

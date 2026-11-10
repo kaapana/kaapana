@@ -32,7 +32,7 @@ expired.
 - **Project selection lives in the URL.** Canonical routes are
   `/project/<short_id>/<section>/<entry>`. `ProjectSelector.vue` swaps the
   prefix with `router.push` — the shell is never reloaded, only the iframe is.
-  `stores/project.ts` is synced *from* the URL by the router guard;
+  `stores/project.ts` is synced _from_ the URL by the router guard;
   `localStorage["project"]` is only the cross-session default for a tab opened
   without a prefix.
 - **Project-scoped API calls.** `api/http.ts`'s request interceptor rewrites
@@ -71,7 +71,7 @@ expired.
   stayed open for 30 s.
 - **Idle logout.** `composables/useIdleLogout.ts` — one module-level timer
   (`VITE_APP_IDLE_TIMEOUT`, default 30 min) armed in `App.vue`'s `onMounted`
-  *before* anything that can reject. `IframeHost` re-attaches the activity
+  _before_ anything that can reject. `IframeHost` re-attaches the activity
   listeners to the iframe document on every `load`, because in-iframe activity
   never bubbles to the parent and each in-iframe navigation drops them.
 - **Login-in-iframe escape.** An expired session 302s to Keycloak on the same
@@ -87,12 +87,12 @@ expired.
 - **Failure details.** Clicking an error toast opens base-ui's
   `ErrorDetailsDialog`: status, request, backend message and request id, with
   a copy button. Failures shown in place (boot, menu, project list, About
-  version, settings field list) open the same dialog with a *Details* button.
+  version, settings field list) open the same dialog with a _Details_ button.
   See `utils/notifyFailure.ts` and `stores/failureDetails.ts`.
 - **Corner controls.** Two buttons in the bottom-right corner of the view,
   shown while the mouse is over that corner or one of them has keyboard focus:
   reload (behind the unsaved-changes confirm) and open in a new tab. Both use
-  the page the view is *currently* on, not the entry's start page. Tab from the
+  the page the view is _currently_ on, not the entry's start page. Tab from the
   drawer reaches them before anything inside the view.
 - **Navigation contract and bookmark redirects.** Views address shell routes
   as `/web/<section>/<entry>` (`/web/-/<entry>` for a top-level entry):
@@ -110,24 +110,24 @@ else is requested verbatim. The **Legacy** column marks the calls into
 `kaapana-backend`, the API of the old monolith, and says why each one is still
 needed.
 
-| Method | Path | Purpose | Project-prefixed | Legacy |
-|---|---|---|---|---|
-| GET | `/oauth2/userinfo` (prod) · `/jsons/testingAuthenticationToken.json` (dev) | Userinfo JWT → username, roles, groups (`stores/auth.ts`) | no | — |
-| GET | `/kaapana-backend/open-policy-data` | OPA policy data for the client-side menu filter | **yes** | **yes** — goes away once portal-api filters the menu (follow-up issue) |
-| GET | `/portal-api/menu` · `/portal-api/menu?fresh=1` | The menu itself; polled every 15 s. `fresh=1` bypasses portal-api's cache and is sent only after a view's `kaapana:shell-refresh` | no | — |
-| GET | `/aii/users/current` | Resolve the current AII user | no | — |
-| GET | `/aii/users/<id>/projects` (non-admin) · `/aii/projects` (admin) | The user's projects; re-polled on the menu cadence | no | — |
-| GET | `/kaapana-backend/settings` | Persisted settings, merged over the defaults and seeded into `localStorage` | **yes** | **yes** — no newer service stores user settings yet |
-| PUT | `/kaapana-backend/settings` | Save the whole settings object (dialog *Save* / *Restore defaults*) | **yes** | **yes** — as above |
-| PUT | `/kaapana-backend/settings/item` | Save one key (the theme choice, the Dev Mode switch) | **yes** | **yes** — as above |
-| GET | `/kaapana-backend/dataset/fields` | DICOM tag → OpenSearch field mapping for the settings dialog | **yes** | **yes** — moves with the Dataset Configuration tab to `data-gallery-ui` (follow-up issue) |
-| GET | `/notifications/v2/?limit=20&cursor=…` | One page of notifications | no | — |
-| PUT | `/notifications/v2/<id>/read` | Mark one notification read | no | — |
-| PUT | `/notifications/v2/read` | Mark every notification read (dialog *Mark all as read*) | no | — |
-| WS | `/notifications/ws` | Live notification events (`new` / `read` / `read_all`) | no | — |
-| GET | `/jsons/commonData.json` | Chart version for the drawer header and the About dialog; served by this app's own nginx from the `portal-ui-config` ConfigMap | no | — |
-| GET | `<entry.badgePath>` | Count badge of any menu entry declaring `kaapana.ai/ui.badge-path` (today only `/kube-helm-api/pending-applications-count`) | **yes**, when the path matches the rewrite | — |
-| — | `/kaapana-backend/oidc-logout` | Logout; a top-level `location.href`, not an XHR | no | **yes** — no newer logout endpoint yet |
+| Method | Path                                                                       | Purpose                                                                                                                           | Project-prefixed                           | Legacy                                                                                    |
+| ------ | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| GET    | `/oauth2/userinfo` (prod) · `/jsons/testingAuthenticationToken.json` (dev) | Userinfo JWT → username, roles, groups (`stores/auth.ts`)                                                                         | no                                         | —                                                                                         |
+| GET    | `/kaapana-backend/open-policy-data`                                        | OPA policy data for the client-side menu filter                                                                                   | **yes**                                    | **yes** — goes away once portal-api filters the menu (follow-up issue)                    |
+| GET    | `/portal-api/menu` · `/portal-api/menu?fresh=1`                            | The menu itself; polled every 15 s. `fresh=1` bypasses portal-api's cache and is sent only after a view's `kaapana:shell-refresh` | no                                         | —                                                                                         |
+| GET    | `/aii/users/current`                                                       | Resolve the current AII user                                                                                                      | no                                         | —                                                                                         |
+| GET    | `/aii/users/<id>/projects` (non-admin) · `/aii/projects` (admin)           | The user's projects; re-polled on the menu cadence                                                                                | no                                         | —                                                                                         |
+| GET    | `/kaapana-backend/settings`                                                | Persisted settings, merged over the defaults and seeded into `localStorage`                                                       | **yes**                                    | **yes** — no newer service stores user settings yet                                       |
+| PUT    | `/kaapana-backend/settings`                                                | Save the whole settings object (dialog _Save_ / _Restore defaults_)                                                               | **yes**                                    | **yes** — as above                                                                        |
+| PUT    | `/kaapana-backend/settings/item`                                           | Save one key (the theme choice, the Dev Mode switch)                                                                              | **yes**                                    | **yes** — as above                                                                        |
+| GET    | `/kaapana-backend/dataset/fields`                                          | DICOM tag → OpenSearch field mapping for the settings dialog                                                                      | **yes**                                    | **yes** — moves with the Dataset Configuration tab to `data-gallery-ui` (follow-up issue) |
+| GET    | `/notifications/v2/?limit=20&cursor=…`                                     | One page of notifications                                                                                                         | no                                         | —                                                                                         |
+| PUT    | `/notifications/v2/<id>/read`                                              | Mark one notification read                                                                                                        | no                                         | —                                                                                         |
+| PUT    | `/notifications/v2/read`                                                   | Mark every notification read (dialog _Mark all as read_)                                                                          | no                                         | —                                                                                         |
+| WS     | `/notifications/ws`                                                        | Live notification events (`new` / `read` / `read_all`)                                                                            | no                                         | —                                                                                         |
+| GET    | `/jsons/commonData.json`                                                   | Chart version for the drawer header and the About dialog; served by this app's own nginx from the `portal-ui-config` ConfigMap    | no                                         | —                                                                                         |
+| GET    | `<entry.badgePath>`                                                        | Count badge of any menu entry declaring `kaapana.ai/ui.badge-path` (today only `/kube-helm-api/pending-applications-count`)       | **yes**, when the path matches the rewrite | —                                                                                         |
+| —      | `/kaapana-backend/oidc-logout`                                             | Logout; a top-level `location.href`, not an XHR                                                                                   | no                                         | **yes** — no newer logout endpoint yet                                                    |
 
 These are the last calls into the old monolith's API; the shell adds no new
 ones.

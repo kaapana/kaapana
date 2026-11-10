@@ -7,4 +7,4 @@ description: kaapana Platform
 annotations:
   kaapana.ai/type: "platform"
 keywords:
-- kaapanaplatform
+  - kaapanaplatform

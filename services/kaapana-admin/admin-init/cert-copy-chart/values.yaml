@@ -1,7 +1,7 @@
 ---
 global:
-    pull_policy_images: "IfNotPresent"
-    tls_secret:
-        name: "certificate"
-        common_name: "kaapana"
-        expiration: 365
+  pull_policy_images: "IfNotPresent"
+  tls_secret:
+    name: "certificate"
+    common_name: "kaapana"
+    expiration: 365

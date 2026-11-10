@@ -26,18 +26,30 @@ const Icons = defineComponent({
                 h(VRow, null, {
                   default: () =>
                     actions.map(([action, icon]) =>
-                      h(VCol, { cols: 6, sm: 4, md: 3, key: action }, {
-                        default: () =>
-                          h(VSheet, { class: 'pa-3 d-flex align-center ga-3', rounded: true, border: true }, {
-                            default: () => [
-                              h(VIcon, { icon, size: 28 }),
-                              h('div', [
-                                h('div', { class: 'text-subtitle-2' }, action),
-                                h('div', { class: 'text-caption text-medium-emphasis' }, icon),
-                              ]),
-                            ],
-                          }),
-                      }),
+                      h(
+                        VCol,
+                        { cols: 6, sm: 4, md: 3, key: action },
+                        {
+                          default: () =>
+                            h(
+                              VSheet,
+                              {
+                                class: 'pa-3 d-flex align-center ga-3',
+                                rounded: true,
+                                border: true,
+                              },
+                              {
+                                default: () => [
+                                  h(VIcon, { icon, size: 28 }),
+                                  h('div', [
+                                    h('div', { class: 'text-subtitle-2' }, action),
+                                    h('div', { class: 'text-caption text-medium-emphasis' }, icon),
+                                  ]),
+                                ],
+                              },
+                            ),
+                        },
+                      ),
                     ),
                 }),
             }),

@@ -1,4 +1,4 @@
 ---
 global:
-    image: "dag-radiomics"
-    action: "copy"
+  image: "dag-radiomics"
+  action: "copy"

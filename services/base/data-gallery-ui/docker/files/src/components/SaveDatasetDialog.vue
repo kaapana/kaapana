@@ -44,8 +44,7 @@ const dirty = computed(
 const nameRules = [
   (value: string) =>
     !!value?.trim() || 'Enter a name for the dataset, for example: lung-segmentation.',
-  (value: string) =>
-    (value?.trim().length ?? 0) <= 64 || 'Use at most 64 characters.',
+  (value: string) => (value?.trim().length ?? 0) <= 64 || 'Use at most 64 characters.',
   (value: string) =>
     !props.existingDatasets.some(
       (dataset) => dataset.name === value?.trim() && dataset.access_level === accessLevel.value,

@@ -15,7 +15,8 @@ const DATASET = /\/kaapana-backend\/client\/dataset(\?.*)?$/
 const TAG = /\/kaapana-backend\/dataset\/tag$/
 const DOWNLOAD = /\/kaapana-backend\/dataset\/download\?/
 
-const saveAs = (page: Page) => page.getByRole('button', { name: /save .* series as a new dataset/i })
+const saveAs = (page: Page) =>
+  page.getByRole('button', { name: /save .* series as a new dataset/i })
 
 test.describe('failed actions', () => {
   const cases: {
@@ -65,7 +66,9 @@ test.describe('failed actions', () => {
         await confirmAction(p, 'Delete')
       },
       after: (p) =>
-        expect(p.getByRole('button', { name: 'Delete dataset my-private (private)' })).toBeVisible(),
+        expect(
+          p.getByRole('button', { name: 'Delete dataset my-private (private)' }),
+        ).toBeVisible(),
     },
     {
       title: 'Tag not removed',

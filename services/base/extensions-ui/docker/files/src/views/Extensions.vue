@@ -195,7 +195,11 @@
              the text alternative is its own element and the activator is
              focusable for the tooltip. -->
         <template #item.kind="{ item }">
-          <v-tooltip v-if="item.kind === 'dag'" location="bottom" text="One or multiple workflows that will trigger Airflow DAGs">
+          <v-tooltip
+            v-if="item.kind === 'dag'"
+            location="bottom"
+            text="One or multiple workflows that will trigger Airflow DAGs"
+          >
             <template #activator="{ props }">
               <span v-bind="props" tabindex="0" class="d-inline-flex align-center">
                 <v-icon :icon="extensionIcons.workflow" />
@@ -203,7 +207,11 @@
               </span>
             </template>
           </v-tooltip>
-          <v-tooltip v-else-if="item.kind === 'application'" location="bottom" text="An application with a user interface">
+          <v-tooltip
+            v-else-if="item.kind === 'application'"
+            location="bottom"
+            text="An application with a user interface"
+          >
             <template #activator="{ props }">
               <span v-bind="props" tabindex="0" class="d-inline-flex align-center">
                 <v-icon :icon="extensionIcons.application" />
@@ -219,11 +227,18 @@
               <template #activator="{ props }">
                 <div class="d-flex flex-column" v-bind="props">
                   <span class="text-body-1 font-weight-medium">{{ item.uiVisibleName }}</span>
-                  <span class="text-caption text-medium-emphasis text-truncate extensions-description">{{ item.description }}</span>
+                  <span
+                    class="text-caption text-medium-emphasis text-truncate extensions-description"
+                    >{{ item.description }}</span
+                  >
                 </div>
               </template>
             </v-tooltip>
-            <v-tooltip v-if="item.documentation" location="bottom" text="Open the documentation in a new tab">
+            <v-tooltip
+              v-if="item.documentation"
+              location="bottom"
+              text="Open the documentation in a new tab"
+            >
               <template #activator="{ props }">
                 <v-btn
                   v-bind="props"
@@ -292,7 +307,11 @@
               />
             </template>
           </v-tooltip>
-          <v-tooltip v-else-if="item.successful === 'no'" location="right" :text="statusTooltip(item)">
+          <v-tooltip
+            v-else-if="item.successful === 'no'"
+            location="right"
+            :text="statusTooltip(item)"
+          >
             <template #activator="{ props }">
               <span v-bind="props" tabindex="0" class="d-inline-flex align-center">
                 <v-icon color="error" :icon="kaapanaIcons.error" />
@@ -300,7 +319,11 @@
               </span>
             </template>
           </v-tooltip>
-          <v-tooltip v-else-if="checkDeploymentReady(item) === true" location="right" :text="statusTooltip(item)">
+          <v-tooltip
+            v-else-if="checkDeploymentReady(item) === true"
+            location="right"
+            :text="statusTooltip(item)"
+          >
             <template #activator="{ props }">
               <span v-bind="props" tabindex="0" class="d-inline-flex align-center">
                 <v-icon color="success" :icon="kaapanaIcons.success" />
@@ -315,7 +338,11 @@
         </template>
 
         <template #item.experimental="{ item }">
-          <v-tooltip v-if="item.experimental === 'yes'" location="bottom" text="Experimental extension">
+          <v-tooltip
+            v-if="item.experimental === 'yes'"
+            location="bottom"
+            text="Experimental extension"
+          >
             <template #activator="{ props }">
               <span v-bind="props" tabindex="0" class="d-inline-flex align-center">
                 <v-icon color="warning" :icon="extensionIcons.experimental" />
@@ -371,7 +398,8 @@
               <span v-bind="props" tabindex="0" class="d-inline-block">
                 <v-btn variant="text" min-width="160px" disabled>Launched</v-btn>
                 <span class="d-sr-only">
-                  Already launched in this session. The list updates once the platform reports the new instance.
+                  Already launched in this session. The list updates once the platform reports the
+                  new instance.
                 </span>
               </span>
             </template>
@@ -383,7 +411,12 @@
             :close-on-content-click="false"
           >
             <template #activator="{ props }">
-              <v-btn variant="text" min-width="160px" v-bind="props" :append-icon="kaapanaIcons.expand">
+              <v-btn
+                variant="text"
+                min-width="160px"
+                v-bind="props"
+                :append-icon="kaapanaIcons.expand"
+              >
                 Pending
               </v-btn>
             </template>
@@ -395,7 +428,11 @@
               </v-card-text>
               <v-card-actions>
                 <v-spacer />
-                <v-btn color="error" :prepend-icon="kaapanaIcons.delete" @click="askUninstall(item, true)">
+                <v-btn
+                  color="error"
+                  :prepend-icon="kaapanaIcons.delete"
+                  @click="askUninstall(item, true)"
+                >
                   {{ item.multiinstallable === 'yes' ? 'Force Delete' : 'Force Uninstall' }}
                 </v-btn>
               </v-card-actions>
@@ -497,8 +534,7 @@ const canUpdateExtensions = computed(() => allowed('/kube-helm-api/update-extens
 // completed .tar additionally calls import-container (see fileComplete), so it
 // needs both.
 const canUploadExtensions = computed(
-  () =>
-    allowed('/kube-helm-api/filepond-upload') && allowed('/kube-helm-api/import-container'),
+  () => allowed('/kube-helm-api/filepond-upload') && allowed('/kube-helm-api/import-container'),
 )
 
 // Resolves the project from the /project/<short_id> document prefix (see base-ui).
@@ -915,8 +951,7 @@ watch(paramsDirty, (dirty) => postViewDirty(dirty))
 /* -------------------------------------------------------- confirmations --- */
 
 type PendingAction =
-  | { kind: 'uninstall'; item: any; force: boolean }
-  | { kind: 'update-extensions' }
+  { kind: 'uninstall'; item: any; force: boolean } | { kind: 'update-extensions' }
 
 // Kept after the dialog closes so its content does not blank out during the
 // leave transition; the next ask replaces it.

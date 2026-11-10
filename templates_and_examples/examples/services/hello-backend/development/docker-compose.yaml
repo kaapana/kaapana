@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 services:
   hello-backend:
     image: <registry_url>/hello-backend:0.1.0
@@ -6,9 +6,9 @@ services:
       SECRET_KEY: jip-secret
       HELLO_WORLD_USER: Klaus
       DATABASE_URL: postgresql://someuser:somepassword@postgres-backend:5432
-      APPLICATION_ROOT: '/hello-backend'
+      APPLICATION_ROOT: "/hello-backend"
     ports:
-    - 5000:5000
+      - 5000:5000
   postgres-backend:
     image: postgres:12.0-alpine
     volumes:

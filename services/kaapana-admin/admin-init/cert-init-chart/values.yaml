@@ -7,4 +7,4 @@ global:
     expiration: 365
   namespace: "{{ .Values.global.admin_namespace }}"
   dynamicVolumes:
-  - name: tls
+    - name: tls

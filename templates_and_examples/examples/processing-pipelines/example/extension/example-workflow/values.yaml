@@ -1,4 +1,4 @@
 ---
 global:
-    image: "dag-example"
-    action: "copy"
+  image: "dag-example"
+  action: "copy"

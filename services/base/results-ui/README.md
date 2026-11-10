@@ -65,14 +65,14 @@ the httpClient interceptor in `@kaapana/base-ui` rewrites paths matching
 url are **not** prefixed. This app has **no** project store and makes **no**
 `/aii` calls.
 
-| Method & path | Project-scoped | Purpose |
-| --- | --- | --- |
-| `GET /kaapana-backend/get-static-website-results-tree?limit=100` | yes | Root listing (first page). |
-| `GET …get-static-website-results-tree?prefix=<path>&limit=100` | yes | Lazy-load one folder's children. |
-| `GET …get-static-website-results-tree?continuation_token=<t>&limit=100` | yes | Next page of the root listing. |
-| `GET …get-static-website-results-tree?prefix=<path>&continuation_token=<t>&limit=100` | yes | Next page of a folder's children. |
-| `GET /oauth2/userinfo` (prod) / `GET /jsons/testingAuthenticationToken.json` (dev) | no | Userinfo JWT; run on every navigation via a router `beforeEach` (`useAuthStore().checkAuth()`). Non-blocking — a failure is logged and navigation proceeds. |
-| `GET <file node url>` (iframe `src` + `window.open`) | no | Load/open a result file. The url is whatever the backend puts on the node — the app does not construct it. (In the e2e mock it is `/minio-console/download/results/<path>`.) |
+| Method & path                                                                         | Project-scoped | Purpose                                                                                                                                                                      |
+| ------------------------------------------------------------------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /kaapana-backend/get-static-website-results-tree?limit=100`                      | yes            | Root listing (first page).                                                                                                                                                   |
+| `GET …get-static-website-results-tree?prefix=<path>&limit=100`                        | yes            | Lazy-load one folder's children.                                                                                                                                             |
+| `GET …get-static-website-results-tree?continuation_token=<t>&limit=100`               | yes            | Next page of the root listing.                                                                                                                                               |
+| `GET …get-static-website-results-tree?prefix=<path>&continuation_token=<t>&limit=100` | yes            | Next page of a folder's children.                                                                                                                                            |
+| `GET /oauth2/userinfo` (prod) / `GET /jsons/testingAuthenticationToken.json` (dev)    | no             | Userinfo JWT; run on every navigation via a router `beforeEach` (`useAuthStore().checkAuth()`). Non-blocking — a failure is logged and navigation proceeds.                  |
+| `GET <file node url>` (iframe `src` + `window.open`)                                  | no             | Load/open a result file. The url is whatever the backend puts on the node — the app does not construct it. (In the e2e mock it is `/minio-console/download/results/<path>`.) |
 
 The four rows above are all the same endpoint in different query-param modes.
 `src/api/results.ts` wraps it as `fetchResultsTree()` over the shared

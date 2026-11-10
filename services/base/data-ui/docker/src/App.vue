@@ -100,9 +100,9 @@ function handleGlobalHotkeys(event: KeyboardEvent) {
 
 onMounted(() => {
   if (supportsLocalStorage) {
-    if("settings" in localStorage) {
-      const settings = JSON.parse(localStorage["settings"]);
-      theme.change(settings["darkMode"] ? 'dark' : 'light');
+    if ('settings' in localStorage) {
+      const settings = JSON.parse(localStorage['settings'])
+      theme.change(settings['darkMode'] ? 'dark' : 'light')
     }
   }
   store.refresh()
@@ -167,11 +167,7 @@ function openApiDocs() {
       </v-toolbar-title>
       <v-spacer></v-spacer>
       <div class="entity-controls">
-        <v-btn
-          icon="mdi-refresh"
-          :loading="loading"
-          @click="store.refresh()"
-        ></v-btn>
+        <v-btn icon="mdi-refresh" :loading="loading" @click="store.refresh()"></v-btn>
         <div class="zoom-controls">
           <v-btn-group variant="tonal" density="compact" divided>
             <v-btn
@@ -212,13 +208,7 @@ function openApiDocs() {
       </v-tooltip>
       <v-tooltip text="Maintenance" location="bottom">
         <template #activator="{ props }">
-          <v-btn
-            class="ml-1"
-            icon
-            variant="text"
-            v-bind="props"
-            @click="maintenanceDialog = true"
-          >
+          <v-btn class="ml-1" icon variant="text" v-bind="props" @click="maintenanceDialog = true">
             <v-icon>mdi-cog-outline</v-icon>
           </v-btn>
         </template>
@@ -243,7 +233,12 @@ function openApiDocs() {
       <v-card>
         <v-card-title class="d-flex align-center justify-space-between py-2">
           <span class="text-body-1">Keyboard shortcuts</span>
-          <v-btn icon="mdi-close" variant="text" density="comfortable" @click="hotkeyDialog = false" />
+          <v-btn
+            icon="mdi-close"
+            variant="text"
+            density="comfortable"
+            @click="hotkeyDialog = false"
+          />
         </v-card-title>
         <v-card-text class="py-2">
           <div class="d-flex align-center flex-wrap" style="gap: 8px">
@@ -266,7 +261,11 @@ function openApiDocs() {
         <v-divider />
         <v-list density="compact" class="py-0">
           <template v-if="filteredHotkeyShortcuts.length">
-            <v-list-item v-for="shortcut in filteredHotkeyShortcuts" :key="shortcut.combo" class="shortcut-item">
+            <v-list-item
+              v-for="shortcut in filteredHotkeyShortcuts"
+              :key="shortcut.combo"
+              class="shortcut-item"
+            >
               <v-list-item-title class="text-caption">
                 <v-chip size="small" color="primary" variant="tonal" class="shortcut-chip">
                   {{ shortcut.combo }}
@@ -277,7 +276,9 @@ function openApiDocs() {
           </template>
           <template v-else>
             <v-list-item>
-              <v-list-item-title class="text-caption">No shortcuts match "{{ hotkeySearch }}".</v-list-item-title>
+              <v-list-item-title class="text-caption"
+                >No shortcuts match "{{ hotkeySearch }}".</v-list-item-title
+              >
             </v-list-item>
           </template>
         </v-list>
@@ -287,7 +288,12 @@ function openApiDocs() {
       <v-card>
         <v-card-title class="d-flex align-center justify-space-between py-2">
           <span class="text-body-1">Maintenance</span>
-          <v-btn icon="mdi-close" variant="text" density="comfortable" @click="maintenanceDialog = false" />
+          <v-btn
+            icon="mdi-close"
+            variant="text"
+            density="comfortable"
+            @click="maintenanceDialog = false"
+          />
         </v-card-title>
         <v-divider />
         <v-card-text class="py-3">
@@ -299,7 +305,12 @@ function openApiDocs() {
       <v-card>
         <v-card-title class="d-flex align-center justify-space-between py-2">
           <span class="text-body-1">Metadata Schemas</span>
-          <v-btn icon="mdi-close" variant="text" density="comfortable" @click="schemasDialog = false" />
+          <v-btn
+            icon="mdi-close"
+            variant="text"
+            density="comfortable"
+            @click="schemasDialog = false"
+          />
         </v-card-title>
         <v-divider />
         <v-card-text class="py-3">

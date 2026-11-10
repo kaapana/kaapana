@@ -7,7 +7,10 @@ const KaapanaApiServiceDemo = defineComponent({
   name: 'KaapanaApiServiceDemo',
   setup() {
     return () =>
-      h('ul', Object.keys(kaapanaApiService).map((name) => h('li', h('code', `${name}()`))))
+      h(
+        'ul',
+        Object.keys(kaapanaApiService).map((name) => h('li', h('code', `${name}()`))),
+      )
   },
 })
 

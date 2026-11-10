@@ -25,7 +25,10 @@ export interface NotificationEvent {
   type: NotificationEventType
 }
 
-export async function fetchNotifications(params?: { limit?: number; cursor?: string | null }): Promise<{
+export async function fetchNotifications(params?: {
+  limit?: number
+  cursor?: string | null
+}): Promise<{
   data: KaapanaNotification[]
   meta: {
     nextCursor: string | null

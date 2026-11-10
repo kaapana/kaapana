@@ -6,13 +6,11 @@ Start by running the first `./build_extension.sh` command to build and push the 
 
 If you want to understand more about how extension development works and how to take more advantage of the underlying technologies, refer to our development guide at https://kaapana.readthedocs.io/en/stable/development_guide
 
-
 ## Build Extension pyradiomics-feature-extractor in `/dag` folder
 
 `./build_extension.sh --dir /kaapana/app/dag/pyradiomics-feature-extractor`
 
 This command builds all container images (searching for all `Dockerfile` files) under this path and pushes to the local registry. Also packages the Helm chart (searches for `Chart.yaml` file) and makes it available as an extension under the Extensions tab in the platform.
-
 
 ## Build container image
 
@@ -32,11 +30,9 @@ Arguments:
 --import          Import container inside microk8s ctr, also generates a tar file
 ```
 
-
 ## Build Helm chart
 
 `./build_chart.sh --dir /kaapana/app/dag/pyradiomics-feature-extractor/extension/pyradiomics-workflow`
-
 
 ## Build `base-python-gpu` image with version `latest`
 
@@ -44,9 +40,9 @@ Option `--import` will create a tar file import the base image into microk8s ctr
 
 `./build_image.sh --dir $KAAPANA_REPO_PATH/data-processing/base-images/base-python-gpu --image-name base-python-gpu --image-version latest --no-import`
 
-
 ## TODO
+
 - extend build helm chart docs
 - add `How to develop your scripts`
 - add `./build_images.sh`
-- 
+-

@@ -1,6 +1,13 @@
 import { isAxiosError } from 'axios'
 import { defineStore } from 'pinia'
-import type { DataEntity, EventMessage, GalleryItem, MetadataEntry, QueryNode, QueryRequest } from '@/types/domain'
+import type {
+  DataEntity,
+  EventMessage,
+  GalleryItem,
+  MetadataEntry,
+  QueryNode,
+  QueryRequest,
+} from '@/types/domain'
 import {
   buildArtifactUrl,
   deleteEntity as deleteEntityRequest,
@@ -59,7 +66,9 @@ function toGalleryItem(entity: DataEntity): GalleryItem {
     id: entity.id,
     createdAt: entity.created_at ?? null,
     metadata: entity.metadata,
-    thumbnailUrl: thumbnail ? buildArtifactUrl(entity.id, thumbnail.key, thumbnail.artifactId) : undefined,
+    thumbnailUrl: thumbnail
+      ? buildArtifactUrl(entity.id, thumbnail.key, thumbnail.artifactId)
+      : undefined,
   }
 }
 
@@ -113,10 +122,7 @@ export const useEntityStore = defineStore('entities', {
     },
     loadedEntityCount(state): number {
       const ids = state.queryEnabled && state.queryIdList ? state.queryIdList : state.allIds
-      return ids.reduce(
-        (count, id) => (state.entities[id] ? count + 1 : count),
-        0,
-      )
+      return ids.reduce((count, id) => (state.entities[id] ? count + 1 : count), 0)
     },
   },
   actions: {
@@ -219,7 +225,7 @@ export const useEntityStore = defineStore('entities', {
         }
         let missingIndex = this.findFirstMissingIndex(startIndex, targetEnd)
         while (missingIndex !== null) {
-          const cursorId = missingIndex === 0 ? null : this.queryIdList[missingIndex - 1] ?? null
+          const cursorId = missingIndex === 0 ? null : (this.queryIdList[missingIndex - 1] ?? null)
           await this.loadQueryPageAfterCursor(cursorId)
           missingIndex = this.findFirstMissingIndex(startIndex, targetEnd)
         }
@@ -247,7 +253,7 @@ export const useEntityStore = defineStore('entities', {
       if (missingIndex === null) {
         return
       }
-      const cursorId = missingIndex === 0 ? null : ids[missingIndex - 1] ?? null
+      const cursorId = missingIndex === 0 ? null : (ids[missingIndex - 1] ?? null)
       await this.loadPageAfterCursor(cursorId)
     },
     findFirstMissingIndex(start: number, end: number): number | null {
@@ -437,7 +443,12 @@ export const useEntityStore = defineStore('entities', {
       if (this.queryUsesFullIndex) {
         return
       }
-      if (!this.queryWhere || !this.queryEnabled || !this.queryNextCursor || this.queryLoadingMore) {
+      if (
+        !this.queryWhere ||
+        !this.queryEnabled ||
+        !this.queryNextCursor ||
+        this.queryLoadingMore
+      ) {
         return
       }
       this.queryLoadingMore = true
@@ -475,9 +486,12 @@ export const useEntityStore = defineStore('entities', {
       const handleStatusChange = (connected: boolean) => {
         this.eventConnected = connected
       }
-      eventStreamHandle = createEventStream((event) => {
-        this.handleServerEvent(event)
-      }, { onStatusChange: handleStatusChange })
+      eventStreamHandle = createEventStream(
+        (event) => {
+          this.handleServerEvent(event)
+        },
+        { onStatusChange: handleStatusChange },
+      )
       eventStreamHandle.start()
     },
     handleServerEvent(event: EventMessage) {

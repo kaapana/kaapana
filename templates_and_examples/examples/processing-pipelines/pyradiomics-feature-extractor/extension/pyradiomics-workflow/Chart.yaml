@@ -6,5 +6,5 @@ deprecated: False
 name: pyradiomics-feature-extractor-workflow
 version: "0.0.0"
 keywords:
-- kaapanaworkflow
-- kaapanaexperimental
+  - kaapanaworkflow
+  - kaapanaexperimental

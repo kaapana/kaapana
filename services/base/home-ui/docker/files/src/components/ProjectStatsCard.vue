@@ -5,9 +5,7 @@
       Data
     </v-card-title>
     <v-card-text>
-      <div v-if="totalsUnavailable" class="text-medium-emphasis">
-        Platform totals not available
-      </div>
+      <div v-if="totalsUnavailable" class="text-medium-emphasis">Platform totals not available</div>
       <!-- The labels here double as the legend for the icons repeated in the
            project rows below, which have no room for words. -->
       <v-row v-else dense class="text-center">
@@ -42,7 +40,12 @@
                    count would read as a wrong number. -->
               <div class="d-flex align-center">
                 <v-list-item-title>{{ project.name }}</v-list-item-title>
-                <v-chip v-if="project.role_name" size="x-small" variant="tonal" class="role-chip ml-2">
+                <v-chip
+                  v-if="project.role_name"
+                  size="x-small"
+                  variant="tonal"
+                  class="role-chip ml-2"
+                >
                   {{ project.role_name }}
                 </v-chip>
               </div>
@@ -50,7 +53,12 @@
                 v-if="projectStats[String(project.id)]"
                 class="project-meta d-flex align-center text-caption text-medium-emphasis"
               >
-                <span v-for="stat in stats" :key="stat.label" class="stat-group" :title="stat.label">
+                <span
+                  v-for="stat in stats"
+                  :key="stat.label"
+                  class="stat-group"
+                  :title="stat.label"
+                >
                   <v-icon size="x-small">{{ stat.icon }}</v-icon>
                   {{ projectStats[String(project.id)]![stat.label] ?? '—' }}
                 </span>

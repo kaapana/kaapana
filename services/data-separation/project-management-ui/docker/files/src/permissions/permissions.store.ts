@@ -1,24 +1,24 @@
-import { defineStore } from "pinia";
-import { aiiApiGet } from "@/common/services";
+import { defineStore } from 'pinia'
+import { aiiApiGet } from '@/common/services'
 
 export interface UserRight {
-  name: string;
-  description: string;
-  claim_key: string;
-  claim_value: string;
-  project_id: string;
+  name: string
+  description: string
+  claim_key: string
+  claim_value: string
+  project_id: string
 }
 
 export interface NormalizedRights {
-  name: string;
-  description: string;
+  name: string
+  description: string
 }
 
 export interface RightsByProject {
-  [projectId: string]: NormalizedRights[];
+  [projectId: string]: NormalizedRights[]
 }
 
-export const usePermissionsStore = defineStore("permissions", {
+export const usePermissionsStore = defineStore('permissions', {
   state: () => ({
     rights: [] as UserRight[],
     rightsByProject: {} as RightsByProject,
@@ -32,12 +32,12 @@ export const usePermissionsStore = defineStore("permissions", {
       this.rights = await aiiApiGet(`aii/users/${userId}/rights`)
 
       this.rightsByProject = this.rights.reduce<RightsByProject>((acc, r) => {
-        if (!acc[r.project_id]) acc[r.project_id] = [];
-        acc[r.project_id].push({ name: r.name, description: r.description });
-        return acc;
-      }, {});
+        if (!acc[r.project_id]) acc[r.project_id] = []
+        acc[r.project_id].push({ name: r.name, description: r.description })
+        return acc
+      }, {})
 
-      this.initialized = true;
+      this.initialized = true
     },
 
     async loadProjectWhitelist(projectId: string): Promise<void> {
@@ -46,19 +46,19 @@ export const usePermissionsStore = defineStore("permissions", {
     },
 
     hasRight(projectId: string, name: string): boolean {
-      const rights = this.rightsByProject[projectId];
-      if (!rights) return false;
-      return rights.some(r => r.name === name);
+      const rights = this.rightsByProject[projectId]
+      if (!rights) return false
+      return rights.some((r) => r.name === name)
     },
 
     // Handles both exact names (launch) and suffixed release names (delete)
     isResourceAllowed(projectId: string, resourceName: string): boolean {
-      const whitelist = this.whitelistByProject[projectId];
-      if (whitelist === undefined) return true; // not loaded yet — optimistic
-      if (whitelist.length === 0) return true;  // empty = all allowed
+      const whitelist = this.whitelistByProject[projectId]
+      if (whitelist === undefined) return true // not loaded yet — optimistic
+      if (whitelist.length === 0) return true // empty = all allowed
       return whitelist.some(
-        entry => resourceName === entry || resourceName.startsWith(entry + '-')
-      );
+        (entry) => resourceName === entry || resourceName.startsWith(entry + '-'),
+      )
     },
-  }
-});
+  },
+})

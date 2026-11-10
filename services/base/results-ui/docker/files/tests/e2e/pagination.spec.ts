@@ -1,5 +1,10 @@
 import { test, expect } from '@playwright/test'
-import { installMockBackend, seedShellState, defaultMockData, VIEW_PATH } from './fixtures/mock-backend'
+import {
+  installMockBackend,
+  seedShellState,
+  defaultMockData,
+  VIEW_PATH,
+} from './fixtures/mock-backend'
 
 test('load more root results appends the next page', async ({ page }) => {
   const data = structuredClone(defaultMockData)
@@ -47,7 +52,9 @@ test('load more within a folder appends the next page of children', async ({ pag
   await expect(page.getByText('report.html')).toBeVisible()
 
   const pageReq = page.waitForRequest(
-    (r) => r.url().includes('continuation_token=nnunet-page-2') && r.url().includes('prefix=nnunet-training-230101'),
+    (r) =>
+      r.url().includes('continuation_token=nnunet-page-2') &&
+      r.url().includes('prefix=nnunet-training-230101'),
   )
   await page.getByRole('button', { name: 'Load more', exact: true }).click()
   await pageReq

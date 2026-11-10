@@ -566,13 +566,21 @@ watch(
   }, 200),
 )
 
-const identifiersOfInterest = computed(() => {
-  if (selectedSeriesInstanceUIDs.value.length > 0) {
-    allPatients.value = false
-    return selectedSeriesInstanceUIDs.value
-  }
-  return seriesInstanceUIDs.value
-})
+watch(
+  selectedSeriesInstanceUIDs,
+  (selected) => {
+    if (selected.length > 0) {
+      allPatients.value = false
+    }
+  },
+  { immediate: true },
+)
+
+const identifiersOfInterest = computed(() =>
+  selectedSeriesInstanceUIDs.value.length > 0
+    ? selectedSeriesInstanceUIDs.value
+    : seriesInstanceUIDs.value,
+)
 
 const continueSelectKey = computed(() =>
   window.navigator.userAgent.indexOf('Mac') !== -1 ? ['meta'] : ['ctrl'],

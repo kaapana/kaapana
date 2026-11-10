@@ -49,7 +49,7 @@ There is no update route. Updating an extension registers the new version and de
 | `POST /v1/releases/{id}/dry-run`, `PATCH /v1/releases/{id}` | Checks and runs an update of the version, the parameters, or both |
 | `DELETE /v1/releases/{id}` | Undeploys, and deletes the volumes with their data ([Q5][q5]) |
 
-The route marked *(to be decided)* says what the page needs: the status details of a release. How the implementation offers them is open, so the path and the response of the route can change.
+At this point it's unclear how and to what extent the `GET /v1/releases/{id}/status` route should be implemented. Should this actually look into multiple k8s objects and their state, or just print e.g. a health endpoint or the helm release's status?
 
 Deploy and update share one sequence of checks with their dry-run. See [Share one check sequence between dry-run and the real call][h-checks]. The state is derived from the helm release and its objects. See [Derive the state, do not store it][h-state].
 

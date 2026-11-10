@@ -194,7 +194,7 @@
           </div>
         </div>
       </template>
-      <template #expanded-row="{ columns, item }">
+      <template #expanded-row="{ columns }">
         <tr>
           <td :colspan="columns.length">
             <job-table

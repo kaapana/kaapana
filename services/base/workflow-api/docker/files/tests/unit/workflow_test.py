@@ -13,6 +13,7 @@ Routes covered:
 """
 
 import sys
+import uuid
 from pathlib import Path
 
 import pytest
@@ -23,8 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 sys.path.insert(0, str(Path(__file__).parent))
 
 from app import models  # noqa: E402
-from app.dependencies import require_dev_mode  # noqa: E402
-from app.main import app as fastapi_app  # noqa: E402
+from app.config import settings  # noqa: E402
 from test_data import (  # noqa: E402
     CREATE_WORKFLOW_TEST_CASES,
     VALIDATION_ERROR_TEST_CASES,
@@ -737,7 +737,7 @@ async def test_patch_workflow_add_extra_immutable_label_preserving_existing_allo
         json={
             "labels": [
                 {"key": "kaapana.immutable.extension.id", "value": "ext-1"},
-                {"key": "kaapana.immutable.extension.name", "value": "my-ext"},
+                {"key": "kaapana.immutable.extension.content_name", "value": "my-workflow"},
             ]
         },
     )
@@ -1000,8 +1000,8 @@ async def test_restore_revision_creates_new_increment_with_old_content(session: 
 
 @pytest.mark.patch_workflow
 @pytest.mark.asyncio
-async def test_patch_workflow_forbidden_when_dev_mode_off(session: AsyncSession, client: AsyncClient):
-    """PATCH /workflows/{id} returns 403 when DEV_MODE is off."""
+async def test_patch_workflow_forbidden_when_dev_mode_off(session: AsyncSession, client: AsyncClient, monkeypatch):
+    """PATCH /workflows/{id} returns 403 when DEV_MODE is off and the workflow was not installed by an extension."""
     _r = await client.post(
         "/v1/workflows",
         json={
@@ -1016,18 +1016,104 @@ async def test_patch_workflow_forbidden_when_dev_mode_off(session: AsyncSession,
     assert _r.status_code == 201, _r.text
 
     wf = _r.json()
-    fastapi_app.dependency_overrides[require_dev_mode] = require_dev_mode
-    try:
-        response = await client.patch(f"/v1/workflows/{wf['id']}", json={"definition": "v2"})
-    finally:
-        fastapi_app.dependency_overrides[require_dev_mode] = lambda: None
+    monkeypatch.setattr(settings, "DEV_MODE", False)
+    response = await client.patch(f"/v1/workflows/{wf['id']}", json={"definition": "v2"})
     assert response.status_code == 403
     assert "DEV_MODE" in response.json()["detail"]
 
 
+@pytest.mark.patch_workflow
+@pytest.mark.asyncio
+async def test_patch_extension_workflow_allowed_when_dev_mode_off(
+    session: AsyncSession, client: AsyncClient, monkeypatch
+):
+    """PATCH /workflows/{id} updates an extension workflow when DEV_MODE is off; existing runs keep their revision."""
+    _r = await client.post(
+        "/v1/workflows",
+        json={
+            "title": "extension-update",
+            "definition": "v1",
+            "workflow_engine": "dummy",
+            "workflow_parameters": [],
+            "labels": [
+                {"key": "kaapana.immutable.extension.id", "value": "ext-1"},
+                {"key": "kaapana.extension.version", "value": "1.0.0"},
+            ],
+        },
+    )
+
+    assert _r.status_code == 201, _r.text
+
+    wf = _r.json()
+    _r = await client.get(f"/v1/workflows/{wf['id']}/revisions/1")
+    run = models.WorkflowRun(workflow_revision_id=uuid.UUID(_r.json()["id"]))
+    session.add(run)
+    await session.commit()
+
+    monkeypatch.setattr(settings, "DEV_MODE", False)
+    response = await client.patch(
+        f"/v1/workflows/{wf['id']}",
+        json={
+            "definition": "v2",
+            "labels": [
+                {"key": "kaapana.immutable.extension.id", "value": "ext-1"},
+                {"key": "kaapana.extension.version", "value": "2.0.0"},
+            ],
+        },
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["increment"] == 2
+    assert data["definition"] == "v2"
+    assert {"key": "kaapana.extension.version", "value": "2.0.0"} in data["labels"]
+
+    _r = await client.get(f"/v1/workflows/{wf['id']}/revisions")
+    assert sorted(rev["increment"] for rev in _r.json()) == [1, 2]
+
+    _r = await client.get(f"/v1/workflow-runs/{run.id}")
+    assert _r.json()["workflow"]["increment"] == 1
+
+
+@pytest.mark.patch_workflow
+@pytest.mark.asyncio
+async def test_patch_extension_workflow_immutable_label_rejected_when_dev_mode_off(
+    session: AsyncSession, client: AsyncClient, monkeypatch
+):
+    """Immutable labels of an extension workflow stay immutable when DEV_MODE is off."""
+    _r = await client.post(
+        "/v1/workflows",
+        json={
+            "title": "extension-content-name",
+            "definition": "v1",
+            "workflow_engine": "dummy",
+            "workflow_parameters": [],
+            "labels": [
+                {"key": "kaapana.immutable.extension.id", "value": "ext-1"},
+                {"key": "kaapana.immutable.extension.content_name", "value": "my-workflow"},
+            ],
+        },
+    )
+
+    assert _r.status_code == 201, _r.text
+
+    wf = _r.json()
+    monkeypatch.setattr(settings, "DEV_MODE", False)
+    response = await client.patch(
+        f"/v1/workflows/{wf['id']}",
+        json={
+            "labels": [
+                {"key": "kaapana.immutable.extension.id", "value": "ext-1"},
+                {"key": "kaapana.immutable.extension.content_name", "value": "other-workflow"},
+            ]
+        },
+    )
+    assert response.status_code == 422
+    assert "kaapana.immutable.extension.content_name" in response.json()["detail"]
+
+
 @pytest.mark.restore_workflow_revision
 @pytest.mark.asyncio
-async def test_restore_revision_forbidden_when_dev_mode_off(session: AsyncSession, client: AsyncClient):
+async def test_restore_revision_forbidden_when_dev_mode_off(session: AsyncSession, client: AsyncClient, monkeypatch):
     """POST /workflows/{id}/revisions/{n}/restore returns 403 when DEV_MODE is off."""
     _r = await client.post(
         "/v1/workflows",
@@ -1046,11 +1132,8 @@ async def test_restore_revision_forbidden_when_dev_mode_off(session: AsyncSessio
     _r = await client.patch(f"/v1/workflows/{wf['id']}", json={"definition": "v2"})
 
     assert _r.status_code == 200, _r.text
-    fastapi_app.dependency_overrides[require_dev_mode] = require_dev_mode
-    try:
-        response = await client.post(f"/v1/workflows/{wf['id']}/revisions/1/restore")
-    finally:
-        fastapi_app.dependency_overrides[require_dev_mode] = lambda: None
+    monkeypatch.setattr(settings, "DEV_MODE", False)
+    response = await client.post(f"/v1/workflows/{wf['id']}/revisions/1/restore")
     assert response.status_code == 403
     assert "DEV_MODE" in response.json()["detail"]
 

@@ -27,7 +27,7 @@ spec:
   before_script:
     # DOCKER_AUTH_CONFIG shadows CLI logins, unset it so build/scan pushes use their logins
     - unset DOCKER_AUTH_CONFIG
-    - pip install -e build_cli/
+    - pip install -e lib/kaapana_containers -e lib/kaapana_extensions -e build_cli/
     - |-
       if [[ $CI_PIPELINE_SOURCE == "merge_request_event" ]]; then
         git checkout -B $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME $CI_COMMIT_SHA

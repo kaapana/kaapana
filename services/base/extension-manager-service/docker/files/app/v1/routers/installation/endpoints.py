@@ -36,16 +36,17 @@ def _ensure_installers_exist(extension_manifest: ExtensionManifest) -> None:
             ) from e
 
 
-async def _ensure_not_in_other_repository(db, repository_id: UUID, tag: str) -> None:
-    for db_extension in await crud.list_extensions(db, tag=tag):
+async def _ensure_not_in_other_repository(db, repository_id: UUID, extension_manifest: ExtensionManifest) -> None:
+    for db_extension in await crud.list_extensions(db, limit=None):
         if db_extension.repository_id == repository_id or db_extension.status == crud.ExtensionStatus.UNINSTALLED:
             continue
-        db_repository = await crud.get_registered_repository(db, db_extension.repository_id)
+        if db_extension.manifest["id"] != str(extension_manifest.id):
+            continue
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=(
                 f"The extension {db_extension.manifest['name']} {db_extension.manifest['version']} "
-                f"is already installed from the repository {db_repository.name}. Uninstall it first."
+                f"is already installed from the repository {db_extension.repository_name}. Uninstall it first."
             ),
         )
 
@@ -67,10 +68,13 @@ async def _create_or_reset_extension(db, repository_id: UUID, tag: str, extensio
                 detail=f"Cannot install extension with tag {tag} from repository {repository_id} because an extension with the same tag is currently being processed",
             ) from e
 
+    db_repository = await crud.get_registered_repository(db, repository_id)
+    if not db_repository:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found")
     try:
         db_extension = await crud.create_extension(
             session=db,
-            repository_id=repository_id,
+            repository=db_repository,
             tag=tag,
             manifest=extension_manifest.model_dump(mode="json"),
         )
@@ -112,7 +116,7 @@ async def install_extension(
         ) from e
 
     _ensure_installers_exist(extension_manifest)
-    await _ensure_not_in_other_repository(db, repository_id, tag)
+    await _ensure_not_in_other_repository(db, repository_id, extension_manifest)
     db_extension = await _create_or_reset_extension(db, repository_id, tag, extension_manifest)
 
     background_tasks.add_task(install_extension_background_task, db_extension.id)
@@ -167,7 +171,7 @@ async def upload_extension(
                 ) from e
 
         tag = upload.extension_tag(extension_manifest)
-        await _ensure_not_in_other_repository(db, upload.UPLOAD_REPOSITORY_ID, tag)
+        await _ensure_not_in_other_repository(db, upload.UPLOAD_REPOSITORY_ID, extension_manifest)
         db_extensions = await crud.list_extensions(db, repository_id=upload.UPLOAD_REPOSITORY_ID, tag=tag)
         if db_extensions and db_extensions[0].manifest != extension_manifest.model_dump(mode="json"):
             raise HTTPException(

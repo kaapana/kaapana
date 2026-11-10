@@ -1,6 +1,7 @@
 import enum
 import uuid
 from datetime import datetime
+from typing import Optional
 
 from sqlalchemy import DateTime, Enum, ForeignKey, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
@@ -52,7 +53,7 @@ class RegisteredRepository(Base):
 
     extensions: Mapped[list["Extension"]] = relationship(
         back_populates="repository",
-        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
 
@@ -71,11 +72,13 @@ class Extension(Base):
         primary_key=True,
         default=uuid.uuid4,
     )
-    repository_id: Mapped[uuid.UUID] = mapped_column(
+    repository_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("registries.id", ondelete="CASCADE"),
-        nullable=False,
+        ForeignKey("registries.id", ondelete="SET NULL", name="extensions_repository_id_fkey"),
+        nullable=True,
     )
+    repository_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    repository_url: Mapped[str] = mapped_column(String(2048), nullable=False)
 
     ### REGEX: [a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}
     ### Corresponds to <reference> or tag of a manifest in the OCI distribution spec
@@ -106,7 +109,7 @@ class Extension(Base):
         nullable=False,
     )
 
-    repository: Mapped[RegisteredRepository] = relationship(back_populates="extensions")
+    repository: Mapped[Optional[RegisteredRepository]] = relationship(back_populates="extensions")
 
     contents: Mapped[list["Content"]] = relationship(
         back_populates="extension",

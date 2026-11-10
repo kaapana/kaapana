@@ -1,7 +1,7 @@
 from typing import List, Optional
 from uuid import UUID
 
-from sqlalchemy import and_, delete, select
+from sqlalchemy import and_, delete, select, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -100,6 +100,11 @@ async def update_registered_repository(
             repo.repository_url = repository_url
         if authentication is not None:
             repo.authentication = authentication
+        await session.execute(
+            update(Extension)
+            .where(Extension.repository_id == id)
+            .values(repository_name=repo.name, repository_url=repo.repository_url)
+        )
         await session.commit()
         await session.refresh(repo)
         return repo
@@ -123,12 +128,14 @@ async def delete_registered_repository(session: AsyncSession, repository_id: UUI
 async def create_extension(
     session: AsyncSession,
     *,
-    repository_id: UUID,
+    repository: RegisteredRepository,
     tag: str,
     manifest: dict,
 ) -> Extension:
     ext = Extension(
-        repository_id=repository_id,
+        repository_id=repository.id,
+        repository_name=repository.name,
+        repository_url=repository.repository_url,
         tag=tag,
         manifest=manifest,
         status=ExtensionStatus.PENDING,
@@ -150,7 +157,7 @@ async def list_extensions(
     session: AsyncSession,
     *,
     skip: int = 0,
-    limit: int = 100,
+    limit: Optional[int] = 100,
     repository_id: Optional[UUID] = None,
     tag: Optional[str] = None,
     status: Optional[ExtensionStatus] = None,

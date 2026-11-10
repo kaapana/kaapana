@@ -28,9 +28,6 @@ spec:
 format:
   extends: .code_check
   rules:
-    - if: '"$[[ inputs.exec_lint ]]" == "true" && $LINTER == "prettier"'
-      when: on_success
-      allow_failure: true
     - if: '"$[[ inputs.exec_lint ]]" == "true"'
       when: on_success
     - when: never

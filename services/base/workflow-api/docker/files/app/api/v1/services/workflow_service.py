@@ -7,6 +7,7 @@ from app import crud, models, schemas
 from app.adapters import WorkflowEngineAdapter, get_workflow_engine
 from app.api.v1.services.errors import InternalError, NotFoundError
 from app.api.v1.services.utils import run_in_background_with_retries
+from app.config import settings
 from fastapi import HTTPException
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.exc import IntegrityError
@@ -176,6 +177,13 @@ async def update_workflow(
         logger.error(f"Workflow with id {workflow_id} not found")
         raise NotFoundError("Workflow not found")
 
+    current_rev = crud.latest_revision(db_workflow)
+    if not settings.DEV_MODE and not any(label.key == crud.EXTENSION_ID_LABEL_KEY for label in current_rev.labels):
+        raise HTTPException(
+            status_code=403,
+            detail="Updating workflows is only allowed when DEV_MODE=True or for workflows installed by an extension.",
+        )
+
     if update.title is not None and update.title != db_workflow.title:
         conflict = await crud.get_workflow(db, filters={"title": update.title})
         if conflict is not None and conflict.id != db_workflow.id:
@@ -186,7 +194,6 @@ async def update_workflow(
 
     # If the PATCH touches labels, enforce immutability of any kaapana.immutable.* label that's already on the latest revision
     if update.labels is not None:
-        current_rev = crud.latest_revision(db_workflow)
         _enforce_immutable_labels(current_rev.labels, update.labels)
 
     try:

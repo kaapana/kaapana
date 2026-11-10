@@ -166,7 +166,7 @@ This ensures eventual consistency even if inline updates fail.
 `POST /v1/workflows` returns **409** when the title already exists with `detail.existing_workflow.id` in the body. Clients decide whether to PATCH the existing workflow or treat it as a no-op.
 
 ### Mutation gating (`DEV_MODE`)
-`PATCH /v1/workflows/{id}` and `POST /v1/workflows/{id}/revisions/{n}/restore` return **403** when the `DEV_MODE` env var is unset / false. POST (create) and DELETE (soft-delete) are always allowed.
+`PATCH /v1/workflows/{id}` and `POST /v1/workflows/{id}/revisions/{n}/restore` return **403** when the `DEV_MODE` env var is unset / false. POST (create) and DELETE (soft-delete) are always allowed. PATCH is also allowed without `DEV_MODE` for workflows with the label `kaapana.immutable.extension.id`, so the Extension Manager can update the workflows it installed.
 
 ### Labels
 Workflows, runs, and tasks can be labeled arbitrarily. Labels enable flexible grouping and filtering:
@@ -174,6 +174,8 @@ Workflows, runs, and tasks can be labeled arbitrarily. Labels enable flexible gr
 - Experiments can be grouped by a label (e.g., `kaapana.experiment`).
 
 Any label whose key starts with `kaapana.immutable.` is treated as **immutable**: it cannot be removed or have its value changed across revisions. PATCHing an immutable label returns **422**. New immutable labels may be added at any time.
+
+The Extension Manager labels every workflow it installs with `kaapana.immutable.extension.id` and `kaapana.immutable.extension.content_name`, which identify the workflow across updates, and with `kaapana.extension.name` and `kaapana.extension.version`, which may change with an update.
 
 ### Audit Trail
 - API logs all key actions (creation, retrieval, updates) with workflow/run IDs.  

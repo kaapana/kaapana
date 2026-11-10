@@ -36,11 +36,11 @@ class WorkflowInstaller(ContentInstaller):
 
         title = workflow.get("title", "<unknown>")
 
-        # add immutable extension identity labels to workflow
+        # add extension identity labels to workflow
         labels = [
             label
             for label in workflow.get("labels", [])
-            if not label.get("key", "").startswith("kaapana.immutable.extension.")
+            if not label.get("key", "").startswith(("kaapana.immutable.extension.", "kaapana.extension."))
         ]
         if content.extension_id is not None:
             labels.extend(
@@ -50,16 +50,16 @@ class WorkflowInstaller(ContentInstaller):
                         "value": str(content.extension_id),
                     },
                     {
-                        "key": "kaapana.immutable.extension.name",
+                        "key": "kaapana.immutable.extension.content_name",
+                        "value": content.name,
+                    },
+                    {
+                        "key": "kaapana.extension.name",
                         "value": content.extension_name,
                     },
                     {
-                        "key": "kaapana.immutable.extension.version",
+                        "key": "kaapana.extension.version",
                         "value": content.extension_version,
-                    },
-                    {
-                        "key": "kaapana.immutable.extension.workflow_name",
-                        "value": content.name,
                     },
                 ]
             )

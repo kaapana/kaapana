@@ -3,19 +3,17 @@ import { computed, onMounted, ref } from 'vue'
 import { apiErrorInfo, kaapanaIcons } from '@kaapana/base-ui'
 import { fetchExtensions, uninstallExtension } from '@/features/extensions/api'
 import InstalledExtensionDialog from '@/features/extensions/components/InstalledExtensionDialog.vue'
-import { fetchRepositories } from '@/features/repositories/api'
 import BaseCardIterator from '@/shared/components/BaseCardIterator.vue'
 import StatusIndicator from '@/shared/components/StatusIndicator.vue'
 import { usePolling } from '@/shared/composables/usePolling'
 import { useFailureDetailsStore, type FailureDetails } from '@/shared/stores/failureDetails'
-import type { InstalledExtension, Repository } from '@/shared/types/apiSchemas'
+import type { InstalledExtension } from '@/shared/types/apiSchemas'
 import { notifyFailure, notifySuccess } from '@/shared/utils/notify'
 import { isChanging, plural, presentExtensionStatus } from '@/shared/utils/status'
 
 const failureDetails = useFailureDetailsStore()
 
 const installedExtensions = ref<InstalledExtension[]>([])
-const repositories = ref<Record<string, Repository>>({})
 const loading = ref(false)
 const loaded = ref(false)
 const loadFailure = ref<FailureDetails | null>(null)
@@ -24,11 +22,6 @@ const uninstalling = ref(false)
 
 const selectedExtension = computed(
   () => installedExtensions.value.find((extension) => extension.id === selectedId.value) ?? null,
-)
-const selectedRepository = computed(() =>
-  selectedExtension.value
-    ? (repositories.value[selectedExtension.value.repository_id] ?? null)
-    : null,
 )
 const activeCount = computed(
   () => installedExtensions.value.filter((extension) => extension.status !== 'uninstalled').length,
@@ -39,23 +32,8 @@ const anyTransitional = computed(() =>
 
 usePolling(() => loadInstalledExtensions(), anyTransitional)
 
-function repositoryName(repositoryId: string): string {
-  return repositories.value[repositoryId]?.name ?? repositoryId
-}
-
 function showLoadFailure() {
   if (loadFailure.value) failureDetails.show(loadFailure.value)
-}
-
-async function loadRepositories() {
-  try {
-    const fetched = await fetchRepositories()
-    repositories.value = Object.fromEntries(
-      fetched.map((repository) => [repository.id, repository]),
-    )
-  } catch {
-    repositories.value = {}
-  }
 }
 
 async function loadInstalledExtensions() {
@@ -76,7 +54,7 @@ async function loadInstalledExtensions() {
 async function refreshAll() {
   loading.value = true
   try {
-    await Promise.all([loadInstalledExtensions(), loadRepositories()])
+    await loadInstalledExtensions()
   } finally {
     loading.value = false
     loaded.value = true
@@ -145,7 +123,18 @@ onMounted(refreshAll)
     >
       <template #card="{ item }">
         <v-card-title class="text-wrap">{{ item.manifest.name }}</v-card-title>
-        <v-card-subtitle>{{ repositoryName(item.repository_id) }}</v-card-subtitle>
+        <v-card-subtitle class="d-flex align-center ga-2">
+          {{ item.repository_name }}
+          <v-chip
+            v-if="!item.repository_id"
+            size="x-small"
+            label
+            color="warning"
+            data-testid="detached"
+          >
+            Detached
+          </v-chip>
+        </v-card-subtitle>
         <v-card-text class="flex-grow-1 text-body-2 text-medium-emphasis">{{
           item.tag
         }}</v-card-text>
@@ -195,7 +184,6 @@ onMounted(refreshAll)
 
     <InstalledExtensionDialog
       :extension="selectedExtension"
-      :repository="selectedRepository"
       :uninstalling="uninstalling"
       @close="selectedId = null"
       @uninstall="uninstallSelectedExtension"

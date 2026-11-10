@@ -309,13 +309,21 @@ the consumer needs these rights in every namespace it deploys to, and the diagra
 
 ### Pass the same platform values to every chart
 
-Every deploy passes the values that the platform owns, so that charts can rely on them (Stories 4.3, 4.4, 4.5):
+Every deploy passes the values that the platform owns, so that charts can rely on them (Stories 4.3, 4.4, 4.5).
+The decision document proposes the list of these values in
+[Values that the Helm Chart Consumer sets](acceptance_criteria.md#values-that-the-helm-chart-consumer-sets-proposed).
+The following adds to the table:
 
-- a unique helm release name and a name prefix for Kubernetes objects,
-- the URL path of the web interface, for settings like JupyterLab's `base_url`,
-- the project id, its bucket and its namespace (Q6 decides the namespace),
-- the credentials of the project's technical user or a dedicated client (Q7). They have the rights of a scientist
-  of the project.
+- All values are under the one reserved key `global.kaapana`. A chart gets no other value of the platform.
+- The helm release name is not one of them. The consumer generates a unique helm release name, and helm gives it to
+  every chart as `.Release.Name`. A chart that names its Kubernetes objects after it can be deployed several times.
+  See [Names and conflicts](acceptance_criteria.md#names-and-conflicts).
+- The credentials are passed as the name of a secret. They belong to the project's technical user or to a dedicated
+  client (Q7), and they have the rights of a scientist of the project. Q13 decides on whose behalf a platform-wide
+  release acts.
+- A helm-chart content of the platform itself, such as `project-namespace`, can get passwords in addition. See
+  [Privileged values for platform contents](acceptance_criteria.md#privileged-values-for-platform-contents).
+  A content of an extension never gets them.
 
 Document these values for extension developers together with the schema of `helm-chart-content.json`.
 

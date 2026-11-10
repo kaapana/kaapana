@@ -2,7 +2,6 @@ from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Body, Query, status
-from fastapi.responses import PlainTextResponse
 
 from .. import examples
 from ..models import (
@@ -202,24 +201,6 @@ def get_release_status(release_id: UUID) -> ReleaseStatus:
     the release itself, which leaves out these details.
     """
     return examples.ANNA_NOTEBOOK_STATUS
-
-
-@router.get(
-    "/releases/{release_id}/logs",
-    response_class=PlainTextResponse,
-    responses={
-        403: {"model": Error, "description": "Only principal investigators and kaapana-system-admins see logs."},
-        404: {"model": Error, "description": "Unknown release, pod or container."},
-    },
-)
-def get_release_logs(
-    release_id: UUID,
-    pod: Annotated[str | None, Query(description="The first pod if omitted.")] = None,
-    container: Annotated[str | None, Query(description="The first container if omitted.")] = None,
-    tail: Annotated[int, Query(ge=1, le=5000)] = 200,
-) -> str:
-    """Get the last log lines of one container of a release."""
-    return examples.ANNA_NOTEBOOK_LOGS
 
 
 @router.post(

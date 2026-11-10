@@ -36,7 +36,7 @@ The Extension Manager dispatches every content of type helm-chart to the Helm Ch
 - list the applications that can be deployed in a project, with their registered versions (Stories 2.1, 5.2, 11.1)
 - enable and disable applications per project (Story 5.2)
 - deploy, update and undeploy an application, each preceded by a dry-run (Stories 2.1, 2.3, 11.2–11.4)
-- list deployed applications with state, details, configuration and logs (Stories 2.4, 3.1–3.4)
+- list deployed applications with state, details and configuration (Stories 2.4, 3.1, 3.2, 3.4)
 - deploy an application from a workflow task and mark it as finished (Epic 7)
 - tell the project management whether a project still has deployed applications, so that its deletion can be refused (Story 12.2)
 
@@ -189,15 +189,6 @@ Acceptance criteria:
 * A view shows the version and the deploy parameter values (Story 2.2) of each deployed application.
 * Secret values (e.g. passwords, tokens) are masked.
 
-#### Story 3.3: Viewing the logs of a deployed application
-As a principal-investigator I want to see the logs of a deployed application, so that I can find out why it does not work.
-
-Priority: Release 2 *(proposed)*
-
-Acceptance criteria:
-* The logs of each container of each pod of a deployed application can be viewed.
-* A PI only sees logs of applications in their own project.
-
 #### Story 3.4: Overview of all deployed applications
 As a kaapana-system-admin I want to see the deployed applications of all projects, so that I can support users and remove applications that are no longer needed.
 
@@ -268,7 +259,7 @@ As a kaapana-system-admin I want a default mapping of the user groups to the act
 
 Acceptance criteria:
 * kaapana-system-admin: install and uninstall extensions, enable applications for projects, deploy, update and undeploy platform-wide applications, and every action of a PI in every project.
-* principal-investigator: deploy, configure, update and undeploy applications in their project, view their logs, and every action of a scientist in this project. A PI cannot deploy platform-wide (Q11).
+* principal-investigator: deploy, configure, update and undeploy applications in their project, and every action of a scientist in this project. A PI cannot deploy platform-wide (Q11).
 * scientist: browse and open the deployed applications of their project and the platform-wide applications, see status and configuration, and finish interactive steps (Story 7.2). A scientist cannot deploy applications (Q2), and cannot update or undeploy them either. Finishing an interactive step still undeploys its application (Story 7.2).
 * The API rejects requests without the required permission; hiding actions in the frontend is not sufficient.
 

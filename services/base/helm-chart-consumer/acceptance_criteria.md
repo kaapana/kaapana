@@ -46,11 +46,10 @@ There is no update route. Updating an extension registers the new version and de
 | `POST /v1/releases` | Deploys. The new release starts in the state `deploying`. |
 | `GET /v1/releases`, `GET /v1/releases/{id}` | Lists releases, and returns one release with its state and its reason |
 | `GET /v1/releases/{id}/status` | Returns the Kubernetes objects, pods, events and the helm error *(to be decided)* |
-| `GET /v1/releases/{id}/logs` | Returns the log lines of one container ([Story 3.3][s3.3], Release 2) *(to be decided)* |
 | `POST /v1/releases/{id}/dry-run`, `PATCH /v1/releases/{id}` | Checks and runs an update of the version, the parameters, or both |
 | `DELETE /v1/releases/{id}` | Undeploys, and deletes the volumes with their data ([Q5][q5]) |
 
-The routes marked *(to be decided)* say what the page needs: the status details of a release and its logs. How the implementation offers them is open, so their paths, requests and responses can change.
+The route marked *(to be decided)* says what the page needs: the status details of a release. How the implementation offers them is open, so the path and the response of the route can change.
 
 Deploy and update share one sequence of checks with their dry-run. See [Share one check sequence between dry-run and the real call][h-checks]. The state is derived from the helm release and its objects. See [Derive the state, do not store it][h-state].
 
@@ -456,7 +455,7 @@ The questions and the checklist are quoted from the ticket.
 
 ### 1. How does the interface of a new service with following functionalities look like: chart install with values, update, uninstall, status (starting, running, failed, with a reason)
 
-`POST /v1/releases` installs with values, `PATCH /v1/releases/{id}` updates, `DELETE /v1/releases/{id}` uninstalls, and a release reports `state` and `state_reason`. The routes for the status details and the logs are still to be decided. See [Interface of the service](#interface-of-the-service) for all routes by caller, and [Words of the ticket and words of the concept](#words-of-the-ticket-and-words-of-the-concept) for the mapping of the terms.
+`POST /v1/releases` installs with values, `PATCH /v1/releases/{id}` updates, `DELETE /v1/releases/{id}` uninstalls, and a release reports `state` and `state_reason`. The route for the status details is still to be decided. See [Interface of the service](#interface-of-the-service) for all routes by caller, and [Words of the ticket and words of the concept](#words-of-the-ticket-and-words-of-the-concept) for the mapping of the terms.
 
 ### 2. What a `helm-chart` content contains
 
@@ -509,7 +508,6 @@ State of the checklist:
 [s2.3]: concept.md#story-23-undeploying-an-application
 [s2.5]: concept.md#story-25-working-on-existing-data
 [s3.1]: concept.md#story-31-seeing-the-status-of-a-deployed-application
-[s3.3]: concept.md#story-33-viewing-the-logs-of-a-deployed-application
 [s3.4]: concept.md#story-34-overview-of-all-deployed-applications
 [s4.1]: concept.md#story-41-packaging-a-helm-chart-as-an-extension
 [s4.2]: concept.md#story-42-declaring-how-kaapana-presents-and-deploys-an-application

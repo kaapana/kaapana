@@ -16,7 +16,7 @@ The Helm Chart Consumer decides from these roles what each caller may do:
 - Scientists open the releases of their projects and all platform-wide releases and see their
   status and configuration. They also report when they finish the work in a release that a
   workflow started.
-- Principal investigators also deploy, update and undeploy in their projects and read the logs.
+- Principal investigators also deploy, update and undeploy in their projects.
 - Kaapana-system-admins may do everything, and only they deploy platform-wide and enable
   applications in projects.
 - The Extension Manager calls the registration routes from inside the cluster.

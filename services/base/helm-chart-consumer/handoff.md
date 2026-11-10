@@ -209,7 +209,6 @@ The rules are short (Story 5.1, Q2, Q11):
 |---|---|---|---|
 | List, open, status | yes | yes | yes |
 | Deploy, update, undeploy in the project | no | yes | yes |
-| Logs | no | yes | yes |
 | Complete the work in a release that a workflow started | yes | yes | yes |
 | Deploy, update, undeploy platform-wide | no | no | yes |
 | Enable and disable applications | no | no | yes |
@@ -220,7 +219,8 @@ is easy to forget on the next route. Write the permission tests from this table 
 
 The columns name the default roles. Check the rights in the token instead of the role names, so that the table
 also holds for custom roles (Story 5.4). The existing rights fit some rows, for example `launch_application` for
-deploy and `delete_active_apps` for undeploy. Other rows need new rights, for example logs.
+deploy and `delete_active_apps` for undeploy. Other rows need new rights, for example enabling an application in
+a project.
 
 `ReleaseCreate.origin` says who or what deploys, and `Release.origin` returns it. The default is a user origin.
 The consumer sets its `user_id` to the calling user and rejects a user origin that names another user, so that

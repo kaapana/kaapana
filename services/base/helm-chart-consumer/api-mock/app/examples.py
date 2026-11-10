@@ -374,12 +374,6 @@ UPDATE_DRY_RUN_PASSED = DryRunResult(
     chart_values={**DRY_RUN_PASSED.chart_values, "git": {"tokenSecret": "anna-notebook-git-token"}},
 )
 
-ANNA_NOTEBOOK_LOGS = """\
-[I 2026-11-06 10:01:12.204 ServerApp] jupyterlab | extension was successfully loaded.
-[I 2026-11-06 10:01:12.391 ServerApp] Serving notebooks from local directory: /home/jovyan/work
-[I 2026-11-06 10:01:12.392 ServerApp] Jupyter Server is running at /project/lung-ct/applications/anna-notebook/lab
-"""
-
 LUNG_CT_ENABLEMENTS = [
     Enablement(project_id="lung-ct", application_id=application_id, enabled_by="kim", enabled_at=at(2, 10))
     for application_id in ("jupyterlab", "mitk", "cvat", "collabora")

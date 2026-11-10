@@ -23,7 +23,7 @@ Without Docker, run `pip install -r requirements.txt` in a virtual environment, 
 |---|---|
 | `app/models.py` | Request and response models, including `HelmChartContent`, the model of `helm-chart-content.json` |
 | `app/routers/applications.py` | Applications and their versions. The Extension Manager registers and deregisters versions here. |
-| `app/routers/releases.py` | Deploy, update, undeploy, status and logs of deployed applications |
+| `app/routers/releases.py` | Deploy, update, undeploy and status of deployed applications |
 | `app/routers/projects.py` | Which applications are enabled in which project |
 | `app/examples.py` | The example data the routes return |
 

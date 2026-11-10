@@ -104,6 +104,8 @@ helm-chart-content/
 | `web_interface` | The service, the port and the path of the web interface ([Story 4.4][s4.4]) |
 | `parameters` | The values a user may set. See [Configuration of parameters](#configuration-of-parameters). |
 
+The chart creates the route to its web interface itself, as an `Ingress`. The consumer does not create it. `web_interface` tells the consumer where the web interface is, so that a release can return its `url`. A chart that wants an entry in the menu of the platform adds the annotations of the portal to its `Ingress`. See [Platform-wide releases](#platform-wide-releases).
+
 The `contentType` of a helm-chart content is `helm-chart-v1` *(proposed)*. The name follows the pattern of `workflow-v1`, the type of a workflow content. The Extension Manager reads the `contentType` in `extension_manifest.json` to pick the consumer of a content. The suffix versions the format of the content, so a later format can get its own type.
 
 ### Changes to the schema *(proposed)*
@@ -348,10 +350,11 @@ The goal is that a public chart needs no change. The extension wraps it:
 2. `chart/values.yaml` sets the values of the public chart under the name of the dependency. The `chart_value` of a parameter starts with that name, for example `jupyterhub.singleuser.memory.limit`.
 3. `helm-chart-content.json` declares the name, the description, the web interface and the parameters.
 
-Two additions make this work without templates in the wrapper:
+One addition lets most wrappers work without templates:
 
 - **A mapping for platform values.** Helm does not render `values.yaml`, so a wrapper cannot hand `global.kaapana.url_path` to a value of the public chart. `helm-chart-content.json` therefore gets a field that maps a platform value onto a chart value, for example `url_path` onto `jupyterhub.hub.baseUrl`.
-- **The consumer creates the route to the web interface** from `web_interface`. Otherwise every wrapper needs a template for it ([Story 4.4][s4.4]).
+
+The route to the web interface comes from the chart, as for every helm-chart content. A public chart often creates an `Ingress` from its values. The wrapper sets the annotations in `chart/values.yaml` and maps `url_path` onto the path value of that `Ingress`. A public chart without an `Ingress` needs a template for it in the wrapper.
 
 Limits:
 
@@ -487,7 +490,7 @@ Releases that kube-helm created have no record in the consumer. They carry the l
 | Types `string`, `bool`, `list_single` | Types `string`, `boolean`, `choice` |
 | Type `doc` | `description` |
 | `global.*` copied from the platform release | The platform values under `global.kaapana` |
-| Ingress with the annotation `kaapana.ai/type: application` | `web_interface` |
+| Ingress with the annotation `kaapana.ai/type: application` | The chart keeps its `Ingress`, and `web_interface` declares where it leads |
 
 A legacy chart reads platform values by their old names, for example `global.registry_url`. The chart has to change these to the names under `global.kaapana`. Passing the old names as well would bring back the full `global` block that the allowlist removes.
 

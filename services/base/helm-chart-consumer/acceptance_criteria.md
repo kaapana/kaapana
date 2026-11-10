@@ -114,7 +114,8 @@ A review of the model found these gaps:
 
 - **`name` has no pattern.** The name becomes a URL segment and the start of the helm release name, so it must be a lowercase DNS label with a length limit.
 - **`default` should be optional.** See the rule about defaults in [Rules](#rules).
-- **A platform value cannot be mapped onto a chart value.** See [Using a chart from a public registry](#using-a-chart-from-a-public-registry-proposed).
+- **A platform value cannot be mapped onto a chart value.** See [Mapping platform values to `values.yaml`](#mapping-platform-values-to-valuesyaml).
+- **An annotation cannot be added to an object of a public chart.** See [Adding annotations and advanced chart customization options](#adding-annotations-and-advanced-chart-customization-options).
 - **The field is called `multi_deployable`.** The [glossary][glossary] also mentions `multiinstallable`. "Install" is reserved for extensions, so `multi_deployable` fits better.
 - **There is no field for privileged values.** A platform content declares the passwords that it needs in `platform_secrets`. See [Privileged values for platform contents](#privileged-values-for-platform-contents).
 - **A parameter with several choices is not needed.** The legacy type `list_multi` is used by two workflow charts and by no application chart. The legacy type `doc` is help text and becomes `description`.
@@ -349,16 +350,21 @@ The goal is that a public chart needs no change. The extension wraps it:
 2. `chart/values.yaml` sets the values of the public chart under the name of the dependency. The `chart_value` of a parameter starts with that name, for example `jupyterhub.singleuser.memory.limit`.
 3. `helm-chart-content.json` declares the name, the description and the parameters.
 
-One addition lets most wrappers work without templates:
+### Mapping platform values to `values.yaml`
 
-- **A mapping for platform values.** Helm does not render `values.yaml`, so a wrapper cannot hand `global.kaapana.url_path` to a value of the public chart. `helm-chart-content.json` therefore gets a field that maps a platform value onto a chart value, for example `url_path` onto `jupyterhub.hub.baseUrl`.
+Helm does not render `values.yaml`, so a wrapper cannot hand `global.kaapana.url_path` to a value of the public chart. `helm-chart-content.json` therefore gets a field that maps a platform value onto a chart value, for example `url_path` onto `jupyterhub.hub.baseUrl`.
 
-The route to the web interface comes from the chart, as for every helm-chart content. A public chart often creates an `Ingress` from its values. The wrapper sets the annotations in `chart/values.yaml` and maps `url_path` onto the path value of that `Ingress`. A public chart without an `Ingress` needs a template for it in the wrapper.
+### Adding annotations and advanced chart customization options
 
-Limits:
+The route to the web interface comes from the chart, as for every helm-chart content. A public chart often creates an `Ingress` from its values. The wrapper then sets the annotations in `chart/values.yaml` and maps `url_path` onto the path value of that `Ingress`. A public chart without an `Ingress` needs a template for it in the wrapper.
 
-- A public chart often names its objects after `.Release.Name`, so it is usually multi-deployable. See [Names and conflicts](#names-and-conflicts).
-- The images of a public chart come from public registries. Making them available without internet access is not a task of the consumer ([Q10][q10]).
+A public chart without a value for annotations needs one more step. Helm can hand the rendered manifest to a post-renderer before it installs it (`helm install --post-renderer`). The consumer uses this to add annotations at a place that `helm-chart-content.json` names, in the same way as the mapping for platform values. Helm stores the changed manifest in the helm release, so `helm get manifest` and a rollback see the annotations. The same step can make other changes to the rendered chart, for example add labels to every object.
+
+To check before the implementation:
+
+- The post-renderer has to run on every upgrade as well. Otherwise the upgrade removes the annotations.
+- The place needs the kind and the name of the object, and the name often contains the helm release name. Patches of Kustomize already have a format for this.
+- Helm 3 takes an executable as post-renderer, and Helm 4 takes a plugin.
 
 ## Charts that other services install *(proposed)*
 

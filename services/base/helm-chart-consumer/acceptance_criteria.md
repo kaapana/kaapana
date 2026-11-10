@@ -110,15 +110,9 @@ The `contentType` of a helm-chart content is `helm-chart-v1` *(proposed)*. The n
 
 ### Changes to the schema *(proposed)*
 
-A review of the model found these gaps:
+One gap in the model is open:
 
-- **`name` has no pattern.** The name becomes a URL segment and the start of the helm release name, so it must be a lowercase DNS label with a length limit.
-- **`default` should be optional.** See the rule about defaults in [Rules](#rules).
-- **A platform value cannot be mapped onto a chart value.** See [Mapping platform values to `values.yaml`](#mapping-platform-values-to-valuesyaml).
-- **An annotation cannot be added to an object of a public chart.** See [Adding annotations and advanced chart customization options](#adding-annotations-and-advanced-chart-customization-options).
-- **The field is called `multi_deployable`.** The [glossary][glossary] also mentions `multiinstallable`. "Install" is reserved for extensions, so `multi_deployable` fits better.
 - **There is no field for privileged values.** A platform content declares the passwords that it needs in `platform_secrets`. See [Privileged values for platform contents](#privileged-values-for-platform-contents).
-- **A parameter with several choices is not needed.** The legacy type `list_multi` is used by two workflow charts and by no application chart. The legacy type `doc` is help text and becomes `description`.
 
 ## Configuration of parameters
 
@@ -531,7 +525,7 @@ The questions and the checklist are quoted from the ticket.
 
 ### 2. What a `helm-chart` content contains
 
-`helm-chart-content.json` and a plain helm chart. See [Content of a helm-chart content](#content-of-a-helm-chart-content), which also holds the review of the schema.
+`helm-chart-content.json` and a plain helm chart. See [Content of a helm-chart content](#content-of-a-helm-chart-content), which also lists the open change to the schema.
 
 ### 3. How can an existing chart from a public registry be used with least amount of effort
 

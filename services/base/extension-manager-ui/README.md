@@ -17,7 +17,7 @@ The whole app lives under `docker/files/`:
 | -------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | `src/App.vue`                          | Page title, the section tabs, notifications, the one failure-details dialog, shell settings.                  |
 | `src/router/router.ts`                 | The three sections `/catalog`, `/extensions`, `/repositories`; `/` and unknown paths go to the catalog.       |
-| `src/views/`                           | One view per section: `Catalog.vue`, `Extensions.vue`, `Repositories.vue`.                                    |
+| `src/views/`                           | One view per section: `CatalogView.vue`, `ExtensionsView.vue`, `RepositoriesView.vue`.                        |
 | `src/features/catalog/`                | Filter bar, the catalog entry dialog, grouping/filtering and the install-availability rules.                  |
 | `src/features/extensions/`             | The installed-extension dialog (status, contents, uninstall), the upload dialog and their API calls.          |
 | `src/features/repositories/`           | The repository form dialog (create/edit, validation, unsaved-changes protection), form adapter and API calls. |
@@ -79,8 +79,9 @@ Everything in `src/shared/` stays local to this view; nothing is moved to
   stored credentials are kept unless both username and password are entered.
   Closing an edited form asks before discarding, and an edited form reports
   the view as dirty to the shell. The built-in _Upload_ repository is shown
-  without Edit and Remove. Removing a repository is confirmed and says
-  when the extension manager stops tracking extensions installed from it.
+  without Edit and Remove. Removing a repository is confirmed. Extensions
+  installed from it stay installed and are shown as _Detached_; they can
+  still be uninstalled.
 - **Empty and failure states** — each section distinguishes "nothing yet"
   (with the next step), "nothing matches" (catalog: clear filters) and "could
   not load" (retry and details). A failed refresh keeps the last list with an

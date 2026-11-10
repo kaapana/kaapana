@@ -176,6 +176,7 @@
         "lib/kaapana_containers/**",
         "lib/kaapana_extensions/**",
         "lib/kaapana_client/**",
+        "build_cli/**",
         "services/base/workflow-api/**",
         "services/base/portal-api/**",
         "services/base/kaapana-backend/**",

@@ -72,7 +72,9 @@ An enablement is only the pair of a project and an application. The consumer doe
 
 ### Installer and platform deploy
 
-The API mock has no route for these callers yet. See [Charts that other services install](#charts-that-other-services-install-proposed) and [Charts at platform deploy and charts from the legacy page](#charts-at-platform-deploy-and-charts-from-the-legacy-page-proposed).
+- The base-installer pulls images. It installs one release of the chart `pull-docker-chart` per image. The API mock has no route for this yet. See [Charts that other services install](#charts-that-other-services-install-proposed).
+- A job at platform deploy processes the list `preinstall_extensions`. It installs each extension through the Extension Manager, and then deploys the listed releases with `GET /v1/releases?name=<name>` and `POST /v1/releases`. Both routes exist. See [Charts at platform deploy and charts from the legacy page](#charts-at-platform-deploy-and-charts-from-the-legacy-page-proposed).
+- The chart `kaapana-platform-chart` is in the same list. The API mock has no route to install it, and it is open whether the consumer installs it at all. See [The three kinds of preinstalled charts](#the-three-kinds-of-preinstalled-charts).
 
 ### Workflows
 

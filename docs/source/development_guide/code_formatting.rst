@@ -77,11 +77,11 @@ Scope
 - **CI** checks the whole repository. The job log lists every finding. The
   Code Quality widget shows only the findings that are new or resolved
   compared with the target branch.
-- A failing :code:`format: [ruff]`, :code:`validate: [ruff]` or
-  :code:`validate: [hadolint]` job fails the pipeline.
-  :code:`format: [prettier]`, :code:`validate: [ui]` and
-  :code:`validate: [helm]` are allowed to fail until the existing findings
-  are fixed, so they only warn. :code:`lint` jobs never fail.
+- A failing :code:`format: [ruff]`, :code:`validate: [ruff]`,
+  :code:`validate: [ui]` or :code:`validate: [hadolint]` job fails the
+  pipeline. :code:`format: [prettier]` and :code:`validate: [helm]` are
+  allowed to fail until the existing findings are fixed, so they only
+  warn. :code:`lint` jobs never fail.
 
 Ruff
 ----
@@ -205,6 +205,8 @@ The pre-commit hook applies the fixes it can and fails. CI fixes nothing.
   errors that break a Vue component, such
   as an invalid :code:`v-for`, a mutated prop, a :code:`ref` used without
   :code:`.value`, a single-word component name or an unused component.
+  Single-word names are allowed in :code:`views/`, :code:`pages/` and
+  :code:`*.stories.ts`, because those are never used as tags.
 - `vue/valid-v-slot <https://eslint.vuejs.org/rules/valid-v-slot.html>`__: :code:`v-slot` must be valid. Modifiers are
   allowed for Vuetify's :code:`#item.<key>` slots.
 - `vue/block-lang <https://eslint.vuejs.org/rules/block-lang.html>`__: :code:`<script>` blocks must use

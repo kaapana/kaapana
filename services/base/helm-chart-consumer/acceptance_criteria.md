@@ -42,7 +42,7 @@ The platform registers its own contents with the same routes, without an extensi
 
 | Route | What it does |
 |---|---|
-| `GET /v1/applications?project_id=` | Lists the applications that can be deployed in the project |
+| `GET /v1/applications?project_id=` | Lists the applications that can be deployed in the project ([Story 5.8][s5.8]) |
 | `GET /v1/applications/{id}/versions/{version}` | Returns the parameter declarations that the deploy form is built from |
 | `POST /v1/releases/dry-run` | Runs every check of a deploy and a helm dry-run. Returns all problems and the chart values. |
 | `POST /v1/releases` | Deploys. The new release starts in the state `deploying`. |
@@ -59,13 +59,13 @@ Deploy and update share one sequence of checks with their dry-run. See [Share on
 
 | Route | What it does |
 |---|---|
-| `GET /v1/applications` | Lists all applications that have a registered version. With `scope=platform`, it lists those that can be deployed platform-wide. |
-| `GET /v1/applications?project_id=` | Lists the applications that are enabled in a project |
+| `GET /v1/applications` | Lists all applications that have a registered version ([Story 5.7][s5.7]). With `scope=platform`, it lists those that can be deployed platform-wide. |
+| `GET /v1/applications?project_id=` | Lists the applications that are enabled in a project ([Story 5.8][s5.8]) |
 | `GET /v1/applications/{id}/versions` | Lists the versions of an application. With `include_deregistered=true`, it also lists versions that releases still run after their extension was uninstalled ([Story 1.2][s1.2]). |
 | `PUT`, `DELETE /v1/projects/{id}/enabled-applications/{application_id}` | Enables and disables an application in a project ([Story 5.2][s5.2]). Both answer without a body. |
 | `GET /v1/releases` | Lists the releases of all projects ([Story 3.4][s3.4]) |
 
-An enablement is only the pair of a project and an application. The consumer does not record who enabled an application or when, so there is no route that lists enablements. The kaapana-system-admin also uses every route of the application page, in every project and platform-wide ([Story 5.1][s5.1]).
+An enablement is only the pair of a project and an application. The consumer does not record who enabled an application or when, so there is no route that lists enablements. [Story 5.7][s5.7] wants the projects in which each application is enabled. The API mock answers this with one request per project, and whether an application should list its projects is still to be decided. The kaapana-system-admin also uses every route of the application page, in every project and platform-wide ([Story 5.1][s5.1]).
 
 ### Access-information-interface (AII)
 
@@ -583,6 +583,8 @@ State of the checklist:
 [s5.3]: concept.md#story-53-restricting-who-can-open-an-application
 [s5.4]: concept.md#story-54-custom-access-control-model
 [s5.6]: concept.md#story-56-audit-log
+[s5.7]: concept.md#story-57-seeing-where-applications-are-enabled
+[s5.8]: concept.md#story-58-seeing-the-applications-that-are-enabled-in-a-project
 [s8.1]: concept.md#story-81-deploying-an-application-multiple-times
 [s8.3]: concept.md#story-83-identifying-deployed-applications
 [s9.1]: concept.md#story-91-deploying-an-application-platform-wide

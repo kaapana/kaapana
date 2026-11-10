@@ -33,7 +33,8 @@ The Extension Manager dispatches every content of type helm-chart to the Helm Ch
 - [optional]: update extension content of type helm-chart (Story 1.3)
 
 ### Given by the frontend and by workflows (to be extended)
-- list the applications that can be deployed in a project, with their registered versions (Stories 2.1, 5.2, 11.1)
+- list the applications that can be deployed in a project, with their registered versions (Stories 2.1, 5.2, 5.8, 11.1)
+- list all applications with the projects in which they are enabled (Story 5.7)
 - enable and disable applications per project (Story 5.2)
 - deploy, update and undeploy an application, each preceded by a dry-run (Stories 2.1, 2.3, 11.2–11.4)
 - list deployed applications with state, details and configuration (Stories 2.4, 3.1, 3.2, 3.4)
@@ -312,6 +313,20 @@ Priority: Later *(proposed)*
 Acceptance criteria:
 * Deploy, update and undeploy actions are recorded with user, time, project, application and version.
 * kaapana-system-admins can view these records.
+
+#### Story 5.7: Seeing where applications are enabled
+As a kaapana-system-admin I want to see all applications and the projects in which each of them is enabled, so that I can decide where to enable or disable an application.
+
+Acceptance criteria:
+* A kaapana-system-admin can list all applications, whether they are enabled in a project or not.
+* For each application, the kaapana-system-admin sees the projects in which it is enabled.
+
+#### Story 5.8: Seeing the applications that are enabled in a project
+As a principal-investigator I want to see all applications that are enabled in a project, so that I know what can be deployed there.
+
+Acceptance criteria:
+* A principal-investigator can list the applications that are enabled in one of their projects.
+* A user who is not a kaapana-system-admin sees only the applications that are enabled in at least one of their projects.
 
 
 ### Epic 6: Resource governance

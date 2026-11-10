@@ -214,6 +214,8 @@ The rules are short (Story 5.1, Q2, Q11):
 | List, details and status of platform-wide releases | no | no | yes |
 | Deploy, update, undeploy platform-wide | no | no | yes |
 | Enable and disable applications | no | no | yes |
+| See the applications that are enabled in one of their projects | to be decided | yes | yes |
+| See all applications and where they are enabled | no | no | yes |
 
 Everyone may open the web interface of a platform-wide release, but only a kaapana-system-admin sees the release
 itself (Story 9.4). For every other caller, a platform-wide release answers like one that does not exist. Keep

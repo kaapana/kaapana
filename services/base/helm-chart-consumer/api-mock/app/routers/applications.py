@@ -26,6 +26,9 @@ def list_applications(
 
     Users see each helm-chart content as an application. Its name, description and scopes come
     from its newest registered version.
+
+    A kaapana-system-admin sees all applications. Every other user sees only the applications
+    that are enabled in at least one of their projects.
     """
     return examples.APPLICATIONS
 

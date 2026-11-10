@@ -23,12 +23,12 @@ test('selecting a file uploads it via the chunked protocol and shows success', a
   await page.locator('input[type="file"]').setInputFiles(smallFile)
 
   // FilePond posts to get a transfer id, carrying the file length up front.
-  // FilePond bypasses httpClient, so Upload.vue prefixes the /project/<id>
+  // FilePond bypasses httpClient, so FileUpload.vue prefixes the /project/<id>
   // document base itself.
   const post = await postReq
   expect(new URL(post.url()).pathname).toBe(`/project/admin${UPLOAD_URL}`)
   expect(post.headers()['upload-length']).toBe(String(smallFile.buffer.length))
-  // Upload.vue's beforeAddFile is the only custom upload behavior: it stamps a
+  // FileUpload.vue's beforeAddFile is the only custom upload behavior: it stamps a
   // `filepath` metadata field, sent in the transfer-id request's form body.
   expect(post.postData()).toContain('filepath')
 

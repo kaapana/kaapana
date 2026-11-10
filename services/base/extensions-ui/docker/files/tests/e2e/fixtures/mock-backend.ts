@@ -295,7 +295,7 @@ export async function installMockBackend(
   await page.route('**/kube-helm-api/helm-delete-chart', (r) => r.fulfill(json({})))
   await page.route(/\/kube-helm-api\/import-container(\?.*)?$/, (r) => r.fulfill(json({})))
 
-  // FilePond (Upload.vue) bypasses httpClient — hence the real file drop in
+  // FilePond (ExtensionUpload.vue) bypasses httpClient — hence the real file drop in
   // project-scope.spec.ts. The POST answers a plain-text transfer id as
   // filepond expects; the follow-up PATCH/HEAD chunk calls only must not fail.
   await page.route('**/kube-helm-api/filepond-upload*', (r) =>

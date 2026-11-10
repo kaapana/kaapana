@@ -25,7 +25,7 @@
           <!-- v-app-bar/v-bottom-navigation are app-layout components in Vuetify 3
                (fixed position + v-main padding), so plain elements are used here. -->
           <v-toolbar flat density="compact" color="transparent" class="card-toolbar">
-            <Chip :items="[modality]" />
+            <ChipList :items="[modality]" />
             <v-spacer></v-spacer>
             <v-btn
               :icon="kaapanaIcons.preview"
@@ -92,7 +92,7 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from 'vue'
-import Chip from './Chip.vue'
+import ChipList from './ChipList.vue'
 import TagChip from './TagChip.vue'
 import { loadSeriesData, updateTags } from '@/common/api.service'
 import { readSettings, settings as defaultSettings } from '@/static/defaultUIConfig'

@@ -44,7 +44,7 @@
                   </v-tooltip>
                 </v-col>
               </v-row>
-              <Search
+              <DatasetSearch
                 ref="searchRef"
                 :selectedDataset="selectedDataset"
                 :loading="isLoading"
@@ -62,7 +62,7 @@
             <v-divider></v-divider>
           </v-card>
           <div class="d-flex flex-column pa-0" style="height: 100%">
-            <Paginate
+            <GalleryPagination
               :pageLength="settings.datasets.itemsPerPagePagination"
               :aggregatedSeriesNum="aggregatedSeriesNum"
               :executeSlicedSearch="settings.datasets.executeSlicedSearch"
@@ -196,7 +196,7 @@
                 v-model:patients="patients"
               />
               <!-- seriesInstanceUIDs deliberately not two-way bound: breaks the Gallery embedded in StructuredGallery -->
-              <Gallery v-else :seriesInstanceUIDs="seriesInstanceUIDs" />
+              <SeriesGallery v-else :seriesInstanceUIDs="seriesInstanceUIDs" />
             </v-container>
           </v-container>
 
@@ -216,7 +216,7 @@
           v-if="datasets_store.detailViewItem"
           :series-instance-u-i-d="datasets_store.detailViewItem"
         />
-        <Dashboard
+        <DatasetDashboard
           v-else
           :seriesInstanceUIDs="identifiersOfInterest"
           :allPatients="allPatients"
@@ -284,10 +284,10 @@ import { Splitpanes, Pane } from 'splitpanes'
 import 'splitpanes/dist/splitpanes.css'
 import DetailView from '@/components/DetailView.vue'
 import StructuredGallery from '@/components/StructuredGallery.vue'
-import Gallery from '@/components/Gallery.vue'
-import Search from '@/components/Search.vue'
+import SeriesGallery from '@/components/SeriesGallery.vue'
+import DatasetSearch from '@/components/DatasetSearch.vue'
 import TagBar from '@/components/TagBar.vue'
-import Dashboard from '@/components/Dashboard.vue'
+import DatasetDashboard from '@/components/DatasetDashboard.vue'
 import SaveDatasetDialog from '@/components/SaveDatasetDialog.vue'
 import AddToDatasetDialog from '@/components/AddToDatasetDialog.vue'
 import ValidationReportDialog from '@/components/ValidationReportDialog.vue'
@@ -297,7 +297,7 @@ import GalleryEmptyState from '@/components/GalleryEmptyState.vue'
 import EditDatasetsDialog from '@/components/EditDatasetsDialog.vue'
 import DownloadDatasetBtn from '@/components/DownloadDatasetBtn.vue'
 import VueSelecto from '@/components/VueSelecto.vue'
-import Paginate from '@/components/Paginate.vue'
+import GalleryPagination from '@/components/GalleryPagination.vue'
 import {
   createDataset,
   updateDataset as apiUpdateDataset,
@@ -322,7 +322,7 @@ const projectStore = useProjectStore()
 const failureDetails = useFailureDetailsStore()
 const datasets_store = useDatasetsStore()
 
-const searchRef = ref<InstanceType<typeof Search> | null>(null)
+const searchRef = ref<InstanceType<typeof DatasetSearch> | null>(null)
 
 const seriesInstanceUIDs = ref<string[]>([])
 const patients = ref<Patients>({})
@@ -744,7 +744,7 @@ async function removeFromDataset() {
   )
 
   // Reload and search again manually: only the identifiers changed, not the
-  // dataset name, so no watcher in Search.vue fires.
+  // dataset name, so no watcher in DatasetSearch.vue fires.
   searchRef.value
     ?.reloadDataset()
     .catch((error: unknown) =>

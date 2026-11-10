@@ -30,7 +30,11 @@ const Typography = defineComponent({
         ),
         h('div', { class: 'mt-6' }, [
           h('div', { class: 'text-body-1' }, 'High emphasis — default body color'),
-          h('div', { class: 'text-body-1 text-medium-emphasis' }, 'Medium emphasis — supporting information'),
+          h(
+            'div',
+            { class: 'text-body-1 text-medium-emphasis' },
+            'Medium emphasis — supporting information',
+          ),
           h('div', { class: 'text-body-1 text-disabled' }, 'Disabled emphasis — inactive content'),
         ]),
       ])

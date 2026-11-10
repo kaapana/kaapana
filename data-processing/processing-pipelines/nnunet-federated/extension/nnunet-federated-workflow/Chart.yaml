@@ -5,7 +5,7 @@ description: "Workflow for federated nnUNet training"
 name: nnunet-federated-workflow
 version: "0.0.0"
 keywords:
-- kaapanaworkflow
-- kaapanaexperimental
+  - kaapanaworkflow
+  - kaapanaexperimental
 annotations:
   ui-visible-name: "nnUNet federated"

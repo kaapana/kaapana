@@ -8,7 +8,7 @@ conf_data:
     action: "add"
     tags: "TestTAG"
   data_form:
-    dataset_name: 
+    dataset_name:
       name: "test-CT"
       access_level: "project"
       username: "kaapana"
@@ -28,7 +28,7 @@ conf_data:
     action: "delete"
     tags: "TestTAG"
   data_form:
-    dataset_name: 
+    dataset_name:
       name: "test-CT"
       access_level: "project"
       username: "kaapana"

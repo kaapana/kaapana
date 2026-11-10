@@ -28,7 +28,8 @@ test('free-text search puts the query string into the outgoing series query', as
 })
 
 // Located by its text: while loading, Vuetify hides the label from the accessible name.
-const searchButton = (page: Page) => page.locator('button.v-btn').filter({ hasText: /^\s*Search\s*$/ })
+const searchButton = (page: Page) =>
+  page.locator('button.v-btn').filter({ hasText: /^\s*Search\s*$/ })
 const SERIES = /\/kaapana-backend\/dataset\/series$/
 
 /** Read ONCE while the list loads: a retrying not.toHaveClass would wait for the load to end. */
@@ -50,7 +51,9 @@ test('the initial load does not spin the Search button', async ({ page }) => {
   expect(await spinsDuringLoad(page)).toBe(false)
 })
 
-test('a search the user starts spins the Search button until its results arrive', async ({ page }) => {
+test('a search the user starts spins the Search button until its results arrive', async ({
+  page,
+}) => {
   await openGallery(page)
   await delayRoute(page, SERIES, 2_000)
 
@@ -64,7 +67,8 @@ test('a search the user starts spins the Search button until its results arrive'
 const clipboardCases: { name: string; stub: () => void }[] = [
   {
     name: 'there is no Clipboard API',
-    stub: () => Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true }),
+    stub: () =>
+      Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true }),
   },
   {
     name: 'the clipboard refuses the write',
@@ -86,11 +90,13 @@ for (const c of clipboardCases) {
     await copyButton.click()
     const fallback = dialog(page, 'Link not copied')
     const link = fallback.getByLabel('Search link')
-    await expect(link).toHaveValue(/http:\/\/localhost:\d+\/project\/admin\/data-gallery-ui\/\?query_string=Thorax/)
-    await expect(link).toBeFocused()
-    expect(await link.evaluate((el: HTMLInputElement) => el.selectionEnd! - el.selectionStart!)).toBe(
-      (await link.inputValue()).length,
+    await expect(link).toHaveValue(
+      /http:\/\/localhost:\d+\/project\/admin\/data-gallery-ui\/\?query_string=Thorax/,
     )
+    await expect(link).toBeFocused()
+    expect(
+      await link.evaluate((el: HTMLInputElement) => el.selectionEnd! - el.selectionStart!),
+    ).toBe((await link.inputValue()).length)
     expect(await toasts(page).filter({ hasText: 'Search URL copied' }).count()).toBe(0)
 
     await page.keyboard.press('Escape')
@@ -101,7 +107,9 @@ for (const c of clipboardCases) {
 }
 
 // "Avoid generic “No data available” text when the application knows more."
-test('the Values list says when no series in the dataset has a value for the field', async ({ page }) => {
+test('the Values list says when no series in the dataset has a value for the field', async ({
+  page,
+}) => {
   const data = makeDefaultMockData()
   data.datasets.push({ ...data.datasets[0], name: 'empty-ds', identifiers: [] })
   await openGallery(page, data)
@@ -113,17 +121,20 @@ test('the Values list says when no series in the dataset has a value for the fie
   await page.getByLabel('Field').first().click()
   await page.getByRole('option', { name: 'Modality', exact: true }).click()
   await page.getByLabel('Values').first().click()
-  await expect(page.getByText('No series in this dataset has a value for “Modality”.')).toBeVisible()
+  await expect(
+    page.getByText('No series in this dataset has a value for “Modality”.'),
+  ).toBeVisible()
   await expect(page.getByText('No data available')).toHaveCount(0)
 })
 
-test('a query-param filter is composed into a match clause and its values are fetched', async ({ page }) => {
+test('a query-param filter is composed into a match clause and its values are fetched', async ({
+  page,
+}) => {
   const data = makeDefaultMockData()
   // The series query that carries the Modality filter (mapping key from query_values).
   const filteredSeriesReq = page.waitForRequest(
     (req) =>
-      isSeriesListRequest(req) &&
-      (req.postData() ?? '').includes('00080060 Modality_keyword'),
+      isSeriesListRequest(req) && (req.postData() ?? '').includes('00080060 Modality_keyword'),
   )
   const valuesReq = nextRequest(page, /\/dataset\/query_values\/Modality$/, 'POST')
 

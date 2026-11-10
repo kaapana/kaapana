@@ -38,7 +38,11 @@ test('closing the detail pane stops the viewer frame polling for OHIF', async ({
   const before = await intervals()
 
   // Opening the pane mounts the viewer frame, which starts polling for OHIF's canvas.
-  await page.locator('.seriesCard').first().getByRole('button', { name: 'Show series details' }).click()
+  await page
+    .locator('.seriesCard')
+    .first()
+    .getByRole('button', { name: 'Show series details' })
+    .click()
   await expect.poll(intervals).toBeGreaterThan(before)
 
   // Closing it must stop that polling, not leave it running for the life of the page.

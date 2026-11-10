@@ -16,24 +16,24 @@ convention).
 The whole app lives under `docker/files/`; the single view is
 `src/views/Datasets.vue`. The parts it is built from:
 
-| Path | Purpose |
-| --- | --- |
-| `src/components/Search.vue` | Free-text search, field filters, the deep-link parameters, and the dataset the search is scoped to. |
-| `src/components/Gallery.vue`, `SeriesCard.vue`, `StructuredGallery.vue`, `PatientView.vue`, `StudyView.vue` | The flat and the patient/study-grouped gallery. |
-| `src/components/Paginate.vue` | Pagination over the aggregated series count, with the optional sliced-search mode. |
-| `src/components/VueSelecto.vue` | Thin wrapper over `selecto` for rubber-band and click selection. |
-| `src/components/GalleryEmptyState.vue` | Why the gallery is empty (nothing yet / nothing matches / dataset empty / could not load), on `v-empty-state`. |
-| `src/components/TagBar.vue`, `TagChip.vue`, `Chip.vue` | Tag list, tagging by card click, tag chips. |
-| `src/components/DetailView.vue`, `TagsTable.vue`, `IFrameWindow.vue` | The detail pane: OHIF viewer and metadata table, from one metadata request. |
-| `src/components/Dashboard.vue` | Metrics and histograms of the current selection. |
-| `src/components/SaveDatasetDialog.vue`, `AddToDatasetDialog.vue`, `EditDatasetsDialog.vue` | Save a selection as a dataset, add to one, manage (list and delete) datasets. |
-| `src/components/DownloadDatasetBtn.vue` | Download of the selection, with its confirmation. |
-| `src/components/ValidationReportDialog.vue`, `ElementsFromHTML.vue` | A series' DICOM validation report. |
-| `src/composables/useFocusReturn.ts` | Returns focus to the control that opened a dialog. |
-| `src/stores/datasets.ts` | The app-wide selection: selected series, active tags, and the series open in the detail pane or the validation report. |
-| `src/utils/notifyFailure.ts`, `src/stores/failureDetails.ts` | A failed action as a notification whose details open in `ErrorDetailsDialog` (same code as extensions-ui). |
-| `src/utils/datasets.ts` | How a dataset is labelled and told apart (name and access level), and what a dataset list says when it shows no entry. |
-| `src/utils/tagColors.ts` | A tag's chip colour, hashed from its name, with a foreground picked for contrast. |
+| Path                                                                                                        | Purpose                                                                                                                |
+| ----------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `src/components/Search.vue`                                                                                 | Free-text search, field filters, the deep-link parameters, and the dataset the search is scoped to.                    |
+| `src/components/Gallery.vue`, `SeriesCard.vue`, `StructuredGallery.vue`, `PatientView.vue`, `StudyView.vue` | The flat and the patient/study-grouped gallery.                                                                        |
+| `src/components/Paginate.vue`                                                                               | Pagination over the aggregated series count, with the optional sliced-search mode.                                     |
+| `src/components/VueSelecto.vue`                                                                             | Thin wrapper over `selecto` for rubber-band and click selection.                                                       |
+| `src/components/GalleryEmptyState.vue`                                                                      | Why the gallery is empty (nothing yet / nothing matches / dataset empty / could not load), on `v-empty-state`.         |
+| `src/components/TagBar.vue`, `TagChip.vue`, `Chip.vue`                                                      | Tag list, tagging by card click, tag chips.                                                                            |
+| `src/components/DetailView.vue`, `TagsTable.vue`, `IFrameWindow.vue`                                        | The detail pane: OHIF viewer and metadata table, from one metadata request.                                            |
+| `src/components/Dashboard.vue`                                                                              | Metrics and histograms of the current selection.                                                                       |
+| `src/components/SaveDatasetDialog.vue`, `AddToDatasetDialog.vue`, `EditDatasetsDialog.vue`                  | Save a selection as a dataset, add to one, manage (list and delete) datasets.                                          |
+| `src/components/DownloadDatasetBtn.vue`                                                                     | Download of the selection, with its confirmation.                                                                      |
+| `src/components/ValidationReportDialog.vue`, `ElementsFromHTML.vue`                                         | A series' DICOM validation report.                                                                                     |
+| `src/composables/useFocusReturn.ts`                                                                         | Returns focus to the control that opened a dialog.                                                                     |
+| `src/stores/datasets.ts`                                                                                    | The app-wide selection: selected series, active tags, and the series open in the detail pane or the validation report. |
+| `src/utils/notifyFailure.ts`, `src/stores/failureDetails.ts`                                                | A failed action as a notification whose details open in `ErrorDetailsDialog` (same code as extensions-ui).             |
+| `src/utils/datasets.ts`                                                                                     | How a dataset is labelled and told apart (name and access level), and what a dataset list says when it shows no entry. |
+| `src/utils/tagColors.ts`                                                                                    | A tag's chip colour, hashed from its name, with a foreground picked for contrast.                                      |
 
 The theme, typeface, icon map, `ConfirmDialog`, `ErrorDetailsDialog`, the api
 error helpers and the workflow dialog come from `@kaapana/base-ui`; icons
@@ -89,59 +89,59 @@ as one notification.
 
 Dataset CRUD — `src/common/api.service.ts` (`/kaapana-backend/client/*`, scoped):
 
-| Method + path | Purpose |
-| --- | --- |
-| `GET client/datasets?skip_identifiers=true` | list datasets for the selector (identifiers left out) |
-| `GET client/datasets` | list datasets with their identifiers (Manage datasets, for the sizes) |
-| `GET client/dataset?name=&access_level=` | load one dataset with its identifiers (Search) |
-| `POST client/dataset` | create a dataset from the selection (Save dialog) |
-| `PUT client/dataset` | add / remove members (`action` `ADD` / `DELETE`) |
-| `DELETE client/dataset?name=&access_level=` | delete a dataset; without the level the backend assumes `project` |
+| Method + path                               | Purpose                                                               |
+| ------------------------------------------- | --------------------------------------------------------------------- |
+| `GET client/datasets?skip_identifiers=true` | list datasets for the selector (identifiers left out)                 |
+| `GET client/datasets`                       | list datasets with their identifiers (Manage datasets, for the sizes) |
+| `GET client/dataset?name=&access_level=`    | load one dataset with its identifiers (Search)                        |
+| `POST client/dataset`                       | create a dataset from the selection (Save dialog)                     |
+| `PUT client/dataset`                        | add / remove members (`action` `ADD` / `DELETE`)                      |
+| `DELETE client/dataset?name=&access_level=` | delete a dataset; without the level the backend assumes `project`     |
 
 Series & metadata queries — `src/common/api.service.ts` (`/kaapana-backend/dataset/*`, scoped):
 
-| Method + path | Purpose |
-| --- | --- |
-| `POST dataset/series` | gallery listing — flat UID list or structured patient tree |
-| `GET dataset/series/{uid}` | one series' metadata + thumbnail URL (DetailView, SeriesCard) |
-| `GET dataset/series/{uid}/thumbnail` | the thumbnail, as an `<img src>` the backend builds with the project prefix |
-| `POST dataset/aggregatedSeriesNum` | count of series matching the query (pagination) |
-| `GET dataset/search_fields` | searchable fields + max clause count |
-| `GET dataset/field_names` | filterable field names |
-| `POST dataset/query_values/{key}` | distinct values (+counts) for a field / for `Tags` |
-| `POST dataset/tag` | add / remove tags on series |
-| `POST dataset/dashboard` | histograms + metrics for the current set (also the structured-mode headers) |
-| `GET dataset/download?series_uids=` | zip of selected series (blob, no timeout; at most 20 series, 256 MB set by the backend) |
+| Method + path                        | Purpose                                                                                 |
+| ------------------------------------ | --------------------------------------------------------------------------------------- |
+| `POST dataset/series`                | gallery listing — flat UID list or structured patient tree                              |
+| `GET dataset/series/{uid}`           | one series' metadata + thumbnail URL (DetailView, SeriesCard)                           |
+| `GET dataset/series/{uid}/thumbnail` | the thumbnail, as an `<img src>` the backend builds with the project prefix             |
+| `POST dataset/aggregatedSeriesNum`   | count of series matching the query (pagination)                                         |
+| `GET dataset/search_fields`          | searchable fields + max clause count                                                    |
+| `GET dataset/field_names`            | filterable field names                                                                  |
+| `POST dataset/query_values/{key}`    | distinct values (+counts) for a field / for `Tags`                                      |
+| `POST dataset/tag`                   | add / remove tags on series                                                             |
+| `POST dataset/dashboard`             | histograms + metrics for the current set (also the structured-mode headers)             |
+| `GET dataset/download?series_uids=`  | zip of selected series (blob, no timeout; at most 20 series, 256 MB set by the backend) |
 
 Validation reports — `src/components/ValidationReportDialog.vue` via `kaapanaApiService.kaapanaApiGet` (scoped):
 
-| Method + path | Purpose |
-| --- | --- |
-| `GET get-static-website-result-reports?series_id=` | resolve a series' validation-report HTML URL |
-| `GET <that URL>` | the report HTML (`ElementsFromHTML`, `httpClient`) |
+| Method + path                                      | Purpose                                            |
+| -------------------------------------------------- | -------------------------------------------------- |
+| `GET get-static-website-result-reports?series_id=` | resolve a series' validation-report HTML URL       |
+| `GET <that URL>`                                   | the report HTML (`ElementsFromHTML`, `httpClient`) |
 
 Auth — `@kaapana/base-ui` `authService` (**not** scoped):
 
-| Method + path | Purpose |
-| --- | --- |
+| Method + path                                                                            | Purpose          |
+| ---------------------------------------------------------------------------------------- | ---------------- |
 | `GET /oauth2/userinfo` (prod build) / `GET /jsons/testingAuthenticationToken.json` (dev) | current-user JWT |
 
 Project scoping — `@kaapana/base-ui` project store (`/aii/*`, **not** scoped):
 
-| Method + path | Purpose |
-| --- | --- |
-| `GET /aii/users/current` | current AII user (id + realm roles) |
+| Method + path                                                            | Purpose                                                                 |
+| ------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| `GET /aii/users/current`                                                 | current AII user (id + realm roles)                                     |
 | `GET /aii/projects` (admin) / `GET /aii/users/{id}/projects` (non-admin) | the user's projects: resolves the URL slug, and a `?project_name=` link |
 
 Workflow dialog — `@kaapana/base-ui/workflow-execution`, via `federatedClientApiPost` → `/kaapana-backend/client/*` (scoped):
 
-| Method + path | Purpose |
-| --- | --- |
-| `POST client/get-kaapana-instances` | instances available as workflow targets |
-| `POST client/get-dags` | DAGs runnable on a dataset |
-| `POST client/get-ui-form-schemas` | VJSF form schema for the chosen DAG |
-| `POST client/workflow` | submit the workflow over the selected series |
-| `GET {backend-route}` (only if a form declares one) | browse a form-declared data source |
+| Method + path                                       | Purpose                                      |
+| --------------------------------------------------- | -------------------------------------------- |
+| `POST client/get-kaapana-instances`                 | instances available as workflow targets      |
+| `POST client/get-dags`                              | DAGs runnable on a dataset                   |
+| `POST client/get-ui-form-schemas`                   | VJSF form schema for the chosen DAG          |
+| `POST client/workflow`                              | submit the workflow over the selected series |
+| `GET {backend-route}` (only if a form declares one) | browse a form-declared data source           |
 
 OHIF viewer — `src/components/DetailView.vue`: an iframe `src` / `window.open`
 target built as `${getProjectBase()}/ohif/viewer?StudyInstanceUIDs=…&mode=iframe`.
@@ -198,22 +198,22 @@ change is just missing. There is no unit-test script.
 
 Specs by concern:
 
-| Spec | Covers |
-| --- | --- |
-| `boot` | fresh-profile boot, the gallery, card width, the "nothing yet" state, a failed first load |
-| `search` | free text and link filters in the query, when the Search button spins, a failed copy of the link, why the Field and Values lists are empty |
-| `datasets` | dataset scoping and the empty dataset, deep links, save / add / delete and their guards, access levels, the dataset lists' loading, empty and failed states |
-| `confirmations` | the four confirmations: text, focus, size, colour, Escape, focus after confirming, progress and single submit |
-| `feedback` | failed actions and their details dialog, download failures |
-| `errors` | load failures, each reported once, inline or as one notification |
-| `detail` | the detail pane: viewer, metadata, loading, failure, fast switching, a series without a study |
-| `dashboard` | one request at boot, charts kept while reloading, bar-click filter, failed reload, label colour |
-| `validation-report` | a report found, not found, failed lookup, failed fetch; the restart icon |
-| `selection` | click, Ctrl-click and drag selection; tagging by card click |
-| `tags` | tag chip state, removing a tag from a card |
-| `view-dirty` | the dirty state posted to the shell, including after a remount |
-| `lifecycle` | no timer outlives the viewer frame; lazy-card placeholders follow a resize |
-| `gallery-modes` | structured mode, pagination |
-| `project-scope` | every call carries the `/project/<slug>/` prefix; the unscoped redirect; moving to a linked project |
-| `regressions` | pinned fixes from the Vuetify 2 → 3 migration and platform QA |
-| `guidelines` | cross-cutting rules: accessible names, keyboard reach, unavailable actions, focus return, empty-state actions, validation, unsaved changes, shape, typeface |
+| Spec                | Covers                                                                                                                                                      |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `boot`              | fresh-profile boot, the gallery, card width, the "nothing yet" state, a failed first load                                                                   |
+| `search`            | free text and link filters in the query, when the Search button spins, a failed copy of the link, why the Field and Values lists are empty                  |
+| `datasets`          | dataset scoping and the empty dataset, deep links, save / add / delete and their guards, access levels, the dataset lists' loading, empty and failed states |
+| `confirmations`     | the four confirmations: text, focus, size, colour, Escape, focus after confirming, progress and single submit                                               |
+| `feedback`          | failed actions and their details dialog, download failures                                                                                                  |
+| `errors`            | load failures, each reported once, inline or as one notification                                                                                            |
+| `detail`            | the detail pane: viewer, metadata, loading, failure, fast switching, a series without a study                                                               |
+| `dashboard`         | one request at boot, charts kept while reloading, bar-click filter, failed reload, label colour                                                             |
+| `validation-report` | a report found, not found, failed lookup, failed fetch; the restart icon                                                                                    |
+| `selection`         | click, Ctrl-click and drag selection; tagging by card click                                                                                                 |
+| `tags`              | tag chip state, removing a tag from a card                                                                                                                  |
+| `view-dirty`        | the dirty state posted to the shell, including after a remount                                                                                              |
+| `lifecycle`         | no timer outlives the viewer frame; lazy-card placeholders follow a resize                                                                                  |
+| `gallery-modes`     | structured mode, pagination                                                                                                                                 |
+| `project-scope`     | every call carries the `/project/<slug>/` prefix; the unscoped redirect; moving to a linked project                                                         |
+| `regressions`       | pinned fixes from the Vuetify 2 → 3 migration and platform QA                                                                                               |
+| `guidelines`        | cross-cutting rules: accessible names, keyboard reach, unavailable actions, focus return, empty-state actions, validation, unsaved changes, shape, typeface |

@@ -36,11 +36,11 @@ ci_after:
 instance_names:
   - central
 conf_data:
-  data_form: 
+  data_form:
     identifiers:
       - "1.2.276.0.7230010.3.1.3.17436343.48.1662990523.357902"
       - "1.2.276.0.7230010.3.1.3.17436855.48.1662990905.77370"
-  workflow_form: 
+  workflow_form:
     metrics:
       - dice_score
       - surface_dice

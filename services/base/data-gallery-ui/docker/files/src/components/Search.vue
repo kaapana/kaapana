@@ -65,7 +65,13 @@
         </v-tooltip>
       </v-col>
       <v-col cols="2" align="center">
-        <v-btn color="primary" variant="flat" block :loading="userSearching" @click="searchFromUser">
+        <v-btn
+          color="primary"
+          variant="flat"
+          block
+          :loading="userSearching"
+          @click="searchFromUser"
+        >
           Search
         </v-btn>
       </v-col>
@@ -107,9 +113,7 @@
             :disabled="filter.key_select == null"
             v-model="filter.item_select"
             v-model:search="filter.valueSearch"
-            :items="
-              filter.key_select != null ? (mapping[filter.key_select]?.items ?? []) : []
-            "
+            :items="filter.key_select != null ? (mapping[filter.key_select]?.items ?? []) : []"
             label="Values"
             :no-data-text="valuesNoDataText(filter)"
             auto-select-first
@@ -246,9 +250,11 @@ const route = useRoute()
 const router = useRouter()
 const queryParams: Record<string, any> = { ...route.query }
 
-const datasetNameLocal = ref<string | null>(props.selectedDataset ? props.selectedDataset.name : null)
+const datasetNameLocal = ref<string | null>(
+  props.selectedDataset ? props.selectedDataset.name : null,
+)
 const localAccessLevel = ref<string | null>(
-  props.selectedDataset ? props.selectedDataset.access_level ?? null : null,
+  props.selectedDataset ? (props.selectedDataset.access_level ?? null) : null,
 )
 const query_string = ref('')
 const display_filters = ref(true)

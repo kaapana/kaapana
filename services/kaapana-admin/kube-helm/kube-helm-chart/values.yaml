@@ -9,4 +9,4 @@ global:
   namespace: "{{ .Values.global.admin_namespace }}"
   dev_files: false
   dynamicVolumes:
-  - name: extensions
+    - name: extensions

@@ -5,7 +5,7 @@ description: "Workflow that deploys a MITK workbench with a task list of segment
 name: mitk-flow-workflow
 version: "0.0.0"
 keywords:
-- kaapanaworkflow
+  - kaapanaworkflow
 annotations:
   documentation: "user_guide/extensions.html#mitk-flow"
   ui-visible-name: "Interactive MITK Segmentation"

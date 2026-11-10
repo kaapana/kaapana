@@ -7,14 +7,14 @@ global:
   slow_data_dir: ""
   namespace: "{{ .Values.global.services_namespace }}"
   dynamicVolumes:
-  - name: tensorboard-dedicated
-    mount_path: /kaapana/mounted/tb-logs/tensorboard
-  - name: tensorboard-minio
-    mount_path: /kaapana/mounted/tb-logs/minio
+    - name: tensorboard-dedicated
+      mount_path: /kaapana/mounted/tb-logs/tensorboard
+    - name: tensorboard-minio
+      mount_path: /kaapana/mounted/tb-logs/minio
 
 extension_params:
-    display_name:
-        default: "-"
-        definition: Display name for the launched application (max 20 chars)
-        type: string
-        value: ""
+  display_name:
+    default: "-"
+    definition: Display name for the launched application (max 20 chars)
+    type: string
+    value: ""

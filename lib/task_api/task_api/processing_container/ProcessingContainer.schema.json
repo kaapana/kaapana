@@ -35,10 +35,7 @@
           "title": "Description"
         }
       },
-      "required": [
-        "name",
-        "mounted_path"
-      ],
+      "required": ["name", "mounted_path"],
       "title": "IOMount",
       "type": "object"
     },
@@ -124,28 +121,17 @@
           "title": "Target Glob"
         }
       },
-      "required": [
-        "scale_factor",
-        "type",
-        "mode"
-      ],
+      "required": ["scale_factor", "type", "mode"],
       "title": "ScaleRule",
       "type": "object"
     },
     "ScaleRuleMode": {
-      "enum": [
-        "sum",
-        "max_file_size",
-        "max_item_sum"
-      ],
+      "enum": ["sum", "max_file_size", "max_item_sum"],
       "title": "ScaleRuleMode",
       "type": "string"
     },
     "ScaleRuleType": {
-      "enum": [
-        "limit",
-        "request"
-      ],
+      "enum": ["limit", "request"],
       "title": "ScaleRuleType",
       "type": "string"
     },
@@ -208,13 +194,7 @@
           "type": "array"
         }
       },
-      "required": [
-        "identifier",
-        "description",
-        "inputs",
-        "outputs",
-        "env"
-      ],
+      "required": ["identifier", "description", "inputs", "outputs", "env"],
       "title": "TaskTemplate",
       "type": "object"
     },
@@ -256,10 +236,7 @@
           "title": "Description"
         }
       },
-      "required": [
-        "name",
-        "value"
-      ],
+      "required": ["name", "value"],
       "title": "TaskTemplateEnv",
       "type": "object"
     }
@@ -287,11 +264,7 @@
       "type": "array"
     }
   },
-  "required": [
-    "name",
-    "description",
-    "templates"
-  ],
+  "required": ["name", "description", "templates"],
   "title": "ProcessingContainer",
   "type": "object"
 }

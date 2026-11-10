@@ -3,12 +3,12 @@ global:
   default_jobs_requests_mem: "50Mi"
   default_jobs_limits_mem: "50Mi"
   dynamicVolumes:
-  - name: tensorboard
-    storage_class: workflow
-    storage: 10Gi
-  - name: models
-    storage_class: workflow
-    storage: 200Gi
-  - name: workflow-data
-    storage_class: workflow
-    storage: 200Gi
+    - name: tensorboard
+      storage_class: workflow
+      storage: 10Gi
+    - name: models
+      storage_class: workflow
+      storage: 200Gi
+    - name: workflow-data
+      storage_class: workflow
+      storage: 200Gi

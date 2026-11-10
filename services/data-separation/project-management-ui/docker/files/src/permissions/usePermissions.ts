@@ -62,11 +62,11 @@ export function usePermissions() {
       resourceName &&
       (permissionName === 'launch_application' || permissionName === 'delete_active_apps')
     ) {
-      return permissionsStore.isResourceAllowed(projectId, resourceName);
+      return permissionsStore.isResourceAllowed(projectId, resourceName)
     }
 
-    return true;
-  };
+    return true
+  }
 
-  return { can };
+  return { can }
 }

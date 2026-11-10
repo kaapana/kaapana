@@ -1,6 +1,6 @@
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test'
 
-export const AUTH_FILE = 'playwright/.auth/kaapana.json';
+export const AUTH_FILE = 'playwright/.auth/kaapana.json'
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -87,4 +87,4 @@ export default defineConfig({
       use: { ...devices['Desktop Safari'] },
     },
   ],
-});
+})

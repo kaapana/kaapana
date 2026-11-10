@@ -10,7 +10,11 @@ test("string-'null' extension_params installs immediately with no config dialog"
   await openView(
     page,
     catalogue([
-      extension({ releaseName: 'null-params-app', display_name: 'Null Params App', extension_params: 'null' }),
+      extension({
+        releaseName: 'null-params-app',
+        display_name: 'Null Params App',
+        extension_params: 'null',
+      }),
     ]),
   )
 
@@ -31,7 +35,9 @@ test('a param-less install does not inherit the previous extension params', asyn
 
   // 1) Install the parameterized nnU-Net extension with a filled form.
   await row(page, 'nnU-Net Training').getByRole('button', { name: 'Install' }).click()
-  await dialog(page).getByRole('textbox', { name: /Workflow name/ }).fill('run-a')
+  await dialog(page)
+    .getByRole('textbox', { name: /Workflow name/ })
+    .fill('run-a')
   const first = nextPost(page, HELM.install)
   await dialog(page).getByRole('button', { name: 'Install', exact: true }).click()
   expect((await first).extension_params).toMatchObject({ workflow_name: 'run-a' })

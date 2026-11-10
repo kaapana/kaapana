@@ -30,7 +30,9 @@ test.describe('install and launch', () => {
   test('opens the config form and posts entered parameters', async ({ page }) => {
     // nnU-Net has a config form (string, bool, single-select).
     await row(page, 'nnU-Net Training').getByRole('button', { name: 'Install' }).click()
-    await dialog(page).getByRole('textbox', { name: /Workflow name/ }).fill('my-training-run')
+    await dialog(page)
+      .getByRole('textbox', { name: /Workflow name/ })
+      .fill('my-training-run')
 
     const posted = nextPost(page, HELM.install)
     // Scope to the dialog: the Action-column button shares the "Install" label.

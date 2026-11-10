@@ -10,7 +10,7 @@
   ansible.builtin.get_url:
     url: "https://dl.k8s.io/release/{{ kubectl_version.content | trim }}/bin/linux/amd64/kubectl"
     dest: /usr/local/bin/kubectl
-    mode: '0755'
+    mode: "0755"
     owner: root
     group: root
     force: yes

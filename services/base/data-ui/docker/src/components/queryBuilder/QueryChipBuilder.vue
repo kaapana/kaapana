@@ -18,8 +18,16 @@ const emit = defineEmits<{ (e: 'run', payload: QueryNode): void; (e: 'clear'): v
 
 const baseFieldItems: FieldItem[] = [
   { title: 'Entity ID', value: 'id', subtitle: 'Text operators' },
-  { title: 'Has storage coordinate', value: 'storage.any', subtitle: 'True when any storage entry exists' },
-  { title: 'Storage type', value: 'storage.type', subtitle: 'Matches any coordinate type (e.g. s3)' },
+  {
+    title: 'Has storage coordinate',
+    value: 'storage.any',
+    subtitle: 'True when any storage entry exists',
+  },
+  {
+    title: 'Storage type',
+    value: 'storage.type',
+    subtitle: 'Matches any coordinate type (e.g. s3)',
+  },
 ]
 
 const metadataFieldInfos = ref<MetadataFieldInfo[]>([])
@@ -78,15 +86,25 @@ async function loadMetadataFieldHints() {
     aggregated.forEach((field) => {
       unique.set(field.field, field)
     })
-    metadataFieldInfos.value = Array.from(unique.values()).sort((a, b) => a.field.localeCompare(b.field))
+    metadataFieldInfos.value = Array.from(unique.values()).sort((a, b) =>
+      a.field.localeCompare(b.field),
+    )
   } catch (error) {
-    metadataFieldError.value = error instanceof Error ? error.message : 'Failed to load metadata field hints'
+    metadataFieldError.value =
+      error instanceof Error ? error.message : 'Failed to load metadata field hints'
   } finally {
     metadataFieldLoading.value = false
   }
 }
 
-const PREVIEW_OPERATORS: QueryOp[] = ['eq', 'in', 'contains', 'not_contains', 'starts_with', 'ends_with']
+const PREVIEW_OPERATORS: QueryOp[] = [
+  'eq',
+  'in',
+  'contains',
+  'not_contains',
+  'starts_with',
+  'ends_with',
+]
 const builderValueSuggestions = ref<string[]>([])
 const builderArrayValueOptions = ref<ArrayValueOption[]>([])
 const builderArraySelections = ref<string[]>([])
@@ -147,7 +165,9 @@ function changeGroupOp(groupId: number, op: 'and' | 'or') {
 }
 
 function isCreateComposerVisible(groupId: number): boolean {
-  return isComposerActive.value && !isEditingExisting.value && composerParentGroupId.value === groupId
+  return (
+    isComposerActive.value && !isEditingExisting.value && composerParentGroupId.value === groupId
+  )
 }
 
 function isEditingChip(chipId: number): boolean {
@@ -207,7 +227,9 @@ const canCommitChip = computed(() => {
   return (builderValue.value ?? '').trim().length > 0
 })
 
-function focusComponent(refTarget: typeof fieldInputRef | typeof operatorSelectRef | typeof valueInputRef) {
+function focusComponent(
+  refTarget: typeof fieldInputRef | typeof operatorSelectRef | typeof valueInputRef,
+) {
   if (!isComposerActive.value) {
     return
   }
@@ -225,7 +247,8 @@ function focusComponent(refTarget: typeof fieldInputRef | typeof operatorSelectR
       component.focus()
       return
     }
-    const inputEl = component.$el?.querySelector?.('input, textarea') as HTMLInputElement | HTMLTextAreaElement | null
+    const inputEl = component.$el?.querySelector?.('input, textarea') as
+      HTMLInputElement | HTMLTextAreaElement | null
     inputEl?.focus()
   })
 }
@@ -598,7 +621,9 @@ function commitChip(): boolean {
     builderError.value = 'Provide a value'
     return false
   }
-  const parentGroupId = editingChipId.value ? editingParentGroupId.value : composerParentGroupId.value
+  const parentGroupId = editingChipId.value
+    ? editingParentGroupId.value
+    : composerParentGroupId.value
   const parentGroup = parentGroupId !== null ? findGroupById(parentGroupId) : null
   if (!parentGroup) {
     builderError.value = 'Unable to locate group for constraint'
@@ -634,7 +659,10 @@ function coerceValue(raw: string): unknown {
   if (!Number.isNaN(numberValue) && trimmed === numberValue.toString()) {
     return numberValue
   }
-  if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+  if (
+    (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+    (trimmed.startsWith('[') && trimmed.endsWith(']'))
+  ) {
     try {
       return JSON.parse(trimmed)
     } catch (error) {

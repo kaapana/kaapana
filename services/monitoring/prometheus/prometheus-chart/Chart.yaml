@@ -4,4 +4,3 @@ appVersion: "v2.34.0"
 description: A Helm chart for Kubernetes
 name: prometheus-chart
 version: "0.0.0"
-

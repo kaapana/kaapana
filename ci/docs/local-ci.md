@@ -1,11 +1,11 @@
 # Running the CI on your own machine
 
-| | Runner runtime → tests, build, deploy | Platform deployed on | GitLab pipeline |
-|---|---|---|---|
-| [Scenario 1](#scenario-1-run-the-jobs-on-your-machine) | your machine | SCI Cloud | yes |
-| [Scenario 2](#scenario-2-deploy-the-platform-on-your-machine) | SCI Cloud | your machine | yes |
-| [Scenario 1 + 2](#scenarios-1-and-2-at-once) | your machine | your machine | yes |
-| [Scenario 3](#scenario-3-run-jobs-without-gitlab) | your machine | — | no |
+|                                                               | Runner runtime → tests, build, deploy | Platform deployed on | GitLab pipeline |
+| ------------------------------------------------------------- | ------------------------------------- | -------------------- | --------------- |
+| [Scenario 1](#scenario-1-run-the-jobs-on-your-machine)        | your machine                          | SCI Cloud            | yes             |
+| [Scenario 2](#scenario-2-deploy-the-platform-on-your-machine) | SCI Cloud                             | your machine         | yes             |
+| [Scenario 1 + 2](#scenarios-1-and-2-at-once)                  | your machine                          | your machine         | yes             |
+| [Scenario 3](#scenario-3-run-jobs-without-gitlab)             | your machine                          | —                    | no              |
 
 1 and 2 are real pipelines: they appear in the UI, keep their logs and
 artifacts, and can be retried. Scenario 3 runs job scripts in docker with no
@@ -35,7 +35,7 @@ RUNNER_TOKEN=$(printf '{"runner_type":"project_type","project_id":%s,"descriptio
 Pick a tag no shared runner uses. Reusing `tests-runner`, `build-runner` or
 `deploy-runner` means jobs land on your machine or the Harvester VM at random.
 
-Seed the agent-wide `concurrent` limit — it has to be in the file *before*
+Seed the agent-wide `concurrent` limit — it has to be in the file _before_
 `register` runs:
 
 ```bash
@@ -71,12 +71,12 @@ docker run --rm -v ~/.gitlab-runner:/etc/gitlab-runner:ro --entrypoint sh \
   gitlab/gitlab-runner:latest -c 'grep -vE "^  token" /etc/gitlab-runner/config.toml'
 ```
 
-| Expect | Why |
-|---|---|
-| `volumes` carries `/var/run/docker.sock:/var/run/host-docker.sock` | build jobs need to reach the host daemon |
-| `environment` carries `DOCKER_HOST` | and need to know where it is |
-| `concurrent = 4` on the first line | unit tests run in parallel |
-| `[[runners]]` appears **once** | a second block means you registered twice |
+| Expect                                                             | Why                                       |
+| ------------------------------------------------------------------ | ----------------------------------------- |
+| `volumes` carries `/var/run/docker.sock:/var/run/host-docker.sock` | build jobs need to reach the host daemon  |
+| `environment` carries `DOCKER_HOST`                                | and need to know where it is              |
+| `concurrent = 4` on the first line                                 | unit tests run in parallel                |
+| `[[runners]]` appears **once**                                     | a second block means you registered twice |
 
 Start the agent — registering only writes the config, nothing polls GitLab
 until this container runs:
@@ -106,15 +106,15 @@ glab ci run -b my-branch \
   -i tests_runner_tag:my-tag -i build_runner_tag:my-tag -i deploy_runner_tag:my-tag
 ```
 
-| Input | Stage it moves |
-|---|---|
-| `build_runner_tag` | build, and the CI image rebuild |
-| `tests_runner_tag` | preflight, unit tests and docs |
+| Input               | Stage it moves                   |
+| ------------------- | -------------------------------- |
+| `build_runner_tag`  | build, and the CI image rebuild  |
+| `tests_runner_tag`  | preflight, unit tests and docs   |
 | `deploy_runner_tag` | deploy, integration tests, clean |
 
 Set one, two, or all three; whatever you leave out stays on the shared runners.
 
-A job that stays pending means the tag matches no runner registered to *this*
+A job that stays pending means the tag matches no runner registered to _this_
 project: `glab api "/runners/<ID>"` shows `tag_list`, `paused` and `projects`.
 
 ### Reset everything
@@ -161,11 +161,11 @@ It cannot check:
 
 What the two kinds of target usually fail on:
 
-| Target | Typical failures | Fix |
-|---|---|---|
-| Fresh Ubuntu VM | microk8s, helm, the `microk8s` group; warns about the inotify instance limit | `exec_server_installation:true` — it installs both and raises the limits |
-| Workstation you use for other things | ports 80/443/11112 occupied, a platform already deployed, disk under `/var/snap` | free the ports; undeploy, or `exec_redeploy:true` |
-| Target that already ran one deploy | disk under `/var/snap` — the platform images take most of the required minimum, so a target sized at the minimum cannot take a second deploy | undeploy and prune, or give the target a bigger disk |
+| Target                               | Typical failures                                                                                                                             | Fix                                                                      |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Fresh Ubuntu VM                      | microk8s, helm, the `microk8s` group; warns about the inotify instance limit                                                                 | `exec_server_installation:true` — it installs both and raises the limits |
+| Workstation you use for other things | ports 80/443/11112 occupied, a platform already deployed, disk under `/var/snap`                                                             | free the ports; undeploy, or `exec_redeploy:true`                        |
+| Target that already ran one deploy   | disk under `/var/snap` — the platform images take most of the required minimum, so a target sized at the minimum cannot take a second deploy | undeploy and prune, or give the target a bigger disk                     |
 
 Run it against a remote target without checking out the repo there — it is
 stdlib only:
@@ -221,10 +221,26 @@ so it has to go through a `--variables-from` JSON file
 
 ```json
 [
-  { "key": "DEPLOYMENT_INSTANCE_FQDN", "value": "10.10.10.10", "variable_type": "env_var" },
-  { "key": "DEPLOYMENT_INSTANCE_USER", "value": "ubuntu",      "variable_type": "env_var" },
-  { "key": "NO_PROXY", "value": "localhost,127.0.0.1,10.10.10.10,.dkfz.de,.dkfz-heidelberg.de,10.129.1.5", "variable_type": "env_var" },
-  { "key": "no_proxy", "value": "localhost,127.0.0.1,10.10.10.10,.dkfz.de,.dkfz-heidelberg.de,10.129.1.5", "variable_type": "env_var" }
+  {
+    "key": "DEPLOYMENT_INSTANCE_FQDN",
+    "value": "10.10.10.10",
+    "variable_type": "env_var"
+  },
+  {
+    "key": "DEPLOYMENT_INSTANCE_USER",
+    "value": "ubuntu",
+    "variable_type": "env_var"
+  },
+  {
+    "key": "NO_PROXY",
+    "value": "localhost,127.0.0.1,10.10.10.10,.dkfz.de,.dkfz-heidelberg.de,10.129.1.5",
+    "variable_type": "env_var"
+  },
+  {
+    "key": "no_proxy",
+    "value": "localhost,127.0.0.1,10.10.10.10,.dkfz.de,.dkfz-heidelberg.de,10.129.1.5",
+    "variable_type": "env_var"
+  }
 ]
 ```
 
@@ -245,7 +261,6 @@ override the variable for that run:
 
 Compare `ssh-keygen -lf ~/.ssh/authorized_keys` on the target against
 `ssh-keygen -yf <key> | ssh-keygen -lf -` locally to see whether you need it.
-
 
 ### Run the pipeline
 
@@ -273,7 +288,7 @@ knobs are inputs. Defaults and full descriptions are in
 [ci/README.md](../README.md#inputs--what-runs-and-where). Two that behave
 differently here than the table suggests:
 
-- `DEPLOYMENT_INSTANCE_FQDN` must resolve *from inside the job container*, not
+- `DEPLOYMENT_INSTANCE_FQDN` must resolve _from inside the job container_, not
   just from your workstation — see
   [Targets with no DNS name](#targets-with-no-dns-name).
 - `exec_redeploy:true` runs `undeploy_platform.yaml` (a plain
@@ -294,13 +309,13 @@ glab ci run -b my-branch \
 
 ### Verify
 
-| Job | What it means, what to read |
-|---|---|
-| `preflight_target` | ran → the FQDN path was taken. The check table is printed in the job log by `after_script`; there is no artifact |
-| `preflight_target` **missing** | `DEPLOYMENT_INSTANCE_FQDN` did not reach the pipeline, or `exec_server_installation` was left at `true` — either way CI provisioned a VM instead |
-| `prepare_deployment` | logs *using existing deployment target*; no VM created |
-| `platform_deployment` | `deployment.log`, and `system_check.json` listing every resource and its health. With `exec_redeploy:true` also `undeploy.log`, written before the deployment starts. The Keycloak admin password is at the end of the log |
-| `destroy_deployment` | **absent from the pipeline.** A target given by FQDN is never destroyed by the clean stage |
+| Job                            | What it means, what to read                                                                                                                                                                                                |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `preflight_target`             | ran → the FQDN path was taken. The check table is printed in the job log by `after_script`; there is no artifact                                                                                                           |
+| `preflight_target` **missing** | `DEPLOYMENT_INSTANCE_FQDN` did not reach the pipeline, or `exec_server_installation` was left at `true` — either way CI provisioned a VM instead                                                                           |
+| `prepare_deployment`           | logs _using existing deployment target_; no VM created                                                                                                                                                                     |
+| `platform_deployment`          | `deployment.log`, and `system_check.json` listing every resource and its health. With `exec_redeploy:true` also `undeploy.log`, written before the deployment starts. The Keycloak admin password is at the end of the log |
+| `destroy_deployment`           | **absent from the pipeline.** A target given by FQDN is never destroyed by the clean stage                                                                                                                                 |
 
 Then the platform is at `https://<your-fqdn>`.
 

@@ -5,8 +5,8 @@ description: A Dag to extract scan parameteres
 name: bodypartregression-workflow
 version: "0.0.0"
 keywords:
-- kaapanaworkflow
-- kaapanaexperimental
-- gpurequired
+  - kaapanaworkflow
+  - kaapanaexperimental
+  - gpurequired
 annotations:
   ui-visible-name: "Bodypart Regression"

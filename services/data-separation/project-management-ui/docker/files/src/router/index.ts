@@ -15,12 +15,12 @@ const routes = [
   {
     path: '/project/:id',
     component: Project,
-    name: 'ProjectDetail'
+    name: 'ProjectDetail',
   },
   {
     path: '/project/:id/:name',
     component: Project,
-    name: 'ProjectDetailWithName'
+    name: 'ProjectDetailWithName',
   },
   {
     path: '/role-rights',
@@ -30,8 +30,8 @@ const routes = [
   },
   {
     path: '/:pathMatch(.*)*',
-    redirect: '/'
-  }
+    redirect: '/',
+  },
 ]
 
 const router = createRouter({

@@ -5,7 +5,7 @@ description: "Slim: Slide microscopy image display and annotation system for thi
 name: slim-chart
 version: "0.0.0"
 keywords:
-- kaapanaapplication
-- kaapanaexperimental
+  - kaapanaapplication
+  - kaapanaexperimental
 annotations:
   ui-visible-name: "Slim Viewer"

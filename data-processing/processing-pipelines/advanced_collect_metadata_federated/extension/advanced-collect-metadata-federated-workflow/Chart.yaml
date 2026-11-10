@@ -5,7 +5,7 @@ description: "Collect metadata from DICOM Segmentation objects on federated inst
 name: advanced-collect-metadata-federated-workflow
 version: "0.0.0"
 keywords:
-- kaapanaworkflow
-- kaapanaexperimental
+  - kaapanaworkflow
+  - kaapanaexperimental
 annotations:
   ui-visible-name: "Federated Advanced Collect Metadata"

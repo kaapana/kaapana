@@ -1,4 +1,4 @@
 ---
 global:
-    image: "dag-advanced-collect-metadata-federated"
-    action: "copy"
+  image: "dag-advanced-collect-metadata-federated"
+  action: "copy"

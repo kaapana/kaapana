@@ -42,25 +42,33 @@ const ColorsAndThemes = defineComponent({
             h(VCardText, null, {
               default: () =>
                 h(VRow, null, {
-                default: () =>
-                  roles.value.map((role) =>
-                    h(VCol, { cols: 6, sm: 4, md: 3, key: role.name }, {
-                      default: () =>
-                        h(VSheet, { color: role.name, class: 'pa-3', rounded: true, border: true }, {
-                          default: () => [
-                            h('div', { class: 'text-subtitle-2' }, role.name),
-                            h('div', { class: 'text-caption' }, role.value ?? '—'),
+                  default: () =>
+                    roles.value.map((role) =>
+                      h(
+                        VCol,
+                        { cols: 6, sm: 4, md: 3, key: role.name },
+                        {
+                          default: () =>
                             h(
-                              'div',
-                              { class: 'text-caption' },
-                              role.ratio
-                                ? `on-${role.name} · ${role.ratio.toFixed(2)}:1`
-                                : 'no on- pair configured',
+                              VSheet,
+                              { color: role.name, class: 'pa-3', rounded: true, border: true },
+                              {
+                                default: () => [
+                                  h('div', { class: 'text-subtitle-2' }, role.name),
+                                  h('div', { class: 'text-caption' }, role.value ?? '—'),
+                                  h(
+                                    'div',
+                                    { class: 'text-caption' },
+                                    role.ratio
+                                      ? `on-${role.name} · ${role.ratio.toFixed(2)}:1`
+                                      : 'no on- pair configured',
+                                  ),
+                                ],
+                              },
                             ),
-                          ],
-                        }),
-                    }),
-                  ),
+                        },
+                      ),
+                    ),
                 }),
             }),
           ],

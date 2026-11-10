@@ -129,19 +129,25 @@ test.describe('reported inline', () => {
     await expectNoToast(page)
   })
 
-  test('failed filter fields are reported in the search row, and the Field list says so', async ({ page }) => {
+  test('failed filter fields are reported in the search row, and the Field list says so', async ({
+    page,
+  }) => {
     await installMockBackend(page)
     await failRoute(page, /\/dataset\/field_names$/, 'mapping unavailable')
     await page.goto(VIEW_PATH)
     await expect(page.getByText('CT Thorax')).toBeVisible()
 
-    await expect(page.getByTestId('search-alert')).toContainText('The fields to filter by could not be loaded')
+    await expect(page.getByTestId('search-alert')).toContainText(
+      'The fields to filter by could not be loaded',
+    )
     await settle(page)
     await expectNoToast(page)
 
     await page.getByRole('button', { name: 'Add filter' }).click()
     await page.getByLabel('Field').first().click()
-    await expect(page.getByText('The fields could not be loaded; the message above offers to try again.')).toBeVisible()
+    await expect(
+      page.getByText('The fields could not be loaded; the message above offers to try again.'),
+    ).toBeVisible()
     await expect(page.getByText('No data available')).toHaveCount(0)
   })
 
@@ -153,7 +159,9 @@ test.describe('reported inline', () => {
     await page.getByLabel('Field').first().click()
     await page.getByRole('option', { name: 'Modality', exact: true }).click()
 
-    await expect(page.getByTestId('search-alert')).toContainText('The values of “Modality” could not be loaded')
+    await expect(page.getByTestId('search-alert')).toContainText(
+      'The values of “Modality” could not be loaded',
+    )
     await settle(page)
     await expectNoToast(page)
   })
@@ -164,7 +172,9 @@ test.describe('reported inline', () => {
     await page.goto(VIEW_PATH)
     await expect(page.getByText('CT Thorax')).toBeVisible()
 
-    await expect(page.getByText('The statistics for the current selection could not be loaded.')).toHaveCount(1)
+    await expect(
+      page.getByText('The statistics for the current selection could not be loaded.'),
+    ).toHaveCount(1)
     await settle(page)
     await expectNoToast(page)
   })
@@ -207,7 +217,9 @@ test.describe('reported inline', () => {
 })
 
 test.describe('reported once as a notification', () => {
-  test('a failing project lookup is one notification, and the gallery still renders', async ({ page }) => {
+  test('a failing project lookup is one notification, and the gallery still renders', async ({
+    page,
+  }) => {
     const pageErrors = collectPageErrors(page)
     await installMockBackend(page)
     await failRoute(page, /\/aii\/(projects|users\/[^/]+\/projects)$/, 'Projects unavailable')
@@ -251,7 +263,9 @@ test.describe('reported once as a notification', () => {
     await expect(page.getByText(/M\s+\(3\)/)).toBeVisible()
     await expect(page.getByText('CT Thorax')).toBeVisible()
     await expect(toasts(page)).toHaveCount(1)
-    await expect(toasts(page)).toContainText('The filter “Modality” from the link could not be applied.')
+    await expect(toasts(page)).toContainText(
+      'The filter “Modality” from the link could not be applied.',
+    )
     expect(pageErrors).toEqual([])
   })
 
@@ -268,7 +282,9 @@ test.describe('reported once as a notification', () => {
     await expect(page.getByRole('button', { name: /select a dataset first/i })).toBeDisabled()
   })
 
-  test('a dataset that cannot be reloaded after a removal is one notification', async ({ page }) => {
+  test('a dataset that cannot be reloaded after a removal is one notification', async ({
+    page,
+  }) => {
     await openGallery(page)
     await selectDataset(page, 'nsclc (project)')
     await expect(page.getByText('MR Brain')).toBeVisible()

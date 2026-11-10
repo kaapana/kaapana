@@ -82,14 +82,10 @@ test('dataset selection renders the oneOf select with its options', async ({ pag
     'brains (project) (7)',
   ])
   await page.getByRole('option', { name: 'nsclc (project) (42)' }).click()
-  await expect(page.getByRole('combobox', { name: 'Dataset name (size)' })).toHaveValue(
-    /nsclc/,
-  )
+  await expect(page.getByRole('combobox', { name: 'Dataset name (size)' })).toHaveValue(/nsclc/)
 })
 
-test('boots without a seeded localStorage["settings"] (no JSON.parse crash)', async ({
-  page,
-}) => {
+test('boots without a seeded localStorage["settings"] (no JSON.parse crash)', async ({ page }) => {
   // Regression: an unguarded JSON.parse(localStorage["settings"]) threw in
   // onMounted when the shell had not seeded the key. The flow below still
   // completes regardless, so only the console assertion at the end can see it.
@@ -146,7 +142,9 @@ test('auth check failure still mounts the view', async ({ page }) => {
   await installMockBackend(page)
   // Fail both auth endpoints so it holds in dev (token file) and preview (oauth2 proxy).
   await page.route('**/oauth2/userinfo', (r) => r.fulfill({ status: 500, body: '' }))
-  await page.route('**/jsons/testingAuthenticationToken.json', (r) => r.fulfill({ status: 500, body: '' }))
+  await page.route('**/jsons/testingAuthenticationToken.json', (r) =>
+    r.fulfill({ status: 500, body: '' }),
+  )
   await page.goto(VIEW_PATH)
   await expect(page.getByRole('heading', { name: 'Workflow Execution' })).toBeVisible()
 })
@@ -155,7 +153,11 @@ test('backend error on get-dags: view still boots, no DAG select', async ({ page
   await seedShellState(page)
   await installMockBackend(page)
   await page.route('**/kaapana-backend/client/get-dags', (r) =>
-    r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'boom' }) }),
+    r.fulfill({
+      status: 500,
+      contentType: 'application/json',
+      body: JSON.stringify({ detail: 'boom' }),
+    }),
   )
   await page.goto(VIEW_PATH)
   await expect(page.getByRole('heading', { name: 'Workflow Execution' })).toBeVisible()

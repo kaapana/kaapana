@@ -8,10 +8,10 @@ under `services/**/docker/**/tests/` or `lib/<package>/tests/`, and the system
 tests that build, deploy and exercise a platform under
 `ci/ci-code/integration_tests/`.
 
-| Path | Covers | CI job |
-|---|---|---|
-| `operators/` | Airflow operators from `data-processing/kaapana-plugin`, called directly, without a scheduler or a platform | `unit_tests` |
-| `ui/` | Playwright against a running instance, needs its URL and the default credentials, see [ui/README.md](ui/README.md) | `playwright_ui_tests` (stage `integrationtest`) |
+| Path         | Covers                                                                                                             | CI job                                          |
+| ------------ | ------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------- |
+| `operators/` | Airflow operators from `data-processing/kaapana-plugin`, called directly, without a scheduler or a platform        | `unit_tests`                                    |
+| `ui/`        | Playwright against a running instance, needs its URL and the default credentials, see [ui/README.md](ui/README.md) | `playwright_ui_tests` (stage `integrationtest`) |
 
 ## Running a suite
 

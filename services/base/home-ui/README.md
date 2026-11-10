@@ -115,18 +115,18 @@ auth-backend authorizes and turns into a `Project` header, so the dataset
 endpoints only ever see that project. `/aii/…` and `/notifications/…` are not
 project-prefixed.
 
-| Endpoint | Used for | Required |
-|---|---|---|
-| `GET /oauth2/userinfo` | logged-in user (JWT) | yes |
-| `GET /kaapana-backend/open-policy-data` | OPA gating of links/steps | yes (links hidden without it) |
-| `GET /aii/users/current` | AII user id + realm roles | yes |
-| `GET /aii/projects`, `GET /aii/users/{id}/projects` | project list | yes |
-| `POST /kaapana-backend/dataset/dashboard` | patient/study/series stats + histograms | optional (stats show N/A) |
-| `GET /kaapana-backend/monitoring/query/{name}?q=<promql>` | CPU/mem/net/GPU utilization + platform totals | optional (panel degrades) |
+| Endpoint                                                                       | Used for                                          | Required                                                      |
+| ------------------------------------------------------------------------------ | ------------------------------------------------- | ------------------------------------------------------------- |
+| `GET /oauth2/userinfo`                                                         | logged-in user (JWT)                              | yes                                                           |
+| `GET /kaapana-backend/open-policy-data`                                        | OPA gating of links/steps                         | yes (links hidden without it)                                 |
+| `GET /aii/users/current`                                                       | AII user id + realm roles                         | yes                                                           |
+| `GET /aii/projects`, `GET /aii/users/{id}/projects`                            | project list                                      | yes                                                           |
+| `POST /kaapana-backend/dataset/dashboard`                                      | patient/study/series stats + histograms           | optional (stats show N/A)                                     |
+| `GET /kaapana-backend/monitoring/query/{name}?q=<promql>`                      | CPU/mem/net/GPU utilization + platform totals     | optional (panel degrades)                                     |
 | `GET /kaapana-backend/monitoring/query-range/{name}?q=<promql>&minutes=&step=` | one-off sparkline backfill per utilization metric | optional (sparklines start empty and fill from the live poll) |
-| `GET /kube-helm-api/pending-applications-count` | Tasks-card badge count (15 s poll) | optional (badge absent / last known) |
-| `GET /notifications/v2/`, `PUT /notifications/v2/{id}/read` | notification feed | optional (empty state) |
-| `WS /notifications/ws` | live notification updates | optional |
+| `GET /kube-helm-api/pending-applications-count`                                | Tasks-card badge count (15 s poll)                | optional (badge absent / last known)                          |
+| `GET /notifications/v2/`, `PUT /notifications/v2/{id}/read`                    | notification feed                                 | optional (empty state)                                        |
+| `WS /notifications/ws`                                                         | live notification updates                         | optional                                                      |
 
 ## Build / deploy
 
@@ -139,7 +139,7 @@ Deployment branding example:
 # home-ui chart values
 branding:
   enabled: true
-  logoUrl: /assets/img/my-clinic.png   # any browser-reachable image URL
+  logoUrl: /assets/img/my-clinic.png # any browser-reachable image URL
   title: My Clinic
   text: Radiology research platform
 ```

@@ -1,6 +1,12 @@
 import { test, expect, type Page } from '@playwright/test'
 import { makeDefaultMockData } from './fixtures/mock-backend'
-import { collectPageErrors, dialog, expectNoToast, openGallery, serverError } from './fixtures/helpers'
+import {
+  collectPageErrors,
+  dialog,
+  expectNoToast,
+  openGallery,
+  serverError,
+} from './fixtures/helpers'
 
 const LOOKUP = /\/kaapana-backend\/get-static-website-result-reports\?/
 const REPORT = '**/reports/1.2.3.html'
@@ -65,7 +71,9 @@ test('a series without a report says so, and Download report says why it is unav
 test('a failed lookup is a failure with Retry and Details, not "no report"', async ({ page }) => {
   let failing = true
   const report = await openReport(page, async () => {
-    await page.route(LOOKUP, (r) => (failing ? r.fulfill(serverError('MinIO down')) : r.fulfill(found())))
+    await page.route(LOOKUP, (r) =>
+      failing ? r.fulfill(serverError('MinIO down')) : r.fulfill(found()),
+    )
     await page.route(REPORT, (r) => r.fulfill(REPORT_BODY))
   })
 

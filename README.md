@@ -1,4 +1,3 @@
-
 <p align="center">
  <img src="https://kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/kaapana_logo_2.png" height=170 alt="kaapana" border="0" />
 </p>
@@ -23,24 +22,25 @@ Following this federated concept, the goal of Kaapana is to provide a framework 
 By adhering to established standards and by adopting widely used open technologies for private cloud development and containerized data processing, Kaapana integrates seamlessly with the existing clinical IT infrastructure, such as the Picture Archiving and Communication System (PACS), and ensures modularity and easy extensibility.
 
 Core components of Kaapana:
-* **Workflow management:** Large-scale image processing with SOTA deep learning algorithms, such as [nnU-Net](https://github.com/MIC-DKFZ/nnunet) image segmentation and [TotalSegmentator](https://github.com/wasserth/TotalSegmentator)
-* **Datasets:** Exploration, visualization and curation of medical images
-* **Extensions:** Simple integration of new, customized algorithms and applications into the framework
-* **Storage:** An integrated PACS system and Minio for other types of data
-* **System monitoring:** Extensive resource and system monitoring for administrators
-* **User management** Simple user management via [Keycloak](https://www.keycloak.org/)
+
+- **Workflow management:** Large-scale image processing with SOTA deep learning algorithms, such as [nnU-Net](https://github.com/MIC-DKFZ/nnunet) image segmentation and [TotalSegmentator](https://github.com/wasserth/TotalSegmentator)
+- **Datasets:** Exploration, visualization and curation of medical images
+- **Extensions:** Simple integration of new, customized algorithms and applications into the framework
+- **Storage:** An integrated PACS system and Minio for other types of data
+- **System monitoring:** Extensive resource and system monitoring for administrators
+- **User management** Simple user management via [Keycloak](https://www.keycloak.org/)
 
 Core technologies used in Kaapana:
-* [Kubernetes](https://kubernetes.io/): Container orchestration system
-* [Helm](https://helm.sh/): The package manager for Kubernetes
-* [Airflow](https://airflow.apache.org/): Workflow management system enabling complex and flexible data processing workflows
-* [OpenSearch](https://opensearch.org/): Search engine for DICOM metadata-based searches
-* [dcm4chee](https://www.dcm4che.org/): Open source PACS system serving as a central DICOM data storage
-* [Prometheus](https://github.com/prometheus/prometheus): Collecting metrics for system monitoring
-* [Grafana](https://github.com/grafana/grafana): Visualization for monitoring metrics
-* [Keycloak](https://www.keycloak.org/): User authentication
-* [OHIF Viewers](https://ohif.org/): Visualization of medical images
 
+- [Kubernetes](https://kubernetes.io/): Container orchestration system
+- [Helm](https://helm.sh/): The package manager for Kubernetes
+- [Airflow](https://airflow.apache.org/): Workflow management system enabling complex and flexible data processing workflows
+- [OpenSearch](https://opensearch.org/): Search engine for DICOM metadata-based searches
+- [dcm4chee](https://www.dcm4che.org/): Open source PACS system serving as a central DICOM data storage
+- [Prometheus](https://github.com/prometheus/prometheus): Collecting metrics for system monitoring
+- [Grafana](https://github.com/grafana/grafana): Visualization for monitoring metrics
+- [Keycloak](https://www.keycloak.org/): User authentication
+- [OHIF Viewers](https://ohif.org/): Visualization of medical images
 
 Currently, Kaapana is used in multiple projects in which a Kaapana-based platform is deployed at multiple clinical sites with the objective of distributed radiological image analysis and quantification. The projects include [RACOON](https://racoon.network/) initiated by [NUM](https://www.netzwerk-universitaetsmedizin.de) with all 38 German university clinics participating, the Joint Imaging Platform ([JIP](https://jip.dktk.dkfz.de/jiphomepage/)) initiated by the German Cancer Consortium ([DKTK](https://dktk.dkfz.de/)) with 11 university clinics participating as well as [DART](https://cce-dart.com) initiated by the [Cancer Core Europe](https://cancercoreeurope.eu/) with 7 cancer research centers participating.
 
@@ -51,16 +51,18 @@ For more information, please also take a look at our [Kaapana publication](https
 Check out the [documentation](https://kaapana.readthedocs.io/en/latest/) for further information about how Kaapana works, for instructions on how to build, deploy, use and further develop the platform.
 
 ## Where to find us
-* [GitLab](https://gitlab.hzdr.de/kaapana/kaapana/): The main Kaapana repository, mirrored on GitHub.
-* [Slack](https://join.slack.com/t/kaapana/shared_invite/zt-hilvek0w-ucabihas~jn9PDAM0O3gVQ/): Join the community for discussions and updates.
-* [YouTube](https://www.youtube.com/@KaapanaAI): Tutorials, demos and more in-depth presentations.
-* [Website](https://kaapana.ai/)
+
+- [GitLab](https://gitlab.hzdr.de/kaapana/kaapana/): The main Kaapana repository, mirrored on GitHub.
+- [Slack](https://join.slack.com/t/kaapana/shared_invite/zt-hilvek0w-ucabihas~jn9PDAM0O3gVQ/): Join the community for discussions and updates.
+- [YouTube](https://www.youtube.com/@KaapanaAI): Tutorials, demos and more in-depth presentations.
+- [Website](https://kaapana.ai/)
 
 ## Versioning
 
 As of Kaapana 0.2.0 we follow strict [SemVer](https://semver.org/) approach to versioning.
 
 ## Citations
+
 Please cite the [following paper](https://www.arxiv.org/abs/2512.09644) when using Kaapana:
 
     Ünal Akünal, Markus Bujotzek, Stefan Denner, Benjamin Hamm, Klaus Kades, Philipp Schader, Jonas Scherer, Marco Nolden, Peter Neher, Ralf Floca, & Klaus Maier-Hein. (2025). Kaapana: A Comprehensive Open-Source Platform for Integrating AI in Medical Imaging Research Environments. doi: 10.48550/arXiv.2512.09644. URL https://www.arxiv.org/abs/2512.09644.
@@ -78,7 +80,7 @@ by the Free Software Foundation, either version 3 of the License, or
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU Affero General Public License for more details.
 
 You should have received a copy of the GNU Affero General Public License
@@ -87,11 +89,12 @@ If not, see <https://www.gnu.org/licenses/>.
 
 ## Considerations on our license choice
 
-You can use Kaapana to build any product you like, including commercial closed-source ones since it is a highly modular system. Kaapana is licensed under the [GNU Affero General Public License](https://www.gnu.org/licenses/agpl-3.0.en.html) for now since we want to ensure that we can integrate all developments and contributions to its core system for maximum benefit to the community and give everything back. We consider switching to a more liberal license in the future. This decision will depend on how our project develops and what the feedback from the community is regarding the license. 
+You can use Kaapana to build any product you like, including commercial closed-source ones since it is a highly modular system. Kaapana is licensed under the [GNU Affero General Public License](https://www.gnu.org/licenses/agpl-3.0.en.html) for now since we want to ensure that we can integrate all developments and contributions to its core system for maximum benefit to the community and give everything back. We consider switching to a more liberal license in the future. This decision will depend on how our project develops and what the feedback from the community is regarding the license.
 
 Kaapana is built upon the great work of many other open-source projects, see the documentation for details. For now, we only release source code we created ourselves since providing pre-built docker containers and licensing for highly modular container-based systems is [a complex task](https://www.linuxfoundation.org/blog/2020/04/docker-containers-what-are-the-open-source-licensing-considerations/). We have done our very best to fulfill all requirements, and the choice of AGPL was motivated mainly to make sure we can improve and advance Kaapana in the best way for the whole community. If you have thoughts about this or if you disagree with our way of using a particular third-party toolkit or miss something please let us know and get in touch. We are open to any feedback and advice on this challenging topic.
 
 ## Contribution guide
+
 If you want to contribute to Kaapana by submitting an issue or code please have a look at our [contribution guide](https://codebase.helmholtz.cloud/kaapana/kaapana/-/blob/develop/CONTRIBUTION.md).
 
 ## Acknowledgments
@@ -115,7 +118,6 @@ If you want to contribute to Kaapana by submitting an issue or code please have 
 [**Trustworthy Federated Data Analysis - TFDA**](https://tfda.hmsp.center/): This work is partially funded by the Helmholtz Association within the project "Trustworthy Federated Data Analytics” (TFDA) (funding number
 ZT-I-OO1 4).
 
-
 ## Copyright
 
-Copyright (C) 2026  German Cancer Research Center (DKFZ)
+Copyright (C) 2026 German Cancer Research Center (DKFZ)

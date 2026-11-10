@@ -89,12 +89,7 @@ defineExpose({
             :loading="props.loading"
             @click="runJsonQuery"
           />
-          <v-btn
-            icon="mdi-close"
-            variant="text"
-            size="small"
-            @click="clearEditor"
-          />
+          <v-btn icon="mdi-close" variant="text" size="small" @click="clearEditor" />
         </div>
       </template>
     </v-textarea>
@@ -108,7 +103,8 @@ defineExpose({
 }
 
 .json-textarea {
-  font-family: 'JetBrains Mono', 'Fira Code', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  font-family:
+    'JetBrains Mono', 'Fira Code', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
 }
 
 .json-textarea :deep(textarea) {

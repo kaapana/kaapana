@@ -4,4 +4,3 @@ appVersion: "19.0.3"
 description: Chart for Keycloak 19.0.3
 name: keycloak-chart
 version: "0.0.0"
-

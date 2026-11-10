@@ -16,13 +16,13 @@ and parameterizing them against the `kube-helm-api` backend. Discovered via the
 The whole app lives under `docker/files/`; the single view is
 `src/views/Extensions.vue`, supported by three components and two stores:
 
-| Path | Purpose |
-| --- | --- |
-| `src/components/ExtensionParamsDialog.vue` | The `extension_params` configuration form, with unsaved-changes protection. |
-| `src/components/ExtensionsEmptyState.vue` | The three empty states (nothing yet / nothing matches / could not load), on `v-empty-state`. |
-| `src/components/Upload.vue` | The FilePond drop zone. |
-| `src/stores/policy.ts` | The open-policy data that decides which admin-only controls render. |
-| `src/stores/failureDetails.ts` | The one failure-details dialog, opened from a notification, alert or empty state. |
+| Path                                       | Purpose                                                                                      |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| `src/components/ExtensionParamsDialog.vue` | The `extension_params` configuration form, with unsaved-changes protection.                  |
+| `src/components/ExtensionsEmptyState.vue`  | The three empty states (nothing yet / nothing matches / could not load), on `v-empty-state`. |
+| `src/components/Upload.vue`                | The FilePond drop zone.                                                                      |
+| `src/stores/policy.ts`                     | The open-policy data that decides which admin-only controls render.                          |
+| `src/stores/failureDetails.ts`             | The one failure-details dialog, opened from a notification, alert or empty state.            |
 
 The theme, typeface, icon map, the policy check (`checkAuthR`) and the shared
 dialogs (`ConfirmDialog`, `ErrorDetailsDialog`, `HelpIcon`) come from
@@ -45,19 +45,19 @@ Derived from `src/views/Extensions.vue` and the e2e specs:
   (CPU / GPU). Experimental extensions are hidden by default (only Stable is
   pre-selected).
 - **Install / Launch lifecycle** — non-multi-installable extensions show
-  *Install*, multi-installable ones *Launch*. When the extension declares
+  _Install_, multi-installable ones _Launch_. When the extension declares
   `extension_params`, a configuration dialog opens first; otherwise the install
   fires immediately. The form renders parameter types `string`, `bool`/
   `boolean`, `list_single`, `list_multi`, plus `group_name` and `doc`
   (rich-text/HTML) section markers, with per-field validation and a help
   button (`HelpIcon`) per field that carries `help`. A just-launched
-  multi-instance briefly shows a disabled *Launched* state, with a tooltip
+  multi-instance briefly shows a disabled _Launched_ state, with a tooltip
   explaining why. Closing the configuration form after editing it asks before
   discarding, and an edited form reports the view as dirty to the shell via
   `postViewDirty()`.
-- **Uninstall / Delete** — installed extensions show *Uninstall* (single) or
-  *Delete* (multi-installable). A stuck *Pending* install exposes a
-  *Force Uninstall / Force Delete* action that passes `--no-hooks`. Each opens
+- **Uninstall / Delete** — installed extensions show _Uninstall_ (single) or
+  _Delete_ (multi-installable). A stuck _Pending_ install exposes a
+  _Force Uninstall / Force Delete_ action that passes `--no-hooks`. Each opens
   a confirmation naming the release and version.
 - **Version selection** — a per-row dropdown (`versions`) chooses which chart
   version the action targets; the selected version flows into the
@@ -68,13 +68,13 @@ Derived from `src/views/Extensions.vue` and the e2e specs:
   `mdi-check-circle` when ready; the tooltip surfaces the aggregated Helm
   status and Kubernetes pod status.
 - **Polling & refresh** — the list is re-fetched every 5 s. The
-  *Download latest extensions* control triggers a backend re-download
+  _Download latest extensions_ control triggers a backend re-download
   (`update-extensions`) and asks for confirmation first.
 - **Empty and failure states** — an empty screen says which of the three cases
   it is and offers the way out: nothing published yet (download the catalogue),
   nothing matching the filters (reset them), or a failed load (retry). While a
   stale list is still on screen, an inline alert says so; both offer a
-  *Details* disclosure.
+  _Details_ disclosure.
 - **Action feedback** — install and uninstall show progress on the row control
   that started them and cannot be submitted twice; outcomes arrive as transient
   notifications. A failed action's notification says what failed in the user's
@@ -91,22 +91,22 @@ prefixed with the `/project/<short_id>` document prefix.
 
 ### `kube-helm-api` (extension marketplace) — via `kaapanaApiService`
 
-| Method | Endpoint | Purpose | Scope |
-| --- | --- | --- | --- |
-| GET  | `/kube-helm-api/extensions?repo=kaapana-public` | List all extensions (polled every 5 s). | interceptor |
-| GET  | `/kube-helm-api/update-extensions` | Re-download the latest extensions (refresh control). GET despite mutating. | interceptor |
-| GET  | `/kube-helm-api/import-container?filename=<f>` | Import an uploaded container `.tar`. GET despite mutating. | interceptor |
-| POST | `/kube-helm-api/helm-install-chart` | Install / launch a chart (`{name, version, keywords, extension_params?}`). | interceptor |
-| POST | `/kube-helm-api/helm-delete-chart` | Uninstall / delete (`{release_name, release_version, helm_command_addons}`; `--no-hooks` for force). | interceptor |
-| POST | `/kube-helm-api/filepond-upload` | Chunked chart/container upload (FilePond). | manual |
+| Method | Endpoint                                        | Purpose                                                                                              | Scope       |
+| ------ | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ----------- |
+| GET    | `/kube-helm-api/extensions?repo=kaapana-public` | List all extensions (polled every 5 s).                                                              | interceptor |
+| GET    | `/kube-helm-api/update-extensions`              | Re-download the latest extensions (refresh control). GET despite mutating.                           | interceptor |
+| GET    | `/kube-helm-api/import-container?filename=<f>`  | Import an uploaded container `.tar`. GET despite mutating.                                           | interceptor |
+| POST   | `/kube-helm-api/helm-install-chart`             | Install / launch a chart (`{name, version, keywords, extension_params?}`).                           | interceptor |
+| POST   | `/kube-helm-api/helm-delete-chart`              | Uninstall / delete (`{release_name, release_version, helm_command_addons}`; `--no-hooks` for force). | interceptor |
+| POST   | `/kube-helm-api/filepond-upload`                | Chunked chart/container upload (FilePond).                                                           | manual      |
 
 ### `@kaapana/base-ui` internals (triggered by this app)
 
-| Method | Endpoint | Purpose | Scope |
-| --- | --- | --- | --- |
-| GET | `/oauth2/userinfo` (prod) · `/jsons/testingAuthenticationToken.json` (dev) | Auth check per navigation (`useAuthStore().checkAuth`); failure is swallowed, the gateway enforces auth in front of the iframe. | none |
-| GET | `/aii/users/current` | Current user, to pick the project-list URL. | none |
-| GET | `/aii/projects` (admin) · `/aii/users/<id>/projects` (non-admin) | Resolve the URL slug against the user's projects; an unscoped document redirects onto the first project. **This app HAS the project store.** | none |
+| Method | Endpoint                                                                   | Purpose                                                                                                                                      | Scope |
+| ------ | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| GET    | `/oauth2/userinfo` (prod) · `/jsons/testingAuthenticationToken.json` (dev) | Auth check per navigation (`useAuthStore().checkAuth`); failure is swallowed, the gateway enforces auth in front of the iframe.              | none  |
+| GET    | `/aii/users/current`                                                       | Current user, to pick the project-list URL.                                                                                                  | none  |
+| GET    | `/aii/projects` (admin) · `/aii/users/<id>/projects` (non-admin)           | Resolve the URL slug against the user's projects; an unscoped document redirects onto the first project. **This app HAS the project store.** | none  |
 
 **Scope tiers**
 
@@ -116,7 +116,7 @@ prefixed with the `/project/<short_id>` document prefix.
   the slug and injects the trusted `Project` header before stripping the
   prefix.
 - **manual** — FilePond bypasses `httpClient`, so `Upload.vue` prepends
-  `getProjectBase()` itself; project-scoped but *not* via the interceptor.
+  `getProjectBase()` itself; project-scoped but _not_ via the interceptor.
 - **none** — auth, `/aii/*`, and the `/jsons/*` static files are not
   project-scoped.
 
@@ -180,17 +180,17 @@ import the stale `dist/` through the npm symlink and nothing errors, the
 change is just missing.
 Specs by concern:
 
-| Spec | Covers |
-| --- | --- |
-| `boot` | fresh-profile boot, the shell's dark-mode setting |
+| Spec            | Covers                                                                                                                         |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `boot`          | fresh-profile boot, the shell's dark-mode setting                                                                              |
 | `admin-actions` | admin-only controls, hidden for non-admins and when the policy fails to load; a partial grant shows only the control it covers |
-| `list` | row states, text alternatives, all rows on one page, the three empty states, a malformed row |
-| `filter` | search and the three column filters |
-| `install` | install/launch payloads, version selection (also across a poll), the Launched state, the configuration form |
-| `params` | `"null"` params, parameter isolation between installs, section/doc/multi-select parameters |
-| `config-form` | unsaved-changes protection, required-field validation, field help |
-| `uninstall` | uninstall/force/delete payloads through their confirmations, dismissal, no double submit |
-| `feedback` | success notifications, failed actions and their details dialog, load failures shown inline |
-| `polling` | pending to ready across cycles, the catalogue download, `kaapana:shell-refresh` when embedded |
-| `project-scope` | every call carries the `/project/<slug>/` prefix, including FilePond's; the unscoped-URL redirect |
-| `guidelines` | cross-cutting rules: confirmations, theme and typeface, readable width, action hierarchy, accessible names |
+| `list`          | row states, text alternatives, all rows on one page, the three empty states, a malformed row                                   |
+| `filter`        | search and the three column filters                                                                                            |
+| `install`       | install/launch payloads, version selection (also across a poll), the Launched state, the configuration form                    |
+| `params`        | `"null"` params, parameter isolation between installs, section/doc/multi-select parameters                                     |
+| `config-form`   | unsaved-changes protection, required-field validation, field help                                                              |
+| `uninstall`     | uninstall/force/delete payloads through their confirmations, dismissal, no double submit                                       |
+| `feedback`      | success notifications, failed actions and their details dialog, load failures shown inline                                     |
+| `polling`       | pending to ready across cycles, the catalogue download, `kaapana:shell-refresh` when embedded                                  |
+| `project-scope` | every call carries the `/project/<slug>/` prefix, including FilePond's; the unscoped-URL redirect                              |
+| `guidelines`    | cross-cutting rules: confirmations, theme and typeface, readable width, action hierarchy, accessible names                     |

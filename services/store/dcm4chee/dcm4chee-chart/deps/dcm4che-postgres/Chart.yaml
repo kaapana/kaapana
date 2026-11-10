@@ -4,4 +4,3 @@ appVersion: "9.6.24-26"
 description: A Helm chart for dcm4che-postgres
 name: dcm4che-postgres
 version: "0.0.0"
-

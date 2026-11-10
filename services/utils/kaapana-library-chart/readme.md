@@ -5,17 +5,20 @@ The chart provides a collection of helm templates. To make them available in you
 ```yaml
 ---
 dependencies:
-- name: kaapana-library-chart
-  version: 0.0.0
-  repository: file://<relativ path to your chart> ### Only required, if you package the chart manually.
+  - name: kaapana-library-chart
+    version: 0.0.0
+    repository: file://<relativ path to your chart> ### Only required, if you package the chart manually.
 ```
+
 Note, that this entry in `requirements.yaml` is not necessary if the chart is used as a dependency in another chart that already depends on the kaapana-library-chart, i.e.
-* Extensions that want to use any of the provided templates require this entry.
-* Charts that are part of the kaapana-admin-chart or the kaapana-platform-chart can use the templates without specifying the kaapana-library-chart as a dependency.
+
+- Extensions that want to use any of the provided templates require this entry.
+- Charts that are part of the kaapana-admin-chart or the kaapana-platform-chart can use the templates without specifying the kaapana-library-chart as a dependency.
 
 The field `repository` is only required in case you want to debug your helm chart (see section below).
 
-### Developing a new standalone chart 
+### Developing a new standalone chart
+
 To check if everything looks correct you can run the following commands inside your helm-chart directory
 
 ```bash
@@ -28,18 +31,20 @@ helm template .
 ### dynamicPersistentVolumes
 
 To use the template for persisent volumes do the following:
+
 1. Add a `global.dynamicVolumes` object to the values.yaml, e.g.:
 
 ```yaml
 global:
-  namespace: <namespace>  # Namespace in which the volume will be created
+  namespace: <namespace> # Namespace in which the volume will be created
   dynamicVolumes:
     - name: hello-world
       mount_path: /kaapana/mounted/hello-world
-      storage: "1Gi"        # Optional; otherwise defaults 
+      storage: "1Gi" # Optional; otherwise defaults
       # use_existing_pvc: true  # Reuse an existing PVC from another deployment
       # storage_class: <class>  # Optional; see note below
 ```
+
 Depending on the template you are using, additional fields may be required or some fields may be optional.
 
 ## 2. Render Persistent Volumes
@@ -47,11 +52,10 @@ Depending on the template you are using, additional fields may be required or so
 Create a file named `persistent_volumes.yaml` with the following content:
 
 ```yaml
-{{ include "dynamicPersistentVolumes" $ }}
+{ { include "dynamicPersistentVolumes" $ } }
 ```
 
 This will render the dynamic persistent volume definitions into your chart.
-
 
 ### Storage Class Note
 
@@ -80,6 +84,7 @@ spec:
 ```
 
 This will render the following parts correpsonding to the `hello-world` dynamicVolume.
+
 ```yaml
 spec:
   template:
@@ -110,6 +115,7 @@ admin: false ### Boolean that determines, if the PV and PVC should be created in
 ```
 
 1. In `templates/persistent_volumes.yaml` include
+
 ```yaml
 {{- if .Values.global.dev_files }}
 ---
@@ -118,6 +124,7 @@ admin: false ### Boolean that determines, if the PV and PVC should be created in
 ```
 
 2. In `templates/deployment.yaml` include
+
 ```yaml
 spec:
   template:
@@ -138,7 +145,8 @@ spec:
 ```
 
 3. You can also adapt the command executed in your container to depend whether dev_files is set or not.
-One way to do this is by adding an env variable to your container and adapt the command corresponding whether the variable is set or not.
+   One way to do this is by adding an env variable to your container and adapt the command corresponding whether the variable is set or not.
+
 ```yaml
 spec:
   template:
@@ -156,10 +164,6 @@ spec:
 
 Use this template for volumes that are scoped for projects.
 
-
 ### dynamicEnvs & dynamicEnvsFromSecretRef & dynamicLabels
 
 Used by the dev-server-chart to render env variables and labels that where parsed to the kube-helm-backend from the KaapanaBaserOperator to start a dev-server.
-
-
-

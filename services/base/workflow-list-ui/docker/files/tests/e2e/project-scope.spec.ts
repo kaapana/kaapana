@@ -4,7 +4,8 @@ import { installMockBackend, PROJECT_SLUGS, viewPathFor } from './fixtures/mock-
 // The four services base-ui's httpClient rewrites onto /project/<short_id>/
 // (its PROJECT_SCOPED allowlist). Matched anywhere in the path so a call that
 // bypasses the interceptor entirely is still caught.
-const PROJECT_SCOPED_SERVICE = /(^|\/)(kaapana-backend|kube-helm-api|workflow-api|dicom-web-filter)\//
+const PROJECT_SCOPED_SERVICE =
+  /(^|\/)(kaapana-backend|kube-helm-api|workflow-api|dicom-web-filter)\//
 
 // The /project/<short_id> document prefix IS the project selection. This view
 // has no project store — served without the prefix it just sends its calls
@@ -14,9 +15,7 @@ test('API calls are scoped to the project in the document URL', async ({ page })
   await installMockBackend(page)
   // Deliberately NOT the first project, so a fallback-to-default would fail.
   const slug = PROJECT_SLUGS[1]
-  const scoped = page.waitForRequest((r) =>
-    r.url().includes(`/project/${slug}/kaapana-backend/`),
-  )
+  const scoped = page.waitForRequest((r) => r.url().includes(`/project/${slug}/kaapana-backend/`))
   await page.goto(viewPathFor(slug))
   await scoped
 })

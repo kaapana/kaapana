@@ -48,7 +48,11 @@ const useTextarea = computed(() => {
 })
 
 const objectValue = computed<Record<string, unknown>>(() => {
-  if (props.modelValue && typeof props.modelValue === 'object' && !Array.isArray(props.modelValue)) {
+  if (
+    props.modelValue &&
+    typeof props.modelValue === 'object' &&
+    !Array.isArray(props.modelValue)
+  ) {
     return props.modelValue as Record<string, unknown>
   }
   return {}
@@ -59,7 +63,13 @@ const requiredKeys = computed(() => new Set(props.schema.required ?? []))
 
 function updateChildValue(key: string, childValue: unknown) {
   const next = { ...objectValue.value }
-  if (childValue === undefined || childValue === null || (typeof childValue === 'object' && childValue !== null && !Object.keys(childValue as Record<string, unknown>).length)) {
+  if (
+    childValue === undefined ||
+    childValue === null ||
+    (typeof childValue === 'object' &&
+      childValue !== null &&
+      !Object.keys(childValue as Record<string, unknown>).length)
+  ) {
     delete next[key]
   } else {
     next[key] = childValue
@@ -202,12 +212,7 @@ function hasSupportedChildren(): boolean {
       <div v-if="schema.description" class="schema-description">{{ schema.description }}</div>
     </template>
     <template v-else-if="normalizedType === 'boolean'">
-      <v-switch
-        v-model="booleanValue"
-        :label="label"
-        :disabled="disabled"
-        inset
-      ></v-switch>
+      <v-switch v-model="booleanValue" :label="label" :disabled="disabled" inset></v-switch>
       <div v-if="schema.description" class="schema-description">{{ schema.description }}</div>
     </template>
     <template v-else>
@@ -227,7 +232,6 @@ function hasSupportedChildren(): boolean {
 </template>
 
 <style scoped>
-
 .schema-field {
   display: flex;
   flex-direction: column;

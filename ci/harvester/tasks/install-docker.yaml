@@ -15,14 +15,14 @@
   ansible.builtin.file:
     path: /etc/apt/keyrings
     state: directory
-    mode: '0755'
+    mode: "0755"
 
 - name: Download Docker GPG key
   become: yes
   ansible.builtin.get_url:
     url: https://download.docker.com/linux/ubuntu/gpg
     dest: /etc/apt/keyrings/docker.asc
-    mode: '0644'
+    mode: "0644"
 
 - name: Add Docker repository
   become: yes
@@ -34,7 +34,7 @@
       Suites: {{ ansible_facts.distribution_release }}
       Components: stable
       Signed-By: /etc/apt/keyrings/docker.asc
-    mode: '0644'
+    mode: "0644"
 
 - name: Update apt cache
   become: yes
@@ -79,7 +79,7 @@
     state: directory
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
-    mode: '0755'
+    mode: "0755"
 
 - name: Reboot machine to apply docker group membership
   become: yes

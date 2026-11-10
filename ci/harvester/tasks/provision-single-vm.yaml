@@ -80,7 +80,7 @@
   ansible.builtin.template:
     src: ../templates/vm.yml.j2
     dest: /tmp/{{ vm_config.vm_name }}-vm.yml
-    mode: '0644'
+    mode: "0644"
   vars:
     vm_name: "{{ vm_config.vm_name }}"
     vm_cpu_cores: "{{ vm_config.cpu_cores | default(8) | int }}"

@@ -106,6 +106,8 @@ test.describe('fields', () => {
     }
 
     await expect(help).toBeFocused()
-    await expect(page.getByText('Shown in the workflow list once the training starts.')).toBeVisible()
+    await expect(
+      page.getByText('Shown in the workflow list once the training starts.'),
+    ).toBeVisible()
   })
 })

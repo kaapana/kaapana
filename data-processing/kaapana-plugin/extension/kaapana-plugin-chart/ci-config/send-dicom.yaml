@@ -7,7 +7,7 @@ conf_data:
     pacs_port: 11112
     single_execution: false
   data_form:
-    dataset_name: 
+    dataset_name:
       name: test-CT
       access_level: "project"
       username: "kaapana"

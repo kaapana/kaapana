@@ -6,4 +6,4 @@ name: kaapana-platform-chart
 description: kaapana Platform
 kaapana_type: "platform"
 keywords:
-- kaapanaplatform
+  - kaapanaplatform

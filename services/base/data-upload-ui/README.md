@@ -52,19 +52,19 @@ matching `^/(kaapana-backend|kube-helm-api|workflow-api|dicom-web-filter)/` to
 `/project/<short_id>/…` (the `short_id` from the document URL). Everything else is
 sent as-is.
 
-| Method | Path | Purpose | Scope |
-| --- | --- | --- | --- |
-| GET | `/oauth2/userinfo` | Auth gate (`useAuthStore.checkAuth`, run in `router.beforeEach`); dev fallback `/jsons/testingAuthenticationToken.json` when not `PROD` | unscoped |
-| GET | `/aii/users/current` | Current user id + realm roles (project store `getSelectedProject`) | unscoped |
-| GET | `/aii/projects` (admin) or `/aii/users/<id>/projects` (non-admin) | Project list; the URL slug is resolved against it, else the document is redirected onto the first project | unscoped |
-| POST | `/kaapana-backend/client/file` | FilePond: request a transfer id (carries `Upload-Length` + `filepath`) | prefixed by `Upload.vue` (see note) |
-| PATCH | `/kaapana-backend/client/file?patch=<id>` | FilePond: upload one chunk (tus-style `Upload-Offset`/`Upload-Name`) | prefixed by `Upload.vue` |
-| DELETE | `/kaapana-backend/client/file` | FilePond "Remove from list" (transfer id in body); the backend deletes only the partial upload data of that transfer | prefixed by `Upload.vue` |
-| HEAD | `/kaapana-backend/client/file` | FilePond: resume probe | prefixed by `Upload.vue` |
-| POST | `/kaapana-backend/client/get-kaapana-instances` | Import dialog: list runner instances (`onlyLocal` keeps the local one) | scoped |
-| POST | `/kaapana-backend/client/get-dags` | Import dialog: importable dags (`kind_of_dags="import"`) | scoped |
-| POST | `/kaapana-backend/client/get-ui-form-schemas` | Import dialog: per-dag vjsf form schemas | scoped |
-| POST | `/kaapana-backend/client/workflow` | Import dialog: submit the workflow | scoped |
+| Method | Path                                                              | Purpose                                                                                                                                 | Scope                               |
+| ------ | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| GET    | `/oauth2/userinfo`                                                | Auth gate (`useAuthStore.checkAuth`, run in `router.beforeEach`); dev fallback `/jsons/testingAuthenticationToken.json` when not `PROD` | unscoped                            |
+| GET    | `/aii/users/current`                                              | Current user id + realm roles (project store `getSelectedProject`)                                                                      | unscoped                            |
+| GET    | `/aii/projects` (admin) or `/aii/users/<id>/projects` (non-admin) | Project list; the URL slug is resolved against it, else the document is redirected onto the first project                               | unscoped                            |
+| POST   | `/kaapana-backend/client/file`                                    | FilePond: request a transfer id (carries `Upload-Length` + `filepath`)                                                                  | prefixed by `Upload.vue` (see note) |
+| PATCH  | `/kaapana-backend/client/file?patch=<id>`                         | FilePond: upload one chunk (tus-style `Upload-Offset`/`Upload-Name`)                                                                    | prefixed by `Upload.vue`            |
+| DELETE | `/kaapana-backend/client/file`                                    | FilePond "Remove from list" (transfer id in body); the backend deletes only the partial upload data of that transfer                    | prefixed by `Upload.vue`            |
+| HEAD   | `/kaapana-backend/client/file`                                    | FilePond: resume probe                                                                                                                  | prefixed by `Upload.vue`            |
+| POST   | `/kaapana-backend/client/get-kaapana-instances`                   | Import dialog: list runner instances (`onlyLocal` keeps the local one)                                                                  | scoped                              |
+| POST   | `/kaapana-backend/client/get-dags`                                | Import dialog: importable dags (`kind_of_dags="import"`)                                                                                | scoped                              |
+| POST   | `/kaapana-backend/client/get-ui-form-schemas`                     | Import dialog: per-dag vjsf form schemas                                                                                                | scoped                              |
+| POST   | `/kaapana-backend/client/workflow`                                | Import dialog: submit the workflow                                                                                                      | scoped                              |
 
 The `oauth2`/`aii` and `client/*` calls go through `@kaapana/base-ui` (`AuthService`,
 the project store, and `WorkflowExecution` via `kaapanaApiService`). This app **owns

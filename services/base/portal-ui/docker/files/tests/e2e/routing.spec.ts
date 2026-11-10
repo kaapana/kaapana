@@ -102,7 +102,10 @@ test.describe('shell routing on the default menu', () => {
 
   test('"/" resolves to the backend-flagged default entry', async ({ page }) => {
     await page.goto('/')
-    await expect(page.locator('iframe.kaapana-iframe')).toHaveAttribute('src', '/project/admin/data-gallery-ui')
+    await expect(page.locator('iframe.kaapana-iframe')).toHaveAttribute(
+      'src',
+      '/project/admin/data-gallery-ui',
+    )
   })
 
   test('/web/<section>/<entry> bookmark strips onto the canonical route', async ({ page }) => {
@@ -119,19 +122,28 @@ test.describe('shell routing on the default menu', () => {
     // it exercises the NO_SECTION strip without bouncing through another redirect.
     await page.goto('/web/-/extensions')
     await expect(page).toHaveURL(/\/extensions$/)
-    await expect(page.locator('iframe.kaapana-iframe')).toHaveAttribute('src', '/project/admin/extensions-ui')
+    await expect(page.locator('iframe.kaapana-iframe')).toHaveAttribute(
+      'src',
+      '/project/admin/extensions-ui',
+    )
   })
 
   test('unknown route falls back to the default view', async ({ page }) => {
     await page.goto('/does/not/exist')
     await expect(page).toHaveURL(/\/project\/admin$/)
-    await expect(page.locator('iframe.kaapana-iframe')).toHaveAttribute('src', '/project/admin/data-gallery-ui')
+    await expect(page.locator('iframe.kaapana-iframe')).toHaveAttribute(
+      'src',
+      '/project/admin/data-gallery-ui',
+    )
   })
 
   test('tab-target entry is not reachable as an in-shell route (falls back)', async ({ page }) => {
     await page.goto('/system/monitoring')
     await expect(page).toHaveURL(/\/project\/admin$/)
-    await expect(page.locator('iframe.kaapana-iframe')).toHaveAttribute('src', '/project/admin/data-gallery-ui')
+    await expect(page.locator('iframe.kaapana-iframe')).toHaveAttribute(
+      'src',
+      '/project/admin/data-gallery-ui',
+    )
   })
 
   test('/help loads the docs iframe (no menu entry required)', async ({ page }) => {

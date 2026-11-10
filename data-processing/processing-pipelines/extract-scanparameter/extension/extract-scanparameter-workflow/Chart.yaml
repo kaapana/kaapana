@@ -5,5 +5,5 @@ description: A Dag to extract scan parameteres
 name: extract-scanparameter-workflow
 version: "0.0.0"
 keywords:
-- kaapanaworkflow
-- kaapanaexperimental
+  - kaapanaworkflow
+  - kaapanaexperimental

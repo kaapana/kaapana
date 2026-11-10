@@ -16,7 +16,9 @@ test('structured mode requests structured series and renders grouped cards', asy
   await expect(page.getByText('CT Thorax')).toBeVisible()
 })
 
-test('pagination appears when results exceed the page size and drives the page index', async ({ page }) => {
+test('pagination appears when results exceed the page size and drives the page index', async ({
+  page,
+}) => {
   const data = makeDefaultMockData()
   data.settings.datasets.itemsPerPagePagination = 2
   data.aggregatedSeriesNum = 5

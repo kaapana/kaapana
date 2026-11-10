@@ -7,7 +7,7 @@ conf_data:
       - "bca"
     input: "CT"
   data_form:
-    dataset_name: 
+    dataset_name:
       name: test-CT
       username: "kaapana"
       access_level: project

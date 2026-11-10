@@ -5,7 +5,7 @@ description: "Convert images from WSI to DICOM format"
 name: wsiconv-workflow
 version: "0.0.0"
 keywords:
-- kaapanaworkflow
-- kaapanaexperimental
+  - kaapanaworkflow
+  - kaapanaexperimental
 annotations:
   ui-visible-name: "WSI converter"

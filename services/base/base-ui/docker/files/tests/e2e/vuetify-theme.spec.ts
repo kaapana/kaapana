@@ -26,7 +26,9 @@ test.describe('contrastingColor', () => {
 })
 
 function onColours(theme: ThemeDefinition) {
-  return Object.fromEntries(Object.entries(theme.colors ?? {}).filter(([key]) => key.startsWith('on-')))
+  return Object.fromEntries(
+    Object.entries(theme.colors ?? {}).filter(([key]) => key.startsWith('on-')),
+  )
 }
 
 // The AA picks: e.g. light warning takes black and light success white, where

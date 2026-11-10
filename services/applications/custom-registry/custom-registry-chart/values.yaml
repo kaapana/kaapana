@@ -1,44 +1,44 @@
 ---
 global:
-    pull_policy_images: "IfNotPresent"
+  pull_policy_images: "IfNotPresent"
 
 extension_params:
-    display_name:
-        default: "REGISTRY-service-<registry-name>"
-        definition: Unique and identifiable secret name.
-        help: "Use a unique and identifiable name for your registry-secret, e.g. REGISTRY-SECRET-service-<registry-name> or REGISTRY-SECRET-<project-name>-<registry-name>. Must satisfy the regular expression: (([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?"
-        type: string
-        value: ""
-    secret_scope:
-        default: "Service-Secret"
-        definition: "Scope"
-        help: >
-            Defines the scope of the secret:
-            <ul>
-                <li><b>Service Secret</b>: Install the secret for system-wide functionalities like installing a new workflow extension</li>
-                <li><b>Project Secret</b>: Install the secret in the selected project for pulling processing-containers</li>
-            </ul>
-        type: "list_single"
-        value: ["Service-Secret", "Project-Secret"]
-    custom_registry_url:
-        default: "https://"
-        definition: Absolute registry URL.
-        help: Absolute registry URL <protocol>://<domain>:<port>/<path>
-        type: string
-        value: ""
-    credentials_custom_registry_username:
-        default: ""
-        definition: Registry Username
-        type: string
-        value: ""
-    credentials_custom_registry_password:
-        default: ""
-        definition: Registry Password or Access Token
-        type: string
-        value: ""
-    test_pull_image:
-        default: "-"
-        help: "Image tag to test pull access without the protocol <domain>:<port>/<path>/<name>:<version>. If '-', test is skipped."
-        definition: Image tag too test pull access
-        type: string
-        value: ""
+  display_name:
+    default: "REGISTRY-service-<registry-name>"
+    definition: Unique and identifiable secret name.
+    help: "Use a unique and identifiable name for your registry-secret, e.g. REGISTRY-SECRET-service-<registry-name> or REGISTRY-SECRET-<project-name>-<registry-name>. Must satisfy the regular expression: (([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?"
+    type: string
+    value: ""
+  secret_scope:
+    default: "Service-Secret"
+    definition: "Scope"
+    help: >
+      Defines the scope of the secret:
+      <ul>
+          <li><b>Service Secret</b>: Install the secret for system-wide functionalities like installing a new workflow extension</li>
+          <li><b>Project Secret</b>: Install the secret in the selected project for pulling processing-containers</li>
+      </ul>
+    type: "list_single"
+    value: ["Service-Secret", "Project-Secret"]
+  custom_registry_url:
+    default: "https://"
+    definition: Absolute registry URL.
+    help: Absolute registry URL <protocol>://<domain>:<port>/<path>
+    type: string
+    value: ""
+  credentials_custom_registry_username:
+    default: ""
+    definition: Registry Username
+    type: string
+    value: ""
+  credentials_custom_registry_password:
+    default: ""
+    definition: Registry Password or Access Token
+    type: string
+    value: ""
+  test_pull_image:
+    default: "-"
+    help: "Image tag to test pull access without the protocol <domain>:<port>/<path>/<name>:<version>. If '-', test is skipped."
+    definition: Image tag too test pull access
+    type: string
+    value: ""

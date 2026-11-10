@@ -10,7 +10,7 @@
 </template>
 
 <script setup lang="ts">
-import { useShellSettings } from "@kaapana/base-ui";
+import { useShellSettings } from '@kaapana/base-ui'
 
-const { viewKey } = useShellSettings();
+const { viewKey } = useShellSettings()
 </script>

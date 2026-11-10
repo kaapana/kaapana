@@ -25,15 +25,25 @@ const SpacingAndShape = defineComponent({
         h(VRow, null, {
           default: () =>
             steps.map(([elevation, label, text]) =>
-              h(VCol, { cols: 12, md: 4, key: label }, {
-                default: () =>
-                  h(VCard, { elevation, border: elevation === 0, rounded: 'lg' }, {
-                    default: () => [
-                      h(VCardTitle, null, { default: () => `${label} — elevation ${elevation}` }),
-                      h(VCardText, { class: 'pa-4' }, { default: () => text }),
-                    ],
-                  }),
-              }),
+              h(
+                VCol,
+                { cols: 12, md: 4, key: label },
+                {
+                  default: () =>
+                    h(
+                      VCard,
+                      { elevation, border: elevation === 0, rounded: 'lg' },
+                      {
+                        default: () => [
+                          h(VCardTitle, null, {
+                            default: () => `${label} — elevation ${elevation}`,
+                          }),
+                          h(VCardText, { class: 'pa-4' }, { default: () => text }),
+                        ],
+                      },
+                    ),
+                },
+              ),
             ),
         }),
       ])

@@ -1,5 +1,11 @@
 import { expect, type Locator, type Page } from '@playwright/test'
-import { defaultMockData, installMockBackend, seedShellState, VIEW_PATH, type MockData } from './mock-backend'
+import {
+  defaultMockData,
+  installMockBackend,
+  seedShellState,
+  VIEW_PATH,
+  type MockData,
+} from './mock-backend'
 
 export async function openView(page: Page, data: MockData = defaultMockData, path = VIEW_PATH) {
   await seedShellState(page)

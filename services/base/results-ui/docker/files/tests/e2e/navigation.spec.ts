@@ -9,9 +9,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('expanding a folder lazy-loads and shows its children', async ({ page }) => {
-  const childReq = page.waitForRequest((r) =>
-    r.url().includes('prefix=nnunet-training-230101'),
-  )
+  const childReq = page.waitForRequest((r) => r.url().includes('prefix=nnunet-training-230101'))
   await page.getByText('nnunet-training-230101').click()
   await childReq
 
@@ -23,9 +21,7 @@ test('each folder loads its own children independently', async ({ page }) => {
   await page.getByText('nnunet-training-230101').click()
   await expect(page.getByText('report.html')).toBeVisible()
 
-  const secondReq = page.waitForRequest((r) =>
-    r.url().includes('prefix=total-segmentator-230102'),
-  )
+  const secondReq = page.waitForRequest((r) => r.url().includes('prefix=total-segmentator-230102'))
   await page.getByText('total-segmentator-230102').click()
   await secondReq
   await expect(page.getByText('segmentation.pdf')).toBeVisible()

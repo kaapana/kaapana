@@ -22,14 +22,13 @@
 
     - name: Increase inotify watchers
       become: yes
-      ansible.builtin.command: 
+      ansible.builtin.command:
         cmd: sysctl -w fs.inotify.max_user_watches=10000
 
     - name: Increase inotify watchers
       become: yes
-      ansible.builtin.command: 
+      ansible.builtin.command:
         cmd: sysctl -w fs.inotify.max_user_instances=10000
-
 
     - name: Copy server installation script
       ansible.builtin.copy:
@@ -49,7 +48,7 @@
         DOCKER_IO_PASSWORD: "{{ lookup('ansible.builtin.env', 'DOCKER_IO_PASSWORD') }}"
       register: server_installation_output
       become: yes
-      become_flags: '-E'
+      become_flags: "-E"
       ignore_errors: true
 
     - name: Show script output in CI logs

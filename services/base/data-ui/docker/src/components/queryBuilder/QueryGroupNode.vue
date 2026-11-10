@@ -29,7 +29,10 @@ function chipLabel(node: FilterChip | GroupChip): string {
 
 function formatChipValue(raw: string): string {
   const trimmed = (raw ?? '').toString().trim()
-  if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+  if (
+    (trimmed.startsWith('[') && trimmed.endsWith(']')) ||
+    (trimmed.startsWith('{') && trimmed.endsWith('}'))
+  ) {
     try {
       const parsed = JSON.parse(trimmed)
       if (Array.isArray(parsed)) {
@@ -112,7 +115,9 @@ function isEditingChip(chipId: number): boolean {
                     :items="ctx.fieldItems.value"
                     :loading="ctx.metadataFieldLoading.value"
                     :error="Boolean(ctx.metadataFieldError.value)"
-                    :messages="ctx.metadataFieldError.value ? [ctx.metadataFieldError.value] : undefined"
+                    :messages="
+                      ctx.metadataFieldError.value ? [ctx.metadataFieldError.value] : undefined
+                    "
                     clearable
                     hide-no-data
                     hide-selected
@@ -383,7 +388,15 @@ function isEditingChip(chipId: number): boolean {
           </template>
         </v-tooltip>
       </div>
-      <v-btn-toggle v-model="groupOpModel" density="compact" color="primary" mandatory variant="outlined" divided size="x-small">
+      <v-btn-toggle
+        v-model="groupOpModel"
+        density="compact"
+        color="primary"
+        mandatory
+        variant="outlined"
+        divided
+        size="x-small"
+      >
         <v-btn value="and">AND</v-btn>
         <v-btn value="or">OR</v-btn>
       </v-btn-toggle>

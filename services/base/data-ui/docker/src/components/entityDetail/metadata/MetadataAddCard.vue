@@ -148,7 +148,7 @@ function isRenderableSchema(schema: JsonSchema | null): schema is JsonSchema {
     return false
   }
   const rawType = schema.type
-  const normalized = Array.isArray(rawType) ? rawType[0] ?? null : rawType ?? null
+  const normalized = Array.isArray(rawType) ? (rawType[0] ?? null) : (rawType ?? null)
   const properties = schema.properties ?? {}
   if (normalized && normalized !== 'object') {
     return false
@@ -161,11 +161,16 @@ function canRenderSchemaForm(key: string): boolean {
 }
 
 function updateNewMetadataForm(value: unknown) {
-  const sanitized = value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
+  const sanitized =
+    value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {}
   newMetadataFormValue.value = cloneMetadataData(sanitized)
 }
 
-function cloneMetadataData(data: Record<string, unknown> | null | undefined): Record<string, unknown> {
+function cloneMetadataData(
+  data: Record<string, unknown> | null | undefined,
+): Record<string, unknown> {
   if (!data || typeof data !== 'object') {
     return {}
   }
@@ -270,112 +275,156 @@ function openSchemaPage(key: string | null | undefined) {
 <template>
   <div>
     <v-card variant="tonal" class="mb-6">
-        <v-card-title class="text-subtitle-2 d-flex align-center justify-space-between">
-          Add Metadata Entry
-          <v-btn icon="mdi-refresh" variant="text" size="small" :loading="schemaKeyLoading" @click="refreshSchemaKeyList"></v-btn>
-        </v-card-title>
-        <v-card-text>
-          <v-switch v-model="newMetadataUseSchema" color="primary" inset label="Use registered schema"></v-switch>
+      <v-card-title class="text-subtitle-2 d-flex align-center justify-space-between">
+        Add Metadata Entry
+        <v-btn
+          icon="mdi-refresh"
+          variant="text"
+          size="small"
+          :loading="schemaKeyLoading"
+          @click="refreshSchemaKeyList"
+        ></v-btn>
+      </v-card-title>
+      <v-card-text>
+        <v-switch
+          v-model="newMetadataUseSchema"
+          color="primary"
+          inset
+          label="Use registered schema"
+        ></v-switch>
 
-          <template v-if="newMetadataUseSchema">
-            <v-row dense class="mt-2">
-              <v-col cols="12" md="8">
-                <v-autocomplete
-                  v-model="newMetadataSchemaKey"
-                  :items="availableSchemaKeys"
-                  :loading="schemaKeyLoading"
-                  label="Schema Key"
-                  variant="outlined"
-                  density="comfortable"
-                  clearable
-                  hide-details="auto"
-                ></v-autocomplete>
-              </v-col>
-              <v-col cols="12" md="4" class="d-flex align-center">
-                <div class="text-caption text-medium-emphasis">
-                  Select a schema to auto-generate the form.
-                </div>
-              </v-col>
-            </v-row>
-            <v-alert v-if="schemaKeyError" type="error" class="my-3" density="compact">
-              {{ schemaKeyError }}
-            </v-alert>
-            <v-alert v-else-if="!schemaKeyLoading && !availableSchemaKeys.length" type="info" class="my-3" density="compact">
-              No metadata schemas are registered yet.
-            </v-alert>
-            <v-progress-linear
-              v-if="newMetadataSchemaKey && (!hasResolvedSchema(newMetadataSchemaKey) || isSchemaLoading(newMetadataSchemaKey))"
-              class="my-4"
-              indeterminate
-              color="primary"
-            ></v-progress-linear>
-            <div v-if="newMetadataSchemaKey && canRenderSchemaForm(newMetadataSchemaKey)" class="mt-3">
-              <div class="schema-mode-indicator">
-                <v-chip size="x-small" color="secondary" variant="tonal">Schema form</v-chip>
-                <span class="text-caption text-medium-emphasis">New entry will follow this schema</span>
-                <v-btn size="x-small" variant="text" color="primary" class="ml-auto" @click="openSchemaPage(newMetadataSchemaKey)">
-                  View schema
-                </v-btn>
+        <template v-if="newMetadataUseSchema">
+          <v-row dense class="mt-2">
+            <v-col cols="12" md="8">
+              <v-autocomplete
+                v-model="newMetadataSchemaKey"
+                :items="availableSchemaKeys"
+                :loading="schemaKeyLoading"
+                label="Schema Key"
+                variant="outlined"
+                density="comfortable"
+                clearable
+                hide-details="auto"
+              ></v-autocomplete>
+            </v-col>
+            <v-col cols="12" md="4" class="d-flex align-center">
+              <div class="text-caption text-medium-emphasis">
+                Select a schema to auto-generate the form.
               </div>
-              <SchemaFormRenderer
-                :schema="resolveSchemaForKey(newMetadataSchemaKey)!"
-                :model-value="newMetadataFormValue"
-                :disabled="loading"
-                @update:model-value="updateNewMetadataForm"
-              />
-            </div>
-            <v-alert
-              v-else-if="newMetadataSchemaKey && hasResolvedSchema(newMetadataSchemaKey) && metadataSchemas[newMetadataSchemaKey] === null"
-              type="info"
-              class="mt-3"
-              density="compact"
-            >
-              No schema is registered for the selected key.
-            </v-alert>
-            <v-alert
-              v-else-if="newMetadataSchemaKey && hasResolvedSchema(newMetadataSchemaKey) && metadataSchemas[newMetadataSchemaKey]"
-              type="warning"
-              class="mt-3"
-              density="compact"
-            >
-              Schema contains unsupported structures. Please use custom JSON mode.
-            </v-alert>
-          </template>
-
-          <template v-else>
-            <v-row dense>
-              <v-col cols="12" md="4">
-                <v-text-field v-model="newMetadataKey" label="Key" variant="outlined"></v-text-field>
-              </v-col>
-              <v-col cols="12" md="8">
-                <v-textarea v-model="newMetadataValue" auto-grow rows="4" label="JSON Value" variant="outlined"></v-textarea>
-              </v-col>
-            </v-row>
-          </template>
-
-          <v-alert v-if="newMetadataError" type="error" class="my-3" density="compact">
-            {{ newMetadataError }}
+            </v-col>
+          </v-row>
+          <v-alert v-if="schemaKeyError" type="error" class="my-3" density="compact">
+            {{ schemaKeyError }}
           </v-alert>
-          <v-btn
-            color="primary"
-            :loading="loading"
-            class="mt-1"
-            :disabled="newMetadataUseSchema && !newMetadataSchemaKey"
-            @click="handleCreateMetadata"
+          <v-alert
+            v-else-if="!schemaKeyLoading && !availableSchemaKeys.length"
+            type="info"
+            class="my-3"
+            density="compact"
           >
-            <v-icon start>mdi-eye</v-icon>
-            Review entry
-          </v-btn>
-          <v-btn variant="text" class="ml-2" @click="resetNewMetadataForm">
-            <v-icon start>mdi-backspace</v-icon>
-            Reset
-          </v-btn>
-          <div class="text-caption text-medium-emphasis mt-2">
-            Confirm in the review dialog to add this entry to the entity.
+            No metadata schemas are registered yet.
+          </v-alert>
+          <v-progress-linear
+            v-if="
+              newMetadataSchemaKey &&
+              (!hasResolvedSchema(newMetadataSchemaKey) || isSchemaLoading(newMetadataSchemaKey))
+            "
+            class="my-4"
+            indeterminate
+            color="primary"
+          ></v-progress-linear>
+          <div
+            v-if="newMetadataSchemaKey && canRenderSchemaForm(newMetadataSchemaKey)"
+            class="mt-3"
+          >
+            <div class="schema-mode-indicator">
+              <v-chip size="x-small" color="secondary" variant="tonal">Schema form</v-chip>
+              <span class="text-caption text-medium-emphasis"
+                >New entry will follow this schema</span
+              >
+              <v-btn
+                size="x-small"
+                variant="text"
+                color="primary"
+                class="ml-auto"
+                @click="openSchemaPage(newMetadataSchemaKey)"
+              >
+                View schema
+              </v-btn>
+            </div>
+            <SchemaFormRenderer
+              :schema="resolveSchemaForKey(newMetadataSchemaKey)!"
+              :model-value="newMetadataFormValue"
+              :disabled="loading"
+              @update:model-value="updateNewMetadataForm"
+            />
           </div>
-        </v-card-text>
-      </v-card>
-    </div>
+          <v-alert
+            v-else-if="
+              newMetadataSchemaKey &&
+              hasResolvedSchema(newMetadataSchemaKey) &&
+              metadataSchemas[newMetadataSchemaKey] === null
+            "
+            type="info"
+            class="mt-3"
+            density="compact"
+          >
+            No schema is registered for the selected key.
+          </v-alert>
+          <v-alert
+            v-else-if="
+              newMetadataSchemaKey &&
+              hasResolvedSchema(newMetadataSchemaKey) &&
+              metadataSchemas[newMetadataSchemaKey]
+            "
+            type="warning"
+            class="mt-3"
+            density="compact"
+          >
+            Schema contains unsupported structures. Please use custom JSON mode.
+          </v-alert>
+        </template>
+
+        <template v-else>
+          <v-row dense>
+            <v-col cols="12" md="4">
+              <v-text-field v-model="newMetadataKey" label="Key" variant="outlined"></v-text-field>
+            </v-col>
+            <v-col cols="12" md="8">
+              <v-textarea
+                v-model="newMetadataValue"
+                auto-grow
+                rows="4"
+                label="JSON Value"
+                variant="outlined"
+              ></v-textarea>
+            </v-col>
+          </v-row>
+        </template>
+
+        <v-alert v-if="newMetadataError" type="error" class="my-3" density="compact">
+          {{ newMetadataError }}
+        </v-alert>
+        <v-btn
+          color="primary"
+          :loading="loading"
+          class="mt-1"
+          :disabled="newMetadataUseSchema && !newMetadataSchemaKey"
+          @click="handleCreateMetadata"
+        >
+          <v-icon start>mdi-eye</v-icon>
+          Review entry
+        </v-btn>
+        <v-btn variant="text" class="ml-2" @click="resetNewMetadataForm">
+          <v-icon start>mdi-backspace</v-icon>
+          Reset
+        </v-btn>
+        <div class="text-caption text-medium-emphasis mt-2">
+          Confirm in the review dialog to add this entry to the entity.
+        </div>
+      </v-card-text>
+    </v-card>
+  </div>
 
   <v-dialog v-model="reviewNewMetadataDialog" max-width="520">
     <v-card>
@@ -385,12 +434,21 @@ function openSchemaPage(key: string | null | undefined) {
           <strong>Key:</strong>
           <span class="ml-1">{{ pendingNewMetadata?.key ?? '—' }}</span>
         </div>
-        <v-textarea :model-value="pendingNewMetadataJson" label="Payload" variant="outlined" rows="8" auto-grow readonly />
+        <v-textarea
+          :model-value="pendingNewMetadataJson"
+          label="Payload"
+          variant="outlined"
+          rows="8"
+          auto-grow
+          readonly
+        />
       </v-card-text>
       <v-card-actions>
         <v-spacer></v-spacer>
         <v-btn variant="text" @click="cancelReviewNewMetadata">Back</v-btn>
-        <v-btn color="primary" :loading="loading" @click="confirmReviewNewMetadata">Add entry</v-btn>
+        <v-btn color="primary" :loading="loading" @click="confirmReviewNewMetadata"
+          >Add entry</v-btn
+        >
       </v-card-actions>
     </v-card>
   </v-dialog>

@@ -61,7 +61,9 @@ test('dragging across cards selects them', async ({ page }) => {
   await expect(cards(page).nth(2)).not.toHaveClass(/selected/)
 })
 
-test('clicking a card with an active tag tags it, and clicking again untags it', async ({ page }) => {
+test('clicking a card with an active tag tags it, and clicking again untags it', async ({
+  page,
+}) => {
   const data = makeDefaultMockData()
   data.settings.datasets.tagBar.tags = ['review']
   await openGallery(page, data)

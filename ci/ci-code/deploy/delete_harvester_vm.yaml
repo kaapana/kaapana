@@ -9,7 +9,7 @@
     vm_dns_domain: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_DOMAIN') }}"
     _vm_name_env: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_VM_NAME') }}"
     _max_name_len: "{{ 57 - 1 - (vm_dns_domain | length) }}"
-    # Prefer VM_FQDN (what prepare_deployment actually created). 
+    # Prefer VM_FQDN (what prepare_deployment actually created).
     # Fall back to the env-derived name with the same truncation as provisioning
     # VM_FQDN is only written on successful provisioning, and teardown must also work when prepare_deployment failed halfway.
     vm_name: "{{ vm_fqdn.split('.')[0] if vm_fqdn else (_vm_name_env[:(_max_name_len | int)] | regex_replace('-+$', '')) }}"
@@ -17,7 +17,6 @@
     harvester_kubeconfig: "{{ lookup('env', 'HARVESTER_KUBECONFIG') }}"
 
   tasks:
-
     - name: Fail if vm_name is empty
       ansible.builtin.assert:
         that: vm_name | length > 0

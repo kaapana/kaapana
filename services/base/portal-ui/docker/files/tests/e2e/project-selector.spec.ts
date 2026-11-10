@@ -33,7 +33,9 @@ test('switching project updates the URL and reloads the iframe under the new pre
   page,
 }) => {
   // A leftover cookie from a pre-URL-scoping session must be cleared on switch.
-  await page.context().addCookies([{ name: 'Project', value: 'stale', url: 'http://localhost:4300' }])
+  await page
+    .context()
+    .addCookies([{ name: 'Project', value: 'stale', url: 'http://localhost:4300' }])
   await page.goto('/')
   await expect(page.frameLocator('iframe.kaapana-iframe').locator('body')).toHaveAttribute(
     'data-stub',
@@ -84,14 +86,12 @@ test('a non-admin fetches only their own projects', async ({ page }) => {
     ...defaultMockData,
     aiiUser: { id: '00000000-0000-0000-0000-000000000001', realm_roles: ['user'] },
   })
-  const req = page.waitForRequest(
-    '**/aii/users/00000000-0000-0000-0000-000000000001/projects',
-  )
+  const req = page.waitForRequest('**/aii/users/00000000-0000-0000-0000-000000000001/projects')
   await page.goto('/')
   await req
 })
 
-test('dropdown items show the caller\'s per-project role from the per-user listing', async ({
+test("dropdown items show the caller's per-project role from the per-user listing", async ({
   page,
 }) => {
   // Non-admin: /aii/users/<id>/projects carries role_name per membership.

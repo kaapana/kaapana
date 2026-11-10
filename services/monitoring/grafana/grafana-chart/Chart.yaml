@@ -4,4 +4,3 @@ appVersion: "8.4.4"
 description: Chart for Grafana
 name: grafana-chart
 version: "0.0.0"
-

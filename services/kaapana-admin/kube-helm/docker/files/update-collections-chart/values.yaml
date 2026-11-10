@@ -1,5 +1,5 @@
 ---
 global:
-    action: "copy"
-    pull_policy_images: "IfNotPresent"
-    target_prefix: "/kaapana/mounted/"
+  action: "copy"
+  pull_policy_images: "IfNotPresent"
+  target_prefix: "/kaapana/mounted/"

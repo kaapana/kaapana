@@ -53,8 +53,7 @@ const isFolder = (node: TreeNode) => !node.file
 // are left, so the same match test runs here to recognise an empty result.
 function matchesSearch(nodes: TreeNode[], term: string): boolean {
   return nodes.some(
-    (node) =>
-      node.name.toLowerCase().includes(term) || matchesSearch(node.children || [], term),
+    (node) => node.name.toLowerCase().includes(term) || matchesSearch(node.children || [], term),
   )
 }
 
@@ -62,9 +61,15 @@ const searchTerm = computed(() => (search.value || '').trim().toLowerCase())
 const hasSearchMatches = computed(
   () => !searchTerm.value || matchesSearch(staticUrls.value, searchTerm.value),
 )
-const treeIsEmpty = computed(() => !rootLoading.value && !rootLoadFailed.value && !staticUrls.value.length)
+const treeIsEmpty = computed(
+  () => !rootLoading.value && !rootLoadFailed.value && !staticUrls.value.length,
+)
 const searchFoundNothing = computed(
-  () => !rootLoading.value && !rootLoadFailed.value && !!staticUrls.value.length && !hasSearchMatches.value,
+  () =>
+    !rootLoading.value &&
+    !rootLoadFailed.value &&
+    !!staticUrls.value.length &&
+    !hasSearchMatches.value,
 )
 
 // The backend emits `children: []` + hasChildren on every node; Vuetify treats
@@ -234,8 +239,7 @@ async function setSelection(nodes: TreeNode[]) {
   suppressSelectionWatch -= 1
 }
 
-const isStillSelected = (folder: TreeNode) =>
-  tree.value.some((node) => node.path === folder.path)
+const isStillSelected = (folder: TreeNode) => tree.value.some((node) => node.path === folder.path)
 
 function unselectFolder(folder: TreeNode) {
   return setSelection(tree.value.filter((node) => node.path !== folder.path))
@@ -598,11 +602,7 @@ onMounted(() => {
       </v-col>
     </v-row>
 
-    <v-dialog
-      v-model="confirmDialog"
-      max-width="400"
-      @after-enter="focusCancelButton"
-    >
+    <v-dialog v-model="confirmDialog" max-width="400" @after-enter="focusCancelButton">
       <v-card>
         <v-card-title>Open {{ confirmCount }} results?</v-card-title>
         <v-card-text>
@@ -626,4 +626,3 @@ onMounted(() => {
   max-width: 2100px;
 }
 </style>
-

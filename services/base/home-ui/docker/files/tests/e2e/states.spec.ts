@@ -16,7 +16,10 @@ function mockData(overrides: Partial<MockData>): MockData {
 }
 
 test('an empty GPU query result hides only the GPU tile', async ({ page }) => {
-  await installMockBackend(page, mockData({ monitoring: { ...defaultMockData.monitoring, gpu: null } }))
+  await installMockBackend(
+    page,
+    mockData({ monitoring: { ...defaultMockData.monitoring, gpu: null } }),
+  )
   await seedShellState(page)
   await page.goto(VIEW_PATH)
   await expect(page.getByText('CPU', { exact: true })).toBeVisible()
@@ -80,7 +83,9 @@ test('every project dashboard failing leaves the overview and the switcher intac
 }) => {
   await installMockBackend(page)
   // Override after install (later routes win) to force a server error.
-  await page.route('**/kaapana-backend/dataset/dashboard', (r) => r.fulfill({ status: 500, body: '' }))
+  await page.route('**/kaapana-backend/dataset/dashboard', (r) =>
+    r.fulfill({ status: 500, body: '' }),
+  )
   await stubShellRoutes(page)
   await seedShellState(page)
   await page.goto(VIEW_PATH)
@@ -177,7 +182,9 @@ test('a long project name ellipsises without widening the page', async ({ page }
   expect(overflow).toBeLessThanOrEqual(0)
 })
 
-test('a user without policy authorization sees dimmed intro steps but keeps the header links', async ({ page }) => {
+test('a user without policy authorization sees dimmed intro steps but keeps the header links', async ({
+  page,
+}) => {
   await installMockBackend(
     page,
     mockData({
@@ -228,7 +235,9 @@ test('an empty notification list shows the empty state', async ({ page }) => {
 })
 
 // A failed page must not read as the end of the list.
-test('a failing notification page keeps the rows already loaded and reports it', async ({ page }) => {
+test('a failing notification page keeps the rows already loaded and reports it', async ({
+  page,
+}) => {
   const firstPage: KaapanaNotification[] = Array.from({ length: 20 }, (_, i) => ({
     ...defaultMockData.notifications[0],
     id: `n-${i}`,
@@ -298,7 +307,9 @@ test('a websocket event refreshes the notification list live', async ({ page }) 
 
 // The card sits in a third of the row, so a long title is the case that breaks
 // the layout: it must be clipped to one line, not wrapped or pushed wide.
-test('a long notification title ellipsises in the list but shows in full in the dialog', async ({ page }) => {
+test('a long notification title ellipsises in the list but shows in full in the dialog', async ({
+  page,
+}) => {
   await installMockBackend(
     page,
     mockData({
@@ -370,7 +381,9 @@ test('userinfo failure renders the logged-out card', async ({ page }) => {
   await installMockBackend(page)
   // Fail both auth endpoints so it holds in dev (token file) and preview (oauth2 proxy).
   await page.route('**/oauth2/userinfo', (r) => r.fulfill({ status: 500, body: '' }))
-  await page.route('**/jsons/testingAuthenticationToken.json', (r) => r.fulfill({ status: 500, body: '' }))
+  await page.route('**/jsons/testingAuthenticationToken.json', (r) =>
+    r.fulfill({ status: 500, body: '' }),
+  )
   await seedShellState(page)
   await page.goto(VIEW_PATH)
   await expect(page.getByText('Thank you for visiting us')).toBeVisible()
@@ -453,7 +466,9 @@ test('a transient count failure keeps the last known badge', async ({ page }) =>
   await expect(tasksCard(page).locator('.v-badge__badge')).toHaveText('3')
 })
 
-test('utilization backfills the last hour, then keeps polling on the 15s interval', async ({ page }) => {
+test('utilization backfills the last hour, then keeps polling on the 15s interval', async ({
+  page,
+}) => {
   await installMockBackend(page)
   await seedShellState(page)
   await page.clock.install()

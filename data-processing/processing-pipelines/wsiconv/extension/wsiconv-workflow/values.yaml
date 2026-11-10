@@ -1,4 +1,4 @@
 ---
 global:
-    image: "dag-wsiconv"
-    action: "copy"
+  image: "dag-wsiconv"
+  action: "copy"

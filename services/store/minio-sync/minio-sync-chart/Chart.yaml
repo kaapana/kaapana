@@ -5,7 +5,7 @@ description: Sync a folder on the host system with a folder within a minio bucke
 name: minio-sync-chart
 version: "0.0.0"
 keywords:
-- kaapanaapplication
-- kaapanamultiinstallable
+  - kaapanaapplication
+  - kaapanamultiinstallable
 annotations:
   ui-visible-name: "Minio Sync"

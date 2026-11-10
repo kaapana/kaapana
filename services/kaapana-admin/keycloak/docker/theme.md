@@ -6,15 +6,15 @@ light/dark support and deployment-provided branding.
 
 ## Files (this `docker/` context → baked into `/opt/keycloak/themes/kaapana/login/`)
 
-| Source (`files/…`)            | In theme                    | Purpose |
-|-------------------------------|-----------------------------|---------|
-| `template.ftl`                | `login/template.ftl`        | Layout macro `registrationLayout`: `<head>`, card, logo row, branding header/subheader/notice, separator, page-title, message alert, nested sections, bg canvas + scripts |
-| `login.css`                   | `login/resources/css/login.css` | All styling (the single source of truth) |
-| `login.ftl`                   | `login/login.ftl`           | Sign-in form (floating-label fields, password toggle, ripple) |
-| `login-update-password.ftl`, `login-reset-password.ftl`, `login-otp.ftl` | same names | Floating-label overrides of those flows |
-| `js/bg-animation.js`          | `login/resources/js/`       | Animated medical-imaging background (tinted icons, honors `prefers-reduced-motion`) |
-| `img/kaapana-logo.png`, `img/icons/*`, `img/favicon.ico` | `login/resources/img/` | Logo, animation icons, favicon (brain + key) |
-| `theme.properties` (generated in Dockerfile) | `login/theme.properties` | `parent=keycloak`, `styles=css/login.css`, and the `kaapana*` branding keys fed from `${env.*}` |
+| Source (`files/…`)                                                       | In theme                        | Purpose                                                                                                                                                                   |
+| ------------------------------------------------------------------------ | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `template.ftl`                                                           | `login/template.ftl`            | Layout macro `registrationLayout`: `<head>`, card, logo row, branding header/subheader/notice, separator, page-title, message alert, nested sections, bg canvas + scripts |
+| `login.css`                                                              | `login/resources/css/login.css` | All styling (the single source of truth)                                                                                                                                  |
+| `login.ftl`                                                              | `login/login.ftl`               | Sign-in form (floating-label fields, password toggle, ripple)                                                                                                             |
+| `login-update-password.ftl`, `login-reset-password.ftl`, `login-otp.ftl` | same names                      | Floating-label overrides of those flows                                                                                                                                   |
+| `js/bg-animation.js`                                                     | `login/resources/js/`           | Animated medical-imaging background (tinted icons, honors `prefers-reduced-motion`)                                                                                       |
+| `img/kaapana-logo.png`, `img/icons/*`, `img/favicon.ico`                 | `login/resources/img/`          | Logo, animation icons, favicon (brain + key)                                                                                                                              |
+| `theme.properties` (generated in Dockerfile)                             | `login/theme.properties`        | `parent=keycloak`, `styles=css/login.css`, and the `kaapana*` branding keys fed from `${env.*}`                                                                           |
 
 Everything else (widgets, JS libs, i18n, unlisted flows) is **inherited** from the
 parent `keycloak` → `base` theme.
@@ -36,7 +36,7 @@ parent `keycloak` → `base` theme.
 ## Theming gotchas (learned the hard way)
 
 1. **PatternFly is loaded first, our `login.css` last** — so equal-specificity
-   rules win for us, but PatternFly's *more specific* selectors do not. Watch for:
+   rules win for us, but PatternFly's _more specific_ selectors do not. Watch for:
    - `.pf-c-form-control:not(textarea) { height: … }` — a bare `.pf-c-form-control`
      height is **ignored**; match the `:not(textarea)` selector.
    - Invalid fields: PatternFly paints a red exclamation via `background-image`.

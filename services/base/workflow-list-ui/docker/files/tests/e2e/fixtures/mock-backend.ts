@@ -170,7 +170,9 @@ export async function installMockBackend(
 
   // Auth: prod build asks the oauth2 proxy, dev server a static token file.
   await page.route('**/oauth2/userinfo', (r) => r.fulfill(json(data.userinfo)))
-  await page.route('**/jsons/testingAuthenticationToken.json', (r) => r.fulfill(json(data.userinfo)))
+  await page.route('**/jsons/testingAuthenticationToken.json', (r) =>
+    r.fulfill(json(data.userinfo)),
+  )
 
   await page.route(new RegExp(`${CLIENT}/workflows(\\?|$)`), (r) =>
     r.fulfill(json([data.workflows, data.totalWorkflows])),

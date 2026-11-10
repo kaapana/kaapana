@@ -24,7 +24,11 @@ function detailToString(detail: unknown): string | null {
   // FastAPI validation errors arrive as a list of {loc, msg, type}.
   if (Array.isArray(detail)) {
     const messages = detail
-      .map((entry) => (entry && typeof entry === 'object' && 'msg' in entry ? String(entry.msg) : JSON.stringify(entry)))
+      .map((entry) =>
+        entry && typeof entry === 'object' && 'msg' in entry
+          ? String(entry.msg)
+          : JSON.stringify(entry),
+      )
       .filter(Boolean)
     return messages.length ? messages.join(' ') : null
   }
@@ -71,8 +75,10 @@ export function apiErrorInfo(err: any): ApiErrorInfo {
 export function formatApiErrorInfo(info: ApiErrorInfo, summary?: string): string {
   const lines: string[] = []
   if (summary) lines.push(summary)
-  if (info.status !== null) lines.push(`Status: ${info.status}${info.statusText ? ` ${info.statusText}` : ''}`)
-  if (info.method || info.url) lines.push(`Request: ${[info.method, info.url].filter(Boolean).join(' ')}`)
+  if (info.status !== null)
+    lines.push(`Status: ${info.status}${info.statusText ? ` ${info.statusText}` : ''}`)
+  if (info.method || info.url)
+    lines.push(`Request: ${[info.method, info.url].filter(Boolean).join(' ')}`)
   if (info.detail) lines.push(`Backend message: ${info.detail}`)
   if (info.requestId) lines.push(`Request ID: ${info.requestId}`)
   if (info.message) lines.push(`Error: ${info.message}`)

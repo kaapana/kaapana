@@ -2,8 +2,8 @@ dag_id: "delete-series"
 instance_names:
   - central
 conf_data:
-  data_form: 
-    dataset_name: 
+  data_form:
+    dataset_name:
       name: "test-DELETE"
       access_level: "project"
       username: "kaapana"

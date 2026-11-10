@@ -4,5 +4,3 @@ appVersion: "2022.03.26"
 description: Chart for Min.io
 name: minio-chart
 version: "0.0.0"
-
-

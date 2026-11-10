@@ -191,10 +191,7 @@
               fluid
               class="overflow-auto rounded-0 v-card v-sheet pa-0 elements selecto-area gallery-side-navigation"
             >
-              <StructuredGallery
-                v-if="settings.datasets.structured"
-                v-model:patients="patients"
-              />
+              <StructuredGallery v-if="settings.datasets.structured" v-model:patients="patients" />
               <!-- seriesInstanceUIDs deliberately not two-way bound: breaks the Gallery embedded in StructuredGallery -->
               <Gallery v-else :seriesInstanceUIDs="seriesInstanceUIDs" />
             </v-container>
@@ -387,7 +384,8 @@ async function updateDatasetNames() {
     datasetsLoadFailed.value = false
     datasets.value = _datasets
     const selected = selectedDataset.value
-    if (selected) selectedDataset.value = _datasets.find((d) => sameDataset(d, selected)) ?? selected
+    if (selected)
+      selectedDataset.value = _datasets.find((d) => sameDataset(d, selected)) ?? selected
   } catch (error) {
     datasetsLoadFailed.value = true
     throw error
@@ -406,7 +404,10 @@ function editedDatasets(reloadDatasets: boolean) {
   if (reloadDatasets) {
     updateDatasetNames()
       .then(() => {
-        if (selectedDataset.value && !datasets.value.some((d) => sameDataset(d, selectedDataset.value))) {
+        if (
+          selectedDataset.value &&
+          !datasets.value.some((d) => sameDataset(d, selectedDataset.value))
+        ) {
           selectedDataset.value = null
         }
       })
@@ -452,8 +453,7 @@ async function updateData(query: any = {}, useLastquery = false, refresh = false
     .then((data) => {
       if (requestId !== updateDataRequestId) return
       aggregatedSeriesNum.value = data
-      allPatients.value =
-        aggregatedSeriesNum.value > settings.value.datasets.itemsPerPagePagination
+      allPatients.value = aggregatedSeriesNum.value > settings.value.datasets.itemsPerPagePagination
       loadPatients({
         structured: settings.value.datasets.structured,
         executeSlicedSearch: settings.value.datasets.executeSlicedSearch,
@@ -579,7 +579,10 @@ const continueSelectKey = computed(() =>
 )
 
 const displaySelectedItems = computed(() => {
-  if (aggregatedSeriesNum.value > 0 && aggregatedSeriesNum.value > identifiersOfInterest.value.length) {
+  if (
+    aggregatedSeriesNum.value > 0 &&
+    aggregatedSeriesNum.value > identifiersOfInterest.value.length
+  ) {
     return `${identifiersOfInterest.value.length} selected of ${aggregatedSeriesNum.value}`
   } else {
     return `${identifiersOfInterest.value.length} selected`

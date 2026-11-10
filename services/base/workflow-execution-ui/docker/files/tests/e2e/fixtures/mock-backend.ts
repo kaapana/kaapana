@@ -129,7 +129,11 @@ const validateDicomsRealSchema: Record<string, FormSchema> = {
         default: 'dicom-validator',
         required: true,
       },
-      exit_on_error: { title: 'Stop execution on Validation Error', type: 'boolean', default: false },
+      exit_on_error: {
+        title: 'Stop execution on Validation Error',
+        type: 'boolean',
+        default: false,
+      },
     },
   },
 }
@@ -165,8 +169,14 @@ const datasetSchema: Record<string, FormSchema> = {
         type: 'string',
         title: 'Dataset name (size)',
         oneOf: [
-          { const: { name: 'nsclc', username: 'kaapana', access_level: 'project' }, title: 'nsclc (project) (42)' },
-          { const: { name: 'brains', username: 'kaapana', access_level: 'project' }, title: 'brains (project) (7)' },
+          {
+            const: { name: 'nsclc', username: 'kaapana', access_level: 'project' },
+            title: 'nsclc (project) (42)',
+          },
+          {
+            const: { name: 'brains', username: 'kaapana', access_level: 'project' },
+            title: 'brains (project) (7)',
+          },
         ],
       },
       dataset_limit: {
@@ -283,7 +293,9 @@ function json(body: unknown) {
 export async function installMockBackend(page: Page, data: MockData = defaultMockData) {
   // Auth: prod build asks the oauth2 proxy, dev server a static token file.
   await page.route('**/oauth2/userinfo', (r) => r.fulfill(json(data.userinfo)))
-  await page.route('**/jsons/testingAuthenticationToken.json', (r) => r.fulfill(json(data.userinfo)))
+  await page.route('**/jsons/testingAuthenticationToken.json', (r) =>
+    r.fulfill(json(data.userinfo)),
+  )
 
   await page.route('**/kaapana-backend/client/get-kaapana-instances', (r) =>
     r.fulfill(json(data.instances)),
@@ -292,7 +304,9 @@ export async function installMockBackend(page: Page, data: MockData = defaultMoc
   await page.route('**/kaapana-backend/client/get-ui-form-schemas', (r) =>
     r.fulfill(json(data.schemas)),
   )
-  await page.route('**/kaapana-backend/client/workflow', (r) => r.fulfill(json({ workflow_id: 'wf-1' })))
+  await page.route('**/kaapana-backend/client/workflow', (r) =>
+    r.fulfill(json({ workflow_id: 'wf-1' })),
+  )
 
   // Federated header lookup; only hit on the remote-runner branch.
   await page.route('**/kaapana-backend/client/kaapana-instance', (r) =>
@@ -303,7 +317,11 @@ export async function installMockBackend(page: Page, data: MockData = defaultMoc
   // window.top to the literal shell route '/web/workflows/workflows'; stub it
   // so the navigation doesn't hit a dead URL.
   await page.route('**/workflows/workflows', (r) =>
-    r.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><html><body>stub</body></html>' }),
+    r.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: '<!doctype html><html><body>stub</body></html>',
+    }),
   )
 }
 
@@ -340,7 +358,10 @@ export async function selectDag(page: Page, dagId: string) {
   await workflowField(page).click()
   await page.getByRole('option', { name: dagId, exact: true }).click()
   // Let the dag_id watcher rebuild schemas and vjsf re-render.
-  await page.locator('.v-overlay--active').waitFor({ state: 'hidden' }).catch(() => {})
+  await page
+    .locator('.v-overlay--active')
+    .waitFor({ state: 'hidden' })
+    .catch(() => {})
 }
 
 // ---- Realistic DAG shapes that crashed vjsf 3 on the live platform ----------
@@ -401,7 +422,10 @@ export const noModelsSchema: Record<string, FormSchema> = {
         title: 'Dataset name (size)',
         required: true,
         oneOf: [
-          { const: { name: 'nsclc', username: 'kaapana', access_level: 'project' }, title: 'nsclc (project) (42)' },
+          {
+            const: { name: 'nsclc', username: 'kaapana', access_level: 'project' },
+            title: 'nsclc (project) (42)',
+          },
         ],
       },
     },

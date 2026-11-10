@@ -1,5 +1,9 @@
 <template>
-  <v-dialog :model-value="modelValue" max-width="600" @update:model-value="emit('update:modelValue', $event)">
+  <v-dialog
+    :model-value="modelValue"
+    max-width="600"
+    @update:model-value="emit('update:modelValue', $event)"
+  >
     <v-card v-if="notification">
       <v-card-title class="d-flex align-start">
         <v-icon class="mr-2">{{ notification.icon || kaapanaIcons.info }}</v-icon>

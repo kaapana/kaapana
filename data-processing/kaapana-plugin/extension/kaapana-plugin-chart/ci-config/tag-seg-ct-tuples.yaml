@@ -9,7 +9,7 @@ conf_data:
     action: "add"
     tags: "TestSegTag"
   data_form:
-    dataset_name: 
+    dataset_name:
       name: "test-SEG"
       access_level: "project"
       username: "kaapana"

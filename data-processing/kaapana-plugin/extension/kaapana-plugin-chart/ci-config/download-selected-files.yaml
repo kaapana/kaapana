@@ -1,7 +1,7 @@
 dag_id: "download-selected-files"
 conf_data:
-  data_form: 
-    dataset_name: 
+  data_form:
+    dataset_name:
       name: "test-CT"
       access_level: "project"
       username: "kaapana"
@@ -11,12 +11,12 @@ conf_data:
     single_execution: true
     convert_to_nifti: false
 remote: false
-username: "kaapana" 
+username: "kaapana"
 ---
 dag_id: "download-selected-files"
 conf_data:
-  data_form: 
-    dataset_name: 
+  data_form:
+    dataset_name:
       name: "test-CT"
       access_level: "project"
       username: "kaapana"
@@ -30,8 +30,8 @@ username: "kaapana"
 ---
 dag_id: "download-selected-files"
 conf_data:
-  data_form: 
-    dataset_name: 
+  data_form:
+    dataset_name:
       name: "test-CT"
       access_level: "project"
       username: "kaapana"

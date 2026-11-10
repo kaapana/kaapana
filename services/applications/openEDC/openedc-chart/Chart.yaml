@@ -5,5 +5,5 @@ appVersion: "0.1.0"
 name: openedc-chart
 description: Kaapana extension for OpenEDC (https://github.com/imi-muenster/OpenEDC-Server)
 keywords:
-- kaapanaapplication
-- kaapanaexperimental
+  - kaapanaapplication
+  - kaapanaexperimental

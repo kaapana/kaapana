@@ -26,19 +26,19 @@ box. Nothing is merged automatically. See [Rollout phases](#rollout-phases).
 
 ## What Renovate updates
 
-Renovate reads files through *managers*, one per file format. Only the
+Renovate reads files through _managers_, one per file format. Only the
 managers listed in `enabledManagers` run.
 
-| Manager | Files | Examples |
-| --- | --- | --- |
-| `dockerfile` | every `Dockerfile` | `FROM nginxinc/nginx-unprivileged:1.31-alpine`, `FROM quay.io/keycloak/keycloak:26.6.4` |
-| `gitlabci` | `.gitlab-ci.yml`, `ci/pipeline/*.yml` | `image: python:3.12`, the `docker:*-dind` services |
-| `pip_requirements`, `pep621` | `requirements*.txt`, `pyproject.toml`, `constraints/*.txt`, the Airflow `constraints-*.txt` | exact `==` pins in services, `lib/*` packages |
-| `npm` | `package.json` + `package-lock.json` | the Vue apps in `services/`, the root lint setup, `tests/ui` |
-| `maven` | `pom.xml` | the Keycloak extensions |
-| `pre-commit` | `.pre-commit-config.yaml` | ruff |
-| `custom.regex` | lines annotated with `# renovate:`, the opa download URL | `ARG HELM_VERSION`, `RUFF_VERSION` |
-| `ansible`, `helm-requirements`, `helm-values` | `ci/ci-code/deploy/*.yaml`, Helm charts | enabled so that new files are picked up. Today they find nothing to update. |
+| Manager                                       | Files                                                                                       | Examples                                                                                |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `dockerfile`                                  | every `Dockerfile`                                                                          | `FROM nginxinc/nginx-unprivileged:1.31-alpine`, `FROM quay.io/keycloak/keycloak:26.6.4` |
+| `gitlabci`                                    | `.gitlab-ci.yml`, `ci/pipeline/*.yml`                                                       | `image: python:3.12`, the `docker:*-dind` services                                      |
+| `pip_requirements`, `pep621`                  | `requirements*.txt`, `pyproject.toml`, `constraints/*.txt`, the Airflow `constraints-*.txt` | exact `==` pins in services, `lib/*` packages                                           |
+| `npm`                                         | `package.json` + `package-lock.json`                                                        | the Vue apps in `services/`, the root lint setup, `tests/ui`                            |
+| `maven`                                       | `pom.xml`                                                                                   | the Keycloak extensions                                                                 |
+| `pre-commit`                                  | `.pre-commit-config.yaml`                                                                   | ruff                                                                                    |
+| `custom.regex`                                | lines annotated with `# renovate:`, the opa download URL                                    | `ARG HELM_VERSION`, `RUFF_VERSION`                                                      |
+| `ansible`, `helm-requirements`, `helm-values` | `ci/ci-code/deploy/*.yaml`, Helm charts                                                     | enabled so that new files are picked up. Today they find nothing to update.             |
 
 `pre-commit` is the only manager that Renovate ships turned off. It needs
 both the entry in `enabledManagers` and `"pre-commit": { "enabled": true }`.
@@ -55,15 +55,15 @@ both the entry in `enabledManagers` and `"pre-commit": { "enabled": true }`.
 
 ### Not updated
 
-| What | Why |
-| --- | --- |
-| `local-only/*` base images | The build creates them from this repository. They are in no registry, and the tag is always `latest`. The external image they are built on is updated instead. |
-| `registry.hzdr.de/kaapana/*` images | Kaapana's own images, e.g. the patched collabora image. They follow Kaapana's rebuilds. |
-| `kaapana-client`, `kaapana-containers`, `task-api` | Code from `lib/`, installed via `file://` or `git+`. A PyPI lookup would find unrelated packages. |
-| Helm chart dependencies and images | All chart dependencies are local (`file://`, `0.0.0`). Image names without a tag in `values.yaml` are Kaapana images and are turned off. |
-| `docker-compose` files | The manager is not enabled. They are only used for local development. |
-| `templates_and_examples/`, `docs/Pipfile`, `utils/`, `rabbitmq-3.8` | In `ignorePaths`: templates, a dead Python 2 file, helper scripts and an unused image. |
-| Versions in download URLs, `git clone --branch` and `pip install x==y` in Dockerfiles | Renovate cannot find them, unless they have a [`# renovate:` annotation](#annotating-a-version). This includes Airflow itself. |
+| What                                                                                  | Why                                                                                                                                                            |
+| ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `local-only/*` base images                                                            | The build creates them from this repository. They are in no registry, and the tag is always `latest`. The external image they are built on is updated instead. |
+| `registry.hzdr.de/kaapana/*` images                                                   | Kaapana's own images, e.g. the patched collabora image. They follow Kaapana's rebuilds.                                                                        |
+| `kaapana-client`, `kaapana-containers`, `task-api`                                    | Code from `lib/`, installed via `file://` or `git+`. A PyPI lookup would find unrelated packages.                                                              |
+| Helm chart dependencies and images                                                    | All chart dependencies are local (`file://`, `0.0.0`). Image names without a tag in `values.yaml` are Kaapana images and are turned off.                       |
+| `docker-compose` files                                                                | The manager is not enabled. They are only used for local development.                                                                                          |
+| `templates_and_examples/`, `docs/Pipfile`, `utils/`, `rabbitmq-3.8`                   | In `ignorePaths`: templates, a dead Python 2 file, helper scripts and an unused image.                                                                         |
+| Versions in download URLs, `git clone --branch` and `pip install x==y` in Dockerfiles | Renovate cannot find them, unless they have a [`# renovate:` annotation](#annotating-a-version). This includes Airflow itself.                                 |
 
 `ignorePaths` replaces Renovate's default list, it does not extend it. That is
 why `**/node_modules/**` is listed again, and why `tests/` is scanned.
@@ -101,21 +101,21 @@ why `**/node_modules/**` is listed again, and why `tests/` is scanned.
 The approval gate is relaxed step by step. Move to the next phase when the
 MRs of the current one are manageable.
 
-| Phase | Change in `renovate.json` | What maintainers see |
-| --- | --- | --- |
-| 0 · Dry run | runner input `dry_run` = `full`, read-only token | nothing, the run only logs |
-| **1 · Dashboard only (current)** | `dependencyDashboardApproval: true` at the top level and in `vulnerabilityAlerts` | the dashboard. An MR only after someone ticks its box. |
-| 2 · Security and tested components | remove both approvals, add `dependencyDashboardApproval: true` to the `Coverage: none` rule | security MRs and MRs for tested components. Untested ones wait for approval. |
-| 3 · Target state | remove the approval from the `Coverage: none` rule, optionally add a `schedule` such as `["before 6am on monday"]` | the table below |
+| Phase                              | Change in `renovate.json`                                                                                          | What maintainers see                                                         |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| 0 · Dry run                        | runner input `dry_run` = `full`, read-only token                                                                   | nothing, the run only logs                                                   |
+| **1 · Dashboard only (current)**   | `dependencyDashboardApproval: true` at the top level and in `vulnerabilityAlerts`                                  | the dashboard. An MR only after someone ticks its box.                       |
+| 2 · Security and tested components | remove both approvals, add `dependencyDashboardApproval: true` to the `Coverage: none` rule                        | security MRs and MRs for tested components. Untested ones wait for approval. |
+| 3 · Target state                   | remove the approval from the `Coverage: none` rule, optionally add a `schedule` such as `["before 6am on monday"]` | the table below                                                              |
 
 Target state:
 
-| Update | What Renovate does | Merge condition |
-| --- | --- | --- |
-| Security fix | Opens an MR right away, ignoring the schedule and the limits | Green pipeline, including trivy, and one review |
-| Patch or minor | Opens grouped MRs | Green pipeline and one review |
-| Patch or minor, coverage `none` | Same as above | Also a manual test, noted in the MR |
-| Major | Waits on the dashboard for approval, in every phase | Same as above, plus a look at the changelog |
+| Update                          | What Renovate does                                           | Merge condition                                 |
+| ------------------------------- | ------------------------------------------------------------ | ----------------------------------------------- |
+| Security fix                    | Opens an MR right away, ignoring the schedule and the limits | Green pipeline, including trivy, and one review |
+| Patch or minor                  | Opens grouped MRs                                            | Green pipeline and one review                   |
+| Patch or minor, coverage `none` | Same as above                                                | Also a manual test, noted in the MR             |
+| Major                           | Waits on the dashboard for approval, in every phase          | Same as above, plus a look at the changelog     |
 
 ## Grouping and pace
 
@@ -126,24 +126,24 @@ Target state:
 
 Patch and minor updates are grouped, one MR per group:
 
-| Group | Contains |
-| --- | --- |
-| UI npm dependencies | npm in `services/**` |
-| other npm dependencies | npm elsewhere that no other group catches |
-| base image Python dependencies | Python in `data-processing/base-images/**` |
-| Python dependencies | all other Python |
-| container base images | Dockerfile, Ansible and Helm images |
-| CI tooling | everything in `ci/`, `tests/`, `.gitlab-ci.yml`, `.pre-commit-config.yaml` and the root `package.json` (ESLint, Prettier) |
+| Group                          | Contains                                                                                                                  |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| UI npm dependencies            | npm in `services/**`                                                                                                      |
+| other npm dependencies         | npm elsewhere that no other group catches                                                                                 |
+| base image Python dependencies | Python in `data-processing/base-images/**`                                                                                |
+| Python dependencies            | all other Python                                                                                                          |
+| container base images          | Dockerfile, Ansible and Helm images                                                                                       |
+| CI tooling                     | everything in `ci/`, `tests/`, `.gitlab-ci.yml`, `.pre-commit-config.yaml` and the root `package.json` (ESLint, Prettier) |
 
 Some versions must move together and have their own group, also for major
 updates:
 
-| Group | Contains |
-| --- | --- |
+| Group           | Contains                                                   |
+| --------------- | ---------------------------------------------------------- |
 | `docker engine` | the docker CLI in `ci-base` and the `docker:*-dind` images |
-| `ruff` | the pre-commit hook and `RUFF_VERSION` |
-| `opa` | the opa image and both opa binaries |
-| `playwright` | the npm and Python packages |
+| `ruff`          | the pre-commit hook and `RUFF_VERSION`                     |
+| `opa`           | the opa image and both opa binaries                        |
+| `playwright`    | the npm and Python packages                                |
 
 Packages released together from one repository, e.g. `vue` with `@vue/*`,
 stay in one MR through Renovate's default monorepo groups.
@@ -159,13 +159,13 @@ wins. That is why "UI npm dependencies" comes after "other npm dependencies".
 Every MR gets one `Coverage: …` label per level it touches, and one note per
 changed file in its description.
 
-| Label | Meaning | Components |
-| --- | --- | --- |
-| `Coverage: unit` | Unit tests run in the `unittest` stage | `lib/task_api`, `lib/kaapana_containers`, `lib/kaapana_extensions`, `lib/kaapana_client`, `workflow-api`, `portal-api`, `kaapana-backend`, `extension-manager-service`, `notification-service`, `auth-backend`, `keycloak-setup`, `kube-helm`, `dicom-web-filter`, `access-information-interface`, `collabora-wopi` |
-| `Coverage: e2e` | Playwright tests against a mocked backend in `ui_e2e_tests` | `base-ui` and the UIs in the `ui_e2e_tests` matrix |
-| `Coverage: integration` | The workflow runs in `run_workflows`. The job may fail, so check it. | processing pipelines with a `ci-config/` directory |
-| `Coverage: pipeline` | The MR pipeline uses the dependency itself | `ci/`, `.gitlab-ci.yml`, `.pre-commit-config.yaml`, `tests/`, the root `package.json` |
-| `Coverage: none` | Only the build and the deployment | everything else |
+| Label                   | Meaning                                                              | Components                                                                                                                                                                                                                                                                                                          |
+| ----------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Coverage: unit`        | Unit tests run in the `unittest` stage                               | `lib/task_api`, `lib/kaapana_containers`, `lib/kaapana_extensions`, `lib/kaapana_client`, `workflow-api`, `portal-api`, `kaapana-backend`, `extension-manager-service`, `notification-service`, `auth-backend`, `keycloak-setup`, `kube-helm`, `dicom-web-filter`, `access-information-interface`, `collabora-wopi` |
+| `Coverage: e2e`         | Playwright tests against a mocked backend in `ui_e2e_tests`          | `base-ui` and the UIs in the `ui_e2e_tests` matrix                                                                                                                                                                                                                                                                  |
+| `Coverage: integration` | The workflow runs in `run_workflows`. The job may fail, so check it. | processing pipelines with a `ci-config/` directory                                                                                                                                                                                                                                                                  |
+| `Coverage: pipeline`    | The MR pipeline uses the dependency itself                           | `ci/`, `.gitlab-ci.yml`, `.pre-commit-config.yaml`, `tests/`, the root `package.json`                                                                                                                                                                                                                               |
+| `Coverage: none`        | Only the build and the deployment                                    | everything else                                                                                                                                                                                                                                                                                                     |
 
 When a component gets tests, add its path to the matching rule in
 `renovate.json`. Once phase 2 adds a `Coverage: none` rule, also add the path
@@ -193,7 +193,7 @@ For each component that meets both, add a rule after the `Coverage` rules:
   "matchUpdateTypes": ["patch"],
   "groupName": "portal-api tested dependencies",
   "dependencyDashboardApproval": false,
-  "automerge": true
+  "automerge": true,
 }
 ```
 
@@ -210,13 +210,13 @@ For each component that meets both, add a rule after the `Coverage` rules:
 `renovate.json` accepts `//` comments, and its `packageRules` are split into
 commented sections.
 
-| To … | Change |
-| --- | --- |
-| stop tracking a package or file | the `Ignore` section (`enabled: false`), or `ignorePaths` for a whole directory |
-| change what needs approval | `dependencyDashboardApproval` at the top, in `vulnerabilityAlerts`, or in the `Approval` section |
-| bundle or split MRs | the `Groups` section |
-| mark a component as tested | the `Coverage` section, see [Test coverage](#test-coverage) |
-| track a version Renovate cannot find | a `# renovate:` annotation, see below |
+| To …                                 | Change                                                                                           |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| stop tracking a package or file      | the `Ignore` section (`enabled: false`), or `ignorePaths` for a whole directory                  |
+| change what needs approval           | `dependencyDashboardApproval` at the top, in `vulnerabilityAlerts`, or in the `Approval` section |
+| bundle or split MRs                  | the `Groups` section                                                                             |
+| mark a component as tested           | the `Coverage` section, see [Test coverage](#test-coverage)                                      |
+| track a version Renovate cannot find | a `# renovate:` annotation, see below                                                            |
 
 ## Annotating a version
 
@@ -229,8 +229,8 @@ ENV HELM_VERSION="v3.21.2"
 ```
 
 ```yaml
-    # renovate: datasource=pypi depName=ruff
-    RUFF_VERSION: "0.16.4"
+# renovate: datasource=pypi depName=ruff
+RUFF_VERSION: "0.16.4"
 ```
 
 If the value has no `v` but the release tags do, add this after `depName`:

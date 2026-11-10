@@ -1,5 +1,9 @@
 <template>
-  <v-dialog :model-value="modelValue" max-width="900" @update:model-value="emit('update:modelValue', $event)">
+  <v-dialog
+    :model-value="modelValue"
+    max-width="900"
+    @update:model-value="emit('update:modelValue', $event)"
+  >
     <v-card>
       <v-card-title class="d-flex align-center">
         <v-icon class="mr-2">mdi-database-outline</v-icon>
@@ -62,7 +66,9 @@ watch(
     if (!open) return
     loading.value = true
     failed.value = false
-    const settings = localStorage['settings'] ? JSON.parse(localStorage['settings']) : defaultSettings
+    const settings = localStorage['settings']
+      ? JSON.parse(localStorage['settings'])
+      : defaultSettings
     try {
       const data = await loadDashboard(settings.landingPage ?? [])
       metrics.value = data.metrics || {}

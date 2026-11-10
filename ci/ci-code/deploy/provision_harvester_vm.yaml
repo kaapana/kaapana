@@ -28,7 +28,7 @@
     vm_dns_interval: 10
     # Explains the status the wait ended on.
     vm_failure_hints:
-      '': >-
+      "": >-
         The VM could not be read at all. Either it was never created, or the
         lookup error below says why the cluster did not answer.
       Provisioning: >-
@@ -76,376 +76,376 @@
       almalinux10: almalinux
 
   pre_tasks:
-  - name: Fail if the selected image has no known default user
-    ansible.builtin.fail:
-      msg: >
-        No default login user registered for image '{{ vm_image_name }}'.
-        Add it to deployment_image_users in this playbook.
-    when: vm_image_name not in deployment_image_users
+    - name: Fail if the selected image has no known default user
+      ansible.builtin.fail:
+        msg: >
+          No default login user registered for image '{{ vm_image_name }}'.
+          Add it to deployment_image_users in this playbook.
+      when: vm_image_name not in deployment_image_users
 
-  - name: Resolve VM user from the selected image
-    ansible.builtin.set_fact:
-      vm_user: "{{ deployment_image_users[vm_image_name] }}"
+    - name: Resolve VM user from the selected image
+      ansible.builtin.set_fact:
+        vm_user: "{{ deployment_image_users[vm_image_name] }}"
 
-  - name: Print all resolved VM variables
-    ansible.builtin.debug:
-      msg:
-        - "vm_name={{ vm_name }}"
-        - "vm_image_name={{ vm_image_name }}"
-        - "vm_storage_class={{ vm_storage_class }}"
-        - "vm_network={{ vm_network }}"
-        - "vm_ssh_keypair={{ vm_ssh_keypair }}"
-        - "vm_user={{ vm_user }}"
-        - "vm_dns_domain={{ vm_dns_domain }}"
-        - "vm_cpu_cores={{ vm_cpu_cores }}"
-        - "vm_memory_guest={{ vm_memory_guest }}"
-        - "vm_disk_size={{ vm_disk_size }}"
-        - "harvester_namespace={{ harvester_namespace }}"
-        - "harvester_kubeconfig={{ harvester_kubeconfig }}"
-        - "artifacts_dir={{ artifacts_dir }}"
+    - name: Print all resolved VM variables
+      ansible.builtin.debug:
+        msg:
+          - "vm_name={{ vm_name }}"
+          - "vm_image_name={{ vm_image_name }}"
+          - "vm_storage_class={{ vm_storage_class }}"
+          - "vm_network={{ vm_network }}"
+          - "vm_ssh_keypair={{ vm_ssh_keypair }}"
+          - "vm_user={{ vm_user }}"
+          - "vm_dns_domain={{ vm_dns_domain }}"
+          - "vm_cpu_cores={{ vm_cpu_cores }}"
+          - "vm_memory_guest={{ vm_memory_guest }}"
+          - "vm_disk_size={{ vm_disk_size }}"
+          - "harvester_namespace={{ harvester_namespace }}"
+          - "harvester_kubeconfig={{ harvester_kubeconfig }}"
+          - "artifacts_dir={{ artifacts_dir }}"
 
-  - name: Check that the provisioning timeouts are usable
-    ansible.builtin.assert:
-      that:
-        - vm_ready_timeout | int > 0
-        - vm_dns_timeout | int > 0
-      fail_msg: >-
-        A provisioning timeout is not a positive number of seconds, which
-        leaves the wait with zero retries and samples the VM state once.
-        READY={{ lookup('env', 'DEPLOYMENT_INSTANCE_READY_TIMEOUT') | default('unset', true) }},
-        DNS={{ lookup('env', 'DEPLOYMENT_INSTANCE_DNS_TIMEOUT') | default('unset', true) }}
+    - name: Check that the provisioning timeouts are usable
+      ansible.builtin.assert:
+        that:
+          - vm_ready_timeout | int > 0
+          - vm_dns_timeout | int > 0
+        fail_msg: >-
+          A provisioning timeout is not a positive number of seconds, which
+          leaves the wait with zero retries and samples the VM state once.
+          READY={{ lookup('env', 'DEPLOYMENT_INSTANCE_READY_TIMEOUT') | default('unset', true) }},
+          DNS={{ lookup('env', 'DEPLOYMENT_INSTANCE_DNS_TIMEOUT') | default('unset', true) }}
 
-  # dcmsend imposes a 57-character limit on the peerhost (FQDN) field.
-  # Truncate vm_name here, before any resources are created, so the
-  # resulting FQDN (vm_name.vm_dns_domain) stays within that limit.
-  - name: Truncate vm_name so FQDN stays within 57 characters
-    ansible.builtin.set_fact:
-      vm_name: "{{ vm_name[: 57 - 1 - (vm_dns_domain | length)] | regex_replace('-+$', '') }}"
-      _vm_name_truncated: true
-    when: (vm_name | length) > (57 - 1 - (vm_dns_domain | length))
+    # dcmsend imposes a 57-character limit on the peerhost (FQDN) field.
+    # Truncate vm_name here, before any resources are created, so the
+    # resulting FQDN (vm_name.vm_dns_domain) stays within that limit.
+    - name: Truncate vm_name so FQDN stays within 57 characters
+      ansible.builtin.set_fact:
+        vm_name: "{{ vm_name[: 57 - 1 - (vm_dns_domain | length)] | regex_replace('-+$', '') }}"
+        _vm_name_truncated: true
+      when: (vm_name | length) > (57 - 1 - (vm_dns_domain | length))
 
-  - name: Warn that vm_name was truncated to satisfy FQDN limit
-    ansible.builtin.debug:
-      msg: "WARNING: vm_name was truncated; FQDN will be {{ vm_name }}.{{ vm_dns_domain }} ({{ (vm_name + '.' + vm_dns_domain) | length }} chars)"
-    when: _vm_name_truncated | default(false)
+    - name: Warn that vm_name was truncated to satisfy FQDN limit
+      ansible.builtin.debug:
+        msg: "WARNING: vm_name was truncated; FQDN will be {{ vm_name }}.{{ vm_dns_domain }} ({{ (vm_name + '.' + vm_dns_domain) | length }} chars)"
+      when: _vm_name_truncated | default(false)
 
-  - name: Fetch image by label selector
-    kubernetes.core.k8s_info:
-      api_version: harvesterhci.io/v1beta1
-      kind: VirtualMachineImage
-      namespace: "{{ harvester_namespace }}"
-      kubeconfig: "{{ harvester_kubeconfig }}"
-      label_selectors:
-        - "harvesterhci.io/imageDisplayName={{ vm_image_name }}"
-    register: image_query
+    - name: Fetch image by label selector
+      kubernetes.core.k8s_info:
+        api_version: harvesterhci.io/v1beta1
+        kind: VirtualMachineImage
+        namespace: "{{ harvester_namespace }}"
+        kubeconfig: "{{ harvester_kubeconfig }}"
+        label_selectors:
+          - "harvesterhci.io/imageDisplayName={{ vm_image_name }}"
+      register: image_query
 
-  - name: Fail if no image found
-    ansible.builtin.fail:
-      msg: "No image found for {{ vm_image_name }}"
-    when: image_query.resources | length == 0
+    - name: Fail if no image found
+      ansible.builtin.fail:
+        msg: "No image found for {{ vm_image_name }}"
+      when: image_query.resources | length == 0
 
-  - name: Set image
-    ansible.builtin.set_fact:
-      image_resource: "{{ image_query.resources[0] }}"
-      vm_image_id: "{{ image_query.resources[0].metadata.name }}"
+    - name: Set image
+      ansible.builtin.set_fact:
+        image_resource: "{{ image_query.resources[0] }}"
+        vm_image_id: "{{ image_query.resources[0].metadata.name }}"
 
-  - name: Print resolved image
-    ansible.builtin.debug:
-      msg:
-        - "ID: {{ vm_image_id }}"
-        - "DisplayName: {{ image_resource.spec.displayName }}"
-        - "StorageClass: {{ image_resource.spec.targetStorageClassName }}"
-        - "URL: {{ image_resource.spec.url }}"
+    - name: Print resolved image
+      ansible.builtin.debug:
+        msg:
+          - "ID: {{ vm_image_id }}"
+          - "DisplayName: {{ image_resource.spec.displayName }}"
+          - "StorageClass: {{ image_resource.spec.targetStorageClassName }}"
+          - "URL: {{ image_resource.spec.url }}"
 
-  - name: Get KeyPair
-    kubernetes.core.k8s_info:
-      api_version: harvesterhci.io/v1beta1
-      kind: KeyPair
-      name: "{{ vm_ssh_keypair }}"
-      namespace: "{{ harvester_namespace }}"
-      kubeconfig: "{{ harvester_kubeconfig }}"
-    register: keypair_info
-    failed_when: false
-    changed_when: false
-  
-  - name: Fail if KeyPair not found
-    ansible.builtin.fail:
-      msg: >
-        KeyPair '{{ vm_ssh_keypair }}' not found in namespace '{{ harvester_namespace }}'.
-        Available KeyPairs are empty or name does not match.
-    when: >
-      keypair_info.resources is not defined
-      or keypair_info.resources | length == 0
+    - name: Get KeyPair
+      kubernetes.core.k8s_info:
+        api_version: harvesterhci.io/v1beta1
+        kind: KeyPair
+        name: "{{ vm_ssh_keypair }}"
+        namespace: "{{ harvester_namespace }}"
+        kubeconfig: "{{ harvester_kubeconfig }}"
+      register: keypair_info
+      failed_when: false
+      changed_when: false
 
-  - name: Extract public key from Harvester KeyPair
-    ansible.builtin.set_fact:
-      ssh_public_key: "{{ keypair_info.resources[0].spec.publicKey }}"
+    - name: Fail if KeyPair not found
+      ansible.builtin.fail:
+        msg: >
+          KeyPair '{{ vm_ssh_keypair }}' not found in namespace '{{ harvester_namespace }}'.
+          Available KeyPairs are empty or name does not match.
+      when: >
+        keypair_info.resources is not defined
+        or keypair_info.resources | length == 0
 
-  - name: Check for an existing VM with this name
-    kubernetes.core.k8s_info:
-      api_version: kubevirt.io/v1
-      kind: VirtualMachine
-      name: "{{ vm_name }}"
-      namespace: "{{ harvester_namespace }}"
-      kubeconfig: "{{ harvester_kubeconfig }}"
-    register: existing_vm
-    changed_when: false
+    - name: Extract public key from Harvester KeyPair
+      ansible.builtin.set_fact:
+        ssh_public_key: "{{ keypair_info.resources[0].spec.publicKey }}"
 
-  - name: Collect PVCs of the existing VM
-    ansible.builtin.set_fact:
-      existing_vm_pvcs: >-
-        {{
-          existing_vm.resources[0].spec.template.spec.volumes
-          | selectattr('persistentVolumeClaim', 'defined')
-          | map(attribute='persistentVolumeClaim.claimName')
-          | list
-        }}
-    when: existing_vm.resources | length > 0
+    - name: Check for an existing VM with this name
+      kubernetes.core.k8s_info:
+        api_version: kubevirt.io/v1
+        kind: VirtualMachine
+        name: "{{ vm_name }}"
+        namespace: "{{ harvester_namespace }}"
+        kubeconfig: "{{ harvester_kubeconfig }}"
+      register: existing_vm
+      changed_when: false
 
-  - name: Delete the existing VM
-    kubernetes.core.k8s:
-      api_version: kubevirt.io/v1
-      kind: VirtualMachine
-      name: "{{ vm_name }}"
-      namespace: "{{ harvester_namespace }}"
-      kubeconfig: "{{ harvester_kubeconfig }}"
-      state: absent
-      wait: true
-      wait_timeout: 600
-      wait_sleep: 10
-    when: existing_vm.resources | length > 0
+    - name: Collect PVCs of the existing VM
+      ansible.builtin.set_fact:
+        existing_vm_pvcs: >-
+          {{
+            existing_vm.resources[0].spec.template.spec.volumes
+            | selectattr('persistentVolumeClaim', 'defined')
+            | map(attribute='persistentVolumeClaim.claimName')
+            | list
+          }}
+      when: existing_vm.resources | length > 0
 
-  - name: Delete PVCs and cloud-init secret of the existing VM
-    kubernetes.core.k8s:
-      api_version: v1
-      kind: "{{ item.split('/')[0] }}"
-      name: "{{ item.split('/')[1] }}"
-      namespace: "{{ harvester_namespace }}"
-      kubeconfig: "{{ harvester_kubeconfig }}"
-      state: absent
-      wait: true
-      wait_timeout: 600
-      wait_sleep: 10
-    loop: "{{ existing_vm_pvcs | map('regex_replace', '^', 'PersistentVolumeClaim/') | list + ['Secret/' ~ vm_name ~ '-cloudinit'] }}"
-    when: existing_vm.resources | length > 0
+    - name: Delete the existing VM
+      kubernetes.core.k8s:
+        api_version: kubevirt.io/v1
+        kind: VirtualMachine
+        name: "{{ vm_name }}"
+        namespace: "{{ harvester_namespace }}"
+        kubeconfig: "{{ harvester_kubeconfig }}"
+        state: absent
+        wait: true
+        wait_timeout: 600
+        wait_sleep: 10
+      when: existing_vm.resources | length > 0
 
-  - name: Generate unique PVC suffix
-    ansible.builtin.set_fact:
-      pvc_suffix: "{{ lookup('password', '/dev/null chars=ascii_lowercase,digits length=5') }}"
+    - name: Delete PVCs and cloud-init secret of the existing VM
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: "{{ item.split('/')[0] }}"
+        name: "{{ item.split('/')[1] }}"
+        namespace: "{{ harvester_namespace }}"
+        kubeconfig: "{{ harvester_kubeconfig }}"
+        state: absent
+        wait: true
+        wait_timeout: 600
+        wait_sleep: 10
+      loop: "{{ existing_vm_pvcs | map('regex_replace', '^', 'PersistentVolumeClaim/') | list + ['Secret/' ~ vm_name ~ '-cloudinit'] }}"
+      when: existing_vm.resources | length > 0
 
-  - name: Create cloud-init secret with SSH key
-    kubernetes.core.k8s:
-      state: present
-      definition:
-        apiVersion: v1
-        kind: Secret
-        metadata:
-          name: "{{ vm_name }}-cloudinit"
-          namespace: "{{ harvester_namespace }}"
-        type: Opaque
-        stringData:
-          userdata: |
-            #cloud-config
-            package_update: true
-            packages:
-              - qemu-guest-agent
-            ssh_authorized_keys:
-              - "{{ ssh_public_key }}"
-            runcmd:
-              - systemctl enable --now qemu-guest-agent.service
-          networkdata: ""
-      kubeconfig: "{{ harvester_kubeconfig }}"
-    register: secret_result
+    - name: Generate unique PVC suffix
+      ansible.builtin.set_fact:
+        pvc_suffix: "{{ lookup('password', '/dev/null chars=ascii_lowercase,digits length=5') }}"
 
-  - name: Render VM manifest from Jinja template
-    ansible.builtin.template:
-      src: templates/vm.yml.j2
-      dest: "{{ vm_manifest_path }}"
-      mode: '0644'
+    - name: Create cloud-init secret with SSH key
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: "{{ vm_name }}-cloudinit"
+            namespace: "{{ harvester_namespace }}"
+          type: Opaque
+          stringData:
+            userdata: |
+              #cloud-config
+              package_update: true
+              packages:
+                - qemu-guest-agent
+              ssh_authorized_keys:
+                - "{{ ssh_public_key }}"
+              runcmd:
+                - systemctl enable --now qemu-guest-agent.service
+            networkdata: ""
+        kubeconfig: "{{ harvester_kubeconfig }}"
+      register: secret_result
 
-  - name: Apply VM manifest
-    kubernetes.core.k8s:
-      state: present
-      definition: "{{ lookup('file', vm_manifest_path) | from_yaml }}"
-      kubeconfig: "{{ harvester_kubeconfig }}"
-    register: vm_apply_result
+    - name: Render VM manifest from Jinja template
+      ansible.builtin.template:
+        src: templates/vm.yml.j2
+        dest: "{{ vm_manifest_path }}"
+        mode: "0644"
 
-  - name: Extract VM UID
-    ansible.builtin.set_fact:
-      vm_uid: "{{ vm_apply_result.result.metadata.uid }}"
+    - name: Apply VM manifest
+      kubernetes.core.k8s:
+        state: present
+        definition: "{{ lookup('file', vm_manifest_path) | from_yaml }}"
+        kubeconfig: "{{ harvester_kubeconfig }}"
+      register: vm_apply_result
 
-  - name: Wait for PVC to be created
-    kubernetes.core.k8s_info:
-      api_version: v1
-      kind: PersistentVolumeClaim
-      name: "{{ vm_name }}-disk-0-{{ pvc_suffix }}"
-      namespace: "{{ harvester_namespace }}"
-      kubeconfig: "{{ harvester_kubeconfig }}"
-    register: pvc_check
-    until: pvc_check.resources | length > 0
-    retries: 30
-    delay: 2
-    changed_when: false
+    - name: Extract VM UID
+      ansible.builtin.set_fact:
+        vm_uid: "{{ vm_apply_result.result.metadata.uid }}"
 
-  - name: Link disk PVC to VM via ownerReferences
-    kubernetes.core.k8s:
-      state: present
-      definition:
-        apiVersion: v1
+    - name: Wait for PVC to be created
+      kubernetes.core.k8s_info:
+        api_version: v1
         kind: PersistentVolumeClaim
-        metadata:
-          name: "{{ vm_name }}-disk-0-{{ pvc_suffix }}"
-          namespace: "{{ harvester_namespace }}"
-          ownerReferences:
-            - apiVersion: kubevirt.io/v1
-              kind: VirtualMachine
-              name: "{{ vm_name }}"
-              uid: "{{ vm_uid }}"
-              blockOwnerDeletion: true
-      kubeconfig: "{{ harvester_kubeconfig }}"
-    register: pvc_ownership_result
+        name: "{{ vm_name }}-disk-0-{{ pvc_suffix }}"
+        namespace: "{{ harvester_namespace }}"
+        kubeconfig: "{{ harvester_kubeconfig }}"
+      register: pvc_check
+      until: pvc_check.resources | length > 0
+      retries: 30
+      delay: 2
+      changed_when: false
 
-  - name: Verify PVC has ownerReferences
-    kubernetes.core.k8s_info:
-      api_version: v1
-      kind: PersistentVolumeClaim
-      name: "{{ vm_name }}-disk-0-{{ pvc_suffix }}"
-      namespace: "{{ harvester_namespace }}"
-      kubeconfig: "{{ harvester_kubeconfig }}"
-    register: pvc_verify
+    - name: Link disk PVC to VM via ownerReferences
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: "{{ vm_name }}-disk-0-{{ pvc_suffix }}"
+            namespace: "{{ harvester_namespace }}"
+            ownerReferences:
+              - apiVersion: kubevirt.io/v1
+                kind: VirtualMachine
+                name: "{{ vm_name }}"
+                uid: "{{ vm_uid }}"
+                blockOwnerDeletion: true
+        kubeconfig: "{{ harvester_kubeconfig }}"
+      register: pvc_ownership_result
 
-  - name: Debug PVC ownership
-    ansible.builtin.debug:
-      msg: "PVC ownerReferences: {{ pvc_verify.resources[0].metadata.get('ownerReferences', []) }}"
+    - name: Verify PVC has ownerReferences
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: PersistentVolumeClaim
+        name: "{{ vm_name }}-disk-0-{{ pvc_suffix }}"
+        namespace: "{{ harvester_namespace }}"
+        kubeconfig: "{{ harvester_kubeconfig }}"
+      register: pvc_verify
 
-  - name: Link cloud-init secret to VM via ownerReferences
-    kubernetes.core.k8s:
-      state: present
-      definition:
-        apiVersion: v1
-        kind: Secret
-        metadata:
-          name: "{{ vm_name }}-cloudinit"
-          namespace: "{{ harvester_namespace }}"
-          ownerReferences:
-            - apiVersion: kubevirt.io/v1
-              kind: VirtualMachine
-              name: "{{ vm_name }}"
-              uid: "{{ vm_uid }}"
-              blockOwnerDeletion: true
-        type: Opaque
-        stringData:
-          userdata: |
-            #cloud-config
-            package_update: true
-            packages:
-              - qemu-guest-agent
-            ssh_authorized_keys:
-              - "{{ ssh_public_key }}"
-            runcmd:
-              - systemctl enable --now qemu-guest-agent.service
-          networkdata: ""
-      kubeconfig: "{{ harvester_kubeconfig }}"
+    - name: Debug PVC ownership
+      ansible.builtin.debug:
+        msg: "PVC ownerReferences: {{ pvc_verify.resources[0].metadata.get('ownerReferences', []) }}"
 
-  - name: Debug VM apply result
-    ansible.builtin.debug:
-      msg:
-        - "VM applied successfully"
-        - "Name: {{ vm_name }}"
-        - "Namespace: {{ harvester_namespace }}"
+    - name: Link cloud-init secret to VM via ownerReferences
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: "{{ vm_name }}-cloudinit"
+            namespace: "{{ harvester_namespace }}"
+            ownerReferences:
+              - apiVersion: kubevirt.io/v1
+                kind: VirtualMachine
+                name: "{{ vm_name }}"
+                uid: "{{ vm_uid }}"
+                blockOwnerDeletion: true
+          type: Opaque
+          stringData:
+            userdata: |
+              #cloud-config
+              package_update: true
+              packages:
+                - qemu-guest-agent
+              ssh_authorized_keys:
+                - "{{ ssh_public_key }}"
+              runcmd:
+                - systemctl enable --now qemu-guest-agent.service
+            networkdata: ""
+        kubeconfig: "{{ harvester_kubeconfig }}"
 
-  # Only a halted VM stays down: Harvester halts it when the quota rejects the
-  # launcher pod. Any status, Stopped included, can pass during the disk import.
-  - name: Wait for the VM to be running
-    kubernetes.core.k8s_info:
-      api_version: kubevirt.io/v1
-      kind: VirtualMachine
-      name: "{{ vm_name }}"
-      namespace: "{{ harvester_namespace }}"
-      kubeconfig: "{{ harvester_kubeconfig }}"
-    register: vm_info
-    vars:
-      _vm: "{{ vm_info.resources | first | default({}) }}"
-    until: >-
-      _vm.get('status', {}).get('printableStatus', '') == 'Running'
-      or _vm.get('spec', {}).get('runStrategy', '') == 'Halted'
-    retries: "{{ ((vm_ready_timeout | int) / (vm_ready_interval | int)) | round(0, 'ceil') | int }}"
-    delay: "{{ vm_ready_interval }}"
-    changed_when: false
-    # An exhausted budget is a verdict too, and the task below says it better
-    # than ansible's retry message.
-    failed_when: false
+    - name: Debug VM apply result
+      ansible.builtin.debug:
+        msg:
+          - "VM applied successfully"
+          - "Name: {{ vm_name }}"
+          - "Namespace: {{ harvester_namespace }}"
 
-  - name: Remember the last VM status
-    ansible.builtin.set_fact:
-      vm_printable_status: "{{ (vm_info.resources | first | default({})).get('status', {}).get('printableStatus', '') }}"
-      vm_halted: "{{ (vm_info.resources | first | default({})).get('spec', {}).get('runStrategy', '') == 'Halted' }}"
+    # Only a halted VM stays down: Harvester halts it when the quota rejects the
+    # launcher pod. Any status, Stopped included, can pass during the disk import.
+    - name: Wait for the VM to be running
+      kubernetes.core.k8s_info:
+        api_version: kubevirt.io/v1
+        kind: VirtualMachine
+        name: "{{ vm_name }}"
+        namespace: "{{ harvester_namespace }}"
+        kubeconfig: "{{ harvester_kubeconfig }}"
+      register: vm_info
+      vars:
+        _vm: "{{ vm_info.resources | first | default({}) }}"
+      until: >-
+        _vm.get('status', {}).get('printableStatus', '') == 'Running'
+        or _vm.get('spec', {}).get('runStrategy', '') == 'Halted'
+      retries: "{{ ((vm_ready_timeout | int) / (vm_ready_interval | int)) | round(0, 'ceil') | int }}"
+      delay: "{{ vm_ready_interval }}"
+      changed_when: false
+      # An exhausted budget is a verdict too, and the task below says it better
+      # than ansible's retry message.
+      failed_when: false
 
-  # ErrorUnschedulable covers both exhausted capacity and an unbindable
-  # volume, and only the scheduler's own message tells them apart.
-  - name: Collect the conditions of the VM instance
-    kubernetes.core.k8s_info:
-      api_version: kubevirt.io/v1
-      kind: VirtualMachineInstance
-      name: "{{ vm_name }}"
-      namespace: "{{ harvester_namespace }}"
-      kubeconfig: "{{ harvester_kubeconfig }}"
-    register: vmi_info
-    when: vm_printable_status != 'Running'
-    # May not exist yet; a missing diagnosis must not mask the failure below.
-    failed_when: false
-    changed_when: false
+    - name: Remember the last VM status
+      ansible.builtin.set_fact:
+        vm_printable_status: "{{ (vm_info.resources | first | default({})).get('status', {}).get('printableStatus', '') }}"
+        vm_halted: "{{ (vm_info.resources | first | default({})).get('spec', {}).get('runStrategy', '') == 'Halted' }}"
 
-  - name: Fail with the provisioning cause
-    vars:
-      # Only meaningful with no object at all: a status says more than this.
-      _vm_lookup_error: >-
-        {{ vm_info.msg | default('') if (vm_info.resources | default([]) | length) == 0 else '' }}
-      # A quota rejection never creates a VMI, so its cause lives here instead.
-      _vm_quota: >-
-        {{ (vm_info.resources | first | default({})).get('metadata', {}).get('annotations', {})
-           .get('harvesterhci.io/insufficient-resource-quota', '') }}
-      _vmi_conditions: >-
-        {{ (vmi_info.resources | default([]) | first | default({})).get('status', {}).get('conditions', [])
-           | selectattr('status', 'equalto', 'False')
-           | selectattr('message', 'defined')
-           | map(attribute='message') | join(' | ') }}
-    ansible.builtin.fail:
-      msg: >-
-        VM {{ vm_name }} did not reach Running in namespace {{ harvester_namespace }}.
-        Status: {{ vm_printable_status | default('none reported', true) }}
-        {%- if not vm_halted | bool %} after the {{ vm_ready_timeout }}s budget{% endif %}.
-        {{ vm_failure_hints.get(vm_printable_status, 'Unexpected state, inspect the VM directly.') }}
-        {% if _vm_lookup_error %}Lookup: {{ _vm_lookup_error }}{% endif %}
-        {% if _vm_quota %}Quota: {{ _vm_quota }}{% endif %}
-        {% if _vmi_conditions %}Instance conditions: {{ _vmi_conditions }}{% endif %}
-    when: vm_printable_status != 'Running'
+    # ErrorUnschedulable covers both exhausted capacity and an unbindable
+    # volume, and only the scheduler's own message tells them apart.
+    - name: Collect the conditions of the VM instance
+      kubernetes.core.k8s_info:
+        api_version: kubevirt.io/v1
+        kind: VirtualMachineInstance
+        name: "{{ vm_name }}"
+        namespace: "{{ harvester_namespace }}"
+        kubeconfig: "{{ harvester_kubeconfig }}"
+      register: vmi_info
+      when: vm_printable_status != 'Running'
+      # May not exist yet; a missing diagnosis must not mask the failure below.
+      failed_when: false
+      changed_when: false
 
-  - name: Wait for DNS to resolve
-    ansible.builtin.command: getent hosts {{ vm_name }}.{{ vm_dns_domain }}
-    register: dns_result
-    until: dns_result.rc == 0
-    retries: "{{ ((vm_dns_timeout | int) / (vm_dns_interval | int)) | round(0, 'ceil') | int }}"
-    delay: "{{ vm_dns_interval }}"
-    changed_when: false
-    failed_when: false
+    - name: Fail with the provisioning cause
+      vars:
+        # Only meaningful with no object at all: a status says more than this.
+        _vm_lookup_error: >-
+          {{ vm_info.msg | default('') if (vm_info.resources | default([]) | length) == 0 else '' }}
+        # A quota rejection never creates a VMI, so its cause lives here instead.
+        _vm_quota: >-
+          {{ (vm_info.resources | first | default({})).get('metadata', {}).get('annotations', {})
+             .get('harvesterhci.io/insufficient-resource-quota', '') }}
+        _vmi_conditions: >-
+          {{ (vmi_info.resources | default([]) | first | default({})).get('status', {}).get('conditions', [])
+             | selectattr('status', 'equalto', 'False')
+             | selectattr('message', 'defined')
+             | map(attribute='message') | join(' | ') }}
+      ansible.builtin.fail:
+        msg: >-
+          VM {{ vm_name }} did not reach Running in namespace {{ harvester_namespace }}.
+          Status: {{ vm_printable_status | default('none reported', true) }}
+          {%- if not vm_halted | bool %} after the {{ vm_ready_timeout }}s budget{% endif %}.
+          {{ vm_failure_hints.get(vm_printable_status, 'Unexpected state, inspect the VM directly.') }}
+          {% if _vm_lookup_error %}Lookup: {{ _vm_lookup_error }}{% endif %}
+          {% if _vm_quota %}Quota: {{ _vm_quota }}{% endif %}
+          {% if _vmi_conditions %}Instance conditions: {{ _vmi_conditions }}{% endif %}
+      when: vm_printable_status != 'Running'
 
-  - name: Fail if the FQDN never resolved
-    ansible.builtin.fail:
-      msg: >-
-        VM {{ vm_name }} is running, but {{ vm_name }}.{{ vm_dns_domain }} did not
-        resolve within {{ vm_dns_timeout }}s. The VM itself came up, so this is name
-        resolution, not provisioning: check the record in {{ vm_dns_domain }}.
-    when: dns_result.rc != 0
+    - name: Wait for DNS to resolve
+      ansible.builtin.command: getent hosts {{ vm_name }}.{{ vm_dns_domain }}
+      register: dns_result
+      until: dns_result.rc == 0
+      retries: "{{ ((vm_dns_timeout | int) / (vm_dns_interval | int)) | round(0, 'ceil') | int }}"
+      delay: "{{ vm_dns_interval }}"
+      changed_when: false
+      failed_when: false
 
-  - name: Set VM FQDN fact
-    ansible.builtin.set_fact:
-      vm_fqdn: "{{ vm_name }}.{{ vm_dns_domain }}"
+    - name: Fail if the FQDN never resolved
+      ansible.builtin.fail:
+        msg: >-
+          VM {{ vm_name }} is running, but {{ vm_name }}.{{ vm_dns_domain }} did not
+          resolve within {{ vm_dns_timeout }}s. The VM itself came up, so this is name
+          resolution, not provisioning: check the record in {{ vm_dns_domain }}.
+      when: dns_result.rc != 0
 
-  - name: Clean up local manifest
-    ansible.builtin.file:
-      path: "{{ vm_manifest_path }}"
-      state: absent
+    - name: Set VM FQDN fact
+      ansible.builtin.set_fact:
+        vm_fqdn: "{{ vm_name }}.{{ vm_dns_domain }}"
+
+    - name: Clean up local manifest
+      ansible.builtin.file:
+        path: "{{ vm_manifest_path }}"
+        state: absent
 
   post_tasks:
     - name: Write deployment env file
@@ -454,4 +454,4 @@
           VM_FQDN={{ vm_fqdn }}
           VM_USER={{ vm_user }}
         dest: "{{ artifacts_dir }}/deployment.env"
-        mode: '0644'
+        mode: "0644"

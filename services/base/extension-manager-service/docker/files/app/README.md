@@ -38,49 +38,49 @@ The service is versioned under `/v1/` and follows a layered architecture: HTTP r
 
 The central descriptor of an extension, stored as JSON in the database and used throughout the install lifecycle.
 
-| Field          | Type                  | Description                                              |
-|----------------|-----------------------|----------------------------------------------------------|
-| `id`           | UUID string           | Stable identifier for the extension                     |
-| `name`         | string                | Human-readable extension name                           |
-| `version`      | string                | Semantic version string                                  |
-| `contents`     | `Content[]`           | List of content items bundled in this extension         |
-| `dependencies` | string[]              | Tags of other extensions this one depends on            |
+| Field          | Type        | Description                                     |
+| -------------- | ----------- | ----------------------------------------------- |
+| `id`           | UUID string | Stable identifier for the extension             |
+| `name`         | string      | Human-readable extension name                   |
+| `version`      | string      | Semantic version string                         |
+| `contents`     | `Content[]` | List of content items bundled in this extension |
+| `dependencies` | string[]    | Tags of other extensions this one depends on    |
 
 ### `Content`
 
 A single installable unit within an extension. Each content item has a dedicated installer registered in the dispatcher.
 
-| Field         | Type       | Description                                                  |
-|---------------|------------|--------------------------------------------------------------|
-| `name`        | string     | Identifier for this content item                            |
-| `contentType` | string     | Determines which installer handles it (e.g. `workflow-v1`)  |
-| `files`       | string[]   | File paths within the extracted extension bundle            |
+| Field         | Type     | Description                                                |
+| ------------- | -------- | ---------------------------------------------------------- |
+| `name`        | string   | Identifier for this content item                           |
+| `contentType` | string   | Determines which installer handles it (e.g. `workflow-v1`) |
+| `files`       | string[] | File paths within the extracted extension bundle           |
 
 ### `Repository` (database)
 
 Represents an OCI registry endpoint that the service can query.
 
-| Field         | Type   | Description                                          |
-|---------------|--------|------------------------------------------------------|
-| `id`          | UUID   | Primary key                                          |
-| `name`        | string | Unique human-readable label                          |
-| `description` | string | Optional free-text description                       |
-| `url`         | string | Base URL of the OCI registry host                    |
+| Field         | Type   | Description                                              |
+| ------------- | ------ | -------------------------------------------------------- |
+| `id`          | UUID   | Primary key                                              |
+| `name`        | string | Unique human-readable label                              |
+| `description` | string | Optional free-text description                           |
+| `url`         | string | Base URL of the OCI registry host                        |
 | `credentials` | string | Base64-encoded JSON `{"username": ..., "password": ...}` |
 
 ### `Extension` (database)
 
 Tracks an installed (or in-progress) extension.
 
-| Field           | Type              | Description                                            |
-|-----------------|-------------------|--------------------------------------------------------|
-| `id`            | UUID              | Primary key                                            |
-| `repository_id` | UUID (FK)         | Which registry this was pulled from                    |
-| `tag`           | string            | OCI tag used to pull this extension                    |
-| `manifest`      | JSON              | Full `ExtensionManifest` at install time               |
-| `status`        | `ExtensionStatus` | Current lifecycle state (see below)                    |
-| `created_at`    | datetime          | First seen timestamp                                   |
-| `updated_at`    | datetime          | Last status change timestamp                           |
+| Field           | Type              | Description                              |
+| --------------- | ----------------- | ---------------------------------------- |
+| `id`            | UUID              | Primary key                              |
+| `repository_id` | UUID (FK)         | Which registry this was pulled from      |
+| `tag`           | string            | OCI tag used to pull this extension      |
+| `manifest`      | JSON              | Full `ExtensionManifest` at install time |
+| `status`        | `ExtensionStatus` | Current lifecycle state (see below)      |
+| `created_at`    | datetime          | First seen timestamp                     |
+| `updated_at`    | datetime          | Last status change timestamp             |
 
 The pair `(repository_id, tag)` is unique — the same tag cannot be installed twice from the same registry.
 
@@ -88,14 +88,14 @@ The pair `(repository_id, tag)` is unique — the same tag cannot be installed t
 
 Tracks each content item within an installed extension.
 
-| Field        | Type            | Description                                                     |
-|--------------|-----------------|-----------------------------------------------------------------|
-| `id`         | UUID            | Primary key                                                     |
-| `extension_id` | UUID (FK)     | Parent extension                                               |
-| `name`       | string          | Content item name from the manifest                            |
-| `type`       | string          | Content type (mirrors `contentType` in the manifest)           |
-| `status`     | `ContentStatus` | Current lifecycle state                                        |
-| `location`   | string \| null  | Resource URL returned by the installer after successful install |
+| Field          | Type            | Description                                                     |
+| -------------- | --------------- | --------------------------------------------------------------- |
+| `id`           | UUID            | Primary key                                                     |
+| `extension_id` | UUID (FK)       | Parent extension                                                |
+| `name`         | string          | Content item name from the manifest                             |
+| `type`         | string          | Content type (mirrors `contentType` in the manifest)            |
+| `status`       | `ContentStatus` | Current lifecycle state                                         |
+| `location`     | string \| null  | Resource URL returned by the installer after successful install |
 
 ### Status Enums
 
@@ -163,26 +163,26 @@ State transitions are validated in the CRUD layer — invalid transitions raise 
 
 Manages the list of known OCI registries and exposes discovery endpoints.
 
-| Method   | Path                                          | Description                                              |
-|----------|-----------------------------------------------|----------------------------------------------------------|
-| `POST`   | `/repositories`                               | Register a new OCI registry                             |
-| `GET`    | `/repositories`                               | List registries (filter by `name` or `id`)              |
-| `GET`    | `/repositories/{id}`                          | Get a single registry                                   |
-| `PUT`    | `/repositories/{id}`                          | Update registry credentials or description              |
-| `DELETE` | `/repositories/{id}`                          | Remove a registry                                       |
-| `GET`    | `/repositories/{id}/extensions`               | List available extension tags in the registry           |
-| `GET`    | `/repositories/{id}/extensionManifests`       | Fetch manifests for tags (optionally filtered by tag)   |
+| Method   | Path                                    | Description                                           |
+| -------- | --------------------------------------- | ----------------------------------------------------- |
+| `POST`   | `/repositories`                         | Register a new OCI registry                           |
+| `GET`    | `/repositories`                         | List registries (filter by `name` or `id`)            |
+| `GET`    | `/repositories/{id}`                    | Get a single registry                                 |
+| `PUT`    | `/repositories/{id}`                    | Update registry credentials or description            |
+| `DELETE` | `/repositories/{id}`                    | Remove a registry                                     |
+| `GET`    | `/repositories/{id}/extensions`         | List available extension tags in the registry         |
+| `GET`    | `/repositories/{id}/extensionManifests` | Fetch manifests for tags (optionally filtered by tag) |
 
 ### Installation Router — `/v1/extensions`
 
 Manages the install/uninstall lifecycle.
 
-| Method | Path                              | Description                                     |
-|--------|-----------------------------------|-------------------------------------------------|
-| `POST` | `/extensions/install`             | Install an extension by repository and tag      |
-| `GET`  | `/extensions`                     | List installed extensions (filter by tag, repo) |
-| `GET`  | `/extensions/{id}`                | Get details for one installed extension         |
-| `POST` | `/extensions/{id}/uninstall`      | Uninstall an extension                          |
+| Method | Path                         | Description                                     |
+| ------ | ---------------------------- | ----------------------------------------------- |
+| `POST` | `/extensions/install`        | Install an extension by repository and tag      |
+| `GET`  | `/extensions`                | List installed extensions (filter by tag, repo) |
+| `GET`  | `/extensions/{id}`           | Get details for one installed extension         |
+| `POST` | `/extensions/{id}/uninstall` | Uninstall an extension                          |
 
 ---
 
@@ -220,6 +220,7 @@ Routes each content item to the correct installer and abstracts the target platf
 **`Dispatcher`** maintains a registry of `ContentInstaller` implementations. On `install_content()` / `uninstall_content()` it iterates registered installers, calls `can_install(content_type)`, and delegates to the first match. Raises `ContentTypeNotSupportedError` if no installer is found.
 
 **`ContentInstaller`** (ABC) — all installers implement:
+
 - `can_install(content_type: str) -> bool`
 - `install(content: Content) -> InstallationResult`
 - `uninstall(content: Content) -> None`
@@ -227,10 +228,12 @@ Routes each content item to the correct installer and abstracts the target platf
 `InstallationResult` carries a `location` string — typically a URL returned by the target service — that is persisted in `InstalledContent.location` and used later for uninstallation.
 
 **Adding a new content type** requires:
+
 1. Subclass `ContentInstaller` and implement the three methods.
 2. Register the instance with the `Dispatcher` at application startup.
 
 **`WorkflowConsumer`** — the built-in installer for `workflow-v1` content:
+
 - Reads `workflow.json` and `workflow_definition.py` from the extracted content directory.
 - `POST`s the workflow payload to `http://workflow-api.services.svc:80/v1/workflows`.
 - Stores the `Location` response header as `InstallationResult.location`.
@@ -241,6 +244,7 @@ Routes each content item to the correct installer and abstracts the target platf
 Provides async SQLAlchemy CRUD operations over the `registries`, `extensions`, and `contents` tables.
 
 Key behaviours:
+
 - **Row-level locking** — `SELECT ... FOR UPDATE NOWAIT` prevents two concurrent requests from mutating the same extension or content row simultaneously. The lock fails immediately rather than waiting; concurrent attempts raise a `LockedExtensionException` which the caller surfaces as an HTTP 409.
 - **Transition validation** — `update_extension_status` and `update_content_status` check the requested transition against an allow-list before committing. This enforces the state machines described above.
 - **Cascade deletes** — deleting an extension removes all its `InstalledContent` rows automatically.

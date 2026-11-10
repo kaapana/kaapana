@@ -5,4 +5,4 @@ global:
   email_config:
     deploy_postfix: true
   dynamicVolumes:
-  - name: prometheus
+    - name: prometheus

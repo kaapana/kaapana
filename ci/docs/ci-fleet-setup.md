@@ -4,11 +4,9 @@
 
 ## Installation
 
-
 ```bash
 curl http://$(hostname -I | awk '{print $1}'):9252/metrics
 ```
-
 
 ```bash
 python3 -m venv .venv
@@ -17,7 +15,7 @@ pip install -r ci/harvester/tasks/requirements.txt
 ansible-galaxy collection install community.general kubernetes.core
 ```
 
-*Current setup → explore the fleet with `ci_fleet.py status`*
+_Current setup → explore the fleet with `ci_fleet.py status`_
 
 The CI runners are GitLab runner agents on Harvester VMs. The fleet is
 declared in [inventory.yaml](../ci/harvester/inventory.yaml) and managed declaratively by
@@ -28,14 +26,14 @@ declared in [inventory.yaml](../ci/harvester/inventory.yaml) and managed declara
 **`.env`** — gitignored, read directly by `inventory.yaml` and `ci_fleet.py`
 (no exporting, no sourcing).
 
-| Key | What it is |
-|---|---|
-| `GITLAB_URL` | GitLab instance base URL |
-| `GITLAB_API_TOKEN` | API token allowed to manage the project's runners |
-| `GITLAB_PROJECT_ID` | numeric id of the project the runners register to |
-| `SSH_PRIVATE_KEY` | path to the private key of the Harvester keypair — the VMs accept only this key |
-| `HARVESTER_KUBECONFIG` | path to a kubeconfig with access to the `kaapana-ci` namespace |
-| `RUNNERS_PAUSED` | optional, `true` registers the runners paused so a new VM can be inspected before it takes jobs |
+| Key                    | What it is                                                                                      |
+| ---------------------- | ----------------------------------------------------------------------------------------------- |
+| `GITLAB_URL`           | GitLab instance base URL                                                                        |
+| `GITLAB_API_TOKEN`     | API token allowed to manage the project's runners                                               |
+| `GITLAB_PROJECT_ID`    | numeric id of the project the runners register to                                               |
+| `SSH_PRIVATE_KEY`      | path to the private key of the Harvester keypair — the VMs accept only this key                 |
+| `HARVESTER_KUBECONFIG` | path to a kubeconfig with access to the `kaapana-ci` namespace                                  |
+| `RUNNERS_PAUSED`       | optional, `true` registers the runners paused so a new VM can be inspected before it takes jobs |
 
 ## CI fleet commands
 

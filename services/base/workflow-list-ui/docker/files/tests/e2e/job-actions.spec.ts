@@ -7,7 +7,6 @@ function confirmButton(page: import('@playwright/test').Page, name: string) {
   return page.getByRole('dialog').getByRole('button', { name })
 }
 
-
 const JOB = /\/kaapana-backend\/client\/job(\?|$)/
 const TASKINSTANCES = /\/kaapana-backend\/client\/get-job-taskinstances/
 
@@ -113,7 +112,9 @@ test('failed-operator logs: a task-instance fetch failure toasts instead of open
   await fail500(page, TASKINSTANCES)
 
   // job 102 (dag-beta) is failed -> it has the failed-operator logs button.
-  await failedJobRow(page).getByRole('button', { name: 'Airflow logs of the failed operator' }).click()
+  await failedJobRow(page)
+    .getByRole('button', { name: 'Airflow logs of the failed operator' })
+    .click()
 
   await expect(page.getByText('Error while loading task instances of job 102')).toBeVisible()
   await expect(page.getByText('boom')).toBeVisible()
@@ -133,7 +134,9 @@ test('failed-operator logs: a failed job with no failed task warns instead of cr
   // with no task whose last state is 'failed'.
   await expandRunningWorkflow(page)
 
-  await failedJobRow(page).getByRole('button', { name: 'Airflow logs of the failed operator' }).click()
+  await failedJobRow(page)
+    .getByRole('button', { name: 'Airflow logs of the failed operator' })
+    .click()
 
   await expect(
     page.locator('.vue-notification.warn', { hasText: 'No failed operator found for job 102' }),
@@ -155,12 +158,16 @@ test('the delete confirmation gives Cancel the initial focus', async ({ page }) 
   // innerText is read through the button's uppercasing, hence the lowercasing.
   await expect
     .poll(() =>
-      page.evaluate(() => (document.activeElement as HTMLElement | null)?.innerText?.trim().toLowerCase()),
+      page.evaluate(() =>
+        (document.activeElement as HTMLElement | null)?.innerText?.trim().toLowerCase(),
+      ),
     )
     .toBe('cancel')
 })
 
-test('a dismissed delete confirmation returns focus to the button that opened it', async ({ page }) => {
+test('a dismissed delete confirmation returns focus to the button that opened it', async ({
+  page,
+}) => {
   await expandRunningWorkflow(page)
   const remove = jobRow(page).getByRole('button', { name: 'Delete job' })
   const dialog = page.getByRole('dialog')

@@ -4,5 +4,5 @@ global:
   slow_data_dir: /home/kaapana
   hostname: ""
   dynamicVolumes:
-  - name: minio
-    storage_class: slow
+    - name: minio
+      storage_class: slow

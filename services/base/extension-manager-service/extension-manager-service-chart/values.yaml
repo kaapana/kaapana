@@ -7,12 +7,12 @@ global:
   pull_policy_images: "Always"
   storage_node: "storage"
   dynamicVolumes:
-  - name: extensions
-    storage_class: slow
-    storage: 10Gi
-  - name: extensions-tmp
-    storage_class: slow
-    storage: 10Gi
+    - name: extensions
+      storage_class: slow
+      storage: 10Gi
+    - name: extensions-tmp
+      storage_class: slow
+      storage: 10Gi
 
 kaapana_database:
   admin: false

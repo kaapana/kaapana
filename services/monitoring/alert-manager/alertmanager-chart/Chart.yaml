@@ -4,4 +4,3 @@ appVersion: "v0.24.0"
 description: Chart for Alertmanager
 name: alertmanager-chart
 version: "0.0.0"
-

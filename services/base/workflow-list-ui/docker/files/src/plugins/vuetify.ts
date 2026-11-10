@@ -1,11 +1,7 @@
-import 'vuetify/styles';
-import * as components from 'vuetify/components';
-import * as directives from 'vuetify/directives';
-import {
-  createKaapanaVuetify,
-  KAAPANA_THEME_LIGHT,
-  KAAPANA_THEME_DARK,
-} from '@kaapana/base-ui';
+import 'vuetify/styles'
+import * as components from 'vuetify/components'
+import * as directives from 'vuetify/directives'
+import { createKaapanaVuetify, KAAPANA_THEME_LIGHT, KAAPANA_THEME_DARK } from '@kaapana/base-ui'
 
 export default createKaapanaVuetify({
   components,
@@ -15,4 +11,4 @@ export default createKaapanaVuetify({
     [KAAPANA_THEME_LIGHT]: { navigation: '#FFFFFF' },
     [KAAPANA_THEME_DARK]: { navigation: '#363636' },
   },
-});
+})

@@ -1,6 +1,7 @@
 <template>
   <div :class="{ 'pagination-container': true, hidden: !showPagination }">
-    <v-pagination v-if="showPagination" :length="computedLength" v-model="pageIndex"> </v-pagination>
+    <v-pagination v-if="showPagination" :length="computedLength" v-model="pageIndex">
+    </v-pagination>
   </div>
 </template>
 

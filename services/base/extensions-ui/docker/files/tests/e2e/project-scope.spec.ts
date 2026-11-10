@@ -11,7 +11,8 @@ import { confirmAction, HELM, row } from './fixtures/helpers'
 // The four services base-ui's httpClient rewrites onto /project/<short_id>/
 // (its PROJECT_SCOPED allowlist). Matched anywhere in the path so a call that
 // bypasses the interceptor entirely is still caught.
-const PROJECT_SCOPED_SERVICE = /(^|\/)(kaapana-backend|kube-helm-api|workflow-api|dicom-web-filter)\//
+const PROJECT_SCOPED_SERVICE =
+  /(^|\/)(kaapana-backend|kube-helm-api|workflow-api|dicom-web-filter)\//
 
 // The /project/<short_id> document prefix IS the project selection: API calls
 // must be scoped to it (not to a default or any shared state), and a document
@@ -22,7 +23,9 @@ const project = defaultMockData.projects[1]
 
 test('API calls are scoped to the project in the document URL', async ({ page }) => {
   await installMockBackend(page)
-  const scoped = page.waitForRequest((r) => r.url().includes(`/project/${project.short_id}/kube-helm-api/`))
+  const scoped = page.waitForRequest((r) =>
+    r.url().includes(`/project/${project.short_id}/kube-helm-api/`),
+  )
 
   await page.goto(viewPathFor(project))
   await scoped

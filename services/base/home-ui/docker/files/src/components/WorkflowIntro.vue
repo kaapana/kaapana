@@ -55,14 +55,63 @@ const TASKS_BADGE_PATH = '/kube-helm-api/pending-applications-count'
 // The platform's capabilities, one card each. OPA-denied entries stay visible
 // but dimmed — the list is explanatory, not just navigation.
 const workflowSteps: Step[] = [
-  { title: 'Data Upload', icon: 'mdi-cloud-upload', description: 'Bring DICOM or NIfTI data onto the platform', shellRoute: '/web/workflows/data-upload', policyPath: '/data-upload-ui/' },
-  { title: 'Datasets', icon: 'mdi-view-gallery-outline', description: 'Curate and explore your data', shellRoute: '/web/workflows/datasets', policyPath: '/data-gallery-ui/' },
-  { title: 'Workflow Execution', icon: 'mdi-play', description: 'Run processing workflows on a dataset', shellRoute: '/web/workflows/workflow-execution', policyPath: '/workflow-execution-ui/' },
-  { title: 'Workflow List', icon: 'mdi-clipboard-text-outline', description: 'Monitor running and past workflows', shellRoute: '/web/workflows/workflows', policyPath: '/workflow-list-ui/' },
-  { title: 'Results', icon: 'mdi-chart-bar-stacked', description: 'Browse the results of your workflows', shellRoute: '/web/workflows/results-browser', policyPath: '/results-ui/' },
-  { title: 'Tasks', icon: 'mdi-checkbox-multiple-marked', description: 'Handle workflow tasks waiting for your input', shellRoute: '/web/workflows/tasks', policyPath: '/app-ui/', badged: true },
-  { title: 'Apps', icon: 'mdi-apps-box', description: 'Open the applications running in this project', shellRoute: '/web/workflows/apps', policyPath: '/app-ui/' },
-  { title: 'Extensions', icon: 'mdi-puzzle', description: 'Install more workflows and apps', shellRoute: '/web/-/extensions', policyPath: '/extensions-ui/' },
+  {
+    title: 'Data Upload',
+    icon: 'mdi-cloud-upload',
+    description: 'Bring DICOM or NIfTI data onto the platform',
+    shellRoute: '/web/workflows/data-upload',
+    policyPath: '/data-upload-ui/',
+  },
+  {
+    title: 'Datasets',
+    icon: 'mdi-view-gallery-outline',
+    description: 'Curate and explore your data',
+    shellRoute: '/web/workflows/datasets',
+    policyPath: '/data-gallery-ui/',
+  },
+  {
+    title: 'Workflow Execution',
+    icon: 'mdi-play',
+    description: 'Run processing workflows on a dataset',
+    shellRoute: '/web/workflows/workflow-execution',
+    policyPath: '/workflow-execution-ui/',
+  },
+  {
+    title: 'Workflow List',
+    icon: 'mdi-clipboard-text-outline',
+    description: 'Monitor running and past workflows',
+    shellRoute: '/web/workflows/workflows',
+    policyPath: '/workflow-list-ui/',
+  },
+  {
+    title: 'Results',
+    icon: 'mdi-chart-bar-stacked',
+    description: 'Browse the results of your workflows',
+    shellRoute: '/web/workflows/results-browser',
+    policyPath: '/results-ui/',
+  },
+  {
+    title: 'Tasks',
+    icon: 'mdi-checkbox-multiple-marked',
+    description: 'Handle workflow tasks waiting for your input',
+    shellRoute: '/web/workflows/tasks',
+    policyPath: '/app-ui/',
+    badged: true,
+  },
+  {
+    title: 'Apps',
+    icon: 'mdi-apps-box',
+    description: 'Open the applications running in this project',
+    shellRoute: '/web/workflows/apps',
+    policyPath: '/app-ui/',
+  },
+  {
+    title: 'Extensions',
+    icon: 'mdi-puzzle',
+    description: 'Install more workflows and apps',
+    shellRoute: '/web/-/extensions',
+    policyPath: '/extensions-ui/',
+  },
 ]
 
 // Same cadence the shell polls its menu badges at.

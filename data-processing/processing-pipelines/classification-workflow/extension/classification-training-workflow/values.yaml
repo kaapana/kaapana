@@ -1,4 +1,4 @@
 ---
 global:
-    image: "dag-classification-training-workflow"
-    action: "copy"
+  image: "dag-classification-training-workflow"
+  action: "copy"

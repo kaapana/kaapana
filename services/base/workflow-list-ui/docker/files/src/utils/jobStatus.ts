@@ -1,4 +1,12 @@
-export const JOB_STATUSES = ['queued', 'scheduled', 'pending', 'running', 'finished', 'failed', 'deleted'] as const
+export const JOB_STATUSES = [
+  'queued',
+  'scheduled',
+  'pending',
+  'running',
+  'finished',
+  'failed',
+  'deleted',
+] as const
 export type JobStatus = (typeof JOB_STATUSES)[number]
 
 export const jobStatusColor: Record<JobStatus, string | undefined> = {

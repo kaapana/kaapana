@@ -2,51 +2,69 @@
   <v-card>
     <v-card-title>
       <v-row align="center" no-gutters>
-      <v-col cols="4">
-        <p class="mx-4 my-2">Workflow List</p>
-      </v-col>
-      <v-col cols="4" class="text-right">
-        <v-tooltip location="bottom">
-          <template #activator="{ props }">
-            <v-btn v-bind="props" @click="checkForRemoteUpdates" icon variant="text" aria-label="Sync with the remote instances">
-              <v-icon color="primary">mdi-sync</v-icon>
-            </v-btn>
-          </template>
-          <span>sync manually with remote instances</span>
-        </v-tooltip>
-        <v-tooltip location="bottom">
-          <template #activator="{ props }">
-            <v-btn v-bind="props" @click="redirectToAirflow()" icon variant="text" aria-label="Open Airflow">
-              <v-icon color="primary">{{ kaapanaIcons.externalLink }}</v-icon>
-            </v-btn>
-          </template>
-          <span>redirect to Airflow workflow engine</span>
-        </v-tooltip>
-        <v-tooltip location="bottom">
-          <template #activator="{ props }">
-            <v-btn v-bind="props" @click="refreshClient()" icon variant="text" aria-label="Refresh the workflow list">
-              <v-icon color="primary">{{ kaapanaIcons.refresh }}</v-icon>
-            </v-btn>
-          </template>
-          <span>refresh workflow list</span>
-        </v-tooltip>
-      </v-col>
-      <v-col cols="4">
-        <v-text-field
-          v-model="search"
-          :append-inner-icon="kaapanaIcons.search"
-          label="Search for Workflow"
-          variant="underlined"
-          single-line
-          hide-details
-          class="mb-4"
-        ></v-text-field>
-      </v-col>
+        <v-col cols="4">
+          <p class="mx-4 my-2">Workflow List</p>
+        </v-col>
+        <v-col cols="4" class="text-right">
+          <v-tooltip location="bottom">
+            <template #activator="{ props }">
+              <v-btn
+                v-bind="props"
+                @click="checkForRemoteUpdates"
+                icon
+                variant="text"
+                aria-label="Sync with the remote instances"
+              >
+                <v-icon color="primary">mdi-sync</v-icon>
+              </v-btn>
+            </template>
+            <span>sync manually with remote instances</span>
+          </v-tooltip>
+          <v-tooltip location="bottom">
+            <template #activator="{ props }">
+              <v-btn
+                v-bind="props"
+                @click="redirectToAirflow()"
+                icon
+                variant="text"
+                aria-label="Open Airflow"
+              >
+                <v-icon color="primary">{{ kaapanaIcons.externalLink }}</v-icon>
+              </v-btn>
+            </template>
+            <span>redirect to Airflow workflow engine</span>
+          </v-tooltip>
+          <v-tooltip location="bottom">
+            <template #activator="{ props }">
+              <v-btn
+                v-bind="props"
+                @click="refreshClient()"
+                icon
+                variant="text"
+                aria-label="Refresh the workflow list"
+              >
+                <v-icon color="primary">{{ kaapanaIcons.refresh }}</v-icon>
+              </v-btn>
+            </template>
+            <span>refresh workflow list</span>
+          </v-tooltip>
+        </v-col>
+        <v-col cols="4">
+          <v-text-field
+            v-model="search"
+            :append-inner-icon="kaapanaIcons.search"
+            label="Search for Workflow"
+            variant="underlined"
+            single-line
+            hide-details
+            class="mb-4"
+          ></v-text-field>
+        </v-col>
       </v-row>
     </v-card-title>
     <ConfirmDialog
       v-model="deleteDialogOpen"
-      :title='`Delete workflow "${workflowPendingDelete?.workflow_name}"?`'
+      :title="`Delete workflow &quot;${workflowPendingDelete?.workflow_name}&quot;?`"
       text="This also deletes all jobs belonging to the workflow."
       confirm-text="Delete workflow"
       color="error"
@@ -75,7 +93,11 @@
         <div v-else>No workflows yet.</div>
       </template>
       <template v-slot:item.dataset_name="{ item }">
-        {{ item.dataset_name != null ? item.dataset_name.name + '(' + item.dataset_name.access_level + ')' : "" }}
+        {{
+          item.dataset_name != null
+            ? item.dataset_name.name + '(' + item.dataset_name.access_level + ')'
+            : ''
+        }}
       </template>
       <template v-slot:item.time_created="{ item }">
         {{ new Date(item.time_created).toLocaleString() }}
@@ -104,8 +126,7 @@
               <v-icon v-bind="props" color="primary">mdi-account-hard-hat-outline</v-icon>
             </template>
             <span
-              >Service workflow actions are only allowed in job level, click to
-              see all jobs
+              >Service workflow actions are only allowed in job level, click to see all jobs
             </span>
           </v-tooltip>
         </div>
@@ -185,9 +206,7 @@
           <div v-else>
             <v-tooltip location="bottom">
               <template #activator="{ props }">
-                <v-icon color="primary" v-bind="props">
-                  mdi-cloud-braces
-                </v-icon>
+                <v-icon color="primary" v-bind="props"> mdi-cloud-braces </v-icon>
               </template>
               <span>No actions for REMOTE workflows!</span>
             </v-tooltip>
@@ -323,7 +342,6 @@ watch(search, (newValue, _oldValue, onCleanup) => {
   }, 300)
   onCleanup(() => clearTimeout(searchDebounce))
 })
-
 
 // General Methods
 function refreshClient() {

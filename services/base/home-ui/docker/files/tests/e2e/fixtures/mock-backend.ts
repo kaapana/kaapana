@@ -120,7 +120,9 @@ export async function installMockBackend(
 ) {
   // Prod/preview build asks the oauth2 proxy, the dev server a static token file.
   await page.route('**/oauth2/userinfo', (r) => r.fulfill(json(data.userinfo)))
-  await page.route('**/jsons/testingAuthenticationToken.json', (r) => r.fulfill(json(data.userinfo)))
+  await page.route('**/jsons/testingAuthenticationToken.json', (r) =>
+    r.fulfill(json(data.userinfo)),
+  )
 
   await page.route('**/kaapana-backend/open-policy-data', (r) => r.fulfill(json(data.policyData)))
 
@@ -212,7 +214,11 @@ export async function installNotificationSocket(page: Page) {
  */
 export async function stubShellRoutes(page: Page) {
   const shell = (r: Route) =>
-    r.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><html><body data-stub="shell">shell</body></html>' })
+    r.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: '<!doctype html><html><body data-stub="shell">shell</body></html>',
+    })
   await page.route('**/web/**', shell)
   await page.route('**/project/*/workflows/**', shell)
   // The shell's project home. One segment only, so it cannot swallow the

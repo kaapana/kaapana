@@ -4,9 +4,9 @@ global:
   fast_data_dir: /home/kaapana
   slow_data_dir: /home/kaapana
   dynamicVolumes:
-  - name: dcm4chee-standalone
-    storage_class: slow
-  - name: dcm4chee-dicom
-    storage_class: slow
-  - name: dcm4che
-    storage: 100Gi
+    - name: dcm4chee-standalone
+      storage_class: slow
+    - name: dcm4chee-dicom
+      storage_class: slow
+    - name: dcm4che
+      storage: 100Gi

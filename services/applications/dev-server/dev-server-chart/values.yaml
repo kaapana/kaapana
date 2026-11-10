@@ -4,6 +4,6 @@ global:
   complete_image: "{{ .Values.global.registry_url }}/code-server:{{ .Values.global.kaapana_build_version  }}"
   namespace: ""
   envVars:
-  - name: WORKSPACE
-    value: "/kaapana"
+    - name: WORKSPACE
+      value: "/kaapana"
   display_name: "-"

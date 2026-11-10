@@ -4,5 +4,5 @@ global:
   meta_namespace: "meta"
   fast_data_dir: /home/kaapana
   dynamicVolumes:
-  - name: opensearch
-  - name: os-certs
+    - name: opensearch
+    - name: os-certs

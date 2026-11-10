@@ -62,7 +62,7 @@ test("a failing job fetch toasts and drops the previous workflow's jobs", async 
   expect(pageErrors).toEqual([])
 })
 
-test("a slow job fetch does not overwrite the row the user switched to", async ({ page }) => {
+test('a slow job fetch does not overwrite the row the user switched to', async ({ page }) => {
   await installMockBackend(page)
 
   // running-wf answers only after failed-wf has already been served, which is

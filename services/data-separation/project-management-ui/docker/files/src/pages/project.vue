@@ -108,15 +108,24 @@
     <template v-if="project">
       <!-- ── Project Users ────────────────────────────────────────── -->
       <v-row>
-        <ProjectUsers :key="`users-${refreshKey}`" :project="project" :expanded="isUsersSectionExpanded" @toggle="isUsersSectionExpanded = $event" />
+        <ProjectUsers
+          :key="`users-${refreshKey}`"
+          :project="project"
+          :expanded="isUsersSectionExpanded"
+          @toggle="isUsersSectionExpanded = $event"
+        />
       </v-row>
 
       <v-divider class="my-4" />
 
       <!-- ── Executable Workflows ─────────────────────────────────── -->
       <v-row>
-        <ProjectWorkflows :key="`workflows-${refreshKey}`" :project="project" :expanded="isWorkflowsSectionExpanded"
-          @toggle="isWorkflowsSectionExpanded = $event" />
+        <ProjectWorkflows
+          :key="`workflows-${refreshKey}`"
+          :project="project"
+          :expanded="isWorkflowsSectionExpanded"
+          @toggle="isWorkflowsSectionExpanded = $event"
+        />
       </v-row>
 
       <template v-if="can(project?.id, 'view_applications')">
@@ -251,26 +260,26 @@ export default defineComponent({
   },
 
   mounted() {
-    this.loadProject();
+    this.loadProject()
     waitForStoreUser((user) => {
-      this.userHasAdminAccess = isAdminUser(user);
-    });
+      this.userHasAdminAccess = isAdminUser(user)
+    })
   },
 
   unmounted() {
-    setScopedProject(null);
+    setScopedProject(null)
   },
 
   watch: {
     '$route.params.id'(newId: string) {
-      this.projectId = newId;
-      this.loadProject();
+      this.projectId = newId
+      this.loadProject()
     },
   },
 
   methods: {
     goToProjectsList(): void {
-      this.$router.push('/');
+      this.$router.push('/')
     },
 
     async refresh(): Promise<void> {
@@ -317,7 +326,9 @@ export default defineComponent({
       }
     },
 
-    openEditDialog(): void { this.editDialog = true; },
+    openEditDialog(): void {
+      this.editDialog = true
+    },
 
     async handleEditSuccess(): Promise<void> {
       this.editDialog = false
@@ -381,7 +392,6 @@ export default defineComponent({
         this.busy = null
       }
     },
-
   },
-});
+})
 </script>

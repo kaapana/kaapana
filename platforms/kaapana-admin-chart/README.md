@@ -1,7 +1,7 @@
 # Kaapana Admin Platform
 
-## Maintainer: 
+## Maintainer:
+
 - Kaapana Team @DKFZ
 
 ## Description:
-

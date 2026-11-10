@@ -77,9 +77,7 @@ test('required confirmation field blocks submit until accepted', async ({ page }
   expect(conf.confirmation).toBe(true)
 })
 
-test('clearing the required workflow name blocks submit with a field error', async ({
-  page,
-}) => {
+test('clearing the required workflow name blocks submit with a field error', async ({ page }) => {
   await bootView(page)
   await selectDag(page, 'mock-all-fields')
 
@@ -90,9 +88,7 @@ test('clearing the required workflow name blocks submit with a field error', asy
   await expect(page.getByRole('button', { name: 'Start Workflow' })).toBeDisabled()
 })
 
-test('property-level `required: true` schema renders all fields and submits', async ({
-  page,
-}) => {
+test('property-level `required: true` schema renders all fields and submits', async ({ page }) => {
   // Regression: the real Kaapana convention puts boolean `required: true` on
   // properties; normalizeV2Schema must lift them into a parent-level array or
   // ajv rejects the schema ("required must be array") and the form blanks.
@@ -172,9 +168,7 @@ test('selecting a dataset reaches the payload as its object const (not a validat
   })
 })
 
-test('dataset limit defaults to "whole dataset": submit omits dataset_limit', async ({
-  page,
-}) => {
+test('dataset limit defaults to "whole dataset": submit omits dataset_limit', async ({ page }) => {
   // Omitting dataset_limit is the contract for "no limit" — the backend applies none.
   await bootView(page)
   await selectDag(page, 'mock-dataset')
@@ -238,7 +232,11 @@ test('a failed submit does not carry a stale dataset_limit into the retry', asyn
 
   // First submit fails; form state persists.
   await page.route(WORKFLOW, (r) =>
-    r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'boom' }) }),
+    r.fulfill({
+      status: 500,
+      contentType: 'application/json',
+      body: JSON.stringify({ detail: 'boom' }),
+    }),
   )
   const req1P = page.waitForRequest(WORKFLOW)
   await page.getByRole('button', { name: 'Start Workflow' }).click()
@@ -248,7 +246,11 @@ test('a failed submit does not carry a stale dataset_limit into the retry', asyn
   // Toggle back to "whole dataset", make the endpoint succeed, and resubmit.
   await page.getByRole('checkbox', { name: 'Process whole dataset' }).click()
   await page.route(WORKFLOW, (r) =>
-    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ workflow_id: 'wf-1' }) }),
+    r.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ workflow_id: 'wf-1' }),
+    }),
   )
   const req2P = page.waitForRequest(WORKFLOW)
   await page.getByRole('button', { name: 'Start Workflow' }).click()
@@ -259,7 +261,11 @@ test('a failed submit does not carry a stale dataset_limit into the retry', asyn
 test('submit backend error surfaces an error notification', async ({ page }) => {
   await bootView(page)
   await page.route('**/kaapana-backend/client/workflow', (r) =>
-    r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'nope' }) }),
+    r.fulfill({
+      status: 500,
+      contentType: 'application/json',
+      body: JSON.stringify({ detail: 'nope' }),
+    }),
   )
   await selectDag(page, 'mock-all-fields')
   await page.getByRole('button', { name: 'Start Workflow' }).click()
@@ -313,7 +319,9 @@ test('an untouched invalid default is named although its field shows no error ye
     singleDagData('bad-default', {
       workflow_form: {
         type: 'object',
-        properties: { aetitle: { type: 'string', title: 'AE Title', default: 'TOOLONG', maxLength: 4 } },
+        properties: {
+          aetitle: { type: 'string', title: 'AE Title', default: 'TOOLONG', maxLength: 4 },
+        },
       },
     }),
   )

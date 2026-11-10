@@ -1,7 +1,7 @@
 # Contributing to Kaapana
 
 Thank you for your interest in contributing to Kaapana! 🎉  
-We aim to make the contribution process as smooth and accessible as possible. 
+We aim to make the contribution process as smooth and accessible as possible.
 Please follow the guidelines below, and feel free to reach out if you have any questions.
 
 ---
@@ -9,7 +9,7 @@ Please follow the guidelines below, and feel free to reach out if you have any q
 ## 📌 Repository
 
 Our primary repository is hosted on [GitLab](https://gitlab.hzdr.de/kaapana/kaapana/).  
-You can explore the code, open issues, and submit merge requests there.  
+You can explore the code, open issues, and submit merge requests there.
 
 👉 **Note:** You can log in using your GitHub account.
 
@@ -42,8 +42,8 @@ This helps us address problems more efficiently. Thanks for reporting!
 ## 💻 Code Contributions
 
 🚧 **External contributions are currently on hold.** 🚧  
-We are in the process of finalizing a Contributor License Agreement (CLA) with our legal team. 
-Until this is completed, we are unable to accept external contributions to our codebase.  
+We are in the process of finalizing a Contributor License Agreement (CLA) with our legal team.
+Until this is completed, we are unable to accept external contributions to our codebase.
 
 Stay tuned for updates, and thank you for your patience! 🙌
 
@@ -51,5 +51,5 @@ Stay tuned for updates, and thank you for your patience! 🙌
 
 ### 💬 Need Help?
 
-If you have any questions or need assistance, feel free to reach out via GitLab issues or our [Slack](https://join.slack.com/t/kaapana/shared_invite/zt-hilvek0w-ucabihas~jn9PDAM0O3gVQ/) channel. 
+If you have any questions or need assistance, feel free to reach out via GitLab issues or our [Slack](https://join.slack.com/t/kaapana/shared_invite/zt-hilvek0w-ucabihas~jn9PDAM0O3gVQ/) channel.
 We appreciate your support and interest in Kaapana! 🚀

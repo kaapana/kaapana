@@ -2,13 +2,13 @@
 
 How to start a pipeline and choose what it runs.
 
-| Doc | Read it when |
-|---|---|
-| [glab.md](docs/glab.md) | you want to start and inspect runs from the terminal, or a ready-made recipe |
-| [local-ci.md](docs/local-ci.md) | you want the jobs, or the deployment, on your own machine |
-| [internals.md](docs/internals.md) | how the pipeline works: stages, templates, runners scaling, registry switch, the ci-base image |
-| [troubleshooting.md](docs/troubleshooting.md) | a job failed - common causes|
-| [dependency-updates.md](docs/dependency-updates.md) | you review a Renovate MR, or change what Renovate updates |
+| Doc                                                 | Read it when                                                                                   |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| [glab.md](docs/glab.md)                             | you want to start and inspect runs from the terminal, or a ready-made recipe                   |
+| [local-ci.md](docs/local-ci.md)                     | you want the jobs, or the deployment, on your own machine                                      |
+| [internals.md](docs/internals.md)                   | how the pipeline works: stages, templates, runners scaling, registry switch, the ci-base image |
+| [troubleshooting.md](docs/troubleshooting.md)       | a job failed - common causes                                                                   |
+| [dependency-updates.md](docs/dependency-updates.md) | you review a Renovate MR, or change what Renovate updates                                      |
 
 Pipeline configuration is [`.gitlab-ci.yml`](../.gitlab-ci.yml) plus stage files under [`ci/pipeline/`](pipeline/).
 
@@ -16,23 +16,22 @@ Pipeline configuration is [`.gitlab-ci.yml`](../.gitlab-ci.yml) plus stage files
 
 ### Automatic triggers
 
-| Trigger | Configuration |
-|---|---|
-| Merge request | Full pipeline on every push to the branch with default configuration. A draft MR (Draft, WIP) runs nothing. Label the MR `Security` for security scan, or `CI` for CI tests. Label the MR `AI Review` for an advisory AI review note (`mr_review`, once per MR), or run the manual `mr_review_rerun` job for a new one. Confidential issues are not sent to the model ([internals.md](docs/internals.md#review)) |
-| Push to `develop` | Full pipeline|
-| Schedule | Full pipeline with the schedule's own configuration ([below](#scheduled-pipelines)) |
-| Protected tag `X.Y.Z` | Release build against the release registry ([internals.md](docs/internals.md#registries)) |
-
+| Trigger               | Configuration                                                                                                                                                                                                                                                                                                                                                                                                    |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Merge request         | Full pipeline on every push to the branch with default configuration. A draft MR (Draft, WIP) runs nothing. Label the MR `Security` for security scan, or `CI` for CI tests. Label the MR `AI Review` for an advisory AI review note (`mr_review`, once per MR), or run the manual `mr_review_rerun` job for a new one. Confidential issues are not sent to the model ([internals.md](docs/internals.md#review)) |
+| Push to `develop`     | Full pipeline                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Schedule              | Full pipeline with the schedule's own configuration ([below](#scheduled-pipelines))                                                                                                                                                                                                                                                                                                                              |
+| Protected tag `X.Y.Z` | Release build against the release registry ([internals.md](docs/internals.md#registries))                                                                                                                                                                                                                                                                                                                        |
 
 ### Manually triggered
 
-| Trigger | Configuration |
-|---|---|
-| MR → **Pipelines** → **Run pipeline** | a re-run of the MR pipeline on the current head, defaults |
-| MR → **Pipelines** → **Run pipeline > Run with modified values** | a re-run of the MR pipeline on the current head with modified values form |
-| **Build → Pipelines → Run pipeline** | a form with pre-defined configuration. 
-| `glab ci run` | API trigger from the terminal, scriptable and repeatable ([glab.md](docs/glab.md)) |
-| gitlab-ci-local | the job *scripts* in docker on your machine, no pipeline ([local-ci.md](docs/local-ci.md#scenario-3-run-jobs-without-gitlab)) |
+| Trigger                                                          | Configuration                                                                                                                 |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| MR → **Pipelines** → **Run pipeline**                            | a re-run of the MR pipeline on the current head, defaults                                                                     |
+| MR → **Pipelines** → **Run pipeline > Run with modified values** | a re-run of the MR pipeline on the current head with modified values form                                                     |
+| **Build → Pipelines → Run pipeline**                             | a form with pre-defined configuration.                                                                                        |
+| `glab ci run`                                                    | API trigger from the terminal, scriptable and repeatable ([glab.md](docs/glab.md))                                            |
+| gitlab-ci-local                                                  | the job _scripts_ in docker on your machine, no pipeline ([local-ci.md](docs/local-ci.md#scenario-3-run-jobs-without-gitlab)) |
 
 ## Pausing all CI: `MAINTENANCE`
 
@@ -45,11 +44,11 @@ down. Set it back to `false` to resume.
 
 [Build → Pipeline schedules](https://codebase.helmholtz.cloud/kaapana/kaapana/-/pipeline_schedules).
 
-| Schedule | Ref | Purpose |
-|---|---|---|
-| `develop` | `develop` | nightly full run |
-| `Build from scratch to determine issues with external resources` | `develop` | catch broken external downloads |
-| `Build latest release` | latest release tag | prove the release still builds from scratch |
+| Schedule                                                         | Ref                | Purpose                                     |
+| ---------------------------------------------------------------- | ------------------ | ------------------------------------------- |
+| `develop`                                                        | `develop`          | nightly full run                            |
+| `Build from scratch to determine issues with external resources` | `develop`          | catch broken external downloads             |
+| `Build latest release`                                           | latest release tag | prove the release still builds from scratch |
 
 ## Runners
 
@@ -67,11 +66,11 @@ The rules themselves are defined in the config files it names.
 [`ci/pipeline/lint.yml`](pipeline/lint.yml) has three jobs in the unittest
 stage, each a matrix over `LINTER`, all gated by `exec_lint`:
 
-| Job | `LINTER` | Fails on |
-|---|---|---|
-| `format` | `ruff`, `prettier` | formatting drift |
-| `validate` | `ruff`, `ui`, `hadolint`, `helm` | syntax errors and the blocking rulesets |
-| `lint` | `ruff`, `ui`, `hadolint`, `helm` | nothing, publishes `gl-code-quality-report.json` to the MR Code Quality widget |
+| Job        | `LINTER`                         | Fails on                                                                       |
+| ---------- | -------------------------------- | ------------------------------------------------------------------------------ |
+| `format`   | `ruff`, `prettier`               | formatting drift                                                               |
+| `validate` | `ruff`, `ui`, `hadolint`, `helm` | syntax errors and the blocking rulesets                                        |
+| `lint`     | `ruff`, `ui`, `hadolint`, `helm` | nothing, publishes `gl-code-quality-report.json` to the MR Code Quality widget |
 
 Each entry runs `ci/ci-code/lint/<linter>_lint.sh <job>`, which installs its own tool.
 `validate: [helm]` publishes JUnit reports from `helm-reports/` to the MR test tab. `format: [prettier]`, `validate: [ui]` and
@@ -100,32 +99,32 @@ Every token and secret the CI uses, and what it is for: [Tokens & secrets](docs/
 One per stage group. Point a stage at your own machine by giving your runner's
 tag ([local-ci.md](docs/local-ci.md#scenario-1-run-the-jobs-on-your-machine)).
 
-| Input | Default | Runs |
-|---|---|---|
-| `tests_runner_tag` | `tests-runner` | preflight and the unittest stage |
-| `build_runner_tag` | `build-runner` | the ci-image and build stages |
-| `security_runner_tag` | `security-runner` | the security stage |
-| `deploy_runner_tag` | `deploy-runner` | deploy, integrationtest and clean |
+| Input                 | Default           | Runs                              |
+| --------------------- | ----------------- | --------------------------------- |
+| `tests_runner_tag`    | `tests-runner`    | preflight and the unittest stage  |
+| `build_runner_tag`    | `build-runner`    | the ci-image and build stages     |
+| `security_runner_tag` | `security-runner` | the security stage                |
+| `deploy_runner_tag`   | `deploy-runner`   | deploy, integrationtest and clean |
 
 ### 2. `exec_*` inputs — what runs
 
 Every stage toggle. Grouped as `[exec]` in the run form.
 
-| Input | Default | Meaning |
-|---|---|---|
-| `exec_unit_tests` | `true` | unittest stage: unit tests + documentation build |
-| `exec_lint` | `true` | unittest stage: `format`, `validate` and `lint` matrices (Ruff, Prettier, ESLint, hadolint, Helm) |
-| `exec_mr_review` | `true` | .post stage: advisory AI review note on MRs with the `AI Review` label, or via the manual `mr_review_rerun`. The model is `MR_REVIEW_MODEL` (default `alias-code`), overridable by a project variable or in the manual run. Tokens: [internals.md](docs/internals.md#review) |
-| `exec_build` | `true` | build stage: full platform build |
-| `exec_security_scan` | `false` | trivy scan of the images this commit resolves to. A failed scan still publishes what it managed to check |
-| `exec_deploy` | `true` | deploy stage: deployment VM/target + platform installation |
-| `exec_server_installation` | `true` | `true` installs microk8s and helm on the target (needs passwordless sudo). `false` assumes a prepared target and checks it read-only |
-| `exec_redeploy` | `false` | `false` makes an already-deployed platform a fatal check; `true` undeploys it first |
-| `exec_integration_tests` | `true` | integrationtest stage: pytest + Playwright against the deployed platform |
-| `exec_integration_test_jobs` | `""` | comma-separated allowlist of integration-test jobs (`scan_ports`, `first_login`, `install_extensions`, `send_data`, `run_workflows`). Empty runs all of them; |
-| `exec_destroy_delayed` | `false` | keep the deployment VM for 4 h after the pipeline; a failing run leaves it to the sweep |
-| `exec_ci_image_rebuild` | `false` | force `build_ci_image` to run on any pipeline source, bypassing its normal MR/develop-push + changes gate |
-| `exec_vm_sweep` | `false` | maintenance stage: delete deployment VMs whose pipeline has ended ([internals.md](docs/internals.md#maintenance)) |
+| Input                        | Default | Meaning                                                                                                                                                                                                                                                                      |
+| ---------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `exec_unit_tests`            | `true`  | unittest stage: unit tests + documentation build                                                                                                                                                                                                                             |
+| `exec_lint`                  | `true`  | unittest stage: `format`, `validate` and `lint` matrices (Ruff, Prettier, ESLint, hadolint, Helm)                                                                                                                                                                            |
+| `exec_mr_review`             | `true`  | .post stage: advisory AI review note on MRs with the `AI Review` label, or via the manual `mr_review_rerun`. The model is `MR_REVIEW_MODEL` (default `alias-code`), overridable by a project variable or in the manual run. Tokens: [internals.md](docs/internals.md#review) |
+| `exec_build`                 | `true`  | build stage: full platform build                                                                                                                                                                                                                                             |
+| `exec_security_scan`         | `false` | trivy scan of the images this commit resolves to. A failed scan still publishes what it managed to check                                                                                                                                                                     |
+| `exec_deploy`                | `true`  | deploy stage: deployment VM/target + platform installation                                                                                                                                                                                                                   |
+| `exec_server_installation`   | `true`  | `true` installs microk8s and helm on the target (needs passwordless sudo). `false` assumes a prepared target and checks it read-only                                                                                                                                         |
+| `exec_redeploy`              | `false` | `false` makes an already-deployed platform a fatal check; `true` undeploys it first                                                                                                                                                                                          |
+| `exec_integration_tests`     | `true`  | integrationtest stage: pytest + Playwright against the deployed platform                                                                                                                                                                                                     |
+| `exec_integration_test_jobs` | `""`    | comma-separated allowlist of integration-test jobs (`scan_ports`, `first_login`, `install_extensions`, `send_data`, `run_workflows`). Empty runs all of them;                                                                                                                |
+| `exec_destroy_delayed`       | `false` | keep the deployment VM for 4 h after the pipeline; a failing run leaves it to the sweep                                                                                                                                                                                      |
+| `exec_ci_image_rebuild`      | `false` | force `build_ci_image` to run on any pipeline source, bypassing its normal MR/develop-push + changes gate                                                                                                                                                                    |
+| `exec_vm_sweep`              | `false` | maintenance stage: delete deployment VMs whose pipeline has ended ([internals.md](docs/internals.md#maintenance))                                                                                                                                                            |
 
 ### 3. `DEPLOYMENT_INSTANCE_*` variables — the target
 
@@ -134,34 +133,34 @@ Where the platform gets deployed and what the VM looks like. Leave
 Harvester VM from the rest of these; set it and every `_VM_`/Harvester value
 below is ignored.
 
-| Variable | Default | Meaning |
-|---|---|---|
-| `DEPLOYMENT_INSTANCE_FQDN` | *empty* | Deploy onto this host and never destroy it. Empty provisions a fresh VM. Max 57 characters (`dcmsend` peerhost limit) and it must resolve *inside the job container* |
-| `DEPLOYMENT_INSTANCE_USER` | `ubuntu` | SSH user on the target |
-| `DEPLOYMENT_INSTANCE_SSH_KEY` | None | SSH private key file-variable |
-| `DEPLOYMENT_INSTANCE_PLATFORM_PREFIX` | `ci-dep` | Prefix of the platform's project namespaces (`<prefix>-project-<short_id>`). DNS-1123 label, max 46 characters |
-| `DEPLOYMENT_INSTANCE_ADMIN_CHART` | `kaapana-admin-chart` | Admin chart and Helm release name; deploy, undeploy, readiness check and integration tests look the platform up by it |
-| `DEPLOYMENT_INSTANCE_HELM_NAMESPACE` | `default` | Namespace the admin chart release is installed into |
-| `DEPLOYMENT_INSTANCE_DOMAIN` | `vms.dkfz.de` | DNS domain of a provisioned VM (`<vm_name>.<domain>`) |
-| `DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE` | `kaapana-ci` | Harvester namespace the VM is provisioned in |
+| Variable                                  | Default               | Meaning                                                                                                                                                              |
+| ----------------------------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DEPLOYMENT_INSTANCE_FQDN`                | _empty_               | Deploy onto this host and never destroy it. Empty provisions a fresh VM. Max 57 characters (`dcmsend` peerhost limit) and it must resolve _inside the job container_ |
+| `DEPLOYMENT_INSTANCE_USER`                | `ubuntu`              | SSH user on the target                                                                                                                                               |
+| `DEPLOYMENT_INSTANCE_SSH_KEY`             | None                  | SSH private key file-variable                                                                                                                                        |
+| `DEPLOYMENT_INSTANCE_PLATFORM_PREFIX`     | `ci-dep`              | Prefix of the platform's project namespaces (`<prefix>-project-<short_id>`). DNS-1123 label, max 46 characters                                                       |
+| `DEPLOYMENT_INSTANCE_ADMIN_CHART`         | `kaapana-admin-chart` | Admin chart and Helm release name; deploy, undeploy, readiness check and integration tests look the platform up by it                                                |
+| `DEPLOYMENT_INSTANCE_HELM_NAMESPACE`      | `default`             | Namespace the admin chart release is installed into                                                                                                                  |
+| `DEPLOYMENT_INSTANCE_DOMAIN`              | `vms.dkfz.de`         | DNS domain of a provisioned VM (`<vm_name>.<domain>`)                                                                                                                |
+| `DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE` | `kaapana-ci`          | Harvester namespace the VM is provisioned in                                                                                                                         |
 
 ### 4. `CI_EXEC_*` variables — build and scan arguments
 
 Free-form flag strings handed straight to `kaapana-build`. Build arguments like --latest are cross-used in scanning job, therefore left as a VARIABLE
 
-| Variable | Default | Meaning |
-|---|---|---|
-| `CI_EXEC_BUILD_ARGUMENTS` | `"--cache-from -pp 8 --keep-buildx-builder"` | extra `kaapana-build` flags for `build_packages`, e.g. `--build-only`, `--cache-from`. |
-| `CI_EXEC_SECURITY_SCAN_ARGUMENTS` | `--vulnerability-scan --offline-packages-scan --configuration-check --create-sboms` | flags for `security_scan` |
-| `CI_EXEC_DOCKER_PRUNE` | `false` | `true` wipes the build runner's docker cache before the build (cold build) |
+| Variable                          | Default                                                                             | Meaning                                                                                |
+| --------------------------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `CI_EXEC_BUILD_ARGUMENTS`         | `"--cache-from -pp 8 --keep-buildx-builder"`                                        | extra `kaapana-build` flags for `build_packages`, e.g. `--build-only`, `--cache-from`. |
+| `CI_EXEC_SECURITY_SCAN_ARGUMENTS` | `--vulnerability-scan --offline-packages-scan --configuration-check --create-sboms` | flags for `security_scan`                                                              |
+| `CI_EXEC_DOCKER_PRUNE`            | `false`                                                                             | `true` wipes the build runner's docker cache before the build (cold build)             |
 
 ### 5. `VM_SWEEP_*` variables: the sweep
 
 Read by `sweep_deployment_vms` ([internals.md](docs/internals.md#maintenance)).
 
-| Variable | Default | Meaning |
-|---|---|---|
-| `VM_SWEEP_APPLY` | `false` | `true` deletes; otherwise the sweep only reports |
-| `VM_SWEEP_KEEP_HOURS` | `4` | how long a VM started with `exec_destroy_delayed` outlives its pipeline |
-| `VM_SWEEP_GRACE_HOURS` | `1` | a VM younger than this is never touched |
-| `VM_SWEEP_MAX_AGE_HOURS` | `12` | age at which a VM with no pipeline to ask is deleted |
+| Variable                 | Default | Meaning                                                                 |
+| ------------------------ | ------- | ----------------------------------------------------------------------- |
+| `VM_SWEEP_APPLY`         | `false` | `true` deletes; otherwise the sweep only reports                        |
+| `VM_SWEEP_KEEP_HOURS`    | `4`     | how long a VM started with `exec_destroy_delayed` outlives its pipeline |
+| `VM_SWEEP_GRACE_HOURS`   | `1`     | a VM younger than this is never touched                                 |
+| `VM_SWEEP_MAX_AGE_HOURS` | `12`    | age at which a VM with no pipeline to ask is deleted                    |

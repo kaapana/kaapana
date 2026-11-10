@@ -4,9 +4,9 @@ description: Launches a new Jupyterlab notebook
 name: jupyterlab-chart
 version: "0.0.0"
 keywords:
-- kaapanaapplication
-- kaapanaint
-- kaapanamultiinstallable
+  - kaapanaapplication
+  - kaapanaint
+  - kaapanamultiinstallable
 annotations:
   documentation: "user_guide/extensions.html#jupyterlab"
   ui-visible-name: "Jupyterlab Notebook"

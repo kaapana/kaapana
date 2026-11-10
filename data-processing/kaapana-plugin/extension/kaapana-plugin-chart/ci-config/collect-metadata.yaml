@@ -3,7 +3,7 @@ conf_data:
   workflow_form:
     single_execution: false
   data_form:
-    dataset_name: 
+    dataset_name:
       name: "test-CT"
       username: "kaapana"
       access_level: "project"
@@ -16,7 +16,7 @@ conf_data:
   workflow_form:
     single_execution: true
   data_form:
-    dataset_name: 
+    dataset_name:
       name: "test-CT"
       username: "kaapana"
       access_level: "project"

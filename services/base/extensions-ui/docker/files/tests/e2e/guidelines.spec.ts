@@ -17,12 +17,16 @@ test.describe('actions requiring confirmation', () => {
 
     // What will happen, to which version, where, and what follows.
     await expect(confirm).toContainText('Uninstall "MITK Workbench"?')
-    await expect(confirm).toContainText('This extension (version 1.0.0) is removed from the platform')
+    await expect(confirm).toContainText(
+      'This extension (version 1.0.0) is removed from the platform',
+    )
     await expect(confirm).toContainText('can be installed again')
     // "Give initial focus to the safe action" — Enter must never delete.
     await expect(confirm.getByRole('button', { name: 'Cancel' })).toBeFocused()
     // Emphasis is carried by colour; the card action row renders text buttons.
-    await expect(confirm.getByRole('button', { name: 'Uninstall extension' })).toHaveClass(/text-error/)
+    await expect(confirm.getByRole('button', { name: 'Uninstall extension' })).toHaveClass(
+      /text-error/,
+    )
   })
 
   test('a high-impact action confirms with primary emphasis and states its cost', async ({
@@ -84,8 +88,12 @@ test.describe('accessibility', () => {
     )
     const mitk = row(page, 'MITK Workbench')
     // The <input> is what a keyboard user lands on, so that is what needs the name.
-    await expect(mitk.locator('input[role="combobox"]')).toHaveAccessibleName('Version of MITK Workbench')
-    await expect(mitk.getByRole('link', { name: 'Documentation for MITK Workbench (opens in a new tab)' })).toBeVisible()
+    await expect(mitk.locator('input[role="combobox"]')).toHaveAccessibleName(
+      'Version of MITK Workbench',
+    )
+    await expect(
+      mitk.getByRole('link', { name: 'Documentation for MITK Workbench (opens in a new tab)' }),
+    ).toBeVisible()
     await expect(mitk.getByRole('link', { name: 'Open MITK Workbench in a new tab' })).toBeVisible()
   })
 

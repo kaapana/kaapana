@@ -86,14 +86,7 @@ all:
         docker_volumes: ["/cache", "/data:/data"]
 
       universal:
-        tags:
-          [
-            "universal",
-            "build",
-            "tests",            
-            "deploy",
-            "security",
-          ]
+        tags: ["universal", "build", "tests", "deploy", "security"]
         maximum_timeout: 28800
         limit: 8
         request_concurrency: 8
@@ -110,14 +103,14 @@ all:
           memory_guest: "128Gi"
           disk_size: "512Gi"
           runners: [universal]
-        
+
         kaapana-ci-02:
           vm_name: kaapana-ci-02
           cpu_cores: 64
           memory_guest: "128Gi"
           disk_size: "512Gi"
           runners: [universal]
-        
+
         kaapana-ci-03:
           vm_name: kaapana-ci-03
           cpu_cores: 64

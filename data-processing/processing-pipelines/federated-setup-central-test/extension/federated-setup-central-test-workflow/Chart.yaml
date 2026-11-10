@@ -5,7 +5,7 @@ description: Workflow to test the federated setup on a central instance
 name: federated-setup-central-test-workflow
 version: "0.0.0"
 keywords:
-- kaapanaworkflow
-- kaapanaexperimental
+  - kaapanaworkflow
+  - kaapanaexperimental
 annotations:
   ui-visible-name: "Test Federated Setup Central"

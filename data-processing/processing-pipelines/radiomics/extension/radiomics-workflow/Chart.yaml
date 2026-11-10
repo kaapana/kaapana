@@ -5,7 +5,7 @@ description: "Calculate radiomics features from DICOM Segmentation objects"
 name: radiomics-workflow
 version: "0.0.0"
 keywords:
-- kaapanaworkflow
+  - kaapanaworkflow
 annotations:
   documentation: "user_guide/extensions.html#radiomics-radiomics-dcmseg"
   ui-visible-name: "Radiomics"

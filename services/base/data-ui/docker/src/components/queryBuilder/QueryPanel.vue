@@ -101,7 +101,11 @@ function focusComposer() {
   })
 }
 
-const { clipboardSupported, copyQuery: copyActiveQuery, pasteQuery: pasteQueryFromClipboard } = useQueryClipboard({
+const {
+  clipboardSupported,
+  copyQuery: copyActiveQuery,
+  pasteQuery: pasteQueryFromClipboard,
+} = useQueryClipboard({
   getCurrentQuery: () => activeQuery.value ?? chipBuilderRef.value?.exportQuery() ?? null,
   applyParsedQuery: (node) => applyAndRunExternalQuery(node),
   showMessage: showPanelMessage,
@@ -124,7 +128,7 @@ watch(
     }
     loadQuerySilently(normalized)
   },
-  { immediate: true, deep: true }
+  { immediate: true, deep: true },
 )
 
 watch(chipBuilderRef, (instance) => {
@@ -152,22 +156,19 @@ function syncJsonEditorToChips(): boolean {
   return true
 }
 
-watch(
-  builderMode,
-  (mode, previousMode) => {
-    if (mode === 'json') {
-      const snapshot = chipBuilderRef.value?.exportQuery() ?? null
-      activeQuery.value = snapshot
-      return
-    }
-    if (mode === 'chips' && previousMode === 'json') {
-      const synced = syncJsonEditorToChips()
-      if (!synced) {
-        builderMode.value = 'json'
-      }
+watch(builderMode, (mode, previousMode) => {
+  if (mode === 'json') {
+    const snapshot = chipBuilderRef.value?.exportQuery() ?? null
+    activeQuery.value = snapshot
+    return
+  }
+  if (mode === 'chips' && previousMode === 'json') {
+    const synced = syncJsonEditorToChips()
+    if (!synced) {
+      builderMode.value = 'json'
     }
   }
-)
+})
 
 function handleJsonRun(payload: QueryNode) {
   applyAndRunExternalQuery(payload)
@@ -180,7 +181,10 @@ function handleJsonClear() {
 
 <template>
   <v-card variant="tonal">
-    <v-card-title class="query-panel__header query-panel__header--clickable" @click="toggleExpanded()">
+    <v-card-title
+      class="query-panel__header query-panel__header--clickable"
+      @click="toggleExpanded()"
+    >
       <div class="d-flex align-center gap-2">
         <v-icon>mdi-filter-outline</v-icon>
         <div class="ml-2">
@@ -189,13 +193,23 @@ function handleJsonClear() {
         </div>
       </div>
       <div class="query-panel__header-actions" @click.stop>
-        <v-btn variant="text" density="comfortable" size="small" class="mr-1" @click.stop="toggleOverviewPanel">
-          <v-icon start>{{ props.showOverview ? 'mdi-eye-off' : 'mdi-information-outline' }}</v-icon>
+        <v-btn
+          variant="text"
+          density="comfortable"
+          size="small"
+          class="mr-1"
+          @click.stop="toggleOverviewPanel"
+        >
+          <v-icon start>{{
+            props.showOverview ? 'mdi-eye-off' : 'mdi-information-outline'
+          }}</v-icon>
           {{ props.showOverview ? 'Hide info' : 'More info' }}
         </v-btn>
         <v-tooltip
           v-if="props.hasStoredQuery"
-          :text="props.queryActive ? 'Deactivate query (show all entities)' : 'Activate stored query'"
+          :text="
+            props.queryActive ? 'Deactivate query (show all entities)' : 'Activate stored query'
+          "
           location="bottom"
         >
           <template #activator="{ props: tooltipProps }">
@@ -223,7 +237,13 @@ function handleJsonClear() {
         <v-divider />
         <v-card-text class="query-panel__body">
           <div class="builder-toolbar">
-            <v-btn-toggle v-model="builderMode" density="compact" mandatory variant="outlined" divided>
+            <v-btn-toggle
+              v-model="builderMode"
+              density="compact"
+              mandatory
+              variant="outlined"
+              divided
+            >
               <v-btn value="chips" size="small">
                 <v-icon start size="small">mdi-format-list-bulleted</v-icon>
                 Visual
@@ -294,7 +314,13 @@ function handleJsonClear() {
       </div>
     </v-expand-transition>
   </v-card>
-  <v-snackbar v-model="panelSnackbar" :color="panelColor" timeout="2500" location="bottom" variant="tonal">
+  <v-snackbar
+    v-model="panelSnackbar"
+    :color="panelColor"
+    timeout="2500"
+    location="bottom"
+    variant="tonal"
+  >
     {{ panelMessage }}
   </v-snackbar>
 </template>

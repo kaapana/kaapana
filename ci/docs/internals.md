@@ -3,7 +3,7 @@
 What the pipeline is made of, how the pieces hand work to each other, and what
 to touch when you extend it.
 
-Starting a run and configuring one: [ci/README.md](../README.md). 
+Starting a run and configuring one: [ci/README.md](../README.md).
 
 Running jobs
 or the deployment on your own machine: [local-ci.md](local-ci.md).
@@ -13,16 +13,16 @@ or the deployment on your own machine: [local-ci.md](local-ci.md).
 Test the code → build the platform images → deploy them on a fresh throwaway VM
 → test that live deployment → delete the VM.
 
-| Stage | Jobs | Runs on | Duration |
-|---|---|---|---|
-| `preflight` | `preflight_variables`, `preflight_target`, `build_ci_image` | tests / build runner | seconds |
-| `unittest` | the service matrix, the library and UI suites, docs build, lint | tests runner | minutes |
-| `build` | `build_packages` | build runner | hours (much less with a warm cache) |
-| `security` | `security_scan` | security runner | hours |
-| `deploy` | `prepare_deployment` → `server_installation` → `platform_deployment` | deploy runner, ansible over SSH | ~1 h |
-| `integrationtest` | `setup_integration_tests`, `scan_ports`, `first_login`, `install_extensions`, `send_data`, `run_workflows`, `playwright_ui_tests` | deploy runner, against the live platform | 1–3 h |
-| `maintenance` | `sweep_deployment_vms`, only with `exec_vm_sweep` | deploy runner | minutes |
-| `clean` | `destroy_deployment`, `if_ci_failing` | deploy runner | minutes |
+| Stage             | Jobs                                                                                                                              | Runs on                                  | Duration                            |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | ----------------------------------- |
+| `preflight`       | `preflight_variables`, `preflight_target`, `build_ci_image`                                                                       | tests / build runner                     | seconds                             |
+| `unittest`        | the service matrix, the library and UI suites, docs build, lint                                                                   | tests runner                             | minutes                             |
+| `build`           | `build_packages`                                                                                                                  | build runner                             | hours (much less with a warm cache) |
+| `security`        | `security_scan`                                                                                                                   | security runner                          | hours                               |
+| `deploy`          | `prepare_deployment` → `server_installation` → `platform_deployment`                                                              | deploy runner, ansible over SSH          | ~1 h                                |
+| `integrationtest` | `setup_integration_tests`, `scan_ports`, `first_login`, `install_extensions`, `send_data`, `run_workflows`, `playwright_ui_tests` | deploy runner, against the live platform | 1–3 h                               |
+| `maintenance`     | `sweep_deployment_vms`, only with `exec_vm_sweep`                                                                                 | deploy runner                            | minutes                             |
+| `clean`           | `destroy_deployment`, `if_ci_failing`                                                                                             | deploy runner                            | minutes                             |
 
 Three properties the design leans on:
 
@@ -49,7 +49,6 @@ Each stage file under [`ci/pipeline/`](../pipeline/) declares its own
 substitution, not a variable: it resolves when the pipeline is created, so it
 works in `rules:` and `tags:`, where a variable would not.
 
-
 ## Stage by stage
 
 Every stage file opens with a header stating what the stage takes in and hands
@@ -59,7 +58,7 @@ out. An MR that adds a dependency between stages extends that header.
 
 `preflight_variables` runs on every pipeline, needs no checkout
 (`GIT_STRATEGY: none`) and fails in seconds naming what is missing. It checks
-only what the *enabled* stages need, and prints variable names, never values.
+only what the _enabled_ stages need, and prints variable names, never values.
 Beyond emptiness it catches:
 
 - `CI_REGISTRY_USER` equal to `gitlab-ci-token` — the project variable was
@@ -85,7 +84,7 @@ Around twenty jobs extending `.test_template`: `python:3.12`, a **5-minute
 timeout**, and a shared pip cache (`key: pip-test-jobs`).
 
 `build_documentation` uploads the built HTML and its log. `check_readthedocs`
-runs only on scheduled `develop` pipelines. 
+runs only on scheduled `develop` pipelines.
 
 `format`, `validate` and `lint` are matrices over `LINTER` on `ci-base`. Each entry runs
 `ci/ci-code/lint/${LINTER}_lint.sh <job>`: `format` fails on formatting drift, `validate` on
@@ -125,13 +124,13 @@ Its flags come from `CI_EXEC_SECURITY_SCAN_ARGUMENTS`, and it reads
 The trivy DB is cached per runner (`key: trivy-db`). Reports land in `reports/`
 and are kept forever:
 
-| File | Produced when |
-|---|---|
-| `consolidated_vulnerability_scan.json` | `--vulnerability-scan` / `--offline-packages-scan` |
-| `interactive_report.html` | same |
-| `gl-container-scanning-report.json` | same — this is what GitLab's security widget reads |
-| `consolidated_misconfiguration_check.json` | `--configuration-check` |
-| `consolidated_sbom.json` | `--create-sboms` |
+| File                                       | Produced when                                      |
+| ------------------------------------------ | -------------------------------------------------- |
+| `consolidated_vulnerability_scan.json`     | `--vulnerability-scan` / `--offline-packages-scan` |
+| `interactive_report.html`                  | same                                               |
+| `gl-container-scanning-report.json`        | same — this is what GitLab's security widget reads |
+| `consolidated_misconfiguration_check.json` | `--configuration-check`                            |
+| `consolidated_sbom.json`                   | `--create-sboms`                                   |
 
 The consolidated JSON is fetchable straight from the artifacts API, e.g. for a dashboard polling nightly run:
 
@@ -178,13 +177,13 @@ passes it on as a dotenv artifact. Everything after it extends
 (the dependencies are already baked into `ci-base`, so only the current code is
 registered), then pytest against `--host $VM_FQDN`.
 
-| Job | Notes |
-|---|---|
-| `scan_ports` | nmap top-10 ports plus the allowed ports on the target VM; `--allowed-ports 22,80,443,11112` |
-| `first_login` | Keycloak login; admin password change; the rest of the chain assumes it worked |
-| `install_extensions` | 4 xdist workers, `retry: 2` |
-| `send_data` | DICOM upload, serial (`PYTEST_WORKERS: 0`), `retry: 2`; test data cached in `/data` on the deploy runner |
-| `run_workflows` | 2-hour timeout, `allow_failure: true`, `PYTEST_DIST: loadgroup` ([below](#workflow-testcases-ci-config)) |
+| Job                   | Notes                                                                                                                            |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `scan_ports`          | nmap top-10 ports plus the allowed ports on the target VM; `--allowed-ports 22,80,443,11112`                                     |
+| `first_login`         | Keycloak login; admin password change; the rest of the chain assumes it worked                                                   |
+| `install_extensions`  | 4 xdist workers, `retry: 2`                                                                                                      |
+| `send_data`           | DICOM upload, serial (`PYTEST_WORKERS: 0`), `retry: 2`; test data cached in `/data` on the deploy runner                         |
+| `run_workflows`       | 2-hour timeout, `allow_failure: true`, `PYTEST_DIST: loadgroup` ([below](#workflow-testcases-ci-config))                         |
 | `playwright_ui_tests` | node + chromium from `ci-base`, one worker, `auth-setup` and `project-management` projects; publishes the Playwright HTML report |
 
 `exec_integration_test_jobs` narrows this set. Each job carries a rule that
@@ -253,30 +252,30 @@ otherwise always. A failing run skips the delayed job, because a job it needs
 failed, and leaves the VM to [the sweep](#maintenance).
 
 `if_ci_failing` runs on `develop` failures only (never for FQDN targets). It
-needs *every* job in the pipeline, because `when: on_failure` watches only the
+needs _every_ job in the pipeline, because `when: on_failure` watches only the
 jobs it needs. `artifacts: true` marks the jobs whose logs are attached to the
 ticket it opens — never set that on a job whose artifacts contain secrets. It
 then posts to Slack.
 
 ## What passes between jobs
 
-| Handoff | Carrier |
-|---|---|
-| built images and charts | the registry, tagged with `git describe` of the commit |
-| where the test system is | `artifacts/deployment.env` (dotenv: `VM_FQDN`, `VM_USER`, `VERSION_TAG`), with `DEPLOYMENT_INSTANCE_*` as the fallback when `prepare_deployment` did not run |
-| platform credentials | `artifacts/integration_test_setup.env` (dotenv: `CLIENT_SECRET`) |
-| platform state | nothing but `needs:` order along `first_login` → `install_extensions` → `send_data` → `run_workflows` |
-| "everything that used the VM is done" | `destroy_deployment`'s `needs:` list |
+| Handoff                               | Carrier                                                                                                                                                      |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| built images and charts               | the registry, tagged with `git describe` of the commit                                                                                                       |
+| where the test system is              | `artifacts/deployment.env` (dotenv: `VM_FQDN`, `VM_USER`, `VERSION_TAG`), with `DEPLOYMENT_INSTANCE_*` as the fallback when `prepare_deployment` did not run |
+| platform credentials                  | `artifacts/integration_test_setup.env` (dotenv: `CLIENT_SECRET`)                                                                                             |
+| platform state                        | nothing but `needs:` order along `first_login` → `install_extensions` → `send_data` → `run_workflows`                                                        |
+| "everything that used the VM is done" | `destroy_deployment`'s `needs:` list                                                                                                                         |
 
 ## Templates
 
-| Template | Carries |
-|---|---|
-| `.test_template` | unittest-stage runner tag, `python:3.12`, 5-minute timeout, pip cache, the `exec_unit_tests` rule |
-| `.pytest_template` | plus the cobertura coverage report |
-| `.build_cli_env` | build runner tag, `ci-base`, `environment: $REGISTRY_ENV`, full clone with tags, branch reconstruction |
-| `.remote_execution_template` | deploy runner tag, `ci-base`, ansible env, SSH key permissions |
-| `.integration_test_local` | the pytest invocation, `needs:` on the setup job, JUnit + log artifacts |
+| Template                     | Carries                                                                                                |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `.test_template`             | unittest-stage runner tag, `python:3.12`, 5-minute timeout, pip cache, the `exec_unit_tests` rule      |
+| `.pytest_template`           | plus the cobertura coverage report                                                                     |
+| `.build_cli_env`             | build runner tag, `ci-base`, `environment: $REGISTRY_ENV`, full clone with tags, branch reconstruction |
+| `.remote_execution_template` | deploy runner tag, `ci-base`, ansible env, SSH key permissions                                         |
+| `.integration_test_local`    | the pytest invocation, `needs:` on the setup job, JUnit + log artifacts                                |
 
 ## Runners
 
@@ -297,7 +296,7 @@ Python test dependencies.
 ## Registries
 
 Each registry has its own `CI_REGISTRY_URL` / `CI_REGISTRY_USER` /
-`CI_REGISTRY_TOKEN` rows, stored under an environment *scope*
+`CI_REGISTRY_TOKEN` rows, stored under an environment _scope_
 (`DKFZ_CONTAINER_REGISTRY`, `HIFIS_CONTAINER_REGISTRY`). Jobs declare
 `environment: name: $REGISTRY_ENV`, so GitLab hands them the rows of that scope.
 
@@ -316,17 +315,22 @@ Switching registry is two steps:
 Runners pull the job image with this, before any job script runs:
 
 ```json
-{"auths":{"registry-1":{"auth":"<base64 user:token>"},"registry-2":{"auth":"<base64 user:token>"}}}
+{
+  "auths": {
+    "registry-1": { "auth": "<base64 user:token>" },
+    "registry-2": { "auth": "<base64 user:token>" }
+  }
+}
 ```
 
 Keep an entry for every registry in rotation, so switching never breaks image
 pulls. Each token must be a deploy token with `read_registry` on the GitLab
 instance that owns that registry.
 
-| Symptom | Cause |
-|---|---|
-| Job dies in *prepare* with `failed to pull image … access forbidden`, and no `Authenticating with credentials from $DOCKER_AUTH_CONFIG` in the log | No entry for that host |
-| `Login Succeeded`, then `denied` on push | docker ≥ 28 also reads `DOCKER_AUTH_CONFIG` from the job environment, where it overrides `docker login`. Pushing jobs must `unset DOCKER_AUTH_CONFIG` first |
+| Symptom                                                                                                                                            | Cause                                                                                                                                                       |
+| -------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Job dies in _prepare_ with `failed to pull image … access forbidden`, and no `Authenticating with credentials from $DOCKER_AUTH_CONFIG` in the log | No entry for that host                                                                                                                                      |
+| `Login Succeeded`, then `denied` on push                                                                                                           | docker ≥ 28 also reads `DOCKER_AUTH_CONFIG` from the job environment, where it overrides `docker login`. Pushing jobs must `unset DOCKER_AUTH_CONFIG` first |
 
 ## The DKFZ proxy
 
@@ -353,14 +357,14 @@ as one testcase: the document is the payload for
 workflow reaches a successful state. Three fields steer the CI and never reach
 the platform:
 
-| Field | Meaning |
-|---|---|
-| `ci_step: <name>` | the handle of this testcase, what a `ci_after` points at. Unique across all collected files, and only needed on a testcase something else depends on |
-| `ci_after: [<name>, …]` | this testcase runs only after those testcases, on the same worker |
-| `ci_ignore: true` | collect but do not run. Reported as passed, so it is not usable as a prerequisite |
+| Field                   | Meaning                                                                                                                                              |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ci_step: <name>`       | the handle of this testcase, what a `ci_after` points at. Unique across all collected files, and only needed on a testcase something else depends on |
+| `ci_after: [<name>, …]` | this testcase runs only after those testcases, on the same worker                                                                                    |
+| `ci_ignore: true`       | collect but do not run. Reported as passed, so it is not usable as a prerequisite                                                                    |
 
 **Everything is parallel by default.** A testcase without `ci_after` forms a group
-of its own, so the workers distribute them freely. Documents of one file are *not*
+of its own, so the workers distribute them freely. Documents of one file are _not_
 a sequence: several documents usually mean parameter variants, and those must
 stay independent.
 
@@ -423,12 +427,12 @@ pytest -s ci/ci-code/integration_tests/tests/test_run_workflows.py \
 
 Four report types are wired up. Only GitLab reads them; no job does.
 
-| Report | Produced by | Where it shows |
-|---|---|---|
-| JUnit | every pytest job, `ui_e2e_tests`, `ui_unit_tests`, `playwright_ui_tests` | pipeline **Tests** tab, failed-test summary in the MR |
-| Coverage (cobertura) | the pytest jobs that pass `--cov` | coverage badge, line markers in the MR diff |
-| Code Quality | every `lint` matrix entry | MR **Code Quality** widget |
-| Container scanning | `security_scan` | MR security widget, vulnerability report |
+| Report               | Produced by                                                              | Where it shows                                        |
+| -------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------- |
+| JUnit                | every pytest job, `ui_e2e_tests`, `ui_unit_tests`, `playwright_ui_tests` | pipeline **Tests** tab, failed-test summary in the MR |
+| Coverage (cobertura) | the pytest jobs that pass `--cov`                                        | coverage badge, line markers in the MR diff           |
+| Code Quality         | every `lint` matrix entry                                                | MR **Code Quality** widget                            |
+| Container scanning   | `security_scan`                                                          | MR security widget, vulnerability report              |
 
 Coverage is per suite — each job measures the one directory it exercises, and
 GitLab merges the reports for the diff view.
@@ -479,11 +483,11 @@ job installs that one file and nothing else, in particular not the
 Take the cheapest level that reaches the behaviour under test, and start from
 the suite that already works that way:
 
-| Level | Use when | Start from |
-|---|---|---|
-| plain pytest | the logic is reachable without a request | [dicom-web-filter](../../services/data-separation/dicom-web-filter/docker/files/tests/test_scope.py) |
-| [`TestClient`](https://fastapi.tiangolo.com/tutorial/testing/) | a route whose database dependency can be faked | [notification-service](../../services/base/notification-service/docker/files/tests/test_read_all.py) |
-| [`AsyncClient`](https://fastapi.tiangolo.com/advanced/async-tests/) on SQLite in memory | a route that needs real database behaviour | [workflow-api](../../services/base/workflow-api/docker/files/tests/unit/conftest.py) |
+| Level                                                                                   | Use when                                       | Start from                                                                                           |
+| --------------------------------------------------------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| plain pytest                                                                            | the logic is reachable without a request       | [dicom-web-filter](../../services/data-separation/dicom-web-filter/docker/files/tests/test_scope.py) |
+| [`TestClient`](https://fastapi.tiangolo.com/tutorial/testing/)                          | a route whose database dependency can be faked | [notification-service](../../services/base/notification-service/docker/files/tests/test_read_all.py) |
+| [`AsyncClient`](https://fastapi.tiangolo.com/advanced/async-tests/) on SQLite in memory | a route that needs real database behaviour     | [workflow-api](../../services/base/workflow-api/docker/files/tests/unit/conftest.py)                 |
 
 ### The job
 
@@ -498,8 +502,8 @@ used as a starting point:
   script:
     - pip install -r $KAAPANA_DIR/<suite>/requirements.txt
     - pytest $KAAPANA_DIR/<suite> --junitxml=<name>_report.xml
-        --cov=<the app directory this suite exercises>
-        --cov-report=term --cov-report=xml:coverage.xml
+      --cov=<the app directory this suite exercises>
+      --cov-report=term --cov-report=xml:coverage.xml
   artifacts:
     reports:
       junit:
@@ -536,21 +540,21 @@ its own means the layout differs, and that job says how. For everything else:
 
 All are project variables (Settings > CI/CD > Variables), masked, unless noted.
 
-| Variable | Used by | What it is |
-|---|---|---|
-| `CI_REGISTRY_TOKEN` | `build_packages`, `build_ci_image`, deploy, security scan (as `REGISTRY_TOKEN`) | Registry push/pull token. Scoped by `REGISTRY_ENV`. See [Registries](#registries) |
-| `RELEASE_REGISTRY_TOKEN` | `build_packages` on release tags (as `REGISTRY_TOKEN`) | Release registry token. Protected, release tag pipelines only |
-| `DOCKER_AUTH_CONFIG` | runners, for pulling job images | Docker auth JSON with a `read_registry` deploy token per registry host. See [`DOCKER_AUTH_CONFIG`](#docker_auth_config) |
-| `DOCKER_IO_PASSWORD` | `build_packages`, server installation | docker.io login, avoids pull rate limits. Optional, paired with `DOCKER_IO_USER` |
-| `GITLAB_API_TOKEN` | `if_ci_failing` (issues, Slack links), runner management ([ci-fleet-setup.md](ci-fleet-setup.md)) | GitLab API token. **Currently not its own variable:** `.gitlab-ci.yml` aliases it to `CI_REGISTRY_TOKEN`. A same-named project variable overrides the alias |
-| `GITLAB_READ_API_TOKEN` | `sweep_deployment_vms` | Project access token, scope `read_api`, role Reporter |
-| `AI_REVIEW_GITLAB_TOKEN` | `mr_review`, `mr_review_rerun` | Project access token `AI Review`, scope `api`, role Reporter, expires 2027-09-25. See [review](#review) |
-| `BLABLADOR_API_TOKEN` | `mr_review`, `mr_review_rerun`, `if_ci_failing` | Blablador (FZ Jülich LLM API) key |
-| `SLACK_BOT_TOKEN` | `if_ci_failing` | Slack bot token for failure notifications |
-| `KAAPANA_READTHEDOCS_TOKEN` | `check_readthedocs` | ReadTheDocs API token |
-| `DEPLOYMENT_INSTANCE_SSH_KEY` | preflight, deploy, integration tests | File-type. SSH private key for the deployment target |
-| `HARVESTER_KUBECONFIG` | deploy, `destroy_deployment`, `sweep_deployment_vms` | File-type. Harvester access, needed when `DEPLOYMENT_INSTANCE_FQDN` is empty |
-| `CLIENT_SECRET` | integration tests | Not a project variable. `setup_integration_tests` reads it from the deployed platform and passes it on in a dotenv artifact |
+| Variable                      | Used by                                                                                           | What it is                                                                                                                                                  |
+| ----------------------------- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CI_REGISTRY_TOKEN`           | `build_packages`, `build_ci_image`, deploy, security scan (as `REGISTRY_TOKEN`)                   | Registry push/pull token. Scoped by `REGISTRY_ENV`. See [Registries](#registries)                                                                           |
+| `RELEASE_REGISTRY_TOKEN`      | `build_packages` on release tags (as `REGISTRY_TOKEN`)                                            | Release registry token. Protected, release tag pipelines only                                                                                               |
+| `DOCKER_AUTH_CONFIG`          | runners, for pulling job images                                                                   | Docker auth JSON with a `read_registry` deploy token per registry host. See [`DOCKER_AUTH_CONFIG`](#docker_auth_config)                                     |
+| `DOCKER_IO_PASSWORD`          | `build_packages`, server installation                                                             | docker.io login, avoids pull rate limits. Optional, paired with `DOCKER_IO_USER`                                                                            |
+| `GITLAB_API_TOKEN`            | `if_ci_failing` (issues, Slack links), runner management ([ci-fleet-setup.md](ci-fleet-setup.md)) | GitLab API token. **Currently not its own variable:** `.gitlab-ci.yml` aliases it to `CI_REGISTRY_TOKEN`. A same-named project variable overrides the alias |
+| `GITLAB_READ_API_TOKEN`       | `sweep_deployment_vms`                                                                            | Project access token, scope `read_api`, role Reporter                                                                                                       |
+| `AI_REVIEW_GITLAB_TOKEN`      | `mr_review`, `mr_review_rerun`                                                                    | Project access token `AI Review`, scope `api`, role Reporter, expires 2027-09-25. See [review](#review)                                                     |
+| `BLABLADOR_API_TOKEN`         | `mr_review`, `mr_review_rerun`, `if_ci_failing`                                                   | Blablador (FZ Jülich LLM API) key                                                                                                                           |
+| `SLACK_BOT_TOKEN`             | `if_ci_failing`                                                                                   | Slack bot token for failure notifications                                                                                                                   |
+| `KAAPANA_READTHEDOCS_TOKEN`   | `check_readthedocs`                                                                               | ReadTheDocs API token                                                                                                                                       |
+| `DEPLOYMENT_INSTANCE_SSH_KEY` | preflight, deploy, integration tests                                                              | File-type. SSH private key for the deployment target                                                                                                        |
+| `HARVESTER_KUBECONFIG`        | deploy, `destroy_deployment`, `sweep_deployment_vms`                                              | File-type. Harvester access, needed when `DEPLOYMENT_INSTANCE_FQDN` is empty                                                                                |
+| `CLIENT_SECRET`               | integration tests                                                                                 | Not a project variable. `setup_integration_tests` reads it from the deployed platform and passes it on in a dotenv artifact                                 |
 
 When you recreate a token, update its row here.
 

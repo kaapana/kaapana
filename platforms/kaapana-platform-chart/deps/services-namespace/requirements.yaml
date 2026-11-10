@@ -43,7 +43,7 @@ dependencies:
     version: 0.0.0
   - name: extensions-ui
     version: 0.0.0
-# MONITORING
+  # MONITORING
   - name: prometheus-chart
     version: 0.0.0
   - name: alertmanager-chart

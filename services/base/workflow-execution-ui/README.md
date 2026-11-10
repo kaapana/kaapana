@@ -73,19 +73,19 @@ schemas:
 All runtime calls go through `@kaapana/base-ui` `kaapanaApiService` / `httpClient`.
 Calls matching `^/(kaapana-backend|kube-helm-api|workflow-api|dicom-web-filter)/`
 are **rewritten to `/project/<short_id>/…` by the shared httpClient interceptor**
-(marked *scoped* below); the `<short_id>` comes from the document URL. **There is
+(marked _scoped_ below); the `<short_id>` comes from the document URL. **There is
 no project store in this app** — the URL prefix is the only project input.
 
-| Method | Path | Purpose | Scoped |
-| --- | --- | --- | --- |
-| POST | `/kaapana-backend/client/get-kaapana-instances` (bare) | list runner instances at boot / on refresh | yes |
-| POST | `/kaapana-backend/client/get-kaapana-instances` `{dag_id}` | remote instances allowing an external DAG — **remote/federated branch only** (schema carries `external_schemas`) | yes |
-| POST | `/kaapana-backend/client/get-dags` `{instance_names, kind_of_dags}` | available DAGs for the selected instances | yes |
-| POST | `/kaapana-backend/client/get-ui-form-schemas` `{workflow_name, instance_names}` | per-DAG form schemas | yes |
-| POST | `/kaapana-backend/client/get-ui-form-schemas` `{workflow_name, dag_id, instance_names}` | external-DAG form schemas — **remote/federated branch only** | yes |
-| POST | `/kaapana-backend/client/workflow` `{workflow_name, dag_id, instance_names, conf_data, remote, federated}` | submit the workflow | yes |
-| GET | `/kaapana-backend<backend-route>[?prefix=<path>]` | `backend_form` file-tree root + lazy children (route comes from the schema) | yes |
-| GET | `/oauth2/userinfo` (prod) · `/jsons/testingAuthenticationToken.json` (dev fallback) | auth check, via `base-ui` `authService` / auth store | **no** (goes through the same client but doesn't match the scope regex) |
+| Method | Path                                                                                                       | Purpose                                                                                                          | Scoped                                                                  |
+| ------ | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| POST   | `/kaapana-backend/client/get-kaapana-instances` (bare)                                                     | list runner instances at boot / on refresh                                                                       | yes                                                                     |
+| POST   | `/kaapana-backend/client/get-kaapana-instances` `{dag_id}`                                                 | remote instances allowing an external DAG — **remote/federated branch only** (schema carries `external_schemas`) | yes                                                                     |
+| POST   | `/kaapana-backend/client/get-dags` `{instance_names, kind_of_dags}`                                        | available DAGs for the selected instances                                                                        | yes                                                                     |
+| POST   | `/kaapana-backend/client/get-ui-form-schemas` `{workflow_name, instance_names}`                            | per-DAG form schemas                                                                                             | yes                                                                     |
+| POST   | `/kaapana-backend/client/get-ui-form-schemas` `{workflow_name, dag_id, instance_names}`                    | external-DAG form schemas — **remote/federated branch only**                                                     | yes                                                                     |
+| POST   | `/kaapana-backend/client/workflow` `{workflow_name, dag_id, instance_names, conf_data, remote, federated}` | submit the workflow                                                                                              | yes                                                                     |
+| GET    | `/kaapana-backend<backend-route>[?prefix=<path>]`                                                          | `backend_form` file-tree root + lazy children (route comes from the schema)                                      | yes                                                                     |
+| GET    | `/oauth2/userinfo` (prod) · `/jsons/testingAuthenticationToken.json` (dev fallback)                        | auth check, via `base-ui` `authService` / auth store                                                             | **no** (goes through the same client but doesn't match the scope regex) |
 
 ## Development
 

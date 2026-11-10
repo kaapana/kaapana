@@ -57,12 +57,7 @@ function closePreview() {
           <td>{{ formatArtifactSize(artifact.sizeBytes) }}</td>
           <td>
             <div class="d-flex" style="gap: 8px">
-              <v-btn
-                variant="text"
-                size="small"
-                color="secondary"
-                @click="openPreview(artifact)"
-              >
+              <v-btn variant="text" size="small" color="secondary" @click="openPreview(artifact)">
                 <v-icon start>mdi-eye-outline</v-icon>
                 Preview
               </v-btn>
@@ -129,6 +124,8 @@ function closePreview() {
 }
 
 .artifact-table .font-mono {
-  font-family: 'Fira Code', 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-family:
+    'Fira Code', 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
 }
 </style>

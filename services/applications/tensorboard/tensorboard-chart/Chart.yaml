@@ -4,8 +4,8 @@ description: Launches a Tensorboard instance, which crawls for logs in Minio
 name: tensorboard-chart
 version: "0.0.0"
 keywords:
-- kaapanaapplication
-- kaapanamultiinstallable
+  - kaapanaapplication
+  - kaapanamultiinstallable
 annotations:
   documentation: "user_guide/extensions.html#tensorboard"
   ui-visible-name: "Tensorboard"

@@ -1,7 +1,7 @@
 # Kaapana Base Platform
 
-## Maintainer: 
+## Maintainer:
+
 - Kaapana Team @DKFZ
 
 ## Description:
-

@@ -69,7 +69,9 @@ test('nnunet "no models installed" (empty oneOf) renders the notice instead of b
   const pageErrors: string[] = []
   page.on('pageerror', (e) => pageErrors.push(String(e)))
   const consoleErrors: string[] = []
-  page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text()) })
+  page.on('console', (m) => {
+    if (m.type() === 'error') consoleErrors.push(m.text())
+  })
 
   await bootView(page, singleDagData('no-models', noModelsSchema))
   await selectDag(page, 'no-models')
@@ -92,7 +94,9 @@ test('empty upload list (empty enum) renders the field instead of failing schema
   const pageErrors: string[] = []
   page.on('pageerror', (e) => pageErrors.push(String(e)))
   const consoleErrors: string[] = []
-  page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text()) })
+  page.on('console', (m) => {
+    if (m.type() === 'error') consoleErrors.push(m.text())
+  })
 
   await bootView(page, singleDagData('empty-upload', emptyUploadSchema))
   await selectDag(page, 'empty-upload')

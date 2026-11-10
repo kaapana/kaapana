@@ -80,7 +80,7 @@ extension_params:
     type: "string"
     value: ""
     default: "1000"
-  
+
   gid:
     definition: "Group ID"
     help: >

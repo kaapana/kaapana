@@ -55,17 +55,17 @@ shared `httpClient` interceptor rewrites URLs matching
 only one **not** prefixed (its path does not match the regex). There is no
 project store and no `/aii` call.
 
-| Method | Path | Purpose | Project-prefixed |
-| --- | --- | --- | --- |
-| GET | `/kaapana-backend/client/workflows` | List workflows; body is the tuple `[rows, totalCount]`. Params `limit`, `offset`, `search`. Drives the table, polling, search, paging. | yes |
-| GET | `/kaapana-backend/client/jobs` | Jobs of a workflow. Called with `{workflow_name, status}` on expand / chip click, and `{workflow_name, limit:1}` as an existence check. | yes |
-| PUT | `/kaapana-backend/client/workflow` | Abort / restart / manual-start a workflow. Body `{workflow_id, workflow_status}` with status `abort` / `scheduled` / `confirmed`. | yes |
-| DELETE | `/kaapana-backend/client/workflow` | Delete a workflow (`{workflow_id}`). | yes |
-| PUT | `/kaapana-backend/client/job` | Abort / restart a single job. Body `{job_id, status, description}` with status `abort` / `scheduled`. | yes |
-| DELETE | `/kaapana-backend/client/job` | Delete a single job (`{job_id}`). | yes |
-| GET | `/kaapana-backend/client/get-job-taskinstances` | Task-instance states for a job (`{job_id}`); used to find the failed operator for the log link. | yes |
-| GET | `/kaapana-backend/client/check-for-remote-updates` | Manual sync with remote instances (`syncRemoteInstances`, sync button). | yes |
-| GET | `/oauth2/userinfo` (prod) / `/jsons/testingAuthenticationToken.json` (dev) | Auth check in the router guard before each navigation. Dev builds hit the static token file; prod builds hit the oauth2 proxy. | **no** |
+| Method | Path                                                                       | Purpose                                                                                                                                 | Project-prefixed |
+| ------ | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| GET    | `/kaapana-backend/client/workflows`                                        | List workflows; body is the tuple `[rows, totalCount]`. Params `limit`, `offset`, `search`. Drives the table, polling, search, paging.  | yes              |
+| GET    | `/kaapana-backend/client/jobs`                                             | Jobs of a workflow. Called with `{workflow_name, status}` on expand / chip click, and `{workflow_name, limit:1}` as an existence check. | yes              |
+| PUT    | `/kaapana-backend/client/workflow`                                         | Abort / restart / manual-start a workflow. Body `{workflow_id, workflow_status}` with status `abort` / `scheduled` / `confirmed`.       | yes              |
+| DELETE | `/kaapana-backend/client/workflow`                                         | Delete a workflow (`{workflow_id}`).                                                                                                    | yes              |
+| PUT    | `/kaapana-backend/client/job`                                              | Abort / restart a single job. Body `{job_id, status, description}` with status `abort` / `scheduled`.                                   | yes              |
+| DELETE | `/kaapana-backend/client/job`                                              | Delete a single job (`{job_id}`).                                                                                                       | yes              |
+| GET    | `/kaapana-backend/client/get-job-taskinstances`                            | Task-instance states for a job (`{job_id}`); used to find the failed operator for the log link.                                         | yes              |
+| GET    | `/kaapana-backend/client/check-for-remote-updates`                         | Manual sync with remote instances (`syncRemoteInstances`, sync button).                                                                 | yes              |
+| GET    | `/oauth2/userinfo` (prod) / `/jsons/testingAuthenticationToken.json` (dev) | Auth check in the router guard before each navigation. Dev builds hit the static token file; prod builds hit the oauth2 proxy.          | **no**           |
 
 The first `/workflows` load is not from `onMounted` (which only starts the 15 s
 interval); it is the `v-data-table-server`'s `@update:options` emit on mount →

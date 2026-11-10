@@ -29,8 +29,15 @@ export default defineConfig({
       // vjsf's CSS subpath is deliberately NOT externalized so it bundles into
       // workflowExecution.css.
       external: [
-        'vue', /^vue\//, 'vuetify', /^vuetify\//, 'axios', '@kyvg/vue3-notification', 'pinia',
-        '@koumoul/vjsf', '@koumoul/vjsf/compat/v2',
+        'vue',
+        /^vue\//,
+        'vuetify',
+        /^vuetify\//,
+        'axios',
+        '@kyvg/vue3-notification',
+        'pinia',
+        '@koumoul/vjsf',
+        '@koumoul/vjsf/compat/v2',
       ],
     },
   },

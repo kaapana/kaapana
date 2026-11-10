@@ -1,4 +1,4 @@
 ---
 global:
-    image: "dag-otsus-method"
-    action: "copy"
+  image: "dag-otsus-method"
+  action: "copy"

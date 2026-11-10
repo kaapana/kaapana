@@ -1,4 +1,4 @@
 ---
 global:
-    image: "kaapana-plugin"
-    action: "copy"
+  image: "kaapana-plugin"
+  action: "copy"

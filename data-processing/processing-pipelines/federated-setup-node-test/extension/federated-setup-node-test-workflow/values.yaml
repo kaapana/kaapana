@@ -1,4 +1,4 @@
 ---
 global:
-    image: "dag-federated-setup-node-test"
-    action: "copy"
+  image: "dag-federated-setup-node-test"
+  action: "copy"

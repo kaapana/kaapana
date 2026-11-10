@@ -4,7 +4,7 @@ description: Launches a collabora instance to edit documents and spreadsheets
 name: collabora-chart
 version: "0.0.0"
 keywords:
-- kaapanaapplication
+  - kaapanaapplication
 annotations:
   documentation: "user_guide/extensions.html#collabora"
   ui-visible-name: "Collabora"

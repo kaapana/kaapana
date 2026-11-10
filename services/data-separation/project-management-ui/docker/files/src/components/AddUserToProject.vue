@@ -36,7 +36,9 @@
               <template #prepend>
                 <v-icon :icon="kaapanaIcons.account" color="primary" />
               </template>
-              <v-list-item-title>{{ item.raw.first_name }} {{ item.raw.last_name }}</v-list-item-title>
+              <v-list-item-title
+                >{{ item.raw.first_name }} {{ item.raw.last_name }}</v-list-item-title
+              >
               <v-list-item-subtitle>
                 <span class="text-primary">@{{ item.raw.username }}</span>
                 <span v-if="item.raw.email" class="ml-2">{{ item.raw.email }}</span>
@@ -52,7 +54,7 @@
           :color="showSystemUsers ? 'warning' : 'medium-emphasis'"
           :prepend-icon="projectIcons.systemUsers"
           class="mb-2"
-          @click="showSystemUsers = !showSystemUsers; loadAvailableUsers()"
+          @click="toggleSystemUsers"
         >
           {{ showSystemUsers ? 'Hide system users' : 'Show system users' }}
         </v-btn>
@@ -66,7 +68,12 @@
       <!-- Role selector -->
       <p class="text-subtitle-2 font-weight-medium mb-2 mt-4">Project role</p>
       <v-item-group v-model="selectedRole" mandatory class="d-flex flex-column ga-2">
-        <v-item v-for="role in availableRoles" :key="role.name" :value="role.name" v-slot="{ isSelected, toggle }">
+        <v-item
+          v-for="role in availableRoles"
+          :key="role.name"
+          :value="role.name"
+          v-slot="{ isSelected, toggle }"
+        >
           <v-card
             :variant="isSelected ? 'tonal' : 'outlined'"
             :color="isSelected ? 'primary' : undefined"
@@ -74,7 +81,11 @@
             @click="toggle"
           >
             <v-card-text class="d-flex align-center ga-3 pa-4">
-              <v-icon :color="isSelected ? 'primary' : 'medium-emphasis'" :icon="roleIcon(role.name)" size="28" />
+              <v-icon
+                :color="isSelected ? 'primary' : 'medium-emphasis'"
+                :icon="roleIcon(role.name)"
+                size="28"
+              />
               <div class="flex-grow-1">
                 <div class="text-subtitle-2 font-weight-medium">{{ role.name }}</div>
                 <div class="text-body-2 text-medium-emphasis">{{ role.description }}</div>
@@ -101,7 +112,11 @@
       <v-spacer />
       <v-btn :disabled="isSubmitting" @click="emit('cancel')">Cancel</v-btn>
       <v-btn color="primary" :loading="isSubmitting" :disabled="!canSubmit" @click="onSubmit">
-        {{ isAddMode ? `Add ${selectedUserIds.length > 1 ? selectedUserIds.length + ' members' : 'member'}` : 'Save changes' }}
+        {{
+          isAddMode
+            ? `Add ${selectedUserIds.length > 1 ? selectedUserIds.length + ' members' : 'member'}`
+            : 'Save changes'
+        }}
       </v-btn>
     </v-card-actions>
   </v-card>
@@ -116,18 +131,25 @@ import { UserItem, UserRole } from '@/common/types'
 import { aiiApiGet, aiiApiPost, aiiApiPut } from '@/common/services'
 import { isAdminUser, isSystemUser, waitForStoreUser } from '@/common/userAccess'
 
-interface Role { id: number; name: string; description: string; }
+interface Role {
+  id: number
+  name: string
+  description: string
+}
 
 const roleIcon = (name: string) => roleIcons[name] ?? kaapanaIcons.account
 
-interface ProjectRef { id?: string; name?: string; }
+interface ProjectRef {
+  id?: string
+  name?: string
+}
 
 const props = defineProps<{
-  project: ProjectRef | null;
-  actionType: 'add' | 'update';
-  existingUserIds?: string[];
-  userToEdit?: UserItem & { role?: UserRole };
-}>();
+  project: ProjectRef | null
+  actionType: 'add' | 'update'
+  existingUserIds?: string[]
+  userToEdit?: UserItem & { role?: UserRole }
+}>()
 
 const emit = defineEmits<{
   (e: 'cancel'): void
@@ -135,10 +157,10 @@ const emit = defineEmits<{
   (e: 'update:dirty', dirty: boolean): void
 }>()
 
-const availableRoles = ref<Role[]>([]);
+const availableRoles = ref<Role[]>([])
 
-const isAdmin = ref(false);
-const showSystemUsers = ref(false);
+const isAdmin = ref(false)
+const showSystemUsers = ref(false)
 
 const availableUsers = ref<UserItem[]>([])
 const selectedUserIds = ref<string[]>([])
@@ -151,7 +173,7 @@ const failure = ref<{ title: string; text: string; error: unknown; retry?: () =>
   null,
 )
 
-const isAddMode = computed(() => props.actionType === 'add');
+const isAddMode = computed(() => props.actionType === 'add')
 
 watch(
   () => selectedUserIds.value.length > 0 || selectedRole.value !== initialRole,
@@ -171,15 +193,19 @@ const userSearchFilter = (_: string, query: string, item?: { raw: UserItem }) =>
     `${user.first_name} ${user.last_name}`,
   ]
     .filter(Boolean)
-    .some(f => f.toLowerCase().includes(q));
-};
+    .some((f) => f.toLowerCase().includes(q))
+}
 
-const canSubmit = computed(() => selectedRole.value && (isAddMode.value ? selectedUserIds.value.length > 0 : true));
+const canSubmit = computed(
+  () => selectedRole.value && (isAddMode.value ? selectedUserIds.value.length > 0 : true),
+)
 
 onMounted(async () => {
-  waitForStoreUser(user => { isAdmin.value = isAdminUser(user); });
-  await loadOptions();
-});
+  waitForStoreUser((user) => {
+    isAdmin.value = isAdminUser(user)
+  })
+  await loadOptions()
+})
 
 const loadOptions = async () => {
   failure.value = null
@@ -189,7 +215,7 @@ const loadOptions = async () => {
 
 const loadRoles = async () => {
   try {
-    availableRoles.value = await aiiApiGet('projects/roles');
+    availableRoles.value = await aiiApiGet('projects/roles')
   } catch (error) {
     failure.value = {
       title: 'Roles not loaded',
@@ -198,14 +224,21 @@ const loadRoles = async () => {
       retry: loadOptions,
     }
   }
-};
+}
+
+const toggleSystemUsers = () => {
+  showSystemUsers.value = !showSystemUsers.value
+  loadAvailableUsers()
+}
 
 const loadAvailableUsers = async () => {
-  if (!props.project?.id) return;
-  isLoadingAvailableUsers.value = true;
+  if (!props.project?.id) return
+  isLoadingAvailableUsers.value = true
   try {
-    const existingIds = new Set(props.existingUserIds ?? []);
-    availableUsers.value = (await aiiApiGet('users')).filter((u: UserItem) => !existingIds.has(u.id) && (showSystemUsers.value || !isSystemUser(u)));
+    const existingIds = new Set(props.existingUserIds ?? [])
+    availableUsers.value = (await aiiApiGet('users')).filter(
+      (u: UserItem) => !existingIds.has(u.id) && (showSystemUsers.value || !isSystemUser(u)),
+    )
   } catch (error) {
     failure.value = {
       title: 'Users not loaded',
@@ -214,9 +247,9 @@ const loadAvailableUsers = async () => {
       retry: loadOptions,
     }
   } finally {
-    isLoadingAvailableUsers.value = false;
+    isLoadingAvailableUsers.value = false
   }
-};
+}
 
 const onSubmit = async () => {
   validationError.value = ''
@@ -230,7 +263,7 @@ const onSubmit = async () => {
     return
   }
 
-  isSubmitting.value = true;
+  isSubmitting.value = true
   try {
     if (isAddMode.value) {
       await addUsersToProject()
@@ -246,7 +279,7 @@ const onSubmit = async () => {
         text: `@${props.userToEdit?.username} is now "${selectedRole.value}". The change applies within a few minutes.`,
       })
     }
-    emit('success');
+    emit('success')
   } catch (error) {
     failure.value = isAddMode.value
       ? {
@@ -256,9 +289,9 @@ const onSubmit = async () => {
         }
       : { title: 'Role not changed', text: 'Could not change the role.', error }
   } finally {
-    isSubmitting.value = false;
+    isSubmitting.value = false
   }
-};
+}
 
 const addUsersToProject = async () => {
   if (!props.project?.id) return
@@ -270,7 +303,9 @@ const addUsersToProject = async () => {
 }
 
 const updateUserRole = async () => {
-  if (!props.project?.id || !props.userToEdit) return;
-  await aiiApiPut(`projects/${props.project.id}/user/${props.userToEdit.id}/rolemapping`, { role_name: selectedRole.value });
-};
+  if (!props.project?.id || !props.userToEdit) return
+  await aiiApiPut(`projects/${props.project.id}/user/${props.userToEdit.id}/rolemapping`, {
+    role_name: selectedRole.value,
+  })
+}
 </script>

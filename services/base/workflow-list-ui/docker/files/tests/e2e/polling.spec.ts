@@ -15,8 +15,7 @@ test('auto-refreshes the workflow list on the polling interval', async ({ page }
   )
 
   const req = page.waitForRequest(
-    (r) =>
-      /\/kaapana-backend\/client\/workflows(\?|$)/.test(r.url()) && r.method() === 'GET',
+    (r) => /\/kaapana-backend\/client\/workflows(\?|$)/.test(r.url()) && r.method() === 'GET',
   )
   await page.clock.runFor(15_000)
   await req
@@ -39,8 +38,7 @@ test('the background poll refreshes without a success toast', async ({ page }) =
     w.workflow_name === 'running-wf' ? { ...w, workflow_name: 'polled-wf' } : w,
   )
   const req = page.waitForRequest(
-    (r) =>
-      /\/kaapana-backend\/client\/workflows(\?|$)/.test(r.url()) && r.method() === 'GET',
+    (r) => /\/kaapana-backend\/client\/workflows(\?|$)/.test(r.url()) && r.method() === 'GET',
   )
   await page.clock.runFor(15_000)
   await req

@@ -7,12 +7,7 @@ withDefaults(defineProps<{ iFrameUrl: string; width?: string; height?: string }>
 
 <template>
   <div class="kaapana-iframe-container">
-    <iframe
-      :width="width"
-      :height="height"
-      class="no-border"
-      :src="iFrameUrl"
-    ></iframe>
+    <iframe :width="width" :height="height" class="no-border" :src="iFrameUrl"></iframe>
   </div>
 </template>
 

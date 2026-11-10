@@ -41,7 +41,9 @@ test('an empty dataset shows no series and says the dataset is empty', async ({ 
     (req) => isSeriesListRequest(req) && (req.postData() ?? '').includes('"ids"'),
   )
   await selectDataset(page, 'empty-ds (project)')
-  expect((await scopedSeries).postDataJSON().query.bool.must).toContainEqual({ ids: { values: [] } })
+  expect((await scopedSeries).postDataJSON().query.bool.must).toContainEqual({
+    ids: { values: [] },
+  })
 
   await expect(page.getByText('This dataset contains no series yet')).toBeVisible()
   await expect(page.locator('.seriesCard')).toHaveCount(0)
@@ -70,7 +72,9 @@ test('a search that matches nothing inside a dataset is not "dataset empty"', as
   await expect(page.getByText('This dataset contains no series yet')).toHaveCount(0)
 })
 
-test('clearing the search inside a dataset searches once, without the dataset', async ({ page }) => {
+test('clearing the search inside a dataset searches once, without the dataset', async ({
+  page,
+}) => {
   await openGallery(page)
   await selectDataset(page, 'nsclc (project)')
   await expect(page.getByText('CT Thorax')).toBeVisible()
@@ -96,11 +100,16 @@ test('clearing the search inside a dataset searches once, without the dataset', 
 })
 
 // Until the dataset has loaded the gallery shows the previous results, so Remove waits.
-test('a selected dataset shows its progress, and Remove waits until it has loaded', async ({ page }) => {
+test('a selected dataset shows its progress, and Remove waits until it has loaded', async ({
+  page,
+}) => {
   await openGallery(page)
   await delayRoute(page, /\/client\/dataset\?/, 2_000, 'GET')
   await selectDataset(page, 'nsclc (project)')
-  const selectorProgress = page.locator('.v-autocomplete').first().locator('.v-progress-linear--active')
+  const selectorProgress = page
+    .locator('.v-autocomplete')
+    .first()
+    .locator('.v-progress-linear--active')
 
   await expect(page.getByText('CT Abdomen')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Loading the dataset…' })).toBeDisabled()
@@ -126,7 +135,9 @@ test('removing some series from a dataset lowers the result count', async ({ pag
 
 // The view pages with the last query, so the removal must replace it: a query
 // still listing the removed series brings them back on the next page.
-test('after removing series from a dataset, the next page no longer asks for them', async ({ page }) => {
+test('after removing series from a dataset, the next page no longer asks for them', async ({
+  page,
+}) => {
   const data = makeDefaultMockData()
   data.datasets.push({ ...data.datasets[0], name: 'all3', identifiers: [...data.seriesUids] })
   data.settings.datasets.itemsPerPagePagination = 1
@@ -222,7 +233,9 @@ test('a deep link with access_level=private selects the private dataset', async 
   await expect(page.getByText('CT Abdomen')).toBeVisible()
 })
 
-test('a name-only deep link prefers the project dataset, then the private one', async ({ page }) => {
+test('a name-only deep link prefers the project dataset, then the private one', async ({
+  page,
+}) => {
   const data = makeDefaultMockData()
   data.datasets.push({ ...data.datasets[1], name: 'nsclc' })
   await bootGallery(page, data, `${VIEW_PATH}?dataset_name=nsclc`)
@@ -447,7 +460,9 @@ test('Edit Datasets dialog shows a loading indicator while datasets load', async
   await expect(page.getByRole('cell', { name: 'nsclc', exact: true })).toBeVisible()
 })
 
-test('Manage datasets tells a failed load apart from an empty list, and retries', async ({ page }) => {
+test('Manage datasets tells a failed load apart from an empty list, and retries', async ({
+  page,
+}) => {
   await openGallery(page)
   let failing = true
   await page.route(DATASET_LIST, (r) => (failing ? r.fulfill(serverError('Boom')) : r.fallback()))
@@ -462,7 +477,9 @@ test('Manage datasets tells a failed load apart from an empty list, and retries'
   await expect(page.getByRole('cell', { name: 'nsclc', exact: true })).toBeVisible()
 })
 
-test('the dataset selector tells a failed load apart from an empty list, and retries', async ({ page }) => {
+test('the dataset selector tells a failed load apart from an empty list, and retries', async ({
+  page,
+}) => {
   let failing = true
   await bootGallery(page, makeDefaultMockData())
   await page.route(SELECTOR_LIST, (r) => (failing ? r.fulfill(serverError('Boom')) : r.fallback()))
@@ -470,7 +487,9 @@ test('the dataset selector tells a failed load apart from an empty list, and ret
   await expect(page.getByText('CT Thorax')).toBeVisible()
 
   await page.getByLabel('Select Dataset').first().click()
-  await expect(page.getByText('The datasets could not be loaded. Reopen this list to try again.')).toBeVisible()
+  await expect(
+    page.getByText('The datasets could not be loaded. Reopen this list to try again.'),
+  ).toBeVisible()
   await expect(page.getByText('No datasets in this project yet')).toHaveCount(0)
 
   failing = false

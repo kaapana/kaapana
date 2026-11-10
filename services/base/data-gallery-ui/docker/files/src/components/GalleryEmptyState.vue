@@ -89,11 +89,7 @@ const presentation = computed(() => {
         >
           {{ presentation.action }}
         </v-btn>
-        <v-btn
-          v-if="props.state === 'error'"
-          variant="text"
-          @click="emit('showDetails')"
-        >
+        <v-btn v-if="props.state === 'error'" variant="text" @click="emit('showDetails')">
           Details
         </v-btn>
       </template>

@@ -1,7 +1,15 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { computed, defineComponent, h, ref } from 'vue'
 import {
-  VBtn, VCard, VCardActions, VCardText, VCardTitle, VDialog, VSpacer, VTextField, VTextarea,
+  VBtn,
+  VCard,
+  VCardActions,
+  VCardText,
+  VCardTitle,
+  VDialog,
+  VSpacer,
+  VTextField,
+  VTextarea,
 } from 'vuetify/components'
 import { note } from './storyNote'
 
@@ -56,11 +64,17 @@ const DialogSizes = defineComponent({
             h(VCardTitle, null, { default: () => 'The three widths' }),
             h(VCardText, null, {
               default: () =>
-                h('div', { class: 'd-flex ga-2 flex-wrap' },
+                h(
+                  'div',
+                  { class: 'd-flex ga-2 flex-wrap' },
                   (Object.keys(sizes) as Size[]).map((key) =>
-                    h(VBtn, { key, onClick: () => show(key) }, {
-                      default: () => `${sizes[key].label} · ${sizes[key].width}`,
-                    }),
+                    h(
+                      VBtn,
+                      { key, onClick: () => show(key) },
+                      {
+                        default: () => `${sizes[key].label} · ${sizes[key].width}`,
+                      },
+                    ),
                   ),
                 ),
             }),
@@ -89,16 +103,23 @@ const DialogSizes = defineComponent({
                             h(VTextarea, { label: 'Notes', rows: 2 }),
                           ]
                         : []),
-                      h('p', { class: 'text-caption text-medium-emphasis mb-0' },
-                        `max-width ${current.value.width}`),
+                      h(
+                        'p',
+                        { class: 'text-caption text-medium-emphasis mb-0' },
+                        `max-width ${current.value.width}`,
+                      ),
                     ],
                   }),
                   h(VCardActions, null, {
                     default: () => [
                       h(VSpacer),
-                      h(VBtn, { autofocus: true, onClick: () => (open.value = false) }, {
-                        default: () => 'Close',
-                      }),
+                      h(
+                        VBtn,
+                        { autofocus: true, onClick: () => (open.value = false) },
+                        {
+                          default: () => 'Close',
+                        },
+                      ),
                     ],
                   }),
                 ],

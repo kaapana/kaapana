@@ -190,17 +190,17 @@ import { aiiApiGet, aiiApiPost, aiiApiDelete } from '@/common/services'
 import { required } from '@/common/validation'
 
 interface Right {
-  id: number;
-  name: string;
-  description: string;
-  claim_key: string;
-  claim_value: string;
+  id: number
+  name: string
+  description: string
+  claim_key: string
+  claim_value: string
 }
 
 interface Role {
-  id: number;
-  name: string;
-  description: string;
+  id: number
+  name: string
+  description: string
 }
 
 export default defineComponent({
@@ -241,7 +241,7 @@ export default defineComponent({
 
   computed: {
     pendingCount(): number {
-      return Object.keys(this.pending).length;
+      return Object.keys(this.pending).length
     },
     newRightDirty(): boolean {
       return Object.values(this.newRight).some((value) => value.trim() !== '')
@@ -276,7 +276,7 @@ export default defineComponent({
       } catch (error: unknown) {
         notifyFailure('Right not added', `Could not add the right "${this.newRight.name}".`, error)
       } finally {
-        this.addingRight = false;
+        this.addingRight = false
       }
     },
 
@@ -346,7 +346,7 @@ export default defineComponent({
       } catch (error: unknown) {
         notifyFailure('Role rights not reset', 'Could not reset the role rights.', error)
       } finally {
-        this.resetting = false;
+        this.resetting = false
       }
     },
 
@@ -357,11 +357,11 @@ export default defineComponent({
         const [roles, rights] = await Promise.all([
           aiiApiGet('projects/roles'),
           aiiApiGet('projects/rights'),
-        ]);
-        this.roles = roles;
-        this.rights = rights;
+        ])
+        this.roles = roles
+        this.rights = rights
 
-        const committed: Record<number, Set<number>> = {};
+        const committed: Record<number, Set<number>> = {}
         await Promise.all(
           roles.map(async (role: Role) => {
             const roleRights: Right[] = await aiiApiGet(`projects/roles/${role.id}/rights`)
@@ -381,30 +381,30 @@ export default defineComponent({
       } catch (error) {
         this.loadError = error
       } finally {
-        this.loading = false;
+        this.loading = false
       }
     },
 
     // Effective value: pending overrides committed
     effectiveValue(roleId: number, rightId: number): boolean {
-      const key = `${roleId}-${rightId}`;
-      if (key in this.pending) return this.pending[key];
-      return this.committed[roleId]?.has(rightId) ?? false;
+      const key = `${roleId}-${rightId}`
+      if (key in this.pending) return this.pending[key]
+      return this.committed[roleId]?.has(rightId) ?? false
     },
 
     isPending(roleId: number, rightId: number): boolean {
-      return `${roleId}-${rightId}` in this.pending;
+      return `${roleId}-${rightId}` in this.pending
     },
 
     stage(roleId: number, rightId: number, value: boolean) {
-      const key = `${roleId}-${rightId}`;
-      const original = this.committed[roleId]?.has(rightId) ?? false;
+      const key = `${roleId}-${rightId}`
+      const original = this.committed[roleId]?.has(rightId) ?? false
       if (value === original) {
         // Reverted to original — remove from pending
-        const { [key]: _, ...rest } = this.pending;
-        this.pending = rest;
+        const { [key]: _, ...rest } = this.pending
+        this.pending = rest
       } else {
-        this.pending = { ...this.pending, [key]: value };
+        this.pending = { ...this.pending, [key]: value }
       }
     },
 
@@ -417,20 +417,20 @@ export default defineComponent({
       try {
         await Promise.all(
           Object.entries(this.pending).map(async ([key, grant]) => {
-            const [roleId, rightId] = key.split('-').map(Number);
+            const [roleId, rightId] = key.split('-').map(Number)
             try {
               if (grant) {
-                await aiiApiPost(`projects/roles/${roleId}/rights/${rightId}`, {});
+                await aiiApiPost(`projects/roles/${roleId}/rights/${rightId}`, {})
               } else {
-                await aiiApiDelete(`projects/roles/${roleId}/rights/${rightId}`);
+                await aiiApiDelete(`projects/roles/${roleId}/rights/${rightId}`)
               }
               applied++
             } catch (error) {
               lastError = error
               failed++
             }
-          })
-        );
+          }),
+        )
 
         if (failed > 0) {
           notifyFailure(
@@ -446,11 +446,11 @@ export default defineComponent({
         }
 
         // Reload committed state
-        await this.load();
+        await this.load()
       } finally {
-        this.saving = false;
+        this.saving = false
       }
     },
   },
-});
+})
 </script>

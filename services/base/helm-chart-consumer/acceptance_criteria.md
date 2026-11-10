@@ -72,12 +72,6 @@ An enablement is only the pair of a project and an application. The consumer doe
 - Before AII deletes a project, it asks `GET /v1/releases?project_id=<id>` and refuses the deletion while releases exist ([Q9][q9], [Story 12.2][s12.2]). See [Let project management ask before deleting a project][h-project-deletion].
 - AII deploys one release of the application `project-namespace` for every project with `POST /v1/releases`, and undeploys it with `DELETE /v1/releases/{id}` when the project is deleted. It finds the release with `GET /v1/releases?application_id=project-namespace&name=project-<short_id>`. See [Charts that other services install](#charts-that-other-services-install-proposed).
 
-### Installer and platform deploy
-
-- The base-installer pulls images. It deploys one release of the application `pull-docker-chart` per image with `POST /v1/releases`. See [Charts that other services install](#charts-that-other-services-install-proposed).
-- A job at platform deploy processes the list `preinstall_extensions`. It installs each extension through the Extension Manager, and then deploys the listed releases with `GET /v1/releases?name=<name>` and `POST /v1/releases`. Both routes exist. The same job can register the platform contents. See [Charts at platform deploy and charts from the legacy page](#charts-at-platform-deploy-and-charts-from-the-legacy-page-proposed).
-- The chart `kaapana-platform-chart` is in the same list. It is open whether it becomes a platform content or whether `kaapanactl.sh` keeps installing it. See [The three kinds of preinstalled charts](#the-three-kinds-of-preinstalled-charts).
-
 ### Workflows
 
 A workflow task deploys with a workflow origin in `POST /v1/releases`, and the user finishes with `POST /v1/releases/{id}/complete`. Both belong to Release 2. See [Interactive workflows are not part of the MVP](#interactive-workflows-are-not-part-of-the-mvp).

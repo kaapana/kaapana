@@ -120,7 +120,9 @@ data:
         "editor.inlineSuggest.suppressSuggestions": false,
         // The image pins and patches Continue; an auto-update would replace it.
         "extensions.autoCheckUpdates": false,
-        "extensions.autoUpdate": false,
+        // "off", not false: code-server rewrites the old value at start, which
+        // fails on this read-only file.
+        "extensions.autoUpdate": "off",
         "update.mode": "none",
         "python.defaultInterpreterPath": "/opt/venv/bin/python",
         "r.rterm.linux": "/usr/bin/R",

@@ -105,7 +105,7 @@ data:
         "editor.inlineSuggest.enabled": true,
         "editor.inlineSuggest.suppressSuggestions": false,
         "extensions.autoCheckUpdates": false,
-        "extensions.autoUpdate": false,
+        "extensions.autoUpdate": "off",
         "update.mode": "none",
         "r.rterm.linux": "/usr/bin/R",
         "r.alwaysUseActiveTerminal": true,

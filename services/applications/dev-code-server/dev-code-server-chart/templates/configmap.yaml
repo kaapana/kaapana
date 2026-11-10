@@ -66,6 +66,11 @@ data:
         defaultCompletionOptions:
           maxTokens: 1024
           contextLength: 8192
+        # Continue assumes native tool calls for qwen2* models, but qwen2.5-coder
+        # writes them as plain JSON text that Ollama does not parse, so agent mode
+        # shows the JSON instead of running the tool. Without tool_use, Continue
+        # describes the tools in the system prompt and parses the reply itself.
+        capabilities: []
         roles:
           - chat
           - edit

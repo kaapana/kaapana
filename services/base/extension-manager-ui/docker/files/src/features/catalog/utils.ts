@@ -107,6 +107,13 @@ function otherVersionAvailability(
   installation: InstalledExtension,
 ): InstallAvailability {
   const installedVersion = installation.manifest.version
+  if (!installation.repository_id) {
+    return {
+      kind: 'unavailable',
+      label: 'Install',
+      reason: `Version ${installedVersion} is installed from the removed repository ${installation.repository_name}. Uninstall it first.`,
+    }
+  }
   if (installation.repository_id !== entry.repository.id) {
     return {
       kind: 'unavailable',

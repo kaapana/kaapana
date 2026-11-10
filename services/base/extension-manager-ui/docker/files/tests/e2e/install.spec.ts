@@ -232,6 +232,19 @@ test('an older version cannot be installed over a newer one', async ({ page }) =
   )
 })
 
+test('a detached extension blocks every version until it is uninstalled', async ({ page }) => {
+  const data = withNnunetInstalled()
+  data.extensions[data.extensions.length - 1]!.repository_id = null
+  await openView(page, 'catalog', data)
+  await card(page, 'nnunet').filter({ hasText: 'kaapana-public' }).click()
+  await selectVersion(page, '1.1.0')
+
+  await expect(dialog(page).getByTestId('install')).toBeDisabled()
+  await expect(dialog(page).getByTestId('install-state')).toContainText(
+    'Version 1.0.0 is installed from the removed repository kaapana-public. Uninstall it first.',
+  )
+})
+
 test('a version from another repository cannot update the installed extension', async ({
   page,
 }) => {

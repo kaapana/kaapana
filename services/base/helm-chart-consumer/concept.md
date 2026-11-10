@@ -11,7 +11,7 @@ This image shows how the Helm Chart Consumer is embedded in the system architect
 
 ## Extension source code with content helm-chart
 ```bash
-|- extension_manifest.json    ### declares the helm-chart content and its contentType (name TBD, e.g. helm-chart-v1)
+|- extension_manifest.json    ### declares the helm-chart content and its contentType helm-chart-v1 (proposed)
 |_ helm-chart-content/
    |- helm-chart-content.json ### corresponds to workflow.json; Kaapana facing information (e.g. multiinstallable, UI parameter)
    |_ chart/                  ### contains only helm specific files

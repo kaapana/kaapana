@@ -60,7 +60,8 @@ This has consequences for the consumer API:
 - The uninstall route asks no consumer before it starts. Story 1.2 wants the admin to see the affected deployed
   applications first, which `GET /v1/releases?application_id=<id>&version=<version>` answers. The Extension
   Manager needs a change to show them.
-- The `contentType` name for helm-chart contents is not defined yet. `concept.md` suggests `helm-chart-v1`.
+- The `contentType` of a helm-chart content is `helm-chart-v1`. The team has not confirmed the name yet. A
+  `HelmChartInstaller` accepts a content with this value, as the `WorkflowInstaller` does for `workflow-v1`.
 - How the packaged chart reaches the consumer is not decided. The workflow installer sends JSON. A chart needs a
   file upload, an archive in the body, or a reference to the extension's OCI artifact. The API mock uses
   `chart_reference` as a placeholder. The Extension Manager deletes the pulled extension from its disk when the

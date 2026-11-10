@@ -129,7 +129,6 @@ export async function installMockBackend(
   // (only /aii/users/{id}/projects does) — strip it so the fixture cannot make
   // a missing role_name look present. base-ui patches it back in for admins.
   await page.route('**/aii/projects', (r) =>
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     r.fulfill(json(data.projects.map(({ role_name, ...rest }) => rest))),
   )
   await page.route('**/aii/users/*/projects', (r) => r.fulfill(json(data.projects)))

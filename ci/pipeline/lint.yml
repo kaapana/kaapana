@@ -48,9 +48,6 @@ format:
 validate:
   extends: .code_check
   rules:
-    - if: '"$[[ inputs.exec_lint ]]" == "true" && $LINTER == "ui"'
-      when: on_success
-      allow_failure: true
     - if: '"$[[ inputs.exec_lint ]]" == "true" && $LINTER == "helm"'
       when: on_success
       allow_failure: true

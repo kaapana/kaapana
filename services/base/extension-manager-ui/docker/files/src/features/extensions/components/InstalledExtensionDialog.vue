@@ -72,10 +72,17 @@ const advancedSourceRows = computed<SourceDetailsRow[]>(() => {
         class="text-body-2 text-medium-emphasis"
         :items="[repositoryName, props.extension.manifest.version]"
       />
-      <p v-if="detached" class="text-body-2 text-medium-emphasis mt-1" data-testid="detached-note">
+      <v-alert
+        v-if="detached"
+        type="warning"
+        variant="tonal"
+        density="compact"
+        class="mt-2 text-body-2"
+        data-testid="detached-note"
+      >
         Detached: its repository was removed. It stays installed and can be uninstalled, but not
         reinstalled or updated.
-      </p>
+      </v-alert>
     </template>
 
     <template v-if="props.extension && status" #sticky>

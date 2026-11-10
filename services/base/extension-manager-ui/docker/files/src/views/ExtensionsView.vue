@@ -138,7 +138,13 @@ onMounted(refreshAll)
         <v-card-title class="text-wrap">{{ item.manifest.name }}</v-card-title>
         <v-card-subtitle class="d-flex align-center ga-2">
           {{ item.repository_name }}
-          <v-chip v-if="!item.repository_id" size="x-small" label data-testid="detached">
+          <v-chip
+            v-if="!item.repository_id"
+            size="x-small"
+            label
+            color="warning"
+            data-testid="detached"
+          >
             Detached
           </v-chip>
         </v-card-subtitle>

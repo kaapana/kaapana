@@ -25,7 +25,7 @@ const claimHolder: MockData = {
 }
 
 const updateControl = (page: Page) => page.getByTestId('update-extensions')
-// Upload.vue renders a bare <file-pond>, whose root element carries this class.
+// ExtensionUpload.vue renders a bare <file-pond>, whose root element carries this class.
 const dropZone = (page: Page) => page.locator('.filepond--root')
 
 test('a non-admin sees neither the update control nor the upload drop zone', async ({ page }) => {

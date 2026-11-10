@@ -12,14 +12,14 @@
     </v-card-title>
     <v-divider></v-divider>
     <v-card-text class="pa-3">
-      <Gallery :seriesInstanceUIDs="seriesInstanceUIDs" />
+      <SeriesGallery :seriesInstanceUIDs="seriesInstanceUIDs" />
     </v-card-text>
   </v-card>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import Gallery from './Gallery.vue'
+import SeriesGallery from './SeriesGallery.vue'
 import { loadDashboard } from '@/common/api.service'
 import { readSettings, settings as defaultSettings } from '@/static/defaultUIConfig'
 

@@ -5,7 +5,7 @@ LABEL VERSION="0.0.0"
 LABEL BUILD_IGNORE="False"
 
 # Build-time model preload for fully offline runtime operation. Must list every
-# model the dev-code-server chart configures (chat and autocomplete), otherwise
+# model the dev-code-server and code-server charts configure (chat and autocomplete), otherwise
 # an offline platform points Continue at a model it does not have.
 ARG OLLAMA_PRELOAD_MODELS="qwen2.5-coder:7b qwen2.5-coder:1.5b"
 

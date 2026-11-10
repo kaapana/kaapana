@@ -1,8 +1,15 @@
 ---
 global:
   ingress_path: "code-server"
-  complete_image: "{{ .Values.global.registry_url }}/code-server:{{ .Values.global.kaapana_build_version  }}"
+  # The dev-code-server image: the same editor with R, Jupyter and the Continue assistant.
+  complete_image: "{{ .Values.global.registry_url }}/dev-code-server:{{ .Values.global.kaapana_build_version  }}"
   namespace: "{{ .Values.global.services_namespace }}"
+  # Same Ollama endpoint and models as dev-code-server-chart; every model must be preloaded
+  # in the ollama image (dev-code-server/tests/test_ollama_models.py checks both charts).
+  ollama_api_base: "http://ollama-service.{{ .Values.global.services_namespace }}.svc:11434"
+  ollama_model: "qwen2.5-coder:7b"
+  ollama_autocomplete_model: "qwen2.5-coder:1.5b"
+  ollama_keep_alive: "10m"
   dynamicVolumes:
   - name: workflow-data
     mount_path: /kaapana/mounted/workflows/data

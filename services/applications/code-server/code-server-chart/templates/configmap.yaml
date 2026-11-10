@@ -1,3 +1,4 @@
+{{- $ollamaApiBase := tpl .Values.global.ollama_api_base . -}}
 apiVersion: v1
 data:
   keybindings.json: |-
@@ -42,17 +43,72 @@ data:
             "key": "ctrl+shift+k",
             "command": "-editor.action.deleteLines",
             "when": "textInputFocus && !editorReadonly"
+        },
+        {
+            "key": "ctrl+alt+space",
+            "command": "continue.forceAutocomplete",
+            "when": "editorTextFocus && !editorHasSelection && !editorReadOnly && !inSnippetMode"
         }
     ]
+  # The Continue setup and the AI settings below are those of dev-code-server-chart's
+  # configmap, which explains each option; keep both in step.
+  continue_config.yaml: |-
+    name: Local Config
+    version: 1.0.0
+    schema: v1
+    models:
+      - name: Local chat
+        provider: ollama
+        model: {{ .Values.global.ollama_model | quote }}
+        apiBase: {{ $ollamaApiBase | quote }}
+        defaultCompletionOptions:
+          maxTokens: 1024
+          contextLength: 8192
+        capabilities: []
+        roles:
+          - chat
+          - edit
+          - apply
+          - summarize
+          - subagent
+      - name: Local autocomplete
+        provider: ollama
+        model: {{ .Values.global.ollama_autocomplete_model | quote }}
+        apiBase: {{ $ollamaApiBase | quote }}
+        defaultCompletionOptions:
+          maxTokens: 96
+          contextLength: 8192
+          temperature: 0.2
+        autocompleteOptions:
+          modelTimeout: 5000
+          debounceDelay: 350
+          maxPromptTokens: 1024
+          transform: false
+          useCache: false
+        roles:
+          - autocomplete
   user_settings.json: |-
     {
         "security.workspace.trust.enabled": false,
         "security.workspace.trust.startupPrompt": "never",
         "workbench.colorTheme": "Default Dark+",
         "python.defaultInterpreterPath": "/opt/venv/bin/python",
-        "chat.disableAIFeatures": true,
+        "chat.disableAIFeatures": false,
         "editor.aiStats.enabled": false,
         "chat.agent.enabled": false,
+        "telemetry.telemetryLevel": "off",
+        "workbench.enableExperiments": false,
+        "github.gitAuthentication": false,
+        "continue.telemetryEnabled": false,
+        "continue.enableTabAutocomplete": true,
+        "continue.enableNextEdit": false,
+        "editor.inlineSuggest.enabled": true,
+        "editor.inlineSuggest.suppressSuggestions": false,
+        "extensions.autoCheckUpdates": false,
+        "extensions.autoUpdate": false,
+        "update.mode": "none",
+        "r.rterm.linux": "/usr/bin/R",
+        "r.alwaysUseActiveTerminal": true,
         "python.defaultInterpreterPath": "/opt/venv/bin/python",
         "workbench.secondarySideBar.defaultVisibility": "hidden"
     }

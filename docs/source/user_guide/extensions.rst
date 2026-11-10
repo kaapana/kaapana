@@ -380,6 +380,7 @@ Code server for Airflow
 | - Access the full workflow directory, including retained workflow data and downloaded models/scripts.
 | - Inspect DAG definitions and troubleshoot failed workflows without starting an operator-specific Code Server.
 | - Add and execute small scripts on the mounted data for testing and debugging.
+| - The same tools as the Code Server for development: Python, R, Jupyter and the AI autocomplete and chat (see :ref:`extensions_dev_code_server_ai`).
 | - Not intended for running production workloads.
 
 | **Logs:**

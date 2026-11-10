@@ -1,7 +1,7 @@
 """
-Structural guard for the dev-code-server AI assistant.
+Structural guard for the AI assistant in dev-code-server and code-server.
 
-Every Ollama model the chart configures for Continue must be baked into the ollama
+Every Ollama model either chart configures for Continue must be baked into the ollama
 image: offline platforms cannot pull a model at runtime, so a model named only in
 the chart leaves chat or autocomplete silently broken.
 
@@ -14,6 +14,8 @@ Run from anywhere:
 import re
 from pathlib import Path
 
+import pytest
+
 
 def _repo_root() -> Path:
     for parent in Path(__file__).resolve().parents:
@@ -24,8 +26,10 @@ def _repo_root() -> Path:
 
 ROOT = _repo_root()
 
-DEV_CODE_SERVER = ROOT / "services/applications/dev-code-server"
-VALUES = DEV_CODE_SERVER / "dev-code-server-chart/values.yaml"
+CHART_VALUES = [
+    ROOT / "services/applications/dev-code-server/dev-code-server-chart/values.yaml",
+    ROOT / "services/applications/code-server/code-server-chart/values.yaml",
+]
 OLLAMA_DOCKERFILE = ROOT / "services/base/ollama/docker/Dockerfile"
 
 
@@ -34,9 +38,10 @@ def _read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def test_configured_models_are_preloaded_in_ollama_image():
+@pytest.mark.parametrize("values", CHART_VALUES, ids=lambda p: p.parent.name)
+def test_configured_models_are_preloaded_in_ollama_image(values: Path):
     configured = re.findall(
-        r'^\s*ollama_(?:autocomplete_)?model:\s*"([^"]+)"', _read(VALUES), re.M
+        r'^\s*ollama_(?:autocomplete_)?model:\s*"([^"]+)"', _read(values), re.M
     )
     preload = re.search(
         r'ARG OLLAMA_PRELOAD_MODELS="([^"]*)"', _read(OLLAMA_DOCKERFILE)

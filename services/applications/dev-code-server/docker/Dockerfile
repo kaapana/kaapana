@@ -12,16 +12,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gdebi-core \
     && rm -rf /var/lib/apt/lists/*
 
-# Install R
+# Install R. The R packages build from source: fs (needed by languageserver) links
+# libuv, systemfonts (needed by httpgd) fontconfig and freetype. install.packages
+# only warns when a package fails, so the check after it fails the build instead.
 RUN mkdir -p /usr/share/keyrings && \
     curl -fsSL https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc \
         | gpg --dearmor -o /usr/share/keyrings/cran.gpg && \
     echo "deb [signed-by=/usr/share/keyrings/cran.gpg] https://cloud.r-project.org/bin/linux/ubuntu noble-cran40/" \
         > /etc/apt/sources.list.d/cran.list && \
     apt-get update && \
-    apt-get install -y --no-install-recommends r-base r-base-dev && \
+    apt-get install -y --no-install-recommends r-base r-base-dev \
+        libuv1-dev libfontconfig1-dev libfreetype-dev && \
     rm -rf /var/lib/apt/lists/* && \
-    R --silent --no-echo --no-save --no-restore -e "install.packages(c('languageserver','httpgd'), repos='https://cloud.r-project.org')"
+    R --silent --no-echo --no-save --no-restore -e "pkgs <- c('languageserver','httpgd'); install.packages(pkgs, repos='https://cloud.r-project.org'); stopifnot(all(sapply(pkgs, requireNamespace, quietly = TRUE)))"
 
 # Install code-server extensions
 RUN code-server --install-extension ms-toolsai.jupyter && \

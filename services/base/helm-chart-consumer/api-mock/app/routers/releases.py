@@ -42,8 +42,8 @@ def list_releases(
 ) -> list[Release]:
     """List releases, newest first.
 
-    Users see the releases of their projects and all platform-wide releases. A
-    kaapana-system-admin sees all releases. Platform-wide releases never belong to a project. Helm
+    Users see the releases of their projects. Only a kaapana-system-admin sees all releases,
+    including the platform-wide ones. Platform-wide releases never belong to a project. Helm
     releases that other tools installed are not listed.
 
     Filter by `project_id` to find out whether a project still has releases, for example before
@@ -129,7 +129,11 @@ def create_release(
 
 @router.get("/releases/{release_id}", responses={404: {"model": Error}})
 def get_release(release_id: UUID) -> Release:
-    """Get one release with its configuration. Secret values are never returned."""
+    """Get one release with its configuration. Secret values are never returned.
+
+    A platform-wide release answers 404 for a caller who is not a kaapana-system-admin. The other
+    routes of a single release answer in the same way.
+    """
     return examples.ANNA_NOTEBOOK
 
 

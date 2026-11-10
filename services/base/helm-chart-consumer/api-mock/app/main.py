@@ -13,12 +13,12 @@ application is one helm release, which this API calls a release.
 Kaapana's gateway authenticates every request and passes the user and their roles in headers.
 The Helm Chart Consumer decides from these roles what each caller may do:
 
-- Scientists open the releases of their projects and all platform-wide releases and see their
-  status and configuration. They also report when they finish the work in a release that a
-  workflow started.
+- Scientists open the releases of their projects and see their status and configuration. They
+  also report when they finish the work in a release that a workflow started. They open the web
+  interface of a platform-wide release, but they do not see the release itself.
 - Principal investigators also deploy, update and undeploy in their projects.
-- Kaapana-system-admins may do everything, and only they deploy platform-wide and enable
-  applications in projects.
+- Kaapana-system-admins may do everything. Only they see, deploy, update and undeploy
+  platform-wide releases, and only they enable applications in projects.
 - The Extension Manager calls the registration routes from inside the cluster.
 
 Errors have the body `{"detail": "<message>"}`. A request that is well-formed but rejected for its

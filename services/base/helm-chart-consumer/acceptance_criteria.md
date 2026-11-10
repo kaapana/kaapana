@@ -115,7 +115,6 @@ A review of the model found these gaps:
 - **`default` should be optional.** See the rule about defaults in [Rules](#rules).
 - **A platform value cannot be mapped onto a chart value.** See [Using a chart from a public registry](#using-a-chart-from-a-public-registry-proposed).
 - **The field is called `multi_deployable`.** The [glossary][glossary] also mentions `multiinstallable`. "Install" is reserved for extensions, so `multi_deployable` fits better.
-- **There is no scope for releases that users must not see.** A platform content needs a third scope `system`. See [How a platform content differs](#how-a-platform-content-differs).
 - **There is no field for privileged values.** A platform content declares the passwords that it needs in `platform_secrets`. See [Privileged values for platform contents](#privileged-values-for-platform-contents).
 - **A parameter with several choices is not needed.** The legacy type `list_multi` is used by two workflow charts and by no application chart. The legacy type `doc` is help text and becomes `description`.
 
@@ -173,7 +172,7 @@ All platform values are under the one reserved key `global.kaapana`. One key nee
 |---|---|---|
 | `release.id`, `release.name` | The id of the release and the name that users see | [Story 8.3][s8.3] |
 | `application.id`, `application.version` | The registered version that the release runs | [Story 11.1][s11.1] |
-| `scope` | `project`, `platform` or `system` | [Q11][q11] |
+| `scope` | `project` or `platform` | [Q11][q11] |
 | `project.id`, `project.short_id`, `project.namespace`, `project.bucket` | The project of the release. Only for the project scope. | [Story 2.5][s2.5], [Q6][q6] |
 | `url_path` | The path under which the web interface is served, for settings like `base_url` of JupyterLab | [Story 4.4][s4.4] |
 | `hostname` | The host name of the platform | [Story 4.4][s4.4] |
@@ -286,7 +285,7 @@ Helm knows two kinds of labels, and they serve different purposes.
 | `kaapana.ai/managed-by` | `helm-chart-consumer` |
 | `kaapana.ai/release-id` | The id of the release |
 | `kaapana.ai/application` | The application id |
-| `kaapana.ai/scope` | `project`, `platform` or `system` |
+| `kaapana.ai/scope` | `project` or `platform` |
 | `kaapana.ai/project-id` | The id of the project, for the project scope |
 
 The labels have two uses:
@@ -322,6 +321,14 @@ Every release records who or what deployed it, as `origin`. The field is a union
 - **A workflow task.** The origin holds the workflow run, the task, and the user who started the run, if a user started it. Only workflow-api may send it. See [Put every permission rule in one table][h-permissions].
 - **A service** *(proposed)*. A platform service such as AII, the installer or the bootstrap job at platform deploy has no user. Its origin names the service. See [Charts that other services install](#charts-that-other-services-install-proposed).
 - The origin describes only the creation of a release. Who changed a release later belongs to the audit log ([Story 5.6][s5.6]).
+
+### Platform-wide releases
+
+Only a kaapana-system-admin has access to a platform-wide release in the Helm Chart Consumer ([Story 9.4][s9.4]). What the release serves is open to users. An example is the SLIM viewer: every user can open it, but only an admin sees its release, its status and its configuration.
+
+- **The API.** `GET /v1/releases` returns platform-wide releases only to an admin. For every other caller, the routes of a single platform-wide release answer 404.
+- **The web interface.** The gateway lets users open it. The requests do not pass through the consumer.
+- **How users find it.** The portal builds the menu of the platform from the ingresses of the cluster and their `kaapana.ai/ui.*` annotations ([menu.py][portal-menu]). A chart that wants a menu entry ships its own `Ingress` with these annotations and follows the guidelines of the portal. The charts of SLIM and Collabora do this today. This is a task of the chart and of the portal, and not of the consumer.
 
 ### Restricting who can open a release *(proposed)*
 
@@ -371,7 +378,7 @@ AII no longer needs its client for kube-helm ([kubehelm.py][aii-kubehelm]):
 
 | Caller | When | Call |
 |---|---|---|
-| AII | A project is created | `POST /v1/releases` with the application `project-namespace`, the name `project-<short_id>`, the system placement, and the project as parameters |
+| AII | A project is created | `POST /v1/releases` with the application `project-namespace`, the name `project-<short_id>`, the platform placement, and the project as parameters |
 | AII | A project is deleted | `DELETE /v1/releases/{id}`, after the check that the project has no releases ([Q9][q9]) |
 | AII | The platform was upgraded | `PATCH /v1/releases/{id}` with the new version, for the release of every project |
 | base-installer | For every image | `POST /v1/releases` with the application `pull-docker-chart`, a generated name, and the image as parameters |
@@ -385,7 +392,7 @@ AII finds the release of a project with `GET /v1/releases?application_id=project
   "name": "project-namespace",
   "display_name": "Project namespace",
   "description": "Creates the namespace of a project and what the project needs in it.",
-  "scopes": ["system"],
+  "scopes": ["platform"],
   "multi_deployable": true,
   "parameters": [
     {"key": "project_id", "label": "Project id", "type": "string", "required": true, "chart_value": "global.project_id"},
@@ -404,18 +411,19 @@ AII passes these values to kube-helm as `extension_params` today, together with 
 |---|---|---|
 | Registered by | The Extension Manager, when the extension is installed | The bootstrap job at platform deploy *(to be decided)* |
 | `extension` in the registration | Set | Missing |
-| Scopes | Project, platform or both | System only |
-| Deployed by | Users through the gateway, workflow-api, or the bootstrap job | The service that owns it, from inside the cluster |
+| Scopes | Project, platform or both | Platform only |
+| Deployed by | Users through the gateway, workflow-api, or the bootstrap job | A platform service, from inside the cluster |
 | Origin of its releases | A user, a workflow task, or the bootstrap job as a service | A service |
-| Seen by | The members of the project, or every user for a platform-wide release | kaapana-system-admins and the service that owns it |
+| Shown on the application page | Yes | Only when a kaapana-system-admin filters for it |
 | Platform values | `global.kaapana` | `global.kaapana`, and the privileged values that it declares |
 
-- **A third scope, `system`.** Who sees a release follows from its placement: the members of the project see a release in a project, and every user sees a platform-wide release ([Story 9.2][s9.2]). Neither fits. Users must not see one release per project and one per pulled image. The system scope is for the releases of platform contents. Only kaapana-system-admins and the service that owns the release see them, in `GET /v1/applications` and in `GET /v1/releases`. Only a platform content may declare this scope. A name is unique per application in the system scope, so AII finds the release of a project by its name.
-- **The release of a project is not placed in that project.** The namespace of the project does not exist before the release is deployed. A release in the project would also block the deletion of its own project, because AII refuses the deletion while the project has releases. The project is therefore passed as parameters, and the consumer does not ask AII about it.
-- **`multi_deployable` covers one release per project.** The field holds for every scope, so a platform content with `multi_deployable: true` can have many releases in the system scope. No exception from the limit is needed.
-- **The helm release stays in the helm namespace of the platform.** kube-helm installs these charts there today, and the system scope keeps that.
+- **The release of a project is platform-wide.** Its placement cannot be the project. The namespace of the project does not exist before the release is deployed. A release in the project would also block the deletion of its own project, because AII refuses the deletion while the project has releases. The project is therefore passed as parameters, and the consumer does not ask AII about it.
+- **Users do not see these releases.** Only a kaapana-system-admin sees a platform-wide release ([Story 9.4][s9.4]). See [Platform-wide releases](#platform-wide-releases). No third scope is needed.
+- **A kaapana-system-admin always has access.** An admin can update and undeploy these releases like every other release. Undeploying the release of a project removes what the chart created for the project, such as its secrets, its network policies and its runtime deployment. The namespace itself stays, because its template sets `helm.sh/resource-policy: keep`.
+- **The application page hides them by default.** It leaves out the releases of platform contents unless the admin filters for them. This is a rule of the UI. The API returns these releases to an admin like every other release.
+- **The services need the right to deploy platform-wide.** Only kaapana-system-admins have it today. AII and the installer get it together with their identity as a service.
+- **`multi_deployable` covers one release per project.** Since the field holds for both scopes, a platform content with `multi_deployable: true` can have many platform-wide releases. No exception from the limit is needed.
 - **Registration.** `extension` becomes optional in `PUT /v1/applications/{id}/versions/{version}`. The registration of `project-namespace` must be done before AII creates its first project. The version is the build version. Where the chart comes from depends on the open question of how a chart reaches the consumer.
-- **Protection.** Only the service in the origin may update or undeploy a release in the system scope. A kaapana-system-admin can otherwise undeploy the release of a project from the application page. That removes what the chart created for the project, such as its secrets, its network policies and its runtime deployment. The namespace itself stays, because its template sets `helm.sh/resource-policy: keep`. The rule does not hold for the other scopes: an admin can update and undeploy a release that the bootstrap job deployed.
 - **Removing the releases of image pulls** *(to be decided)*. kube-helm installs `pull-docker-chart`, waits, and deletes the release ten seconds later. In the new system the installer deletes each release when it is ready, or a content can declare that its release is removed when its job has finished.
 
 The dry-run of all charts in the init job is not replaced. The consumer is not responsible for making images available ([Q10][q10]).
@@ -425,7 +433,7 @@ Reasons and costs:
 - **Why one kind of release.** One API and one format cover every chart. A chart of the platform follows the same rules as a chart of an extension, so there is no second path that could skip a check.
 - **Why not in the other services.** The ticket wants to remove the legacy system in 0.8.0. If AII and the installer ran helm themselves, three services would carry helm code and rights on the whole cluster.
 - **Cost: rights.** The service account of the consumer needs rights on the whole cluster. The chart `project-namespace` creates a namespace, and it creates secrets and network policies in that namespace, which is not the namespace of the helm release. It also reads two secrets in the admin namespace.
-- **Cost: identity.** A platform content gets passwords and a service origin only if the consumer knows its caller. This makes the open question about callers inside the cluster a blocker for removing kube-helm.
+- **Cost: identity.** A platform content gets passwords, a service origin and the right to deploy platform-wide only if the consumer knows its caller. This makes the open question about callers inside the cluster a blocker for removing kube-helm.
 - **Cost: start order.** The consumer has to run before AII creates a project. Where the consumer runs is open.
 
 ## Charts at platform deploy and charts from the legacy page *(proposed)*
@@ -579,6 +587,7 @@ State of the checklist:
 [s8.3]: concept.md#story-83-identifying-deployed-applications
 [s9.1]: concept.md#story-91-deploying-an-application-platform-wide
 [s9.2]: concept.md#story-92-using-a-platform-wide-application
+[s9.4]: concept.md#story-94-platform-wide-deployed-applications-are-managed-only-by-kaapana-system-admins
 [s11.1]: concept.md#story-111-browsing-available-versions
 [s11.2]: concept.md#story-112-updating-a-deployed-application-to-a-new-version
 [s11.3]: concept.md#story-113-updating-deploy-parameters
@@ -621,6 +630,7 @@ State of the checklist:
 [kh-utils]: ../../kaapana-admin/kube-helm/docker/files/backend/app/utils.py
 [kh-prefetch]: ../../kaapana-admin/kube-helm/docker/files/backend/scripts/prefetch_extensions.py
 [kh-preinstall]: ../../kaapana-admin/kube-helm/docker/files/backend/scripts/preinstall_extensions.py
+[portal-menu]: ../portal-api/docker/app/menu.py
 [aii-kubehelm]: ../../data-separation/access-information-interface/docker/backend/files/app/projects/kubehelm.py
 [base-installer]: ../../utils/base-installer/files/run.py
 [deployment-config]: ../../../platforms/kaapana-admin-chart/deployment_config.yaml

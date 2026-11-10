@@ -260,7 +260,7 @@ As a kaapana-system-admin I want a default mapping of the user groups to the act
 Acceptance criteria:
 * kaapana-system-admin: install and uninstall extensions, enable applications for projects, deploy, update and undeploy platform-wide applications, and every action of a PI in every project.
 * principal-investigator: deploy, configure, update and undeploy applications in their project, and every action of a scientist in this project. A PI cannot deploy platform-wide (Q11).
-* scientist: browse and open the deployed applications of their project and the platform-wide applications, see status and configuration, and finish interactive steps (Story 7.2). A scientist cannot deploy applications (Q2), and cannot update or undeploy them either. Finishing an interactive step still undeploys its application (Story 7.2).
+* scientist: browse and open the deployed applications of their project, see their status and configuration, open the web interfaces of platform-wide applications (Story 9.4), and finish interactive steps (Story 7.2). A scientist cannot deploy applications (Q2), and cannot update or undeploy them either. Finishing an interactive step still undeploys its application (Story 7.2).
 * The API rejects requests without the required permission; hiding actions in the frontend is not sufficient.
 
 #### Story 5.2: Enabling applications for a project
@@ -422,6 +422,15 @@ As a scientist I want a platform-wide application (e.g. OHIF) to show the data o
 Acceptance criteria:
 * A platform-wide application is opened in the context of the current project.
 * It only shows data of this project and data that is shared with all projects.
+
+#### Story 9.4: Platform-wide deployed applications are managed only by kaapana-system-admins
+As a kaapana-system-admin I want that only kaapana-system-admins can see and manage platform-wide deployed applications in the Helm Chart Consumer, while users can still use what these applications serve, so that users work with an application such as the SLIM viewer without access to its deployment.
+
+Acceptance criteria:
+* Only kaapana-system-admins can list platform-wide deployed applications and see their details, status and configuration.
+* For every other user, a platform-wide deployed application answers like one that does not exist.
+* All permitted users can open what a platform-wide application serves, such as its web interface (Story 9.2).
+* Users find the web interface through the menu of the platform, which the portal builds from the ingresses of the cluster.
 
 
 ### Epic 10: Platform-wide multi-deployable applications

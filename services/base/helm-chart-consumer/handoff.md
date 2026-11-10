@@ -207,15 +207,19 @@ The rules are short (Story 5.1, Q2, Q11):
 
 | Action | Scientist of the project | PI of the project | kaapana-system-admin |
 |---|---|---|---|
-| List, open, status | yes | yes | yes |
+| List, open, status in the project | yes | yes | yes |
 | Deploy, update, undeploy in the project | no | yes | yes |
 | Complete the work in a release that a workflow started | yes | yes | yes |
+| Open the web interface of a platform-wide release | yes | yes | yes |
+| List, details and status of platform-wide releases | no | no | yes |
 | Deploy, update, undeploy platform-wide | no | no | yes |
 | Enable and disable applications | no | no | yes |
 
-Everyone may list and open platform-wide releases. Keep this as one table that the service layer checks for
-every call, and authorize an operation on one release against that release's own project. A check per route
-is easy to forget on the next route. Write the permission tests from this table and the concept, not from the code.
+Everyone may open the web interface of a platform-wide release, but only a kaapana-system-admin sees the release
+itself (Story 9.4). For every other caller, a platform-wide release answers like one that does not exist. Keep
+this as one table that the service layer checks for every call, and authorize an operation on one release against
+that release's own project. A check per route is easy to forget on the next route. Write the permission tests
+from this table and the concept, not from the code.
 
 The columns name the default roles. Check the rights in the token instead of the role names, so that the table
 also holds for custom roles (Story 5.4). The existing rights fit some rows, for example `launch_application` for
@@ -240,7 +244,7 @@ Deploy and update run the same checks in the same order, and the dry-run routes 
 3. The version is registered, and the application supports the scope.
 4. Single instance: an application that is not multi-deployable has at most one release per project, counted
    over all versions, and at most one platform-wide.
-5. The name is unique among the releases a project lists, platform-wide ones included.
+5. The name is unique among the releases of the project and the platform-wide releases.
 6. The values match the declarations: type, minimum and maximum, pattern, choices, and required.
 7. The values are mapped onto chart values. A value that is not declared cannot be set.
 8. `helm install --dry-run` or `helm upgrade --dry-run`.

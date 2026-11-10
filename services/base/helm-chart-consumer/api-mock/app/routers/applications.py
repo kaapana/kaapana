@@ -28,7 +28,9 @@ def list_applications(
     from its newest registered version.
 
     A kaapana-system-admin sees all applications. Every other user sees only the applications
-    that are enabled in at least one of their projects.
+    that are enabled in at least one project in which they may deploy. Scientists cannot deploy,
+    so they see none. The Helm Chart Consumer takes the projects of the caller and the rights in
+    them from the access token.
     """
     return examples.APPLICATIONS
 

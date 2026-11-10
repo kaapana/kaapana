@@ -146,6 +146,7 @@ APPLICATIONS = [
         multi_deployable=True,
         latest_version="4.3.0",
         versions=["4.3.0", "4.2.5"],
+        enabled_project_ids=["lung-ct", "liver-mr"],
     ),
     Application(
         id="mitk",
@@ -155,6 +156,7 @@ APPLICATIONS = [
         multi_deployable=True,
         latest_version="2024.12.0",
         versions=["2024.12.0"],
+        enabled_project_ids=["lung-ct"],
     ),
     Application(
         id="cvat",
@@ -164,6 +166,7 @@ APPLICATIONS = [
         multi_deployable=False,
         latest_version="2.11.0",
         versions=["2.11.0", "2.10.3"],
+        enabled_project_ids=["lung-ct"],
     ),
     Application(
         id="collabora",
@@ -173,6 +176,7 @@ APPLICATIONS = [
         multi_deployable=False,
         latest_version="24.04.6",
         versions=["24.04.6"],
+        enabled_project_ids=[],
     ),
     Application(
         id="ohif",
@@ -182,6 +186,7 @@ APPLICATIONS = [
         multi_deployable=False,
         latest_version="3.8.2",
         versions=["3.8.2"],
+        enabled_project_ids=[],
     ),
 ]
 

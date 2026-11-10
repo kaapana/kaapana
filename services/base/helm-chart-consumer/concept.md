@@ -326,8 +326,9 @@ Acceptance criteria:
 As a principal-investigator I want to see all applications that are enabled in a project, so that I know what can be deployed there.
 
 Acceptance criteria:
-* A principal-investigator can list the applications that are enabled in one of their projects.
-* A user who is not a kaapana-system-admin sees only the applications that are enabled in at least one of their projects.
+* A principal-investigator can list the applications that are enabled in a project in which they are principal-investigator. An enabled application is one that can be deployed in the project (Story 5.2).
+* A principal-investigator sees only the applications that are enabled in at least one project in which they are principal-investigator.
+* A scientist sees no applications in this list, because scientists cannot deploy (Q2). A scientist sees the deployed applications of their project (Story 5.1).
 
 
 ### Epic 6: Resource governance

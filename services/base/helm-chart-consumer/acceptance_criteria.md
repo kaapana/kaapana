@@ -65,7 +65,7 @@ Deploy and update share one sequence of checks with their dry-run. See [Share on
 | `PUT`, `DELETE /v1/projects/{id}/enabled-applications/{application_id}` | Enables and disables an application in a project ([Story 5.2][s5.2]). Both answer without a body. |
 | `GET /v1/releases` | Lists the releases of all projects ([Story 3.4][s3.4]) |
 
-An enablement is only the pair of a project and an application. The consumer does not record who enabled an application or when, so there is no route that lists enablements. [Story 5.7][s5.7] wants the projects in which each application is enabled. The API mock answers this with one request per project, and whether an application should list its projects is still to be decided. The kaapana-system-admin also uses every route of the application page, in every project and platform-wide ([Story 5.1][s5.1]).
+An enablement is only the pair of a project and an application. The consumer does not record who enabled an application or when, so there is no route that lists enablements. Every application in the list names the projects in which it is enabled, as `enabled_project_ids` ([Story 5.7][s5.7]). The consumer knows the projects of the caller and the rights in them from the access token, so it filters the list and this field without a request per project. An admin gets all applications and all projects. A principal investigator gets the applications that are enabled in the projects in which they may deploy ([Story 5.8][s5.8]). A scientist cannot deploy and gets none. The kaapana-system-admin also uses every route of the application page, in every project and platform-wide ([Story 5.1][s5.1]).
 
 ### Access-information-interface (AII)
 

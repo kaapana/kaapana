@@ -140,6 +140,10 @@ class Application(BaseModel):
     multi_deployable: bool
     latest_version: str
     versions: list[str] = Field(description="Registered versions, newest first by semantic version.")
+    enabled_project_ids: list[str] = Field(
+        description="These are the projects in which the application is enabled. A kaapana-system-admin gets all of "
+        "them. Every other user gets only the projects in which they may deploy."
+    )
 
 
 class ProjectPlacement(Strict):

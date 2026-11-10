@@ -16,3 +16,5 @@ services/kaapana-admin/maintenance-page/
 **/templates/**
 services/kaapana-admin/keycloak/keycloak-setup/keycloak-setup-chart/realm_objects/kaapana-realm.json
 **/package-lock.json
+services/kaapana-admin/traefik/traefik-chart/crds/
+services/monitoring/grafana/grafana-chart/files/*.json

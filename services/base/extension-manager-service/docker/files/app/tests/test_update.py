@@ -8,7 +8,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from v1.routers.installation import endpoints
-from v1.services.database import crud
+from v1.services.database import crud, database
 from v1.services.database.models import ContentStatus, ExtensionStatus
 from v1.services.oci.mock_service import ociService as MockOciService
 
@@ -156,8 +156,9 @@ async def test_an_uninstalled_row_with_the_target_tag_does_not_block_the_update(
     repository_id = await _create_repository(client)
     location = (await _install(client, repository_id, "extension-v1")).headers["Location"]
     manifest = (await client.get(location)).json()["manifest"]
+    db_repository = await crud.get_registered_repository(session, UUID(repository_id))
     db_uninstalled = await crud.create_extension(
-        session, repository_id=UUID(repository_id), tag="extension-v2", manifest={**manifest, "version": "1.1.0"}
+        session, repository=db_repository, tag="extension-v2", manifest={**manifest, "version": "1.1.0"}
     )
     db_uninstalled.status = ExtensionStatus.UNINSTALLED
     await session.commit()
@@ -196,3 +197,27 @@ async def test_an_update_interrupted_by_a_restart_can_be_retried(
     assert response.status_code == 202
     session.expire_all()
     assert (await client.get(location)).json()["status"] == "installed"
+
+
+@pytest.mark.asyncio
+async def test_an_update_whose_repository_was_removed_completes_detached(
+    client: AsyncClient, session: AsyncSession, mocked_installer
+):
+    repository_id = await _create_repository(client)
+    location = (await _install(client, repository_id, "extension-v1")).headers["Location"]
+    db_extension = await crud.get_extension(session, extension_id=UUID(location.split("/")[-1]))
+    manifest = {**db_extension.manifest, "version": "1.1.0"}
+    await crud.update_extension(
+        session,
+        extension_id=db_extension.id,
+        status=ExtensionStatus.UPDATING,
+        pending_update={"repository_id": repository_id, "tag": "extension-v2", "manifest": manifest},
+    )
+    assert (await client.delete(f"/repositories/{repository_id}")).status_code == 204
+
+    async with database.async_session() as fresh_session:
+        completed = await crud.complete_extension_update(fresh_session, extension_id=db_extension.id)
+    assert completed.status == ExtensionStatus.INSTALLED
+    assert completed.repository_id is None
+    assert completed.repository_name == "Test Repository"
+    assert completed.manifest["version"] == "1.1.0"

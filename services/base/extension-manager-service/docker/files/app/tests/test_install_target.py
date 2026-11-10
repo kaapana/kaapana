@@ -61,6 +61,14 @@ def test_version_from_another_repository_conflicts(status: ExtensionStatus):
         _resolve(active, "2.1.0")
 
 
+def test_detached_extension_conflicts():
+    active = _active(same_repository=False)
+    active.repository_id = None
+    active.repository_name = "Removed"
+    with _conflict("from the repository Removed, which was removed"):
+        _resolve(active, "2.0.0")
+
+
 def test_same_version_under_another_tag_conflicts():
     with _conflict("already installed in version 1.0.0"):
         _resolve(_active(), "1.0.0")

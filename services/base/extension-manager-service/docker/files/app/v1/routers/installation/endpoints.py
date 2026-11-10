@@ -44,20 +44,6 @@ def _ensure_installers_exist(extension_manifest: ExtensionManifest) -> None:
             ) from e
 
 
-async def _ensure_not_in_other_repository(db, repository_id: UUID, tag: str) -> None:
-    for db_extension in await crud.list_extensions(db, tag=tag):
-        if db_extension.repository_id == repository_id or db_extension.status == crud.ExtensionStatus.UNINSTALLED:
-            continue
-        db_repository = await crud.get_registered_repository(db, db_extension.repository_id)
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                f"The extension {db_extension.manifest['name']} {db_extension.manifest['version']} "
-                f"is already installed from the repository {db_repository.name}. Uninstall it first."
-            ),
-        )
-
-
 async def _create_or_reset_extension(db, repository_id: UUID, tag: str, extension_manifest: ExtensionManifest):
     db_extensions = await crud.list_extensions(db, repository_id=repository_id, tag=tag)
     if db_extensions:
@@ -75,10 +61,13 @@ async def _create_or_reset_extension(db, repository_id: UUID, tag: str, extensio
                 detail=f"Cannot install extension with tag {tag} from repository {repository_id} because an extension with the same tag is currently being processed",
             ) from e
 
+    db_repository = await crud.get_registered_repository(db, repository_id)
+    if not db_repository:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found")
     try:
         db_extension = await crud.create_extension(
             session=db,
-            repository_id=repository_id,
+            repository=db_repository,
             tag=tag,
             manifest=extension_manifest.model_dump(mode="json"),
         )
@@ -127,10 +116,16 @@ def _resolve_install_target(
             f"The extension is in status {active.status} with version {version}. Uninstall it first.",
         )
 
+    if active.repository_id is None:
+        raise _conflict(
+            extension_manifest,
+            f"The extension is installed in version {version} from the repository {active.repository_name}, "
+            "which was removed. Uninstall it first.",
+        )
     if active.repository_id != repository_id:
         raise _conflict(
             extension_manifest,
-            f"The extension is installed in version {version} from another repository. "
+            f"The extension is installed in version {version} from another repository ({active.repository_name}). "
             "A newer version must come from that repository, or uninstall it first.",
         )
 
@@ -239,7 +234,6 @@ async def install_extension(
         ) from e
 
     _ensure_installers_exist(extension_manifest)
-    await _ensure_not_in_other_repository(db, repository_id, tag)
     db_extension = await _install_or_update(db, repository_id, tag, extension_manifest, response, background_tasks)
     return await crud.get_extension(db, extension_id=db_extension.id)
 

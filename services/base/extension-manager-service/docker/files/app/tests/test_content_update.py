@@ -28,7 +28,7 @@ async def _installed_extension(session: AsyncSession, names: list[str]) -> model
         session, name="repository", description="", repository_url="https://example.com/oci", authentication=""
     )
     db_extension = await crud.create_extension(
-        session, repository_id=db_repository.id, tag="extension-v1.0.0", manifest=manifest.model_dump(mode="json")
+        session, repository=db_repository, tag="extension-v1.0.0", manifest=manifest.model_dump(mode="json")
     )
     for name in names:
         db_content = await crud.create_content(

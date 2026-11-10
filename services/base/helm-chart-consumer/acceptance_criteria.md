@@ -91,7 +91,7 @@ helm-chart-content/
 | `name` | The id of the application. It appears in URLs. |
 | `display_name`, `description` | What users see |
 | `scopes` | `project`, `platform`, or both. The default is `project` ([Q11][q11]). |
-| `multi_deployable` | Whether a project can have several releases of the application. The default is `false`. |
+| `multi_deployable` | Whether the application can have several releases in the same scope. A scope is one project or the whole platform. The default is `false`. |
 | `web_interface` | The service, the port and the path of the web interface ([Story 4.4][s4.4]) |
 | `parameters` | The values a user may set. See [Configuration of parameters](#configuration-of-parameters). |
 
@@ -224,7 +224,7 @@ One registered version can have many releases. The release id is the key of the 
 
 ### Listing, updating and uninstalling
 
-- **Limits.** An application that is not multi-deployable has at most one release per project, counted over all its versions. Every application has at most one platform-wide release ([Stories 8.1][s8.1] and [9.1][s9.1]).
+- **Limits.** An application that is not multi-deployable has at most one release per project and at most one platform-wide release, counted over all its versions. A multi-deployable application can have several releases in a project, and several platform-wide ([Stories 8.1][s8.1] and [9.1][s9.1]).
 - **Listing.** `GET /v1/releases?application_id=<id>&project_id=<id>` lists the copies ([Story 8.3][s8.3]).
 - **Update.** Every copy is updated on its own with `PATCH /v1/releases/{id}`. Registering a new version changes no running copy. A copy only shows `newer_version` ([Stories 11.1][s11.1] and [11.2][s11.2]).
 - **Uninstalling the extension.** The version is deregistered and can no longer be deployed. Its copies keep running, are marked with `version_registered: false`, and can still be opened, reconfigured, updated to another version and undeployed ([Story 1.2][s1.2], [Q4][q4]). See [Keep the chart and the declarations of every release][h-keep-chart].

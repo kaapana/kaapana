@@ -106,7 +106,9 @@ class HelmChartContent(Strict):
     description: str
     scopes: list[Scope] = Field([Scope.PROJECT], min_length=1)
     multi_deployable: bool = Field(
-        False, description="Whether the application can be deployed several times in one project."
+        False,
+        description="If true, the application can be deployed several times in the same scope. A scope is one "
+        "project or the whole platform.",
     )
     web_interface: WebInterface | None = None
     parameters: list[ParameterDeclaration] = []

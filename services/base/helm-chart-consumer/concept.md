@@ -423,7 +423,6 @@ As a kaapana-system-admin I want to deploy an application for the whole platform
 Acceptance criteria:
 * Only helm-chart contents that declare the platform-wide scope in `helm-chart-content.json` can be deployed platform-wide.
 * If a helm-chart content supports both scopes, the kaapana-system-admin chooses the scope at deploy. A PI always deploys in their project (Q11).
-* A helm-chart content is deployed at most once platform-wide (several instances: Epic 10).
 * Only kaapana-system-admins can deploy, update and undeploy platform-wide applications.
 
 #### Story 9.2: Using a platform-wide application
@@ -554,6 +553,6 @@ The answers to Q1 to Q11, except Q6, are recorded in [QandA.md](QandA.md) and ar
 * Deploy parameter: A value declared in `helm-chart-content.json` that a user sets when deploying or updating an application. It is mapped onto a chart value.
 * Project-scoped / platform-wide: A deployed application belongs either to one project or to the whole platform. A helm-chart content declares which of the two scopes it supports, or both.
 * Deployed for: A deployed application in a project is deployed either for the whole project or for one scientist of it. This does not restrict access, because every member of the project can open it.
-* Multi-deployable: A helm-chart content that can be deployed several times in the same project. Declared in `helm-chart-content.json` (e.g. as `multiinstallable`).
+* Multi-deployable: A helm-chart content that can be deployed several times in the same scope, i.e. several times in one project or several times platform-wide. Declared in `helm-chart-content.json` (e.g. as `multiinstallable`).
 * Interactive step: A workflow task that deploys an application and waits until a user finishes working in it (Epic 7).
 * Workflow-deployed application: A deployed application that was deployed by an interactive step.

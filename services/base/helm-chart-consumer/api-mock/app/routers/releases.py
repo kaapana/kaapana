@@ -98,8 +98,8 @@ def check_release(
         409: {
             "model": Error,
             "description": "The name is taken, the application is not enabled in the project, the application or "
-            "the version is not registered, or the limit of releases is reached. The limit is one per project for "
-            "an application that is not multi-deployable, and one platform-wide for every application.",
+            "the version is not registered, or the limit of releases is reached. An application that is not "
+            "multi-deployable has at most one release per project and at most one platform-wide release.",
         },
     },
 )
@@ -111,8 +111,8 @@ def create_release(
     Principal investigators deploy in their projects, and kaapana-system-admins deploy in every
     project. Only a kaapana-system-admin deploys platform-wide, and only applications that
     support the platform scope. In a project, the application must be enabled. An application
-    that is not multi-deployable has at most one release per project, and all its versions
-    count toward this limit. Every application has at most one platform-wide release.
+    that is not multi-deployable has at most one release per project and at most one
+    platform-wide release. All its versions count toward both limits.
 
     The origin records who or what deploys. Without an origin in the request, the release gets
     a user origin with the calling user. A user origin that names another user is rejected, and

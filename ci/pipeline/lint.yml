@@ -53,7 +53,6 @@ validate:
       allow_failure: true
     - if: '"$[[ inputs.exec_lint ]]" == "true" && $LINTER == "helm"'
       when: on_success
-      allow_failure: true
       variables:
         GIT_STRATEGY: clone
         GIT_DEPTH: "0"

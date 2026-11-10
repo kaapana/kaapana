@@ -221,17 +221,19 @@ The columns name the default roles. Check the rights in the token instead of the
 also holds for custom roles (Story 5.4). The existing rights fit some rows, for example `launch_application` for
 deploy and `delete_active_apps` for undeploy. Other rows need new rights, for example logs.
 
-`ReleaseCreate.workflow` marks a release as started by a workflow. Only workflow-api may set it. Otherwise any
-principal investigator could create releases that look like workflow steps. As with the registrations, Kaapana has
-no service identity that workflow-api could use to prove who it is. The open question about callers inside the
-cluster covers both. Q15 is open: may a workflow task deploy when a scientist started the run, although scientists
-cannot deploy?
+`ReleaseCreate.origin` says who or what deploys, and `Release.origin` returns it. The default is a user origin.
+The consumer sets its `user_id` to the calling user and rejects a user origin that names another user, so that
+nobody can deploy in the name of someone else. A workflow origin marks a release as started by a workflow task.
+Only workflow-api may send it. Otherwise any principal investigator could create releases that look like workflow
+steps. As with the registrations, Kaapana has no service identity that workflow-api could use to prove who it is.
+The open question about callers inside the cluster covers both. Q15 is open: may a workflow task deploy when a
+scientist started the run, although scientists cannot deploy?
 
 ### Share one check sequence between dry-run and the real call
 
 Deploy and update run the same checks in the same order, and the dry-run routes stop after them:
 
-1. Permission for the placement.
+1. Permission for the placement, and an origin that matches the caller.
 2. The application is enabled in the project. Enabling covers all versions, and platform-wide deploys do not need
    it (Q12 is open).
 3. The version is registered, and the application supports the scope.

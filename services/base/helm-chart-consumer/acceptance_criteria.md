@@ -71,7 +71,7 @@ The API mock has no route for these callers yet. See [Charts that other services
 
 ### Workflows
 
-A workflow task deploys with the `workflow` field of `POST /v1/releases`, and the user finishes with `POST /v1/releases/{id}/complete`. Both belong to Release 2. See [Interactive workflows are not part of the MVP](#interactive-workflows-are-not-part-of-the-mvp).
+A workflow task deploys with a workflow origin in `POST /v1/releases`, and the user finishes with `POST /v1/releases/{id}/complete`. Both belong to Release 2. See [Interactive workflows are not part of the MVP](#interactive-workflows-are-not-part-of-the-mvp).
 
 ## Content of a helm-chart content
 
@@ -290,6 +290,15 @@ What is decided:
 
 What is open: how callers inside the cluster prove who they are. The Extension Manager, workflow-api, AII and the installer all call from pod to pod, without a user. See [Open questions](#open-questions).
 
+### The origin of a release
+
+Every release records who or what deployed it, as `origin`. The field is a union, like the placement. Its `type` tells the two kinds apart. See `UserOrigin` and `WorkflowOrigin` in [api-mock/app/models.py][models].
+
+- **A user.** This is the default of a deploy request. The consumer sets `user_id` to the calling user, whom it knows from the gateway. A user origin that names another user is rejected, so nobody can deploy in the name of someone else.
+- **A workflow task.** The origin holds the workflow run, the task, and the user who started the run, if a user started it. Only workflow-api may send it. See [Put every permission rule in one table][h-permissions].
+- **Other origins can be added later** *(proposed)*. The bootstrap job at platform deploy has no user, so its releases need an origin of their own.
+- The origin describes only the creation of a release. Who changed a release later belongs to the audit log ([Story 5.6][s5.6]).
+
 ### Restricting who can open a release *(proposed)*
 
 The question is whether a release can be limited to a group, for example to principal investigators or to kaapana-system-admins.
@@ -420,7 +429,7 @@ A legacy chart reads platform values by their old names, for example `global.reg
 
 ## Interactive workflows are not part of the MVP
 
-Epic 7, a workflow that starts an application and waits for the user, has the priority Release 2 in [concept.md][e7]. The MVP therefore leaves out the `workflow` field, `POST /v1/releases/{id}/complete` and the filters `from_workflow` and `workflow_run_id`. The API mock keeps them as a proposal. [Q15][q15] and the question in [Keep the outcome of a workflow step after its release is gone][h-workflow-outcome] can wait until then.
+Epic 7, a workflow that starts an application and waits for the user, has the priority Release 2 in [concept.md][e7]. The MVP therefore leaves out the workflow origin, `POST /v1/releases/{id}/complete` and the filters `origin_type` and `workflow_run_id`. The API mock keeps them as a proposal. [Q15][q15] and the question in [Keep the outcome of a workflow step after its release is gone][h-workflow-outcome] can wait until then.
 
 This decision conflicts with the goal of the ticket to remove the legacy system in 0.8.0. kube-helm serves these applications today with `/complete-active-application`, `/active-applications` and `/pending-applications-count`. See [An older helm deployer exists][h-kube-helm]. Until Epic 7 is implemented, either kube-helm stays for these routes, or 0.8.0 has no interactive workflow steps.
 
@@ -509,6 +518,7 @@ State of the checklist:
 [s5.2]: concept.md#story-52-enabling-applications-for-a-project
 [s5.3]: concept.md#story-53-restricting-who-can-open-an-application
 [s5.4]: concept.md#story-54-custom-access-control-model
+[s5.6]: concept.md#story-56-audit-log
 [s6.2]: concept.md#story-62-restricting-what-a-helm-chart-may-create
 [s8.1]: concept.md#story-81-deploying-an-application-multiple-times
 [s8.3]: concept.md#story-83-identifying-deployed-applications

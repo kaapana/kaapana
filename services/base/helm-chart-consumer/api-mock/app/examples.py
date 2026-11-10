@@ -29,8 +29,10 @@ from .models import (
     Resource,
     Scope,
     StringParameter,
+    UserOrigin,
     Volume,
     WebInterface,
+    WorkflowOrigin,
 )
 
 
@@ -206,7 +208,7 @@ ANNA_NOTEBOOK = Release(
         ConfiguredParameter(key="gitToken", value=None, secret=True, is_default=False),
     ],
     volumes=[Volume(name="anna-notebook-workspace", size_gib=10)],
-    deployed_by="paul",
+    origin=UserOrigin(user_id="paul"),
     deployed_at=at(6, 10),
     updated_at=at(6, 10),
 )
@@ -227,7 +229,7 @@ SEGMENTATION_REVIEW = Release(
         ConfiguredParameter(key="workspace", value=5, is_default=True),
     ],
     volumes=[Volume(name="segmentation-review-workspace", size_gib=5)],
-    deployed_by="paul",
+    origin=WorkflowOrigin(workflow_run_id="412", task_id="review-segmentations", started_by="paul"),
     deployed_at=at(8, 10),
     updated_at=at(8, 10),
 )
@@ -249,7 +251,7 @@ NODULE_LABELLING = Release(
         ConfiguredParameter(key="adminPassword", value=None, secret=True, is_default=False),
     ],
     volumes=[Volume(name="nodule-labelling-storage", size_gib=20)],
-    deployed_by="paul",
+    origin=UserOrigin(user_id="paul"),
     deployed_at=at(9, 11),
     updated_at=at(9, 11),
 )
@@ -267,7 +269,7 @@ OHIF = Release(
     url="/applications/ohif/viewer",
     parameters=[ConfiguredParameter(key="layout", value="1x1", is_default=True)],
     volumes=[],
-    deployed_by="kim",
+    origin=UserOrigin(user_id="kim"),
     deployed_at=at(19, 9),
     updated_at=at(19, 9),
 )
@@ -275,6 +277,8 @@ OHIF = Release(
 RELEASES = [ANNA_NOTEBOOK, SEGMENTATION_REVIEW, NODULE_LABELLING, OHIF]
 
 ANNA_NOTEBOOK_UNDEPLOYING = ANNA_NOTEBOOK.model_copy(update={"state": ReleaseState.UNDEPLOYING})
+
+SEGMENTATION_REVIEW_UNDEPLOYING = SEGMENTATION_REVIEW.model_copy(update={"state": ReleaseState.UNDEPLOYING})
 
 # This matches UPDATE_REQUEST, so that the example response fits the example request.
 ANNA_NOTEBOOK_UPDATING = ANNA_NOTEBOOK.model_copy(
@@ -387,6 +391,15 @@ DEPLOY_REQUEST = {
     "name": "jonas-notebook-2",
     "placement": {"scope": "project", "project_id": "lung-ct", "deployed_for": "jonas"},
     "parameters": {"dataFolder": "cohort-a", "gpu": False, "memory": 16},
+    "origin": {"type": "user"},
+}
+
+WORKFLOW_DEPLOY_REQUEST = {
+    "application_id": "mitk",
+    "name": "segmentation-review",
+    "placement": {"scope": "project", "project_id": "lung-ct"},
+    "parameters": {"dataFolder": "annotations"},
+    "origin": {"type": "workflow", "workflow_run_id": "412", "task_id": "review-segmentations", "started_by": "paul"},
 }
 
 PLATFORM_DEPLOY_REQUEST = {

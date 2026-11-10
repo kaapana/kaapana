@@ -164,9 +164,29 @@ class PlatformPlacement(Strict):
 Placement = Annotated[ProjectPlacement | PlatformPlacement, Field(discriminator="scope")]
 
 
+class UserOrigin(Strict):
+    """A user deployed the release through the gateway."""
+
+    type: Literal["user"] = "user"
+    user_id: str | None = Field(
+        None,
+        description="This is the user who deploys. A request can leave it out, and the Helm Chart Consumer then sets "
+        "it to the calling user. A response always contains it.",
+    )
+
+
 class WorkflowOrigin(Strict):
+    """A workflow task deployed the release."""
+
+    type: Literal["workflow"] = "workflow"
     workflow_run_id: str
     task_id: str
+    started_by: str | None = Field(
+        None, description="This is the user who started the workflow run. It is missing when no user started the run."
+    )
+
+
+Origin = Annotated[UserOrigin | WorkflowOrigin, Field(discriminator="type")]
 
 
 class ReleaseCreate(Strict):
@@ -178,7 +198,11 @@ class ReleaseCreate(Strict):
     parameters: dict[str, ParameterValue] = Field(
         {}, description="Values for declared parameters. Others get their default."
     )
-    workflow: WorkflowOrigin | None = Field(None, description="Set when a workflow task deploys the application.")
+    origin: Origin = Field(
+        UserOrigin(),
+        description="The origin says who or what deploys the application. A user origin must name the calling user or "
+        "leave `user_id` out. Only workflow-api may send a workflow origin.",
+    )
 
 
 class ReleaseUpdate(Strict):
@@ -245,8 +269,7 @@ class Release(BaseModel):
     url: str | None = Field(description="Path of the web interface on the Kaapana host, if the application has one.")
     parameters: list[ConfiguredParameter]
     volumes: list[Volume] = Field(description="Persistent volumes. Undeploying deletes them with their data.")
-    workflow: WorkflowOrigin | None = None
-    deployed_by: str
+    origin: Origin = Field(description="The origin says who or what deployed the release. It never changes.")
     deployed_at: datetime
     updated_at: datetime
 

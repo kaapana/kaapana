@@ -87,7 +87,8 @@ const selectedEntity = computed(() => {
 const stats = computed(() => {
   const metadataEntries = galleryItems.value.reduce((sum, item) => sum + item.metadata.length, 0)
   const artifactCount = galleryItems.value.reduce(
-    (sum, item) => sum + item.metadata.reduce((metaSum, meta) => metaSum + meta.artifacts.length, 0),
+    (sum, item) =>
+      sum + item.metadata.reduce((metaSum, meta) => metaSum + meta.artifacts.length, 0),
     0,
   )
   return { metadataEntries, artifactCount }
@@ -135,7 +136,9 @@ const MIN_VIRTUAL_HEIGHT = 320
 const CONTAINER_PADDING = 48
 const appBarHeight = computed(() => (display.mobile.value ? 56 : 64))
 const virtualHeight = computed(() => {
-  const viewport = display.height.value || (typeof window !== 'undefined' ? window.innerHeight : MIN_VIRTUAL_HEIGHT)
+  const viewport =
+    display.height.value ||
+    (typeof window !== 'undefined' ? window.innerHeight : MIN_VIRTUAL_HEIGHT)
   const available = viewport - topSectionHeight.value - appBarHeight.value - CONTAINER_PADDING
   return Math.max(available, MIN_VIRTUAL_HEIGHT)
 })
@@ -163,7 +166,8 @@ function parseQueryFromRoute(): { query: QueryNode; active: boolean } | null {
       return null
     }
     const rawActive = route.query[QUERY_ACTIVE_PARAM_KEY]
-    const isActive = typeof rawActive === 'string' ? rawActive === '1' || rawActive.toLowerCase() === 'true' : true
+    const isActive =
+      typeof rawActive === 'string' ? rawActive === '1' || rawActive.toLowerCase() === 'true' : true
     return { query: parsed as QueryNode, active: isActive }
   } catch (error) {
     console.error('Failed to parse query from URL', error)
@@ -255,6 +259,12 @@ function requestDeleteEntity(id: string, origin: 'list' | 'detail' = 'list') {
   deleteOrigin.value = origin
   deleteTargetId.value = id
   confirmDeleteDialog.value = true
+}
+
+function cancelDeleteEntity() {
+  confirmDeleteDialog.value = false
+  deleteOrigin.value = 'list'
+  deleteTargetId.value = null
 }
 
 async function confirmDeleteEntity() {
@@ -361,9 +371,7 @@ onBeforeUnmount(() => {
       <v-expand-transition>
         <div v-show="showOverviewStats" class="overview-wrapper">
           <v-card class="entity-overview" variant="outlined">
-            <v-card-title class="text-subtitle-1">
-              Overview
-            </v-card-title>
+            <v-card-title class="text-subtitle-1"> Overview </v-card-title>
             <v-card-text>
               <v-row>
                 <v-col cols="12" sm="6" class="text-center">
@@ -432,11 +440,12 @@ onBeforeUnmount(() => {
       <v-card>
         <v-card-title class="text-h6">Delete entity?</v-card-title>
         <v-card-text>
-          This will permanently delete entity <strong>{{ deleteTargetId }}</strong> and all associated metadata and artifacts.
+          This will permanently delete entity <strong>{{ deleteTargetId }}</strong> and all
+          associated metadata and artifacts.
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn variant="text" @click="confirmDeleteDialog = false; deleteOrigin = 'list'; deleteTargetId = null">Cancel</v-btn>
+          <v-btn variant="text" @click="cancelDeleteEntity">Cancel</v-btn>
           <v-btn color="error" :loading="loading" @click="confirmDeleteEntity">Delete</v-btn>
         </v-card-actions>
       </v-card>
@@ -496,6 +505,4 @@ onBeforeUnmount(() => {
     flex-direction: column;
   }
 }
-
-
 </style>

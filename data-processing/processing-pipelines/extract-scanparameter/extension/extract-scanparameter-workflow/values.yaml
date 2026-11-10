@@ -1,4 +1,4 @@
 ---
 global:
-    image: "dag-extract-scanparameters"
-    action: "copy"
+  image: "dag-extract-scanparameters"
+  action: "copy"

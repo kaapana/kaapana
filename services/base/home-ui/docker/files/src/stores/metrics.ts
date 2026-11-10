@@ -44,7 +44,8 @@ export const useMetricsStore = defineStore('metrics', {
   getters: {
     // The GPU scrape job only exists on gpu_support platforms; an empty GPU
     // query result means "no GPU", not "monitoring down".
-    allUnavailable: (state) => state.cpu.unavailable && state.mem.unavailable && state.net.unavailable,
+    allUnavailable: (state) =>
+      state.cpu.unavailable && state.mem.unavailable && state.net.unavailable,
   },
   actions: {
     start() {
@@ -57,7 +58,12 @@ export const useMetricsStore = defineStore('metrics', {
     async backfill() {
       await Promise.all(
         (Object.keys(QUERIES) as MetricKey[]).map(async (key) => {
-          const values = await fetchMetricRange(key, QUERIES[key], BACKFILL_MINUTES, BACKFILL_STEP_S)
+          const values = await fetchMetricRange(
+            key,
+            QUERIES[key],
+            BACKFILL_MINUTES,
+            BACKFILL_STEP_S,
+          )
           if (values) this[key].history = values.slice(-HISTORY_LENGTH)
         }),
       )

@@ -36,12 +36,19 @@
               @click.stop="showDetails()"
             />
           </v-toolbar>
-          <div v-if="Object.keys(validationResults).length > 0" class="result-container on-image rounded">
+          <div
+            v-if="Object.keys(validationResults).length > 0"
+            class="result-container on-image rounded"
+          >
             <v-btn
               size="small"
               variant="text"
               class="validation-badge pa-0"
-              v-if="'errors' in validationResults && validationResults['errors'] != 0 && isSeriesComplete"
+              v-if="
+                'errors' in validationResults &&
+                validationResults['errors'] != 0 &&
+                isSeriesComplete
+              "
               :aria-label="`${validationResults['errors']} validation errors — open report`"
               @click.stop="triggerValidationResultDetails"
             >
@@ -52,7 +59,11 @@
               size="small"
               variant="text"
               class="validation-badge pa-0"
-              v-if="'warnings' in validationResults && validationResults['warnings'] != 0 && isSeriesComplete"
+              v-if="
+                'warnings' in validationResults &&
+                validationResults['warnings'] != 0 &&
+                isSeriesComplete
+              "
               :aria-label="`${validationResults['warnings']} validation warnings — open report`"
               @click.stop="triggerValidationResultDetails"
             >
@@ -154,7 +165,11 @@ async function deleteTag(tag: string) {
   updateTags(request_body)
     .then(() => (tags.value = tags.value.filter((_tag) => _tag !== tag)))
     .catch((error: unknown) =>
-      notifyFailure('Tag not removed', `The tag “${tag}” could not be removed from this series.`, error),
+      notifyFailure(
+        'Tag not removed',
+        `The tag “${tag}” could not be removed from this series.`,
+        error,
+      ),
     )
 }
 
@@ -223,13 +238,11 @@ function onClick() {
   function single_click() {
     timer = setTimeout(() => {
       clicks = 0
-      if (
-        !(
-          !settings.value.datasets.cardText ||
-          datasets.multiSelectKeyPressed ||
-          datasets.selectedItems.length > 1
-        )
-      ) {
+      if (!(
+        !settings.value.datasets.cardText ||
+        datasets.multiSelectKeyPressed ||
+        datasets.selectedItems.length > 1
+      )) {
         modifyTags()
       }
     }, 300)

@@ -43,18 +43,30 @@ const EmptyStates = defineComponent({
         h(VRow, null, {
           default: () =>
             cases.map((c) =>
-              h(VCol, { cols: 12, md: 4, key: c.label }, {
-                default: () => [
-                  h('div', { class: 'text-subtitle-2 mb-1' }, c.label),
-                  h(VCard, null, {
-                    default: () =>
-                      h(VEmptyState, { title: c.title, text: c.text, icon: c.icon, size: 56 }, {
-                        actions: () =>
-                          h(VBtn, { color: 'primary', variant: 'text' }, { default: () => c.action }),
-                      }),
-                  }),
-                ],
-              }),
+              h(
+                VCol,
+                { cols: 12, md: 4, key: c.label },
+                {
+                  default: () => [
+                    h('div', { class: 'text-subtitle-2 mb-1' }, c.label),
+                    h(VCard, null, {
+                      default: () =>
+                        h(
+                          VEmptyState,
+                          { title: c.title, text: c.text, icon: c.icon, size: 56 },
+                          {
+                            actions: () =>
+                              h(
+                                VBtn,
+                                { color: 'primary', variant: 'text' },
+                                { default: () => c.action },
+                              ),
+                          },
+                        ),
+                    }),
+                  ],
+                },
+              ),
             ),
         }),
       ])

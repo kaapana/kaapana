@@ -4,4 +4,4 @@ description: A Coding environment for the workflow folder in Airflow
 name: dev-server-chart
 version: "0.0.0"
 keywords:
-- kaapanaint
+  - kaapanaint

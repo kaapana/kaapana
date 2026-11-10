@@ -7,8 +7,8 @@ name: otsus-method-workflow
 version: "0.0.0"
 type: application
 keywords:
-- kaapanaworkflow
-- kaapanaexperimental
+  - kaapanaworkflow
+  - kaapanaexperimental
 maintainers:
   - name: Kaapana Team
     email: kaapana-dev@dkfz-heidelberg.de

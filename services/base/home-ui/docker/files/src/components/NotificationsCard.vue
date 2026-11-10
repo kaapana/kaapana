@@ -1,7 +1,11 @@
 <template>
   <v-card>
     <v-card-title class="d-flex align-center">
-      <v-badge :content="notifications.total" :model-value="notifications.total > 0" color="primary">
+      <v-badge
+        :content="notifications.total"
+        :model-value="notifications.total > 0"
+        color="primary"
+      >
         <v-icon>{{ notifications.total > 0 ? 'mdi-bell-ring' : 'mdi-bell-outline' }}</v-icon>
       </v-badge>
       <span class="ml-3">Notifications</span>
@@ -16,19 +20,19 @@
       </div>
       <div v-else ref="scrollContainer" class="notification-scroll" @scroll="onScroll">
         <v-list lines="two" density="compact">
-        <v-list-item
-          v-for="notif in notifications.notifications"
-          :key="notif.id"
-          @click="openDetail(notif)"
-        >
-          <template #prepend>
-            <v-icon>{{ notif.icon || kaapanaIcons.info }}</v-icon>
-          </template>
-          <v-list-item-title>{{ notif.title }}</v-list-item-title>
-          <v-list-item-subtitle>
-            {{ new Date(notif.timestamp).toLocaleString() }}
-          </v-list-item-subtitle>
-        </v-list-item>
+          <v-list-item
+            v-for="notif in notifications.notifications"
+            :key="notif.id"
+            @click="openDetail(notif)"
+          >
+            <template #prepend>
+              <v-icon>{{ notif.icon || kaapanaIcons.info }}</v-icon>
+            </template>
+            <v-list-item-title>{{ notif.title }}</v-list-item-title>
+            <v-list-item-subtitle>
+              {{ new Date(notif.timestamp).toLocaleString() }}
+            </v-list-item-subtitle>
+          </v-list-item>
         </v-list>
         <v-progress-linear v-if="notifications.loading" indeterminate />
       </div>

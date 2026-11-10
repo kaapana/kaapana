@@ -5,7 +5,7 @@ description: Classification model training and inference with ResNet18 on 2D or 
 name: classification-training-workflow
 version: "0.0.0"
 keywords:
-- kaapanaworkflow
-- gpurequired
+  - kaapanaworkflow
+  - gpurequired
 annotations:
   ui-visible-name: "Classification (ResNet18)"

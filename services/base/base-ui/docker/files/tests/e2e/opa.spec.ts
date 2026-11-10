@@ -56,8 +56,8 @@ test.describe('checkAuthR', () => {
 
   // home-ui's "no authorization" state: the role exists but grants nothing.
   test('denies a role whose grant list is empty', () => {
-    expect(checkAuthR({ endpoints_per_role: { user: [] } }, '/data-gallery-ui/', { roles: ['user'] })).toBe(
-      false,
-    )
+    expect(
+      checkAuthR({ endpoints_per_role: { user: [] } }, '/data-gallery-ui/', { roles: ['user'] }),
+    ).toBe(false)
   })
 })

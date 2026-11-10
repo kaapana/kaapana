@@ -9,18 +9,22 @@ export const HelpIcon = defineComponent({
   props: { text: { type: String, required: true } },
   setup(props) {
     return () =>
-      h(VTooltip, { location: 'top', text: props.text }, {
-        activator: ({ props: activator }: any) =>
-          h(VBtn, {
-            ...activator,
-            icon: kaapanaIcons.help,
-            type: 'button',
-            variant: 'text',
-            density: 'compact',
-            size: 'small',
-            class: 'wfe-help-icon',
-            'aria-label': 'Field help',
-          }),
-      })
+      h(
+        VTooltip,
+        { location: 'top', text: props.text },
+        {
+          activator: ({ props: activator }: any) =>
+            h(VBtn, {
+              ...activator,
+              icon: kaapanaIcons.help,
+              type: 'button',
+              variant: 'text',
+              density: 'compact',
+              size: 'small',
+              class: 'wfe-help-icon',
+              'aria-label': 'Field help',
+            }),
+        },
+      )
   },
 })

@@ -1,11 +1,13 @@
 # Desktop Base Container
 
 ## How to start your own applications
+
 - Create a `supervisord.conf` file for your app (e.g. `supervisord-myapp.conf` - dont overwrite the `supervisord.conf` already present) and place it in `/etc/supervisor/conf.d` (see slicer example below).
 - A default user is configured and available in the `$USER` variable
 - Don't overwrite the entrypoint, during startup supervisor will be started which then launches your app according to the provided conf
 
 Example from supervisor-slicer:
+
 ```
 [program:slicer]
 priority=50
@@ -16,8 +18,10 @@ environment=DISPLAY=":1",HOME="%HOME%",USER="%USER%"
 ```
 
 ## How does it work
+
 A virtual framebuffer `xvfb` (display `:1`) hosts the desktop. When the container starts
 (`files/startup.sh`) `supervisord` launches:
+
 - `xvfb` / `wm` (openbox) / `tint2` / `pcmanfm`: the X server + LXDE desktop (all as `%USER%`)
 - `pulseaudio`: virtual audio sink for Selkies audio
 - `selkies`: streams display `:1` as H.264 over a single WebSocket
@@ -39,13 +43,13 @@ Note: WebCodecs require a **secure context** — the browser must reach the page
 via `localhost` (in the platform this is provided by the HTTPS ingress).
 
 ## Run this locally
+
 - Build: `docker build -t local-only/base-desktop:latest .`
 - Run: `docker run -p 8080:80 local-only/base-desktop:latest`
 - Open `http://localhost:8080/` (use `localhost`, or an SSH tunnel to it, so the browser has a
   secure context for WebCodecs).
 
 ## Sources
+
 - https://github.com/selkies-project/selkies
 - https://github.com/linuxserver/docker-baseimage-selkies
-
-

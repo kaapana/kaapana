@@ -5,7 +5,7 @@ description: "Execute Total Segmentator v2 with a pre-selected list of tasks"
 name: total-segmentator-v2-workflow
 version: "0.0.0"
 keywords:
-- kaapanaworkflow
+  - kaapanaworkflow
 annotations:
   documentation: "user_guide/extensions.html#totalsegmentator-v2"
   ui-visible-name: "Total Segmentator v2"

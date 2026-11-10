@@ -33,15 +33,15 @@ origin as the `documents/` and `ws` endpoints it calls.
 
 ## Endpoints
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| `GET` | `/documents/` | Documents of the project bucket that Collabora can open |
-| WebSocket | `/ws` | `{"type": "update"}` to the views of a project after a save |
-| `GET` | `/wopi/files/{file_id}` | WOPI CheckFileInfo |
-| `GET` | `/wopi/files/{file_id}/contents` | WOPI GetFile, streamed |
-| `POST` | `/wopi/files/{file_id}/contents` | WOPI PutFile; `409` with `COOLStatusCode` 1010 if the document changed since Collabora opened it |
-| `GET` | `/wopi-discovery/apps` | Apps and actions found by the Collabora discovery |
-| `POST` | `/wopi-discovery/apps/update` | Repeat the discovery now |
+| Method    | Path                             | Purpose                                                                                          |
+| --------- | -------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `GET`     | `/documents/`                    | Documents of the project bucket that Collabora can open                                          |
+| WebSocket | `/ws`                            | `{"type": "update"}` to the views of a project after a save                                      |
+| `GET`     | `/wopi/files/{file_id}`          | WOPI CheckFileInfo                                                                               |
+| `GET`     | `/wopi/files/{file_id}/contents` | WOPI GetFile, streamed                                                                           |
+| `POST`    | `/wopi/files/{file_id}/contents` | WOPI PutFile; `409` with `COOLStatusCode` 1010 if the document changed since Collabora opened it |
+| `GET`     | `/wopi-discovery/apps`           | Apps and actions found by the Collabora discovery                                                |
+| `POST`    | `/wopi-discovery/apps/update`    | Repeat the discovery now                                                                         |
 
 The discovery runs in the background: every 5 s until Collabora answers, then
 every 60 s. A missing or rejected token answers `401`, a bucket the token may
@@ -54,14 +54,14 @@ the document read-only.
 
 ## Configuration
 
-| Variable | Default | |
-| --- | --- | --- |
-| `COLLABORA_URL` | required | Collabora base URL for the discovery |
-| `WOPI_API_ENDPOINT` | `localhost:5000` | WOPI host as Collabora reaches it, without scheme (see `../../collabora/collabora-code-patched`) |
-| `MINIO_URL` | required | MinIO host and port, without scheme |
-| `AII_URL` | required | Resolves the project of a bucket |
-| `DOCUMENT_PATH_IGNORE_REGEX` | `(.*\.minio\.sys)\|(.*thumbnail)` | Object paths to leave out |
-| `DEV_MODE` | `false` | Debug logging and permissive CORS |
+| Variable                     | Default                           |                                                                                                  |
+| ---------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `COLLABORA_URL`              | required                          | Collabora base URL for the discovery                                                             |
+| `WOPI_API_ENDPOINT`          | `localhost:5000`                  | WOPI host as Collabora reaches it, without scheme (see `../../collabora/collabora-code-patched`) |
+| `MINIO_URL`                  | required                          | MinIO host and port, without scheme                                                              |
+| `AII_URL`                    | required                          | Resolves the project of a bucket                                                                 |
+| `DOCUMENT_PATH_IGNORE_REGEX` | `(.*\.minio\.sys)\|(.*thumbnail)` | Object paths to leave out                                                                        |
+| `DEV_MODE`                   | `false`                           | Debug logging and permissive CORS                                                                |
 
 ## Tests
 

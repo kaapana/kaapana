@@ -128,7 +128,8 @@ watch(
     if (!selectedKey.value || syncingSelected.value) {
       return
     }
-    dirtySelected.value = normalizeSchemaText(value) !== normalizeSchemaText(selectedSchemaSnapshot.value)
+    dirtySelected.value =
+      normalizeSchemaText(value) !== normalizeSchemaText(selectedSchemaSnapshot.value)
   },
 )
 
@@ -275,10 +276,19 @@ watch(
           <v-card-title class="d-flex align-center justify-space-between">
             <div>
               <div class="text-subtitle-1">Metadata Schemas</div>
-              <div class="text-caption text-medium-emphasis">{{ schemaKeys.length }} registered</div>
+              <div class="text-caption text-medium-emphasis">
+                {{ schemaKeys.length }} registered
+              </div>
             </div>
-            <div class="d-flex align-center" style="gap: 8px;">
-              <v-btn icon="mdi-refresh" color="primary" variant="tonal" size="small" :loading="loadingKeys" @click="loadSchemaKeys(true)"></v-btn>
+            <div class="d-flex align-center" style="gap: 8px">
+              <v-btn
+                icon="mdi-refresh"
+                color="primary"
+                variant="tonal"
+                size="small"
+                :loading="loadingKeys"
+                @click="loadSchemaKeys(true)"
+              ></v-btn>
               <v-btn color="primary" variant="tonal" size="small" @click="openNewSchemaDialog">
                 <v-icon start icon="mdi-plus"></v-icon>
                 New
@@ -307,7 +317,10 @@ watch(
                 </template>
               </v-list-item>
             </v-list>
-            <div v-if="!schemaKeys.length && !loadingKeys" class="text-medium-emphasis text-caption mt-4">
+            <div
+              v-if="!schemaKeys.length && !loadingKeys"
+              class="text-medium-emphasis text-caption mt-4"
+            >
               No schemas registered yet.
             </div>
           </v-card-text>
@@ -319,7 +332,9 @@ watch(
           <v-card-title class="d-flex align-center justify-space-between">
             <div>
               <div class="text-subtitle-1">{{ selectedTitle }}</div>
-              <div v-if="selectedKey" class="text-caption text-medium-emphasis">{{ selectedKey }}</div>
+              <div v-if="selectedKey" class="text-caption text-medium-emphasis">
+                {{ selectedKey }}
+              </div>
             </div>
             <v-chip
               v-if="selectedKey"
@@ -355,7 +370,9 @@ watch(
               ></v-textarea>
               <v-alert v-if="selectedError" type="error" class="mt-2">{{ selectedError }}</v-alert>
             </div>
-            <div v-else class="text-medium-emphasis text-caption">Select a schema to view or edit.</div>
+            <div v-else class="text-medium-emphasis text-caption">
+              Select a schema to view or edit.
+            </div>
           </v-card-text>
         </v-card>
       </v-col>
@@ -366,7 +383,9 @@ watch(
         <v-card-title class="d-flex align-center justify-space-between">
           <div>
             <div class="text-subtitle-1">Register Schema</div>
-            <div class="text-caption text-medium-emphasis">Provide a key and JSON schema body which can then be used on new data entites</div>
+            <div class="text-caption text-medium-emphasis">
+              Provide a key and JSON schema body which can then be used on new data entites
+            </div>
           </div>
           <v-btn icon="mdi-close" variant="text" @click="closeNewSchemaDialog"></v-btn>
         </v-card-title>

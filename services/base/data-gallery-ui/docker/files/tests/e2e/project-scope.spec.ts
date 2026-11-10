@@ -28,7 +28,9 @@ test('without a project prefix the view redirects onto the first project', async
   await expect(page.getByText('CT Thorax')).toBeVisible()
 })
 
-test('?project_name deep link to another project moves the document under its prefix', async ({ page }) => {
+test('?project_name deep link to another project moves the document under its prefix', async ({
+  page,
+}) => {
   const data = makeDefaultMockData()
   const target = data.projects[1]
   await bootGallery(page, data, `${VIEW_PATH}?project_name=${target.name}`)

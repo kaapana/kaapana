@@ -27,7 +27,10 @@ test('the card header keeps its controls on the title row at a narrow width', as
     for (let i = 0; i < count; i++) {
       const b = await box(buttons.nth(i))
       expect(sameRow(b, title), `button ${i} on ${name} wrapped off the title row`).toBe(true)
-      expect(Math.abs(b.width - b.height), `button ${i} on ${name} is not square`).toBeLessThanOrEqual(1)
+      expect(
+        Math.abs(b.width - b.height),
+        `button ${i} on ${name} is not square`,
+      ).toBeLessThanOrEqual(1)
     }
   }
 })
@@ -53,7 +56,9 @@ test('auth check failure still mounts the view', async ({ page }) => {
   await seedShellState(page)
   await installMockBackend(page)
   await page.route('**/oauth2/userinfo', (r) => r.fulfill({ status: 500, body: '' }))
-  await page.route('**/jsons/testingAuthenticationToken.json', (r) => r.fulfill({ status: 500, body: '' }))
+  await page.route('**/jsons/testingAuthenticationToken.json', (r) =>
+    r.fulfill({ status: 500, body: '' }),
+  )
   await page.goto(VIEW_PATH)
   await expect(page.getByRole('heading', { name: 'Instance overview' })).toBeVisible()
 })

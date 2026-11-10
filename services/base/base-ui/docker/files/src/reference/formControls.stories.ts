@@ -1,13 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { defineComponent, h, ref } from 'vue'
-import {
-  VAutocomplete,
-  VCard,
-  VCardText,
-  VSelect,
-  VTextField,
-  VTextarea,
-} from 'vuetify/components'
+import { VAutocomplete, VCard, VCardText, VSelect, VTextField, VTextarea } from 'vuetify/components'
 import { note } from './storyNote'
 
 // Deliberately sets no appearance props: the fields render with Vuetify's

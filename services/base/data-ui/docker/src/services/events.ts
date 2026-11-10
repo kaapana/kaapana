@@ -146,17 +146,15 @@ interface EventBatchPayload {
 
 function isBatchPayload(payload: unknown): payload is EventBatchPayload {
   return Boolean(
-    payload &&
-      typeof payload === 'object' &&
-      Array.isArray((payload as EventBatchPayload).batch),
+    payload && typeof payload === 'object' && Array.isArray((payload as EventBatchPayload).batch),
   )
 }
 
 function isEventMessage(payload: unknown): payload is EventMessage {
   return Boolean(
     payload &&
-      typeof payload === 'object' &&
-      'resource' in (payload as Record<string, unknown>) &&
-      'action' in (payload as Record<string, unknown>),
+    typeof payload === 'object' &&
+    'resource' in (payload as Record<string, unknown>) &&
+    'action' in (payload as Record<string, unknown>),
   )
 }

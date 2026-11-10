@@ -7,7 +7,6 @@ function confirmButton(page: import('@playwright/test').Page, name: string) {
   return page.getByRole('dialog').getByRole('button', { name })
 }
 
-
 const WORKFLOW = /\/kaapana-backend\/client\/workflow(\?|$)/
 const SYNC = /\/kaapana-backend\/client\/check-for-remote-updates/
 
@@ -20,9 +19,7 @@ test('abort workflow sends PUT /workflow with status "abort"', async ({ page }) 
   await installMockBackend(page)
   await page.goto(VIEW_PATH)
 
-  const reqP = page.waitForRequest(
-    (r) => WORKFLOW.test(r.url()) && r.method() === 'PUT',
-  )
+  const reqP = page.waitForRequest((r) => WORKFLOW.test(r.url()) && r.method() === 'PUT')
   await runningRow(page).getByRole('button', { name: 'Abort workflow' }).click()
   const req = await reqP
   expect(req.postDataJSON()).toEqual({

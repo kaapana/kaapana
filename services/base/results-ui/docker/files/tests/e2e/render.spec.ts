@@ -1,5 +1,10 @@
 import { test, expect } from '@playwright/test'
-import { installMockBackend, seedShellState, defaultMockData, VIEW_PATH } from './fixtures/mock-backend'
+import {
+  installMockBackend,
+  seedShellState,
+  defaultMockData,
+  VIEW_PATH,
+} from './fixtures/mock-backend'
 
 test('renders the typical result tree on load', async ({ page }) => {
   await seedShellState(page)
@@ -33,7 +38,10 @@ test('requests results in bounded pages (limit=100)', async ({ page }) => {
   await installMockBackend(page)
   const limited = page.waitForRequest((r) => {
     const u = new URL(r.url())
-    return u.pathname.endsWith('/get-static-website-results-tree') && u.searchParams.get('limit') === '100'
+    return (
+      u.pathname.endsWith('/get-static-website-results-tree') &&
+      u.searchParams.get('limit') === '100'
+    )
   })
   await page.goto(VIEW_PATH)
   await limited
@@ -129,7 +137,9 @@ test('the tree and the preview stack on a narrow viewport', async ({ page }) => 
   await page.goto(VIEW_PATH)
   await expect(page.getByText('nnunet-training-230101')).toBeVisible()
 
-  const treeColumn = page.locator('.v-treeview').locator('xpath=ancestor::div[contains(@class,"v-col")][1]')
+  const treeColumn = page
+    .locator('.v-treeview')
+    .locator('xpath=ancestor::div[contains(@class,"v-col")][1]')
   const box = await treeColumn.boundingBox()
   expect(box!.width).toBeGreaterThan(400)
 })

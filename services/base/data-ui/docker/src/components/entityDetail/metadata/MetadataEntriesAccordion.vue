@@ -13,7 +13,6 @@ const emit = defineEmits<{
   (e: 'delete', payload: { id: string; key: string }): void
 }>()
 
-
 // Inject schema dialog opener from App.vue
 const openSchemasDialog = inject<(key?: string) => void>('openSchemasDialog')
 
@@ -110,7 +109,7 @@ function isRenderableSchema(schema: JsonSchema | null): schema is JsonSchema {
     return false
   }
   const rawType = schema.type
-  const normalized = Array.isArray(rawType) ? rawType[0] ?? null : rawType ?? null
+  const normalized = Array.isArray(rawType) ? (rawType[0] ?? null) : (rawType ?? null)
   const properties = schema.properties ?? {}
   if (normalized && normalized !== 'object') {
     return false
@@ -131,11 +130,16 @@ function isSchemaLoading(key: string): boolean {
 }
 
 function updateFormValue(key: string, value: unknown) {
-  const sanitized = value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
+  const sanitized =
+    value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {}
   metadataFormValues.value = { ...metadataFormValues.value, [key]: cloneMetadataData(sanitized) }
 }
 
-function cloneMetadataData(data: Record<string, unknown> | null | undefined): Record<string, unknown> {
+function cloneMetadataData(
+  data: Record<string, unknown> | null | undefined,
+): Record<string, unknown> {
   if (!data || typeof data !== 'object') {
     return {}
   }
@@ -197,13 +201,22 @@ function openSchemaPreview(key: string) {
     openSchemasDialog(key)
   }
 }
-
 </script>
 
 <template>
   <div>
-    <v-expansion-panels v-if="props.entity.metadata.length" v-model="metadataPanelState" multiple class="metadata-panels">
-      <v-expansion-panel v-for="meta in props.entity.metadata" :key="meta.key" :value="meta.key" class="metadata-panel">
+    <v-expansion-panels
+      v-if="props.entity.metadata.length"
+      v-model="metadataPanelState"
+      multiple
+      class="metadata-panels"
+    >
+      <v-expansion-panel
+        v-for="meta in props.entity.metadata"
+        :key="meta.key"
+        :value="meta.key"
+        class="metadata-panel"
+      >
         <template #title>
           <div class="metadata-panel__title">
             <div class="metadata-panel__label">
@@ -213,7 +226,13 @@ function openSchemaPreview(key: string) {
               </span>
             </div>
             <div class="metadata-panel__actions">
-              <v-btn variant="text" size="small" color="primary" :loading="loading" @click.stop="handleSaveMetadata(meta.key)">
+              <v-btn
+                variant="text"
+                size="small"
+                color="primary"
+                :loading="loading"
+                @click.stop="handleSaveMetadata(meta.key)"
+              >
                 <v-icon start>mdi-content-save</v-icon>
                 Save
               </v-btn>
@@ -233,7 +252,12 @@ function openSchemaPreview(key: string) {
                 :disabled="!hasResolvedSchema(meta.key) && !schemaErrors[meta.key]"
                 @click.stop="reloadSchema(meta.key)"
               />
-              <v-btn variant="text" size="small" color="error" @click.stop="confirmDeleteMetadata(meta.key)">
+              <v-btn
+                variant="text"
+                size="small"
+                color="error"
+                @click.stop="confirmDeleteMetadata(meta.key)"
+              >
                 <v-icon start>mdi-delete</v-icon>
                 Remove
               </v-btn>
@@ -261,21 +285,48 @@ function openSchemaPreview(key: string) {
                 @update:model-value="(value) => updateFormValue(meta.key, value)"
               />
               <template v-else>
-                <v-alert v-if="hasResolvedSchema(meta.key) && metadataSchemas[meta.key] === null" type="info" class="mb-3" density="compact">
+                <v-alert
+                  v-if="hasResolvedSchema(meta.key) && metadataSchemas[meta.key] === null"
+                  type="info"
+                  class="mb-3"
+                  density="compact"
+                >
                   No schema registered for this key. Edit JSON directly.
                 </v-alert>
-                <v-alert v-else-if="hasResolvedSchema(meta.key) && metadataSchemas[meta.key]" type="warning" class="mb-3" density="compact">
+                <v-alert
+                  v-else-if="hasResolvedSchema(meta.key) && metadataSchemas[meta.key]"
+                  type="warning"
+                  class="mb-3"
+                  density="compact"
+                >
                   Schema contains unsupported structures. Falling back to JSON editing.
                 </v-alert>
-                <v-textarea v-model="metadataDrafts[meta.key]" auto-grow label="Metadata JSON" rows="6" variant="outlined" />
-                <v-alert v-if="metadataErrors[meta.key]" class="mt-2" type="error" density="compact">
+                <v-textarea
+                  v-model="metadataDrafts[meta.key]"
+                  auto-grow
+                  label="Metadata JSON"
+                  rows="6"
+                  variant="outlined"
+                />
+                <v-alert
+                  v-if="metadataErrors[meta.key]"
+                  class="mt-2"
+                  type="error"
+                  density="compact"
+                >
                   {{ metadataErrors[meta.key] }}
                 </v-alert>
               </template>
             </template>
             <v-alert v-if="schemaErrors[meta.key]" class="mt-3" type="error" density="compact">
               {{ schemaErrors[meta.key] }}
-              <v-btn variant="text" size="x-small" class="ml-2" :loading="isSchemaLoading(meta.key)" @click="reloadSchema(meta.key)">
+              <v-btn
+                variant="text"
+                size="x-small"
+                class="ml-2"
+                :loading="isSchemaLoading(meta.key)"
+                @click="reloadSchema(meta.key)"
+              >
                 Retry
               </v-btn>
             </v-alert>

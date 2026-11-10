@@ -12,7 +12,8 @@ import {
 // The four services base-ui's httpClient rewrites onto /project/<short_id>/
 // (its PROJECT_SCOPED allowlist). Matched anywhere in the path so a call that
 // bypasses the interceptor entirely is still caught.
-const PROJECT_SCOPED_SERVICE = /(^|\/)(kaapana-backend|kube-helm-api|workflow-api|dicom-web-filter)\//
+const PROJECT_SCOPED_SERVICE =
+  /(^|\/)(kaapana-backend|kube-helm-api|workflow-api|dicom-web-filter)\//
 
 // The /project/<short_id> document prefix IS the project selection: API calls
 // must be scoped to it and the project store must resolve the same slug, not
@@ -60,9 +61,7 @@ test('no request to a project-scoped service escapes the /project/<slug>/ prefix
   // Barriers on RESPONSES, matched without a prefix so they hold whether or not
   // the call is scoped; a DOM barrier can be satisfied before the request goes
   // out, and networkidle would be flaky under the 15s polls.
-  const metric = page.waitForResponse((r) =>
-    /\/kaapana-backend\/monitoring\/query\//.test(r.url()),
-  )
+  const metric = page.waitForResponse((r) => /\/kaapana-backend\/monitoring\/query\//.test(r.url()))
   const badge = page.waitForResponse((r) =>
     r.url().includes('/kube-helm-api/pending-applications-count'),
   )
@@ -90,7 +89,11 @@ test('no request to a project-scoped service escapes the /project/<slug>/ prefix
 
   // Notification write path: not allowlisted today, covered in case it grows a
   // scoped call.
-  await page.locator('.v-card').filter({ hasText: 'Notifications' }).getByText('Workflow finished').click()
+  await page
+    .locator('.v-card')
+    .filter({ hasText: 'Notifications' })
+    .getByText('Workflow finished')
+    .click()
   const read = page.waitForResponse((r) => r.url().includes('/notifications/v2/n-1/read'))
   await page.locator('.v-dialog').getByRole('button', { name: 'Mark as read' }).click()
   await read

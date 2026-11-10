@@ -73,11 +73,7 @@ const updateTags = async (data: any) => {
   // TODO: ideally this should return the new tags which are then assigned
 }
 
-const loadDashboard = async (
-  seriesInstanceUIDs: string[],
-  fields: string[],
-  query: any = {},
-) => {
+const loadDashboard = async (seriesInstanceUIDs: string[], fields: string[], query: any = {}) => {
   return (
     await httpClient.post(KAAPANA_BACKEND_ENDPOINT + 'dataset/dashboard', {
       series_instance_uids: seriesInstanceUIDs,

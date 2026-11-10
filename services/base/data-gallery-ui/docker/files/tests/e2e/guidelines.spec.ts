@@ -92,9 +92,7 @@ for (const { dialog: name, open } of dialogOpeners) {
     await expect(opened).toBeVisible()
     // Focus moves into the dialog once its enter transition ends; an Escape
     // before that would close it with focus never having left the opener.
-    await expect
-      .poll(() => opened.evaluate((el) => el.contains(document.activeElement)))
-      .toBe(true)
+    await expect.poll(() => opened.evaluate((el) => el.contains(document.activeElement))).toBe(true)
 
     await pressEscapeUntil(page, () => opened.isHidden())
     await expect(opener).toBeFocused()
@@ -115,9 +113,7 @@ test('closing a workflow started from the validation report returns focus to the
 
   const workflow = dialog(page, 'Workflow Execution')
   await expect(workflow).toBeVisible()
-  await expect
-    .poll(() => workflow.evaluate((el) => el.contains(document.activeElement)))
-    .toBe(true)
+  await expect.poll(() => workflow.evaluate((el) => el.contains(document.activeElement))).toBe(true)
   await pressEscapeUntil(page, () => workflow.isHidden())
   await expect(opener).toBeFocused()
 })
@@ -237,7 +233,9 @@ test('closing an edited dialog, by Escape or an outside click, asks before disca
   await expect(page.getByText('Save selection as dataset')).toBeHidden()
 })
 
-test('unsaved work in a dialog is part of the dirty state reported to the shell', async ({ page }) => {
+test('unsaved work in a dialog is part of the dirty state reported to the shell', async ({
+  page,
+}) => {
   await trackDirty(page)
   await openGallery(page)
   expect(await lastDirty(page)).toBeNull()

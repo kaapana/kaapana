@@ -58,7 +58,8 @@ test('the detail dialog fetches fresh stats and renders histograms', async ({ pa
   await expect(page.locator('.v-dialog').getByText('Patient Sex', { exact: true })).toBeVisible()
 })
 
-const notificationsCard = (page: Page) => page.locator('.v-card').filter({ hasText: 'Notifications' })
+const notificationsCard = (page: Page) =>
+  page.locator('.v-card').filter({ hasText: 'Notifications' })
 
 test('clicking a notification row opens its detail dialog with the full body', async ({ page }) => {
   const description = defaultMockData.notifications[0].description
@@ -72,7 +73,10 @@ test('clicking a notification row opens its detail dialog with the full body', a
   // the body stays out of the list itself
   await expect(page.locator('.notification-scroll').getByText(description)).toHaveCount(0)
   // the link is a shell route, so it has to replace the top window, not the iframe
-  await expect(dialog.locator('a[href="/web/workflows/workflows"]')).toHaveAttribute('target', '_top')
+  await expect(dialog.locator('a[href="/web/workflows/workflows"]')).toHaveAttribute(
+    'target',
+    '_top',
+  )
 })
 
 // The close button carries no text, and for a keyboard or screen-reader user it
@@ -89,7 +93,9 @@ test('both detail dialogs name their close button', async ({ page }) => {
   await expect(dialog).toBeHidden()
 })
 
-test('marking as read from the dialog calls the read endpoint and clears the list', async ({ page }) => {
+test('marking as read from the dialog calls the read endpoint and clears the list', async ({
+  page,
+}) => {
   await page.goto(VIEW_PATH)
   const card = notificationsCard(page)
   await expect(card.locator('.v-badge__badge')).toHaveText('1')

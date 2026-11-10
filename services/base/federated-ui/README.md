@@ -19,14 +19,14 @@ Sourced from `src/` and `tests/e2e`:
   readable width. The list refetches on a 15 s poll; a mutation that lands
   while a fetch runs queues one more fetch instead of being dropped.
 - **States** — skeleton cards on the first load; a failed first load shows an
-  error empty state with *Try again* and *Details*; a failed poll keeps the last
+  error empty state with _Try again_ and _Details_; a failed poll keeps the last
   list under a warning alert; no remotes shows an empty state that points to
-  the *Add remote instance* button in the page header.
+  the _Add remote instance_ button in the page header.
 - **Instance card** (`components/InstanceCard.vue`, rows in
   `components/InstanceField.vue`) — name, local/remote subtitle and, for a
-  remote, an *Updated …* chip (success < 5 min, warning < 5 h, error older,
-  neutral *Never updated* for a remote that has not reported yet). Values are
-  stated in text (*Yes*/*No*, *Deactivated*, *None*), not by colour alone.
+  remote, an _Updated …_ chip (success < 5 min, warning < 5 h, error older,
+  neutral _Never updated_ for a remote that has not reported yet). Values are
+  stated in text (_Yes_/_No_, _Deactivated_, _None_), not by colour alone.
 - **Edit in place** — one field at a time per card: pencil → field with Save and
   Cancel; Enter saves. Remote cards edit network port, token, Fernet key and SSL
   verification; the local card edits Fernet encryption, SSL verification,
@@ -35,16 +35,16 @@ Sourced from `src/` and `tests/e2e`:
   keeps the field open with the entered value. A background poll never
   overwrites a field being edited.
 - **Add remote instance** (`components/AddRemoteInstance.vue`) — a medium
-  dialog with *Enter details* and *Paste details* tabs (both `eager`, so
+  dialog with _Enter details_ and _Paste details_ tabs (both `eager`, so
   validation also runs when submitting from the paste tab). Pasted JSON fills
   the fields; invalid JSON is explained under the field. A rejected request is
-  shown as an inline alert with *Details*; the button is busy while the request
+  shown as an inline alert with _Details_; the button is busy while the request
   runs. Closing with entered details asks before discarding them.
 - **Delete remote** — `ConfirmDialog` (error colour, Cancel focused) stating
   that the jobs held for that instance are deleted and the remote platform is
   not changed.
 - **Copy connection details** — copies the local instance definition as JSON,
-  in exactly the shape the *Paste details* tab reads.
+  in exactly the shape the _Paste details_ tab reads.
 - **Sync remote instances** — triggers a remote-update check, confirms, and
   refetches; disabled while there is no remote.
 - **Feedback** — successes are transient notifications; failures are error
@@ -65,16 +65,16 @@ so **all calls below are project-scoped**; the auth calls are not.
 
 Federation client API (base path `/kaapana-backend/client`):
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| POST | `get-kaapana-instances` | Load local + remote instances (initial + 15 s poll). |
-| GET | `check-for-remote-updates` | *Sync remote instances*. |
-| POST | `remote-kaapana-instance` | Register a new remote instance. |
-| PUT | `remote-kaapana-instance` | Save port, token, Fernet key or SSL check of a remote. |
-| PUT | `client-kaapana-instance` | Save the local instance settings. |
+| Method | Path                                        | Purpose                                                                           |
+| ------ | ------------------------------------------- | --------------------------------------------------------------------------------- |
+| POST   | `get-kaapana-instances`                     | Load local + remote instances (initial + 15 s poll).                              |
+| GET    | `check-for-remote-updates`                  | _Sync remote instances_.                                                          |
+| POST   | `remote-kaapana-instance`                   | Register a new remote instance.                                                   |
+| PUT    | `remote-kaapana-instance`                   | Save port, token, Fernet key or SSL check of a remote.                            |
+| PUT    | `client-kaapana-instance`                   | Save the local instance settings.                                                 |
 | DELETE | `kaapana-instance?kaapana_instance_id=<id>` | Delete a remote instance, the jobs sent to it and the workflows received from it. |
-| POST | `get-dags` | Workflow options for the allowed-workflows editor. |
-| GET | `datasets?skip_identifiers=true` | Dataset options for the allowed-datasets editor. |
+| POST   | `get-dags`                                  | Workflow options for the allowed-workflows editor.                                |
+| GET    | `datasets?skip_identifiers=true`            | Dataset options for the allowed-datasets editor.                                  |
 
 These endpoints belong to the legacy `kaapana-backend`. They are the only
 implementation of federation, and no successor API exists yet, so the view
@@ -83,10 +83,10 @@ keeps using them.
 Auth (base-ui `useAuthStore.checkAuth`, run before every route; **not**
 project-prefixed):
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET | `/oauth2/userinfo` | User identity/roles in the deployed platform. |
-| GET | `/jsons/testingAuthenticationToken.json` | Dev-only fallback when the oauth2 proxy is absent. |
+| Method | Path                                     | Purpose                                            |
+| ------ | ---------------------------------------- | -------------------------------------------------- |
+| GET    | `/oauth2/userinfo`                       | User identity/roles in the deployed platform.      |
+| GET    | `/jsons/testingAuthenticationToken.json` | Dev-only fallback when the oauth2 proxy is absent. |
 
 There is no project store in this view, so it issues **no `/aii` calls**.
 

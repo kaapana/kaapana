@@ -11,42 +11,49 @@ export KAAPANA_PROJECTS_UI_PATH=/projects-ui               # optional, this is t
 
 ## Test projects
 
-| Project | What it covers | Auth |
-|---|---|---|
-| `first-login` | Changes the default `kaapana` password to `admin` on a fresh instance | none |
-| `auth-setup` | Logs in as `kaapana`/`admin` and saves the session to `playwright/.auth/` | none (creates it) |
-| `project-management` | Full CRUD lifecycle of the project-management-ui (`/projects-ui`) | saved session |
-| `chromium` / `firefox` / `webkit` | All other spec files on three desktop browsers | none |
+| Project                           | What it covers                                                            | Auth              |
+| --------------------------------- | ------------------------------------------------------------------------- | ----------------- |
+| `first-login`                     | Changes the default `kaapana` password to `admin` on a fresh instance     | none              |
+| `auth-setup`                      | Logs in as `kaapana`/`admin` and saves the session to `playwright/.auth/` | none (creates it) |
+| `project-management`              | Full CRUD lifecycle of the project-management-ui (`/projects-ui`)         | saved session     |
+| `chromium` / `firefox` / `webkit` | All other spec files on three desktop browsers                            | none              |
 
 ## Running locally
 
 ### Full suite (fresh instance where first-login hasn't been done yet)
+
 ```bash
 npx playwright test
 ```
 
 ### Against an already-configured instance (password already `admin`)
+
 Skip `first-login` — run the setup and feature tests directly:
+
 ```bash
 npx playwright test --project auth-setup --project project-management --workers 1
 ```
 
 ### Only project-management tests (auth-setup runs automatically as a dependency)
+
 ```bash
 npx playwright test --project project-management
 ```
 
 ### Interactive UI mode
+
 ```bash
 npx playwright test --ui
 ```
 
 ### View the last HTML report
+
 ```bash
 npx playwright show-report
 ```
 
 ### View a trace from a failed test
+
 ```bash
 npx playwright show-trace test-results/<test-name>/trace.zip
 ```
@@ -54,6 +61,7 @@ npx playwright show-trace test-results/<test-name>/trace.zip
 ## On failure
 
 Failed tests automatically save:
+
 - **Screenshot** — `test-results/<name>/test-failed-*.png`
 - **Video** — `test-results/<name>/video.webm`
 - **Trace** — `test-results/<name>/trace.zip` (open with `npx playwright show-trace` or upload to https://trace.playwright.dev)

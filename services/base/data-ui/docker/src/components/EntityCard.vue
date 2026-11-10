@@ -40,7 +40,9 @@ function artifactBadge(entry: MetadataEntry): string {
   if (!entry.artifacts.length) {
     return 'no files'
   }
-  const imageArtifacts = entry.artifacts.filter((artifact) => artifact.content_type?.startsWith('image/')).length
+  const imageArtifacts = entry.artifacts.filter((artifact) =>
+    artifact.content_type?.startsWith('image/'),
+  ).length
   if (imageArtifacts === entry.artifacts.length) {
     return `${entry.artifacts.length} image${entry.artifacts.length > 1 ? 's' : ''}`
   }
@@ -93,14 +95,20 @@ function artifactBadge(entry: MetadataEntry): string {
       <v-list density="compact" class="metadata-list">
         <v-list-item v-for="meta in item.metadata" :key="meta.key">
           <template #prepend>
-            <v-avatar size="28" color="deep-purple-lighten-4" class="text-uppercase font-weight-medium">
+            <v-avatar
+              size="28"
+              color="deep-purple-lighten-4"
+              class="text-uppercase font-weight-medium"
+            >
               {{ meta.key.slice(0, 2) }}
             </v-avatar>
           </template>
           <v-list-item-title>{{ meta.key }}</v-list-item-title>
           <v-list-item-subtitle>{{ metadataSummary(meta) }}</v-list-item-subtitle>
           <template #append>
-            <v-chip size="x-small" color="grey-darken-1" variant="tonal">{{ artifactBadge(meta) }}</v-chip>
+            <v-chip size="x-small" color="grey-darken-1" variant="tonal">{{
+              artifactBadge(meta)
+            }}</v-chip>
           </template>
         </v-list-item>
       </v-list>

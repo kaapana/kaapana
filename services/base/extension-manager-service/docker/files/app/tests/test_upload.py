@@ -228,9 +228,8 @@ async def test_an_upload_cannot_be_changed_while_it_is_pulled(client: AsyncClien
     manifest = _manifest()
     tag = _tag(manifest)
     await _upload(client, _archive(manifest))
-    db_extension = await crud.create_extension(
-        session, repository_id=upload.UPLOAD_REPOSITORY_ID, tag=tag, manifest=manifest
-    )
+    db_repository = await crud.get_registered_repository(session, upload.UPLOAD_REPOSITORY_ID)
+    db_extension = await crud.create_extension(session, repository=db_repository, tag=tag, manifest=manifest)
     db_extension.status = extension_status
     await session.commit()
 
@@ -247,9 +246,8 @@ async def test_an_upload_cannot_be_changed_while_an_update_pulls_it(client: Asyn
     manifest = _manifest()
     newer = {**manifest, "version": "1.1.0"}
     await _upload(client, _archive(newer))
-    db_extension = await crud.create_extension(
-        session, repository_id=upload.UPLOAD_REPOSITORY_ID, tag=_tag(manifest), manifest=manifest
-    )
+    db_repository = await crud.get_registered_repository(session, upload.UPLOAD_REPOSITORY_ID)
+    db_extension = await crud.create_extension(session, repository=db_repository, tag=_tag(manifest), manifest=manifest)
     db_extension.status = "updating"
     db_extension.pending_update = {
         "repository_id": str(upload.UPLOAD_REPOSITORY_ID),
@@ -492,14 +490,70 @@ async def test_a_failed_installation_can_be_retried_from_the_upload_repository(c
 
 
 @pytest.mark.asyncio
-async def test_the_same_tag_cannot_be_installed_from_two_repositories(client: AsyncClient, mocked_installer):
+async def test_the_same_extension_cannot_be_installed_from_two_repositories(client: AsyncClient, mocked_installer):
     first = await _create_repository(client, "First")
     second = await _create_repository(client, "Second")
     assert (await client.post(f"/extensions/install?repository_id={first}&tag=extension-v1")).status_code == 201
 
     response = await client.post(f"/extensions/install?repository_id={second}&tag=extension-v1")
     assert response.status_code == 409
-    assert "already installed from the repository First" in response.json()["detail"]
+    assert "from another repository (First)" in response.json()["detail"]
+
+
+MOCK_EXTENSION_ID = json.loads((MOCK_EXTENSION_DIR / "extension_manifest.json").read_text())["id"]
+
+
+@pytest.mark.asyncio
+async def test_an_extension_from_a_repository_cannot_be_installed_from_an_upload_in_another_version(
+    client: AsyncClient, mocked_installer
+):
+    repository_id = await _create_repository(client, "First")
+    assert (await client.post(f"/extensions/install?repository_id={repository_id}&tag=extension-v1")).status_code == 201
+    manifest = _manifest(id=MOCK_EXTENSION_ID, version="9.9.9")
+    assert (await _upload(client, _archive(manifest))).status_code == 201
+
+    response = await _install(client, _tag(manifest))
+    assert response.status_code == 409
+    assert "from another repository (First)" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_an_uploaded_extension_cannot_be_installed_from_a_repository(client: AsyncClient, mocked_installer):
+    manifest = _manifest(id=MOCK_EXTENSION_ID, version="9.9.9")
+    assert (await _upload(client, _archive(manifest))).status_code == 201
+    assert (await _install(client, _tag(manifest))).status_code == 201
+    repository_id = await _create_repository(client, "First")
+
+    response = await client.post(f"/extensions/install?repository_id={repository_id}&tag=extension-v1")
+    assert response.status_code == 409
+    assert "from another repository (Upload)" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_a_newer_version_from_the_same_source_updates(client: AsyncClient, mocked_installer):
+    manifest = _manifest()
+    assert (await _upload(client, _archive(manifest))).status_code == 201
+    assert (await _install(client, _tag(manifest))).status_code == 201
+    other_version = {**manifest, "version": "2.0.0"}
+    assert (await _upload(client, _archive(other_version))).status_code == 201
+
+    response = await _install(client, _tag(other_version))
+    assert response.status_code == 202
+
+
+@pytest.mark.asyncio
+async def test_a_detached_extension_blocks_the_same_extension_from_another_source(
+    client: AsyncClient, mocked_installer
+):
+    repository_id = await _create_repository(client, "Removed")
+    assert (await client.post(f"/extensions/install?repository_id={repository_id}&tag=extension-v1")).status_code == 201
+    assert (await client.delete(f"/repositories/{repository_id}")).status_code == 204
+    manifest = _manifest(id=MOCK_EXTENSION_ID, version="9.9.9")
+    assert (await _upload(client, _archive(manifest))).status_code == 201
+
+    response = await _install(client, _tag(manifest))
+    assert response.status_code == 409
+    assert "from the repository Removed, which was removed" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -521,12 +575,15 @@ async def test_an_upload_cannot_be_installed_while_installed_from_another_reposi
 ):
     repository_id = await _create_repository(client)
     manifest = _manifest()
-    await crud.create_extension(session, repository_id=UUID(repository_id), tag=_tag(manifest), manifest=manifest)
+    db_repository = await crud.get_registered_repository(session, UUID(repository_id))
+    db_extension = await crud.create_extension(session, repository=db_repository, tag=_tag(manifest), manifest=manifest)
+    db_extension.status = crud.ExtensionStatus.INSTALLED
+    await session.commit()
 
     assert (await _upload(client, _archive(manifest))).status_code == 201
     response = await _install(client, _tag(manifest))
     assert response.status_code == 409
-    assert "already installed from the repository Test Repository" in response.json()["detail"]
+    assert "from another repository (Test Repository)" in response.json()["detail"]
     mocked_installer.install_content.assert_not_awaited()
 
 

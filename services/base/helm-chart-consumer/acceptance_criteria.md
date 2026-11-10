@@ -130,7 +130,7 @@ Source b is the model `ParameterDeclaration` in [api-mock/app/models.py][models]
 
 - A user can only set a value that source b declares. Every other chart value keeps the default from `values.yaml` ([Story 2.2][s2.2]).
 - The values of a request are validated against the declarations before anything is deployed. Then the helm dry-run finds errors in the rendered chart ([Story 2.1][s2.1]).
-- A secret parameter never becomes a chart value. See [Never return a secret, and keep it out of the helm values][h-secrets].
+- A secret parameter never becomes a chart value. This rule is planned for a later release, possibly Release 2. In the MVP a secret parameter is configured like every other parameter, and its value is set as a chart value. The consumer masks the value in its responses in both cases ([Story 3.2][s3.2]). See [Never return a secret, and keep it out of the helm values][h-secrets].
 - On an update, a parameter that exists in both versions keeps its value, a new parameter gets its default, and a dropped parameter disappears ([Stories 11.3][s11.3] and [11.4][s11.4]).
 - **Check at registration** *(proposed)*. Every `chart_value` must be a path that exists in `values.yaml`, and no `chart_value` may point into the platform values. Without this check, a typing error in a path is accepted and the parameter silently has no effect.
 - **One place for a default** *(proposed)*. `default` in a declaration is optional. If it is missing, the consumer reads the default from `values.yaml` at registration and stores it with the version. If both exist, the declaration wins, and the form shows that value. This way the two defaults cannot differ without anyone noticing.
@@ -188,7 +188,7 @@ A platform content is a helm-chart content that belongs to the platform and not 
 - **A platform content declares the privileged values that it needs**, in a field `platform_secrets` of `helm-chart-content.json`. The consumer passes exactly these values under `global.kaapana.secrets`, for example `registry_credentials` and `oidc_client_secret`.
 - **A content of an extension never gets them.** A registration that comes from the Extension Manager and declares `platform_secrets` is rejected. The consumer decides this from the caller, and not from a field in the request.
 - **The dry-run does not return them.** It shows a privileged value as set, like a secret parameter.
-- **Helm stores them.** Helm keeps the values of a release in a secret in the namespace of the helm release. This is the same as today, and it is limited to the releases of platform contents. It is an exception to the rule for secret parameters, which never become chart values. See [Never return a secret, and keep it out of the helm values][h-secrets].
+- **Helm stores them.** Helm keeps the values of a release in a secret in the namespace of the helm release. This is the same as today, and it is limited to the releases of platform contents. It will be an exception when the rule for secret parameters applies. That rule keeps a secret out of the chart values and is planned for a later release. See [Never return a secret, and keep it out of the helm values][h-secrets].
 - **`registry_credentials` holds the user name and the password of the registry.**
 - **An alternative exists.** The chart `project-namespace` already copies two other passwords from the admin namespace with the helm function `lookup`, in `system_user_password.yaml` and `kaapana-service-password.yaml`. It could copy the registry secret and the OIDC client secret in the same way. Then no password passes through the values, and `platform_secrets` is not needed. The consumer needs the right to read secrets in the admin namespace in both cases, and `lookup` returns nothing in a client-side dry-run.
 
@@ -575,6 +575,7 @@ State of the checklist:
 [s2.4]: concept.md#story-24-opening-an-application
 [s2.5]: concept.md#story-25-working-on-existing-data
 [s3.1]: concept.md#story-31-seeing-the-status-of-a-deployed-application
+[s3.2]: concept.md#story-32-seeing-the-configuration-of-a-deployed-application
 [s3.4]: concept.md#story-34-overview-of-all-deployed-applications
 [s4.1]: concept.md#story-41-packaging-a-helm-chart-as-an-extension
 [s4.2]: concept.md#story-42-declaring-how-kaapana-presents-and-deploys-an-application

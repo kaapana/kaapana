@@ -267,13 +267,32 @@ dropped ones disappear, and `null` resets a value to its default (Stories 11.3, 
 
 ### Never return a secret, and keep it out of the helm values
 
-Responses show only whether a secret parameter is set. This includes the rendered chart values of a dry-run.
+The first half of this rule is part of the MVP. The second half is planned for a later release, possibly
+Release 2.
 
-Helm stores the values of every revision in the cluster, and `helm get values` prints them. A secret that is passed
-as a chart value is therefore readable by anyone who can read the helm release. The consumer writes the value into a
-Kubernetes secret of its own and passes only the name of that secret to the chart. The `chart_value` of a secret
-parameter names the chart value that receives this name. Document this for extension developers, because their chart
-has to read the secret by its name.
+In the MVP a secret parameter is configured like every other parameter, and the consumer passes its value as a chart
+value. The consumer masks the value in everything that it returns (Story 3.2):
+
+- The details of a release show only whether a secret parameter is set, and never its value.
+- The chart values of a dry-run show a placeholder in place of the value.
+- An update keeps the value of a secret parameter that the request leaves out. The form shows the parameter as set,
+  with an empty field.
+- The consumer does not write the values of a request into its logs, and it does not keep the values file that it
+  passes to helm.
+
+Masking has limits. The output of a failed helm command can contain a value, so the consumer replaces the values of
+secret parameters in the helm error before it returns it. A chart can put a value into the environment of a
+container, so the status of a release returns a summary of each pod and not its specification.
+
+Masking protects a value from the users of the API, but not in the cluster. Helm stores the values of every
+revision in the cluster, and `helm get values` prints them. A secret that is passed as a chart value is therefore
+readable by anyone who can read the helm release.
+
+In the later release the consumer writes the value into a Kubernetes secret of its own and passes only the name of
+that secret to the chart. The `chart_value` of a secret parameter then names the chart value that receives this
+name. Document this for extension developers, because their chart has to read the secret by its name. A chart that
+reads the value directly in the MVP has to change for this. The API mock describes this later behaviour as a
+proposal.
 
 ### Undeploying deletes the data, and helm does not do that alone
 
@@ -285,8 +304,8 @@ class. Define which PVCs belong to a release, for example by a label that the co
 `helm uninstall` also keeps what a hook created, unless the hook has a delete policy.
 
 The container diagram in `concept.md` gives the consumer read-only access to Kubernetes. Deleting PVCs needs
-write access, and so does writing the secrets of secret parameters. The service account of the consumer needs
-these rights in every namespace it deploys to, and the diagram has to follow this decision.
+write access. Writing the secrets of secret parameters will need it too, in a later release. The service account of
+the consumer needs these rights in every namespace it deploys to, and the diagram has to follow this decision.
 
 ### Pass the same platform values to every chart
 

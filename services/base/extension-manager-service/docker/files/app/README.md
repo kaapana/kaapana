@@ -75,7 +75,9 @@ Tracks an installed (or in-progress) extension.
 | Field           | Type              | Description                                            |
 |-----------------|-------------------|--------------------------------------------------------|
 | `id`            | UUID              | Primary key                                            |
-| `repository_id` | UUID (FK)         | Which registry this was pulled from                    |
+| `repository_id` | UUID (FK, null)   | Which registry this was pulled from; `null` once that registry is removed (detached) |
+| `repository_name` | string          | Name of that registry, kept after it is removed        |
+| `repository_url` | string           | URL of that registry, kept after it is removed         |
 | `tag`           | string            | OCI tag used to pull this extension                    |
 | `manifest`      | JSON              | Full `ExtensionManifest` at install time               |
 | `status`        | `ExtensionStatus` | Current lifecycle state (see below)                    |
@@ -83,7 +85,7 @@ Tracks an installed (or in-progress) extension.
 | `updated_at`    | datetime          | Last status change timestamp                           |
 
 The pair `(repository_id, tag)` is unique — the same tag cannot be installed twice from the same registry.
-A tag that is installed from one repository cannot be installed from another one at the same time (409).
+An extension that is installed from one source cannot be installed from another one at the same time (409). This is checked by the manifest `id`, so it also covers other versions. The tag does not matter. The Upload repository and detached extensions count as sources too. Other versions from the same source can be installed.
 
 ### `InstalledContent` (database)
 
@@ -170,7 +172,7 @@ Manages the list of known OCI registries and exposes discovery endpoints.
 | `GET`    | `/repositories`                               | List registries (filter by `name` or `id`)              |
 | `GET`    | `/repositories/{id}`                          | Get a single registry                                   |
 | `PUT`    | `/repositories/{id}`                          | Update registry credentials or description (409 for the Upload repository) |
-| `DELETE` | `/repositories/{id}`                          | Remove a registry (409 for the Upload repository)       |
+| `DELETE` | `/repositories/{id}`                          | Remove a registry (409 for the Upload repository). Its extensions stay installed and become detached |
 | `GET`    | `/repositories/{id}/extensions`               | List available extension tags in the registry           |
 | `GET`    | `/repositories/{id}/extensionManifests`       | Fetch manifests for tags (optionally filtered by tag)   |
 

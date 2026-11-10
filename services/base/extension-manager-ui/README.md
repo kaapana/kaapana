@@ -68,8 +68,9 @@ Everything in `src/shared/` stays local to this view; nothing is moved to
   stored credentials are kept unless both username and password are entered.
   Closing an edited form asks before discarding, and an edited form reports
   the view as dirty to the shell. The built-in *Upload* repository is shown
-  without Edit and Remove. Removing a repository is confirmed and says
-  when the extension manager stops tracking extensions installed from it.
+  without Edit and Remove. Removing a repository is confirmed. Extensions
+  installed from it stay installed and are shown as *Detached*; they can
+  still be uninstalled.
 - **Empty and failure states** — each section distinguishes "nothing yet"
   (with the next step), "nothing matches" (catalog: clear filters) and "could
   not load" (retry and details). A failed refresh keeps the last list with an

@@ -20,7 +20,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: fast-data-dir-pvc
-  namespace: "{{ .Values.global.namespace }}"
+  namespace: "{{ .Values.namespace }}"
 spec:
   storageClassName: host-dir
   accessModes:
@@ -50,7 +50,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: slow-data-dir-pvc
-  namespace: "{{ .Values.global.namespace }}"
+  namespace: "{{ .Values.namespace }}"
 spec:
   storageClassName: host-dir
   accessModes:

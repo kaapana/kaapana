@@ -3,7 +3,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: migration
-  namespace: "{{ .Values.global.namespace }}"
+  namespace: "{{ .Values.namespace }}"
 spec:
   backoffLimit: 0        # Never retry, fail immediately
   template:

@@ -1,5 +1,5 @@
+namespace: migration
 global:
-  namespace: migration
   dynamicVolumes:
     - name: fast-data
       mount_path: /kaapana/fast_data

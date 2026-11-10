@@ -3,5 +3,5 @@ admin: false
 postgres_user: kaapanauser
 postgres_password: kaapanapassword
 postgres_db: kaapanauser
-appName: myApp
+appName: my-app
 storage: "10Gi"

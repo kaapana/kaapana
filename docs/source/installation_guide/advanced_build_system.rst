@@ -73,7 +73,7 @@ Generating deployment scripts
 
   Currently there are two platforms build by default i.e. the :code:`admin-platform` and the :code:`kaapana-platform`.
   Each platform is entirely packaged as a single helm chart i.e. the :code:`kaapana-admin-chart` and the :code:`kaapana-platform-chart`.
-  Platform charts are specified by the key-value pair :code:`kaapana_type: "platform"` in the :code:`Chart.yaml` file.
+  Platform charts are specified by the annotation :code:`kaapana_type: "platform"` in the :code:`Chart.yaml` file.
 
   A filter can be applied in order to build only a subset of platform-charts e.g. only the :code:`kaapana-platform-chart`.
   To do so use the command line flag :code:`-pf, --platform-filter <platform-chart-name>` or set the :code:`PLATFORM_FILTER` environment variable.

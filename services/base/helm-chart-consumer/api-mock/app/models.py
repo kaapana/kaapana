@@ -313,10 +313,3 @@ class ReleaseStatus(BaseModel):
     pods: list[Pod] = Field(description="Pods are not in the manifest, because controllers create them.")
     events: list[Event]
     checked_at: datetime
-
-
-class Enablement(BaseModel):
-    project_id: str
-    application_id: str
-    enabled_by: str
-    enabled_at: datetime

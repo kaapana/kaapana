@@ -15,7 +15,6 @@ from .models import (
     ChoiceParameter,
     ConfiguredParameter,
     DryRunResult,
-    Enablement,
     Event,
     ExtensionReference,
     HelmChartContent,
@@ -373,11 +372,6 @@ UPDATE_DRY_RUN_PASSED = DryRunResult(
     problems=[],
     chart_values={**DRY_RUN_PASSED.chart_values, "git": {"tokenSecret": "anna-notebook-git-token"}},
 )
-
-LUNG_CT_ENABLEMENTS = [
-    Enablement(project_id="lung-ct", application_id=application_id, enabled_by="kim", enabled_at=at(2, 10))
-    for application_id in ("jupyterlab", "mitk", "cvat", "collabora")
-]
 
 DEPLOY_REQUEST = {
     "application_id": "jupyterlab",

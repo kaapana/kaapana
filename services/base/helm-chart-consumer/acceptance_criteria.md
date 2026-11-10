@@ -57,9 +57,13 @@ Deploy and update share one sequence of checks with their dry-run. See [Share on
 
 | Route | What it does |
 |---|---|
-| `GET /v1/projects/{id}/enabled-applications` | Lists the applications that are enabled in a project ([Story 5.2][s5.2]) |
-| `PUT`, `DELETE /v1/projects/{id}/enabled-applications/{application_id}` | Enables and disables an application in a project |
+| `GET /v1/applications` | Lists all applications that have a registered version. With `scope=platform`, it lists those that can be deployed platform-wide. |
+| `GET /v1/applications?project_id=` | Lists the applications that are enabled in a project |
+| `GET /v1/applications/{id}/versions` | Lists the versions of an application. With `include_deregistered=true`, it also lists versions that releases still run after their extension was uninstalled ([Story 1.2][s1.2]). |
+| `PUT`, `DELETE /v1/projects/{id}/enabled-applications/{application_id}` | Enables and disables an application in a project ([Story 5.2][s5.2]). Both answer without a body. |
 | `GET /v1/releases` | Lists the releases of all projects ([Story 3.4][s3.4]) |
+
+An enablement is only the pair of a project and an application. The consumer does not record who enabled an application or when, so there is no route that lists enablements. The kaapana-system-admin also uses every route of the application page, in every project and platform-wide ([Story 5.1][s5.1]).
 
 ### Access-information-interface (AII)
 

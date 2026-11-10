@@ -1,40 +1,35 @@
 from fastapi import APIRouter, status
 
-from .. import examples
-from ..models import Enablement, Error
+from ..models import Error
 
 router = APIRouter(tags=["Projects"])
 
 
-@router.get("/projects/{project_id}/enabled-applications")
-def list_enabled_applications(project_id: str) -> list[Enablement]:
-    """List the applications that can be deployed in a project.
-
-    An enablement covers all registered versions of the application.
-    """
-    return examples.LUNG_CT_ENABLEMENTS
-
-
 @router.put(
     "/projects/{project_id}/enabled-applications/{application_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
     responses={
         400: {"model": Error, "description": "The application supports only the platform scope."},
         403: {"model": Error},
-        404: {"model": Error},
+        404: {"model": Error, "description": "The project or the application does not exist."},
     },
 )
-def enable_application(project_id: str, application_id: str) -> Enablement:
+def enable_application(project_id: str, application_id: str) -> None:
     """Enable an application in a project. Only a kaapana-system-admin may do this.
 
-    Enabling an application that is already enabled changes nothing.
+    An enablement covers all registered versions of the application. Enabling an application
+    that is already enabled changes nothing. `GET /applications?project_id=<id>` lists the
+    applications that are enabled in a project.
     """
-    return examples.LUNG_CT_ENABLEMENTS[0]
 
 
 @router.delete(
     "/projects/{project_id}/enabled-applications/{application_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses={403: {"model": Error}, 404: {"model": Error, "description": "Unknown project or application."}},
+    responses={
+        403: {"model": Error},
+        404: {"model": Error, "description": "The project or the application does not exist."},
+    },
 )
 def disable_application(project_id: str, application_id: str) -> None:
     """Disable an application in a project. Only a kaapana-system-admin may do this.

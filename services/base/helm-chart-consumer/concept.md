@@ -315,7 +315,7 @@ Acceptance criteria:
 
 
 ### Epic 6: Resource governance
-As a kaapana-system-admin I want to control which resources deployed applications consume and create in the cluster, so that a single project or helm-chart content cannot impair the platform or other projects.
+As a kaapana-system-admin I want to control which resources deployed applications consume in the cluster, so that a single project or helm-chart content cannot impair the platform or other projects.
 
 Priority: Release 2 *(proposed)*
 
@@ -326,13 +326,6 @@ Acceptance criteria:
 * Limits can be configured per project.
 * A deploy or update that would exceed the limits is rejected with an understandable message.
 * The current usage of a project is visible to its PI and to kaapana-system-admins.
-
-#### Story 6.2: Restricting what a helm chart may create
-As a platform-operator I want deployed applications to be restricted to an allowed set of Kubernetes resources and security settings (e.g. no cluster-scoped resources, no privileged containers), so that installing an extension cannot compromise the cluster.
-
-Acceptance criteria:
-* The allowed resource kinds and security settings are defined and documented for extension-developers.
-* A helm-chart content that violates them is rejected at registration (Story 1.1) or, at the latest, by the dry-run before deploying (Story 2.1), with the violated rule in the message.
 
 
 ### Epic 7: Interactive steps in workflows

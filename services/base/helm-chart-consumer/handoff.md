@@ -252,10 +252,9 @@ permission answers 403, as in the real call. The real calls stop at the first pr
 
 A helm dry-run renders the chart and checks the objects against the schemas of the cluster, but it sends no
 object to the API server. Admission webhooks, resource quotas, limit ranges and Pod Security therefore do not
-run, and a deploy can pass the dry-run and still be refused. Limits per project (Story 6.1) and restrictions on
-what a chart may create (Story 6.2) need a check of their own on the rendered manifest, for example
-`kubectl apply --dry-run=server`. This holds for Helm 3, which kube-helm installs. Check it again for the helm
-version that the consumer uses.
+run, and a deploy can pass the dry-run and still be refused. Limits per project (Story 6.1) need a check of
+their own on the rendered manifest, for example `kubectl apply --dry-run=server`. This holds for Helm 3, which
+kube-helm installs. Check it again for the helm version that the consumer uses.
 
 On update, parameters that exist in both versions keep their values, new ones get their defaults,
 dropped ones disappear, and `null` resets a value to its default (Stories 11.3, 11.4).

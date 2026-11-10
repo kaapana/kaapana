@@ -332,7 +332,6 @@ Two additions make this work without templates in the wrapper:
 Limits:
 
 - A public chart often names its objects after `.Release.Name`, so it is usually multi-deployable. See [Names and conflicts](#names-and-conflicts).
-- A public chart that creates cluster-scoped objects, such as custom resource definitions, conflicts with [Story 6.2][s6.2].
 - The images of a public chart come from public registries. Making them available without internet access is not a task of the consumer ([Q10][q10]).
 
 ## Charts that other services install *(proposed)*
@@ -347,7 +346,7 @@ Limits:
 
 ### Decision
 
-These charts are not helm-chart contents, and they do not interact with the Extension Manager. They belong to the platform and not to an extension. They have no deploy form, no enablement and no project member who deploys them. The chart `project-namespace` creates a namespace, which [Story 6.2][s6.2] forbids for applications.
+These charts are not helm-chart contents, and they do not interact with the Extension Manager. They belong to the platform and not to an extension. They have no deploy form, no enablement and no project member who deploys them.
 
 They use the same service and the same helm code, but a separate group of routes for system releases:
 
@@ -366,7 +365,6 @@ A system release differs from a release in these points:
 | Enablement, placement, single-instance limit | Yes | No |
 | Listed in `GET /v1/releases` | Yes | No |
 | Callers | Users through the gateway | Platform services inside the cluster only |
-| Cluster-scoped objects | Forbidden ([Story 6.2][s6.2]) | Allowed |
 
 Both callers map onto these routes. AII sends `PUT /v1/system-releases/<namespace of the project>` when it creates a project and `DELETE` when it deletes one. The installer sends one `PUT` per image with the chart `pull-docker-chart`.
 
@@ -376,7 +374,7 @@ Reasons and costs:
 
 - **Why one service.** The ticket wants to remove the legacy system in 0.8.0. If AII and the installer ran helm themselves, three services would carry helm code and rights on the whole cluster.
 - **Why separate routes.** A system release has none of the rules of a release. One route for both would need a switch for every check, and a mistake in a switch would let a user pass raw values.
-- **Cost: rights.** The service account of the consumer needs the right to create namespaces. Without system releases it needs rights only inside the namespaces that it deploys to.
+- **Cost: rights.** The service account of the consumer needs the right to create namespaces.
 - **Cost: identity.** These routes are safe only if the consumer knows its caller. This makes the open question about callers inside the cluster a blocker for removing kube-helm.
 
 ## Charts at platform deploy and charts from the legacy page *(proposed)*
@@ -451,6 +449,7 @@ This decision conflicts with the goal of the ticket to remove the legacy system 
 | [Q13][q13]: on whose behalf a platform-wide release acts | The value `credentials_secret` for the platform scope |
 | [Q14][q14]: what identifies a helm-chart content | The key of a registered version |
 | How callers inside the cluster prove who they are | System releases, the bootstrap job, registration and workflows |
+| Which rights the service account of the consumer gets | What the chart of an extension can create in the cluster |
 | How the chart reaches the consumer | Registration, and the chart reference of a system release |
 | Whether the consumer runs in `kaapana-admin-chart` or in `kaapana-platform-chart` | Who installs the platform chart |
 | Whether kube-helm stays in 0.8.0 for interactive workflow steps and legacy releases | The removal of the legacy system |
@@ -525,7 +524,6 @@ State of the checklist:
 [s5.3]: concept.md#story-53-restricting-who-can-open-an-application
 [s5.4]: concept.md#story-54-custom-access-control-model
 [s5.6]: concept.md#story-56-audit-log
-[s6.2]: concept.md#story-62-restricting-what-a-helm-chart-may-create
 [s8.1]: concept.md#story-81-deploying-an-application-multiple-times
 [s8.3]: concept.md#story-83-identifying-deployed-applications
 [s9.1]: concept.md#story-91-deploying-an-application-platform-wide

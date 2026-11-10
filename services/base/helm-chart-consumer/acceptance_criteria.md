@@ -7,7 +7,7 @@ This document records the decisions for the Helm Chart Consumer. It then answers
 - [handoff.md](handoff.md) holds the facts about the existing code, and what the decisions mean for an implementation.
 - [api-mock/](api-mock/) proposes the routes and models.
 
-A statement marked *(proposed)* is not confirmed by the team yet. A heading marked *(proposed)* marks its whole section. The section [Open questions](#open-questions) lists what blocks a decision. The last section, [Acceptance criteria (ticket)](#acceptance-criteria-ticket), quotes the ticket and links each question to its answer.
+A statement marked *(proposed)* is not confirmed by the team yet. A heading marked *(proposed)* marks its whole section. A statement marked *(to be decided)* describes something that the implementation still has to work out, so it can change. The section [Open questions](#open-questions) lists what blocks a decision. The last section, [Acceptance criteria (ticket)](#acceptance-criteria-ticket), quotes the ticket and links each question to its answer.
 
 ## Words of the ticket and words of the concept
 
@@ -45,10 +45,12 @@ There is no update route. Updating an extension registers the new version and de
 | `POST /v1/releases/dry-run` | Runs every check of a deploy and a helm dry-run. Returns all problems and the chart values. |
 | `POST /v1/releases` | Deploys. The new release starts in the state `deploying`. |
 | `GET /v1/releases`, `GET /v1/releases/{id}` | Lists releases, and returns one release with its state and its reason |
-| `GET /v1/releases/{id}/status` | Returns the Kubernetes objects, pods, events and the helm error |
-| `GET /v1/releases/{id}/logs` | Returns the log lines of one container ([Story 3.3][s3.3], Release 2) |
+| `GET /v1/releases/{id}/status` | Returns the Kubernetes objects, pods, events and the helm error *(to be decided)* |
+| `GET /v1/releases/{id}/logs` | Returns the log lines of one container ([Story 3.3][s3.3], Release 2) *(to be decided)* |
 | `POST /v1/releases/{id}/dry-run`, `PATCH /v1/releases/{id}` | Checks and runs an update of the version, the parameters, or both |
 | `DELETE /v1/releases/{id}` | Undeploys, and deletes the volumes with their data ([Q5][q5]) |
+
+The routes marked *(to be decided)* say what the page needs: the status details of a release and its logs. How the implementation offers them is open, so their paths, requests and responses can change.
 
 Deploy and update share one sequence of checks with their dry-run. See [Share one check sequence between dry-run and the real call][h-checks]. The state is derived from the helm release and its objects. See [Derive the state, do not store it][h-state].
 
@@ -454,7 +456,7 @@ The questions and the checklist are quoted from the ticket.
 
 ### 1. How does the interface of a new service with following functionalities look like: chart install with values, update, uninstall, status (starting, running, failed, with a reason)
 
-`POST /v1/releases` installs with values, `PATCH /v1/releases/{id}` updates, `DELETE /v1/releases/{id}` uninstalls, and a release reports `state` and `state_reason`. See [Interface of the service](#interface-of-the-service) for all routes by caller, and [Words of the ticket and words of the concept](#words-of-the-ticket-and-words-of-the-concept) for the mapping of the terms.
+`POST /v1/releases` installs with values, `PATCH /v1/releases/{id}` updates, `DELETE /v1/releases/{id}` uninstalls, and a release reports `state` and `state_reason`. The routes for the status details and the logs are still to be decided. See [Interface of the service](#interface-of-the-service) for all routes by caller, and [Words of the ticket and words of the concept](#words-of-the-ticket-and-words-of-the-concept) for the mapping of the terms.
 
 ### 2. What a `helm-chart` content contains
 

@@ -48,7 +48,9 @@ data:
     {
         "security.workspace.trust.enabled": false,
         "security.workspace.trust.startupPrompt": "never",
-        "workbench.colorTheme": "Default Dark+",
+        // Current theme id: code-server rewrites old ids such as "Default Dark+" at
+        // start, which fails on this read-only file.
+        "workbench.colorTheme": "Dark+",
         "python.defaultInterpreterPath": "/opt/venv/bin/python",
         "chat.disableAIFeatures": true,
         "editor.aiStats.enabled": false,

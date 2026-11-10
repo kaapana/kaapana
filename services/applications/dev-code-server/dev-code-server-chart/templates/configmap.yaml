@@ -50,7 +50,9 @@ data:
         "security.workspace.trust.startupPrompt": "never",
         "security.workspace.trust.untrustedFiles": "open",
         "extensions.supportUntrustedWorkspaces": true,
-        "workbench.colorTheme": "Default Dark+",
+        // Current theme id: code-server rewrites old ids such as "Default Dark+" at
+        // start, which fails on this read-only file.
+        "workbench.colorTheme": "Dark+",
         "chat.disableAIFeatures": true,
         "editor.aiStats.enabled": false,
         "chat.agent.enabled": false,

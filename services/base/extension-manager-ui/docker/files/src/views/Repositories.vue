@@ -47,13 +47,25 @@ const removeTitle = computed(() => `Remove repository "${removeCandidate.value?.
 const removeText = computed(() => {
   const repository = removeCandidate.value
   if (!repository) return ''
-  const tracked = installed.value.filter(
-    (extension) => extension.repository_id === repository.id && extension.status !== 'uninstalled',
+  const fromRepository = installed.value.filter(
+    (extension) => extension.repository_id === repository.id,
+  )
+  const downloading = fromRepository.filter((extension) =>
+    ['pending', 'pulling'].includes(extension.status),
   ).length
-  const base =
-    'Its extensions no longer appear in the catalog, and its stored credentials are deleted.'
-  if (!tracked) return base
-  return `${base} The extension manager also stops tracking the ${plural(tracked, 'extension')} installed from it: their content stays on the platform but can no longer be uninstalled here.`
+  const tracked = fromRepository.filter((extension) => extension.status !== 'uninstalled').length
+  const parts = [
+    'Its extensions no longer appear in the catalog, and its stored credentials are deleted.',
+  ]
+  if (tracked)
+    parts.push(
+      'Extensions installed from it stay installed and are shown as detached. They can still be uninstalled.',
+    )
+  if (downloading)
+    parts.push(
+      `${plural(downloading, 'extension')} from it ${downloading === 1 ? 'is' : 'are'} still being downloaded. Removing the repository now makes the download fail.`,
+    )
+  return parts.join(' ')
 })
 
 function showLoadFailure() {

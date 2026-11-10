@@ -1,5 +1,11 @@
 import { test, expect, type Page } from '@playwright/test'
-import { defaultMockData, LAB_REPO, PUBLIC_REPO } from './fixtures/mock-backend'
+import {
+  defaultMockData,
+  installation,
+  LAB_REPO,
+  NNUNET_V1,
+  PUBLIC_REPO,
+} from './fixtures/mock-backend'
 import {
   API,
   card,
@@ -198,7 +204,9 @@ test.describe('unsaved changes', () => {
 })
 
 test.describe('removal', () => {
-  test('states that installed extensions stop being tracked, then removes', async ({ page }) => {
+  test('states that installed extensions stay installed as detached, then removes', async ({
+    page,
+  }) => {
     await openView(page, 'repositories')
     await card(page, 'kaapana-public')
       .getByRole('button', { name: 'Remove kaapana-public' })
@@ -207,7 +215,9 @@ test.describe('removal', () => {
     const confirm = dialog(page)
     await expect(confirm).toContainText('Remove repository "kaapana-public"?')
     await expect(confirm).toContainText('no longer appear in the catalog')
-    await expect(confirm).toContainText('stops tracking the 1 extension installed from it')
+    await expect(confirm).toContainText(
+      'Extensions installed from it stay installed and are shown as detached',
+    )
 
     const request = nextRequest(page, `${API.repositories}/${PUBLIC_REPO.id}`, 'DELETE')
     await confirmAction(page, 'Remove repository')
@@ -216,11 +226,32 @@ test.describe('removal', () => {
     await expect(cards(page)).toHaveCount(1)
   })
 
-  test('a repository without installations does not mention tracking', async ({ page }) => {
+  test('a repository without installations does not mention detached extensions', async ({
+    page,
+  }) => {
     await openView(page, 'repositories', { ...defaultMockData(), extensions: [] })
     await card(page, 'lab-internal').getByRole('button', { name: 'Remove lab-internal' }).click()
 
-    await expect(dialog(page)).not.toContainText('stops tracking')
+    await expect(dialog(page)).not.toContainText('detached')
+  })
+
+  test('a repository with a running download warns that the download fails', async ({ page }) => {
+    await openView(page, 'repositories', {
+      ...defaultMockData(),
+      extensions: [
+        installation(PUBLIC_REPO, NNUNET_V1, 'pulling', 'eeeeeeee-0000-0000-0000-000000000009'),
+      ],
+    })
+    await card(page, 'kaapana-public')
+      .getByRole('button', { name: 'Remove kaapana-public' })
+      .click()
+
+    await expect(dialog(page)).toContainText(
+      '1 extension from it is still being downloaded. Removing the repository now makes the download fail.',
+    )
+    await confirmAction(page, 'Remove repository')
+    await expect(toasts(page).filter({ hasText: 'Repository removed' })).toBeVisible()
+    await expect(cards(page)).toHaveCount(1)
   })
 
   test('a failed removal keeps the repository and is reported', async ({ page }) => {

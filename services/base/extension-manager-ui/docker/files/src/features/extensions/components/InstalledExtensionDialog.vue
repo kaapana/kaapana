@@ -8,12 +8,11 @@ import SourceDetailsSection, {
   type SourceDetailsRow,
 } from '@/shared/components/SourceDetailsSection.vue'
 import StatusIndicator from '@/shared/components/StatusIndicator.vue'
-import type { InstalledExtension, Repository } from '@/shared/types/apiSchemas'
+import type { InstalledExtension } from '@/shared/types/apiSchemas'
 import { plural, presentExtensionStatus, UNINSTALLABLE_STATUSES } from '@/shared/utils/status'
 
 const props = defineProps<{
   extension: InstalledExtension | null
-  repository: Repository | null
   uninstalling: boolean
 }>()
 
@@ -31,9 +30,8 @@ const canBeUninstalled = computed(() =>
   Boolean(props.extension && UNINSTALLABLE_STATUSES.includes(props.extension.status)),
 )
 const showsUninstall = computed(() => props.extension?.status !== 'uninstalled')
-const repositoryName = computed(
-  () => props.repository?.name ?? props.extension?.repository_id ?? '',
-)
+const repositoryName = computed(() => props.extension?.repository_name ?? '')
+const detached = computed(() => Boolean(props.extension && !props.extension.repository_id))
 
 const uninstallTitle = computed(() => `Uninstall "${props.extension?.manifest.name ?? ''}"?`)
 const uninstallText = computed(() => {
@@ -49,19 +47,20 @@ const uninstallText = computed(() => {
 const sourceRows = computed<SourceDetailsRow[]>(() => {
   const extension = props.extension
   if (!extension) return []
-  const rows: SourceDetailsRow[] = [{ label: 'Repository', value: repositoryName.value }]
-  if (props.repository) rows.push({ label: 'URL', value: props.repository.repository_url })
-  rows.push({ label: 'Tag', value: extension.tag })
-  return rows
+  return [
+    { label: 'Repository', value: repositoryName.value },
+    { label: 'URL', value: extension.repository_url },
+    { label: 'Tag', value: extension.tag },
+  ]
 })
 
 const advancedSourceRows = computed<SourceDetailsRow[]>(() => {
   const extension = props.extension
   if (!extension) return []
-  return [
-    { label: 'Repository ID', value: extension.repository_id },
-    { label: 'Installation ID', value: extension.id },
-  ]
+  const rows: SourceDetailsRow[] = []
+  if (extension.repository_id) rows.push({ label: 'Repository ID', value: extension.repository_id })
+  rows.push({ label: 'Installation ID', value: extension.id })
+  return rows
 })
 </script>
 
@@ -73,6 +72,10 @@ const advancedSourceRows = computed<SourceDetailsRow[]>(() => {
         class="text-body-2 text-medium-emphasis"
         :items="[repositoryName, props.extension.manifest.version]"
       />
+      <p v-if="detached" class="text-body-2 text-medium-emphasis mt-1" data-testid="detached-note">
+        Detached: its repository was removed. It stays installed and can be uninstalled, but not
+        reinstalled or updated.
+      </p>
     </template>
 
     <template v-if="props.extension && status" #sticky>

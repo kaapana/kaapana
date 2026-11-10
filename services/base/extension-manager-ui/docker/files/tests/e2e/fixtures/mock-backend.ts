@@ -33,7 +33,9 @@ export interface InstalledContentMock {
 
 export interface InstalledExtensionMock {
   id: string
-  repository_id: string
+  repository_id: string | null
+  repository_name: string
+  repository_url: string
   tag: string
   manifest: ManifestMock
   status: string
@@ -118,6 +120,8 @@ export function installation(
   return {
     id,
     repository_id: repository.id,
+    repository_name: repository.name,
+    repository_url: repository.repository_url,
     tag: `${value.id}-v${value.version}`,
     manifest: value,
     status,
@@ -210,7 +214,9 @@ export async function installMockBackend(
     }
     if (repository && method === 'DELETE') {
       data.repositories = data.repositories.filter((entry) => entry.id !== repository[1])
-      data.extensions = data.extensions.filter((entry) => entry.repository_id !== repository[1])
+      for (const entry of data.extensions) {
+        if (entry.repository_id === repository[1]) entry.repository_id = null
+      }
       return route.fulfill({ status: 204 })
     }
 

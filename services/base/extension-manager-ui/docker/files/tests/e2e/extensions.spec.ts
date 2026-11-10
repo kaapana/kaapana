@@ -93,6 +93,22 @@ test('uninstall is unavailable while an operation runs, and says why', async ({ 
   )
 })
 
+test('an extension whose repository was removed is shown as detached and can be uninstalled', async ({
+  page,
+}) => {
+  const detached = installation(PUBLIC_REPO, TOTALSEG, 'installed', TOTALSEG_ID)
+  detached.repository_id = null
+  await openView(page, 'extensions', { ...defaultMockData(), extensions: [detached] })
+
+  await expect(card(page, 'totalsegmentator')).toContainText(PUBLIC_REPO.name)
+  await expect(card(page, 'totalsegmentator').getByTestId('detached')).toBeVisible()
+
+  await card(page, 'totalsegmentator').click()
+  await expect(dialog(page).getByTestId('detached-note')).toBeVisible()
+  await expect(dialog(page)).toContainText(PUBLIC_REPO.repository_url)
+  await expect(dialog(page).getByTestId('uninstall')).toBeEnabled()
+})
+
 test('an uninstalled extension shows no uninstall action', async ({ page }) => {
   const data: MockData = {
     ...defaultMockData(),
@@ -187,13 +203,6 @@ test('a failed load is an error, a failed refresh keeps the list with a warning'
   await expect(cards(page)).toHaveCount(2)
   await page.getByTestId('stale-alert').getByRole('button', { name: 'Details' }).click()
   await expect(dialog(page)).toContainText('boom')
-})
-
-test('an unknown repository falls back to its id', async ({ page }) => {
-  const data: MockData = { ...defaultMockData(), repositories: [PUBLIC_REPO] }
-  await openView(page, 'extensions', data)
-
-  await expect(card(page, 'radiomics')).toContainText(LAB_REPO.id)
 })
 
 test('an uninstalled extension disappears once the service drops its record', async ({ page }) => {

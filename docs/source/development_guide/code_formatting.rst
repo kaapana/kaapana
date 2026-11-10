@@ -78,10 +78,10 @@ Scope
   Code Quality widget shows only the findings that are new or resolved
   compared with the target branch.
 - A failing :code:`format: [ruff]`, :code:`validate: [ruff]`,
-  :code:`validate: [hadolint]` or :code:`validate: [helm]` job fails the
-  pipeline. :code:`format: [prettier]` and :code:`validate: [ui]` are
-  allowed to fail until the existing findings are fixed, so they only
-  warn. :code:`lint` jobs never fail.
+  :code:`validate: [ui]`, :code:`validate: [hadolint]` or
+  :code:`validate: [helm]` job fails the pipeline.
+  :code:`format: [prettier]` is allowed to fail until the existing
+  findings are fixed, so it only warns. :code:`lint` jobs never fail.
 
 Ruff
 ----
@@ -205,6 +205,8 @@ The pre-commit hook applies the fixes it can and fails. CI fixes nothing.
   errors that break a Vue component, such
   as an invalid :code:`v-for`, a mutated prop, a :code:`ref` used without
   :code:`.value`, a single-word component name or an unused component.
+  Single-word names are allowed in :code:`views/`, :code:`pages/` and
+  :code:`*.stories.ts`, because those are never used as tags.
 - `vue/valid-v-slot <https://eslint.vuejs.org/rules/valid-v-slot.html>`__: :code:`v-slot` must be valid. Modifiers are
   allowed for Vuetify's :code:`#item.<key>` slots.
 - `vue/block-lang <https://eslint.vuejs.org/rules/block-lang.html>`__: :code:`<script>` blocks must use

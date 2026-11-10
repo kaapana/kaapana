@@ -13,6 +13,6 @@ export const KaapanaNotifications = defineComponent({
 export const kaapanaNotifications = {
   install(app: App) {
     app.use(NotificationsPlugin, { componentName: 'BaseNotifications' })
-    app.component('Notifications', KaapanaNotifications)
+    app.component('KaapanaNotifications', KaapanaNotifications)
   },
 }

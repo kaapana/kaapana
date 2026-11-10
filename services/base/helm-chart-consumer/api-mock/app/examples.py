@@ -30,7 +30,6 @@ from .models import (
     StringParameter,
     UserOrigin,
     Volume,
-    WebInterface,
     WorkflowOrigin,
 )
 
@@ -114,7 +113,6 @@ JUPYTERLAB_CONTENT = HelmChartContent(
     description="Notebooks and a terminal for analysing the data of your project in Python.",
     scopes=[Scope.PROJECT],
     multi_deployable=True,
-    web_interface=WebInterface(service="jupyterlab", port=8888, path="/lab"),
     parameters=[*JUPYTERLAB_PARAMETERS, IDLE_HOURS],
 )
 

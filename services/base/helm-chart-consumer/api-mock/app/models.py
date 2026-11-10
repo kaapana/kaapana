@@ -89,12 +89,6 @@ ParameterDeclaration = Annotated[
 ]
 
 
-class WebInterface(Strict):
-    service: str
-    port: int
-    path: str = "/"
-
-
 class HelmChartContent(Strict):
     """The part of a helm-chart content that Kaapana reads.
 
@@ -110,7 +104,6 @@ class HelmChartContent(Strict):
         description="If true, the application can be deployed several times in the same scope. A scope is one "
         "project or the whole platform.",
     )
-    web_interface: WebInterface | None = None
     parameters: list[ParameterDeclaration] = []
 
 
@@ -268,7 +261,10 @@ class Release(BaseModel):
     drift: Drift | None = Field(
         None, description="Set when the helm release was changed or removed outside the Helm Chart Consumer."
     )
-    url: str | None = Field(description="Path of the web interface on the Kaapana host, if the application has one.")
+    url: str | None = Field(
+        description="This is the path of the web interface on the Kaapana host. The Helm Chart Consumer reads it "
+        "from the `Ingress` that the chart marks as its web interface. It is null if the chart has none."
+    )
     parameters: list[ConfiguredParameter]
     volumes: list[Volume] = Field(description="Persistent volumes. Undeploying deletes them with their data.")
     origin: Origin = Field(description="The origin says who or what deployed the release. It never changes.")

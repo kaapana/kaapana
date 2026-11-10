@@ -217,7 +217,7 @@ Acceptance criteria:
 As an extension-developer I want a documented format for `helm-chart-content.json`, so that I know which Kaapana facing information I have to provide.
 
 Acceptance criteria:
-* `helm-chart-content.json` is described by a JSON schema. It covers at least name, description, the supported scopes (project, platform-wide or both, Q11), whether the content is multi-deployable, the deploy parameters (Story 2.2) and the entry point of the web interface (Story 4.4).
+* `helm-chart-content.json` is described by a JSON schema. It covers at least name, description, the supported scopes (project, platform-wide or both, Q11), whether the content is multi-deployable and the deploy parameters (Story 2.2).
 * If `helm-chart-content.json` declares no scope, the content supports the project scope only *(proposed)*.
 * The schema is documented with an example.
 * The Helm Chart Consumer validates against this schema when it registers a content (Story 1.1).
@@ -232,10 +232,11 @@ Acceptance criteria:
 * A conflict with an existing resource is detected by the dry-run (Story 2.1) and reported before anything is deployed.
 
 #### Story 4.4: Exposing the web interface of an application
-As an extension-developer I want to declare how the web interface of my application is reached, so that Kaapana can link to it and protect it.
+As an extension-developer I want to mark the route to the web interface of my application in my chart, so that Kaapana can link to it and protect it.
 
 Acceptance criteria:
-* `helm-chart-content.json` declares the entry point of the web interface (e.g. service and port).
+* The chart creates the `Ingress` of its web interface and marks it with an annotation. The Helm Chart Consumer discovers the web interface there, in the way the portal discovers the entries of its menu. `helm-chart-content.json` does not declare it.
+* A discovered web interface is linked from the list of deployed applications (Story 2.4). It appears in the menu of the platform only if the chart also sets the annotations of the portal.
 * The URL path under which the deployed application is served is passed to the chart, so that the application can serve under this path (e.g. JupyterLab `base_url`).
 * The web interface is only reachable through Kaapana's authentication (Story 5.3).
 

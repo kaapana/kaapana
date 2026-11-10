@@ -95,19 +95,24 @@ helm-chart-content/
 | `display_name`, `description` | What users see |
 | `scopes` | `project`, `platform`, or both. The default is `project` ([Q11][q11]). |
 | `multi_deployable` | Whether the application can have several releases in the same scope. A scope is one project or the whole platform. The default is `false`. |
-| `web_interface` | The service, the port and the path of the web interface ([Story 4.4][s4.4]) |
 | `parameters` | The values a user may set. See [Configuration of parameters](#configuration-of-parameters). |
 
-The chart creates the route to its web interface itself, as an `Ingress`. The consumer does not create it. `web_interface` tells the consumer where the web interface is, so that a release can return its `url`. A chart that wants an entry in the menu of the platform adds the annotations of the portal to its `Ingress`. See [Platform-wide releases](#platform-wide-releases).
-
 The `contentType` of a helm-chart content is `helm-chart-v1` *(proposed)*. The name follows the pattern of `workflow-v1`, the type of a workflow content. The Extension Manager reads the `contentType` in `extension_manifest.json` to pick the consumer of a content. The suffix versions the format of the content, so a later format can get its own type.
+
+### The web interface of a release
+
+`helm-chart-content.json` does not declare a web interface. The chart creates the route to its web interface itself, as an `Ingress`, and the consumer discovers it there ([Story 4.4][s4.4]). This works in the way the portal discovers the entries of its menu.
+
+- **The annotation.** The chart marks the `Ingress` of its web interface with an annotation. The legacy system uses `kaapana.ai/type: application` for this, and kube-helm lists every such `Ingress` as an active application ([routes.py][kh-routes]). Whether the new system keeps this name is still to be decided.
+- **Discovery.** The consumer reads the `Ingress` objects in the manifest of the helm release. The path of the marked one becomes the `url` of the release. An annotation can name an entry path below it, such as `/lab` for JupyterLab, as `kaapana.ai/ui.path` does for the menu.
+- **Where the link appears.** The application page shows the link in its list of releases ([Story 2.4][s2.4]). The link does not appear in the menu of the platform. A chart that also wants a menu entry adds the annotations of the portal to its `Ingress`. See [Platform-wide releases](#platform-wide-releases).
+- **The path.** The chart serves under the platform value `url_path`, so that the rules of the gateway match the route.
 
 ### Changes to the schema *(proposed)*
 
 A review of the model found these gaps:
 
 - **`name` has no pattern.** The name becomes a URL segment and the start of the helm release name, so it must be a lowercase DNS label with a length limit.
-- **`web_interface.service` is a fixed name.** A multi-deployable chart puts the helm release name into the name of its service, so the declaration needs a placeholder for the helm release name.
 - **`default` should be optional.** See the rule about defaults in [Rules](#rules).
 - **A platform value cannot be mapped onto a chart value.** See [Using a chart from a public registry](#using-a-chart-from-a-public-registry-proposed).
 - **The field is called `multi_deployable`.** The [glossary][glossary] also mentions `multiinstallable`. "Install" is reserved for extensions, so `multi_deployable` fits better.
@@ -342,7 +347,7 @@ The goal is that a public chart needs no change. The extension wraps it:
 
 1. `chart/Chart.yaml` lists the public chart under `dependencies`. The build runs `helm dependency build`, so the packaged extension contains the public chart, and the consumer needs no access to the public registry.
 2. `chart/values.yaml` sets the values of the public chart under the name of the dependency. The `chart_value` of a parameter starts with that name, for example `jupyterhub.singleuser.memory.limit`.
-3. `helm-chart-content.json` declares the name, the description, the web interface and the parameters.
+3. `helm-chart-content.json` declares the name, the description and the parameters.
 
 One addition lets most wrappers work without templates:
 
@@ -484,7 +489,7 @@ Releases that kube-helm created have no record in the consumer. They carry the l
 | Types `string`, `bool`, `list_single` | Types `string`, `boolean`, `choice` |
 | Type `doc` | `description` |
 | `global.*` copied from the platform release | The platform values under `global.kaapana` |
-| Ingress with the annotation `kaapana.ai/type: application` | The chart keeps its `Ingress`, and `web_interface` declares where it leads |
+| Ingress with the annotation `kaapana.ai/type: application` | The chart keeps its `Ingress`. See [The web interface of a release](#the-web-interface-of-a-release). |
 
 A legacy chart reads platform values by their old names, for example `global.registry_url`. The chart has to change these to the names under `global.kaapana`. Passing the old names as well would bring back the full `global` block that the allowlist removes.
 
@@ -567,6 +572,7 @@ State of the checklist:
 [s2.1]: concept.md#story-21-deploying-an-application
 [s2.2]: concept.md#story-22-configuring-an-application-at-deploy
 [s2.3]: concept.md#story-23-undeploying-an-application
+[s2.4]: concept.md#story-24-opening-an-application
 [s2.5]: concept.md#story-25-working-on-existing-data
 [s3.1]: concept.md#story-31-seeing-the-status-of-a-deployed-application
 [s3.4]: concept.md#story-34-overview-of-all-deployed-applications
@@ -626,6 +632,7 @@ State of the checklist:
 [h-mvp-order]: handoff.md#a-possible-order-for-the-mvp
 [routers]: api-mock/app/routers/
 [models]: api-mock/app/models.py
+[kh-routes]: ../../kaapana-admin/kube-helm/docker/files/backend/app/routes.py
 [kh-utils]: ../../kaapana-admin/kube-helm/docker/files/backend/app/utils.py
 [kh-prefetch]: ../../kaapana-admin/kube-helm/docker/files/backend/scripts/prefetch_extensions.py
 [kh-preinstall]: ../../kaapana-admin/kube-helm/docker/files/backend/scripts/preinstall_extensions.py

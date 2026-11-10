@@ -350,7 +350,7 @@ task fails, is retried or times out (Story 7.4).
 1. `HelmChartInstaller` in the Extension Manager, and register and deregister in the consumer.
 2. Enablement per project and the list of deployable applications.
 3. Deploy with the check sequence and the helm dry-run, and the state derived from the helm release and its objects.
-4. The web interface behind the gateway: IngressRoute, OPA rules and the platform values.
+4. The web interface behind the gateway: the `Ingress` of the chart, OPA rules and the platform values.
 5. Undeploy, including the PVCs.
 6. The reconciler for restarts and drift.
 7. The deletion check in AII.

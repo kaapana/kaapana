@@ -4,6 +4,8 @@ set -e  # Exit immediately if a command exits with a non-zero status
 export PYTHONPATH="$PWD" 
 
 python3 alembic/migrate.py
+# No update job can run yet: jobs run in the workers, and the Recreate deployment never has a second pod
+python3 -m v1.services.database.recovery
 
 if [ -z "${DEV_FILES}" ]; then
     # Production

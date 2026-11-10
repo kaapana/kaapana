@@ -7,8 +7,9 @@ from uuid import UUID
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
+from v1.routers.installation import endpoints
 from v1.services.database import crud
-from v1.services.database.models import ExtensionStatus
+from v1.services.database.models import ContentStatus, ExtensionStatus
 from v1.services.oci.mock_service import ociService as MockOciService
 
 MOCK_EXTENSION_DIR = Path(__file__).resolve().parents[1] / "v1" / "mock_data" / "extension-v1"
@@ -168,3 +169,30 @@ async def test_an_uninstalled_row_with_the_target_tag_does_not_block_the_update(
     assert extension["status"] == "installed"
     assert extension["tag"] == "extension-v2"
     assert len((await client.get("/extensions")).json()) == 1
+
+
+@pytest.mark.asyncio
+async def test_an_update_interrupted_by_a_restart_can_be_retried(
+    client: AsyncClient, session: AsyncSession, mocked_installer, monkeypatch
+):
+    repository_id = await _create_repository(client)
+    location = (await _install(client, repository_id, "extension-v1")).headers["Location"]
+    update_job = endpoints.update_extension_background_task
+    monkeypatch.setattr(endpoints, "update_extension_background_task", AsyncMock())
+    await _install(client, repository_id, "extension-v2")
+    db_extension = await crud.get_extension(session, extension_id=UUID(location.split("/")[-1]))
+    assert db_extension is not None
+    db_extension.contents[0].status = ContentStatus.UPDATING
+    await session.commit()
+
+    assert await crud.fail_interrupted_updates(session) == [db_extension.id]
+
+    extension = (await client.get(location)).json()
+    assert extension["status"] == "update_failed"
+    assert [content["status"] for content in extension["contents"]] == ["update_failed"]
+
+    monkeypatch.setattr(endpoints, "update_extension_background_task", update_job)
+    response = await _install(client, repository_id, "extension-v2")
+    assert response.status_code == 202
+    session.expire_all()
+    assert (await client.get(location)).json()["status"] == "installed"

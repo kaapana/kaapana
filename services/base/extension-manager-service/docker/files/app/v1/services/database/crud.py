@@ -225,6 +225,27 @@ async def complete_extension_update(session: AsyncSession, extension_id: UUID) -
     return db_extension
 
 
+_INTERRUPTED_CONTENT_STATUS = {
+    ContentStatus.UPDATING: ContentStatus.UPDATE_FAILED,
+    ContentStatus.INSTALLING: ContentStatus.INSTALLATION_FAILED,
+    ContentStatus.UNINSTALLING: ContentStatus.UNINSTALLATION_FAILED,
+}
+
+
+async def fail_interrupted_updates(session: AsyncSession) -> list[UUID]:
+    """Skips the transition check, so it must only run while no update job can run."""
+    selection = await session.execute(
+        select(Extension).where(Extension.status == ExtensionStatus.UPDATING).options(selectinload(Extension.contents))
+    )
+    db_extensions = list(selection.scalars().all())
+    for db_extension in db_extensions:
+        db_extension.status = ExtensionStatus.UPDATE_FAILED
+        for db_content in db_extension.contents:
+            db_content.status = _INTERRUPTED_CONTENT_STATUS.get(db_content.status, db_content.status)
+    await session.commit()
+    return [db_extension.id for db_extension in db_extensions]
+
+
 async def delete_extension(session: AsyncSession, extension_id: UUID) -> None:
     db_extension = await get_extension(session, extension_id=extension_id)
     if not db_extension:

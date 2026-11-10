@@ -36,6 +36,8 @@ The routes are in [api-mock/app/routers/][routers], and the models are in [api-m
 
 There is no update route. Updating an extension registers the new version and deregisters the old one ([Story 1.3][s1.3]). The Extension Manager calls consumers from Python plugins, which sets rules for the `Location` header, for retries and for the failure reason. See [The Extension Manager calls consumers as Python plugins][h-em].
 
+The platform registers its own contents with the same routes, without an extension. See [Charts that other services install](#charts-that-other-services-install-proposed).
+
 ### Application page
 
 | Route | What it does |
@@ -68,13 +70,13 @@ An enablement is only the pair of a project and an application. The consumer doe
 ### Access-information-interface (AII)
 
 - Before AII deletes a project, it asks `GET /v1/releases?project_id=<id>` and refuses the deletion while releases exist ([Q9][q9], [Story 12.2][s12.2]). See [Let project management ask before deleting a project][h-project-deletion].
-- AII installs the chart `project-namespace` for every project. See [Charts that other services install](#charts-that-other-services-install-proposed).
+- AII deploys one release of the application `project-namespace` for every project with `POST /v1/releases`, and undeploys it with `DELETE /v1/releases/{id}` when the project is deleted. It finds the release with `GET /v1/releases?application_id=project-namespace&name=project-<short_id>`. See [Charts that other services install](#charts-that-other-services-install-proposed).
 
 ### Installer and platform deploy
 
-- The base-installer pulls images. It installs one release of the chart `pull-docker-chart` per image. The API mock has no route for this yet. See [Charts that other services install](#charts-that-other-services-install-proposed).
-- A job at platform deploy processes the list `preinstall_extensions`. It installs each extension through the Extension Manager, and then deploys the listed releases with `GET /v1/releases?name=<name>` and `POST /v1/releases`. Both routes exist. See [Charts at platform deploy and charts from the legacy page](#charts-at-platform-deploy-and-charts-from-the-legacy-page-proposed).
-- The chart `kaapana-platform-chart` is in the same list. The API mock has no route to install it, and it is open whether the consumer installs it at all. See [The three kinds of preinstalled charts](#the-three-kinds-of-preinstalled-charts).
+- The base-installer pulls images. It deploys one release of the application `pull-docker-chart` per image with `POST /v1/releases`. See [Charts that other services install](#charts-that-other-services-install-proposed).
+- A job at platform deploy processes the list `preinstall_extensions`. It installs each extension through the Extension Manager, and then deploys the listed releases with `GET /v1/releases?name=<name>` and `POST /v1/releases`. Both routes exist. The same job can register the platform contents. See [Charts at platform deploy and charts from the legacy page](#charts-at-platform-deploy-and-charts-from-the-legacy-page-proposed).
+- The chart `kaapana-platform-chart` is in the same list. It is open whether it becomes a platform content or whether `kaapanactl.sh` keeps installing it. See [The three kinds of preinstalled charts](#the-three-kinds-of-preinstalled-charts).
 
 ### Workflows
 
@@ -113,6 +115,8 @@ A review of the model found these gaps:
 - **`default` should be optional.** See the rule about defaults in [Rules](#rules).
 - **A platform value cannot be mapped onto a chart value.** See [Using a chart from a public registry](#using-a-chart-from-a-public-registry-proposed).
 - **The field is called `multi_deployable`.** The [glossary][glossary] also mentions `multiinstallable`. "Install" is reserved for extensions, so `multi_deployable` fits better.
+- **There is no scope for releases that users must not see.** A platform content needs a third scope `system`. See [How a platform content differs](#how-a-platform-content-differs).
+- **There is no field for privileged values.** A platform content declares the passwords that it needs in `platform_secrets`. See [Privileged values for platform contents](#privileged-values-for-platform-contents).
 - **A parameter with several choices is not needed.** The legacy type `list_multi` is used by two workflow charts and by no application chart. The legacy type `doc` is help text and becomes `description`.
 
 ## Configuration of parameters
@@ -169,16 +173,29 @@ All platform values are under the one reserved key `global.kaapana`. One key nee
 |---|---|---|
 | `release.id`, `release.name` | The id of the release and the name that users see | [Story 8.3][s8.3] |
 | `application.id`, `application.version` | The registered version that the release runs | [Story 11.1][s11.1] |
-| `scope` | `project` or `platform` | [Q11][q11] |
+| `scope` | `project`, `platform` or `system` | [Q11][q11] |
 | `project.id`, `project.short_id`, `project.namespace`, `project.bucket` | The project of the release. Only for the project scope. | [Story 2.5][s2.5], [Q6][q6] |
 | `url_path` | The path under which the web interface is served, for settings like `base_url` of JupyterLab | [Story 4.4][s4.4] |
 | `hostname` | The host name of the platform | [Story 4.4][s4.4] |
 | `credentials_secret` | The name of the secret with the credentials for Kaapana APIs | [Story 4.5][s4.5], [Q7][q7], [Q13][q13] |
 | `registry_url`, `pull_policy`, `image_pull_secret` | Where and how the images of Kaapana charts are pulled | Legacy `global.registry_url` and `global.pull_policy_images` |
+| `namespaces.services`, `namespaces.admin` | The namespaces of the platform services | Legacy `global.services_namespace` and `global.admin_namespace` |
+| `build_version`, `platform_prefix`, `internal_cidrs` | The version of the platform, the prefix of its namespaces, and the address ranges inside the cluster | Legacy `global.kaapana_build_version`, `global.platform_prefix` and `global.internalCidrs` |
 
 The helm release name is not in the table, because helm gives it to every chart as `.Release.Name`. See [Copies of an application](#copies-of-an-application).
 
 The list is fixed and documented for extension developers. It is an allowlist on purpose. kube-helm copies the whole `global` block of the platform release into every chart ([utils.py][kh-utils]), and [kaapanactl.sh][kaapanactl] writes passwords into that block, for example `global.credentials_keycloak_admin_password` and `global.smtp_password`. Every chart that kube-helm installs can therefore read them.
+
+#### Privileged values for platform contents
+
+A platform content is a helm-chart content that belongs to the platform and not to an extension. See [Charts that other services install](#charts-that-other-services-install-proposed). Some of them need a password. The chart `project-namespace` builds the image pull secret and the OIDC client secret of a new project from `global.credentials_registry_password` and `global.oidc_client_secret`.
+
+- **A platform content declares the privileged values that it needs**, in a field `platform_secrets` of `helm-chart-content.json`. The consumer passes exactly these values under `global.kaapana.secrets`, for example `registry_credentials` and `oidc_client_secret`.
+- **A content of an extension never gets them.** A registration that comes from the Extension Manager and declares `platform_secrets` is rejected. The consumer decides this from the caller, and not from a field in the request.
+- **The dry-run does not return them.** It shows a privileged value as set, like a secret parameter.
+- **Helm stores them.** Helm keeps the values of a release in a secret in the namespace of the helm release. This is the same as today, and it is limited to the releases of platform contents. It is an exception to the rule for secret parameters, which never become chart values. See [Never return a secret, and keep it out of the helm values][h-secrets].
+- **`registry_credentials` holds the user name and the password of the registry.**
+- **An alternative exists.** The chart `project-namespace` already copies two other passwords from the admin namespace with the helm function `lookup`, in `system_user_password.yaml` and `kaapana-service-password.yaml`. It could copy the registry secret and the OIDC client secret in the same way. Then no password passes through the values, and `platform_secrets` is not needed. The consumer needs the right to read secrets in the admin namespace in both cases, and `lookup` returns nothing in a client-side dry-run.
 
 ### How the chart values of a release are built
 
@@ -269,13 +286,13 @@ Helm knows two kinds of labels, and they serve different purposes.
 | `kaapana.ai/managed-by` | `helm-chart-consumer` |
 | `kaapana.ai/release-id` | The id of the release |
 | `kaapana.ai/application` | The application id |
-| `kaapana.ai/scope` | `project` or `platform` |
+| `kaapana.ai/scope` | `project`, `platform` or `system` |
 | `kaapana.ai/project-id` | The id of the project, for the project scope |
 
 The labels have two uses:
 
 - The reconciler finds all helm releases of the consumer with one `helm list` and compares them with the records ([Story 12.1][s12.1]).
-- An operator and the migration can tell three groups apart: releases of the consumer, legacy releases of kube-helm, and releases of the platform itself.
+- An operator and the migration can tell three groups apart: releases of the consumer, legacy releases of kube-helm, and releases that `kaapanactl.sh` installs.
 
 The record stays the source of truth. Anyone with access to the cluster can change a label, so the consumer never decides a permission by a label.
 
@@ -299,11 +316,11 @@ What is open: how callers inside the cluster prove who they are. The Extension M
 
 ### The origin of a release
 
-Every release records who or what deployed it, as `origin`. The field is a union, like the placement. Its `type` tells the two kinds apart. See `UserOrigin` and `WorkflowOrigin` in [api-mock/app/models.py][models].
+Every release records who or what deployed it, as `origin`. The field is a union, like the placement. Its `type` tells the kinds apart. See `UserOrigin` and `WorkflowOrigin` in [api-mock/app/models.py][models]. The service origin is not in the API mock yet.
 
 - **A user.** This is the default of a deploy request. The consumer sets `user_id` to the calling user, whom it knows from the gateway. A user origin that names another user is rejected, so nobody can deploy in the name of someone else.
 - **A workflow task.** The origin holds the workflow run, the task, and the user who started the run, if a user started it. Only workflow-api may send it. See [Put every permission rule in one table][h-permissions].
-- **Other origins can be added later** *(proposed)*. The bootstrap job at platform deploy has no user, so its releases need an origin of their own.
+- **A service** *(proposed)*. A platform service such as AII, the installer or the bootstrap job at platform deploy has no user. Its origin names the service. See [Charts that other services install](#charts-that-other-services-install-proposed).
 - The origin describes only the creation of a release. Who changed a release later belongs to the audit log ([Story 5.6][s5.6]).
 
 ### Restricting who can open a release *(proposed)*
@@ -346,36 +363,70 @@ Limits:
 
 ### Decision
 
-These charts are not helm-chart contents, and they do not interact with the Extension Manager. They belong to the platform and not to an extension. They have no deploy form, no enablement and no project member who deploys them.
+These charts are helm-chart contents. Each one has a `helm-chart-content.json` with declared parameters, and its releases are deployed, updated and undeployed with the same routes as every other release. There are no separate routes, and no caller passes raw values.
 
-They use the same service and the same helm code, but a separate group of routes for system releases:
+The differences to other helm-chart contents all follow from one point: they belong to the platform and not to an extension, so the Extension Manager is not involved. This document calls them platform contents. The [glossary][glossary] of the concept defines a helm-chart content as a content type of an extension, and this decision widens that definition.
 
-| Route | What it does |
-|---|---|
-| `PUT /v1/system-releases/{name}` | Installs or upgrades a chart of the platform. The body holds the chart reference, the namespace and the values. The same request twice changes nothing. |
-| `GET /v1/system-releases/{name}` | Returns the state and its reason, derived as for a release |
-| `DELETE /v1/system-releases/{name}` | Uninstalls |
+AII no longer needs its client for kube-helm ([kubehelm.py][aii-kubehelm]):
 
-A system release differs from a release in these points:
-
-| | Release | System release |
+| Caller | When | Call |
 |---|---|---|
-| Chart comes from | A registered version of an extension | A chart of the platform, by reference |
-| Values | Declared parameters only | Any value |
-| Enablement, placement, single-instance limit | Yes | No |
-| Listed in `GET /v1/releases` | Yes | No |
-| Callers | Users through the gateway | Platform services inside the cluster only |
+| AII | A project is created | `POST /v1/releases` with the application `project-namespace`, the name `project-<short_id>`, the system placement, and the project as parameters |
+| AII | A project is deleted | `DELETE /v1/releases/{id}`, after the check that the project has no releases ([Q9][q9]) |
+| AII | The platform was upgraded | `PATCH /v1/releases/{id}` with the new version, for the release of every project |
+| base-installer | For every image | `POST /v1/releases` with the application `pull-docker-chart`, a generated name, and the image as parameters |
 
-Both callers map onto these routes. AII sends `PUT /v1/system-releases/<namespace of the project>` when it creates a project and `DELETE` when it deletes one. The installer sends one `PUT` per image with the chart `pull-docker-chart`.
+AII finds the release of a project with `GET /v1/releases?application_id=project-namespace&name=project-<short_id>`. A parameter for the name of the project can be added later, and a rename is then a `PATCH`.
+
+### The content of `project-namespace`
+
+```json
+{
+  "name": "project-namespace",
+  "display_name": "Project namespace",
+  "description": "Creates the namespace of a project and what the project needs in it.",
+  "scopes": ["system"],
+  "multi_deployable": true,
+  "parameters": [
+    {"key": "project_id", "label": "Project id", "type": "string", "required": true, "chart_value": "global.project_id"},
+    {"key": "project_short_id", "label": "Short id", "type": "string", "required": true, "chart_value": "global.project_short_id"},
+    {"key": "project_namespace", "label": "Namespace", "type": "string", "required": true, "chart_value": "global.project_namespace"}
+  ],
+  "platform_secrets": ["registry_credentials", "oidc_client_secret"]
+}
+```
+
+AII passes these values to kube-helm as `extension_params` today, together with `namespace`, which the chart does not read. The chart has to list them in its `values.yaml`, and it has to read the platform values under `global.kaapana`, like every converted legacy chart. See [Converting a legacy chart](#converting-a-legacy-chart). It also reads `global.dev_files`, which is not a platform value yet. The content of `pull-docker-chart` declares the parameters `registry_url`, `image` and `version`, and no `platform_secrets`. The registry is a parameter because the base-installer sends one per image.
+
+### How a platform content differs
+
+| | Content of an extension | Platform content |
+|---|---|---|
+| Registered by | The Extension Manager, when the extension is installed | The bootstrap job at platform deploy *(to be decided)* |
+| `extension` in the registration | Set | Missing |
+| Scopes | Project, platform or both | System only |
+| Deployed by | Users through the gateway, workflow-api, or the bootstrap job | The service that owns it, from inside the cluster |
+| Origin of its releases | A user, a workflow task, or the bootstrap job as a service | A service |
+| Seen by | The members of the project, or every user for a platform-wide release | kaapana-system-admins and the service that owns it |
+| Platform values | `global.kaapana` | `global.kaapana`, and the privileged values that it declares |
+
+- **A third scope, `system`.** Who sees a release follows from its placement: the members of the project see a release in a project, and every user sees a platform-wide release ([Story 9.2][s9.2]). Neither fits. Users must not see one release per project and one per pulled image. The system scope is for the releases of platform contents. Only kaapana-system-admins and the service that owns the release see them, in `GET /v1/applications` and in `GET /v1/releases`. Only a platform content may declare this scope. A name is unique per application in the system scope, so AII finds the release of a project by its name.
+- **The release of a project is not placed in that project.** The namespace of the project does not exist before the release is deployed. A release in the project would also block the deletion of its own project, because AII refuses the deletion while the project has releases. The project is therefore passed as parameters, and the consumer does not ask AII about it.
+- **`multi_deployable` covers one release per project.** The field holds for every scope, so a platform content with `multi_deployable: true` can have many releases in the system scope. No exception from the limit is needed.
+- **The helm release stays in the helm namespace of the platform.** kube-helm installs these charts there today, and the system scope keeps that.
+- **Registration.** `extension` becomes optional in `PUT /v1/applications/{id}/versions/{version}`. The registration of `project-namespace` must be done before AII creates its first project. The version is the build version. Where the chart comes from depends on the open question of how a chart reaches the consumer.
+- **Protection.** Only the service in the origin may update or undeploy a release in the system scope. A kaapana-system-admin can otherwise undeploy the release of a project from the application page. That removes what the chart created for the project, such as its secrets, its network policies and its runtime deployment. The namespace itself stays, because its template sets `helm.sh/resource-policy: keep`. The rule does not hold for the other scopes: an admin can update and undeploy a release that the bootstrap job deployed.
+- **Removing the releases of image pulls** *(to be decided)*. kube-helm installs `pull-docker-chart`, waits, and deletes the release ten seconds later. In the new system the installer deletes each release when it is ready, or a content can declare that its release is removed when its job has finished.
 
 The dry-run of all charts in the init job is not replaced. The consumer is not responsible for making images available ([Q10][q10]).
 
 Reasons and costs:
 
-- **Why one service.** The ticket wants to remove the legacy system in 0.8.0. If AII and the installer ran helm themselves, three services would carry helm code and rights on the whole cluster.
-- **Why separate routes.** A system release has none of the rules of a release. One route for both would need a switch for every check, and a mistake in a switch would let a user pass raw values.
-- **Cost: rights.** The service account of the consumer needs the right to create namespaces.
-- **Cost: identity.** These routes are safe only if the consumer knows its caller. This makes the open question about callers inside the cluster a blocker for removing kube-helm.
+- **Why one kind of release.** One API and one format cover every chart. A chart of the platform follows the same rules as a chart of an extension, so there is no second path that could skip a check.
+- **Why not in the other services.** The ticket wants to remove the legacy system in 0.8.0. If AII and the installer ran helm themselves, three services would carry helm code and rights on the whole cluster.
+- **Cost: rights.** The service account of the consumer needs rights on the whole cluster. The chart `project-namespace` creates a namespace, and it creates secrets and network policies in that namespace, which is not the namespace of the helm release. It also reads two secrets in the admin namespace.
+- **Cost: identity.** A platform content gets passwords and a service origin only if the consumer knows its caller. This makes the open question about callers inside the cluster a blocker for removing kube-helm.
+- **Cost: start order.** The consumer has to run before AII creates a project. Where the consumer runs is open.
 
 ## Charts at platform deploy and charts from the legacy page *(proposed)*
 
@@ -387,7 +438,7 @@ Reasons and costs:
 
 | Kind | Example | In the new system |
 |---|---|---|
-| The platform itself | `kaapana-platform-chart` | A system release, or `kaapanactl.sh` installs it directly. The consumer cannot install the chart that it is part of. Where the consumer runs is open. |
+| The platform itself | `kaapana-platform-chart` | A platform content, or `kaapanactl.sh` installs it directly. The consumer cannot install the chart that it is part of. Where the consumer runs is open. |
 | An application | `code-server-chart` | An extension with a helm-chart content. It is registered through the Extension Manager and then deployed through the consumer. |
 | Workflows | `kaapana-workflows-core` | An extension with workflow contents. The Helm Chart Consumer is not involved. |
 
@@ -406,7 +457,7 @@ preinstall_extensions:
     parameters: {}
 ```
 
-A job at platform deploy processes the list. It installs each extension through the Extension Manager, and then deploys the listed releases through the consumer.
+A job at platform deploy processes the list. It installs each extension through the Extension Manager, and then deploys the listed releases through the consumer. The same job can register the platform contents, which have no extension. See [How a platform content differs](#how-a-platform-content-differs).
 
 - The job must be safe to repeat. Registering is repeatable already. For a release, the job first asks `GET /v1/releases?name=<name>` and deploys only if the release is missing.
 - The job calls from inside the cluster, so it needs the same answer about its identity as the other callers.
@@ -448,9 +499,9 @@ This decision conflicts with the goal of the ticket to remove the legacy system 
 | [Q12][q12]: does a new version start enabled | The bootstrap, which deploys right after registering |
 | [Q13][q13]: on whose behalf a platform-wide release acts | The value `credentials_secret` for the platform scope |
 | [Q14][q14]: what identifies a helm-chart content | The key of a registered version |
-| How callers inside the cluster prove who they are | System releases, the bootstrap job, registration and workflows |
-| Which rights the service account of the consumer gets | What the chart of an extension can create in the cluster |
-| How the chart reaches the consumer | Registration, and the chart reference of a system release |
+| How callers inside the cluster prove who they are | Platform contents, the bootstrap job, registration and workflows |
+| Which rights the service account of the consumer gets | What a chart can create in the cluster, and whether `project-namespace` can be deployed |
+| How the chart reaches the consumer | Registration, also of platform contents |
 | Whether the consumer runs in `kaapana-admin-chart` or in `kaapana-platform-chart` | Who installs the platform chart |
 | Whether kube-helm stays in 0.8.0 for interactive workflow steps and legacy releases | The removal of the legacy system |
 
@@ -476,7 +527,7 @@ A wrapper chart that lists the public chart as a dependency, plus `helm-chart-co
 
 ### 5. Charts installed by other services with values (e.g. AII's project namespace or the image prefetch from installer) how do they interact with extension manager / Helm API?
 
-They do not interact with the Extension Manager. They use separate routes of the Helm Chart Consumer for system releases. See [Charts that other services install](#charts-that-other-services-install-proposed).
+They are helm-chart contents of the platform. They have a `helm-chart-content.json` with declared parameters, and their releases use the same routes of the Helm Chart Consumer as every other release. They do not interact with the Extension Manager. AII calls the consumer and no longer kube-helm. See [Charts that other services install](#charts-that-other-services-install-proposed).
 
 ### 6. How does the UI get the install parameters form (i.e. `extension_params` in chart annotations in the legacy code)?
 
@@ -498,7 +549,7 @@ A bootstrap job at platform deploy that registers and deploys the listed applica
 State of the checklist:
 
 - **Written proposal.** This document, with [concept.md](concept.md) and [handoff.md](handoff.md).
-- **API sketches.** [api-mock/](api-mock/) covers the Extension Manager, the application page, the admin and the deletion check of AII. The routes for system releases exist only as a table in this document.
+- **API sketches.** [api-mock/](api-mock/) covers the Extension Manager, the application page, the admin and the deletion check of AII. It does not show platform contents yet: the registration requires an extension, and there is no service origin.
 - **Review.** Not done.
 - **Downstream issues.** Not drafted. [A possible order for the MVP][h-mvp-order] is a starting point.
 

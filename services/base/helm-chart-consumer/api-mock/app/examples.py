@@ -5,6 +5,7 @@ It reuses some of the applications and their deployed instances from the seed da
 """
 
 from datetime import UTC, datetime
+from uuid import UUID
 
 from .models import (
     Application,
@@ -116,7 +117,9 @@ JUPYTERLAB_CONTENT = HelmChartContent(
     parameters=[*JUPYTERLAB_PARAMETERS, IDLE_HOURS],
 )
 
-JUPYTERLAB_EXTENSION = ExtensionReference(id="jupyterlab-extension", name="jupyterlab-extension", version="4.3.0")
+JUPYTERLAB_EXTENSION = ExtensionReference(
+    id=UUID("b4d2f7a1-5c3e-4f90-8a6b-2e1d9c0f7a35"), name="jupyterlab-extension", version="4.3.0"
+)
 
 JUPYTERLAB_VERSIONS = [
     ApplicationVersion(
@@ -184,7 +187,7 @@ APPLICATIONS = [
 ]
 
 ANNA_NOTEBOOK = Release(
-    id="d1",
+    id=UUID("3f2a9c1e-6b4d-4e8a-9c57-1d0f8a2b7e31"),
     name="anna-notebook",
     description="Radiomics feature exploration on cohort A",
     application_id="jupyterlab",
@@ -209,7 +212,7 @@ ANNA_NOTEBOOK = Release(
 )
 
 SEGMENTATION_REVIEW = Release(
-    id="d3",
+    id=UUID("a85e0d3c-9f17-4b62-8d4a-6c2b1e7f5093"),
     name="segmentation-review",
     description="Review and correct lung lobe segmentations before training",
     application_id="mitk",
@@ -230,7 +233,7 @@ SEGMENTATION_REVIEW = Release(
 )
 
 NODULE_LABELLING = Release(
-    id="d4",
+    id=UUID("e19b6f42-0a8c-4d75-b3e1-7f5a2c9d8064"),
     name="nodule-labelling",
     description="Label nodules in cohort B with the clinical team",
     application_id="cvat",
@@ -252,7 +255,7 @@ NODULE_LABELLING = Release(
 )
 
 OHIF = Release(
-    id="d10",
+    id=UUID("5d7c2a90-4e1b-4c38-a9f6-0b3e8d1c6a57"),
     name="ohif",
     description="DICOM viewer for all projects",
     application_id="ohif",
@@ -295,7 +298,7 @@ ANNA_NOTEBOOK_UPDATING = ANNA_NOTEBOOK.model_copy(
 # This matches DEPLOY_REQUEST, so that the example response fits the example request.
 NEW_RELEASE = ANNA_NOTEBOOK.model_copy(
     update={
-        "id": "d11",
+        "id": UUID("7c1e4b9a-2f6d-4a83-b0c5-9e8d3f1a6b24"),
         "name": "jonas-notebook-2",
         "description": "",
         "version": "4.3.0",
@@ -395,7 +398,7 @@ PLATFORM_DEPLOY_REQUEST = {
 UPDATE_REQUEST = {"version": "4.3.0", "parameters": {"memory": 16, "idleHours": None}}
 
 REGISTRATION_REQUEST = {
-    "extension": {"id": "jupyterlab-extension", "name": "jupyterlab-extension", "version": "4.3.0"},
+    "extension": {"id": "b4d2f7a1-5c3e-4f90-8a6b-2e1d9c0f7a35", "name": "jupyterlab-extension", "version": "4.3.0"},
     "content": JUPYTERLAB_CONTENT.model_dump(mode="json"),
     "chart_reference": "registry.kaapana.example.org/extensions/jupyterlab-extension:4.3.0",
 }

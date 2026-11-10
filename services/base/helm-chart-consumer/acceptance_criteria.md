@@ -211,14 +211,14 @@ In the new system, `multi_deployable: true` in `helm-chart-content.json` replace
 | Record | Created when | Identified by | Example |
 |---|---|---|---|
 | Registered version of a helm-chart content | The extension is installed | Application id and version | `jupyterlab`, `4.3.0` |
-| Release | Someone deploys | Release id | `d11`, with the name `anna-notebook` |
+| Release | Someone deploys | Release id | `3f2a9c1e-6b4d-4e8a-9c57-1d0f8a2b7e31`, with the name `anna-notebook` |
 
-One registered version can have many releases. See [Model an application as its registered versions][h-versions] and [Keep a record of every release][h-records].
+One registered version can have many releases. The release id is the key of the record, a UUID that the consumer generates. `POST /v1/releases` returns it as `Release.id`, and every route of a single release takes it in the path. See [Model an application as its registered versions][h-versions] and [Keep a record of every release][h-records].
 
 ### Names and conflicts
 
 - Extension developers are responsible that the objects of their chart do not collide ([Story 4.3][s4.3]).
-- **The helm release name keeps copies apart** *(proposed)*. The id of the helm-chart content cannot do this, because it is the same for all copies. The consumer generates the helm release name from the application id and the release id, for example `jupyterlab-d11`. It is unique in the whole cluster, starts with a letter, and stays below the 53 characters that helm allows. The consumer stores it with the release.
+- **The helm release name keeps copies apart** *(proposed)*. The id of the helm-chart content cannot do this, because it is the same for all copies. The consumer generates the helm release name from the application id and the first characters of the release id, for example `jupyterlab-3f2a9c1e`, and checks that no other release has it. It is unique in the whole cluster, starts with a letter, and stays below the 53 characters that helm allows. The consumer stores it with the release.
 - A chart that names its objects after `.Release.Name` is safe to deploy several times without a Kaapana value. Most public charts do this already.
 - The name that a user types, such as `anna-notebook`, is what the UI shows, and it is part of the URL ([Story 8.3][s8.3]). It is unique only within a project, so it cannot be the helm release name unless every project gets its own namespace ([Q6][q6]).
 

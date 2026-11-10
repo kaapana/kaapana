@@ -1,4 +1,5 @@
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Body, Query, status
 from fastapi.responses import PlainTextResponse
@@ -73,7 +74,8 @@ def check_release(
         201: {
             "headers": {
                 "Location": {
-                    "description": "Path of the new release relative to /v1, e.g. /releases/d11.",
+                    "description": "This is the path of the new release relative to /v1, for example "
+                    "/releases/7c1e4b9a-2f6d-4a83-b0c5-9e8d3f1a6b24.",
                     "schema": {"type": "string"},
                 }
             }
@@ -114,7 +116,7 @@ def create_release(
 
 
 @router.get("/releases/{release_id}", responses={404: {"model": Error}})
-def get_release(release_id: str) -> Release:
+def get_release(release_id: UUID) -> Release:
     """Get one release with its configuration. Secret values are never returned."""
     return examples.ANNA_NOTEBOOK
 
@@ -124,7 +126,7 @@ def get_release(release_id: str) -> Release:
     responses={403: {"model": Error}, 404: {"model": Error}},
 )
 def check_update(
-    release_id: str,
+    release_id: UUID,
     update: Annotated[ReleaseUpdate, Body(openapi_examples=UPDATE_EXAMPLES)],
 ) -> DryRunResult:
     """Run every check of an update and a helm dry-run upgrade, but change nothing."""
@@ -141,7 +143,7 @@ def check_update(
     },
 )
 def update_release(
-    release_id: str,
+    release_id: UUID,
     update: Annotated[ReleaseUpdate, Body(openapi_examples=UPDATE_EXAMPLES)],
 ) -> Release:
     """Change the version or the parameters of a release.
@@ -164,7 +166,7 @@ def update_release(
     status_code=status.HTTP_202_ACCEPTED,
     responses={403: {"model": Error}, 404: {"model": Error}},
 )
-def delete_release(release_id: str) -> Release:
+def delete_release(release_id: UUID) -> Release:
     """Undeploy a release.
 
     This removes the helm release, all Kubernetes resources it created and the persistent volumes
@@ -179,7 +181,7 @@ def delete_release(release_id: str) -> Release:
 
 
 @router.get("/releases/{release_id}/status", responses={404: {"model": Error}})
-def get_release_status(release_id: str) -> ReleaseStatus:
+def get_release_status(release_id: UUID) -> ReleaseStatus:
     """Get what the cluster reports about a release.
 
     The result lists every Kubernetes object of the helm release with its readiness. It also lists
@@ -198,7 +200,7 @@ def get_release_status(release_id: str) -> ReleaseStatus:
     },
 )
 def get_release_logs(
-    release_id: str,
+    release_id: UUID,
     pod: Annotated[str | None, Query(description="The first pod if omitted.")] = None,
     container: Annotated[str | None, Query(description="The first container if omitted.")] = None,
     tail: Annotated[int, Query(ge=1, le=5000)] = 200,
@@ -212,7 +214,7 @@ def get_release_logs(
     status_code=status.HTTP_202_ACCEPTED,
     responses={404: {"model": Error}, 409: {"model": Error, "description": "No workflow started the release."}},
 )
-def complete_release(release_id: str) -> Release:
+def complete_release(release_id: UUID) -> Release:
     """Report that the user finished the work in a release that a workflow started.
 
     Every member of the project may call this. The waiting workflow task continues with the

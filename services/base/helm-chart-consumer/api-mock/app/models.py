@@ -3,6 +3,7 @@
 from datetime import datetime
 from enum import StrEnum
 from typing import Annotated, Any, Literal
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -112,7 +113,7 @@ class HelmChartContent(Strict):
 
 
 class ExtensionReference(Strict):
-    id: str
+    id: UUID = Field(description="The Extension Manager identifies the extension by this id.")
     name: str
     version: str
 
@@ -225,7 +226,10 @@ class Release(BaseModel):
     kind `removed`.
     """
 
-    id: str
+    id: UUID = Field(
+        description="The Helm Chart Consumer generates this id when it creates the release. The id never changes. "
+        "The routes of a single release take it in the path."
+    )
     name: str = Field(description="Human-readable name. Part of the path of the web interface.")
     description: str
     application_id: str

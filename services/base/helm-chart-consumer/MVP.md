@@ -52,11 +52,11 @@ The routes are in [api-mock/app/routers/][routers], and the models are in [api-m
 
 | Route | What it does |
 |---|---|
-| `PUT /v1/applications/{id}/versions/{version}` | Registers a version. The consumer validates `helm-chart-content.json` and runs `helm lint` on the chart. The same request twice changes nothing. A different content for the same version answers 409. |
+| `PUT /v1/applications/{id}/versions/{version}` | Registers a version. The consumer validates `helm-chart-content.json` and runs `helm lint` on the chart. It answers 201 for a new version, 200 if the same content is already registered under this version, and 409 if another content is. See [Versioning](#versioning). |
 | `DELETE /v1/applications/{id}/versions/{version}` | Deregisters a version. Its releases keep running. |
 | `GET /v1/applications/{id}/versions/{version}` | Returns the status of a content: registered, or deregistered while releases still run it. |
 
-There is no update route. Updating an extension registers the new version and deregisters the old one ([Story 1.3][s1.3]). The Extension Manager calls consumers from Python plugins, which sets rules for the `Location` header, for retries and for the failure reason. See [The Extension Manager calls consumers as Python plugins][h-em].
+There is no update route. Updating an extension registers the new version and deregisters the old one ([Story 1.3][s1.3]). If the content did not change, both are the same version, and nothing is deregistered. The Extension Manager calls consumers from Python plugins, which sets rules for the `Location` header, for retries and for the failure reason. See [The Extension Manager calls consumers as Python plugins][h-em].
 
 ### Application page
 
@@ -102,6 +102,7 @@ helm-chart-content/
 | Field | Meaning |
 |---|---|
 | `name` | The id of the application. It appears in URLs. |
+| `version` | The version of the content, as a semantic version. It is independent of the version of the extension. See [Versioning](#versioning). |
 | `display_name`, `description` | What users see |
 | `multi_deployable` | Whether the application can have several releases in the same project. The default is `false`. |
 | `parameters` | The values a user may set. See [Configuration of parameters](#configuration-of-parameters). |
@@ -248,7 +249,7 @@ One registered version can have many releases. The release id is the key of the 
 - **Limits.** An application that is not multi-deployable has at most one release per project, counted over all its versions. A multi-deployable application can have several releases in a project ([Story 8.1][s8.1]).
 - **Listing.** `GET /v1/releases?application_id=<id>&project_id=<id>` lists the copies ([Story 8.3][s8.3]).
 - **A new version.** Registering a new version changes no running copy.
-- **Uninstalling the extension.** The version is deregistered and can no longer be deployed. Its copies keep running, are marked with `version_registered: false`, and can still be opened and undeployed ([Story 1.2][s1.2], [Q4][q4]). See [Keep the chart and the declarations of every release][h-keep-chart].
+- **Uninstalling the extension.** The version is deregistered and can no longer be deployed, unless another installed extension brings the same version. Its copies keep running, are marked with `version_registered: false`, and can still be opened and undeployed ([Story 1.2][s1.2], [Q4][q4]). See [Keep the chart and the declarations of every release][h-keep-chart].
 - **Undeploy.** Every copy is undeployed on its own with `DELETE /v1/releases/{id}`. This deletes its volumes ([Q5][q5]).
 - **Enablement replaces the whitelist** *(proposed)*. Both say which applications a project may use, so two mechanisms would have to be kept in sync. See [An older helm deployer exists][h-kube-helm].
 
@@ -260,17 +261,21 @@ Three different things have a version:
 |---|---|---|
 | API version | `/v1` | The routes and models of the Helm Chart Consumer |
 | Content type | `helm-chart-v1` | The schema of `helm-chart-content.json` and the layout of the content |
-| Content version | `4.3.0` | One helm-chart content. It is the version of its extension ([Story 11.1][s11.1]). |
+| Content version | `4.3.0` | One helm-chart content. `helm-chart-content.json` declares it in `version` *(proposed)*. The consumer does not look at the version of the extension, so the two can be equal or differ ([Story 11.1][s11.1]). |
 
 Rules for the content version:
 
-- Several versions of one helm-chart content can be registered at the same time ([Q3][q3]). A registered version is keyed by application id and version. What identifies a helm-chart content across extensions is open ([Q14][q14]).
-- A registered version never changes. Registering the same content again changes nothing, and a different content for the same version answers 409.
+- Several versions of one helm-chart content can be registered at the same time ([Q3][q3]). A registered version is keyed by application id and version.
+- A registered version never changes. Registering the same content again changes nothing, and a different content for the same name and version answers 409.
+- **The version is declared in the content** *(proposed)*. `helm-chart-content.json` has the required field `version`. The consumer does not look at the version of the extension, so a content can carry the same version as its extension or another one. Which version a content gets is the responsibility of the extension developer. A changed chart or a changed `helm-chart-content.json` needs a new version, because a registered version never changes.
+- **The answer tells whether the version is new** *(proposed)*. A registration answers 201 if the version was not registered, and 200 if the same content was already registered under this version. Both return the same `Location`.
+- **The consumer compares contents by a digest** *(proposed)*. At registration, it computes a digest over `helm-chart-content.json` and every file of the chart, and stores it with the version. A later registration of this version has the same content if its digest is equal. Where the chart was fetched from is not part of the digest. The digest is computed over the files and not over the packaged chart, because two packages of the same chart differ in their timestamps.
+- **Several extensions can bring the same version** *(proposed)*. The consumer does not record which extension registered a version. The Extension Manager could keep this record. It already stores the `Location` of every content that it installs, so it could deregister a version only when no other installed content has the same `Location`. It does not do this today. See [Open questions](#open-questions).
 - A release runs exactly one version. Registering another version does not change it.
 - A deregistered version stays readable while releases run it ([Q4][q4]).
 - Whether a new version of an enabled application starts enabled is open ([Q12][q12]).
-- **Versions are semantic versions** *(proposed)*. The consumer rejects any other version at registration. The API needs an order for "newest", and helm requires semantic versions for charts too. The current build version `0.7.0-latest` is a valid semantic version. This closes the open question about the order of versions in [handoff.md][h-open].
-- **The consumer ignores `version` and `appVersion` in `Chart.yaml`** *(proposed)*. The build tooling can set them to the extension version, so that `helm list` shows the same number.
+- **Versions are semantic versions** *(proposed)*. The consumer rejects any other version at registration. The API needs an order for "newest", and helm requires semantic versions for charts too. The current build version `0.7.0-latest` is a valid semantic version.
+- **The consumer ignores `version` and `appVersion` in `Chart.yaml`** *(proposed)*. The build tooling can set them to the content version, so that `helm list` shows the same number.
 
 ## Labels on Kubernetes objects *(proposed)*
 
@@ -347,7 +352,8 @@ A legacy chart keeps reading platform values by their old names, for example `gl
 |---|---|
 | [Q6][q6]: Do applications run in one namespace per project, in one namespace per release, or in a shared namespace? | Two things. First, which objects can collide. The name of a Kubernetes object must be unique in its namespace, so the answer decides what a chart has to do so that its objects do not collide with those of another release ([Story 4.3][s4.3]). Second, whether the name that a user types, such as `anna-notebook`, can also be the helm release name. This name is unique only within a project, so it works only if every project has its own namespace. |
 | [Q12][q12]: An application is enabled per project. When a new version of an enabled application is registered, can it be deployed at once, or does an admin have to enable it first? | Whether an enablement belongs to an application or to one of its versions. |
-| [Q14][q14]: Several extensions can bring versions of the same helm-chart content. Is a content identified by its name alone, or by the name of its extension together with its name? | The id of an application in the routes, such as `/v1/applications/{id}`, and what happens when two extensions register the same name and version. |
+| [Q14][q14]: Several extensions can bring versions of the same helm-chart content. Is a content identified by its name alone, or by the name of its extension together with its name? | The id of an application in the routes, such as `/v1/applications/{id}`, and what happens when two extensions register the same name and version. The rules in [Versioning](#versioning) assume the name alone. |
+| Does the Extension Manager deregister a version only when no other installed extension brings it? | Whether several extensions can bring the same version of a content. Without it, uninstalling one extension deregisters a version that another extension still needs. See [Versioning](#versioning). |
 | The Extension Manager and AII call the consumer from pod to pod, without a user and without the gateway. How does the consumer know that such a call really comes from them? | Who can register a chart and list the releases of a project. Without an answer, every pod that reaches the consumer can do both. A network policy is proposed. See [Authorization](#authorization). |
 | Helm creates the objects of a chart with the rights of the service account of the consumer. Which rights does this account get? | What a chart can create. With rights on the whole cluster, a chart can create objects in other namespaces, including roles that read the secrets there. |
 | How do the files of a chart reach the consumer at registration? | The request of the registration route `PUT /v1/applications/{id}/versions/{version}`. |

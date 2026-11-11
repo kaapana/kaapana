@@ -66,7 +66,7 @@ As a kaapana-system-admin I want the helm-chart content of an extension to be re
 Priority: MVP *(proposed)*
 
 Context:
-An extension can contain a helm-chart content. When the extension is installed, its helm-chart content is registered at the Helm Chart Consumer. The version of the helm-chart content is the version of the extension. Several versions of the same helm-chart content can be registered at the same time, so that two extensions that bring different versions of it can both be installed (Q3). When the extension is uninstalled, only the helm-chart content of that version is deregistered. A deployed application is an instance of a helm-chart content that was deployed with the Helm Chart Consumer. A helm-chart content can be deregistered while its deployed applications keep running.
+An extension can contain a helm-chart content. When the extension is installed, its helm-chart content is registered at the Helm Chart Consumer. A helm-chart content has a version of its own, which `helm-chart-content.json` declares. It is independent of the version of the extension. Several versions of the same helm-chart content can be registered at the same time, so that two extensions that bring different versions of it can both be installed (Q3). When the extension is uninstalled, only the helm-chart content of that version is deregistered, and only if no other installed extension brings the same version. A deployed application is an instance of a helm-chart content that was deployed with the Helm Chart Consumer. A helm-chart content can be deregistered while its deployed applications keep running.
 
 #### Story 1.1: Registering a helm-chart content when its extension is installed
 As a kaapana-system-admin I want to install an extension that contains a helm-chart content, so that its application can be deployed.
@@ -77,6 +77,7 @@ Acceptance criteria:
 * Invalid content fails the installation with an understandable reason; the Extension Manager shows the content as `INSTALLATION_FAILED` together with this reason.
 * Valid content is registered with name and version, and the Helm Chart Consumer returns its location to the Extension Manager.
 * Retrying the installation of an already registered content version does not create a duplicate.
+* Several extensions can bring the same version of a helm-chart content. It is registered once. A different content under an already registered version fails the installation.
 * Registering a new version of a helm-chart content keeps its other registered versions.
 * A registered helm-chart content is offered as an application that can be deployed in the projects where it is enabled (Story 5.2). A newly registered application is disabled in all projects (Q8).
 
@@ -84,7 +85,7 @@ Acceptance criteria:
 As a kaapana-system-admin I want that the helm-chart content of an uninstalled extension can no longer be deployed, so that only applications of installed extensions are offered.
 
 Acceptance criteria:
-* Uninstalling the extension deregisters the helm-chart content of that version; it is no longer offered for deployment. Other registered versions of the same helm-chart content stay deployable.
+* Uninstalling the extension deregisters the helm-chart content of that version; it is no longer offered for deployment. Other registered versions of the same helm-chart content stay deployable. A version that another installed extension also brings stays registered.
 * Deployed applications of this version are not affected. They keep running and can still be opened, monitored and undeployed (Q4). Reconfiguring them and updating them to another registered version belong to Stories 11.3 and 11.2.
 * Deployed applications whose version is no longer registered are marked as such.
 * Before uninstalling, the kaapana-system-admin sees which deployed applications use this version of the helm-chart content.
@@ -95,7 +96,7 @@ As a kaapana-system-admin I want that updating an extension replaces the registe
 Priority: Release 2 *(proposed; update is optional in the API requirements)*
 
 Acceptance criteria:
-* When an extension with a helm-chart content is updated, the helm-chart content of the old version is deregistered and the one of the new version is registered.
+* When an extension with a helm-chart content is updated, the helm-chart content of the old version is deregistered and the one of the new version is registered. If the content did not change, its version stays registered.
 * Other registered versions of the same helm-chart content are not affected (Q3). Installing a new version next to the old one, instead of updating, keeps both registered (Story 1.1).
 * Deployed applications on the old version keep running and are marked that a newer version is registered (updating them: Epic 11).
 
@@ -225,7 +226,7 @@ Acceptance criteria:
 As an extension-developer I want a documented format for `helm-chart-content.json`, so that I know which Kaapana facing information I have to provide.
 
 Acceptance criteria:
-* `helm-chart-content.json` is described by a JSON schema. It covers at least name, description, the supported scopes (project, platform-wide or both, Q11), whether the content is multi-deployable and the deploy parameters (Story 2.2).
+* `helm-chart-content.json` is described by a JSON schema. It covers at least name, version, description, the supported scopes (project, platform-wide or both, Q11), whether the content is multi-deployable and the deploy parameters (Story 2.2).
 * If `helm-chart-content.json` declares no scope, the content supports the project scope only *(proposed)*.
 * The schema is documented with an example.
 * The Helm Chart Consumer validates against this schema when it registers a content (Story 1.1).
@@ -480,7 +481,7 @@ The user is a kaapana-system-admin for platform-wide applications and a principa
 As a user I want to see which versions of an application are available, so that I can decide whether to update.
 
 Acceptance criteria:
-* A helm-chart content has a version; it is the version of the extension that contains it.
+* A helm-chart content has a version of its own, declared in `helm-chart-content.json`. It is independent of the version of the extension that contains it.
 * All registered versions of an application are listed, i.e. only versions of installed extensions. Several versions can be registered at the same time (Q3).
 * Each deployed application shows its version and whether a newer version is registered.
 

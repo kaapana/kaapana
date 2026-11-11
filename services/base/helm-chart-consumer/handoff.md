@@ -39,6 +39,10 @@ This has consequences for the consumer API:
   can work the same way.
 - Uninstalling passes only `name`, `content_type` and `location`, not the version. The location must therefore
   identify the version.
+- A helm-chart content has a version of its own, so two installed extensions can bring the same version and get
+  the same location. The uninstall must then skip the `DELETE` while another installed content has this location.
+  `ContentInstaller.uninstall` gets only the one content, so the check needs the contents table of the Extension
+  Manager. See [Versioning](MVP.md#versioning).
 - If `install` returns no location, a later uninstall is skipped without an error, and the content still shows as
   uninstalled.
 - A retry of a failed installation posts the same content again. Registering must therefore be idempotent. The API
@@ -145,8 +149,12 @@ Several versions of one helm-chart content can be registered at the same time (Q
 application id and version. Derive the application, its newest version and the "newer version available" marker
 from the versions instead of storing them. A stored copy would have to be kept in sync with every registration.
 
-Q14 is open: two different extensions may bring the same name and version. The mock answers 409. Settle it before
-the registration route is final, because it decides the key.
+Q14 is open: two different extensions may bring the same name and version. The proposal identifies a content by
+its name alone and gives it a version of its own, so several extensions can bring the same version. The consumer
+stores a digest of the content with each version. It answers 200 for a registration with an equal digest and 409
+for one with a different digest. See [Versioning](MVP.md#versioning). The mock does not show this yet: it takes
+the version from the extension and answers 409 for another extension. Settle Q14 before the registration route is
+final, because it decides the key.
 
 ### Keep a record of every release
 
@@ -366,8 +374,8 @@ task fails, is retried or times out (Story 7.4).
 - How the chart reaches the consumer from the Extension Manager.
 - How callers inside the cluster, such as the Extension Manager and workflow-api, prove who they are.
 - How the Extension Manager keeps and shows the failure reason of a registration.
-- How versions are ordered when the version of an extension is not a semantic version. The API mock orders them
-  as semantic versions.
+- Whether the Extension Manager deregisters a version only when no other installed extension brings it. The
+  proposal in [Versioning](MVP.md#versioning) needs this.
 - Whether a parameter can take its choices from the project, such as the folders of its bucket, and whether a
   mapping can add a unit to a value. The UI mock shows both, and the API mock has neither.
 - How a workflow task learns the outcome of the work in a release after the release is gone.

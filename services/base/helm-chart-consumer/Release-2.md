@@ -170,7 +170,7 @@ Extends [Listing and uninstalling](MVP.md#listing-and-uninstalling).
 
 - **Limits.** **Changed.** An application that is not multi-deployable has at most one release per project and at most one platform-wide release, counted over all its versions. A multi-deployable application can have several releases in a project, and several platform-wide ([Stories 8.1][s8.1] and [9.1][s9.1]).
 - **Update.** **Added.** Every copy is updated on its own with `PATCH /v1/releases/{id}`. Registering a new version changes no running copy. A copy only shows `newer_version` ([Stories 11.1][s11.1] and [11.2][s11.2]).
-- **Uninstalling the extension.** **Changed.** The version is deregistered and can no longer be deployed. Its copies keep running, are marked with `version_registered: false`, and can still be opened, **reconfigured, updated to another version** and undeployed ([Story 1.2][s1.2], [Q4][q4]).
+- **Uninstalling the extension.** **Changed.** The version is deregistered and can no longer be deployed, unless another installed extension brings the same version. Its copies keep running, are marked with `version_registered: false`, and can still be opened, **reconfigured, updated to another version** and undeployed ([Story 1.2][s1.2], [Q4][q4]).
 
 ## Versioning
 
@@ -361,7 +361,6 @@ AII passes these values to kube-helm as `extension_params` today, together with 
 | | Content of an extension | Platform content |
 |---|---|---|
 | Registered by | The Extension Manager, when the extension is installed | The bootstrap job at platform deploy, or the service that deploys it *(to be decided)* |
-| `extension` in the registration | Set | Missing |
 | Scopes | Project, platform or both | Platform only |
 | Deployed by | Users through the gateway, workflow-api, or the bootstrap job | A platform service, from inside the cluster |
 | Origin of its releases | A user, a workflow task, or the bootstrap job as a service | A service |
@@ -374,7 +373,7 @@ AII passes these values to kube-helm as `extension_params` today, together with 
 - **The application page hides them by default.** It leaves out the releases of platform contents unless the admin filters for them. This is a rule of the UI. The API returns these releases to an admin like every other release.
 - **The services need the right to deploy platform-wide.** Only kaapana-system-admins have it today. AII and the installer get it together with their identity as a service.
 - **`multi_deployable` covers one release per project.** Since the field holds for both scopes, a platform content with `multi_deployable: true` can have many platform-wide releases. No exception from the limit is needed.
-- **Registration.** `extension` becomes optional in `PUT /v1/applications/{id}/versions/{version}`. The registration of `project-namespace` must be done before AII creates its first project. The version is the build version. Where the chart comes from depends on the open question of how a chart reaches the consumer.
+- **Registration.** The registration of `project-namespace` must be done before AII creates its first project. The version is the build version. Where the chart comes from depends on the open question of how a chart reaches the consumer.
 - **Who registers a platform content** *(to be decided)*. A platform content belongs to no extension, so the Extension Manager does not register it, and a service can only deploy a chart that is registered. Two options exist:
   - **A bootstrap job at platform deploy registers all platform contents.** One place holds all charts of the platform, as kube-helm does today, and only the job needs the right to register a platform content. The job must have run before AII creates its first project, and it has to run again after a platform upgrade.
   - **The service that deploys a platform content registers it**, when the service starts. Registering twice changes nothing, so no start order is needed, and a restart after an upgrade registers the new version. Every such service then has to carry the files of its chart, which AII does not do today, and every such service needs the right to register a platform content.

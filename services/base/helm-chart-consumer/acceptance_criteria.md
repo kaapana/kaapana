@@ -43,6 +43,7 @@ See [Interface of the service](Release-2.md#interface-of-the-service).
 | Field | Meaning |
 |---|---|
 | `name` | The id of the application |
+| `version` | The version of the content. It is independent of the version of the extension. |
 | `display_name`, `description` | What users see |
 | `multi_deployable` | Whether a project can have several releases of the application |
 | `parameters` | The values that a user may set at deploy. Each parameter has a key, a label, a type, rules, and the path of the chart value that it sets. |
@@ -83,7 +84,7 @@ One limit exists: helm cannot pass a value of the platform, such as the URL path
 | How can several copies run? | The consumer gives every release its own helm release name, for example `jupyterlab-3f2a9c1e`. An application that is not multi-deployable has at most one release per project. |
 | How are copies listed? | `GET /v1/releases?application_id=<id>&project_id=<id>` |
 | What does an update of the extension do to running copies? | Nothing. The new version is registered, and the running copies keep their version. |
-| What does uninstalling the extension do while copies run? | The version can no longer be deployed. Its copies keep running and can still be opened and undeployed. |
+| What does uninstalling the extension do while copies run? | The version can no longer be deployed, unless another installed extension brings the same version. Its copies keep running and can still be opened and undeployed. |
 | How is one copy removed? | `DELETE /v1/releases/{id}` undeploys it and deletes its volumes. |
 
 See [Copies of an application](MVP.md#copies-of-an-application).
@@ -93,7 +94,7 @@ See [Copies of an application](MVP.md#copies-of-an-application).
 | Question of the ticket | Answer |
 |---|---|
 | What does an update do to running copies? | Every copy is updated on its own with `PATCH /v1/releases/{id}`. A copy shows in `newer_version` that a newer version is registered. |
-| What does uninstalling the extension do while copies run? | The version can no longer be deployed. Its copies keep running and can still be opened, **reconfigured, updated to another version** and undeployed. |
+| What does uninstalling the extension do while copies run? | The version can no longer be deployed, unless another installed extension brings the same version. Its copies keep running and can still be opened, **reconfigured, updated to another version** and undeployed. |
 | How can several copies run? | The limit also holds platform-wide: one platform-wide release, or several if the application is multi-deployable. |
 
 See [Copies of an application](Release-2.md#copies-of-an-application).

@@ -83,6 +83,7 @@ Tracks an installed (or in-progress) extension.
 | `updated_at`    | datetime          | Last status change timestamp                           |
 
 The pair `(repository_id, tag)` is unique — the same tag cannot be installed twice from the same registry.
+A tag that is installed from one repository cannot be installed from another one at the same time (409).
 
 ### `InstalledContent` (database)
 
@@ -168,8 +169,8 @@ Manages the list of known OCI registries and exposes discovery endpoints.
 | `POST`   | `/repositories`                               | Register a new OCI registry                             |
 | `GET`    | `/repositories`                               | List registries (filter by `name` or `id`)              |
 | `GET`    | `/repositories/{id}`                          | Get a single registry                                   |
-| `PUT`    | `/repositories/{id}`                          | Update registry credentials or description              |
-| `DELETE` | `/repositories/{id}`                          | Remove a registry                                       |
+| `PUT`    | `/repositories/{id}`                          | Update registry credentials or description (409 for the Upload repository) |
+| `DELETE` | `/repositories/{id}`                          | Remove a registry (409 for the Upload repository)       |
 | `GET`    | `/repositories/{id}/extensions`               | List available extension tags in the registry           |
 | `GET`    | `/repositories/{id}/extensionManifests`       | Fetch manifests for tags (optionally filtered by tag)   |
 
@@ -180,9 +181,20 @@ Manages the install/uninstall lifecycle.
 | Method | Path                              | Description                                     |
 |--------|-----------------------------------|-------------------------------------------------|
 | `POST` | `/extensions/install`             | Install an extension by repository and tag      |
+| `POST` | `/extensions/upload`              | Upload a `.tar.gz` file to the Upload repository |
+| `DELETE` | `/extensions/uploads/{tag}`     | Remove an upload from the Upload repository     |
 | `GET`  | `/extensions`                     | List installed extensions (filter by tag, repo) |
 | `GET`  | `/extensions/{id}`                | Get details for one installed extension         |
 | `POST` | `/extensions/{id}/uninstall`      | Uninstall an extension                          |
+
+### Upload repository
+
+The built-in repository `Upload` (id `8f49216f-786c-42ba-9413-0722e781ea28`) is a local OCI registry (zot) that ships with the platform as the `extension-registry` chart. The Alembic revision for 0.8.0 creates the repository with the URL from `UPLOAD_REGISTRY_URL`. It has no credentials, and only the extension-manager-service can reach it. It cannot be changed or removed. Otherwise it works like any other repository, so installing from it goes through the normal `/extensions/install`.
+
+- `POST /extensions/upload` takes a `.tar.gz` built with `extensionctl build`, at most 100 MB. The archive is rejected with 400 when it has links, absolute paths or `..`, files the manifest does not list, an invalid manifest, a content type without an installer, or content its installer rejects. A valid archive is pushed to the registry under the tag `<manifest id>-v<version>`, the same tag `extensionctl push` uses. Nothing is installed.
+- Uploading a tag again replaces it. This is rejected with 409 while the tag is being pulled for an installation, or while it is installed with a different manifest.
+- `DELETE /extensions/uploads/{tag}` removes the tag from the registry, so it is no longer listed in the catalog. An installed extension stays installed and can still be uninstalled, because uninstalling does not need the files. It returns 404 for an unknown tag and 409 while the tag is being pulled.
+- Uninstalling keeps the upload.
 
 ---
 

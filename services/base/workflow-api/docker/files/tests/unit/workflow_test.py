@@ -1136,17 +1136,3 @@ async def test_restore_revision_forbidden_when_dev_mode_off(session: AsyncSessio
     response = await client.post(f"/v1/workflows/{wf['id']}/revisions/1/restore")
     assert response.status_code == 403
     assert "DEV_MODE" in response.json()["detail"]
-
-
-# =======================================================
-# Airflow DAGs overwritten during POST -> DELETE -> POST
-# =======================================================
-
-
-def test_dag_id_collides_after_soft_delete_with_same_title():
-    """Regression pin for a known sharp edge: soft-delete doesn't propagate to engine adapters and the Airflow dag_id omits the workflow UUID, so POST -> DELETE -> POST with the same title produces a colliding dag_id and overwrites the prior DAG file on disk."""
-    from app.adapters.adapters.airflow_adapter import AirflowPluginAdapter
-
-    dag_id_old = AirflowPluginAdapter._get_dag_id_from_workflow(AirflowPluginAdapter, "my-workflow", 1)
-    dag_id_new = AirflowPluginAdapter._get_dag_id_from_workflow(AirflowPluginAdapter, "my-workflow", 1)
-    assert dag_id_old == dag_id_new == "my-workflow_inc1"

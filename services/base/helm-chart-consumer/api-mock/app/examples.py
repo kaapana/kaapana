@@ -131,7 +131,7 @@ APPLICATIONS = [
         multi_deployable=True,
         latest_version="4.3.0",
         versions=["4.3.0", "4.2.5"],
-        enabled_project_ids=["lung-ct", "liver-mr"],
+        enabled_project_ids=["project-1", "project-2"],
     ),
     Application(
         id="mitk",
@@ -140,7 +140,7 @@ APPLICATIONS = [
         multi_deployable=True,
         latest_version="2024.12.0",
         versions=["2024.12.0"],
-        enabled_project_ids=["lung-ct"],
+        enabled_project_ids=["project-1"],
     ),
     Application(
         id="cvat",
@@ -149,7 +149,7 @@ APPLICATIONS = [
         multi_deployable=False,
         latest_version="2.11.0",
         versions=["2.11.0", "2.10.3"],
-        enabled_project_ids=["lung-ct"],
+        enabled_project_ids=["project-1"],
     ),
     Application(
         id="collabora",
@@ -169,9 +169,9 @@ ANNA_NOTEBOOK = Release(
     application_id="jupyterlab",
     version="4.2.5",
     version_registered=True,
-    placement=ProjectPlacement(project_id="lung-ct", deployed_for="anna"),
+    placement=ProjectPlacement(project_id="project-1", deployed_for="anna"),
     state=ReleaseState.READY,
-    url="/project/lung-ct/applications/anna-notebook/lab",
+    url="/project/project-1/applications/anna-notebook/lab",
     parameters=[
         ConfiguredParameter(key="dataFolder", value="cohort-a", is_default=False),
         ConfiguredParameter(key="flavour", value="scipy", is_default=True),
@@ -192,9 +192,9 @@ SEGMENTATION_REVIEW = Release(
     application_id="mitk",
     version="2024.06.1",
     version_registered=False,
-    placement=ProjectPlacement(project_id="lung-ct"),
+    placement=ProjectPlacement(project_id="project-1"),
     state=ReleaseState.READY,
-    url="/project/lung-ct/applications/segmentation-review/vnc.html",
+    url="/project/project-1/applications/segmentation-review/vnc.html",
     parameters=[
         ConfiguredParameter(key="dataFolder", value="annotations", is_default=False),
         ConfiguredParameter(key="workspace", value=5, is_default=True),
@@ -211,10 +211,10 @@ NODULE_LABELLING = Release(
     application_id="cvat",
     version="2.11.0",
     version_registered=True,
-    placement=ProjectPlacement(project_id="lung-ct"),
+    placement=ProjectPlacement(project_id="project-1"),
     state=ReleaseState.FAILED,
     state_reason="The container image cvat/server:2.11.0 could not be downloaded.",
-    url="/project/lung-ct/applications/nodule-labelling/",
+    url="/project/project-1/applications/nodule-labelling/",
     parameters=[
         ConfiguredParameter(key="storage", value=20, is_default=True),
         ConfiguredParameter(key="adminPassword", value=None, secret=True, is_default=False),
@@ -235,7 +235,7 @@ NEW_RELEASE = ANNA_NOTEBOOK.model_copy(
         "name": "jonas-notebook-2",
         "description": "",
         "version": "4.3.0",
-        "placement": ProjectPlacement(project_id="lung-ct", deployed_for="jonas"),
+        "placement": ProjectPlacement(project_id="project-1", deployed_for="jonas"),
         "state": ReleaseState.DEPLOYING,
         "parameters": [
             ConfiguredParameter(key="dataFolder", value="cohort-a", is_default=False),
@@ -246,7 +246,7 @@ NEW_RELEASE = ANNA_NOTEBOOK.model_copy(
             ConfiguredParameter(key="gitToken", value=None, secret=True, is_default=False),
             ConfiguredParameter(key="idleHours", value=12, is_default=True),
         ],
-        "url": "/project/lung-ct/applications/jonas-notebook-2/lab",
+        "url": "/project/project-1/applications/jonas-notebook-2/lab",
         "volumes": [Volume(name="jonas-notebook-2-workspace", size_gib=10)],
         "deployed_at": at(9, 12),
     }
@@ -264,8 +264,8 @@ DRY_RUN_PASSED = DryRunResult(
         "global": {
             "kaapana": {
                 "application": {"id": "jupyterlab", "version": "4.3.0"},
-                "project": {"id": "lung-ct"},
-                "url_path": "/project/lung-ct/applications/jonas-notebook-2",
+                "project": {"id": "project-1"},
+                "url_path": "/project/project-1/applications/jonas-notebook-2",
             }
         },
     },
@@ -275,7 +275,7 @@ DEPLOY_REQUEST = {
     "application_id": "jupyterlab",
     "version": "4.3.0",
     "name": "jonas-notebook-2",
-    "placement": {"scope": "project", "project_id": "lung-ct", "deployed_for": "jonas"},
+    "placement": {"scope": "project", "project_id": "project-1", "deployed_for": "jonas"},
     "parameters": {"dataFolder": "cohort-a", "gpu": False, "memory": 16, "gitToken": "example-token"},
     "origin": {"type": "user"},
 }

@@ -179,7 +179,7 @@ APPLICATIONS = [
         multi_deployable=True,
         latest_version="4.3.0",
         versions=["4.3.0", "4.2.5"],
-        enabled_project_ids=["lung-ct", "liver-mr"],
+        enabled_project_ids=["project-1", "project-2"],
     ),
     Application(
         id="mitk",
@@ -189,7 +189,7 @@ APPLICATIONS = [
         multi_deployable=True,
         latest_version="2024.12.0",
         versions=["2024.12.0"],
-        enabled_project_ids=["lung-ct"],
+        enabled_project_ids=["project-1"],
     ),
     Application(
         id="cvat",
@@ -199,7 +199,7 @@ APPLICATIONS = [
         multi_deployable=False,
         latest_version="2.11.0",
         versions=["2.11.0", "2.10.3"],
-        enabled_project_ids=["lung-ct"],
+        enabled_project_ids=["project-1"],
     ),
     Application(
         id="collabora",
@@ -229,7 +229,7 @@ APPLICATIONS = [
         multi_deployable=False,
         latest_version="4.1.0",
         versions=["4.1.0"],
-        enabled_project_ids=["liver-mr"],
+        enabled_project_ids=["project-2"],
     ),
     Application(
         id="project-namespace",
@@ -251,9 +251,9 @@ ANNA_NOTEBOOK = Release(
     version="4.2.5",
     version_registered=True,
     newer_version="4.3.0",
-    placement=ProjectPlacement(project_id="lung-ct", deployed_for="anna"),
+    placement=ProjectPlacement(project_id="project-1", deployed_for="anna"),
     state=ReleaseState.READY,
-    url="/project/lung-ct/applications/anna-notebook/lab",
+    url="/project/project-1/applications/anna-notebook/lab",
     parameters=[
         ConfiguredParameter(key="dataFolder", value="cohort-a", is_default=False),
         ConfiguredParameter(key="flavour", value="scipy", is_default=True),
@@ -276,9 +276,9 @@ SEGMENTATION_REVIEW = Release(
     version="2024.06.1",
     version_registered=False,
     newer_version="2024.12.0",
-    placement=ProjectPlacement(project_id="lung-ct"),
+    placement=ProjectPlacement(project_id="project-1"),
     state=ReleaseState.READY,
-    url="/project/lung-ct/applications/segmentation-review/vnc.html",
+    url="/project/project-1/applications/segmentation-review/vnc.html",
     parameters=[
         ConfiguredParameter(key="dataFolder", value="annotations", is_default=False),
         ConfiguredParameter(key="workspace", value=5, is_default=True),
@@ -297,10 +297,10 @@ NODULE_LABELLING = Release(
     version="2.11.0",
     version_registered=True,
     newer_version=None,
-    placement=ProjectPlacement(project_id="lung-ct"),
+    placement=ProjectPlacement(project_id="project-1"),
     state=ReleaseState.FAILED,
     state_reason="The container image cvat/server:2.11.0 could not be downloaded.",
-    url="/project/lung-ct/applications/nodule-labelling/",
+    url="/project/project-1/applications/nodule-labelling/",
     parameters=[
         ConfiguredParameter(key="storage", value=20, is_default=True),
         ConfiguredParameter(key="adminPassword", value=None, secret=True, is_default=False),
@@ -329,7 +329,7 @@ OHIF = Release(
     updated_at=at(19, 9),
 )
 
-LUNG_CT_NAMESPACE = Release(
+PROJECT_1_NAMESPACE = Release(
     id=UUID("c64d1b8e-7a25-4f93-8e0c-2b9f5d3a1e76"),
     name="project-4b1f9e2a",
     description="",
@@ -341,7 +341,7 @@ LUNG_CT_NAMESPACE = Release(
     state=ReleaseState.READY,
     url=None,
     parameters=[
-        ConfiguredParameter(key="project_id", value="lung-ct", is_default=False),
+        ConfiguredParameter(key="project_id", value="project-1", is_default=False),
         ConfiguredParameter(key="project_short_id", value="4b1f9e2a", is_default=False),
         ConfiguredParameter(key="project_namespace", value="kaapana-project-4b1f9e2a", is_default=False),
     ],
@@ -351,7 +351,7 @@ LUNG_CT_NAMESPACE = Release(
     updated_at=at(1, 8),
 )
 
-RELEASES = [ANNA_NOTEBOOK, SEGMENTATION_REVIEW, NODULE_LABELLING, OHIF, LUNG_CT_NAMESPACE]
+RELEASES = [ANNA_NOTEBOOK, SEGMENTATION_REVIEW, NODULE_LABELLING, OHIF, PROJECT_1_NAMESPACE]
 
 ANNA_NOTEBOOK_UNDEPLOYING = ANNA_NOTEBOOK.model_copy(update={"state": ReleaseState.UNDEPLOYING})
 
@@ -384,7 +384,7 @@ NEW_RELEASE = ANNA_NOTEBOOK.model_copy(
         "description": "",
         "version": "4.3.0",
         "newer_version": None,
-        "placement": ProjectPlacement(project_id="lung-ct", deployed_for="jonas"),
+        "placement": ProjectPlacement(project_id="project-1", deployed_for="jonas"),
         "state": ReleaseState.DEPLOYING,
         "parameters": [
             ConfiguredParameter(key="dataFolder", value="cohort-a", is_default=False),
@@ -395,7 +395,7 @@ NEW_RELEASE = ANNA_NOTEBOOK.model_copy(
             ConfiguredParameter(key="gitToken", value=None, secret=True, is_default=False),
             ConfiguredParameter(key="idleHours", value=12, is_default=True),
         ],
-        "url": "/project/lung-ct/applications/jonas-notebook-2/lab",
+        "url": "/project/project-1/applications/jonas-notebook-2/lab",
         "volumes": [Volume(name="jonas-notebook-2-workspace", size_gib=10)],
         "deployed_at": at(9, 12),
         "updated_at": at(9, 12),
@@ -448,8 +448,8 @@ DRY_RUN_PASSED = DryRunResult(
             "kaapana": {
                 "scope": "project",
                 "application": {"id": "jupyterlab", "version": "4.3.0"},
-                "project": {"id": "lung-ct"},
-                "url_path": "/project/lung-ct/applications/jonas-notebook-2",
+                "project": {"id": "project-1"},
+                "url_path": "/project/project-1/applications/jonas-notebook-2",
                 "credentials_secret": "project-user-credentials",
             }
         },
@@ -465,8 +465,8 @@ UPDATE_DRY_RUN_PASSED = DryRunResult(
             "kaapana": {
                 "scope": "project",
                 "application": {"id": "jupyterlab", "version": "4.3.0"},
-                "project": {"id": "lung-ct"},
-                "url_path": "/project/lung-ct/applications/anna-notebook",
+                "project": {"id": "project-1"},
+                "url_path": "/project/project-1/applications/anna-notebook",
                 "credentials_secret": "project-user-credentials",
             }
         },
@@ -477,7 +477,7 @@ DEPLOY_REQUEST = {
     "application_id": "jupyterlab",
     "version": "4.3.0",
     "name": "jonas-notebook-2",
-    "placement": {"scope": "project", "project_id": "lung-ct", "deployed_for": "jonas"},
+    "placement": {"scope": "project", "project_id": "project-1", "deployed_for": "jonas"},
     "parameters": {"dataFolder": "cohort-a", "gpu": False, "memory": 16, "gitToken": "example-token"},
     "origin": {"type": "user"},
 }
@@ -485,7 +485,7 @@ DEPLOY_REQUEST = {
 WORKFLOW_DEPLOY_REQUEST = {
     "application_id": "mitk",
     "name": "segmentation-review",
-    "placement": {"scope": "project", "project_id": "lung-ct"},
+    "placement": {"scope": "project", "project_id": "project-1"},
     "parameters": {"dataFolder": "annotations"},
     "origin": {"type": "workflow", "workflow_run_id": "412", "task_id": "review-segmentations", "started_by": "paul"},
 }
@@ -503,7 +503,7 @@ SERVICE_DEPLOY_REQUEST = {
     "name": "project-4b1f9e2a",
     "placement": {"scope": "platform"},
     "parameters": {
-        "project_id": "lung-ct",
+        "project_id": "project-1",
         "project_short_id": "4b1f9e2a",
         "project_namespace": "kaapana-project-4b1f9e2a",
     },

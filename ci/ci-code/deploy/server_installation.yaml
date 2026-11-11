@@ -37,6 +37,36 @@
         dest: "{{ ansible_facts['env']['HOME'] }}/kaapanactl.sh"
         mode: "0755"
 
+    - name: Wait for cloud-init to finish
+      become: yes
+      ansible.builtin.shell: |
+        command -v cloud-init > /dev/null || exit 0
+        timeout 600 cloud-init status --wait
+      args:
+        executable: /bin/bash
+      register: cloud_init_wait
+      changed_when: false
+      failed_when: cloud_init_wait.rc not in [0, 2]
+
+    - name: Wait for snapd to finish seeding
+      become: yes
+      ansible.builtin.shell: |
+        command -v snap > /dev/null || exit 0
+        timeout 600 snap wait system seed.loaded
+      args:
+        executable: /bin/bash
+      changed_when: false
+
+    - name: Wait for the system to finish booting
+      ansible.builtin.shell: timeout 600 systemctl is-system-running --wait
+      register: system_state
+      changed_when: false
+      failed_when: false
+
+    - name: Show the system state before the installation
+      ansible.builtin.debug:
+        msg: "cloud-init rc={{ cloud_init_wait.rc }}, system state={{ system_state.stdout | default('') }}"
+
     - name: Execute server installation script
       ansible.builtin.shell: |
         set -o pipefail
@@ -68,6 +98,67 @@
           {{ server_installation_output.stderr | default('') }}
         dest: "{{ artifacts_dir }}/server_installation.log"
       delegate_to: localhost
+
+    - name: Collect diagnostics from the deployment target
+      become: yes
+      ansible.builtin.shell: |
+        export PATH=/snap/bin:$PATH
+        section() { echo; echo "### $1 ($(date -u +%FT%TZ))"; }
+        {
+          section "uptime, cpu, memory, disk"
+          uptime; nproc; free -m; df -h /var /var/snap 2>&1
+          section "cloud-init status"
+          cloud-init status --long 2>&1
+          section "system state"
+          systemctl is-system-running 2>&1
+          systemctl --failed --no-pager 2>&1
+          section "running apt, dpkg, snap and cloud-init processes"
+          ps -eo pid,etimes,cmd | grep -E 'apt|dpkg|unattended|cloud-init|snap' | grep -v grep
+          section "snap changes"
+          snap changes 2>&1
+          section "snap tasks of the last install"
+          snap tasks --last=install 2>&1
+          section "microk8s service status"
+          systemctl status 'snap.microk8s.*' --no-pager --lines=0 2>&1
+          section "journal of the microk8s services"
+          journalctl -b -u 'snap.microk8s.*' --no-pager 2>&1 | tail -n 500
+          section "journal of snapd"
+          journalctl -b -u snapd --no-pager 2>&1 | tail -n 300
+          section "kernel log"
+          journalctl -b -k --no-pager 2>&1 | tail -n 200
+          section "apt history"
+          cat /var/log/apt/history.log 2>&1
+          section "cloud-init output"
+          tail -n 200 /var/log/cloud-init-output.log 2>&1
+          section "microk8s status"
+          microk8s status 2>&1
+          microk8s kubectl get pods -A -o wide 2>&1
+        } > /tmp/server_installation_diagnostics.txt
+        rm -f /tmp/microk8s_inspection.tar.gz
+        if command -v microk8s > /dev/null; then
+          microk8s inspect > /dev/null 2>&1
+          report=$(ls -t /var/snap/microk8s/current/inspection-report-*.tar.gz 2>/dev/null | head -n 1)
+          [ -n "$report" ] && cp "$report" /tmp/microk8s_inspection.tar.gz
+        fi
+        chmod 644 /tmp/server_installation_diagnostics.txt /tmp/microk8s_inspection.tar.gz 2>/dev/null
+        exit 0
+      args:
+        executable: /bin/bash
+      when: server_installation_output.rc != 0
+      ignore_errors: true
+
+    - name: Fetch the diagnostics
+      become: yes
+      ansible.builtin.fetch:
+        src: "/tmp/{{ item }}"
+        dest: "{{ artifacts_dir }}/{{ item }}"
+        flat: true
+        fail_on_missing: false
+      loop:
+        - server_installation_diagnostics.txt
+        - microk8s_inspection.tar.gz
+      when: server_installation_output.rc != 0
+      ignore_errors: true
 
     - name: Fail if server installation failed
       ansible.builtin.fail:

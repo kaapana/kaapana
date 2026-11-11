@@ -181,9 +181,15 @@ Extends [Versioning](MVP.md#versioning).
 
 ## Labels on the helm release *(proposed)*
 
-**Added.** Helm knows two kinds of labels, and they serve different purposes. [Labels on Kubernetes objects](MVP.md#labels-on-kubernetes-objects-proposed) describes the labels on objects. This section describes the labels on the helm release.
+**Added.** Helm knows two kinds of labels, and they serve different purposes: the labels on the objects of a chart, and the labels on the helm release.
 
-`helm install --labels` stores labels with the release, and `helm list -l` filters by them. kube-helm does this already: it sets `kaapana.ai/<keyword>=True` for every keyword of a chart ([utils.py][kh-utils]). The consumer labels every helm release that it creates:
+**Labels on objects.** Helm adds the label `app.kubernetes.io/managed-by: Helm` and the annotations `meta.helm.sh/release-name` and `meta.helm.sh/release-namespace` to every object that it creates. It adds nothing else, and the consumer cannot add labels to objects without rewriting the rendered chart. The consumer therefore does not depend on object labels:
+
+- Readiness and pods come from the manifest and from owner references. See [Derive the state, do not store it][h-state].
+- The volume claims of a StatefulSet survive `helm uninstall`. Their names follow from the StatefulSet in the manifest, as `<claim template>-<StatefulSet>-<ordinal>`. See [Undeploying deletes the data, and helm does not do that alone][h-undeploy].
+- A pod that needs a route through the network policies of its project sets the label itself, for example `network-access-opensearch`. See [Every project already has a namespace][h-namespace]. The labels that are allowed are documented for extension developers.
+
+**Labels on the helm release.** `helm install --labels` stores labels with the release, and `helm list -l` filters by them. kube-helm does this already: it sets `kaapana.ai/<keyword>=True` for every keyword of a chart ([utils.py][kh-utils]). The consumer labels every helm release that it creates:
 
 | Label | Value |
 |---|---|
@@ -515,6 +521,8 @@ Extends [Open questions](MVP.md#open-questions).
 [q15]: QandA.md#q15-deploying-from-workflows
 [h-gateway]: handoff.md#the-gateway-authenticates-the-services-authorize
 [h-kube-helm]: handoff.md#an-older-helm-deployer-exists
+[h-state]: handoff.md#derive-the-state-do-not-store-it
+[h-undeploy]: handoff.md#undeploying-deletes-the-data-and-helm-does-not-do-that-alone
 [h-namespace]: handoff.md#every-project-already-has-a-namespace
 [h-records]: handoff.md#keep-a-record-of-every-release
 [h-permissions]: handoff.md#put-every-permission-rule-in-one-table

@@ -250,7 +250,7 @@ One registered version can have many releases. The release id is the key of the 
 - **Listing.** `GET /v1/releases?application_id=<id>&project_id=<id>` lists the copies ([Story 8.3][s8.3]).
 - **A new version.** Registering a new version changes no running copy.
 - **Uninstalling the extension.** The version is deregistered and can no longer be deployed, unless another installed extension brings the same version. Its copies keep running, are marked with `version_registered: false`, and can still be opened and undeployed ([Story 1.2][s1.2], [Q4][q4]). See [Keep the chart and the declarations of every release][h-keep-chart].
-- **Undeploy.** Every copy is undeployed on its own with `DELETE /v1/releases/{id}`. This deletes its volumes ([Q5][q5]).
+- **Undeploy.** Every copy is undeployed on its own with `DELETE /v1/releases/{id}`. This deletes its volumes ([Q5][q5]). `helm uninstall` keeps the volume claims of a StatefulSet, so the consumer deletes them itself. Their names follow from the StatefulSet in the manifest, as `<claim template>-<StatefulSet>-<ordinal>`. See [Undeploying deletes the data, and helm does not do that alone][h-undeploy].
 - **Enablement replaces the whitelist** *(proposed)*. Both say which applications a project may use, so two mechanisms would have to be kept in sync. See [An older helm deployer exists][h-kube-helm].
 
 ## Versioning
@@ -276,14 +276,6 @@ Rules for the content version:
 - Whether a new version of an enabled application starts enabled is open ([Q12][q12]).
 - **Versions are semantic versions** *(proposed)*. The consumer rejects any other version at registration. The API needs an order for "newest", and helm requires semantic versions for charts too. The current build version `0.7.0-latest` is a valid semantic version.
 - **The consumer ignores `version` and `appVersion` in `Chart.yaml`** *(proposed)*. The build tooling can set them to the content version, so that `helm list` shows the same number.
-
-## Labels on Kubernetes objects *(proposed)*
-
-Helm adds the label `app.kubernetes.io/managed-by: Helm` and the annotations `meta.helm.sh/release-name` and `meta.helm.sh/release-namespace` to every object that it creates. It adds nothing else, and the consumer cannot add labels to objects without rewriting the rendered chart. The consumer therefore does not depend on object labels:
-
-- Readiness and pods come from the manifest and from owner references. See [Derive the state, do not store it][h-state].
-- The volume claims of a StatefulSet survive `helm uninstall`. Their names follow from the StatefulSet in the manifest, as `<claim template>-<StatefulSet>-<ordinal>`. See [Undeploying deletes the data, and helm does not do that alone][h-undeploy].
-- A pod that needs a route through the network policies of its project sets the label itself, for example `network-access-opensearch`. See [Every project already has a namespace][h-namespace]. The labels that are allowed are documented for extension developers.
 
 ## Authorization
 
@@ -424,7 +416,6 @@ A legacy chart keeps reading platform values by their old names, for example `gl
 [q14]: QandA.md#q14-identity-of-a-helm-chart-content
 [h-em]: handoff.md#the-extension-manager-calls-consumers-as-python-plugins
 [h-kube-helm]: handoff.md#an-older-helm-deployer-exists
-[h-namespace]: handoff.md#every-project-already-has-a-namespace
 [h-versions]: handoff.md#model-an-application-as-its-registered-versions
 [h-records]: handoff.md#keep-a-record-of-every-release
 [h-keep-chart]: handoff.md#keep-the-chart-and-the-declarations-of-every-release

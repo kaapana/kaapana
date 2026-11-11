@@ -1,0 +1,33 @@
+# Helm Chart Consumer API mock for Release 2
+
+A proposal for the API of the Helm Chart Consumer, described in [../concept.md](../concept.md). This mock shows the
+API of Release 2, as decided in [../Release-2.md](../Release-2.md) on top of [../MVP.md](../MVP.md). It extends
+[../api-mock/](../api-mock/), which shows the API of the MVP. Every route has a typed signature, a docstring that
+says what it does, and pydantic models for its input and output. Every route returns fixed example data and changes
+nothing. The examples reuse some of the applications and their deployed instances from the seed data of the UI mock
+in [../docker](../docker).
+
+## Run it
+
+```bash
+cd services/base/helm-chart-consumer/api-mock-release-2
+docker compose up --build
+```
+
+Open http://localhost:5056/docs. Stop it with `docker compose down`.
+
+Without Docker, run `pip install -r requirements.txt` in a virtual environment, then
+`uvicorn app.main:app --port 5056`.
+
+## Layout
+
+| File | Content |
+|---|---|
+| `app/models.py` | Request and response models, including `HelmChartContent`, the model of `helm-chart-content.json` |
+| `app/routers/applications.py` | Applications and their versions. The Extension Manager registers and deregisters versions here. |
+| `app/routers/releases.py` | Deploy, update, undeploy and status of releases |
+| `app/routers/projects.py` | Enabling and disabling applications in a project |
+| `app/examples.py` | The example data the routes return |
+
+See [../handoff.md](../handoff.md) for the reasons behind the API, the facts about the Extension Manager and the
+gateway that the API depends on, and what an implementation has to take care of.

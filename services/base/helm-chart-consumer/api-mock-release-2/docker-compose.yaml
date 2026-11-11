@@ -1,0 +1,8 @@
+name: helm-chart-consumer-api-mock-release-2
+
+services:
+  helm-chart-consumer-api-mock-release-2:
+    build: .
+    image: helm-chart-consumer-api-mock-release-2:latest
+    ports:
+      - "5056:5056"

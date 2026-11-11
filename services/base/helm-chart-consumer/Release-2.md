@@ -6,6 +6,7 @@ This document records what Release 2 adds to the MVP of the Helm Chart Consumer.
 - A table has the columns of the table that it extends, and holds only the rows that Release 2 adds or changes.
 - **Added** marks a statement that is new in Release 2. **Changed** marks a statement that replaces one of the MVP.
 - The sources and the markers *(proposed)* and *(to be decided)* are the same as in [MVP.md](MVP.md).
+- [api-mock-release-2/](api-mock-release-2/) proposes the routes and models of Release 2. It holds everything of [api-mock/](api-mock/), and what this document adds.
 
 ## Scope
 
@@ -97,9 +98,11 @@ Extends [The web interface of a release](MVP.md#the-web-interface-of-a-release).
 
 ### Changes to the schema *(proposed)*
 
-**Added.** One gap in the model is open:
+**Added.** The model `HelmChartContent` in [api-mock-release-2/app/models.py][models] gets three fields:
 
-- **There is no field for privileged values.** A platform content declares the passwords that it needs in `platform_secrets`. See [Privileged values for platform contents](#privileged-values-for-platform-contents).
+- **`platform_secrets`.** A platform content declares the passwords that it needs. See [Privileged values for platform contents](#privileged-values-for-platform-contents).
+- **`platform_value_mapping`.** It hands a platform value to a value of a public chart. See [Mapping platform values to `values.yaml`](#mapping-platform-values-to-valuesyaml).
+- **`patches`.** They change the rendered chart. See [Adding annotations and advanced chart customization options](#adding-annotations-and-advanced-chart-customization-options).
 
 ## Configuration of parameters
 
@@ -228,7 +231,7 @@ Extends [Authorization](MVP.md#authorization).
 
 Extends [The origin of a release](MVP.md#the-origin-of-a-release).
 
-**Changed.** The origin records who or what deployed a release. The field is a union, like the placement. Its `type` tells the kinds apart. See `UserOrigin` and `WorkflowOrigin` in [api-mock/app/models.py][models]. The service origin is not in the API mock yet.
+**Changed.** The origin records who or what deployed a release. The field is a union, like the placement. Its `type` tells the kinds apart. See `UserOrigin`, `WorkflowOrigin` and `ServiceOrigin` in [api-mock-release-2/app/models.py][models].
 
 - **A user.** This is the default of a deploy request, as in the MVP.
 - **A workflow task.** **Added.** The origin holds the workflow run, the task, and the user who started the run, if a user started it. Only workflow-api may send it. See [Put every permission rule in one table][h-permissions].
@@ -469,7 +472,7 @@ Extends [Converting a legacy chart](MVP.md#converting-a-legacy-chart).
 
 ## Interactive workflows
 
-**Added.** Epic 7, a workflow that starts an application and waits for the user, has the priority Release 2 in [concept.md][e7]. Release 2 therefore adds the workflow origin, `POST /v1/releases/{id}/complete` and the filters `origin_type` and `workflow_run_id`. The API mock holds them as a proposal. [Q15][q15] and the question in [Keep the outcome of a workflow step after its release is gone][h-workflow-outcome] have to be answered for this.
+**Added.** Epic 7, a workflow that starts an application and waits for the user, has the priority Release 2 in [concept.md][e7]. Release 2 therefore adds the workflow origin, `POST /v1/releases/{id}/complete` and the filters `origin_type` and `workflow_run_id`. [api-mock-release-2/](api-mock-release-2/) holds them as a proposal. [Q15][q15] and the question in [Keep the outcome of a workflow step after its release is gone][h-workflow-outcome] have to be answered for this.
 
 This priority conflicts with the goal of the ticket to remove the legacy system in 0.8.0. kube-helm serves these applications today with `/complete-active-application`, `/active-applications` and `/pending-applications-count`. See [An older helm deployer exists][h-kube-helm]. Until Epic 7 is implemented, either kube-helm stays for these routes, or 0.8.0 has no interactive workflow steps.
 
@@ -529,7 +532,7 @@ Extends [Open questions](MVP.md#open-questions).
 [h-checks]: handoff.md#share-one-check-sequence-between-dry-run-and-the-real-call
 [h-secrets]: handoff.md#never-return-a-secret-and-keep-it-out-of-the-helm-values
 [h-workflow-outcome]: handoff.md#keep-the-outcome-of-a-workflow-step-after-its-release-is-gone
-[models]: api-mock/app/models.py
+[models]: api-mock-release-2/app/models.py
 [create-project-user]: ../../data-separation/project-namespace/docker/files/create_project_user.py
 [kh-utils]: ../../kaapana-admin/kube-helm/docker/files/backend/app/utils.py
 [kaapanactl]: ../../../kaapanactl.sh

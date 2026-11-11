@@ -81,6 +81,31 @@ workflow interface.
    registries at the time the workflow is first triggered.
 
 
+Uploading an Extension
+-----------------------
+
+An extension can also be added without a registry, for example on a platform
+without internet access. Uploading only stores the extension. It does not
+install it.
+
+1. Build the archive with ``extensionctl build ./my-extension``.
+2. In the **Catalog** tab, click **Upload extension**.
+3. Choose the ``.tar.gz`` archive and click **Upload**.
+4. Install the extension from its catalog entry like any other extension.
+
+The archive can be at most 100 MB. Uploaded extensions are stored in a local
+OCI registry that ships with the platform, and they are listed under the
+built-in **Upload** repository. They stay there until they are removed, also
+after the extension is uninstalled.
+
+To remove an upload, open its catalog entry and click **Remove upload**. This
+only takes it out of the catalog. An installed extension stays installed and
+can still be uninstalled.
+
+The same version cannot be installed from the Upload repository and from
+another repository at the same time.
+
+
 Uninstalling an Extension
 --------------------------
 

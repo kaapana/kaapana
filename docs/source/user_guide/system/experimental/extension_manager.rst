@@ -18,9 +18,21 @@ Using it
 
 The web UI has three views:
 
-- **Repositories**: add, edit or remove the OCI registries to pull from.
-- **Catalog**: browse the extensions available in those registries.
-- **Extensions**: install / uninstall extensions and see their state.
+- **Repositories**: add, edit or remove the OCI registries to pull from. The built-in **Upload** repository holds the uploaded extensions and cannot be changed or removed.
+- **Catalog**: browse the extensions available in those registries and install them. **Upload extension** adds a ``.tar.gz`` built with ``extensionctl build`` to the Upload repository.
+- **Extensions**: see the state of installed extensions and uninstall them.
+
+Installing without internet
+***************************
+
+A platform without internet access cannot reach a registry. Its extensions are uploaded instead:
+
+1. On a machine with internet access, build the archive with ``extensionctl build ./my-extension``.
+2. Copy the ``.tar.gz`` to a machine that can open the platform.
+3. In the **Catalog**, click **Upload extension** and choose the archive.
+4. Open the uploaded extension in the **Catalog** and click **Install**.
+
+Uploaded extensions are stored in a local OCI registry that ships with the platform. They stay there until they are removed with **Remove upload** in their catalog entry. Removing an upload does not uninstall the extension. Archives can be at most 100 MB. Archives that contain container images are not supported yet.
 
 Packaging an extension
 **********************

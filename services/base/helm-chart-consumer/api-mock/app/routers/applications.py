@@ -3,7 +3,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Body, Query, status
 
 from .. import examples
-from ..models import Application, ApplicationVersion, Error, HelmChartContent, Scope, VersionRegistration
+from ..models import Application, ApplicationVersion, Error, HelmChartContent, VersionRegistration
 
 router = APIRouter(tags=["Applications"])
 
@@ -18,14 +18,13 @@ REGISTRATION_LOCATION = {
 def list_applications(
     project_id: Annotated[
         str | None,
-        Query(description="Only applications that are enabled in this project and support the project scope."),
+        Query(description="Only applications that are enabled in this project."),
     ] = None,
-    scope: Annotated[Scope | None, Query(description="Only applications that support this scope.")] = None,
 ) -> list[Application]:
     """List the applications that have at least one registered version.
 
-    Users see each helm-chart content as an application. Its name, description and scopes come
-    from its newest registered version.
+    Users see each helm-chart content as an application. Its name and description come from its
+    newest registered version.
 
     A kaapana-system-admin sees all applications. Every other user sees only the applications
     that are enabled in at least one project in which they may deploy. Scientists cannot deploy,
@@ -60,8 +59,8 @@ def get_version(application_id: str, version: str) -> ApplicationVersion:
     """Get one version with its deploy parameters.
 
     `content.parameters` declares which values a deploy accepts, with their types, limits and
-    defaults. Deregistered versions stay readable while releases run them, so that their
-    parameters can still be changed.
+    defaults. Deregistered versions stay readable while releases run them, so that the
+    parameters of these releases can still be shown.
     """
     return examples.JUPYTERLAB_VERSIONS[0]
 
@@ -73,17 +72,17 @@ def get_version(application_id: str, version: str) -> ApplicationVersion:
         201: {"headers": {"Location": REGISTRATION_LOCATION}},
         200: {
             "model": ApplicationVersion,
-            "description": "The same registration was already stored.",
+            "description": "The same content is already registered under this name and version.",
             "headers": {"Location": REGISTRATION_LOCATION},
         },
         400: {
             "model": Error,
-            "description": "The content or the chart is invalid. The detail says why, in words meant for the "
-            "person who installs the extension.",
+            "description": "The content or the chart is invalid, or `version` differs from `content.version`. The "
+            "detail says why, in words meant for the person who installs the extension.",
         },
         409: {
             "model": Error,
-            "description": "This name and version are already stored with another content or for another extension.",
+            "description": "Another content is already registered under this name and version.",
         },
     },
 )
@@ -98,12 +97,17 @@ def register_version(
 
     The Helm Chart Consumer fetches the chart from `chart_reference`. It validates `content`
     against the schema of `helm-chart-content.json` and checks the chart with `helm lint`.
-    `application_id` must equal `content.name`, and `version` must equal the version of the
-    extension. If a check fails, the route answers 400. Repeating the same registration changes
-    nothing and answers 200, so the Extension Manager can retry. A registration that differs from
-    the stored one answers 409. This also holds for a deregistered version that releases still
-    run, because they depend on the stored chart. To deregister the version, the Extension Manager
-    sends DELETE to the path in the `Location` header.
+    `application_id` must equal `content.name`, and `version` must equal `content.version`. If a
+    check fails, the route answers 400.
+
+    The Helm Chart Consumer computes a digest over `helm-chart-content.json` and every file of the
+    chart, and stores it with the version. A later registration of the same version is compared by
+    this digest. Where the chart was fetched from is not part of the digest. A new version answers
+    201. Repeating the same registration changes nothing and answers 200, so the Extension Manager
+    can retry. A registration that differs from the stored one answers 409. This also holds for a
+    deregistered version that releases still run, because they depend on the stored chart. To
+    deregister the version, the Extension Manager sends DELETE to the path in the `Location`
+    header.
 
     A newly registered application is disabled in all projects.
     """
@@ -120,6 +124,10 @@ def deregister_version(application_id: str, version: str) -> None:
     The version can no longer be deployed. Its releases keep running and are marked with
     `version_registered: false`. Other versions of the application are not affected. Deleting a
     version that is not registered also answers 204, so the Extension Manager can retry.
+
+    The Helm Chart Consumer does not record which extension registered a version. A caller that
+    registers the same version for several extensions must deregister it only when the last of
+    them is uninstalled.
     """
 
 

@@ -9,7 +9,6 @@ router = APIRouter(tags=["Projects"])
     "/projects/{project_id}/enabled-applications/{application_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
-        400: {"model": Error, "description": "The application supports only the platform scope."},
         403: {"model": Error},
         404: {"model": Error, "description": "The project or the application does not exist."},
     },

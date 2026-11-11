@@ -6,19 +6,16 @@ DESCRIPTION = """\
 This is a proposal for the API of the Helm Chart Consumer. Every route returns fixed example data
 and changes nothing.
 
-The Helm Chart Consumer registers the helm-chart contents of installed extensions and deploys,
-updates and undeploys them as applications, in a project or platform-wide. Each deployed
-application is one helm release, which this API calls a release.
+The Helm Chart Consumer registers the helm-chart contents of installed extensions and deploys
+and undeploys them as applications in a project. Each deployed application is one helm release,
+which this API calls a release.
 
 Kaapana's gateway authenticates every request and passes the user and their roles in headers.
 The Helm Chart Consumer decides from these roles what each caller may do:
 
-- Scientists open the releases of their projects and see their status and configuration. They
-  also report when they finish the work in a release that a workflow started. They open the web
-  interface of a platform-wide release, but they do not see the release itself.
-- Principal investigators also deploy, update and undeploy in their projects.
-- Kaapana-system-admins may do everything. Only they see, deploy, update and undeploy
-  platform-wide releases, and only they enable applications in projects.
+- Scientists open the releases of their projects and see their state and configuration.
+- Principal investigators also deploy and undeploy in their projects.
+- Kaapana-system-admins may do everything. Only they enable applications in projects.
 - The Extension Manager calls the registration routes from inside the cluster.
 
 Errors have the body `{"detail": "<message>"}`. A request that is well-formed but rejected for its

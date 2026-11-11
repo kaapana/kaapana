@@ -1,9 +1,10 @@
-# Helm Chart Consumer API mock
+# Helm Chart Consumer API mock for the MVP
 
-A proposal for the API of the Helm Chart Consumer, described in [../concept.md](../concept.md). Every route has a
-typed signature, a docstring that says what it does, and pydantic models for its input and output. Every route
-returns fixed example data and changes nothing. The examples reuse some of the applications and their deployed
-instances from the seed data of the UI mock in [../docker](../docker).
+A proposal for the API of the Helm Chart Consumer, described in [../concept.md](../concept.md). This mock shows the
+API of the MVP, as decided in [../MVP.md](../MVP.md). [../api-mock-release-2/](../api-mock-release-2/) shows the
+API of Release 2. Every route has a typed signature, a docstring that says what it does, and pydantic models for
+its input and output. Every route returns fixed example data and changes nothing. The examples reuse some of the
+applications and their deployed instances from the seed data of the UI mock in [../docker](../docker).
 
 ## Run it
 
@@ -23,7 +24,7 @@ Without Docker, run `pip install -r requirements.txt` in a virtual environment, 
 |---|---|
 | `app/models.py` | Request and response models, including `HelmChartContent`, the model of `helm-chart-content.json` |
 | `app/routers/applications.py` | Applications and their versions. The Extension Manager registers and deregisters versions here. |
-| `app/routers/releases.py` | Deploy, update, undeploy and status of deployed applications |
+| `app/routers/releases.py` | Deploy, undeploy and state of releases |
 | `app/routers/projects.py` | Enabling and disabling applications in a project |
 | `app/examples.py` | The example data the routes return |
 

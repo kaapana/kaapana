@@ -11,10 +11,11 @@ out about the code that the consumer has to fit into, and what the decisions in 
 | `services/base/helm-chart-consumer/concept.md` | Epics and user stories with priorities. Details marked *(proposed)* still need confirmation. |
 | `services/base/helm-chart-consumer/QandA.md` | Answers to Q1 to Q11. Q6 and Q12 to Q15 are open. |
 | `services/base/helm-chart-consumer/docker/` | Click-through UI mock with seed data and no backend |
-| `services/base/helm-chart-consumer/api-mock/` | API proposal: FastAPI routes with docstrings, pydantic models and fixed example responses |
+| `services/base/helm-chart-consumer/api-mock/` | API proposal for the MVP: FastAPI routes with docstrings, pydantic models and fixed example responses |
+| `services/base/helm-chart-consumer/api-mock-release-2/` | API proposal for Release 2: the same routes and models, and what Release 2 adds |
 
-The API mock and the UI mock are independent. The UI mock does not call the API mock. The examples of the API
-mock reuse part of the seed data of the UI mock, with fewer applications and parameters.
+The API mocks and the UI mock are independent. The UI mock does not call an API mock. The examples of the API
+mocks reuse part of the seed data of the UI mock, with fewer applications and parameters.
 
 ## Facts about the code the consumer plugs into
 
@@ -152,8 +153,7 @@ from the versions instead of storing them. A stored copy would have to be kept i
 Q14 is open: two different extensions may bring the same name and version. The proposal identifies a content by
 its name alone and gives it a version of its own, so several extensions can bring the same version. The consumer
 stores a digest of the content with each version. It answers 200 for a registration with an equal digest and 409
-for one with a different digest. See [Versioning](MVP.md#versioning). The mock does not show this yet: it takes
-the version from the extension and answers 409 for another extension. Settle Q14 before the registration route is
+for one with a different digest. See [Versioning](MVP.md#versioning). Settle Q14 before the registration route is
 final, because it decides the key.
 
 ### Keep a record of every release
@@ -175,7 +175,7 @@ both while any release runs that version. The API mock keeps deregistered versio
 ### Make the placement a union
 
 A release is either in a project, optionally for one user, or platform-wide (Q1, Q11). Model this as
-`ProjectPlacement | PlatformPlacement`, as in `api-mock/app/models.py`, so that a platform-wide release
+`ProjectPlacement | PlatformPlacement`, as in `api-mock-release-2/app/models.py`, so that a platform-wide release
 cannot carry a project or a "deployed for". "Deployed for" never restricts access. Every member of the project can
 open every release of the project.
 
@@ -260,9 +260,10 @@ Deploy and update run the same checks in the same order, and the dry-run routes 
 8. `helm install --dry-run` or `helm upgrade --dry-run`.
 
 If the dry-run and the real call use different code, they will disagree, and the dry-run then promises a deploy
-that fails. The API mock offers the dry-run as separate routes, `POST /v1/releases/dry-run` and
-`POST /v1/releases/{id}/dry-run`. They answer 200 with all problems and the chart values. Only a missing
-permission answers 403, as in the real call. The real calls stop at the first problem and answer 400, 403 or 409.
+that fails. The API mocks offer the dry-run as separate routes: `POST /v1/releases/dry-run` for a deploy, and
+`POST /v1/releases/{id}/dry-run` for an update in `api-mock-release-2/`. They answer 200 with all problems and
+the chart values. Only a missing permission answers 403, as in the real call. The real calls stop at the first
+problem and answer 400, 403 or 409.
 
 A helm dry-run renders the chart and checks the objects against the schemas of the cluster, but it sends no
 object to the API server. Admission webhooks, resource quotas, limit ranges and Pod Security therefore do not
@@ -299,8 +300,8 @@ readable by anyone who can read the helm release.
 In the later release the consumer writes the value into a Kubernetes secret of its own and passes only the name of
 that secret to the chart. The `chart_value` of a secret parameter then names the chart value that receives this
 name. Document this for extension developers, because their chart has to read the secret by its name. A chart that
-reads the value directly in the MVP has to change for this. The API mock describes this later behaviour as a
-proposal.
+reads the value directly in the MVP has to change for this. `api-mock-release-2/` describes this later behaviour as
+a proposal, and `api-mock/` describes the behaviour of the MVP.
 
 ### Undeploying deletes the data, and helm does not do that alone
 
@@ -358,8 +359,8 @@ this gap, for example by archiving the project before the check and refusing dep
 ### Keep the outcome of a workflow step after its release is gone
 
 A workflow task deploys an application, waits, and continues when the user completes the work (Epic 7). The task
-needs to read the outcome, finished or abandoned, after the release is gone. The API mock does not model this
-yet, because `POST /v1/releases/{id}/complete` undeploys and the record then disappears. Either keep the record
+needs to read the outcome, finished or abandoned, after the release is gone. `api-mock-release-2/` does not model
+this yet, because `POST /v1/releases/{id}/complete` undeploys and the record then disappears. Either keep the record
 readable with the outcome after the work is complete, or tell workflow-api directly. Undeploy the release when its
 task fails, is retried or times out (Story 7.4).
 

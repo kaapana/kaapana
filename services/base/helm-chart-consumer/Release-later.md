@@ -16,7 +16,7 @@ This document records what comes after Release 2 of the Helm Chart Consumer. Rea
 | A record whose helm release was changed outside the consumer | It sets `drift` of the release to `changed`. |
 | A helm release of the consumer that has no record | It reports the helm release *(to be decided)*. |
 
-- **The API.** A release returns the difference in its field `drift`, so that the UI can show that the release was changed or removed outside Kaapana. See `Drift` in [api-mock/app/models.py][models].
+- **The API.** A release returns the difference in its field `drift`, so that the UI can show that the release was changed or removed outside Kaapana. The field holds the kind of the difference, `changed` or `removed`, and the time at which it was detected. The API mocks do not have the field.
 - **The first two rows need no labels.** The record stores the helm release name, so the consumer looks up each helm release directly.
 - **The third row needs a label.** `helm list` shows every helm release of the cluster: the platform itself, the legacy releases of kube-helm, and the releases of the consumer. A helm release without a record can only be recognised as one of the consumer by its label. See [Labels on the helm release](Release-2.md#labels-on-the-helm-release-proposed).
 - **How a change is recognised** *(to be decided)*. One way is to compare the revision of the helm release with the revision that the consumer stored after its last operation.
@@ -33,4 +33,3 @@ Extends [Authorization](MVP.md#authorization) and [The origin of a release](MVP.
 [s5.6]: concept.md#story-56-audit-log
 [s12.3]: concept.md#story-123-detecting-changes-made-outside-the-helm-chart-consumer
 [h-state]: handoff.md#derive-the-state-do-not-store-it
-[models]: api-mock/app/models.py

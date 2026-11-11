@@ -169,7 +169,7 @@ Legacy releases are not adopted, because they have no `helm-chart-content.json`.
 State of the checklist:
 
 - **Written proposal.** [MVP.md](MVP.md), [Release-2.md](Release-2.md) and [Release-later.md](Release-later.md), with [concept.md](concept.md) and [handoff.md](handoff.md).
-- **API sketches.** [api-mock/](api-mock/) covers the Extension Manager, the application page, the admin and the deletion check of AII. It does not show platform contents yet: the registration requires an extension, and there is no service origin.
+- **API sketches.** [api-mock/](api-mock/) shows the API of the MVP: the Extension Manager, the application page, the admin and the deletion check of AII. [api-mock-release-2/](api-mock-release-2/) shows the API of Release 2 on top of it, with updates, platform-wide releases, workflows and platform contents.
 - **Review.** Not done.
 - **Downstream issues.** Not drafted. [A possible order for the MVP][h-mvp-order] is a starting point.
 

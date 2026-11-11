@@ -193,6 +193,7 @@ The consumer also passes the values that kube-helm passes to a chart today, unde
 
 - **The block contains passwords.** [kaapanactl.sh][kaapanactl] writes them into it, for example `global.credentials_keycloak_admin_password` and `global.credentials_minio_password`. Every release can read them. See [Credentials of an application](#credentials-of-an-application).
 - **The block is deprecated.** A new chart reads the values under `global.kaapana` and not the block. It is planned to stop passing the block, so that a chart gets no `global` value outside `global.kaapana`.
+- **A dry-run does not return the block** *(proposed)*. The chart values of a dry-run leave it out, because it holds passwords.
 - **A parameter cannot overwrite a value of the block.** The block comes after the parameter values. kube-helm lets a value of the install form overwrite the values of the platform release today. Of the charts of the repository, only `kaapana-platform-chart` uses this, and kube-helm keeps installing that chart.
 
 ### How the chart values of a release are built

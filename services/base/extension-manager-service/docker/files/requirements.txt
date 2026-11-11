@@ -5,6 +5,8 @@ alembic==1.16.4
 psycopg2-binary==2.9.12
 asyncpg==0.31.0
 httpx==0.28.1
+python-multipart==0.0.33
+jsonschema==4.26.0
 cryptography==48.0.0
 kaapana-containers @ file:///lib/kaapana_containers
 kaapana-extensions @ file:///lib/kaapana_extensions

@@ -59,25 +59,95 @@ def mocked_installer():
         yield mock_dispatcher
 
 
+import json
+import shutil
+import tarfile
+import tempfile
+from pathlib import Path
 from uuid import UUID
 
 from v1.routers.dependencies import get_oci_service_for_repository
-from v1.services import encryption
+from v1.services import encryption, upload
+from v1.services.oci.exceptions import ExtensionNotFoundException
 from v1.services.oci.mock_service import ociService as MockOciService
+from v1.services.oci.models import ExtensionManifest
+
+UPLOAD_REGISTRY_URL = "http://extension-registry.test:5000/uploads"
+
+
+class FakeUploadRegistry:
+    def __init__(self, root: Path) -> None:
+        self.root = root
+        self.repository_url = UPLOAD_REGISTRY_URL
+
+    async def __aenter__(self) -> "FakeUploadRegistry":
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> bool:
+        return False
+
+    async def get_extensions_for_repository(self) -> set[str]:
+        return {path.name for path in self.root.iterdir()}
+
+    async def get_extension_manifests(self, tags: set[str] | None = None) -> dict[str, ExtensionManifest]:
+        existing_tags = await self.get_extensions_for_repository()
+        selected_tags = existing_tags & tags if tags else existing_tags
+        return {tag: await self.get_extension_manifest(tag) for tag in selected_tags}
+
+    async def get_extension_manifest(self, tag: str) -> ExtensionManifest:
+        if tag not in await self.get_extensions_for_repository():
+            raise ExtensionNotFoundException(f"Extension with tag {tag} not found in {self.repository_url}")
+        return ExtensionManifest(**json.loads((self.root / tag / upload.MANIFEST_FILE).read_text()))
+
+    async def pull_extension(self, tag: str) -> Path:
+        if tag not in await self.get_extensions_for_repository():
+            raise ExtensionNotFoundException(f"Extension with tag {tag} not found in {self.repository_url}")
+        target = Path(tempfile.mkdtemp()) / tag
+        shutil.copytree(self.root / tag, target)
+        return target
+
+    async def push_extension(self, archive: Path) -> str:
+        with tarfile.open(archive, "r:gz") as tar:
+            manifest = json.loads(tar.extractfile(upload.MANIFEST_FILE).read())
+            tag = f"{manifest['id']}-v{manifest['version']}"
+            shutil.rmtree(self.root / tag, ignore_errors=True)
+            tar.extractall(self.root / tag, filter="data")
+        return tag
+
+    async def delete_extension(self, tag: str) -> None:
+        if tag not in await self.get_extensions_for_repository():
+            raise ExtensionNotFoundException(f"Extension with tag {tag} not found in {self.repository_url}")
+        shutil.rmtree(self.root / tag)
+
+
+@pytest_asyncio.fixture(name="upload_registry")
+def upload_registry_fixture(tmp_path: Path) -> FakeUploadRegistry:
+    root = tmp_path / "upload-registry"
+    root.mkdir()
+    return FakeUploadRegistry(root)
 
 
 @pytest_asyncio.fixture(name="mock_ociService", autouse=True)
-async def mock_ociService(session: AsyncSession):
+async def mock_ociService(session: AsyncSession, upload_registry: FakeUploadRegistry):
+    def service(repository_url: str, authentication: str):
+        if repository_url == UPLOAD_REGISTRY_URL:
+            return upload_registry
+        return MockOciService(repository_url=repository_url, authentication=authentication)
+
     async def override(repository_id: UUID):
         repository = await crud.get_registered_repository(session, repository_id)
         if not repository:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found")
+        if upload.is_upload_repository(repository_id):
+            async with upload_registry as svc:
+                yield svc
+            return
         async with MockOciService(repository_url="test", authentication=encryption.encrypt("", "")) as svc:
             yield svc
 
     app.dependency_overrides[get_oci_service_for_repository] = override
 
-    with patch("v1.routers.installation.background_jobs.ociService", new=MockOciService):
+    with patch("v1.routers.dependencies.ociService", new=service):
         yield
 
     app.dependency_overrides.pop(get_oci_service_for_repository, None)

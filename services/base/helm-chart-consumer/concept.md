@@ -37,7 +37,7 @@ The Extension Manager dispatches every content of type helm-chart to the Helm Ch
 - list all applications with the projects in which they are enabled (Story 5.7)
 - enable and disable applications per project (Story 5.2)
 - deploy, update and undeploy an application, each preceded by a dry-run (Stories 2.1, 2.3, 11.2–11.4)
-- list deployed applications with state, details and configuration (Stories 2.4, 3.1, 3.2, 3.4)
+- list deployed applications with state, details and configuration (Stories 2.4, 3.1, 3.2, 3.4, 3.5)
 - deploy an application from a workflow task and mark it as finished (Epic 7)
 - tell the project management whether a project still has deployed applications, so that its deletion can be refused (Story 12.2)
 
@@ -85,7 +85,7 @@ As a kaapana-system-admin I want that the helm-chart content of an uninstalled e
 
 Acceptance criteria:
 * Uninstalling the extension deregisters the helm-chart content of that version; it is no longer offered for deployment. Other registered versions of the same helm-chart content stay deployable.
-* Deployed applications of this version are not affected. They keep running and can still be opened, monitored, reconfigured (Story 11.3, Q4) and undeployed. They can be updated to another registered version (Story 11.2).
+* Deployed applications of this version are not affected. They keep running and can still be opened, monitored and undeployed (Q4). Reconfiguring them and updating them to another registered version belong to Stories 11.3 and 11.2.
 * Deployed applications whose version is no longer registered are marked as such.
 * Before uninstalling, the kaapana-system-admin sees which deployed applications use this version of the helm-chart content.
 
@@ -180,8 +180,7 @@ As a scientist I want to see whether my deployed application is starting, ready 
 Acceptance criteria:
 * Each deployed application shows one of the states DEPLOYING, READY, FAILED, UPDATING or UNDEPLOYING.
 * The state is derived from the helm release and from the readiness of every Kubernetes object that the release created, e.g. available replicas, a completed Job or a bound volume claim, so that an application without long-running pods can be READY too *(proposed)*.
-* Details show the underlying pods (status, restarts, age).
-* A failed deployment shows an understandable reason and the error details (e.g. helm error, Kubernetes events).
+* A failed deployment shows an understandable reason.
 
 #### Story 3.2: Seeing the configuration of a deployed application
 As a scientist I want to see the configuration a deployed application runs with, so that I know e.g. which data folder or which resources it uses.
@@ -199,6 +198,15 @@ Acceptance criteria:
 * A list shows all deployed applications with project (or platform-wide), application, version, state, deployed for, deployed by and deployed at.
 * The list can be filtered by project and by state.
 * A kaapana-system-admin can undeploy every deployed application.
+
+#### Story 3.5: Seeing the details of a deployed application
+As a scientist I want to see the pods and the error details of my deployed application, so that I can find out why it is not ready or pass the details on to someone who helps me.
+
+Priority: Release 2 *(proposed)*
+
+Acceptance criteria:
+* Details show the underlying pods (status, restarts, age).
+* A failed deployment shows the error details (e.g. helm error, Kubernetes events), in addition to the reason of Story 3.1.
 
 
 ### Epic 4: Developing helm-chart contents
@@ -242,6 +250,8 @@ Acceptance criteria:
 
 #### Story 4.5: Authenticated access to Kaapana APIs
 As an extension-developer I want to give my application authenticated access to Kaapana APIs, such that it can e.g. trigger workflows, communicate with the Data API or read metrics from Prometheus.
+
+Priority: Release 2 *(proposed)*
 
 Acceptance criteria:
 * The way an application obtains credentials for Kaapana APIs and storage (e.g. Data API, Workflow API, MinIO) is documented.
@@ -478,7 +488,7 @@ Acceptance criteria:
 As a user I want to update an application to a new version, such that I get the benefits of the new version.
 
 Acceptance criteria:
-* The API supports updating a deployed application to another registered version.
+* The API supports updating a deployed application to another registered version. This also works when the version of the deployed application is no longer registered (Story 1.2).
 * A dry-run is executed before the update; if it fails, the deployed application is not changed.
 * Persistent data of the application is kept.
 * Kubernetes resources that the new version no longer defines are removed.
@@ -527,7 +537,6 @@ As a platform-operator I want registered helm-chart contents and deployed applic
 
 Acceptance criteria:
 * After a restart or an upgrade, all registered helm-chart contents and deployed applications are listed with their correct state.
-* The records of the Helm Chart Consumer are reconciled with the helm releases in the cluster; releases that were changed or removed outside of the Helm Chart Consumer are detected and shown.
 
 #### Story 12.2: Deleting a project with deployed applications
 As a kaapana-system-admin I want that a project with deployed applications cannot be deleted, so that deleting a project never leaves running applications or reachable project data behind.
@@ -535,6 +544,14 @@ As a kaapana-system-admin I want that a project with deployed applications canno
 Acceptance criteria:
 * Deleting a project is refused while it has deployed applications (Q9). This includes workflow-deployed applications *(proposed)*.
 * The refusal names the deployed applications that have to be undeployed first *(proposed)*.
+
+#### Story 12.3: Detecting changes made outside the Helm Chart Consumer
+As a platform-operator I want to see when a deployed application was changed or removed outside of the Helm Chart Consumer, so that the deployed applications that Kaapana shows match the cluster.
+
+Priority: Later *(proposed)*
+
+Acceptance criteria:
+* The records of the Helm Chart Consumer are reconciled with the helm releases in the cluster; releases that were changed or removed outside of the Helm Chart Consumer are detected and shown.
 
 
 ## Out of scope

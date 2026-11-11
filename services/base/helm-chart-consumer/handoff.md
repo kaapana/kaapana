@@ -196,7 +196,7 @@ polling need only `state`, so these details have a separate route.
 
 Store the last requested operation and read the rest from the cluster. A stored `state` column goes stale as soon as
 a pod crashes or someone runs `helm` by hand. A reconciler compares the records with the helm releases after a
-restart and marks releases that were changed or removed outside the consumer (Story 12.1). The API returns this as
+restart and marks releases that were changed or removed outside the consumer (Story 12.3). The API returns this as
 `drift`. Clients learn about state changes by polling `GET /v1/releases/{id}`. workflow-api already pushes updates
 over a websocket at `/ws` (`services/base/workflow-api/docker/files/app/main.py`), which is a model for a later push
 channel.
@@ -311,18 +311,20 @@ the consumer needs these rights in every namespace it deploys to, and the diagra
 
 Every deploy passes the values that the platform owns, so that charts can rely on them (Stories 4.3, 4.4, 4.5).
 The decision document proposes the list of these values in
-[Values that the Helm Chart Consumer sets](acceptance_criteria.md#values-that-the-helm-chart-consumer-sets-proposed).
+[Values that the Helm Chart Consumer sets](MVP.md#values-that-the-helm-chart-consumer-sets-proposed).
 The following adds to the table:
 
-- All values are under the one reserved key `global.kaapana`. A chart gets no other value of the platform.
+- All values are under the one reserved key `global.kaapana`. In the MVP the consumer also passes the legacy
+  `global` block of kube-helm. From Release 2 on, a chart gets no other value of the platform.
 - The helm release name is not one of them. The consumer generates a unique helm release name, and helm gives it to
   every chart as `.Release.Name`. A chart that names its Kubernetes objects after it can be deployed several times.
-  See [Names and conflicts](acceptance_criteria.md#names-and-conflicts).
-- The credentials are passed as the name of a secret. They belong to the project's technical user or to a dedicated
-  client (Q7), and they have the rights of a scientist of the project. Q13 decides on whose behalf a platform-wide
+  See [Names and conflicts](MVP.md#names-and-conflicts).
+- In the MVP, a chart finds the passwords of the platform in the legacy block. In Release 2, the credentials are
+  passed as the name of a secret instead. They belong to the project's technical user or to a dedicated client
+  (Q7), and they have the rights of a scientist of the project. Q13 decides on whose behalf a platform-wide
   release acts.
 - A helm-chart content of the platform itself, such as `project-namespace`, can get passwords in addition. See
-  [Privileged values for platform contents](acceptance_criteria.md#privileged-values-for-platform-contents).
+  [Privileged values for platform contents](Release-2.md#privileged-values-for-platform-contents).
   A content of an extension never gets them.
 
 Document these values for extension developers together with the schema of `helm-chart-content.json`.

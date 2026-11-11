@@ -161,7 +161,7 @@ class HelmChart:
 
     @staticmethod
     def _resolve_kaapana_type(chart_yaml: dict, is_dag: bool) -> KaapanaType:
-        yaml_type = (chart_yaml.get("annotations") or {}).get("kaapana_type")
+        yaml_type = (chart_yaml.get("annotations") or {}).get("kaapana.ai/type")
         if yaml_type:
             return KaapanaType(yaml_type.lower())
 

@@ -289,11 +289,41 @@ Helm adds the label `app.kubernetes.io/managed-by: Helm` and the annotations `me
 
 > **To do:** paste Lorenz's sketch here.
 
-What is decided:
+A request of a user reaches the consumer through the gateway. The gateway checks the login and passes the Keycloak token of the user on, in the header `X-Forwarded-Access-Token` ([configmap.yaml][oauth2-proxy]). The consumer decides from this token whether the caller may do what the request asks.
 
-- The gateway authenticates, and the consumer authorizes. See [The gateway authenticates, the services authorize][h-gateway].
-- One table holds every permission rule. See [Put every permission rule in one table][h-permissions] and [Story 5.1][s5.1].
-- The consumer checks the rights in the token and not the names of roles.
+**What the token carries.** Keycloak asks AII for the projects and rights of the user when it issues the token ([kaapana-client.json][kc-client]). A changed role therefore takes effect with the next token.
+
+| Claim | Content | Example |
+|---|---|---|
+| `projects` | Every project of the user, with the role of the user in it | `{"id": "<project id>", "name": "lung-ct", "role_name": "principal-investigator"}` |
+| `realm_access.roles` | The roles for the whole platform. The role `admin` is the kaapana-system-admin. | `["user", "admin"]` |
+| `kaapana.ai/applications` | The rights of the user for applications, one entry per right and project | `["open_<project id>", "launch_<project id>"]` |
+
+How the consumer checks a call is to be decided. Two options exist.
+
+### Option 1: check by role *(to be decided)*
+
+This is the simple option. The consumer checks a call in three steps:
+
+1. It verifies the signature of the token with the public key of Keycloak, and it checks the issuer, the audience and the expiry. After that, it can rely on the claims. dicom-web-filter verifies its tokens in this way ([auth_middleware.py][dwf-auth]). The gateway has checked the login already, but a call from inside the cluster does not pass the gateway.
+2. It reads the role of the caller. `admin` in `realm_access.roles` is a kaapana-system-admin. Otherwise, the entry of the project in `projects` names the role: `scientist` or `principal-investigator`. A caller without an entry for the project is refused.
+3. It looks up the action and the role in one table, which holds every permission rule ([Story 5.1][s5.1]):
+
+| Action | Scientist of the project | PI of the project | kaapana-system-admin |
+|---|---|---|---|
+| List the releases of the project, see their state, open their web interface | yes | yes | yes |
+| Deploy and undeploy in the project | no | yes | yes |
+| See the applications that are enabled in one of their projects | no | yes | yes |
+| Enable and disable applications | no | no | yes |
+| See all applications and where they are enabled | no | no | yes |
+
+The names of the roles are then fixed in the consumer.
+
+### Option 2: check by right *(to be decided)*
+
+The consumer verifies the token as in Option 1. It then checks the rights in the token, such as `launch_<project id>` in `kaapana.ai/applications`, and not the name of the role. The rules of the gateway work in this way. A role with another name then needs no change in the consumer. Which right each action needs would have to be defined.
+
+### Callers inside the cluster *(open)*
 
 What is open: how callers inside the cluster prove who they are. The Extension Manager and AII call from pod to pod, without a user. A network policy can limit who reaches the consumer from inside the cluster *(proposed)*. See [Open questions](#open-questions).
 
@@ -393,14 +423,12 @@ A legacy chart keeps reading platform values by their old names, for example `gl
 [q12]: QandA.md#q12-enabling-new-versions
 [q14]: QandA.md#q14-identity-of-a-helm-chart-content
 [h-em]: handoff.md#the-extension-manager-calls-consumers-as-python-plugins
-[h-gateway]: handoff.md#the-gateway-authenticates-the-services-authorize
 [h-kube-helm]: handoff.md#an-older-helm-deployer-exists
 [h-namespace]: handoff.md#every-project-already-has-a-namespace
 [h-versions]: handoff.md#model-an-application-as-its-registered-versions
 [h-records]: handoff.md#keep-a-record-of-every-release
 [h-keep-chart]: handoff.md#keep-the-chart-and-the-declarations-of-every-release
 [h-state]: handoff.md#derive-the-state-do-not-store-it
-[h-permissions]: handoff.md#put-every-permission-rule-in-one-table
 [h-checks]: handoff.md#share-one-check-sequence-between-dry-run-and-the-real-call
 [h-secrets]: handoff.md#never-return-a-secret-and-keep-it-out-of-the-helm-values
 [h-undeploy]: handoff.md#undeploying-deletes-the-data-and-helm-does-not-do-that-alone
@@ -409,6 +437,9 @@ A legacy chart keeps reading platform values by their old names, for example `gl
 [h-open]: handoff.md#open-questions
 [routers]: api-mock/app/routers/
 [models]: api-mock/app/models.py
+[kc-client]: ../../kaapana-admin/keycloak/keycloak-setup/keycloak-setup-chart/realm_objects/kaapana-client.json
+[dwf-auth]: ../../data-separation/dicom-web-filter/docker/files/app/auth_middleware.py
+[oauth2-proxy]: ../../kaapana-admin/oAuth2-proxy/oAuth2-proxy-chart/templates/configmap.yaml
 [kh-routes]: ../../kaapana-admin/kube-helm/docker/files/backend/app/routes.py
 [kh-utils]: ../../kaapana-admin/kube-helm/docker/files/backend/app/utils.py
 [portal-menu]: ../portal-api/docker/app/menu.py

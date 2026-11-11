@@ -208,6 +208,16 @@ Extends [Authorization](MVP.md#authorization).
 
 **Changed.** How callers inside the cluster prove who they are is open. The Extension Manager, workflow-api, AII and the installer all call from pod to pod, without a user. A network policy is no longer enough, because a platform content gets passwords and the right to deploy platform-wide only if the consumer knows its caller. See [Open questions](#open-questions).
 
+**Added.** The table of the permission rules in [Option 1](MVP.md#option-1-check-by-role-to-be-decided) gets these rows:
+
+| Action | Scientist of the project | PI of the project | kaapana-system-admin |
+|---|---|---|---|
+| Update in the project | no | yes | yes |
+| Complete the work in a release that a workflow started | yes | yes | yes |
+| Open the web interface of a platform-wide release | yes | yes | yes |
+| List, details and status of platform-wide releases | no | no | yes |
+| Deploy, update, undeploy platform-wide | no | no | yes |
+
 ### The origin of a release
 
 Extends [The origin of a release](MVP.md#the-origin-of-a-release).

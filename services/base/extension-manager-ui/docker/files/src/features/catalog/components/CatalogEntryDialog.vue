@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { ConfirmDialog } from '@kaapana/base-ui'
 import BaseDetailDialog from '@/shared/components/BaseDetailDialog.vue'
 import DetailMetaLine from '@/shared/components/DetailMetaLine.vue'
 import ExtensionManifestDetails from '@/shared/components/ExtensionManifestDetails.vue'
@@ -17,18 +18,33 @@ const props = defineProps<{
   entry: CatalogEntry | null
   installation?: InstalledExtension
   installing: boolean
+  removing: boolean
 }>()
 
 const emit = defineEmits<{
   (event: 'close'): void
   (event: 'update:entry', entry: CatalogEntry): void
   (event: 'install'): void
+  (event: 'remove'): void
 }>()
+
+const showRemoveConfirm = ref(false)
 
 const availability = computed(() => installAvailability(props.installation))
 const installationStatus = computed(() =>
   props.installation ? presentExtensionStatus(props.installation.status) : null,
 )
+
+const isUpload = computed(() => Boolean(props.group?.repository.built_in))
+const removeTitle = computed(() => `Remove the upload of "${props.group?.manifestName ?? ''}"?`)
+const removeText = computed(() => {
+  const version = props.entry?.manifest.version ?? ''
+  const stays =
+    props.installation && props.installation.status !== 'uninstalled'
+      ? ' The installed extension stays installed and can still be uninstalled.'
+      : ''
+  return `Version ${version} is removed from the catalog. To install it again, upload the file again.${stays}`
+})
 
 const sourceRows = computed<SourceDetailsRow[]>(() => {
   if (!props.group || !props.entry) return []
@@ -82,6 +98,17 @@ const advancedSourceRows = computed<SourceDetailsRow[]>(() => {
         >
           {{ availability.label }}
         </v-btn>
+        <v-btn
+          v-if="isUpload"
+          color="error"
+          variant="tonal"
+          :loading="props.removing"
+          :disabled="props.removing"
+          data-testid="remove-upload"
+          @click="showRemoveConfirm = true"
+        >
+          Remove upload
+        </v-btn>
       </div>
       <div
         v-if="installationStatus && availability.kind !== 'available'"
@@ -100,6 +127,15 @@ const advancedSourceRows = computed<SourceDetailsRow[]>(() => {
       </div>
     </template>
   </BaseDetailDialog>
+
+  <ConfirmDialog
+    v-model="showRemoveConfirm"
+    color="error"
+    :title="removeTitle"
+    :text="removeText"
+    confirm-text="Remove upload"
+    @confirm="emit('remove')"
+  />
 </template>
 
 <style scoped>

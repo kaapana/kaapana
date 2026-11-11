@@ -210,7 +210,12 @@ onBeforeUnmount(() => postViewDirty(false))
         >
           {{ item.description || 'No description provided.' }}
         </v-card-text>
-        <v-card-actions>
+        <v-card-actions v-if="item.built_in">
+          <span class="text-body-2 text-medium-emphasis px-2" data-testid="built-in-repository">
+            Built in. Holds the extensions uploaded from a file.
+          </span>
+        </v-card-actions>
+        <v-card-actions v-else>
           <v-btn
             color="primary"
             variant="text"

@@ -3,6 +3,7 @@ export interface Repository {
   description: string
   repository_url: string
   id: string
+  built_in: boolean
 }
 
 export interface CreateRepositoryRequest {

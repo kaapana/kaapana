@@ -4,4 +4,4 @@ name: kaapana-extension-collection
 version: "0.0.0"
 description: kaapana-extension-collection
 annotations:
-  kaapana_type: extension-collection
+  kaapana.ai/type: extension-collection

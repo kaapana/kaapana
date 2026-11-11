@@ -5,6 +5,6 @@ appVersion: "0.1.4"
 name: kaapana-admin-chart
 description: Kaapana Admin Platform
 annotations:
-  kaapana_type: "platform"
+  kaapana.ai/type: "platform"
 keywords:
 - kaapanaplatform

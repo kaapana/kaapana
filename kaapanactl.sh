@@ -1349,6 +1349,36 @@ function uninstall {
 
 }
 
+# With RUNTIME_CONFIG_SOURCE set to the rendered containerd.toml, the NVIDIA toolkit copies its
+# paths, which name the snap revision, into a drop-in under /etc/containerd/conf.d that outlives
+# refreshes; once snapd removes that revision the node has no CNI config. Paths through 'current'
+# stay valid. The rendered file is rewritten too, as the toolkit reads it before the next render.
+use_current_snap_in_containerd_config() {
+  local args_dir="/var/snap/microk8s/current/args"
+  local file content tmp
+  [[ -d "${args_dir}" ]] || return 0
+  for file in "${args_dir}/containerd-template.toml" "${args_dir}/containerd.toml"; do
+    content=""
+    tmp=""
+    if [[ -r "${file}" && -w "${file}" ]]; then
+      content="$(sed -E -e 's#\$\{SNAP_DATA\}/#/var/snap/microk8s/current/#g' \
+        -e 's#\$\{SNAP\}/#/snap/microk8s/current/#g' \
+        -e 's#(/var)?/snap/microk8s/[0-9]+/#\1/snap/microk8s/current/#g' "${file}")" || content=""
+    fi
+    [[ -n "${content}" && "${content}" == "$(<"${file}")" ]] && continue
+    # A temp file and rename, so a failed write (e.g. a full disk) leaves the original intact.
+    if [[ -n "${content}" ]] && tmp="$(mktemp "${file}.XXXXXX")" &&
+      printf '%s\n' "${content}" > "${tmp}" &&
+      chmod --reference="${file}" "${tmp}" && chgrp --reference="${file}" "${tmp}" &&
+      mv -f "${tmp}" "${file}"; then
+      continue
+    fi
+    [[ -n "${tmp}" ]] && rm -f "${tmp}"
+    echo "WARNING: could not rewrite ${file}; after a snap refresh the GPU toolkit's containerd drop-in may point at a removed MicroK8s revision." >&2
+    return 1
+  done
+}
+
 install_gpu_operator() {
   local script_dir="$1"
 
@@ -1385,6 +1415,8 @@ install_gpu_operator() {
   else
     driver_enabled="false"
   fi
+
+  use_current_snap_in_containerd_config || true
 
   # Feed JSON values to Helm via stdin (equivalent to -f - in the Python script)
   cat <<EOF | "${helm}" upgrade --install "${chart_name}" "${chart_path}" \
@@ -2221,6 +2253,8 @@ function deploy_chart {
     echo -e "${YELLOW}GPU_SUPPORT: $GPU_SUPPORT ${NC}"
     if [ "${GPU_SUPPORT,,}" == true ];then
         echo -e "-> enabling GPU in Microk8s ..."
+        # Ahead of the chart-exists check, so hosts that already run the GPU operator get it too.
+        use_current_snap_in_containerd_config || true
         # gpu-operator is installed into its own namespace (gpu-operator-resources),
         # so it never appears in $deployments (helm ls -n $HELM_NAMESPACE) - check it directly
         if [[ $deployments == *"gpu-operator"* ]] || $HELM_EXECUTABLE status gpu-operator -n gpu-operator-resources >/dev/null 2>&1;then

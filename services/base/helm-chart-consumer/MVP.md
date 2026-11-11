@@ -137,7 +137,7 @@ Source b is the model `ParameterDeclaration` in [api-mock/app/models.py][models]
 - A secret parameter is configured like every other parameter, and its value is set as a chart value. The consumer masks the value in its responses ([Story 3.2][s3.2]). See [Never return a secret, and keep it out of the helm values][h-secrets].
 - **Check at registration** *(proposed)*. Every `chart_value` must be a path that exists in `values.yaml`, and no `chart_value` may point into the platform values. Without this check, a typing error in a path is accepted and the parameter silently has no effect.
 - **One place for a default** *(proposed)*. `default` in a declaration is optional. If it is missing, the consumer reads the default from `values.yaml` at registration and stores it with the version. If both exist, the declaration wins, and the form shows that value. This way the two defaults cannot differ without anyone noticing.
-- **Order** *(proposed)*. Later sources overwrite earlier ones: first `values.yaml`, then the legacy `global` block, then the parameter values, then the platform values.
+- **Order** *(proposed)*. Later sources overwrite earlier ones: first `values.yaml`, then the parameter values, then the legacy `global` block, then the platform values.
 - **A values file, not `--set`** *(proposed)*. The consumer writes the values of a release into one file and passes it with `-f`. kube-helm builds `--set-string` arguments and removes spaces and escapes commas to do so ([utils.py][kh-utils]), which changes values and loses their types.
 
 An example with a default that comes from `values.yaml`:
@@ -172,7 +172,7 @@ All platform values are under the one reserved key `global.kaapana`. One key nee
 | `release.id`, `release.name` | The id of the release and the name that users see | [Story 8.3][s8.3] |
 | `application.id`, `application.version` | The registered version that the release runs | [Story 11.1][s11.1] |
 | `project.id`, `project.short_id`, `project.namespace`, `project.bucket` | The project of the release | [Story 2.5][s2.5], [Q6][q6] |
-| `url_path` | The path under which the web interface is served, for settings like `base_url` of JupyterLab | [Story 4.4][s4.4] |
+| `url_path` | The base path under which the release can serve its web interface, for settings like `base_url` of JupyterLab | [Story 4.4][s4.4] |
 | `hostname` | The host name of the platform | [Story 4.4][s4.4] |
 | `registry_url`, `pull_policy`, `image_pull_secret` | Where and how the images of Kaapana charts are pulled | Legacy `global.registry_url` and `global.pull_policy_images` |
 | `namespaces.services`, `namespaces.admin` | The namespaces of the platform services | Legacy `global.services_namespace` and `global.admin_namespace` |
@@ -193,7 +193,7 @@ The consumer also passes the values that kube-helm passes to a chart today, unde
 
 - **The block contains passwords.** [kaapanactl.sh][kaapanactl] writes them into it, for example `global.credentials_keycloak_admin_password` and `global.credentials_minio_password`. Every release can read them. See [Credentials of an application](#credentials-of-an-application).
 - **The block is deprecated.** A new chart reads the values under `global.kaapana` and not the block. It is planned to stop passing the block, so that a chart gets no `global` value outside `global.kaapana`.
-- **A parameter can overwrite a value of the block**, as a value of the install form can with kube-helm today.
+- **A parameter cannot overwrite a value of the block.** The block comes after the parameter values. kube-helm lets a value of the install form overwrite the values of the platform release today. Of the charts of the repository, only `kaapana-platform-chart` uses this, and kube-helm keeps installing that chart.
 
 ### How the chart values of a release are built
 
@@ -207,7 +207,7 @@ flowchart TD
     register{"At registration:<br/>does every chart_value exist in values.yaml<br/>and stay out of the platform values?"}
     validate{"At deploy:<br/>does every value follow its rules?"}
     map["Write each value to its chart_value path.<br/>A parameter without a value gets its default."]
-    file["Values file of the release.<br/>It holds the legacy global block, then b, and then c on top."]
+    file["Values file of the release.<br/>It holds b, then the legacy global block, and then c on top."]
     dryrun["helm install with dry-run"]
     helm["helm install.<br/>The values file overwrites the defaults of a."]
 
@@ -242,6 +242,7 @@ One registered version can have many releases. The release id is the key of the 
 - Extension developers are responsible that the objects of their chart do not collide ([Story 4.3][s4.3]).
 - **The helm release name keeps copies apart** *(proposed)*. The id of the helm-chart content cannot do this, because it is the same for all copies. The consumer generates the helm release name from the application id and the first characters of the release id, for example `jupyterlab-3f2a9c1e`, and checks that no other release has it. It is unique in the whole cluster, starts with a letter, and stays below the 53 characters that helm allows. The consumer stores it with the release.
 - A chart that names its objects after `.Release.Name` is safe to deploy several times without a Kaapana value. Most public charts do this already.
+- Extension developers are advised to follow the same principle for every object that could collide.
 - The name that a user types, such as `anna-notebook`, is what the UI shows, and it is part of the URL ([Story 8.3][s8.3]). It is unique only within a project, so it cannot be the helm release name unless every project gets its own namespace ([Q6][q6]).
 
 ### Listing and uninstalling
@@ -251,7 +252,7 @@ One registered version can have many releases. The release id is the key of the 
 - **A new version.** Registering a new version changes no running copy.
 - **Uninstalling the extension.** The version is deregistered and can no longer be deployed, unless another installed extension brings the same version. Its copies keep running, are marked with `version_registered: false`, and can still be opened and undeployed ([Story 1.2][s1.2], [Q4][q4]). See [Keep the chart and the declarations of every release][h-keep-chart].
 - **Undeploy.** Every copy is undeployed on its own with `DELETE /v1/releases/{id}`. This deletes its volumes ([Q5][q5]). `helm uninstall` keeps the volume claims of a StatefulSet, so the consumer deletes them itself. Their names follow from the StatefulSet in the manifest, as `<claim template>-<StatefulSet>-<ordinal>`. See [Undeploying deletes the data, and helm does not do that alone][h-undeploy].
-- **Enablement replaces the whitelist** *(proposed)*. Both say which applications a project may use, so two mechanisms would have to be kept in sync. See [An older helm deployer exists][h-kube-helm].
+- **Enablement replaces AII's whitelist for applications that are managed through the Helm Chart Consumer** *(proposed)*. Both say which applications a project may use, so two mechanisms would have to be kept in sync. See [An older helm deployer exists][h-kube-helm].
 
 ## Versioning
 

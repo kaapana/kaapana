@@ -1,0 +1,25 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: extension-registry-config
+  namespace: "{{ .Values.global.services_namespace }}"
+data:
+  config.json: |
+    {
+      "distSpecVersion": "1.1.1",
+      "storage": {
+        "rootDirectory": "/var/lib/registry",
+        "gc": true,
+        "gcDelay": "1h",
+        "gcInterval": "24h",
+        "dedupe": true
+      },
+      "http": {
+        "address": "0.0.0.0",
+        "port": "5000"
+      },
+      "log": {
+        "level": "info"
+      }
+    }

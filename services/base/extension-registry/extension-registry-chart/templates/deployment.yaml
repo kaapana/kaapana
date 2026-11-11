@@ -1,0 +1,69 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: extension-registry
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: extension-registry
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: extension-registry
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        fsGroup: 1000
+      containers:
+      - name: extension-registry
+        image: "{{ .Values.global.registry_url }}/extension-registry:{{ .Values.global.kaapana_build_version }}"
+        imagePullPolicy: {{ .Values.global.pull_policy_images }}
+        args: ["serve", "/etc/zot/config.json"]
+        ports:
+          - name: registry
+            containerPort: 5000
+        readinessProbe:
+          httpGet:
+            path: /v2/
+            port: registry
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /v2/
+            port: registry
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        resources:
+          requests:
+            memory: "64Mi"
+          limits:
+            memory: "512Mi"
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
+        volumeMounts:
+          - name: config
+            mountPath: /etc/zot
+            readOnly: true
+          - name: storage
+            mountPath: /var/lib/registry
+      volumes:
+      - name: config
+        configMap:
+          name: extension-registry-config
+      - name: storage
+        persistentVolumeClaim:
+          claimName: extension-registry-pv-claim
+      imagePullSecrets:
+        - name: registry-secret

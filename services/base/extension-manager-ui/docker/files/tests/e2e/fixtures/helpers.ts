@@ -5,6 +5,8 @@ export const API = {
   repositories: '/extensions-api/repositories',
   extensions: '/extensions-api/extensions',
   install: '/extensions-api/extensions/install',
+  upload: '/extensions-api/extensions/upload',
+  uploads: '/extensions-api/extensions/uploads',
 } as const
 
 export function serverError(detail: string, status = 500) {

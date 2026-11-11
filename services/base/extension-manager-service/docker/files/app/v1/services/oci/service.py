@@ -30,7 +30,7 @@ class ociService:
         self.extensions_download_dir = Path(f"/extensions/{parsed_url.hostname}")
         os.makedirs(name=self.extensions_download_dir, exist_ok=True)
 
-        auth = decrypt(authentication)
+        auth = decrypt(authentication) if authentication else {"username": None, "password": None}
 
         self.extension_lib = ExtensionUtilityLibrary(
             registry=parsed_url.scheme + "://" + parsed_url.netloc,
@@ -117,3 +117,28 @@ class ociService:
             raise ExtensionNotFoundException(f"Extension with tag {tag} not found in {self.repository_url}")
 
         return await self.extension_lib.pull(tag=tag, output_dir=self.extensions_download_dir / tag)
+
+    async def push_extension(self, archive: Path) -> str:
+        """
+        Pushes an extension archive to the repository and replaces an existing tag.
+
+        :param archive: Path to a .tar.gz archive built with extensionctl
+        :return: The tag the extension was pushed under.
+        :rtype: str
+        :raises OCIError: If the registry push fails.
+        """
+        return await self.extension_lib.push(archive, overwrite=True)
+
+    async def delete_extension(self, tag: str) -> None:
+        """
+        Deletes a specific extension from the repository.
+
+        :param tag: Tag of an extension
+        :raises ExtensionNotFoundException: If the tag is not found in the repository.
+        :raises OCIError: If the registry delete fails.
+        """
+        existing_tags = await self.get_extensions_for_repository()
+        if tag not in existing_tags:
+            raise ExtensionNotFoundException(f"Extension with tag {tag} not found in {self.repository_url}")
+
+        await self.extension_lib.delete_tag(tag)

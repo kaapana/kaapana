@@ -281,8 +281,6 @@ Rules for the content version:
 
 ## Authorization
 
-> **To do:** paste Lorenz's sketch here.
-
 A request of a user reaches the consumer through the gateway. The gateway checks the login and passes the Keycloak token of the user on, in the header `X-Forwarded-Access-Token` ([configmap.yaml][oauth2-proxy]). The consumer decides from this token whether the caller may do what the request asks.
 
 **What the token carries.** Keycloak asks AII for the projects and rights of the user when it issues the token ([kaapana-client.json][kc-client]). A changed role therefore takes effect with the next token.

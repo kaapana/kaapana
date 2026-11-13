@@ -5,9 +5,6 @@ from typing import Optional
 
 from semver import Version
 from v1.services.database.models import ExtensionStatus
-from v1.services.logger import get_logger
-
-logger = get_logger(__name__)
 
 
 class InstallTargetKind(enum.StrEnum):
@@ -74,9 +71,8 @@ def resolve_install_target(active: Optional[ActiveExtension], requested_version:
         and active.pending_version is not None
         and requested.compare(active.pending_version) < 0
     ):
-        logger.warning(
-            "An update to %s failed; contents already on it are patched back to %s",
-            active.pending_version,
-            requested_version,
+        raise InstallConflictError(
+            f"The update to {active.pending_version} failed and some contents may already be on it. "
+            f"Retry {active.pending_version} or install a newer version."
         )
     return InstallTarget(InstallTargetKind.UPDATE, active.id)

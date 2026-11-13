@@ -105,6 +105,8 @@ class WorkflowInstaller(ContentInstaller):
         )
 
     async def update(self, content: Content) -> InstallationResult:
+        if not content.location:
+            raise ContentError(f"Workflow {content.name} does not have a location to update")
         workflow = self._workflow_payload(content)
         title = workflow["title"]
         # The engine is fixed when a workflow is created, the update payload does not accept it

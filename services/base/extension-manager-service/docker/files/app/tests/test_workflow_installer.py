@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import httpx
 import pytest
-from v1.services.dispatch import Content, Dispatcher, WorkflowInstaller
+from v1.services.dispatch import Content, WorkflowInstaller
 from v1.services.dispatch.exceptions import ConsumerError, ContentError
 
 MOCK_WORKFLOW_DIR = Path(__file__).resolve().parents[1] / "v1" / "mock_data" / "extension-v1" / "mock-workflow"
@@ -89,8 +89,6 @@ async def test_install_still_sends_the_workflow_engine(workflow_dir: Path):
     assert json.loads(request.content)["workflow_engine"] == "airflow"
 
 
-async def test_dispatcher_rejects_an_update_without_location(workflow_dir: Path):
-    dispatcher = Dispatcher(installers=[WorkflowInstaller()])
-
+async def test_update_without_location_is_rejected(workflow_dir: Path):
     with pytest.raises(ContentError):
-        await dispatcher.update_content(_content(workflow_dir, location=None))
+        await WorkflowInstaller().update(_content(workflow_dir, location=None))

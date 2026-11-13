@@ -369,7 +369,9 @@ An update replaces an installed extension in place: it keeps its row, and its wo
 | Any | none | Install, 201 |
 | Same repository and tag | any status | Install path above (retry, or 409 by the state machine) |
 | Any, from another repository | `INSTALLED` or `UPDATE_FAILED` | 409 |
-| Higher | `INSTALLED` or `UPDATE_FAILED` | Update, 202 |
+| Higher | `INSTALLED` | Update, 202 |
+| The failed target or higher | `UPDATE_FAILED` | Update (retry or new target), 202 |
+| Higher, but below the failed target | `UPDATE_FAILED` | 409, contents already on the failed target would go back |
 | Same or lower | `INSTALLED` or `UPDATE_FAILED` | 409, downgrades are not supported |
 | Any | other status | 409 |
 | Not semver | any | 400 |
@@ -394,7 +396,6 @@ Limits:
 - There is no downgrade and no rollback. A broken update is fixed with a newer version, or by uninstalling and installing again, which gives the workflows new IDs.
 - A version pushed again with `extensionctl push --overwrite` does not reach a platform that has this version installed.
 - A workflow keeps the engine it was created with. The workflow API does not accept a new engine on update, so a changed `workflow_engine` is dropped without notice.
-- After a failed update, any version newer than the installed one is accepted, also one below the failed target. Contents that already reached the failed target are then patched back, which is only logged as a warning.
 - The workflow API stores a new revision before it submits it to the workflow engine. If the submission fails, the content stays on its old `applied_version`, but the workflow's latest revision is already the new one, and each retry adds another revision.
 - A workflow that was deleted outside the Extension Manager fails every update that changes or removes it. A retry does not help, and uninstalling fails the same way as long as the uninstall does not treat a missing workflow as removed.
 - A restart while a workflow is created can leave a workflow that the Extension Manager did not record; the retry then fails on its title.

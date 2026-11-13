@@ -1,5 +1,4 @@
 from typing import Optional
-from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -73,12 +72,10 @@ def test_update_failed_retries_or_moves_to_a_newer_target(requested: str):
     assert target.extension_id == active.id
 
 
-def test_update_failed_allows_version_below_failed_target_with_a_warning():
+def test_update_failed_rejects_a_version_below_the_failed_target():
     active = _active(ExtensionStatus.UPDATE_FAILED, pending_version="2.0.0")
-    with patch("v1.services.install_target.logger") as logger:
-        target = resolve_install_target(active, "1.5.0")
-    assert target.kind == InstallTargetKind.UPDATE
-    logger.warning.assert_called_once()
+    with pytest.raises(InstallConflictError, match="update to 2.0.0 failed"):
+        resolve_install_target(active, "1.5.0")
 
 
 def test_update_failed_rejects_the_installed_version():

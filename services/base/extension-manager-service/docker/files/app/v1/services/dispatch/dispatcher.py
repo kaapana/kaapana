@@ -1,7 +1,6 @@
 from v1.services.logger import get_logger
 
 from .content import Content, ContentInstaller
-from .exceptions import ContentError
 
 logger = get_logger(__name__)
 
@@ -19,8 +18,6 @@ class Dispatcher:
 
     async def update_content(self, content: Content):
         content_installer = self.find_installer(content)
-        if not content.location:
-            raise ContentError(f"Content {content.name} does not have a location to update")
         return await content_installer.update(content)
 
     async def uninstall_content(self, content: Content):

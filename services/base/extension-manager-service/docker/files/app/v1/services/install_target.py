@@ -3,9 +3,9 @@ import uuid
 from dataclasses import dataclass
 from typing import Optional
 
+from semver import Version
 from v1.services.database.models import ExtensionStatus
 from v1.services.logger import get_logger
-from v1.services.versioning import compare_versions, parse_version
 
 logger = get_logger(__name__)
 
@@ -38,9 +38,9 @@ class InstallConflictError(Exception):
 def resolve_install_target(active: Optional[ActiveExtension], requested_version: str) -> InstallTarget:
     """`active` is the extension with the same manifest id that is not uninstalled.
 
-    Raises ValueError for a version that is not MAJOR.MINOR.PATCH and InstallConflictError for one that cannot be used.
+    Raises ValueError for a version that is not semver and InstallConflictError for one that cannot be used.
     """
-    parse_version(requested_version)
+    requested = Version.parse(requested_version)
 
     if active is None:
         return InstallTarget(InstallTargetKind.INSTALL)
@@ -59,7 +59,7 @@ def resolve_install_target(active: Optional[ActiveExtension], requested_version:
             "A newer version must come from that repository, or uninstall it first."
         )
 
-    comparison = compare_versions(requested_version, active.version)
+    comparison = requested.compare(active.version)
     if comparison == 0:
         raise InstallConflictError(
             f"The extension is already installed in version {active.version}. "
@@ -72,7 +72,7 @@ def resolve_install_target(active: Optional[ActiveExtension], requested_version:
     if (
         active.status == ExtensionStatus.UPDATE_FAILED
         and active.pending_version is not None
-        and compare_versions(requested_version, active.pending_version) < 0
+        and requested.compare(active.pending_version) < 0
     ):
         logger.warning(
             "An update to %s failed; contents already on it are patched back to %s",

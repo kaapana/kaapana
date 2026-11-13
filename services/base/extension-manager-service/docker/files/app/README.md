@@ -360,7 +360,7 @@ sequenceDiagram
 
 ### Update path
 
-An update replaces an installed extension in place: it keeps its row, and its workflows keep their IDs and get a new revision. Runs that are active during an update finish on their revision, because the workflow API renders each revision as its own DAG. Versions are compared as `MAJOR.MINOR.PATCH` from the `version` field of the manifest; the tag is only the address to pull from.
+An update replaces an installed extension in place: it keeps its row, and its workflows keep their IDs and get a new revision. Runs that are active during an update finish on their revision, because the workflow API renders each revision as its own DAG. Versions are compared with `semver` from the `version` field of the manifest; the tag is only the address to pull from.
 
 `resolve_install_target` (`v1/services/install_target.py`) decides what `POST /extensions/install` and `POST /extensions/upload` do when an extension with the same manifest `id` is not uninstalled:
 
@@ -372,7 +372,7 @@ An update replaces an installed extension in place: it keeps its row, and its wo
 | Higher | `INSTALLED` or `UPDATE_FAILED` | Update, 202 |
 | Same or lower | `INSTALLED` or `UPDATE_FAILED` | 409, downgrades are not supported |
 | Any | other status | 409 |
-| Not `MAJOR.MINOR.PATCH` | any | 400 |
+| Not semver | any | 400 |
 
 Extensions installed from a file belong to the Upload repository, so a newer upload updates them.
 

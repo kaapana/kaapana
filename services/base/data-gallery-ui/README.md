@@ -18,14 +18,14 @@ The whole app lives under `docker/files/`; the single view is
 
 | Path | Purpose |
 | --- | --- |
-| `src/components/Search.vue` | Free-text search, field filters, the deep-link parameters, and the dataset the search is scoped to. |
-| `src/components/Gallery.vue`, `SeriesCard.vue`, `StructuredGallery.vue`, `PatientView.vue`, `StudyView.vue` | The flat and the patient/study-grouped gallery. |
-| `src/components/Paginate.vue` | Pagination over the aggregated series count, with the optional sliced-search mode. |
+| `src/components/DatasetSearch.vue` | Free-text search, field filters, the deep-link parameters, and the dataset the search is scoped to. |
+| `src/components/SeriesGallery.vue`, `SeriesCard.vue`, `StructuredGallery.vue`, `PatientView.vue`, `StudyView.vue` | The flat and the patient/study-grouped gallery. |
+| `src/components/GalleryPagination.vue` | Pagination over the aggregated series count, with the optional sliced-search mode. |
 | `src/components/VueSelecto.vue` | Thin wrapper over `selecto` for rubber-band and click selection. |
 | `src/components/GalleryEmptyState.vue` | Why the gallery is empty (nothing yet / nothing matches / dataset empty / could not load), on `v-empty-state`. |
-| `src/components/TagBar.vue`, `TagChip.vue`, `Chip.vue` | Tag list, tagging by card click, tag chips. |
+| `src/components/TagBar.vue`, `TagChip.vue`, `ChipList.vue` | Tag list, tagging by card click, tag chips. |
 | `src/components/DetailView.vue`, `TagsTable.vue`, `IFrameWindow.vue` | The detail pane: OHIF viewer and metadata table, from one metadata request. |
-| `src/components/Dashboard.vue` | Metrics and histograms of the current selection. |
+| `src/components/DatasetDashboard.vue` | Metrics and histograms of the current selection. |
 | `src/components/SaveDatasetDialog.vue`, `AddToDatasetDialog.vue`, `EditDatasetsDialog.vue` | Save a selection as a dataset, add to one, manage (list and delete) datasets. |
 | `src/components/DownloadDatasetBtn.vue` | Download of the selection, with its confirmation. |
 | `src/components/ValidationReportDialog.vue`, `ElementsFromHTML.vue` | A series' DICOM validation report. |
@@ -41,15 +41,15 @@ specific to this view live in `src/utils/galleryIcons.ts`.
 
 ## Features
 
-- **Series gallery** with a flat mode (`Gallery` → `SeriesCard`) and a
+- **Series gallery** with a flat mode (`SeriesGallery` → `SeriesCard`) and a
   **structured** mode grouping series by patient → study
   (`StructuredGallery` → `PatientView`/`StudyView`); the mode is a persisted
   setting (`localStorage["settings"]`).
-- **Search & filters** (`Search.vue`): free-text query plus add/remove field
+- **Search & filters** (`DatasetSearch.vue`): free-text query plus add/remove field
   filters whose selectable values (with counts) are fetched per field; a
   selected dataset scopes the query to its identifiers, and an empty dataset
   scopes it to nothing.
-- **Pagination** (`Paginate.vue`) driven by the aggregated series count, with
+- **Pagination** (`GalleryPagination.vue`) driven by the aggregated series count, with
   an optional sliced-search mode.
 - **Rubber-band and click selection** of series (`selecto`), with the
   selection shared app-wide via the `datasets` Pinia store.
@@ -62,7 +62,7 @@ specific to this view live in `src/utils/galleryIcons.ts`.
 - **Detail pane** (`DetailView`): series metadata table plus the **OHIF
   viewer** embedded via `IFrameWindow` (loaded under the project's `/ohif`
   prefix), with an open-in-new-tab button.
-- **Dashboard** (`Dashboard.vue`, ApexCharts): histograms/metrics over the
+- **Dashboard** (`DatasetDashboard.vue`, ApexCharts): histograms/metrics over the
   current result set; clicking a bar feeds a filter back into the search.
 - **Workflow execution**: the shared `WorkflowExecution` dialog from
   `@kaapana/base-ui/workflow-execution` runs a dataset-kind DAG over the

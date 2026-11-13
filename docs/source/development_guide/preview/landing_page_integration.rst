@@ -367,7 +367,7 @@ actually lost.
 
 The helper above ships as ``postViewDirty`` in the shared ``@kaapana/base-ui``
 package (see :ref:`base_ui_package`). The shipped views wire it from a single
-watcher: the gallery view (``Search.vue``) reports whenever a search query or
+watcher: the gallery view (``DatasetSearch.vue``) reports whenever a search query or
 filter is active, and the workflow-execution view (``WorkflowExecution.vue``)
 reports once the form has been edited (the DAG choice and programmatic
 defaults do not count).

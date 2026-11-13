@@ -59,7 +59,7 @@
             command -v snap > /dev/null || exit 0
             timeout 600 snap wait system seed.loaded
             rc=$?
-            [ $rc -eq 0 ] || snap changes
+            [ $rc -eq 0 ] || timeout 60 snap changes
             exit $rc
           args:
             executable: /bin/bash
@@ -129,9 +129,9 @@
               section "running apt, dpkg, snap and cloud-init processes"
               ps -eo pid,etimes,cmd | grep -E 'apt|dpkg|unattended|cloud-init|snap' | grep -v grep
               section "snap changes"
-              snap changes 2>&1
+              timeout 60 snap changes 2>&1
               section "snap tasks of the last install"
-              snap tasks --last=install 2>&1
+              timeout 60 snap tasks --last=install 2>&1
               section "microk8s service status"
               systemctl status 'snap.microk8s.*' --no-pager --lines=0 2>&1
               section "journal of the microk8s services"
@@ -145,12 +145,12 @@
               section "cloud-init output"
               tail -n 200 /var/log/cloud-init-output.log 2>&1
               section "microk8s status"
-              microk8s status 2>&1
-              microk8s kubectl get pods -A -o wide 2>&1
+              timeout 60 microk8s status 2>&1
+              timeout 60 microk8s kubectl get pods -A -o wide 2>&1
             } > /tmp/server_installation_diagnostics.txt
             rm -f /tmp/microk8s_inspection.tar.gz
             if command -v microk8s > /dev/null; then
-              microk8s inspect > /dev/null 2>&1
+              timeout 300 microk8s inspect > /dev/null 2>&1
               report=$(ls -t /var/snap/microk8s/current/inspection-report-*.tar.gz 2>/dev/null | head -n 1)
               [ -n "$report" ] && cp "$report" /tmp/microk8s_inspection.tar.gz
             fi

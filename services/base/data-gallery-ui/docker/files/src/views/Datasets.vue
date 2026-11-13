@@ -195,7 +195,7 @@
                 v-if="settings.datasets.structured"
                 v-model:patients="patients"
               />
-              <!-- seriesInstanceUIDs deliberately not two-way bound: breaks the Gallery embedded in StructuredGallery -->
+              <!-- seriesInstanceUIDs deliberately not two-way bound: breaks the SeriesGallery embedded in StructuredGallery -->
               <SeriesGallery v-else :seriesInstanceUIDs="seriesInstanceUIDs" />
             </v-container>
           </v-container>
@@ -357,7 +357,7 @@ const searchDirty = ref(false)
 const saveDialogDirty = ref(false)
 const downloadDirty = ref(false)
 const queryParams: Record<string, any> = { ...route.query }
-// The deeplink's parameters as they arrived. Search removes them from the address
+// The deeplink's parameters as they arrived. DatasetSearch removes them from the address
 // once applied, so a redirect to another project needs the copy.
 const linkSearch = window.location.search
 
@@ -374,7 +374,7 @@ function onScopeDataset(dataset: Dataset | null) {
     : null
 }
 
-/** Picked in the selector but not yet loaded by Search: the gallery still shows
+/** Picked in the selector but not yet loaded by DatasetSearch: the gallery still shows
  *  the earlier results. Used so actions on the dataset can wait until it has loaded. */
 const datasetPending = computed(
   () => !!selectedDataset.value && !sameDataset(scopeDataset.value, selectedDataset.value),

@@ -316,7 +316,7 @@ sequenceDiagram
 
     Note over C,P: Update flow
     C->>IR: POST /extensions/install {repository_id, tag of a newer version}
-    IR->>IR: resolve_install_target(active extension, version)
+    IR->>IR: _resolve_install_target(active extension, manifest)
     IR->>DB: update_extension_status(UPDATING, pending_update)
     IR-->>C: 202 Accepted {extension_id}
     IR->>BG: schedule background update task
@@ -362,7 +362,7 @@ sequenceDiagram
 
 An update replaces an installed extension in place: it keeps its row, and its workflows keep their IDs and get a new revision. Runs that are active during an update finish on their revision, because the workflow API renders each revision as its own DAG. Versions are compared with `semver` from the `version` field of the manifest; the tag is only the address to pull from.
 
-`resolve_install_target` (`v1/services/install_target.py`) decides what `POST /extensions/install` and `POST /extensions/upload` do when an extension with the same manifest `id` is not uninstalled:
+`_resolve_install_target` (`v1/routers/installation/endpoints.py`) decides what `POST /extensions/install` and `POST /extensions/upload` do when an extension with the same manifest `id` is not uninstalled:
 
 | Requested version | Active extension | Result |
 |-------------------|------------------|--------|

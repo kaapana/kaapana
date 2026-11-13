@@ -3,22 +3,17 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, UploadFile, status
+from semver import Version
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from v1.services import dispatch, upload
 from v1.services.content_changes import ContentTypeChangedError
 from v1.services.content_update import plan_extension_update
-from v1.services.database import crud, database
+from v1.services.database import crud, database, models
 from v1.services.database.exceptions import (
     LockedExtensionException,
     NotSupportedExtensionStateTransition,
 )
 from v1.services.dispatch.exceptions import ContentError
-from v1.services.install_target import (
-    ActiveExtension,
-    InstallConflictError,
-    InstallTargetKind,
-    resolve_install_target,
-)
 from v1.services.oci.exceptions import ExtensionNotFoundException
 from v1.services.oci.models import ExtensionManifest
 from v1.services.oci.service import ociService
@@ -99,21 +94,68 @@ async def _create_or_reset_extension(db, repository_id: UUID, tag: str, extensio
     return db_extension
 
 
-async def _active_extension(
-    db, repository_id: UUID, tag: str, extension_manifest: ExtensionManifest
-) -> Optional[ActiveExtension]:
-    for db_extension in await crud.list_extensions(db, manifest_id=extension_manifest.id):
-        if db_extension.status == crud.ExtensionStatus.UNINSTALLED:
-            continue
-        pending_update = db_extension.pending_update
-        return ActiveExtension(
-            id=db_extension.id,
-            status=db_extension.status,
-            version=ExtensionManifest.model_validate(db_extension.manifest).version,
-            pending_version=pending_update["manifest"]["version"] if pending_update else None,
-            same_repository=db_extension.repository_id == repository_id,
-            same_tag=db_extension.tag == tag,
+def _conflict(extension_manifest: ExtensionManifest, reason: str) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail=f"{extension_manifest.name} {extension_manifest.version}: {reason}",
+    )
+
+
+def _resolve_install_target(
+    active: Optional[models.Extension], repository_id: UUID, tag: str, extension_manifest: ExtensionManifest
+) -> Optional[UUID]:
+    """`active` is the extension with the same manifest id that is not uninstalled.
+
+    Returns the id of the extension to update, or None for the install path.
+    """
+    try:
+        requested = Version.parse(extension_manifest.version)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+
+    if active is None or (active.repository_id == repository_id and active.tag == tag):
+        return None
+
+    version = ExtensionManifest.model_validate(active.manifest).version
+    if active.status not in (crud.ExtensionStatus.INSTALLED, crud.ExtensionStatus.UPDATE_FAILED):
+        raise _conflict(
+            extension_manifest,
+            f"The extension is in status {active.status} with version {version}. Uninstall it first.",
         )
+
+    if active.repository_id != repository_id:
+        raise _conflict(
+            extension_manifest,
+            f"The extension is installed in version {version} from another repository. "
+            "A newer version must come from that repository, or uninstall it first.",
+        )
+
+    comparison = requested.compare(version)
+    if comparison == 0:
+        raise _conflict(
+            extension_manifest,
+            f"The extension is already installed in version {version}. Install a newer version, or uninstall it first.",
+        )
+    if comparison < 0:
+        raise _conflict(
+            extension_manifest,
+            f"The extension is installed in version {version}; downgrading to {extension_manifest.version} is not supported.",
+        )
+    if active.status == crud.ExtensionStatus.UPDATE_FAILED and active.pending_update is not None:
+        failed_version = active.pending_update["manifest"]["version"]
+        if requested.compare(failed_version) < 0:
+            raise _conflict(
+                extension_manifest,
+                f"The update to {failed_version} failed and some contents may already be on it. "
+                f"Retry {failed_version} or install a newer version.",
+            )
+    return active.id
+
+
+async def _active_extension(db, extension_manifest: ExtensionManifest) -> Optional[models.Extension]:
+    for db_extension in await crud.list_extensions(db, manifest_id=extension_manifest.id):
+        if db_extension.status != crud.ExtensionStatus.UNINSTALLED:
+            return db_extension
     return None
 
 
@@ -155,19 +197,11 @@ async def _install_or_update(
     response: Response,
     background_tasks: BackgroundTasks,
 ):
-    active = await _active_extension(db, repository_id, tag, extension_manifest)
-    try:
-        target = resolve_install_target(active, extension_manifest.version)
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
-    except InstallConflictError as e:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail=f"{extension_manifest.name} {extension_manifest.version}: {e}"
-        ) from e
+    active = await _active_extension(db, extension_manifest)
+    update_id = _resolve_install_target(active, repository_id, tag, extension_manifest)
 
-    if target.kind == InstallTargetKind.UPDATE:
-        assert target.extension_id is not None
-        db_extension = await _start_update(db, target.extension_id, repository_id, tag, extension_manifest)
+    if update_id is not None:
+        db_extension = await _start_update(db, update_id, repository_id, tag, extension_manifest)
         background_tasks.add_task(update_extension_background_task, db_extension.id)
         response.status_code = status.HTTP_202_ACCEPTED
     else:

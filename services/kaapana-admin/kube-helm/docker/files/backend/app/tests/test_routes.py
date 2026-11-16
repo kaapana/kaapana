@@ -330,3 +330,23 @@ def test_admins_set_any_extension_params(client, fake_cli, aii):
     assert response.status_code == 200
     (call,) = fake_cli.calls_with("install")
     assert "--set-string=global.registry_url=registry.example.com/other" in call
+
+
+def test_project_members_cannot_set_other_values_through_a_parameter_value(client, fake_cli, aii):
+    fake_cli.respond(["show", "chart"], stdout=MULTIINSTALLABLE_CHART)
+    fake_cli.respond(["show", "values"], stdout=json.dumps({"extension_params": {"name": {}, "tasks": {}}}))
+
+    response = install(
+        client,
+        PROJECT_HEADERS,
+        extension_params={
+            "name": "x\\,global.project_namespace=project-other",
+            "tasks": ["a},global.project_namespace=project-other,global.m={b"],
+        },
+    )
+
+    assert response.status_code == 200
+    (call,) = fake_cli.calls_with("install")
+    assert r"--set-string=global.name=x\\\,global.project_namespace=project-other" in call
+    assert r"--set=global.tasks={a\}\,global.project_namespace=project-other\,global.m=\{b}" in call
+    assert "--set-string=global.project_namespace=project-abcd1234" in call

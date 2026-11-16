@@ -357,10 +357,16 @@ def run_supervised_uninstall(
         f"Running supervised uninstall for {release_name} in namespace {helm_namespace} "
         f"from state '{status_name}' with timeout {deletion_timeout}s"
     )
-    uninstall_cmd = (
-        f"{settings.helm_path} -n {helm_namespace} uninstall {release_name} --wait --timeout {deletion_timeout}s"
-    )
-    success, stdout = helm_helper.execute_shell_command(uninstall_cmd, shell=shell, blocking=blocking)
+    uninstall_cmd = [
+        settings.helm_path,
+        "-n",
+        helm_namespace,
+        "uninstall",
+        "--wait",
+        f"--timeout={deletion_timeout}s",
+        release_name,
+    ]
+    success, stdout = helm_helper.execute_shell_command(uninstall_cmd, blocking=blocking)
     if not success:
         logger.warning(f"Normal uninstall failed for {release_name}: {stdout}. Checking release state before fallback.")
 
@@ -371,8 +377,8 @@ def run_supervised_uninstall(
 
     if status_name == CHART_STATUS_UNINSTALLING:
         logger.warning(f"Release {release_name} is still uninstalling after normal uninstall; retrying with --no-hooks")
-        no_hooks_cmd = f"{settings.helm_path} -n {helm_namespace} uninstall {release_name} --no-hooks"
-        success, stdout = helm_helper.execute_shell_command(no_hooks_cmd, shell=shell, blocking=blocking)
+        no_hooks_cmd = [settings.helm_path, "-n", helm_namespace, "uninstall", "--no-hooks", release_name]
+        success, stdout = helm_helper.execute_shell_command(no_hooks_cmd, blocking=blocking)
         if not success:
             logger.warning(f"Fallback uninstall with --no-hooks failed for {release_name}: {stdout}")
             return False, stdout
@@ -719,7 +725,7 @@ def helm_install(
 
 
 async def helm_delete_cmd_run_async(release_name, version, cmd, multiinstallable):
-    success, stdout = await helm_helper.exec_shell_cmd_async(cmd, shell=True, timeout=timeouts.helm_deletion_timeout)
+    success, stdout = await helm_helper.exec_shell_cmd_async(cmd, timeout=timeouts.helm_deletion_timeout)
 
     if success and version is not None:
         helm_helper.update_extension_state(
@@ -754,7 +760,7 @@ def helm_delete(
     release_name,
     helm_namespace=settings.helm_namespace,
     release_version=None,
-    helm_command_addons="",
+    helm_command_addons=(),
     update_state=True,
     multiinstallable=False,
     platforms=False,
@@ -787,7 +793,7 @@ def helm_delete(
     #     release_name = dep.deployments[0].helm_info.name
 
     # delete version
-    helm_command = f"{settings.helm_path} -n {helm_namespace} uninstall {helm_command_addons} {release_name}"
+    helm_command = [settings.helm_path, "-n", helm_namespace, "uninstall", *helm_command_addons, release_name]
 
     if not execute_cmd:
         return False, helm_command
@@ -797,7 +803,7 @@ def helm_delete(
         timeout = timeouts.helm_deletion_platform_timeout
     else:
         timeout = timeouts.helm_deletion_timeout
-    success, stdout = helm_helper.execute_shell_command(helm_command, shell=True, blocking=platforms, timeout=timeout)
+    success, stdout = helm_helper.execute_shell_command(helm_command, blocking=platforms, timeout=timeout)
     if success:
         if release_version is not None:
             for item in helm_helper.global_extensions_list:

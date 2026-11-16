@@ -2,10 +2,11 @@
 
 import json
 
+import pytest
 import yaml
 
 from app import file_handler, helm_helper, utils
-from app.config import settings
+from app.config import settings, timeouts
 
 
 def test_helm_status_passes_release_name_as_one_argument(fake_cli, marker):
@@ -167,5 +168,39 @@ def test_upload_check_passes_chart_name_as_one_argument(fake_cli, marker):
         "--dry-run",
         name,
         f"{settings.helm_extensions_cache}/demo-0.1.0.tgz",
+    ]
+    assert not marker.exists()
+
+
+@pytest.mark.parametrize("platforms", [False, True])
+def test_uninstall_command_passes_each_value_as_one_argument(fake_cli, marker, platforms):
+    release_name = f"x; touch {marker}"
+    namespace = f"admin $(touch {marker})"
+    addon = f"--no-hooks; touch {marker}"
+
+    success, _ = utils.helm_delete(
+        release_name=release_name,
+        helm_namespace=namespace,
+        helm_command_addons=[addon],
+        platforms=platforms,
+    )
+
+    assert success
+    assert fake_cli.wait_for_calls("uninstall") == [["-n", namespace, "uninstall", addon, release_name]]
+    assert not marker.exists()
+
+
+def test_supervised_uninstall_passes_each_value_as_one_argument(fake_cli, marker, monkeypatch):
+    monkeypatch.setattr(timeouts, "helm_release_status_check_interval", 0)
+    fake_cli.respond(["status"], stdout="info:\n  status: uninstalling\n")
+    release_name = f"x; touch {marker}"
+    namespace = f"admin $(touch {marker})"
+
+    success, _ = utils.run_supervised_uninstall(release_name, namespace, utils.CHART_STATUS_UNINSTALLING)
+
+    assert not success
+    assert fake_cli.calls_with("uninstall") == [
+        ["-n", namespace, "uninstall", "--wait", f"--timeout={timeouts.helm_deletion_timeout}s", release_name],
+        ["-n", namespace, "uninstall", "--no-hooks", release_name],
     ]
     assert not marker.exists()

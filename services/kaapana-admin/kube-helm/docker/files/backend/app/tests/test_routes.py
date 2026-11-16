@@ -82,3 +82,13 @@ def test_install_keyword_with_quote_runs_no_injected_command(client, fake_cli, a
 
     assert response.status_code == 200
     assert not marker.exists()
+
+
+def test_delete_release_name_runs_no_injected_command(client, fake_cli, marker):
+    release_name = f"x; touch {marker}; true"
+
+    response = client.post("/helm-delete-chart", json={"release_name": release_name, "helm_command_addons": ""})
+
+    assert response.status_code == 200
+    assert fake_cli.wait_for_calls("uninstall") == [["-n", "default", "uninstall", release_name]]
+    assert not marker.exists()

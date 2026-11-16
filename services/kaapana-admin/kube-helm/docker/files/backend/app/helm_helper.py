@@ -55,6 +55,21 @@ def helm_get_values(release_name, helm_namespace=settings.helm_namespace):
         return dict()
 
 
+def helm_set_arguments(sets: Dict) -> List[str]:
+    """Returns one --set or --set-string argument for each value."""
+    arguments = []
+    for key, value in sets.items():
+        if isinstance(value, str):
+            # Helm splits values at commas and reads braces as a list, so both are escaped.
+            value = value.replace(",", r"\,").replace(" ", "").replace("{", r"\{").replace("}", r"\}")
+            arguments.append(f"--set-string={key}={value}")
+        elif isinstance(value, list):
+            arguments.append(f"--set={key}={{{','.join(value)}}}")
+        else:
+            arguments.append(f"--set={key}={value}")
+    return arguments
+
+
 def has_timeout_flag(command) -> bool:
     if isinstance(command, str):
         return "--timeout" in command

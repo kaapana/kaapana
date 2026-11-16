@@ -1,8 +1,11 @@
 """Checks that each untrusted value reaches helm, kubectl or ctr as exactly one argument."""
 
+import json
+
 import yaml
 
-from app import helm_helper, utils
+from app import file_handler, helm_helper, utils
+from app.config import settings
 
 
 def test_helm_status_passes_release_name_as_one_argument(fake_cli, marker):
@@ -61,8 +64,6 @@ def test_get_kube_objects_passes_names_as_one_argument(fake_cli, marker):
 
 
 def test_helm_show_chart_and_values_pass_chart_path_as_one_argument(fake_cli, marker):
-    from app.config import settings
-
     name = f"demo; touch {marker}"
     chart_path = f"{settings.helm_extensions_cache}/{name}-0.1.0.tgz"
 
@@ -87,4 +88,84 @@ def test_collect_helm_deployments_passes_namespace_as_one_argument(fake_cli, mar
     calls = fake_cli.calls()
     assert len(calls) == 2
     assert all(call[call.index("-n") + 1] == namespace for call in calls)
+    assert not marker.exists()
+
+
+def test_helm_set_arguments_escape_values_for_helm():
+    arguments = helm_helper.helm_set_arguments(
+        {
+            "global.text": "a,b {c} d'e",
+            "global.list": ["a", "b"],
+            "global.number": 5,
+        }
+    )
+
+    assert arguments == [
+        r"--set-string=global.text=a\,b\{c\}d'e",
+        "--set=global.list={a,b}",
+        "--set=global.number=5",
+    ]
+
+
+def test_install_command_passes_each_value_as_one_argument(fake_cli, marker):
+    release_name = f"x; touch {marker}"
+    set_key = f"a$(touch {marker})"
+    param_key = f"k`touch {marker}`"
+    keyword = f"k'$(touch {marker})'"
+    payload = {
+        "name": "demo-chart",
+        "version": "0.1.0",
+        "release_name": release_name,
+        "keywords": ["kaapanaapplication", keyword],
+        "sets": {set_key: "v"},
+        "extension_params": {param_key: "v"},
+    }
+
+    success, _, _, _, _ = utils.helm_install(payload)
+
+    assert success
+    (call,) = fake_cli.calls_with("install")
+    assert call[:3] == ["-n", "default", "install"]
+    assert f"--set-string={set_key}=v" in call
+    assert f"--set-string=global.{param_key}=v" in call
+    assert f"--labels=kaapana.ai/kaapanaapplication=True,kaapana.ai/{keyword}=True" in call
+    assert call[-2:] == [release_name, f"{settings.helm_extensions_cache}/demo-chart-0.1.0.tgz"]
+    assert not marker.exists()
+
+
+def test_reinstall_of_a_collection_uses_argument_lists(fake_cli, monkeypatch):
+    monkeypatch.setattr(settings, "kaapana_collections", "registry.example.com/demo-collection:1.0.0;")
+    fake_cli.respond(["status"], stdout="info:\n  status: deployed\n")
+
+    install_error, _ = utils.execute_update_extensions()
+
+    assert not install_error
+    (uninstall,) = fake_cli.calls_with("uninstall")
+    assert uninstall[:5] == ["-n", "default", "uninstall", "--wait", "--timeout=5m"]
+    (install,) = fake_cli.calls_with("install")
+    assert "--wait" in install
+    assert "--set-string=kube_helm_collection=registry.example.com/demo-collection:1.0.0" in install
+
+
+def test_upload_check_passes_chart_name_as_one_argument(fake_cli, marker):
+    name = f"demo; touch {marker}"
+    fake_cli.respond(["show", "chart"], stdout=yaml.safe_dump({"name": name, "version": "0.1.0"}))
+    fake_cli.respond(
+        ["get", "values"],
+        stdout=json.dumps({"global": {"admin_namespace": "admin", "registry_url": "a b,c"}}),
+    )
+
+    assert file_handler.check_file_namespace("demo-0.1.0.tgz")
+
+    (call,) = fake_cli.calls_with("--dry-run")
+    assert call == [
+        "install",
+        "--set-string=global.admin_namespace=admin",
+        r"--set-string=global.registry_url=ab\,c",
+        "-o",
+        "json",
+        "--dry-run",
+        name,
+        f"{settings.helm_extensions_cache}/demo-0.1.0.tgz",
+    ]
     assert not marker.exists()

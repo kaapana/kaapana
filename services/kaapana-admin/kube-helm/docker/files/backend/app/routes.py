@@ -316,11 +316,11 @@ async def helm_install_chart(request: Request):
         assert "name" in payload, "Required key 'name' not found in payload"
         assert "version" in payload, "Required key 'version' not found in payload"
         platforms = False
-        cmd_addons = ""
+        cmd_addons = []
         blocking = False
         if ("platforms" in payload) and (str(payload["platforms"]).lower() == "true"):
             platforms = True
-            cmd_addons = "--create-namespace"
+            cmd_addons = ["--create-namespace"]
         if ("blocking" in payload) and (str(payload["blocking"]).lower() == "true"):
             blocking = True
         keywords = payload.get("keywords")

@@ -228,10 +228,24 @@ def test_a_release_tag_needs_the_release_registry(script, env):
     assert "RELEASE_REGISTRY_URL" in result.stdout
 
 
-def test_develop_needs_the_notification_tokens(script, env):
-    """Without them a failed develop pipeline reports to nobody."""
-    env["CI_COMMIT_BRANCH"] = "develop"
+@pytest.mark.parametrize(
+    "branch,tag",
+    [("develop", ""), ("release/0.8.x", ""), ("", "0.8.0")],
+)
+def test_reported_refs_need_the_notification_tokens(script, env, branch, tag):
+    """Without them a failed develop or release pipeline reports to nobody."""
+    env["CI_COMMIT_BRANCH"] = branch
+    env["CI_COMMIT_TAG"] = tag
+    env["RELEASE_REGISTRY_URL"] = "release.example/kaapana"
+    env["RELEASE_REGISTRY_USER"] = "release"
+    env["RELEASE_REGISTRY_TOKEN"] = "token"
     result = run(script, env)
     assert result.returncode == 1
     for variable in ("GITLAB_API_TOKEN", "SLACK_BOT_TOKEN", "SLACK_CHANNEL_ID"):
         assert variable in result.stdout
+
+
+def test_a_feature_branch_does_not_need_the_notification_tokens(script, env):
+    result = run(script, env)
+    assert result.returncode == 0, result.stdout
+    assert "SLACK_BOT_TOKEN" not in result.stdout

@@ -224,7 +224,8 @@ Without `VM_SWEEP_APPLY=true` the run only reports, in the job log and in the
 Reporter), because the job token may not read pipelines and `read_api` is all
 the sweep needs. If GitLab does not answer, the run ends
 on one ERROR line and touches nothing. A failed teardown turns the job red, and
-on `develop` `if_ci_failing` attaches `vm_sweep.log` to its issue.
+on `develop`, release branches and release tags `if_ci_failing` attaches
+`vm_sweep.log` to its issue.
 
 For unattended runs, a schedule on `develop` sets `exec_vm_sweep`,
 `VM_SWEEP_APPLY=true`, and `exec_unit_tests`, `exec_lint`, `exec_build`,
@@ -252,7 +253,8 @@ shapes stay valid. Its rules, in order: never when the target came from
 otherwise always. A failing run skips the delayed job, because a job it needs
 failed, and leaves the VM to [the sweep](#maintenance).
 
-`if_ci_failing` runs on `develop` failures only (never for FQDN targets). It
+`if_ci_failing` runs on failures of `develop`, `release/*` branches and release
+tags `X.Y.Z` only (never for FQDN targets). It
 needs *every* job in the pipeline, because `when: on_failure` watches only the
 jobs it needs. `artifacts: true` marks the jobs whose logs are attached to the
 ticket it opens — never set that on a job whose artifacts contain secrets. It

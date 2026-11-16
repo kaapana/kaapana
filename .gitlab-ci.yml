@@ -210,7 +210,7 @@ variables:
   DEPLOYMENT_INSTANCE_READY_TIMEOUT: "600" # seconds until the VM is Running
   DEPLOYMENT_INSTANCE_DNS_TIMEOUT: "300" # seconds until the FQDN resolves
 
-  # --- Notifications (if_ci_failing on develop)
+  # --- Notifications (if_ci_failing on develop or release branches)
   SLACK_BOT_TOKEN: $SLACK_BOT_TOKEN # secret — project variable (masked)
   SLACK_CHANNEL_ID: $SLACK_CHANNEL_ID # project variable
 

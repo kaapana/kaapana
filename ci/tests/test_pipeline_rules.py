@@ -164,6 +164,7 @@ def test_toggle_off_never_runs_the_job(toggle, job):
     assert all(statically_false(c) or "$" in c for c in conditions), conditions
 
 
+RELEASE_TAG_RULE = r"$CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/"
 RELEASE_BRANCH_CONDITION = r"$CI_COMMIT_BRANCH =~ /^release\//"
 
 
@@ -178,8 +179,15 @@ def test_a_push_to_a_release_branch_starts_a_pipeline(default_config):
     assert RELEASE_BRANCH_CONDITION in rule["if"]
 
 
+def test_failures_are_reported_on_develop_release_branches_and_release_tags(default_config):
+    condition = jobs(default_config)["if_ci_failing"]["rules"][0]["if"]
+    assert '$CI_COMMIT_BRANCH == "develop"' in condition
+    assert RELEASE_BRANCH_CONDITION in condition
+    assert RELEASE_TAG_RULE in condition
+
+
 def test_failure_notification_fires_on_any_failed_job(default_config):
-    """if_ci_failing runs on develop if any job fails"""
+    """if_ci_failing runs on develop and release refs if any job fails"""
     config = jobs(default_config)
     job = config["if_ci_failing"]
     assert "needs" not in job, "needs: would make if_ci_failing skip itself instead of reporting the failure"

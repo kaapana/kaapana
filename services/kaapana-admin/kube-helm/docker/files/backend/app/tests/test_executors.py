@@ -65,3 +65,13 @@ def test_failed_status_check_returns_stderr(fake_cli):
 )
 def test_timeout_flag_is_detected_in_argument_lists(command, expected):
     assert helm_helper.has_timeout_flag(command) is expected
+
+
+@pytest.mark.parametrize("command", ["helm ls", b"helm ls"])
+def test_string_commands_are_rejected(command):
+    with pytest.raises(TypeError):
+        helm_helper.execute_shell_command(command)
+    with pytest.raises(TypeError):
+        helm_helper.execute_shell_command(command, blocking=False)
+    with pytest.raises(TypeError):
+        asyncio.run(helm_helper.exec_shell_cmd_async(command))

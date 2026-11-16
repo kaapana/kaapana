@@ -372,7 +372,6 @@ async def helm_install_chart(request: Request):
 
         should_install, message, keywords, release_name, cmd = utils.helm_install(
             payload,
-            shell=True,
             blocking=blocking,
             platforms=platforms,
             helm_command_addons=cmd_addons,

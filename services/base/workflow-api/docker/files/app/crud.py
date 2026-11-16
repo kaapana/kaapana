@@ -182,9 +182,11 @@ async def get_workflows(
 async def get_workflow(
     db: AsyncSession,
     filters: Optional[Dict[str, Any]] = None,
+    include_removed: bool = False,
 ) -> Optional[models.Workflow]:
     filters = filters or {}
-    filters["removed"] = False
+    if not include_removed:
+        filters["removed"] = False
     query = create_query(
         model=models.Workflow,
         filters=filters,

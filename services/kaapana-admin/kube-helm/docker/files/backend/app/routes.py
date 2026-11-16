@@ -1,5 +1,6 @@
 import base64
 import json
+import re
 import secrets
 import subprocess
 from os.path import dirname, join
@@ -476,7 +477,12 @@ async def complete_active_application(request: Request):
         if not validation.is_release_name(release_name):
             return Response("Payload contains an invalid 'release_name'", status_code=400)
         # check if the deployed release contains label: kaapanaint
-        if not utils.helm_ls(release_filter=release_name, label_filter="kaapana.ai/kaapanaint=True"):
+        # helm reads the filter as an unanchored regular expression, which also matches longer release names.
+        releases = utils.helm_ls(
+            release_filter=f"^{re.escape(release_name)}$",
+            label_filter="kaapana.ai/kaapanaint=True",
+        )
+        if not any(release.get("name") == release_name for release in releases):
             logger.error(f"No deployed releases found with name: {release_name} and label: kaapana.ai/kaapanaint=True")
             raise HTTPException(
                 status_code=500,

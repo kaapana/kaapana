@@ -14,6 +14,7 @@ from v1.services.database.exceptions import (
     NotSupportedExtensionStateTransition,
 )
 from v1.services.dispatch.exceptions import ContentError
+from v1.services.logger import get_logger
 from v1.services.oci.exceptions import ExtensionNotFoundException
 from v1.services.oci.models import ExtensionManifest
 from v1.services.oci.service import ociService
@@ -26,6 +27,8 @@ from .background_jobs import (
     uninstall_extension_background_task,
     update_extension_background_task,
 )
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/extensions", tags=["extensions"])
 
@@ -145,10 +148,11 @@ def _resolve_install_target(
     if active.status == crud.ExtensionStatus.UPDATE_FAILED and active.pending_update is not None:
         failed_version = active.pending_update["manifest"]["version"]
         if requested.compare(failed_version) < 0:
-            raise _conflict(
-                extension_manifest,
-                f"The update to {failed_version} failed and some contents may already be on it. "
-                f"Retry {failed_version} or install a newer version.",
+            logger.warning(
+                "The update of %s to %s failed; contents already on it are patched back to %s",
+                extension_manifest.name,
+                failed_version,
+                extension_manifest.version,
             )
     return active.id
 

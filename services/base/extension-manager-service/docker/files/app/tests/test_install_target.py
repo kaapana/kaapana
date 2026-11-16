@@ -1,4 +1,5 @@
 from typing import Optional
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -76,10 +77,11 @@ def test_update_failed_retries_or_moves_to_a_newer_target(requested: str):
     assert _resolve(active, requested) == active.id
 
 
-def test_update_failed_rejects_a_version_below_the_failed_target():
+def test_update_failed_allows_a_version_below_the_failed_target_with_a_warning():
     active = _active(ExtensionStatus.UPDATE_FAILED, pending_version="2.0.0")
-    with _conflict("update to 2.0.0 failed"):
-        _resolve(active, "1.5.0")
+    with patch("v1.routers.installation.endpoints.logger") as logger:
+        assert _resolve(active, "1.5.0") == active.id
+    logger.warning.assert_called_once()
 
 
 def test_update_failed_rejects_the_installed_version():

@@ -204,3 +204,62 @@ def test_supervised_uninstall_passes_each_value_as_one_argument(fake_cli, marker
         ["-n", namespace, "uninstall", "--no-hooks", release_name],
     ]
     assert not marker.exists()
+
+
+@pytest.fixture
+def pull_chart(fake_cli, monkeypatch):
+    monkeypatch.setattr(timeouts, "helm_pull_uninstall_delay", 0)
+    chart = f"{settings.helm_helpers_cache}/pull-docker-chart-0.1.0.tgz"
+    with open(chart, "wb"):
+        pass
+    return chart
+
+
+def test_image_pull_installs_and_then_uninstalls_without_a_shell(fake_cli, pull_chart, marker):
+    image = f"image; touch {marker}"
+
+    success, _ = utils.pull_docker_image(
+        "pull-docker-chart-0123",
+        docker_image=image,
+        docker_version="1.0.0",
+        docker_registry_url="registry.example.com",
+        blocking=True,
+    )
+
+    assert success
+    install, uninstall = fake_cli.calls()[-2:]
+    assert install[:3] == ["-n", "default", "install"]
+    assert f"--set-string=image={image.replace(' ', '')}" in install
+    assert ["--wait", "--atomic", f"--timeout={timeouts.helm_pull_container_timeout}s"] == [
+        argument for argument in install if argument in ("--wait", "--atomic") or argument.startswith("--timeout")
+    ]
+    assert install[-2:] == ["pull-docker-chart-0123", pull_chart]
+    assert uninstall == ["-n", "default", "uninstall", "pull-docker-chart-0123"]
+    assert not marker.exists()
+
+
+def test_image_pull_reports_a_failed_uninstall(fake_cli, pull_chart):
+    fake_cli.respond(["uninstall"], code=1)
+
+    success, _ = utils.pull_docker_image(
+        "pull-docker-chart-0123",
+        docker_image="image",
+        docker_version="1.0.0",
+        docker_registry_url="registry.example.com",
+        blocking=True,
+    )
+
+    assert not success
+
+
+def test_non_blocking_image_pull_uninstalls_in_the_background(fake_cli, pull_chart):
+    success, _ = utils.pull_docker_image(
+        "pull-docker-chart-0123",
+        docker_image="image",
+        docker_version="1.0.0",
+        docker_registry_url="registry.example.com",
+    )
+
+    assert success
+    assert fake_cli.wait_for_calls("uninstall") == [["-n", "default", "uninstall", "pull-docker-chart-0123"]]
+    assert [call[2] for call in fake_cli.calls_with("pull-docker-chart-0123")][-2:] == ["install", "uninstall"]

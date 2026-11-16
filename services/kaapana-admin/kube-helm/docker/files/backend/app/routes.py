@@ -405,7 +405,12 @@ async def pull_docker_image(request: Request):
         payload = await request.json()
         logger.info(f"/pull-docker-image called {payload=}")
         release_name = f"pull-docker-chart-{secrets.token_hex(10)}"
-        utils.pull_docker_image(release_name, **payload)
+        utils.pull_docker_image(
+            release_name,
+            docker_image=payload["docker_image"],
+            docker_version=payload["docker_version"],
+            docker_registry_url=payload["docker_registry_url"],
+        )
         return Response(
             f"Trying to download the docker container {payload['docker_registry_url']}/{payload['docker_image']}:{payload['docker_version']}",
             202,

@@ -1,10 +1,20 @@
 """Sends untrusted values through the real middleware and router."""
 
+import base64
 import json
 
 import pytest
 
 PROJECT_HEADERS = {"Project": json.dumps({"id": "project-id", "name": "project"})}
+MULTIINSTALLABLE_CHART = (
+    "name: demo-chart\nversion: 0.1.0\nkeywords:\n- kaapanaapplication\n- kaapanamultiinstallable\n"
+)
+
+
+def admin_headers():
+    """Headers of an admin request. kube-helm reads the claims of the token without checking its signature."""
+    claims = base64.urlsafe_b64encode(json.dumps({"realm_access": {"roles": ["admin"]}}).encode()).decode()
+    return {**PROJECT_HEADERS, "x-forwarded-access-token": f"e30.{claims.rstrip('=')}.signature"}
 
 
 @pytest.fixture
@@ -61,7 +71,7 @@ def test_view_chart_status_does_not_pass_invalid_names_to_helm(client, fake_cli)
 def test_install_rejects_invalid_release_name(client, fake_cli, aii, marker):
     release_name = f"x; touch {marker}; true"
 
-    response = install(client, PROJECT_HEADERS, keywords=["kaapanaapplication"], release_name=release_name)
+    response = install(client, keywords=["kaapanaapplication"], release_name=release_name)
 
     assert response.status_code == 400
     assert fake_cli.calls_with("install") == []
@@ -69,7 +79,7 @@ def test_install_rejects_invalid_release_name(client, fake_cli, aii, marker):
 
 
 def test_install_rejects_invalid_set_key(client, fake_cli, aii, marker):
-    response = install(client, PROJECT_HEADERS, keywords=["kaapanaapplication"], sets={f"a$(touch {marker})": "v"})
+    response = install(client, keywords=["kaapanaapplication"], sets={f"a$(touch {marker})": "v"})
 
     assert response.status_code == 400
     assert fake_cli.calls_with("install") == []
@@ -77,7 +87,7 @@ def test_install_rejects_invalid_set_key(client, fake_cli, aii, marker):
 
 
 def test_install_ignores_keywords_from_the_request(client, fake_cli, aii, marker):
-    response = install(client, PROJECT_HEADERS, keywords=["kaapanaint", f"k'$(touch {marker})'"])
+    response = install(client, keywords=["kaapanaint", f"k'$(touch {marker})'"])
 
     assert response.status_code == 200
     (call,) = fake_cli.calls_with("install")
@@ -86,10 +96,7 @@ def test_install_ignores_keywords_from_the_request(client, fake_cli, aii, marker
 
 
 def test_install_checks_the_whitelist_with_the_keywords_of_the_chart(client, fake_cli, aii):
-    fake_cli.respond(
-        ["show", "chart"],
-        stdout="name: demo-chart\nversion: 0.1.0\nkeywords:\n- kaapanaapplication\n- kaapanamultiinstallable\n",
-    )
+    fake_cli.respond(["show", "chart"], stdout=MULTIINSTALLABLE_CHART)
     aii[:] = ["other-chart"]
 
     response = install(client, PROJECT_HEADERS, keywords=["kaapanaapplication"])
@@ -101,7 +108,7 @@ def test_install_checks_the_whitelist_with_the_keywords_of_the_chart(client, fak
 def test_install_passes_set_value_as_one_argument(client, fake_cli, aii, marker):
     value = f"$(touch {marker})"
 
-    response = install(client, PROJECT_HEADERS, keywords=["kaapanaapplication"], sets={"global.text": value})
+    response = install(client, keywords=["kaapanaapplication"], sets={"global.text": value})
 
     assert response.status_code == 200
     (call,) = fake_cli.calls_with("install")
@@ -180,3 +187,93 @@ def test_container_import_runs_no_injected_command(client, fake_cli, marker, mon
     (call,) = fake_cli.calls("ctr")
     assert call[-1] == f"{settings.helm_extensions_cache}/{filename}"
     assert not marker.exists()
+
+
+@pytest.mark.parametrize(
+    "field", [{"release_name": "demo-chart-1"}, {"sets": {"global.text": "v"}}, {"platforms": "true"}]
+)
+def test_project_members_cannot_choose_how_an_application_is_installed(client, fake_cli, aii, field):
+    fake_cli.respond(["show", "chart"], stdout=MULTIINSTALLABLE_CHART)
+
+    response = install(client, PROJECT_HEADERS, **field)
+
+    assert response.status_code == 403
+    assert fake_cli.calls_with("install") == []
+
+
+def test_project_members_can_only_launch_multi_installable_applications(client, fake_cli, aii):
+    response = install(client, PROJECT_HEADERS)
+
+    assert response.status_code == 403
+    assert fake_cli.calls_with("install") == []
+
+
+def test_project_members_launch_whitelisted_applications(client, fake_cli, aii):
+    fake_cli.respond(["show", "chart"], stdout=MULTIINSTALLABLE_CHART)
+
+    response = install(client, PROJECT_HEADERS, extension_params={"display_name": "Demo"})
+
+    assert response.status_code == 200
+    (call,) = fake_cli.calls_with("install")
+    release_name = call[call.index("--") + 1]
+    assert release_name.startswith("demo-chart-")
+    assert "--set-string=global.project_namespace=project-abcd1234" in call
+    assert "--set-string=global.display_name=Demo" in call
+
+
+def test_project_requests_need_a_project_id(client, fake_cli, aii):
+    fake_cli.respond(["show", "chart"], stdout=MULTIINSTALLABLE_CHART)
+    headers = {"Project": json.dumps({"name": "project"})}
+
+    install_response = install(client, headers)
+    delete_response = client.post("/helm-delete-chart", headers=headers, json={"release_name": "demo-chart-1"})
+
+    assert install_response.status_code == delete_response.status_code == 400
+    assert fake_cli.calls_with("install") == fake_cli.calls_with("uninstall") == []
+
+
+@pytest.mark.parametrize("headers", [admin_headers(), {}])
+def test_admins_and_internal_callers_choose_how_an_application_is_installed(client, fake_cli, aii, headers):
+    response = install(client, headers, release_name="demo", sets={"global.text": "v"})
+
+    assert response.status_code == 200
+    (call,) = fake_cli.calls_with("install")
+    assert "--set-string=global.text=v" in call
+    assert call[call.index("--") + 1] == "demo"
+
+
+@pytest.mark.parametrize("field", [{"helm_namespace": "admin"}, {"platforms": True}])
+def test_project_members_cannot_choose_where_an_application_is_deleted(client, fake_cli, aii, field):
+    response = client.post(
+        "/helm-delete-chart",
+        headers=PROJECT_HEADERS,
+        json={"release_name": "demo-chart-1", **field},
+    )
+
+    assert response.status_code == 403
+    assert fake_cli.calls_with("uninstall") == []
+
+
+def test_project_members_delete_only_whitelisted_applications(client, fake_cli, aii):
+    response = client.post("/helm-delete-chart", headers=PROJECT_HEADERS, json={"release_name": "other-chart-1"})
+
+    assert response.status_code == 403
+    assert fake_cli.calls_with("uninstall") == []
+
+
+def test_project_members_delete_whitelisted_applications(client, fake_cli, aii):
+    response = client.post("/helm-delete-chart", headers=PROJECT_HEADERS, json={"release_name": "demo-chart-1"})
+
+    assert response.status_code == 200
+    assert fake_cli.wait_for_calls("uninstall") == [["-n", "default", "uninstall", "--", "demo-chart-1"]]
+
+
+def test_admins_choose_where_an_application_is_deleted(client, fake_cli, aii):
+    response = client.post(
+        "/helm-delete-chart",
+        headers=admin_headers(),
+        json={"release_name": "other-chart-1", "helm_namespace": "admin"},
+    )
+
+    assert response.status_code == 200
+    assert fake_cli.wait_for_calls("uninstall") == [["-n", "admin", "uninstall", "--", "other-chart-1"]]

@@ -65,6 +65,12 @@ async def _fetch_project_whitelist(project_id: str) -> Optional[list[str]]:
         return None
 
 
+def _reject_admin_only_fields(payload: dict, fields) -> None:
+    present = [field for field in fields if field in payload]
+    if present:
+        raise HTTPException(status_code=403, detail=f"Only admins can set {', '.join(present)}.")
+
+
 @router.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
@@ -266,28 +272,31 @@ async def helm_delete_chart(request: Request):
 
         project_header = request.headers.get("Project")
         if project_header and not is_admin_request(request):
+            # Project members may only remove whitelisted applications from the namespace that kube-helm manages.
+            _reject_admin_only_fields(payload, ("helm_namespace", "platforms"))
             try:
                 project_form = json.loads(project_header)
             except json.JSONDecodeError:
                 raise HTTPException(status_code=400, detail="Invalid Project header")
             project_id = project_form.get("id")
-            if project_id:
-                whitelist = await _fetch_project_whitelist(project_id)
-                if whitelist is None:
-                    raise HTTPException(
-                        status_code=503,
-                        detail="Could not verify application whitelist. Please try again later.",
-                    )
-                release = payload["release_name"]
-                is_whitelisted = any(release == e or release.startswith(e + "-") for e in whitelist)
-                if whitelist and not is_whitelisted:
-                    raise HTTPException(
-                        status_code=403,
-                        detail=(
-                            f"'{release}' is not whitelisted for this project. "
-                            f"Only admins can uninstall non-whitelisted applications."
-                        ),
-                    )
+            if not project_id:
+                raise HTTPException(status_code=400, detail="Invalid Project header")
+            whitelist = await _fetch_project_whitelist(project_id)
+            if whitelist is None:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Could not verify application whitelist. Please try again later.",
+                )
+            release = payload["release_name"]
+            is_whitelisted = any(release == e or release.startswith(e + "-") for e in whitelist)
+            if whitelist and not is_whitelisted:
+                raise HTTPException(
+                    status_code=403,
+                    detail=(
+                        f"'{release}' is not whitelisted for this project. "
+                        f"Only admins can uninstall non-whitelisted applications."
+                    ),
+                )
         success, stdout = utils.helm_delete(
             release_name=payload["release_name"],
             release_version=release_version,
@@ -303,6 +312,8 @@ async def helm_delete_chart(request: Request):
     except (AssertionError, validation.InvalidValueError) as e:
         logger.error(f"/helm-delete-chart failed: {str(e)}", exc_info=True)
         return Response(f"Chart uninstall failed, bad request {str(e)}", 400)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"/helm-delete-chart failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Chart uninstall failed {str(e)}")
@@ -315,6 +326,11 @@ async def helm_install_chart(request: Request):
         logger.debug(f"/helm-install-chart called with {payload=}")
         assert "name" in payload, "Required key 'name' not found in payload"
         assert "version" in payload, "Required key 'version' not found in payload"
+        project_header = request.headers.get("Project")
+        # Project members may launch whitelisted applications. The server decides how and where they run.
+        project_member_request = bool(project_header) and not is_admin_request(request)
+        if project_member_request:
+            _reject_admin_only_fields(payload, ("release_name", "sets", "platforms"))
         platforms = False
         cmd_addons = []
         blocking = False
@@ -327,16 +343,22 @@ async def helm_install_chart(request: Request):
         chart = helm_helper.helm_show_chart(name=payload["name"], version=payload["version"], platforms=platforms)
         keywords = chart.get("keywords", [])
         payload["keywords"] = keywords
+        if project_member_request and "kaapanamultiinstallable" not in keywords:
+            raise HTTPException(
+                status_code=403,
+                detail=f"'{payload['name']}' is not a multi-installable application. Only admins can install it.",
+            )
 
         if "kaapanamultiinstallable" in keywords:
-            project_header = request.headers.get("Project")
             if project_header:
                 try:
                     project_form = json.loads(project_header)
                 except json.JSONDecodeError:
                     raise HTTPException(status_code=400, detail="Invalid Project header")
                 project_id = project_form.get("id")
-                if project_id and not is_admin_request(request):
+                if project_member_request:
+                    if not project_id:
+                        raise HTTPException(status_code=400, detail="Invalid Project header")
                     app_name = payload["name"]
                     project_whitelist = await _fetch_project_whitelist(project_id)
                     if project_whitelist is None:

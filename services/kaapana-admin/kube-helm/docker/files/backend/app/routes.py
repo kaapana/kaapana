@@ -246,14 +246,14 @@ async def helm_delete_chart(request: Request):
         logger.info(f"/helm-delete-chart called with {payload=}")
         assert "release_name" in payload, "Required key 'release_name' not found in payload"
         release_version = None
-        helm_command_addons = ""
+        helm_command_addons = []
         helm_namespace = settings.helm_namespace
         multiinstallable = False
         platforms = False
         if "release_version" in payload:
             release_version = payload["release_version"]
-        if "helm_command_addons" in payload:
-            helm_command_addons = payload["helm_command_addons"]
+        if payload.get("helm_command_addons"):
+            helm_command_addons = [payload["helm_command_addons"]]
         if "helm_namespace" in payload:
             helm_namespace = payload["helm_namespace"]
         if ("multiinstallable" in payload) and payload["multiinstallable"].lower() in [

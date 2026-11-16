@@ -13,6 +13,6 @@ if [ -f "${MARKER_FILE}" ]; then
   exit 0
 else
   echo "Init security extension from scratch."
-  /usr/share/opensearch/plugins/opensearch-security/tools/securityadmin.sh -icl -nhnv -cacert ${CONFIG_DIR}/root-ca.pem -cert ${CONFIG_DIR}/admin.pem -key ${CONFIG_DIR}/admin-key.pem -cd ${SECURITY_CONFIG_DIR} --hostname opensearch-service.${SERVICES_NAMESPACE}.svc
+  /usr/share/opensearch/plugins/opensearch-security/tools/securityadmin.sh -icl -nhnv -cacert ${CONFIG_DIR}/internal-ca.pem -cert ${CONFIG_DIR}/admin.pem -key ${CONFIG_DIR}/admin-key.pem -cd ${SECURITY_CONFIG_DIR} --hostname opensearch-service.${SERVICES_NAMESPACE}.svc
   echo "OpenSearch security index initialized successfully." > ${MARKER_FILE}
 fi

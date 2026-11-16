@@ -77,6 +77,9 @@ spec:
             - name: kaapana-cert
               mountPath: /etc/certs/kaapana.pem
               subPath: tls.crt
+            - name: opensearch-internal-ca
+              mountPath: /etc/certs/opensearch-ca.pem
+              subPath: tls.crt
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -90,6 +93,13 @@ spec:
       - name: kaapana-cert
         secret:
           secretName: certificate
+          defaultMode: 420
+      - name: opensearch-internal-ca
+        secret:
+          secretName: opensearch-internal-ca
+          items:
+          - key: tls.crt
+            path: tls.crt
           defaultMode: 420
       - name: uuid-file
         emptyDir: {}

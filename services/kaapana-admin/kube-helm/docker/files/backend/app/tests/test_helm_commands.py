@@ -7,17 +7,21 @@ from types import SimpleNamespace
 import pytest
 import yaml
 
-from app import file_handler, helm_helper, utils
+from app import file_handler, helm_helper, utils, validation
 from app.config import settings, timeouts
 
 
-def test_helm_status_passes_release_name_as_one_argument(fake_cli, marker):
-    payload = f"demo; touch {marker}"
+def test_helm_status_passes_release_name_after_end_of_options(fake_cli):
+    assert utils.helm_status("demo", helm_namespace="admin") == {}
 
-    assert utils.helm_status(payload, helm_namespace="admin") == {}
+    assert fake_cli.calls() == [["-n", "admin", "status", "-o", "yaml", "--", "demo"]]
 
-    assert fake_cli.calls() == [["-n", "admin", "status", "-o", "yaml", payload]]
-    assert not marker.exists()
+
+def test_helm_status_does_not_call_helm_for_invalid_release_names(fake_cli, marker):
+    assert utils.helm_status(f"demo; touch {marker}") == {}
+    assert utils.helm_status("--all") == {}
+
+    assert fake_cli.calls() == []
 
 
 def test_helm_ls_passes_each_filter_as_one_argument(fake_cli, marker):
@@ -38,11 +42,11 @@ def test_helm_ls_returns_releases(fake_cli):
 
 
 def test_helm_get_values_passes_release_name_as_one_argument(fake_cli, marker):
-    payload = f"demo; touch {marker}"
+    payload = f"--demo; touch {marker}"
 
     assert helm_helper.helm_get_values(payload, helm_namespace="admin") == {}
 
-    assert fake_cli.calls() == [["-n", "admin", "get", "values", "--all", "-o", "json", payload]]
+    assert fake_cli.calls() == [["-n", "admin", "get", "values", "--all", "-o", "json", "--", payload]]
     assert not marker.exists()
 
 
@@ -56,12 +60,12 @@ def test_get_kube_objects_passes_names_as_one_argument(fake_cli, marker):
     }
     fake_cli.respond(["get", "manifest"], stdout=yaml.safe_dump(manifest))
     fake_cli.respond(["get", "pod"], stdout="NAME   READY   STATUS   RESTARTS   AGE\n")
-    release_name = f"demo; touch {marker}"
+    release_name = f"--demo; touch {marker}"
 
     success, _, _, _ = helm_helper.get_kube_objects(release_name, helm_namespace="admin")
 
     assert success
-    assert fake_cli.calls() == [["-n", "admin", "get", "manifest", release_name]]
+    assert fake_cli.calls() == [["-n", "admin", "get", "manifest", "--", release_name]]
     assert fake_cli.calls("kubectl") == [["-n", namespace, "get", "pod", f"-l=app.kubernetes.io/name={app_name}"]]
     assert not marker.exists()
 
@@ -75,11 +79,18 @@ def test_helm_show_chart_and_values_pass_chart_path_as_one_argument(fake_cli, ma
     helm_helper.helm_show_chart(package=chart_path)
 
     assert fake_cli.calls() == [
-        ["show", "chart", chart_path],
-        ["show", "values", chart_path],
-        ["show", "chart", chart_path],
+        ["show", "chart", "--", chart_path],
+        ["show", "values", "--", chart_path],
+        ["show", "chart", "--", chart_path],
     ]
     assert not marker.exists()
+
+
+def test_helm_show_chart_and_values_stay_inside_the_cache(fake_cli):
+    assert helm_helper.helm_show_chart(name="../../outside", version="0.1.0") == {}
+    assert helm_helper.helm_show_values(name="../../outside", version="0.1.0") == {}
+
+    assert fake_cli.calls() == []
 
 
 def test_collect_helm_deployments_passes_namespace_as_one_argument(fake_cli, marker):
@@ -111,17 +122,14 @@ def test_helm_set_arguments_escape_values_for_helm():
 
 
 def test_install_command_passes_each_value_as_one_argument(fake_cli, marker):
-    release_name = f"x; touch {marker}"
-    set_key = f"a$(touch {marker})"
-    param_key = f"k`touch {marker}`"
-    keyword = f"k'$(touch {marker})'"
+    value = f"$(touch {marker})"
     payload = {
         "name": "demo-chart",
-        "version": "0.1.0",
-        "release_name": release_name,
-        "keywords": ["kaapanaapplication", keyword],
-        "sets": {set_key: "v"},
-        "extension_params": {param_key: "v"},
+        "version": "0.1.0-12-gabc",
+        "release_name": "demo",
+        "keywords": ["kaapanaapplication", "kaapanaworkflow"],
+        "sets": {"global.text": value},
+        "extension_params": {"display_name": value},
     }
 
     success, _, _, _, _ = utils.helm_install(payload)
@@ -129,11 +137,34 @@ def test_install_command_passes_each_value_as_one_argument(fake_cli, marker):
     assert success
     (call,) = fake_cli.calls_with("install")
     assert call[:3] == ["-n", "default", "install"]
-    assert f"--set-string={set_key}=v" in call
-    assert f"--set-string=global.{param_key}=v" in call
-    assert f"--labels=kaapana.ai/kaapanaapplication=True,kaapana.ai/{keyword}=True" in call
-    assert call[-2:] == [release_name, f"{settings.helm_extensions_cache}/demo-chart-0.1.0.tgz"]
+    assert f"--set-string=global.text={value.replace(' ', '')}" in call
+    assert f"--set-string=global.display_name={value.replace(' ', '')}" in call
+    assert "--labels=kaapana.ai/kaapanaapplication=True,kaapana.ai/kaapanaworkflow=True" in call
+    assert call[-3:] == ["--", "demo", f"{settings.helm_extensions_cache}/demo-chart-0.1.0-12-gabc.tgz"]
     assert not marker.exists()
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"release_name": "x; touch marker"},
+        {"release_name": "--dry-run"},
+        {"name": "../demo-chart"},
+        {"version": "0.1.0/../../x"},
+        {"sets": {"a,b": "v"}},
+        {"sets": {"-a": "v"}},
+        {"extension_params": {"a=b": "v"}},
+        {"keywords": ["kaapanaapplication", "a=b,c"]},
+        {"sets": {"global.helm_namespace": "ns; touch marker"}},
+    ],
+)
+def test_install_rejects_invalid_values(fake_cli, change):
+    payload = {"name": "demo-chart", "version": "0.1.0", "keywords": ["kaapanaapplication"], **change}
+
+    with pytest.raises(validation.InvalidValueError):
+        utils.helm_install(payload)
+
+    assert fake_cli.calls_with("install") == []
 
 
 def test_reinstall_of_a_collection_uses_argument_lists(fake_cli, monkeypatch):
@@ -168,6 +199,7 @@ def test_upload_check_passes_chart_name_as_one_argument(fake_cli, marker):
         "-o",
         "json",
         "--dry-run",
+        "--",
         name,
         f"{settings.helm_extensions_cache}/demo-0.1.0.tgz",
     ]
@@ -175,37 +207,42 @@ def test_upload_check_passes_chart_name_as_one_argument(fake_cli, marker):
 
 
 @pytest.mark.parametrize("platforms", [False, True])
-def test_uninstall_command_passes_each_value_as_one_argument(fake_cli, marker, platforms):
-    release_name = f"x; touch {marker}"
-    namespace = f"admin $(touch {marker})"
-    addon = f"--no-hooks; touch {marker}"
-
+def test_uninstall_command_is_an_argument_list(fake_cli, platforms):
     success, _ = utils.helm_delete(
-        release_name=release_name,
-        helm_namespace=namespace,
-        helm_command_addons=[addon],
+        release_name="demo",
+        helm_namespace="admin",
+        helm_command_addons=["--no-hooks"],
         platforms=platforms,
     )
 
     assert success
-    assert fake_cli.wait_for_calls("uninstall") == [["-n", namespace, "uninstall", addon, release_name]]
-    assert not marker.exists()
+    assert fake_cli.wait_for_calls("uninstall") == [["-n", "admin", "uninstall", "--no-hooks", "--", "demo"]]
 
 
-def test_supervised_uninstall_passes_each_value_as_one_argument(fake_cli, marker, monkeypatch):
+@pytest.mark.parametrize(
+    "release_name, namespace",
+    [("x; touch marker", "admin"), ("--all", "admin"), ("demo", "admin $(touch marker)")],
+)
+def test_uninstall_rejects_invalid_values(fake_cli, release_name, namespace):
+    with pytest.raises(validation.InvalidValueError):
+        utils.helm_delete(release_name=release_name, helm_namespace=namespace)
+    with pytest.raises(validation.InvalidValueError):
+        utils.run_supervised_uninstall(release_name, namespace, utils.CHART_STATUS_FAILED)
+
+    assert fake_cli.calls_with("uninstall") == []
+
+
+def test_supervised_uninstall_uses_argument_lists(fake_cli, monkeypatch):
     monkeypatch.setattr(timeouts, "helm_release_status_check_interval", 0)
     fake_cli.respond(["status"], stdout="info:\n  status: uninstalling\n")
-    release_name = f"x; touch {marker}"
-    namespace = f"admin $(touch {marker})"
 
-    success, _ = utils.run_supervised_uninstall(release_name, namespace, utils.CHART_STATUS_UNINSTALLING)
+    success, _ = utils.run_supervised_uninstall("demo", "admin", utils.CHART_STATUS_UNINSTALLING)
 
     assert not success
     assert fake_cli.calls_with("uninstall") == [
-        ["-n", namespace, "uninstall", "--wait", f"--timeout={timeouts.helm_deletion_timeout}s", release_name],
-        ["-n", namespace, "uninstall", "--no-hooks", release_name],
+        ["-n", "admin", "uninstall", "--wait", f"--timeout={timeouts.helm_deletion_timeout}s", "--", "demo"],
+        ["-n", "admin", "uninstall", "--no-hooks", "--", "demo"],
     ]
-    assert not marker.exists()
 
 
 @pytest.fixture
@@ -235,8 +272,8 @@ def test_image_pull_installs_and_then_uninstalls_without_a_shell(fake_cli, pull_
     assert ["--wait", "--atomic", f"--timeout={timeouts.helm_pull_container_timeout}s"] == [
         argument for argument in install if argument in ("--wait", "--atomic") or argument.startswith("--timeout")
     ]
-    assert install[-2:] == ["pull-docker-chart-0123", pull_chart]
-    assert uninstall == ["-n", "default", "uninstall", "pull-docker-chart-0123"]
+    assert install[-3:] == ["--", "pull-docker-chart-0123", pull_chart]
+    assert uninstall == ["-n", "default", "uninstall", "--", "pull-docker-chart-0123"]
     assert not marker.exists()
 
 
@@ -263,7 +300,7 @@ def test_non_blocking_image_pull_uninstalls_in_the_background(fake_cli, pull_cha
     )
 
     assert success
-    assert fake_cli.wait_for_calls("uninstall") == [["-n", "default", "uninstall", "pull-docker-chart-0123"]]
+    assert fake_cli.wait_for_calls("uninstall") == [["-n", "default", "uninstall", "--", "pull-docker-chart-0123"]]
     assert [call[2] for call in fake_cli.calls_with("pull-docker-chart-0123")][-2:] == ["install", "uninstall"]
 
 
@@ -290,6 +327,14 @@ def test_container_import_passes_file_path_as_one_argument(fake_cli, marker, mon
     assert not marker.exists()
 
 
+@pytest.mark.parametrize("filename", ["../image.tar", "/tmp/image.tar", "..", ""])
+def test_container_import_rejects_paths(fake_cli, filename):
+    with pytest.raises(validation.InvalidValueError):
+        asyncio.run(file_handler.run_containerd_import(filename))
+
+    assert fake_cli.calls("ctr") == []
+
+
 def test_chart_upload_passes_file_path_as_one_argument(fake_cli, marker, monkeypatch):
     monkeypatch.chdir(marker.parent)
     upload = SimpleNamespace(filename=f"demo; touch {marker.name}-0.1.0.tgz", content_type="application/gzip")
@@ -297,5 +342,5 @@ def test_chart_upload_passes_file_path_as_one_argument(fake_cli, marker, monkeyp
     success, _ = file_handler.add_file(upload, b"chart")
 
     assert success
-    assert fake_cli.calls() == [["show", "chart", f"{settings.helm_extensions_cache}/{upload.filename}"]]
+    assert fake_cli.calls() == [["show", "chart", "--", f"{settings.helm_extensions_cache}/{upload.filename}"]]
     assert not marker.exists()

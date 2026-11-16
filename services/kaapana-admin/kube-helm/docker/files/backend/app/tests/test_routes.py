@@ -35,63 +35,90 @@ def install(client, headers=None, **payload):
     return client.post("/helm-install-chart", headers=headers or {}, json=body)
 
 
-def test_complete_active_application_runs_no_injected_command(client, fake_cli, marker):
-    payload = f"x; touch {marker}; #"
+def test_complete_active_application_rejects_invalid_release_name(client, fake_cli, marker):
+    response = client.post("/complete-active-application", json={"release_name": f"x; touch {marker}; #"})
 
-    response = client.post("/complete-active-application", json={"release_name": payload})
-
-    assert response.status_code == 500
-    (call,) = fake_cli.calls()
-    assert f"--filter={payload}" in call
+    assert response.status_code == 400
+    assert fake_cli.calls() == []
     assert not marker.exists()
 
 
-def test_view_chart_status_passes_release_name_as_one_argument(client, fake_cli):
+def test_complete_active_application_passes_filter_as_one_argument(client, fake_cli):
+    response = client.post("/complete-active-application", json={"release_name": "demo"})
+
+    assert response.status_code == 500
+    (call,) = fake_cli.calls()
+    assert "--filter=demo" in call
+
+
+def test_view_chart_status_does_not_pass_invalid_names_to_helm(client, fake_cli):
     response = client.get("/view-chart-status", params={"release_name": "demo --all"})
 
     assert response.status_code == 404
-    assert fake_cli.calls() == [["-n", "default", "status", "-o", "yaml", "demo --all"]]
+    assert fake_cli.calls() == []
 
 
-def test_install_release_name_runs_no_injected_command(client, fake_cli, aii, marker):
+def test_install_rejects_invalid_release_name(client, fake_cli, aii, marker):
     release_name = f"x; touch {marker}; true"
 
     response = install(client, PROJECT_HEADERS, keywords=["kaapanaapplication"], release_name=release_name)
 
+    assert response.status_code == 400
+    assert fake_cli.calls_with("install") == []
+    assert not marker.exists()
+
+
+def test_install_rejects_invalid_set_key(client, fake_cli, aii, marker):
+    response = install(client, PROJECT_HEADERS, keywords=["kaapanaapplication"], sets={f"a$(touch {marker})": "v"})
+
+    assert response.status_code == 400
+    assert fake_cli.calls_with("install") == []
+    assert not marker.exists()
+
+
+def test_install_rejects_invalid_keyword(client, fake_cli, aii, marker):
+    response = install(client, PROJECT_HEADERS, keywords=["kaapanaapplication", f"k'$(touch {marker})'"])
+
+    assert response.status_code == 400
+    assert fake_cli.calls_with("install") == []
+    assert not marker.exists()
+
+
+def test_install_passes_set_value_as_one_argument(client, fake_cli, aii, marker):
+    value = f"$(touch {marker})"
+
+    response = install(client, PROJECT_HEADERS, keywords=["kaapanaapplication"], sets={"global.text": value})
+
     assert response.status_code == 200
     (call,) = fake_cli.calls_with("install")
-    assert call[-2] == release_name
+    assert f"--set-string=global.text={value.replace(' ', '')}" in call
     assert not marker.exists()
 
 
-def test_install_set_key_runs_no_injected_command(client, fake_cli, aii, marker):
-    set_key = f"a$(touch {marker})"
-
-    response = install(client, PROJECT_HEADERS, keywords=["kaapanaapplication"], sets={set_key: "v"})
-
-    assert response.status_code == 200
-    (call,) = fake_cli.calls_with("install")
-    assert f"--set-string={set_key}=v" in call
-    assert not marker.exists()
-
-
-def test_install_keyword_with_quote_runs_no_injected_command(client, fake_cli, aii, marker):
-    keyword = f"k'$(touch {marker})'"
-
-    response = install(client, PROJECT_HEADERS, keywords=["kaapanaapplication", keyword])
-
-    assert response.status_code == 200
-    assert not marker.exists()
-
-
-def test_delete_release_name_runs_no_injected_command(client, fake_cli, marker):
+def test_delete_rejects_invalid_release_name(client, fake_cli, marker):
     release_name = f"x; touch {marker}; true"
 
     response = client.post("/helm-delete-chart", json={"release_name": release_name, "helm_command_addons": ""})
 
-    assert response.status_code == 200
-    assert fake_cli.wait_for_calls("uninstall") == [["-n", "default", "uninstall", release_name]]
+    assert response.status_code == 400
+    assert fake_cli.calls_with("uninstall") == []
     assert not marker.exists()
+
+
+@pytest.mark.parametrize("addons, expected", [("", []), ("--no-hooks", ["--no-hooks"])])
+def test_delete_accepts_the_known_command_addons(client, fake_cli, addons, expected):
+    response = client.post("/helm-delete-chart", json={"release_name": "demo", "helm_command_addons": addons})
+
+    assert response.status_code == 200
+    assert fake_cli.wait_for_calls("uninstall") == [["-n", "default", "uninstall", *expected, "--", "demo"]]
+
+
+@pytest.mark.parametrize("addons", ["--dry-run", "--no-hooks --wait", ["--no-hooks"]])
+def test_delete_rejects_other_command_addons(client, fake_cli, addons):
+    response = client.post("/helm-delete-chart", json={"release_name": "demo", "helm_command_addons": addons})
+
+    assert response.status_code == 400
+    assert fake_cli.calls_with("uninstall") == []
 
 
 def test_image_pull_ignores_fields_other_than_the_image(client, fake_cli, marker, monkeypatch):
@@ -117,6 +144,13 @@ def test_image_pull_ignores_fields_other_than_the_image(client, fake_cli, marker
     (install,) = fake_cli.calls_with("install")
     assert install[:2] == uninstall[:2] == ["-n", "default"]
     assert not marker.exists()
+
+
+def test_container_import_rejects_paths(client, fake_cli):
+    response = client.get("/import-container", params={"filename": "../extensions/image.tar"})
+
+    assert response.status_code == 400
+    assert fake_cli.calls("ctr") == []
 
 
 def test_container_import_runs_no_injected_command(client, fake_cli, marker, monkeypatch):

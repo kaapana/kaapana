@@ -14,7 +14,7 @@ import yaml
 from distutils.version import LooseVersion
 from kaapanapy.logger import get_logger
 
-from . import schemas
+from . import schemas, validation
 from .config import settings, timeouts
 
 logger = get_logger(__name__)
@@ -47,7 +47,7 @@ global_extensions_release_names: Set[str] = set()
 def helm_get_values(release_name, helm_namespace=settings.helm_namespace):
     logger.debug(f"in function: helm_get_values {release_name=}, {helm_namespace=}")
     success, stdout = execute_shell_command(
-        [settings.helm_path, "-n", helm_namespace, "get", "values", "--all", "-o", "json", release_name]
+        [settings.helm_path, "-n", helm_namespace, "get", "values", "--all", "-o", "json", "--", release_name]
     )
     if success and stdout != b"null\n":
         return json.loads(stdout)
@@ -607,7 +607,7 @@ def collect_all_tgz_charts(keywords_filter: List, name_filter: str = "") -> Dict
         if chart_tgz_file not in current_hash or chart_hash != current_hash[chart_tgz_file]:
             logger.info(f"Chart {basename(chart_tgz_file)} has been modified -> reading tgz!")
 
-            helm_command = [settings.helm_path, "show", "chart", chart_tgz_file]
+            helm_command = [settings.helm_path, "show", "chart", "--", chart_tgz_file]
             success, stdout = execute_shell_command(helm_command)
             if success:
                 current_hash[chart_tgz_file] = chart_hash
@@ -802,7 +802,9 @@ def get_kube_objects(
         return states
 
     logger.debug(f"get_kube_objects for ({release_name=}, {helm_namespace=})")
-    success, stdout = execute_shell_command([settings.helm_path, "-n", helm_namespace, "get", "manifest", release_name])
+    success, stdout = execute_shell_command(
+        [settings.helm_path, "-n", helm_namespace, "get", "manifest", "--", release_name]
+    )
     paths = []
     concatenated_states = schemas.KubeInfo(name=[], ready=[], status=[], restarts=[], age=[], annotations={})
     if success:
@@ -883,9 +885,12 @@ def helm_show_values(name, version, platforms=False) -> Dict:
         curr_fpath = f"{helm_cache_dir}/{name}-{version}.tgz"
         if not os.path.exists(curr_fpath):
             helm_cache_dir = settings.helm_extensions_cache
-    success, stdout = execute_shell_command(
-        [settings.helm_path, "show", "values", f"{helm_cache_dir}/{name}-{version}.tgz"]
-    )
+    try:
+        chart_path = validation.check_path_inside(f"{helm_cache_dir}/{name}-{version}.tgz", helm_cache_dir)
+    except validation.InvalidValueError as e:
+        logger.warning(f"Not showing values of chart {name!r} {version!r}: {e}")
+        return {}
+    success, stdout = execute_shell_command([settings.helm_path, "show", "values", "--", chart_path])
     if success:
         return list(yaml.load_all(stdout, yaml.FullLoader))[0]
     else:
@@ -896,7 +901,7 @@ def helm_show_chart(name=None, version=None, package=None, platforms=False) -> D
     """
     Returns result of 'helm show chart' for package, if it is availabe. Otherwise runs for the tgz file
     """
-    helm_command = [settings.helm_path, "show", "chart"]
+    helm_command = [settings.helm_path, "show", "chart", "--"]
 
     if package is not None:
         helm_command.append(str(package))
@@ -909,7 +914,12 @@ def helm_show_chart(name=None, version=None, package=None, platforms=False) -> D
             curr_fpath = f"{helm_cache_dir}/{name}-{version}.tgz"
             if not os.path.exists(curr_fpath):
                 helm_cache_dir = settings.helm_extensions_cache
-        helm_command.append(f"{helm_cache_dir}/{name}-{version}.tgz")
+        try:
+            chart_path = validation.check_path_inside(f"{helm_cache_dir}/{name}-{version}.tgz", helm_cache_dir)
+        except validation.InvalidValueError as e:
+            logger.warning(f"Not showing chart {name!r} {version!r}: {e}")
+            return {}
+        helm_command.append(chart_path)
 
     success, stdout = execute_shell_command(helm_command)
 

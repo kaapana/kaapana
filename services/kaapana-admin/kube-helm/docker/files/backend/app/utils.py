@@ -14,7 +14,7 @@ import yaml
 from kaapanapy.logger import get_logger
 from kubernetes import client, config
 
-from . import helm_helper, schemas
+from . import helm_helper, schemas, validation
 from .config import settings, timeouts
 
 logger = get_logger(__name__)
@@ -82,8 +82,12 @@ def helm_search_repo(keywords_filter):
 def helm_status(release_name, helm_namespace=settings.helm_namespace):
     """Returns the 'info' dict from 'helm status' or {} on failure."""
     logger.debug("in function: helm_status")
+    if not validation.is_release_name(release_name):
+        # Helm refuses to install a release with such a name, so it cannot exist.
+        logger.warning(f"Not a valid release name: {release_name!r}")
+        return {}
     success, stdout = helm_helper.execute_shell_command(
-        [settings.helm_path, "-n", helm_namespace, "status", "-o", "yaml", release_name]
+        [settings.helm_path, "-n", helm_namespace, "status", "-o", "yaml", "--", release_name]
     )
     if not success:
         logger.warning(f"Could not fetch helm status for: {release_name}")
@@ -191,8 +195,8 @@ def build_helm_install_preflight(
         assert settings.helm_platforms_cache is not None, "HELM_PLATFORMS_CACHE is not defined"
         helm_cache_path = settings.helm_platforms_cache
 
-    name = payload["name"]
-    version = payload["version"]
+    name = validation.check_chart_name(payload["name"])
+    version = validation.check_chart_version(payload["version"])
 
     release_values = helm_helper.helm_get_values(settings.release_name, helm_namespace="default")
 
@@ -272,6 +276,13 @@ def build_helm_install_preflight(
         version,
         platforms,
     )
+    validation.check_release_name(release_name)
+    validation.check_namespace(helm_namespace)
+    for key in payload["sets"]:
+        validation.check_set_key(key)
+    for keyword in keywords:
+        validation.check_keyword(keyword)
+    chart_path = validation.check_path_inside(f"{helm_cache_path}/{name}-{version}.tgz", helm_cache_path)
 
     status_name = get_helm_status_name(release_name, helm_namespace)
     install_action, install_message = decide_install_action(status_name, keywords, helm_delete_prefix)
@@ -293,8 +304,9 @@ def build_helm_install_preflight(
         *labels,
         "-o",
         "json",
+        "--",
         release_name,
-        f"{helm_cache_path}/{name}-{version}.tgz",
+        chart_path,
     ]
 
     return {
@@ -347,6 +359,8 @@ def run_supervised_uninstall(
     blocking=True,
     platforms=False,
 ):
+    validation.check_release_name(release_name)
+    validation.check_namespace(helm_namespace)
     deletion_timeout = timeouts.helm_deletion_platform_timeout if platforms else timeouts.helm_deletion_timeout
     logger.info(
         f"Running supervised uninstall for {release_name} in namespace {helm_namespace} "
@@ -359,6 +373,7 @@ def run_supervised_uninstall(
         "uninstall",
         "--wait",
         f"--timeout={deletion_timeout}s",
+        "--",
         release_name,
     ]
     success, stdout = helm_helper.execute_shell_command(uninstall_cmd, blocking=blocking)
@@ -372,7 +387,7 @@ def run_supervised_uninstall(
 
     if status_name == CHART_STATUS_UNINSTALLING:
         logger.warning(f"Release {release_name} is still uninstalling after normal uninstall; retrying with --no-hooks")
-        no_hooks_cmd = [settings.helm_path, "-n", helm_namespace, "uninstall", "--no-hooks", release_name]
+        no_hooks_cmd = [settings.helm_path, "-n", helm_namespace, "uninstall", "--no-hooks", "--", release_name]
         success, stdout = helm_helper.execute_shell_command(no_hooks_cmd, blocking=blocking)
         if not success:
             logger.warning(f"Fallback uninstall with --no-hooks failed for {release_name}: {stdout}")
@@ -700,7 +715,7 @@ def helm_install(
     else:
         timeout = timeouts.helm_install_timeout
     if uninstall_after_install:
-        uninstall_command = [settings.helm_path, "-n", preflight["helm_namespace"], "uninstall", release_name]
+        uninstall_command = [settings.helm_path, "-n", preflight["helm_namespace"], "uninstall", "--", release_name]
         if blocking:
             success, stdout = install_then_uninstall(helm_command, uninstall_command)
         else:
@@ -803,8 +818,10 @@ def helm_delete(
     # if ext.multiinstallable == "yes":
     #     release_name = dep.deployments[0].helm_info.name
 
+    validation.check_release_name(release_name)
+    validation.check_namespace(helm_namespace)
     # delete version
-    helm_command = [settings.helm_path, "-n", helm_namespace, "uninstall", *helm_command_addons, release_name]
+    helm_command = [settings.helm_path, "-n", helm_namespace, "uninstall", *helm_command_addons, "--", release_name]
 
     if not execute_cmd:
         return False, helm_command
@@ -974,6 +991,7 @@ def execute_update_extensions():
                 "uninstall",
                 "--wait",
                 "--timeout=5m",
+                "--",
                 release_name,
             ]
             success, _, _, _, _ = helm_install(

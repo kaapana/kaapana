@@ -11,7 +11,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from kaapanapy.logger import get_logger
 
-from . import file_handler, helm_helper, schemas, utils
+from . import file_handler, helm_helper, schemas, utils, validation
 from .auth_utils import is_admin_request
 from .config import settings
 from .ttl_cache import SingleValueTTLCache
@@ -216,7 +216,7 @@ async def import_container(filename: str, platforms: Optional[bool] = False):
             return Response(f"Container import failed {msg}", 500)
         logger.info(f"Successfully imported {filename}")
         return Response(msg, 200)
-    except AssertionError as e:
+    except (AssertionError, validation.InvalidValueError) as e:
         logger.error(f"/import-container failed: {e}", exc_info=True)
         raise HTTPException(400, f"Container import failed, bad request {str(e)}")
     except Exception as e:
@@ -252,8 +252,8 @@ async def helm_delete_chart(request: Request):
         platforms = False
         if "release_version" in payload:
             release_version = payload["release_version"]
-        if payload.get("helm_command_addons"):
-            helm_command_addons = [payload["helm_command_addons"]]
+        if "helm_command_addons" in payload:
+            helm_command_addons = validation.check_delete_addons(payload["helm_command_addons"])
         if "helm_namespace" in payload:
             helm_namespace = payload["helm_namespace"]
         if ("multiinstallable" in payload) and payload["multiinstallable"].lower() in [
@@ -300,7 +300,7 @@ async def helm_delete_chart(request: Request):
             return Response(f"Started uninstalling {payload['release_name']}", 200)
         else:
             return Response(f"Chart uninstall command failed{stdout}", 400)
-    except AssertionError as e:
+    except (AssertionError, validation.InvalidValueError) as e:
         logger.error(f"/helm-delete-chart failed: {str(e)}", exc_info=True)
         return Response(f"Chart uninstall failed, bad request {str(e)}", 400)
     except Exception as e:
@@ -385,7 +385,7 @@ async def helm_install_chart(request: Request):
             return Response(f"Successfully installed: {release_name}", 200)
         else:
             return Response(f"Chart install command failed for {release_name}", 500)
-    except AssertionError as e:
+    except (AssertionError, validation.InvalidValueError) as e:
         logger.error(f"/helm-install-chart failed: {str(e)}", exc_info=True)
         return Response(f"Chart install failed, bad request {str(e)}", 400)
     except HTTPException:
@@ -435,6 +435,8 @@ async def complete_active_application(request: Request):
         release_name = payload.get("release_name")
         if not release_name:
             return Response("Payload does not have mandatory key: 'release_name'", status_code=400)
+        if not validation.is_release_name(release_name):
+            return Response("Payload contains an invalid 'release_name'", status_code=400)
         # check if the deployed release contains label: kaapanaint
         if not utils.helm_ls(release_filter=release_name, label_filter="kaapana.ai/kaapanaint=True"):
             logger.error(f"No deployed releases found with name: {release_name} and label: kaapana.ai/kaapanaint=True")

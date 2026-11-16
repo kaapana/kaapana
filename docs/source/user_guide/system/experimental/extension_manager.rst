@@ -41,6 +41,8 @@ A platform without internet access cannot reach a registry. Its extensions are u
 
 Uploaded extensions are stored in a local OCI registry that ships with the platform. They stay there until they are removed with **Remove upload** in their catalog entry. Removing an upload does not uninstall the extension. Archives can be at most 100 MB. Archives that contain container images are not supported yet.
 
+Installing does not pull container images. A workflow pulls its images from their registries the first time it is started, and without internet that pull fails. The extension still installs, but its workflows only run if their container images are already on the platform.
+
 Packaging an extension
 **********************
 

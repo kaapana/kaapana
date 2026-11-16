@@ -2705,18 +2705,29 @@ function install_certs {
         microk8s.kubectl delete secret certificate -n "$ns" 2>/dev/null || true
         microk8s.kubectl create secret tls certificate --namespace "$ns" --key ./tls.key --cert ./tls.crt
 
-        # get app.kubernetes.io/name of all pods that mount the certificate secret in the namespace
-        local app_labels=$(microk8s.kubectl get pods -n "$ns" -o json | \
-            jq -r '.items[] | select(.spec.volumes[]?.secret?.secretName == "certificate") | .metadata.labels."app.kubernetes.io/name" // empty' | sort -u)
+        # Deployments are restarted as a whole, so that their update strategy applies (OpenSearch: Recreate, the old pod
+        # has to release the data directory first)
+        local pods_json deployments="" other_pods rs
+        pods_json=$(microk8s.kubectl get pods -n "$ns" -o json | \
+            jq '[.items[] | select(any(.spec.volumes[]?; .secret?.secretName == "certificate"))]')
+        for rs in $(echo "$pods_json" | jq -r '.[].metadata.ownerReferences[]? | select(.kind == "ReplicaSet") | .name' | sort -u); do
+            deployments="$deployments $(microk8s.kubectl -n "$ns" get rs "$rs" -o jsonpath='{.metadata.ownerReferences[?(@.kind=="Deployment")].name}' 2>/dev/null)"
+        done
+        deployments=$(echo $deployments | tr ' ' '\n' | sort -u)
+        other_pods=$(echo "$pods_json" | jq -r '.[] | select(all(.metadata.ownerReferences[]?; .kind != "ReplicaSet")) | .metadata.name')
 
-        if [ -n "$app_labels" ]; then
+        if [ -n "$deployments" ] || [ -n "$other_pods" ]; then
             echo -e "Restarting pods using certificate:"
-            echo -e "$app_labels" | while read label; do
-                if [ -n "$label" ]; then
-                    echo -e "  - app.kubernetes.io/name=$label"
-                    if ! microk8s.kubectl -n "$ns" delete pod -l "app.kubernetes.io/name=$label" --grace-period=120 2>/dev/null; then
-                        echo -e "${YELLOW} Warning: Failed to restart pods with label $label${NC}"
-                    fi
+            for deployment in $deployments; do
+                echo -e "  - deployment/$deployment"
+                if ! microk8s.kubectl -n "$ns" rollout restart deployment "$deployment" >/dev/null; then
+                    echo -e "${YELLOW} Warning: Failed to restart deployment $deployment${NC}"
+                fi
+            done
+            for pod in $other_pods; do
+                echo -e "  - pod/$pod"
+                if ! microk8s.kubectl -n "$ns" delete pod "$pod" --grace-period=120 2>/dev/null; then
+                    echo -e "${YELLOW} Warning: Failed to restart pod $pod${NC}"
                 fi
             done
         else

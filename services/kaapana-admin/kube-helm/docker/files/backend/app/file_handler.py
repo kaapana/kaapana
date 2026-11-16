@@ -271,7 +271,7 @@ def add_file(file: UploadFile, content: bytes, overwrite: bool = True, platforms
     try:
         with open(fpath, "wb") as f:
             f.write(content)
-        success, stdout = helm_helper.execute_shell_command(f"{settings.helm_path} show chart {fpath}")
+        success, stdout = helm_helper.execute_shell_command([settings.helm_path, "show", "chart", fpath])
         if not success:
             raise Exception(stdout)
         if "kaapanamultiinstallable" in stdout:
@@ -449,9 +449,18 @@ async def run_containerd_import(fname: str, platforms: bool = False) -> Tuple[bo
     if not os.path.exists(fpath):
         return False, f"file {fname} can not be found"
 
-    cmd = f"ctr --namespace k8s.io -address='{settings.containerd_sock}' image import --digests {fpath}"
+    cmd = [
+        "ctr",
+        "--namespace",
+        "k8s.io",
+        f"--address={settings.containerd_sock}",
+        "image",
+        "import",
+        "--digests",
+        fpath,
+    ]
     logger.debug(f"{cmd=}")
-    res, stdout = await helm_helper.exec_shell_cmd_async(cmd, shell=True, timeout=180)
+    res, stdout = await helm_helper.exec_shell_cmd_async(cmd, timeout=180)
 
     if not res:
         logger.error(f"microk8s import failed: {stdout}")

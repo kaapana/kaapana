@@ -117,3 +117,18 @@ def test_image_pull_ignores_fields_other_than_the_image(client, fake_cli, marker
     (install,) = fake_cli.calls_with("install")
     assert install[:2] == uninstall[:2] == ["-n", "default"]
     assert not marker.exists()
+
+
+def test_container_import_runs_no_injected_command(client, fake_cli, marker, monkeypatch):
+    from app.config import settings
+
+    monkeypatch.chdir(marker.parent)
+    filename = f"image.tar; touch {marker.name}"
+    open(f"{settings.helm_extensions_cache}/{filename}", "wb").close()
+
+    response = client.get("/import-container", params={"filename": filename})
+
+    assert response.status_code == 200
+    (call,) = fake_cli.calls("ctr")
+    assert call[-1] == f"{settings.helm_extensions_cache}/{filename}"
+    assert not marker.exists()

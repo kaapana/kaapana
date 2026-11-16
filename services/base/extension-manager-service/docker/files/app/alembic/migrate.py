@@ -39,13 +39,19 @@ def main():
     current_revision = get_current_db_revision(engine)
     print(f"DB is at revision: {current_revision}")
 
-    if is_known_revision(current_revision, script):
+    if current_revision is not None:
+        if not is_known_revision(current_revision, script):
+            raise SystemExit(
+                f"DB revision {current_revision} is not part of the migration chain of this image. "
+                "It was probably migrated by a newer image or an image from another branch. "
+                "Deploy an image that knows this revision or restore a matching DB backup."
+            )
         command.upgrade(alembic_cfg, "head")
     elif is_db_empty(engine):
         print("No revision found in DB and DB is empty. Initializing DB.")
         command.upgrade(alembic_cfg, "head")
     else:
-        print("⚠️ DB revision is not part of current migration chain!")
+        print("No revision found in DB but DB has tables.")
         print(f"Assuming DB is migrated to 0.7.0. Stamping to revision {INITIAL_REVISION}")
         command.stamp(alembic_cfg, INITIAL_REVISION)
         command.upgrade(alembic_cfg, "head")

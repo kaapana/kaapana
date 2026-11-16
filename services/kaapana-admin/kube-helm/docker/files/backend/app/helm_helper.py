@@ -70,45 +70,39 @@ def helm_set_arguments(sets: Dict) -> List[str]:
     return arguments
 
 
-def has_timeout_flag(command) -> bool:
-    if isinstance(command, str):
-        return "--timeout" in command
+def has_timeout_flag(command: List[str]) -> bool:
     return any(arg == "--timeout" or arg.startswith("--timeout=") for arg in command)
 
 
+def ensure_argument_list(command) -> None:
+    # A string command needs a shell or a split on spaces.
+    # Both let a value from a request add arguments or whole commands.
+    if isinstance(command, (str, bytes)):
+        raise TypeError("Commands must be lists of arguments, not strings")
+
+
 async def exec_shell_cmd_async(
-    command, shell=False, timeout: int = timeouts.shell_cmd_default_timeout
+    command: List[str], timeout: int = timeouts.shell_cmd_default_timeout
 ) -> Tuple[bool, str]:
-    """Runs given command via asyncio.create_subprocess_exec() or asyncio.create_subprocess_shell()
+    """Runs given command via asyncio.create_subprocess_exec() without a shell
 
     Args:
-        command (list or str): An argument list runs without a shell.
-        shell (bool, optional): Only used for string commands. Defaults to False.
+        command (List[str]): The program and its arguments.
         timeout (int, optional): _description_. Defaults to 5.
 
     Returns:
         success (bool)  : whether the command ran successfully
         stdout  (str)   : output of the command. If success=False it is the same as stderr
     """
-    logger.debug(f"executing ASYNC shell command: {command}")
-    logger.debug(f"{shell=} , {timeout=}")
+    ensure_argument_list(command)
+    logger.debug(f"executing ASYNC command: {command}")
+    logger.debug(f"{timeout=}")
     try:
-        if isinstance(command, str):
-            if not shell:
-                command = [x for x in command.replace("  ", " ").split(" ") if x != ""]
-
-            command_result = await asyncio.create_subprocess_shell(
-                command,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                shell=shell,
-            )
-        else:
-            command_result = await asyncio.create_subprocess_exec(
-                *command,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
+        command_result = await asyncio.create_subprocess_exec(
+            *command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
 
         stdout, stderr = await asyncio.wait_for(command_result.communicate(), timeout=timeout)
         if command_result.returncode == 0:
@@ -131,17 +125,14 @@ async def exec_shell_cmd_async(
 
 
 def execute_shell_command(
-    command,
-    shell=False,
+    command: List[str],
     blocking=True,
     timeout=timeouts.shell_cmd_default_timeout,
-    skip_check=False,
 ) -> Tuple[bool, str]:
-    """Runs given command via subprocess.run or subprocess.Popen
+    """Runs given command via subprocess.run or subprocess.Popen without a shell
 
     Args:
-        command (list or str): An argument list runs without a shell.
-        shell (bool, optional): Only used for string commands. Defaults to False.
+        command (List[str]): The program and its arguments.
         blocking (bool, optional): _description_. Defaults to True.
         timeout (int, optional): _description_. Defaults to 5.
 
@@ -149,16 +140,11 @@ def execute_shell_command(
         success (bool)  : whether the command ran successfully
         stdout  (str)   : output of the command. If success=False it is the same as stderr
     """
-    is_string_command = isinstance(command, str)
+    ensure_argument_list(command)
     if blocking is False:
         logger.debug(f"running non-blocking {command=} via Popen, timeout ignored")
         try:
-            p = subprocess.Popen(
-                command,
-                shell=is_string_command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
+            p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except OSError as e:
             logger.error(f"Could not start command {command}: {e}")
             return False, str(e)
@@ -166,25 +152,17 @@ def execute_shell_command(
         # TODO: add to a process queue, run p.communicate() & fetch returncode
         return True, ""
 
-    # if (not skip_check) and ";" in command:
-    #     err = f"Detected ';' in blocking command {command} -> cancel request!"
-    #     logger.error(err)
-    #     return False, err
-    logger.debug(f"executing blocking shell command: {command}")
-    logger.debug(f"{shell=} , {timeout=}")
+    logger.debug(f"executing blocking command: {command}")
+    logger.debug(f"{timeout=}")
     if has_timeout_flag(command):
         logger.debug("--timeout found in command, not passing a separate timeout")
         timeout = None
-    use_shell = is_string_command and shell
-    if is_string_command and not shell:
-        command = [x for x in command.replace("  ", " ").split(" ") if x != ""]
     try:
         command_result = subprocess.run(
             command,
             capture_output=True,
             text=True,
             encoding="utf-8",
-            shell=use_shell,
             timeout=timeout,
         )
     except OSError as e:

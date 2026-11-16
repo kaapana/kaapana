@@ -344,7 +344,6 @@ def run_supervised_uninstall(
     release_name,
     helm_namespace,
     status_name,
-    shell=True,
     blocking=True,
     platforms=False,
 ):
@@ -395,7 +394,6 @@ def supervised_helm_install(
     helm_namespace=settings.helm_namespace,
     helm_command_addons=(),
     helm_delete_prefix=(),
-    shell=True,
     helm_cache_path=None,
     update_state=True,
     blocking=True,
@@ -407,7 +405,6 @@ def supervised_helm_install(
         "helm_namespace": helm_namespace,
         "helm_command_addons": helm_command_addons,
         "helm_delete_prefix": helm_delete_prefix,
-        "shell": shell,
         "helm_cache_path": helm_cache_path,
         "update_state": update_state,
         "blocking": blocking,
@@ -543,9 +540,7 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
             if helm_status(payload["name"]):
                 logger.info(f"Skipping {payload['name']} since it is already installed")
                 continue
-            success, stdout, helm_result_dict, _, _ = helm_install(
-                payload, helm_command_addons=["--dry-run"], shell=True
-            )
+            success, stdout, helm_result_dict, _, _ = helm_install(payload, helm_command_addons=["--dry-run"])
             manifest = helm_result_dict["manifest"]
             matches = re.findall(regex, manifest)
             if matches:
@@ -583,7 +578,6 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
             dag,
             helm_command_addons=pull_install_arguments(),
             uninstall_after_install=True,
-            shell=True,
         )
         installed_release_names.append(release_name)
 
@@ -616,10 +610,9 @@ def pull_docker_image(
     docker_version,
     docker_registry_url,
     helm_namespace=settings.helm_namespace,
-    shell=True,
     blocking=False,
 ):
-    logger.info(f"Pulling {docker_registry_url}/{docker_image}:{docker_version} , shell={shell}")
+    logger.info(f"Pulling {docker_registry_url}/{docker_image}:{docker_version}")
 
     helper_chart_file = list(Path(settings.helm_helpers_cache).glob("pull-docker-chart-*.tgz"))[0]
     helper_chart_version = helper_chart_file.name.removeprefix("pull-docker-chart-").removesuffix(".tgz")
@@ -641,7 +634,6 @@ def pull_docker_image(
         helm_command_addons=pull_install_arguments(),
         uninstall_after_install=True,
         helm_cache_path=settings.helm_helpers_cache,
-        shell=shell,
         update_state=False,
         blocking=blocking,
     )
@@ -654,7 +646,6 @@ def helm_install(
     helm_namespace=settings.helm_namespace,
     helm_command_addons=(),
     helm_delete_prefix=(),
-    shell=True,
     helm_cache_path=None,
     update_state=True,
     blocking=True,
@@ -663,7 +654,6 @@ def helm_install(
     preflight=None,
     uninstall_after_install=False,
 ) -> Tuple[bool, str, dict, str, list]:
-    # TODO: must be shell=False as default
     """
 
     Args:
@@ -671,7 +661,6 @@ def helm_install(
         helm_namespace (_type_, optional): . Defaults to settings.helm_namespace.
         helm_command_addons (list, optional): Extra arguments for helm install. Defaults to ().
         helm_delete_prefix (list, optional): Command that runs before the install. Defaults to ().
-        shell (bool, optional): Run command process with or without shell. Defaults to True.
         helm_cache_path (_type_, optional): _description_. Defaults to None.
         update_state (bool, optional): Whether to update global_extension_states. Defaults to True.
         blocking (bool, optional): Run helm install command in a blocking or non-blocking way. Defaults to True.
@@ -680,7 +669,7 @@ def helm_install(
     Returns:
         Tuple[bool, str, dict, str, list]: success, stdout, helm_result_dict, release_name, helm_command
     """
-    logger.debug(f"in function: helm_install with {payload=}, {shell=}")
+    logger.debug(f"in function: helm_install with {payload=}")
     version = payload["version"]
     if preflight is None:
         preflight = build_helm_install_preflight(
@@ -722,9 +711,7 @@ def helm_install(
             ).start()
             success, stdout = True, ""
     else:
-        success, stdout = helm_helper.execute_shell_command(
-            helm_command, shell=shell, blocking=blocking, timeout=timeout
-        )
+        success, stdout = helm_helper.execute_shell_command(helm_command, blocking=blocking, timeout=timeout)
 
     helm_result_dict = {}
     if blocking and success:
@@ -968,7 +955,6 @@ def execute_update_extensions():
             success, _, _, _, _ = helm_install(
                 payload,
                 helm_cache_path=settings.helm_collections_cache,
-                shell=True,
                 update_state=False,
             )
             if success:
@@ -995,7 +981,6 @@ def execute_update_extensions():
                 helm_delete_prefix=helm_delete_prefix,
                 helm_command_addons=["--wait"],
                 helm_cache_path=settings.helm_collections_cache,
-                shell=True,
                 update_state=False,
             )
             if success:

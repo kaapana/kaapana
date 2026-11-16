@@ -109,15 +109,33 @@ def test_helm_set_arguments_escape_values_for_helm():
     arguments = helm_helper.helm_set_arguments(
         {
             "global.text": "a,b {c} d'e",
-            "global.list": ["a", "b"],
+            "global.pattern": r".*\.dcm",
+            "global.list": ["a", "b", 1],
             "global.number": 5,
         }
     )
 
     assert arguments == [
         r"--set-string=global.text=a\,b\{c\}d'e",
-        "--set=global.list={a,b}",
+        r"--set-string=global.pattern=.*\\.dcm",
+        "--set=global.list={a,b,1}",
         "--set=global.number=5",
+    ]
+
+
+def test_helm_set_arguments_keep_each_value_inside_its_key():
+    arguments = helm_helper.helm_set_arguments(
+        {
+            "global.text": r"x\,global.injected=yes",
+            "global.list": ["a},global.injected=yes,global.m={b"],
+            "global.object": {"k": "1},global.injected=yes"},
+        }
+    )
+
+    assert arguments == [
+        r"--set-string=global.text=x\\\,global.injected=yes",
+        r"--set=global.list={a\}\,global.injected=yes\,global.m=\{b}",
+        r"--set-string=global.object=\{'k':'1\}\,global.injected=yes'\}",
     ]
 
 

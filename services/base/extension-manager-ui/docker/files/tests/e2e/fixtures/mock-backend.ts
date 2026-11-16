@@ -1,6 +1,7 @@
 import type { Page, Route } from '@playwright/test'
 
 export const VIEW_PATH = '/extension-manager-ui/'
+export const UPLOAD_MAX_BYTES = 100 * 1024 * 1024
 
 export interface RepositoryMock {
   id: string
@@ -41,6 +42,7 @@ export interface InstalledExtensionMock {
 }
 
 export interface MockData {
+  uploadMaxBytes?: number
   repositories: RepositoryMock[]
   manifests: Record<string, ManifestResponseMock[]>
   extensions: InstalledExtensionMock[]
@@ -239,6 +241,8 @@ export async function installMockBackend(
       return route.fulfill(json(created, 201))
     }
 
+    if (path === '/extensions/upload/limits' && method === 'GET')
+      return route.fulfill(json({ max_bytes: data.uploadMaxBytes ?? UPLOAD_MAX_BYTES }))
     if (path === '/extensions/upload' && method === 'POST') {
       const uploaded = manifestResponse(UPLOAD_REPO, HELLO_UPLOAD)
       data.manifests[UPLOAD_REPO.id] = [

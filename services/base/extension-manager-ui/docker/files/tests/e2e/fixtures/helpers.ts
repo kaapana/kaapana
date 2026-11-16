@@ -6,6 +6,7 @@ export const API = {
   extensions: '/extensions-api/extensions',
   install: '/extensions-api/extensions/install',
   upload: '/extensions-api/extensions/upload',
+  uploadLimits: '/extensions-api/extensions/upload/limits',
   uploads: '/extensions-api/extensions/uploads',
 } as const
 

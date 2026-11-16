@@ -349,6 +349,15 @@ async def test_upload_rejects_archives_above_the_size_limit(client: AsyncClient,
 
 
 @pytest.mark.asyncio
+async def test_upload_limits_report_the_size_limit(client: AsyncClient, monkeypatch):
+    monkeypatch.setattr(upload, "MAX_UPLOAD_BYTES", 2048)
+
+    response = await client.get("/extensions/upload/limits")
+    assert response.status_code == 200
+    assert response.json() == {"max_bytes": 2048}
+
+
+@pytest.mark.asyncio
 async def test_uploading_the_same_extension_again_replaces_it(client: AsyncClient, mocked_installer):
     manifest = _manifest()
     assert (await _upload(client, _archive(manifest))).status_code == 201

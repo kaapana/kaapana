@@ -66,6 +66,10 @@ export interface ExtensionManifestResponse {
   manifest: ExtensionManifest
 }
 
+export interface UploadLimits {
+  max_bytes: number
+}
+
 export interface InstalledContent {
   name: string
   content_type: string

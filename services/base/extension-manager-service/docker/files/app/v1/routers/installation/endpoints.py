@@ -137,6 +137,11 @@ def _ensure_not_being_pulled(db_extensions, tag: str) -> None:
         )
 
 
+@router.get("/upload/limits", response_model=schemas.UploadLimits)
+async def get_upload_limits():
+    return schemas.UploadLimits(max_bytes=upload.MAX_UPLOAD_BYTES)
+
+
 @router.post(
     "/upload",
     response_model=repository_schemas.ExtensionsManifestsResponse,

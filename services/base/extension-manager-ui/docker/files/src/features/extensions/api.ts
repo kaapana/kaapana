@@ -1,6 +1,10 @@
 import { httpClient, httpClientWithoutTimeout } from '@kaapana/base-ui'
 import { EXTENSIONS_API, asList } from '@/shared/api/extensionsApi'
-import type { ExtensionManifestResponse, InstalledExtension } from '@/shared/types/apiSchemas'
+import type {
+  ExtensionManifestResponse,
+  InstalledExtension,
+  UploadLimits,
+} from '@/shared/types/apiSchemas'
 
 const API_BASE = `${EXTENSIONS_API}/extensions`
 
@@ -11,6 +15,11 @@ export async function installExtension(
   const response = await httpClient.post<InstalledExtension>(`${API_BASE}/install`, null, {
     params: { repository_id: repositoryId, tag },
   })
+  return response.data
+}
+
+export async function fetchUploadLimits(): Promise<UploadLimits> {
+  const response = await httpClient.get<UploadLimits>(`${API_BASE}/upload/limits`)
   return response.data
 }
 

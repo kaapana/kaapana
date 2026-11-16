@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { kaapanaIcons } from '@kaapana/base-ui'
-import { uploadExtension } from '@/features/extensions/api'
+import { fetchUploadLimits, uploadExtension } from '@/features/extensions/api'
 import type { ExtensionManifestResponse } from '@/shared/types/apiSchemas'
 import { notifyFailure, notifySuccess } from '@/shared/utils/notify'
 
 const ARCHIVE_SUFFIX = '.tar.gz'
+const BYTES_PER_MB = 1024 * 1024
 
 const props = defineProps<{
   modelValue: boolean
@@ -19,6 +20,7 @@ const emit = defineEmits<{
 const file = ref<File | null>(null)
 const uploading = ref(false)
 const progress = ref(0)
+const maxBytes = ref<number | null>(null)
 let opener: HTMLElement | null = null
 
 const fileRules = [
@@ -31,8 +33,20 @@ const fileRules = [
     )
   },
 ]
+const maxMegabytes = computed(() =>
+  maxBytes.value === null ? null : Math.floor(maxBytes.value / BYTES_PER_MB),
+)
+const tooLarge = computed(() => maxBytes.value !== null && (file.value?.size ?? 0) > maxBytes.value)
+const archiveHint = computed(() =>
+  maxMegabytes.value === null
+    ? 'Upload an extension archive built with extensionctl.'
+    : `Upload an extension archive built with extensionctl, at most ${maxMegabytes.value} MB.`,
+)
+const sizeErrors = computed(() =>
+  tooLarge.value ? [`The archive is larger than ${maxMegabytes.value} MB.`] : [],
+)
 const canUpload = computed(
-  () => Boolean(file.value?.name.endsWith(ARCHIVE_SUFFIX)) && !uploading.value,
+  () => Boolean(file.value?.name.endsWith(ARCHIVE_SUFFIX)) && !tooLarge.value && !uploading.value,
 )
 const progressPercent = computed(() => Math.round(progress.value * 100))
 const processing = computed(() => uploading.value && progress.value >= 1)
@@ -44,9 +58,18 @@ watch(
     opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
     file.value = null
     progress.value = 0
+    void loadLimits()
   },
   { immediate: true },
 )
+
+async function loadLimits() {
+  try {
+    maxBytes.value = (await fetchUploadLimits()).max_bytes
+  } catch {
+    maxBytes.value = null
+  }
+}
 
 function close() {
   if (uploading.value) return
@@ -88,8 +111,8 @@ async function submit() {
         <div class="flex-grow-1 text-wrap">
           <div class="text-h6">Upload extension</div>
           <div class="text-body-2 text-medium-emphasis">
-            Upload an extension archive built with extensionctl. It is added to the Upload
-            repository and can then be installed from the catalog.
+            {{ archiveHint }} It is added to the Upload repository and can then be installed from
+            the catalog.
           </div>
         </div>
         <v-btn
@@ -109,6 +132,7 @@ async function submit() {
           <v-file-input
             v-model="file"
             :rules="fileRules"
+            :error-messages="sizeErrors"
             :accept="`${ARCHIVE_SUFFIX},application/gzip`"
             :disabled="uploading"
             label="Extension archive (.tar.gz)"

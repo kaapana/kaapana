@@ -90,6 +90,43 @@ test('upload stays disabled until a .tar.gz archive is chosen', async ({ page })
   await expect(dialog(page).getByTestId('upload-submit')).toBeDisabled()
 })
 
+test('an archive over the service limit is rejected before it is uploaded', async ({ page }) => {
+  const data = withUploadRepository()
+  data.uploadMaxBytes = 2 * 1024 * 1024
+  let uploaded = false
+  await openView(page, 'catalog', data, {
+    routes: (page) =>
+      page.route(`**${API.upload}`, async (route) => {
+        uploaded = true
+        await route.fallback()
+      }),
+  })
+  await page.getByTestId('upload-extension').click()
+  await expect(dialog(page)).toContainText('at most 2 MB')
+  await dialog(page)
+    .getByLabel('Extension archive (.tar.gz)', { exact: true })
+    .setInputFiles({ ...ARCHIVE, buffer: Buffer.alloc(2 * 1024 * 1024 + 1) })
+
+  await expect(dialog(page)).toContainText('The archive is larger than 2 MB.')
+  await expect(dialog(page).getByTestId('upload-submit')).toBeDisabled()
+  expect(uploaded).toBe(false)
+})
+
+test('without the limit the archive is still uploaded and checked by the service', async ({
+  page,
+}) => {
+  await openView(page, 'catalog', withUploadRepository(), {
+    routes: (page) => failRoute(page, API.uploadLimits, 'Service unavailable', 503, 'GET'),
+  })
+  await chooseArchive(page)
+  await expect(dialog(page)).not.toContainText('at most')
+
+  const request = nextRequest(page, API.upload, 'POST')
+  await dialog(page).getByTestId('upload-submit').click()
+  await request
+  await expect(page.getByTestId('upload-dialog')).toBeHidden()
+})
+
 test('shows progress while the archive is uploaded', async ({ page }) => {
   let release: () => void = () => {}
   const held = new Promise<void>((resolve) => (release = resolve))

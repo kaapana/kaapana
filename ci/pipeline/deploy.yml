@@ -138,6 +138,8 @@ server_installation:
     expire_in: 30 days
     paths:
       - "artifacts/server_installation.log"
+      - "artifacts/server_installation_diagnostics.txt"
+      - "artifacts/microk8s_inspection.tar.gz"
     when: always
     access: developer
 

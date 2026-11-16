@@ -76,12 +76,26 @@ def test_install_rejects_invalid_set_key(client, fake_cli, aii, marker):
     assert not marker.exists()
 
 
-def test_install_rejects_invalid_keyword(client, fake_cli, aii, marker):
-    response = install(client, PROJECT_HEADERS, keywords=["kaapanaapplication", f"k'$(touch {marker})'"])
+def test_install_ignores_keywords_from_the_request(client, fake_cli, aii, marker):
+    response = install(client, PROJECT_HEADERS, keywords=["kaapanaint", f"k'$(touch {marker})'"])
 
-    assert response.status_code == 400
-    assert fake_cli.calls_with("install") == []
+    assert response.status_code == 200
+    (call,) = fake_cli.calls_with("install")
+    assert "--labels=kaapana.ai/kaapanaapplication=True" in call
     assert not marker.exists()
+
+
+def test_install_checks_the_whitelist_with_the_keywords_of_the_chart(client, fake_cli, aii):
+    fake_cli.respond(
+        ["show", "chart"],
+        stdout="name: demo-chart\nversion: 0.1.0\nkeywords:\n- kaapanaapplication\n- kaapanamultiinstallable\n",
+    )
+    aii[:] = ["other-chart"]
+
+    response = install(client, PROJECT_HEADERS, keywords=["kaapanaapplication"])
+
+    assert response.status_code == 403
+    assert fake_cli.calls_with("install") == []
 
 
 def test_install_passes_set_value_as_one_argument(client, fake_cli, aii, marker):

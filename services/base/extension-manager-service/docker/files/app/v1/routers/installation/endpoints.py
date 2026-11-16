@@ -259,6 +259,16 @@ def _ensure_not_being_pulled(db_extensions, tag: str) -> None:
         )
 
 
+async def _ensure_no_update_pulls(db, tag: str) -> None:
+    for db_extension in await crud.list_extensions(db, status=crud.ExtensionStatus.UPDATING):
+        pending_update = db_extension.pending_update or {}
+        if pending_update.get("repository_id") == str(upload.UPLOAD_REPOSITORY_ID) and pending_update.get("tag") == tag:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"An extension is being updated to the tag {tag} from the Upload repository. Try again later.",
+            )
+
+
 @router.get("/upload/limits", response_model=schemas.UploadLimits)
 async def get_upload_limits():
     return schemas.UploadLimits(max_bytes=upload.MAX_UPLOAD_BYTES)
@@ -312,6 +322,7 @@ async def upload_extension(
         tag = upload.extension_tag(extension_manifest)
         db_extensions = await _upload_installations(db, tag)
         _ensure_not_being_pulled(db_extensions, tag)
+        await _ensure_no_update_pulls(db, tag)
         if any(
             db_extension.status != crud.ExtensionStatus.UNINSTALLED
             and db_extension.manifest != extension_manifest.model_dump(mode="json")
@@ -341,6 +352,7 @@ async def delete_uploaded_extension(
     db=Depends(database.get_async_db),
 ):
     _ensure_not_being_pulled(await _upload_installations(db, tag), tag)
+    await _ensure_no_update_pulls(db, tag)
     try:
         await upload_repository.delete_extension(tag)
     except ExtensionNotFoundException as e:

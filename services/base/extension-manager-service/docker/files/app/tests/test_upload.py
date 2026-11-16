@@ -209,6 +209,30 @@ async def test_an_upload_cannot_be_changed_while_it_is_pulled(client: AsyncClien
 
 
 @pytest.mark.asyncio
+async def test_an_upload_cannot_be_changed_while_an_update_pulls_it(client: AsyncClient, session):
+    manifest = _manifest()
+    newer = {**manifest, "version": "1.1.0"}
+    await _upload(client, _archive(newer))
+    db_extension = await crud.create_extension(
+        session, repository_id=upload.UPLOAD_REPOSITORY_ID, tag=_tag(manifest), manifest=manifest
+    )
+    db_extension.status = "updating"
+    db_extension.pending_update = {
+        "repository_id": str(upload.UPLOAD_REPOSITORY_ID),
+        "tag": _tag(newer),
+        "manifest": newer,
+    }
+    await session.commit()
+
+    response = await client.delete(f"/extensions/uploads/{_tag(newer)}")
+    assert response.status_code == 409
+    assert "is being updated" in response.json()["detail"]
+    response = await _upload(client, _archive(newer))
+    assert response.status_code == 409
+    assert await _catalog(client) == [_tag(newer)]
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("data", "filename", "detail"),
     [

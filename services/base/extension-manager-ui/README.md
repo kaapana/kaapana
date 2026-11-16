@@ -52,7 +52,8 @@ Everything in `src/shared/` stays local to this view; nothing is moved to
   or when a failed uninstall blocks it; after a failed installation it offers
   *Retry installation*. For a newer version from the repository the extension
   was installed from it offers *Update to X*, after a failed update
-  *Retry update*; older versions, versions from another repository and a
+  *Retry update*. A version below a failed update target is only updated
+  after a confirmation that names the items set back to it. Older versions, versions from another repository and a
   running update stay unavailable with the reason. Progress is shown on the button, it cannot be
   submitted twice, and the outcome is a transient notification.
 - **Extensions** — every extension with platform state: repository, tag,

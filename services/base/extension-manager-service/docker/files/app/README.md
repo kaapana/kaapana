@@ -364,7 +364,7 @@ sequenceDiagram
 
 An update replaces an installed extension in place: it keeps its row, and its workflows keep their IDs and get a new revision. Runs that are active during an update finish on their revision, because the workflow API renders each revision as its own DAG. Versions are compared with `semver` from the `version` field of the manifest; the tag is only the address to pull from.
 
-`_resolve_install_target` (`v1/routers/installation/endpoints.py`) decides what `POST /extensions/install` and `POST /extensions/upload` do when an extension with the same manifest `id` is not uninstalled:
+`_resolve_install_target` (`v1/routers/installation/endpoints.py`) decides what `POST /extensions/install` does when an extension with the same manifest `id` is not uninstalled:
 
 | Requested version | Active extension | Result |
 |-------------------|------------------|--------|
@@ -372,8 +372,7 @@ An update replaces an installed extension in place: it keeps its row, and its wo
 | Same repository and tag | any status | Install path above (retry, or 409 by the state machine) |
 | Any, from another repository | `INSTALLED` or `UPDATE_FAILED` | 409 |
 | Higher | `INSTALLED` | Update, 202 |
-| The failed target or higher | `UPDATE_FAILED` | Update (retry or new target), 202 |
-| Higher, but below the failed target | `UPDATE_FAILED` | 409, contents already on the failed target would go back |
+| Higher | `UPDATE_FAILED` | Update (retry, new target or a version below the failed target), 202 |
 | Same or lower | `INSTALLED` or `UPDATE_FAILED` | 409, downgrades are not supported |
 | Any | other status | 409 |
 | Not semver | any | 400 |
@@ -396,6 +395,7 @@ A renamed content is therefore uninstalled and installed again, and a renamed wo
 
 Limits:
 - There is no downgrade and no rollback. A broken update is fixed with a newer version, or by uninstalling and installing again, which gives the workflows new IDs.
+- After a failed update, a version below the failed target is accepted if it is newer than the installed one. Contents that already reached the failed target are patched back to it; the service only logs a warning, and the UI asks for a confirmation.
 - A version pushed again with `extensionctl push --overwrite` does not reach a platform that has this version installed.
 - A workflow keeps the engine it was created with. The workflow API does not accept a new engine on update, so a changed `workflow_engine` is dropped without notice.
 - The workflow API stores a new revision before it submits it to the workflow engine. If the submission fails, the content stays on its old `applied_version`, but the workflow's latest revision is already the new one, and each retry adds another revision.

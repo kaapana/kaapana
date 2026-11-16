@@ -12,7 +12,7 @@ import yaml
 from fastapi import Form, Request, UploadFile, WebSocket, WebSocketDisconnect
 from kaapanapy.logger import get_logger
 
-from . import helm_helper, schemas
+from . import helm_helper, schemas, validation
 from .config import settings
 
 logger = get_logger(__name__)
@@ -215,7 +215,7 @@ def check_file_namespace(filename: str) -> bool:
     helm_sets = helm_helper.helm_set_arguments(default_sets)
     logger.debug(f"{helm_sets=}")
 
-    cmd = [settings.helm_path, "install", *helm_sets, "-o", "json", "--dry-run", chart["name"], str(fpath)]
+    cmd = [settings.helm_path, "install", *helm_sets, "-o", "json", "--dry-run", "--", chart["name"], str(fpath)]
     success, stdout = helm_helper.execute_shell_command(cmd, blocking=True, timeout=60)
     if not success:
         err = "Failed to check chart namespace"
@@ -271,7 +271,7 @@ def add_file(file: UploadFile, content: bytes, overwrite: bool = True, platforms
     try:
         with open(fpath, "wb") as f:
             f.write(content)
-        success, stdout = helm_helper.execute_shell_command([settings.helm_path, "show", "chart", fpath])
+        success, stdout = helm_helper.execute_shell_command([settings.helm_path, "show", "chart", "--", fpath])
         if not success:
             raise Exception(stdout)
         if "kaapanamultiinstallable" in stdout:
@@ -444,6 +444,7 @@ async def ws_add_file_chunks(ws: WebSocket, fname: str, fsize: int, chunk_size: 
 
 async def run_containerd_import(fname: str, platforms: bool = False) -> Tuple[bool, str]:
     logger.debug(f"in function: run_containerd_import, {fname=}")
+    validation.check_file_name(fname)
     fpath = make_fpath(fname, platforms=platforms)
 
     if not os.path.exists(fpath):

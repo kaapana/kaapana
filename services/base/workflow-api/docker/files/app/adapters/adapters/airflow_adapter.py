@@ -4,6 +4,7 @@ import json as jsonlib
 import os
 import re
 import shutil
+import uuid
 from ast import literal_eval
 from datetime import datetime, timezone
 from pathlib import Path
@@ -75,9 +76,20 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
 
         return re.sub(r"[^A-Za-z0-9._-]+", "_", title).strip("_")
 
-    def _get_dag_id_from_workflow(self, title: str, increment: int) -> str:
-        """Create a DAG ID from a workflow title and revision increment."""
+    def _get_legacy_dag_id(self, title: str, increment: int) -> str:
         return f"{self._sanitize_for_dag_id(title)}_inc{increment}"
+
+    def _get_dag_id(self, workflow_id: uuid.UUID, increment: int) -> str:
+        return f"{workflow_id}_inc{increment}"
+
+    def _resolve_dag_id(self, workflow_id: uuid.UUID, title: Optional[str], increment: int) -> str:
+        dag_id = self._get_dag_id(workflow_id, increment)
+        if not title or (self.airflow_dag_folder / f"{dag_id}.py").exists():
+            return dag_id
+        legacy_dag_id = self._get_legacy_dag_id(title, increment)
+        if (self.airflow_dag_folder / f"{legacy_dag_id}.py").exists():
+            return legacy_dag_id
+        return dag_id
 
     def _map_workflow_run_state(self, state: Optional[str]) -> schemas.WorkflowRunStatus:
         """
@@ -174,7 +186,7 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
         Writes a workflow revision's DAG definition directly to the shared PVC.
         Atomic-like write pattern (write temp -> rename) ensures Airflow doesn't pick up partial files.
         """
-        dag_id = self._get_dag_id_from_workflow(revision.workflow_title, revision.increment)
+        dag_id = self._get_dag_id(revision.workflow_id, revision.increment)
         dag_filename = f"{dag_id}.py"
         temp_filename = f"{dag_id}.py.tmp"
 
@@ -191,6 +203,10 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
         except Exception as e:
             self.logger.error(f"Failed to render DAG template: {e}")
             raise RuntimeError(f"Failed to render DAG template: {e}")
+
+        if target_path.exists() and target_path.read_text() != rendered_definition:
+            self.logger.error(f"DAG file {dag_filename} already exists with a different definition")
+            raise RuntimeError(f"DAG file {dag_filename} already exists with a different definition")
 
         self.logger.info(f"Writing rendered DAG {dag_filename} to {self.airflow_dag_folder}")
 
@@ -254,8 +270,10 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
         Raises:
             RuntimeError: If the DAG is not found within the timeout period
         """
-        title = revision.workflow_title if isinstance(revision, schemas.WorkflowRevision) else revision.title
-        dag_id = self._get_dag_id_from_workflow(title, revision.increment)
+        if isinstance(revision, schemas.WorkflowRevision):
+            dag_id = self._resolve_dag_id(revision.workflow_id, revision.workflow_title, revision.increment)
+        else:
+            dag_id = self._resolve_dag_id(revision.id, revision.title, revision.increment)
         max_retries = 10
         delay = 5.0
         timeout = 120
@@ -301,7 +319,7 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
     ) -> schemas.WorkflowRunUpdate:
         # workflow_run.workflow is a WorkflowRef(id, title, increment) — enough for dag_id
         ref = workflow_run.workflow
-        dag_id = self._get_dag_id_from_workflow(ref.title, ref.increment)
+        dag_id = self._resolve_dag_id(ref.id, ref.title, ref.increment)
         payload: dict = {"conf": {}}
 
         project = await self._fetch_project(project_id)

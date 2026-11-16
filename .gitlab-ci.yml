@@ -118,7 +118,7 @@ workflow:
       when: never
     - if: $CI_MERGE_REQUEST_DRAFT == "true"
       when: never
-    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_PIPELINE_SOURCE == "push" && ($CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH =~ /^release\//)
       when: always
     - if: $CI_PIPELINE_SOURCE == "schedule"
       when: always

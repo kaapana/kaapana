@@ -164,6 +164,20 @@ def test_toggle_off_never_runs_the_job(toggle, job):
     assert all(statically_false(c) or "$" in c for c in conditions), conditions
 
 
+RELEASE_BRANCH_CONDITION = r"$CI_COMMIT_BRANCH =~ /^release\//"
+
+
+def workflow_rule(config, condition):
+    return next(rule for rule in config["workflow"]["rules"] if condition in rule.get("if", ""))
+
+
+def test_a_push_to_a_release_branch_starts_a_pipeline(default_config):
+    rule = workflow_rule(default_config, '$CI_PIPELINE_SOURCE == "push"')
+    assert rule["when"] == "always"
+    assert '$CI_COMMIT_BRANCH == "develop"' in rule["if"]
+    assert RELEASE_BRANCH_CONDITION in rule["if"]
+
+
 def test_failure_notification_fires_on_any_failed_job(default_config):
     """if_ci_failing runs on develop if any job fails"""
     config = jobs(default_config)

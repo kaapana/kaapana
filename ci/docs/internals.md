@@ -342,6 +342,12 @@ credentials to the protected `RELEASE_REGISTRY_*` triple, and the build is force
 cold (`docker system prune --all --volumes`). Images and charts land in the
 release registry tagged `X.Y.Z`.
 
+A push to `develop` or to a `release/*` branch starts a full pipeline, and a
+failure on either, or on a release tag, opens an issue and posts to Slack.
+
+When a new release branch is cut, point the release nightly schedule at the new
+branch, never at a tag.
+
 **Never create `REGISTRY_URL`, `REGISTRY_USER` or `REGISTRY_TOKEN` as project
 variables.** A project variable outranks `rules:variables`, so their mere
 existence sends a release build to the CI registry. That broke the 0.7.0 release.

@@ -54,11 +54,30 @@ def test_complete_active_application_rejects_invalid_release_name(client, fake_c
 
 
 def test_complete_active_application_passes_filter_as_one_argument(client, fake_cli):
-    response = client.post("/complete-active-application", json={"release_name": "demo"})
+    response = client.post("/complete-active-application", json={"release_name": "kaapanaint-demo.1"})
 
     assert response.status_code == 500
     (call,) = fake_cli.calls()
-    assert "--filter=demo" in call
+    assert "--filter=^kaapanaint\\-demo\\.1$" in call
+    assert "--selector=kaapana.ai/kaapanaint=True" in call
+
+
+def test_complete_active_application_needs_the_exact_release(client, fake_cli):
+    fake_cli.respond(["ls"], stdout=json.dumps([{"name": "kaapanaint-demo-2"}]))
+
+    response = client.post("/complete-active-application", json={"release_name": "kaapanaint-demo"})
+
+    assert response.status_code == 500
+    assert fake_cli.calls_with("uninstall") == []
+
+
+def test_complete_active_application_uninstalls_the_release(client, fake_cli):
+    fake_cli.respond(["ls"], stdout=json.dumps([{"name": "kaapanaint-demo"}]))
+
+    response = client.post("/complete-active-application", json={"release_name": "kaapanaint-demo"})
+
+    assert response.status_code == 200
+    assert fake_cli.wait_for_calls("uninstall") == [["-n", "default", "uninstall", "--", "kaapanaint-demo"]]
 
 
 def test_view_chart_status_does_not_pass_invalid_names_to_helm(client, fake_cli):

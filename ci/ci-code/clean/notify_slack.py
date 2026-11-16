@@ -22,7 +22,7 @@ def main():
     project_id = os.getenv("CI_PROJECT_ID")
     pipeline_url = os.getenv("CI_PIPELINE_URL")
     commit_sha = os.getenv("CI_COMMIT_SHORT_SHA")
-    branch = os.getenv("CI_COMMIT_BRANCH")
+    ref = os.getenv("CI_COMMIT_REF_NAME")
 
     # Set up clients
     slack_client = WebClient(token=slack_token)
@@ -40,10 +40,10 @@ def main():
         issue_url = issues[0].web_url
         message = (
             "*Dear Kaapana developers*,\n\n"
-            "Unfortunately, a *CI pipeline* has failed for branch: `{}`.\n"
+            "Unfortunately, a *CI pipeline* has failed for: `{}`.\n"
             "*Pipeline:* <{}>\n"
             "*Issue:* <{}>\n"
-        ).format(branch, pipeline_url, issue_url)
+        ).format(ref, pipeline_url, issue_url)
         send_message(slack_client, slack_channel, message)
 
 

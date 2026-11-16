@@ -96,7 +96,7 @@ variables:
   #   HARVESTER_KUBECONFIG — Harvester cluster access (VM lifecycle)
   #   CI_SSH_PRIVATE_KEY   — private key matching the Harvester "kaapana" KeyPair
 
-  # --- Notifications (if_ci_failing on develop)
+  # --- Notifications (if_ci_failing on develop or release branches)
   SLACK_BOT_TOKEN: $SLACK_BOT_TOKEN # secret — project variable (masked)
   SLACK_CHANNEL_ID: $SLACK_CHANNEL_ID # project variable
 

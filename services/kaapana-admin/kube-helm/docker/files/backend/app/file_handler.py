@@ -212,28 +212,11 @@ def check_file_namespace(filename: str) -> bool:
     default_sets.pop("global.kaapana_collections", None)
     logger.debug(f"{default_sets=}")
 
-    helm_sets = ""
-    for key, value in default_sets.items():
-        if type(value) is str:
-            value = (
-                str(value)
-                .replace(",", r"\,")
-                .replace("'", r"'\"'")
-                .replace(" ", r"")
-                .replace(" ", r"")
-                .replace("{", r"\{")
-                .replace("}", r"\}")
-            )
-            helm_sets = helm_sets + f" --set-string {key}='{value}'"
-        elif isinstance(value, list):
-            val = "{" + ",".join(value) + "}"
-            helm_sets = helm_sets + f" --set '{key}={val}'"
-        else:
-            helm_sets = helm_sets + f" --set {key}='{value}'"
+    helm_sets = helm_helper.helm_set_arguments(default_sets)
     logger.debug(f"{helm_sets=}")
 
-    cmd = f"{settings.helm_path} install {chart['name']} {helm_sets} {str(fpath)} -o json --dry-run "
-    success, stdout = helm_helper.execute_shell_command(cmd, shell=True, blocking=True, timeout=60)
+    cmd = [settings.helm_path, "install", *helm_sets, "-o", "json", "--dry-run", chart["name"], str(fpath)]
+    success, stdout = helm_helper.execute_shell_command(cmd, blocking=True, timeout=60)
     if not success:
         err = "Failed to check chart namespace"
         logger.error(f"{err} {stdout=}")

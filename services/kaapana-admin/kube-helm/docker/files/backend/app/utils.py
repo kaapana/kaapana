@@ -4,6 +4,7 @@ import json
 import os
 import re
 import secrets
+import shlex
 import time
 from os.path import basename
 from pathlib import Path
@@ -114,7 +115,7 @@ def resolve_install_target(
     if platforms:
         # current workaround for avoiding the namespace conflict
         helm_namespace = "default"
-        helm_command_addons = ""
+        helm_command_addons = []
         # for preinstall, set correct helm_namespace for charts
         if "extension_params" in values and "helm_namespace" in values["extension_params"]:
             eparams = values["extension_params"]
@@ -180,9 +181,9 @@ def decide_install_action(status_name, keywords, helm_delete_prefix):
 def build_helm_install_preflight(
     payload,
     helm_namespace=settings.helm_namespace,
-    helm_command_addons="",
+    helm_command_addons=(),
     helm_command_suffix="",
-    helm_delete_prefix="",
+    helm_delete_prefix=(),
     helm_cache_path=None,
     platforms=False,
 ):
@@ -277,36 +278,28 @@ def build_helm_install_preflight(
     install_action, install_message = decide_install_action(status_name, keywords, helm_delete_prefix)
     logger.info(install_message)
 
-    helm_sets = ""
-    if "sets" in payload:
-        for key, value in payload["sets"].items():
-            if isinstance(value, str):
-                value = (
-                    str(value)
-                    .replace(",", r"\,")
-                    .replace("'", r"'\"'")
-                    .replace(" ", r"")
-                    .replace(" ", r"")
-                    .replace("{", r"\{")
-                    .replace("}", r"\}")
-                )
-                helm_sets = helm_sets + f" --set-string {key}='{value}'"
-            elif isinstance(value, list):
-                val = "{" + ",".join(value) + "}"
-                helm_sets = helm_sets + f" --set '{key}={val}'"
-            else:
-                helm_sets = helm_sets + f" --set {key}='{value}'"
+    helm_sets = helm_helper.helm_set_arguments(payload["sets"])
 
-    labels = ""
-    for i, kw in enumerate(keywords):
-        if i == 0:
-            labels = "--labels '"
-        labels += f"kaapana.ai/{kw}=True,"
-        if i == len(keywords) - 1:
-            labels = labels[:-1] + "'"
+    labels = []
+    if keywords:
+        labels = ["--labels=" + ",".join(f"kaapana.ai/{kw}=True" for kw in keywords)]
 
-    # make the whole command
-    helm_command = f"{settings.helm_path} -n {helm_namespace} install {helm_command_addons} {release_name} {helm_sets} {labels} {helm_cache_path}/{name}-{version}.tgz -o json {helm_command_suffix}"
+    helm_command = [
+        settings.helm_path,
+        "-n",
+        helm_namespace,
+        "install",
+        *helm_command_addons,
+        *helm_sets,
+        *labels,
+        "-o",
+        "json",
+        release_name,
+        f"{helm_cache_path}/{name}-{version}.tgz",
+    ]
+    if helm_command_suffix:
+        # The suffix chains further shell commands. Quoting keeps each install argument intact.
+        helm_command = f"{shlex.join(helm_command)} {helm_command_suffix}"
 
     return {
         "should_install": install_action
@@ -398,9 +391,9 @@ def run_supervised_uninstall(
 def supervised_helm_install(
     payload,
     helm_namespace=settings.helm_namespace,
-    helm_command_addons="",
+    helm_command_addons=(),
     helm_command_suffix="",
-    helm_delete_prefix="",
+    helm_delete_prefix=(),
     shell=True,
     helm_cache_path=None,
     update_state=True,
@@ -551,7 +544,9 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
             if helm_status(payload["name"]):
                 logger.info(f"Skipping {payload['name']} since it is already installed")
                 continue
-            success, stdout, helm_result_dict, _, _ = helm_install(payload, helm_command_addons="--dry-run", shell=True)
+            success, stdout, helm_result_dict, _, _ = helm_install(
+                payload, helm_command_addons=["--dry-run"], shell=True
+            )
             manifest = helm_result_dict["manifest"]
             matches = re.findall(regex, manifest)
             if matches:
@@ -635,9 +630,9 @@ def pull_docker_image(
 def helm_install(
     payload,
     helm_namespace=settings.helm_namespace,
-    helm_command_addons="",
+    helm_command_addons=(),
     helm_command_suffix="",
-    helm_delete_prefix="",
+    helm_delete_prefix=(),
     shell=True,
     helm_cache_path=None,
     update_state=True,
@@ -652,9 +647,9 @@ def helm_install(
     Args:
         payload (_type_):
         helm_namespace (_type_, optional): . Defaults to settings.helm_namespace.
-        helm_command_addons (str, optional): . Defaults to ''.
+        helm_command_addons (list, optional): Extra arguments for helm install. Defaults to ().
         helm_command_suffix (str, optional): . Defaults to ''.
-        helm_delete_prefix (str, optional): . Defaults to ''.
+        helm_delete_prefix (list, optional): Command that runs before the install. Defaults to ().
         shell (bool, optional): Run command process with or without shell. Defaults to True.
         helm_cache_path (_type_, optional): _description_. Defaults to None.
         update_state (bool, optional): Whether to update global_extension_states. Defaults to True.
@@ -687,9 +682,9 @@ def helm_install(
     skip_check = False
     if helm_command_suffix != "":
         skip_check = True
-    if helm_delete_prefix != "":
+    if helm_delete_prefix:
         success, stdout = helm_helper.execute_shell_command(
-            helm_delete_prefix, shell=shell, blocking=blocking, skip_check=skip_check
+            helm_delete_prefix, blocking=blocking, skip_check=skip_check
         )
         if not success:
             logger.error(f"helm delete prefix failed: cmd={helm_delete_prefix} success={success} stdout={stdout}")
@@ -740,7 +735,7 @@ async def helm_delete_cmd_run_async(release_name, version, cmd, multiinstallable
 
 
 async def helm_install_cmd_run_async(release_name, version, cmd, keywords):
-    success, stdout = await helm_helper.exec_shell_cmd_async(cmd, shell=True, timeout=timeouts.helm_install_timeout)
+    success, stdout = await helm_helper.exec_shell_cmd_async(cmd, timeout=timeouts.helm_install_timeout)
 
     if success and version is not None:
         helm_helper.update_extension_state(
@@ -956,13 +951,19 @@ def execute_update_extensions():
                 logger.warning(message)
         else:
             logger.info("helm deleting and reinstalling")
-            helm_delete_prefix = (
-                f"{settings.helm_path} -n {settings.helm_namespace} uninstall {release_name} --wait --timeout 5m"
-            )
+            helm_delete_prefix = [
+                settings.helm_path,
+                "-n",
+                settings.helm_namespace,
+                "uninstall",
+                "--wait",
+                "--timeout=5m",
+                release_name,
+            ]
             success, _, _, _, _ = helm_install(
                 payload,
                 helm_delete_prefix=helm_delete_prefix,
-                helm_command_addons="--wait",
+                helm_command_addons=["--wait"],
                 helm_cache_path=settings.helm_collections_cache,
                 shell=True,
                 update_state=False,

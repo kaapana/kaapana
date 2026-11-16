@@ -34,12 +34,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get install -y --no-install-recommends "docker-ce-cli=$DOCKER_CLI_PKG_VERSION" docker-buildx-plugin \
     && rm -rf /var/lib/apt/lists/*
 
-# helm + kubeval plugin: kaapana-build hard-fails without both
+# helm: kaapana-build hard-fails without it
 # renovate: datasource=github-releases depName=helm/helm extractVersion=^v(?<version>\d+\.\d+\.\d+)$
 ARG HELM_VERSION=4.3.0
 RUN curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" \
         | tar -xzO linux-amd64/helm > /usr/local/bin/helm \
-    && chmod +x /usr/local/bin/helm
+    && chmod +x /usr/local/bin/helm \
+    && helm version --short
 
 # trivy: kaapana-build runs it as a plain process
 # renovate: datasource=github-releases depName=aquasecurity/trivy extractVersion=^v(?<version>\d+\.\d+\.\d+)$

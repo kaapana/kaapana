@@ -2,12 +2,12 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ .Values.image}}
+  name: {{ .Values.image | default "model-installer" }}
   namespace: "{{ .Values.global.services_namespace }}"
 spec:
   template:
     metadata:
-      name: {{ .Values.image}}
+      name: {{ .Values.image | default "model-installer" }}
       labels:
         network-access-external-ips: "true"
     spec:

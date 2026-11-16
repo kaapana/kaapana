@@ -4,7 +4,6 @@ import json
 import os
 import re
 import secrets
-import subprocess
 import time
 from os.path import basename
 from pathlib import Path
@@ -83,7 +82,7 @@ def helm_status(release_name, helm_namespace=settings.helm_namespace):
     """Returns the 'info' dict from 'helm status' or {} on failure."""
     logger.debug("in function: helm_status")
     success, stdout = helm_helper.execute_shell_command(
-        f"{settings.helm_path} -n {helm_namespace} status {release_name} -o yaml"
+        [settings.helm_path, "-n", helm_namespace, "status", "-o", "yaml", release_name]
     )
     if not success:
         logger.warning(f"Could not fetch helm status for: {release_name}")
@@ -494,7 +493,19 @@ def supervised_helm_install(
 
 def collect_helm_deployments(helm_namespace=settings.helm_namespace):
     success, stdout = helm_helper.execute_shell_command(
-        f"{settings.helm_path} -n {helm_namespace} ls --deployed --pending --failed --uninstalling --superseded -o json"
+        [
+            settings.helm_path,
+            "-n",
+            helm_namespace,
+            "ls",
+            "--deployed",
+            "--pending",
+            "--failed",
+            "--uninstalling",
+            "--superseded",
+            "-o",
+            "json",
+        ]
     )
     if success:
         namespace_deployments = json.loads(stdout)
@@ -808,7 +819,7 @@ def helm_delete(
         # handle 'Hook post-delete <hook-yaml-path> failed, jobs.batch <remove-job> already exists scenarios'
         if "post-delete" in stdout:
             logger.info(f"detected post-delete error during helm uninstall stdout: {stdout}")
-            cmd = f"{settings.helm_path} -n {helm_namespace} ls --deployed --pending -o json"
+            cmd = [settings.helm_path, "-n", helm_namespace, "ls", "--deployed", "--pending", "-o", "json"]
             helm_success, helm_stdout = helm_helper.execute_shell_command(cmd)
             if not helm_success:
                 err = f"Failed to run {cmd}, uninstall error: {stdout}"
@@ -846,18 +857,18 @@ def helm_ls(helm_namespace=settings.helm_namespace, release_filter="", label_fil
     """
     Returns all charts under namespace (in all states) after applying the filter
     """
-    # TODO: run subprocess via execute function and with shell=False
+    command = [settings.helm_path, "ls", "-n", helm_namespace]
+    if release_filter != "":
+        command.append(f"--filter={release_filter}")
+    if label_filter != "":
+        command.append(f"--selector={label_filter}")
+    command += ["--deployed", "--pending", "--failed", "--uninstalling", "-o", "json"]
     try:
-        if release_filter != "":
-            release_filter = f"--filter {release_filter}"
-        if label_filter != "":
-            label_filter = f"--selector {label_filter}"
-        resp = subprocess.check_output(
-            f"{os.environ['HELM_PATH']} ls -n {helm_namespace} {release_filter} {label_filter}  --deployed --pending --failed --uninstalling -o json",
-            stderr=subprocess.STDOUT,
-            shell=True,
-        )
-        return json.loads(resp)
+        success, stdout = helm_helper.execute_shell_command(command)
+        if not success:
+            logger.error(f"Error when running helm ls: {stdout}")
+            return []
+        return json.loads(stdout)
     except Exception as e:
         logger.error(f"Error when running helm ls: {e}")
         return []

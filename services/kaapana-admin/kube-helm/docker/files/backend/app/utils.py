@@ -4,7 +4,7 @@ import json
 import os
 import re
 import secrets
-import shlex
+import threading
 import time
 from os.path import basename
 from pathlib import Path
@@ -182,7 +182,6 @@ def build_helm_install_preflight(
     payload,
     helm_namespace=settings.helm_namespace,
     helm_command_addons=(),
-    helm_command_suffix="",
     helm_delete_prefix=(),
     helm_cache_path=None,
     platforms=False,
@@ -297,9 +296,6 @@ def build_helm_install_preflight(
         release_name,
         f"{helm_cache_path}/{name}-{version}.tgz",
     ]
-    if helm_command_suffix:
-        # The suffix chains further shell commands. Quoting keeps each install argument intact.
-        helm_command = f"{shlex.join(helm_command)} {helm_command_suffix}"
 
     return {
         "should_install": install_action
@@ -398,7 +394,6 @@ def supervised_helm_install(
     payload,
     helm_namespace=settings.helm_namespace,
     helm_command_addons=(),
-    helm_command_suffix="",
     helm_delete_prefix=(),
     shell=True,
     helm_cache_path=None,
@@ -411,7 +406,6 @@ def supervised_helm_install(
         "payload": payload,
         "helm_namespace": helm_namespace,
         "helm_command_addons": helm_command_addons,
-        "helm_command_suffix": helm_command_suffix,
         "helm_delete_prefix": helm_delete_prefix,
         "shell": shell,
         "helm_cache_path": helm_cache_path,
@@ -424,7 +418,6 @@ def supervised_helm_install(
         payload,
         helm_namespace=helm_namespace,
         helm_command_addons=helm_command_addons,
-        helm_command_suffix=helm_command_suffix,
         helm_delete_prefix=helm_delete_prefix,
         helm_cache_path=helm_cache_path,
         platforms=platforms,
@@ -586,13 +579,35 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
         if helm_status(dag["name"]):
             logger.info(f"Skipping {dag['name']} since it is already installed")
             continue
-        helm_command_suffix = f"--wait --atomic --timeout={timeouts.helm_pull_container_timeout}s; sleep 10; {settings.helm_path} -n {helm_namespace} delete {dag['release_name']}"
         success, stdout, helm_result_dict, release_name, _ = helm_install(
-            dag, helm_command_suffix=helm_command_suffix, shell=True
+            dag,
+            helm_command_addons=pull_install_arguments(),
+            uninstall_after_install=True,
+            shell=True,
         )
         installed_release_names.append(release_name)
 
     return installed_release_names
+
+
+def pull_install_arguments():
+    """Install arguments for releases that only pull container images."""
+    return ["--wait", "--atomic", f"--timeout={timeouts.helm_pull_container_timeout}s"]
+
+
+def install_then_uninstall(install_command, uninstall_command):
+    """Installs a release, waits briefly and removes it again.
+
+    Returns the success of both commands and the output of the install.
+    """
+    success, stdout = helm_helper.execute_shell_command(install_command)
+    time.sleep(timeouts.helm_pull_uninstall_delay)
+    uninstall_success, uninstall_stdout = helm_helper.execute_shell_command(
+        uninstall_command, timeout=timeouts.helm_deletion_timeout
+    )
+    if not uninstall_success:
+        logger.error(f"Could not remove release after the install: {uninstall_stdout}")
+    return success and uninstall_success, stdout
 
 
 def pull_docker_image(
@@ -620,10 +635,11 @@ def pull_docker_image(
         "release_name": release_name,
     }
 
-    helm_command_suffix = f"--wait --atomic --timeout {timeouts.helm_pull_container_timeout}s; sleep 10; {settings.helm_path} -n {helm_namespace} delete {release_name}"
     success, stdout, helm_result_dict, _, _ = helm_install(
         payload,
-        helm_command_suffix=helm_command_suffix,
+        helm_namespace=helm_namespace,
+        helm_command_addons=pull_install_arguments(),
+        uninstall_after_install=True,
         helm_cache_path=settings.helm_helpers_cache,
         shell=shell,
         update_state=False,
@@ -637,7 +653,6 @@ def helm_install(
     payload,
     helm_namespace=settings.helm_namespace,
     helm_command_addons=(),
-    helm_command_suffix="",
     helm_delete_prefix=(),
     shell=True,
     helm_cache_path=None,
@@ -646,7 +661,8 @@ def helm_install(
     platforms=False,
     execute_cmd=True,
     preflight=None,
-) -> Tuple[bool, str, dict, str, str]:
+    uninstall_after_install=False,
+) -> Tuple[bool, str, dict, str, list]:
     # TODO: must be shell=False as default
     """
 
@@ -654,15 +670,15 @@ def helm_install(
         payload (_type_):
         helm_namespace (_type_, optional): . Defaults to settings.helm_namespace.
         helm_command_addons (list, optional): Extra arguments for helm install. Defaults to ().
-        helm_command_suffix (str, optional): . Defaults to ''.
         helm_delete_prefix (list, optional): Command that runs before the install. Defaults to ().
         shell (bool, optional): Run command process with or without shell. Defaults to True.
         helm_cache_path (_type_, optional): _description_. Defaults to None.
         update_state (bool, optional): Whether to update global_extension_states. Defaults to True.
         blocking (bool, optional): Run helm install command in a blocking or non-blocking way. Defaults to True.
+        uninstall_after_install (bool, optional): Removes the release again after the install. Defaults to False.
 
     Returns:
-        Tuple[bool, str, dict, str, str]: success, stdout, helm_result_dict, release_name, helm_command
+        Tuple[bool, str, dict, str, list]: success, stdout, helm_result_dict, release_name, helm_command
     """
     logger.debug(f"in function: helm_install with {payload=}, {shell=}")
     version = payload["version"]
@@ -671,7 +687,6 @@ def helm_install(
             payload,
             helm_namespace=helm_namespace,
             helm_command_addons=helm_command_addons,
-            helm_command_suffix=helm_command_suffix,
             helm_delete_prefix=helm_delete_prefix,
             helm_cache_path=helm_cache_path,
             platforms=platforms,
@@ -685,13 +700,8 @@ def helm_install(
     if not execute_cmd:
         return True, "", keywords, release_name, helm_command
 
-    skip_check = False
-    if helm_command_suffix != "":
-        skip_check = True
     if helm_delete_prefix:
-        success, stdout = helm_helper.execute_shell_command(
-            helm_delete_prefix, blocking=blocking, skip_check=skip_check
-        )
+        success, stdout = helm_helper.execute_shell_command(helm_delete_prefix, blocking=blocking)
         if not success:
             logger.error(f"helm delete prefix failed: cmd={helm_delete_prefix} success={success} stdout={stdout}")
     if platforms:
@@ -700,7 +710,21 @@ def helm_install(
         )  # plaforms usually take longer due to multiple sub-charts involved
     else:
         timeout = timeouts.helm_install_timeout
-    success, stdout = helm_helper.execute_shell_command(helm_command, shell=shell, blocking=blocking, timeout=timeout)
+    if uninstall_after_install:
+        uninstall_command = [settings.helm_path, "-n", preflight["helm_namespace"], "uninstall", release_name]
+        if blocking:
+            success, stdout = install_then_uninstall(helm_command, uninstall_command)
+        else:
+            threading.Thread(
+                target=install_then_uninstall,
+                args=(helm_command, uninstall_command),
+                daemon=True,
+            ).start()
+            success, stdout = True, ""
+    else:
+        success, stdout = helm_helper.execute_shell_command(
+            helm_command, shell=shell, blocking=blocking, timeout=timeout
+        )
 
     helm_result_dict = {}
     if blocking and success:

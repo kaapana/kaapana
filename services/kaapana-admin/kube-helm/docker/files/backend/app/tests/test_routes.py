@@ -92,3 +92,28 @@ def test_delete_release_name_runs_no_injected_command(client, fake_cli, marker):
     assert response.status_code == 200
     assert fake_cli.wait_for_calls("uninstall") == [["-n", "default", "uninstall", release_name]]
     assert not marker.exists()
+
+
+def test_image_pull_ignores_fields_other_than_the_image(client, fake_cli, marker, monkeypatch):
+    from app.config import settings, timeouts
+
+    monkeypatch.setattr(timeouts, "helm_pull_uninstall_delay", 0)
+    with open(f"{settings.helm_helpers_cache}/pull-docker-chart-0.1.0.tgz", "wb"):
+        pass
+
+    response = client.post(
+        "/pull-docker-image",
+        json={
+            "docker_registry_url": "registry.example.com",
+            "docker_image": "image",
+            "docker_version": "1.0.0",
+            "helm_namespace": f"admin; touch {marker};",
+            "blocking": True,
+        },
+    )
+
+    assert response.status_code == 202
+    (uninstall,) = fake_cli.wait_for_calls("uninstall")
+    (install,) = fake_cli.calls_with("install")
+    assert install[:2] == uninstall[:2] == ["-n", "default"]
+    assert not marker.exists()

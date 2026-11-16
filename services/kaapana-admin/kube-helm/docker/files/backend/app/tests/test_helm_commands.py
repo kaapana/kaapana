@@ -1,6 +1,8 @@
 """Checks that each untrusted value reaches helm, kubectl or ctr as exactly one argument."""
 
+import asyncio
 import json
+from types import SimpleNamespace
 
 import pytest
 import yaml
@@ -263,3 +265,37 @@ def test_non_blocking_image_pull_uninstalls_in_the_background(fake_cli, pull_cha
     assert success
     assert fake_cli.wait_for_calls("uninstall") == [["-n", "default", "uninstall", "pull-docker-chart-0123"]]
     assert [call[2] for call in fake_cli.calls_with("pull-docker-chart-0123")][-2:] == ["install", "uninstall"]
+
+
+def test_container_import_passes_file_path_as_one_argument(fake_cli, marker, monkeypatch):
+    # A relative path lets the injected command reach the marker without a slash in the file name.
+    monkeypatch.chdir(marker.parent)
+    filename = f"image.tar; touch {marker.name}"
+    open(f"{settings.helm_extensions_cache}/{filename}", "wb").close()
+
+    success, _ = asyncio.run(file_handler.run_containerd_import(filename))
+
+    assert success
+    assert fake_cli.calls("ctr") == [
+        [
+            "--namespace",
+            "k8s.io",
+            f"--address={settings.containerd_sock}",
+            "image",
+            "import",
+            "--digests",
+            f"{settings.helm_extensions_cache}/{filename}",
+        ]
+    ]
+    assert not marker.exists()
+
+
+def test_chart_upload_passes_file_path_as_one_argument(fake_cli, marker, monkeypatch):
+    monkeypatch.chdir(marker.parent)
+    upload = SimpleNamespace(filename=f"demo; touch {marker.name}-0.1.0.tgz", content_type="application/gzip")
+
+    success, _ = file_handler.add_file(upload, b"chart")
+
+    assert success
+    assert fake_cli.calls() == [["show", "chart", f"{settings.helm_extensions_cache}/{upload.filename}"]]
+    assert not marker.exists()

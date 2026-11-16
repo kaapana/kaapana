@@ -71,6 +71,21 @@ def _reject_admin_only_fields(payload: dict, fields) -> None:
         raise HTTPException(status_code=403, detail=f"Only admins can set {', '.join(present)}.")
 
 
+def _reject_undeclared_extension_params(payload: dict) -> None:
+    # Each extension parameter becomes a global helm value, so other keys could change any platform setting.
+    extension_params = payload.get("extension_params", {})
+    if not isinstance(extension_params, dict):
+        raise HTTPException(status_code=400, detail="extension_params must be an object.")
+    values = helm_helper.helm_show_values(name=payload["name"], version=payload["version"])
+    declared = (values or {}).get("extension_params") or {}
+    undeclared = sorted(key for key in extension_params if key not in declared)
+    if undeclared:
+        raise HTTPException(
+            status_code=403,
+            detail=f"The chart does not declare these extension parameters: {', '.join(undeclared)}.",
+        )
+
+
 @router.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
@@ -348,6 +363,8 @@ async def helm_install_chart(request: Request):
                 status_code=403,
                 detail=f"'{payload['name']}' is not a multi-installable application. Only admins can install it.",
             )
+        if project_member_request:
+            _reject_undeclared_extension_params(payload)
 
         if "kaapanamultiinstallable" in keywords:
             if project_header:

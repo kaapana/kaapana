@@ -210,6 +210,7 @@ def test_project_members_can_only_launch_multi_installable_applications(client, 
 
 def test_project_members_launch_whitelisted_applications(client, fake_cli, aii):
     fake_cli.respond(["show", "chart"], stdout=MULTIINSTALLABLE_CHART)
+    fake_cli.respond(["show", "values"], stdout=json.dumps({"extension_params": {"display_name": {"type": "string"}}}))
 
     response = install(client, PROJECT_HEADERS, extension_params={"display_name": "Demo"})
 
@@ -277,3 +278,36 @@ def test_admins_choose_where_an_application_is_deleted(client, fake_cli, aii):
 
     assert response.status_code == 200
     assert fake_cli.wait_for_calls("uninstall") == [["-n", "admin", "uninstall", "--", "other-chart-1"]]
+
+
+@pytest.mark.parametrize("key", ["registry_url", "helm_namespace", "project_namespace"])
+def test_project_members_cannot_set_undeclared_extension_params(client, fake_cli, aii, key):
+    fake_cli.respond(["show", "chart"], stdout=MULTIINSTALLABLE_CHART)
+    fake_cli.respond(["show", "values"], stdout=json.dumps({"extension_params": {"display_name": {"type": "string"}}}))
+
+    response = install(client, PROJECT_HEADERS, extension_params={"display_name": "Demo", key: "other"})
+
+    assert response.status_code == 403
+    assert fake_cli.calls_with("install") == []
+
+
+def test_project_parameters_are_always_set_by_the_server(client, fake_cli, aii):
+    fake_cli.respond(["show", "chart"], stdout=MULTIINSTALLABLE_CHART)
+    fake_cli.respond(["show", "values"], stdout=json.dumps({"extension_params": {"project_namespace": {}}}))
+
+    response = install(client, PROJECT_HEADERS, extension_params={"project_namespace": "project-other"})
+
+    assert response.status_code == 200
+    (call,) = fake_cli.calls_with("install")
+    assert "--set-string=global.project_namespace=project-abcd1234" in call
+    assert not any("project-other" in argument for argument in call)
+
+
+def test_admins_set_any_extension_params(client, fake_cli, aii):
+    fake_cli.respond(["show", "chart"], stdout=MULTIINSTALLABLE_CHART)
+
+    response = install(client, admin_headers(), extension_params={"registry_url": "registry.example.com/other"})
+
+    assert response.status_code == 200
+    (call,) = fake_cli.calls_with("install")
+    assert "--set-string=global.registry_url=registry.example.com/other" in call

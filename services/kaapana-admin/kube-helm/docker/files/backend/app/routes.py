@@ -323,11 +323,10 @@ async def helm_install_chart(request: Request):
             cmd_addons = ["--create-namespace"]
         if ("blocking" in payload) and (str(payload["blocking"]).lower() == "true"):
             blocking = True
-        keywords = payload.get("keywords")
-        if not keywords:
-            chart = helm_helper.helm_show_chart(name=payload["name"], version=payload["version"], platforms=platforms)
-            keywords = chart.get("keywords", [])
-            payload["keywords"] = keywords
+        # The keywords control the whitelist check and the release labels, so only the chart may set them.
+        chart = helm_helper.helm_show_chart(name=payload["name"], version=payload["version"], platforms=platforms)
+        keywords = chart.get("keywords", [])
+        payload["keywords"] = keywords
 
         if "kaapanamultiinstallable" in keywords:
             project_header = request.headers.get("Project")

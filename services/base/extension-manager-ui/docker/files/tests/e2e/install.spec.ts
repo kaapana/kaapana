@@ -11,6 +11,7 @@ import {
 import {
   API,
   card,
+  confirmAction,
   countRequests,
   dialog,
   failRoute,
@@ -175,6 +176,49 @@ test('a failed update offers a retry of the same version', async ({ page }) => {
   await expect(dialog(page).getByTestId('install-state')).toContainText(
     'The update to this version failed. Version 1.0.0 is still installed.',
   )
+})
+
+function withFailedUpdateTo120() {
+  const data = withNnunetInstalled(NNUNET_V1, 'update_failed')
+  const nnunet = data.extensions.at(-1)!
+  nnunet.pending_update = manifestResponse(PUBLIC_REPO, { ...NNUNET_V11, version: '1.2.0' })
+  nnunet.contents[0]!.applied_version = '1.2.0'
+  return data
+}
+
+test('a version below a failed update target updates after a confirmation', async ({ page }) => {
+  await openView(page, 'catalog', withFailedUpdateTo120())
+  await card(page, 'nnunet').click()
+
+  const update = dialog(page).getByTestId('install')
+  await expect(update).toHaveText('Update to 1.1.0')
+  await expect(dialog(page).getByTestId('install-state')).toContainText(
+    'The update to 1.2.0 failed. Version 1.0.0 is still installed.',
+  )
+  await update.click()
+
+  const confirm = dialog(page)
+  await expect(confirm).toContainText('Update "nnunet" to 1.1.0?')
+  await expect(confirm).toContainText(
+    '1 item already on 1.2.0 (nnunet-workflow) will be set back to 1.1.0.',
+  )
+
+  const request = nextRequest(page, API.install, 'POST')
+  await confirmAction(page, 'Update extension')
+  expect(new URL((await request).url()).searchParams.get('tag')).toBe(
+    'aaaaaaaa-0000-0000-0000-000000000001-v1.1.0',
+  )
+})
+
+test('dismissing the update confirmation sends nothing', async ({ page }) => {
+  await openView(page, 'catalog', withFailedUpdateTo120())
+  const installs = countRequests(page, API.install, 'POST')
+  await card(page, 'nnunet').click()
+  await dialog(page).getByTestId('install').click()
+  await dialog(page).getByRole('button', { name: 'Cancel' }).click()
+
+  await expect(dialog(page).getByTestId('install')).toBeEnabled()
+  expect(installs()).toBe(0)
 })
 
 test('an older version cannot be installed over a newer one', async ({ page }) => {

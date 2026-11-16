@@ -3,9 +3,10 @@ import type {
   CatalogEntryGroup,
   CatalogFilters,
   InstallAvailability,
+  UpdateConfirmation,
 } from '@/features/catalog/types'
 import type { ExtensionStatus, InstalledExtension } from '@/shared/types/apiSchemas'
-import { isTransitional, RETRYABLE_INSTALL_STATUSES } from '@/shared/utils/status'
+import { isTransitional, plural, RETRYABLE_INSTALL_STATUSES } from '@/shared/utils/status'
 
 export function applyCatalogFilters(
   entries: CatalogEntry[],
@@ -133,20 +134,49 @@ function otherVersionAvailability(
       reason: `Version ${installedVersion} is installed. Downgrades are not supported.`,
     }
   }
-  if (
-    installation.status === 'update_failed' &&
-    installation.pending_update?.manifest.version === entry.manifest.version
-  ) {
-    return {
-      kind: 'update',
-      label: 'Retry update',
-      reason: `The update to this version failed. Version ${installedVersion} is still installed.`,
+  const failedVersion =
+    installation.status === 'update_failed'
+      ? installation.pending_update?.manifest.version
+      : undefined
+  if (failedVersion !== undefined) {
+    const failedComparison = compareVersions(entry.manifest.version, failedVersion)
+    if (failedComparison === 0) {
+      return {
+        kind: 'update',
+        label: 'Retry update',
+        reason: `The update to this version failed. Version ${installedVersion} is still installed.`,
+      }
+    }
+    if (failedComparison < 0) {
+      return {
+        kind: 'update',
+        label: `Update to ${entry.manifest.version}`,
+        reason: `The update to ${failedVersion} failed. Version ${installedVersion} is still installed.`,
+        confirm: belowFailedTargetConfirmation(entry, installation, failedVersion),
+      }
     }
   }
   return {
     kind: 'update',
     label: `Update to ${entry.manifest.version}`,
     reason: `Version ${installedVersion} is installed.`,
+  }
+}
+
+function belowFailedTargetConfirmation(
+  entry: CatalogEntry,
+  installation: InstalledExtension,
+  failedVersion: string,
+): UpdateConfirmation {
+  const reached = installation.contents
+    .filter((content) => content.applied_version === failedVersion)
+    .map((content) => content.name)
+  const back = reached.length
+    ? `${plural(reached.length, 'item')} already on ${failedVersion} (${reached.join(', ')}) will be set back to ${entry.manifest.version}.`
+    : `No item reached ${failedVersion}.`
+  return {
+    title: `Update "${entry.manifest.name}" to ${entry.manifest.version}?`,
+    text: `The update to ${failedVersion} failed, and ${entry.manifest.version} is older than that. ${back}`,
   }
 }
 

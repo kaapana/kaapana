@@ -35,6 +35,19 @@ const availability = computed(() =>
     ? installAvailability(props.entry, props.installation)
     : ({ kind: 'available', label: 'Install' } as const),
 )
+const showUpdateConfirm = ref(false)
+const updateConfirmation = computed(() =>
+  availability.value.kind === 'update' ? availability.value.confirm : undefined,
+)
+
+function onInstall() {
+  if (updateConfirmation.value) {
+    showUpdateConfirm.value = true
+    return
+  }
+  emit('install')
+}
+
 const installationStatus = computed(() =>
   props.installation ? presentExtensionStatus(props.installation.status) : null,
 )
@@ -98,7 +111,7 @@ const advancedSourceRows = computed<SourceDetailsRow[]>(() => {
           :loading="props.installing"
           :disabled="props.installing || availability.kind === 'unavailable'"
           data-testid="install"
-          @click="emit('install')"
+          @click="onInstall"
         >
           {{ availability.label }}
         </v-btn>
@@ -139,6 +152,15 @@ const advancedSourceRows = computed<SourceDetailsRow[]>(() => {
     :text="removeText"
     confirm-text="Remove upload"
     @confirm="emit('remove')"
+  />
+
+  <ConfirmDialog
+    v-model="showUpdateConfirm"
+    color="warning"
+    :title="updateConfirmation?.title ?? ''"
+    :text="updateConfirmation?.text ?? ''"
+    confirm-text="Update extension"
+    @confirm="emit('install')"
   />
 </template>
 

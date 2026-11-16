@@ -258,14 +258,20 @@ auth_backend_tests:
 ##############################################
 # Kube-Helm Tests
 ##############################################
-# test_ttl_cache.py by name: its siblings are integration tests needing a live
-# kube-helm + cluster and fail at collection here. The suite also sits in
-# app/tests rather than beside it, hence its own job.
+# The unit tests are listed by name. Their siblings are integration tests that
+# need a live kube-helm and a cluster, and they fail at collection here. The
+# suite also sits in app/tests rather than beside it, hence its own job.
 kube_helm_tests:
   extends: .test_template
   script:
+    - pip install -r $KAAPANA_DIR/services/kaapana-admin/kube-helm/docker/files/requirements.txt
     - pip install -r $KAAPANA_DIR/services/kaapana-admin/kube-helm/docker/files/backend/app/tests/requirements.txt
-    - pytest $KAAPANA_DIR/services/kaapana-admin/kube-helm/docker/files/backend/app/tests/test_ttl_cache.py --junitxml=kube_helm_report.xml
+    - pytest $KAAPANA_DIR/services/kaapana-admin/kube-helm/docker/files/backend/app/tests/test_ttl_cache.py
+        $KAAPANA_DIR/services/kaapana-admin/kube-helm/docker/files/backend/app/tests/test_executors.py
+        $KAAPANA_DIR/services/kaapana-admin/kube-helm/docker/files/backend/app/tests/test_helm_commands.py
+        $KAAPANA_DIR/services/kaapana-admin/kube-helm/docker/files/backend/app/tests/test_routes.py
+        $KAAPANA_DIR/services/kaapana-admin/kube-helm/docker/files/backend/app/tests/test_validation.py
+        --junitxml=kube_helm_report.xml
   artifacts:
     reports:
       junit:

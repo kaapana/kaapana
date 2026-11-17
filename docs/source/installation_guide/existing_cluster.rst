@@ -8,7 +8,8 @@ server itself (see :ref:`server_installation`). Nothing on this page is needed f
 
 This page describes the settings for deploying Kaapana into a Kubernetes cluster that is **not**
 the local microk8s, for example a managed Rancher/RKE2 cluster where you only get a few
-namespaces and no cluster-wide permissions. Each setting can be used on its own.
+namespaces and no cluster-wide permissions. Each setting can be used on its own; the
+:ref:`example <existing_cluster_example>` at the end shows a typical managed-cluster combination.
 
 
 Configuration file
@@ -90,6 +91,11 @@ Settings overview
      - JSON object of annotations for the ingress and service of oauth2-proxy, merged over the
        defaults for ``traefik`` and ``nginx``. Required for other controllers, see
        :ref:`existing_cluster_external_ingress`.
+   * - ``NO_READ_WRITE_MANY_SUPPORT`` /
+       ``global.no_read_write_many_support``
+     - ``false``
+     - ``true`` if the storage class only supports ``ReadWriteOnce`` volumes (typical for block
+       storage). See :ref:`existing_cluster_rwo`.
    * - ``STORAGE_PROVIDER`` / ``STORAGE_CLASS``
      - ``hostpath`` / ``""``
      - ``STORAGE_PROVIDER="default"`` uses an existing storage class of the cluster for all volumes:
@@ -241,3 +247,45 @@ Then:
   connect to oauth2-proxy.
 * Traefik and oauth2-proxy are ``ClusterIP`` services instead of ``NodePort`` services on ports
   80/443; Traefik's HTTPS entrypoint listens on port 9000.
+
+.. _existing_cluster_rwo:
+
+Storage without ReadWriteMany
+=============================
+
+Several pods share Kaapana's volumes (e.g. workflow data). With ``NO_READ_WRITE_MANY_SUPPORT=true``
+the volumes are ``ReadWriteOnce``, which can only be mounted on one node at a time, so all pods using
+the volumes of a namespace are scheduled on the same node as one pod of that namespace: the Airflow
+scheduler (services namespace), kube-helm (admin namespace) or ``project-runtime`` (project
+namespaces).
+
+While this pod is not running (e.g. during a restart), new pods of its namespace stay
+``Pending`` until it is back.
+
+
+.. _existing_cluster_example:
+
+Example: managed Rancher cluster
+================================
+
+.. code-block:: bash
+
+   KUBE_CONTEXT="<context>"            # the cluster's context in your kubeconfig
+   PLATFORM_PREFIX="myplatform"
+   PREFIX_ALL_NAMESPACES=true          # myplatform-admin / -services / -extensions
+   RESTRICTED_RBAC=true
+   NO_READ_WRITE_MANY_SUPPORT=true
+   EXTERNAL_INGRESS="traefik"
+   DICOM_PORT="31112"
+   STORAGE_PROVIDER="default"
+   STORAGE_CLASS=""                    # empty: the cluster's default storage class
+   PUBLIC_PROJECT_ID="<uuid>"          # e.g. from uuidgen; namespace myplatform-project-<first 8 chars>
+
+Before deploying: with restricted RBAC you can't install CRDs and can't create namespaces (no
+ClusterRole), so this has to be prepared:
+
+#. Have the cluster administrators install the Traefik CRDs.
+#. Create the namespaces ``myplatform-admin``, ``myplatform-services``, ``myplatform-extensions``,
+   ``myplatform-project-admin`` and, if ``PUBLIC_PROJECT_ID`` is set, ``myplatform-project-<first 8
+   characters of PUBLIC_PROJECT_ID>`` (e.g. in Rancher).
+#. Deploy as described in :ref:`deployment`.

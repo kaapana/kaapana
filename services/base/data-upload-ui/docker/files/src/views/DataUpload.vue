@@ -142,11 +142,11 @@
                     Upload DICOM data, NIfTI data or any other data you want to use in a workflow as
                     a zip file via the drop zone.
                   </p>
-                  <Upload
+                  <FileUpload
                     label-idle="Drop DICOM, NIfTI or other data here or <span class='filepond--label-action'>browse</span>"
                     :disabled="isArchived"
                     @uploading="postViewDirty"
-                  ></Upload>
+                  ></FileUpload>
                 </div>
               </li>
               <li class="d-flex align-center ga-3">
@@ -183,7 +183,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
-import Upload from '@/components/Upload.vue'
+import FileUpload from '@/components/FileUpload.vue'
 import { WorkflowExecution } from '@kaapana/base-ui/workflow-execution'
 import '@kaapana/base-ui/workflow-execution.css'
 import {

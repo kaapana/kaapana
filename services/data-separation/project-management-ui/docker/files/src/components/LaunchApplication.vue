@@ -7,7 +7,7 @@
 
     <v-card-text>
       <v-form ref="formRef" class="px-3">
-        <template v-for="(param, key) in (extension?.extension_params || {})" :key="key">
+        <template v-for="(param, key) in extensionParams" :key="key">
 
           <!-- Group title -->
           <span v-if="param.type === 'group_name'" class="text-h6">
@@ -97,14 +97,35 @@
 
 
 
-<script setup>
-import { ref, computed, watch } from 'vue'
+<script setup lang="ts">
+import { ref, computed, watch, type PropType } from 'vue'
+import type { VForm } from 'vuetify/components'
 import { HelpIcon } from '@kaapana/base-ui'
+
+interface ExtensionParam {
+  type: string
+  default?: unknown
+  value?: string[]
+  definition?: string
+  help?: string
+  html?: string
+  title?: string
+}
+
+interface Extension {
+  multiinstallable: string
+  name: string
+  version: string
+  keywords: string[]
+  extension_params: Record<string, ExtensionParam> | string | null
+  annotations: Record<string, string>
+  releaseName: string
+}
 
 const props = defineProps({
   busy: { type: Boolean, default: false },
   extension: {
-    type: Object,
+    type: Object as PropType<Extension>,
     required: false,
     default: () => ({
       multiinstallable: 'no',
@@ -123,22 +144,25 @@ const emit = defineEmits(['close', 'submit', 'update:dirty'])
 /* ---------------------------
    FORM STATE
 ---------------------------- */
-const formRef = ref(null)
-const formValues = ref({})
-const initialValues = ref({})
+const formRef = ref<InstanceType<typeof VForm> | null>(null)
+const formValues = ref<Record<string, any>>({})
+const initialValues = ref<Record<string, unknown>>({})
+
+const extensionParams = computed<Record<string, ExtensionParam>>(() => {
+  const params = props.extension?.extension_params
+  return params && typeof params === 'object' ? params : {}
+})
 
 /* ---------------------------
    INITIALIZE PARAM VALUES
 ---------------------------- */
 watch(
-  () => props.extension,
-  (ext) => {
+  extensionParams,
+  (params) => {
     formValues.value = {}
     initialValues.value = {}
 
-    if (!ext || !ext.extension_params) return;
-
-    Object.entries(ext.extension_params).forEach(([key, param]) => {
+    Object.entries(params).forEach(([key, param]) => {
       switch (param.type) {
         case "bool":
         case "boolean":
@@ -172,8 +196,7 @@ watch(
    TITLE CONDITION
 ---------------------------- */
 const showConfigTitle = computed(() => {
-  const params = props.extension?.extension_params;
-  if (!params || params === "null") return false;
+  const params = extensionParams.value;
   const firstKey = Object.keys(params)[0];
   if (!firstKey) return false;
   return params[firstKey].type !== "doc";
@@ -183,15 +206,15 @@ const showConfigTitle = computed(() => {
    VALIDATION RULES
 ---------------------------- */
 const rulesStr = [
-  (v) => (v !== null && v !== undefined && v !== "") || 'Enter a value.'
+  (v: unknown) => (v !== null && v !== undefined && v !== "") || 'Enter a value.'
 ];
 
 const rulesSingleList = [
-  (v) => (v !== null && v !== undefined && v !== '') || 'Select a value.',
+  (v: unknown) => (v !== null && v !== undefined && v !== '') || 'Select a value.',
 ]
 
 const rulesMultiList = [
-  (v) => (Array.isArray(v) && v.length > 0) || 'Select at least one value.'
+  (v: unknown) => (Array.isArray(v) && v.length > 0) || 'Select at least one value.'
 ];
 
 /* ---------------------------
@@ -202,7 +225,7 @@ function emitClose() {
 }
 
 async function submit() {
-  if (!(await formRef.value.validate()).valid) return;
+  if (!formRef.value || !(await formRef.value.validate()).valid) return;
 
   emit("submit", {
     extension: props.extension,

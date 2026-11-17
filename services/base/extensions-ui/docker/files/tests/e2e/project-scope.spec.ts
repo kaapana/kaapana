@@ -29,7 +29,7 @@ test('API calls are scoped to the project in the document URL', async ({ page })
 })
 
 // The presence test above stays green while a NEW call goes out unscoped beside
-// the scoped one — Upload.vue's FilePond endpoint skips httpClient and is
+// the scoped one — ExtensionUpload.vue's FilePond endpoint skips httpClient and is
 // exactly that shape — so this asserts the absence across boot and interactions.
 test('no request to a project-scoped service escapes the /project/<slug>/ prefix', async ({
   page,
@@ -71,7 +71,7 @@ test('no request to a project-scoped service escapes the /project/<slug>/ prefix
   await confirmAction(page, 'Uninstall extension')
   await uninstalled
 
-  // The motivating call: FilePond never touches httpClient, so Upload.vue
+  // The motivating call: FilePond never touches httpClient, so ExtensionUpload.vue
   // prepends getProjectBase() by hand. Only a real file drop exercises it —
   // setOptions merely CONFIGURES the endpoint.
   const uploaded = called(HELM.upload)

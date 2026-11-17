@@ -30,7 +30,7 @@
         </v-card-subtitle>
       </v-card-item>
       <v-card-text>
-        <upload
+        <extension-upload
           :label-idle="labelIdle"
           url="/kube-helm-api/filepond-upload"
           :on-process-file-start="fileStart"
@@ -457,7 +457,7 @@ import {
   useProjectStore,
   type ApiErrorInfo,
 } from '@kaapana/base-ui'
-import Upload from '@/components/Upload.vue'
+import ExtensionUpload from '@/components/ExtensionUpload.vue'
 import ExtensionParamsDialog from '@/components/ExtensionParamsDialog.vue'
 import ExtensionsEmptyState from '@/components/ExtensionsEmptyState.vue'
 import { useFailureDetailsStore } from '@/stores/failureDetails'

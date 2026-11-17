@@ -17,7 +17,7 @@ function onNotificationClick(item: { data?: unknown }) {
 <template>
   <div id="app">
     <v-app>
-      <notifications close-on-click @click="onNotificationClick" />
+      <kaapana-notifications close-on-click @click="onNotificationClick" />
       <v-main>
         <router-view :key="viewKey" />
       </v-main>

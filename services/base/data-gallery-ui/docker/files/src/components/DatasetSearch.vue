@@ -779,7 +779,7 @@ watch(
 // Handle the rejection so a failure while parsing the deep link can't silently
 // abort the search path and hang the view on the skeleton loader.
 processQueryParams().catch((error) => {
-  console.error('[Search.vue] Failed to process query params:', error)
+  console.error('[DatasetSearch.vue] Failed to process query params:', error)
   search()
 })
 

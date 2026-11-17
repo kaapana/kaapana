@@ -1,14 +1,14 @@
 <template>
   <v-app>
     <v-main>
-      <Documents :key="viewKey" />
+      <DocumentList :key="viewKey" />
     </v-main>
   </v-app>
 </template>
 
 <script setup lang="ts">
 import { useShellSettings } from '@kaapana/base-ui'
-import Documents from '@/components/Documents.vue'
+import DocumentList from '@/components/DocumentList.vue'
 
 const { viewKey } = useShellSettings()
 </script>

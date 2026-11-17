@@ -12,7 +12,7 @@ def shell_payloads(marker):
 
 def test_blocking_argument_list_runs_without_shell(fake_cli, marker):
     for payload in shell_payloads(marker):
-        success, _ = helm_helper.execute_shell_command([settings.helm_path, "show", "chart", payload])
+        success, _ = helm_helper.run_command([settings.helm_path, "show", "chart", payload])
 
         assert success
         assert fake_cli.calls()[-1] == ["show", "chart", payload]
@@ -21,7 +21,7 @@ def test_blocking_argument_list_runs_without_shell(fake_cli, marker):
 
 def test_non_blocking_argument_list_runs_without_shell(fake_cli, marker):
     for payload in shell_payloads(marker):
-        success, _ = helm_helper.execute_shell_command(
+        success, _ = helm_helper.run_command(
             [settings.helm_path, "show", "chart", payload],
             blocking=False,
         )
@@ -33,7 +33,7 @@ def test_non_blocking_argument_list_runs_without_shell(fake_cli, marker):
 
 def test_async_argument_list_runs_without_shell(fake_cli, marker):
     for payload in shell_payloads(marker):
-        success, _ = asyncio.run(helm_helper.exec_shell_cmd_async([settings.helm_path, "show", "chart", payload]))
+        success, _ = asyncio.run(helm_helper.run_command_async([settings.helm_path, "show", "chart", payload]))
 
         assert success
         assert fake_cli.calls()[-1] == ["show", "chart", payload]
@@ -42,14 +42,14 @@ def test_async_argument_list_runs_without_shell(fake_cli, marker):
 
 @pytest.mark.parametrize("blocking", [True, False])
 def test_missing_executable_is_reported_as_failure(tmp_path, blocking):
-    success, message = helm_helper.execute_shell_command([str(tmp_path / "missing"), "ls"], blocking=blocking)
+    success, message = helm_helper.run_command([str(tmp_path / "missing"), "ls"], blocking=blocking)
 
     assert not success
     assert message
 
 
 def test_failed_status_check_returns_stderr(fake_cli):
-    success, _ = helm_helper.execute_shell_command([settings.helm_path, "-n", "default", "status", "demo"])
+    success, _ = helm_helper.run_command([settings.helm_path, "-n", "default", "status", "demo"])
 
     assert not success
 
@@ -70,8 +70,8 @@ def test_timeout_flag_is_detected_in_argument_lists(command, expected):
 @pytest.mark.parametrize("command", ["helm ls", b"helm ls"])
 def test_string_commands_are_rejected(command):
     with pytest.raises(TypeError):
-        helm_helper.execute_shell_command(command)
+        helm_helper.run_command(command)
     with pytest.raises(TypeError):
-        helm_helper.execute_shell_command(command, blocking=False)
+        helm_helper.run_command(command, blocking=False)
     with pytest.raises(TypeError):
-        asyncio.run(helm_helper.exec_shell_cmd_async(command))
+        asyncio.run(helm_helper.run_command_async(command))

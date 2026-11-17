@@ -130,11 +130,19 @@ def test_the_predefined_registry_user_is_rejected(script, env):
     assert "gitlab-ci-token" in result.stdout
 
 
-def test_half_configured_docker_io_credentials_are_rejected(script, env):
-    env["DOCKER_IO_USER"] = "someone"
+def test_a_docker_io_config_with_two_accounts_passes(script, env):
+    env["DOCKER_IO_CONFIG"] = '{"first":"dckr_pat_first","second":"dckr_pat_second"}'
+    result = run(script, env)
+    assert result.returncode == 0, result.stdout
+
+
+@pytest.mark.parametrize("config", ["not json", '{"someone":"dckr_pat_secret",}'])
+def test_invalid_docker_io_json_is_rejected_without_its_value(script, env, config):
+    env["DOCKER_IO_CONFIG"] = config
     result = run(script, env)
     assert result.returncode == 1
-    assert "DOCKER_IO_PASSWORD" in result.stdout
+    assert "DOCKER_IO_CONFIG" in result.stdout
+    assert "dckr_pat_secret" not in result.stdout + result.stderr
 
 
 def test_a_harvester_run_needs_the_kubeconfig(script, env):

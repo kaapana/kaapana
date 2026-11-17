@@ -244,9 +244,7 @@ Rule reference: `Prettier options <https://prettier.io/docs/options>`_.
 Scope
 ^^^^^
 
-- Pre-commit (hook :code:`prettier`): staged files of these types. The hook is
-  manual until the repository is formatted once:
-  :code:`pre-commit run --hook-stage manual prettier`.
+- Pre-commit (hook :code:`prettier`): staged files of these types.
 - CI (:code:`format: [prettier]`): all tracked files of these types.
 - Excluded: Helm :code:`templates/` directories and the Helm-templated
   :code:`kaapana-realm.json`, which are Go templates, and

@@ -47,11 +47,20 @@ const enforced = {
   },
 }
 
+const routeComponents = {
+  name: 'kaapana/route-components',
+  files: ['**/views/**/*.vue', '**/pages/**/*.vue', '**/*.stories.ts'],
+  rules: {
+    'vue/multi-word-component-names': 'off',
+  },
+}
+
 export default defineConfigWithVueTs(
   ...setup,
   // Vue essential: templates and components that are invalid or break at runtime
   pluginVue.configs['flat/essential'],
   enforced,
+  routeComponents,
   // turns off every rule that Prettier already handles
   skipFormatting,
 )

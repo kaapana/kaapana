@@ -20,7 +20,7 @@ The whole app lives under `docker/files/`; the single view is
 | --- | --- |
 | `src/components/ExtensionParamsDialog.vue` | The `extension_params` configuration form, with unsaved-changes protection. |
 | `src/components/ExtensionsEmptyState.vue` | The three empty states (nothing yet / nothing matches / could not load), on `v-empty-state`. |
-| `src/components/Upload.vue` | The FilePond drop zone. |
+| `src/components/ExtensionUpload.vue` | The FilePond drop zone. |
 | `src/stores/policy.ts` | The open-policy data that decides which admin-only controls render. |
 | `src/stores/failureDetails.ts` | The one failure-details dialog, opened from a notification, alert or empty state. |
 
@@ -115,7 +115,7 @@ prefixed with the `/project/<short_id>` document prefix.
   the URL to `/project/<short_id>/kube-helm-api/...`; the gateway authorizes
   the slug and injects the trusted `Project` header before stripping the
   prefix.
-- **manual** — FilePond bypasses `httpClient`, so `Upload.vue` prepends
+- **manual** — FilePond bypasses `httpClient`, so `ExtensionUpload.vue` prepends
   `getProjectBase()` itself; project-scoped but *not* via the interceptor.
 - **none** — auth, `/aii/*`, and the `/jsons/*` static files are not
   project-scoped.

@@ -18,13 +18,13 @@ Single view (`src/views/DataUpload.vue`), two upload paths:
   shows `kp-<project-short-id>`. Hints state that `11112` is the default receiver
   port and that the dataset name can have at most 13 characters after `kp-`.
 - **Option 2 — browser upload (experimental).** Three numbered steps. A FilePond
-  drop zone (`src/components/Upload.vue`) does **chunked uploads** (1 MiB chunks,
+  drop zone (`src/components/FileUpload.vue`) does **chunked uploads** (1 MiB chunks,
   `chunkForce`): a POST returns a transfer id, then one PATCH per chunk; DELETE is
   sent by "Remove from list"; HEAD is the resume probe. `beforeAddFile` stamps a
   `filepath` metadata field (relative path, else the file name). Accepts any file
   type; multiple files are allowed. The drop zone's colours and font are
   mapped onto the Vuetify theme roles.
-- **Unsaved uploads.** `Upload.vue` emits `uploading` while any file is queued or
+- **Unsaved uploads.** `FileUpload.vue` emits `uploading` while any file is queued or
   uploading; the view forwards it to `postViewDirty`, so the shell warns before a
   project switch or refresh reloads the view.
 - **Info dialog** (600 px) explaining the expected zip layout for DICOM and NIfTI
@@ -57,10 +57,10 @@ sent as-is.
 | GET | `/oauth2/userinfo` | Auth gate (`useAuthStore.checkAuth`, run in `router.beforeEach`); dev fallback `/jsons/testingAuthenticationToken.json` when not `PROD` | unscoped |
 | GET | `/aii/users/current` | Current user id + realm roles (project store `getSelectedProject`) | unscoped |
 | GET | `/aii/projects` (admin) or `/aii/users/<id>/projects` (non-admin) | Project list; the URL slug is resolved against it, else the document is redirected onto the first project | unscoped |
-| POST | `/kaapana-backend/client/file` | FilePond: request a transfer id (carries `Upload-Length` + `filepath`) | prefixed by `Upload.vue` (see note) |
-| PATCH | `/kaapana-backend/client/file?patch=<id>` | FilePond: upload one chunk (tus-style `Upload-Offset`/`Upload-Name`) | prefixed by `Upload.vue` |
-| DELETE | `/kaapana-backend/client/file` | FilePond "Remove from list" (transfer id in body); the backend deletes only the partial upload data of that transfer | prefixed by `Upload.vue` |
-| HEAD | `/kaapana-backend/client/file` | FilePond: resume probe | prefixed by `Upload.vue` |
+| POST | `/kaapana-backend/client/file` | FilePond: request a transfer id (carries `Upload-Length` + `filepath`) | prefixed by `FileUpload.vue` (see note) |
+| PATCH | `/kaapana-backend/client/file?patch=<id>` | FilePond: upload one chunk (tus-style `Upload-Offset`/`Upload-Name`) | prefixed by `FileUpload.vue` |
+| DELETE | `/kaapana-backend/client/file` | FilePond "Remove from list" (transfer id in body); the backend deletes only the partial upload data of that transfer | prefixed by `FileUpload.vue` |
+| HEAD | `/kaapana-backend/client/file` | FilePond: resume probe | prefixed by `FileUpload.vue` |
 | POST | `/kaapana-backend/client/get-kaapana-instances` | Import dialog: list runner instances (`onlyLocal` keeps the local one) | scoped |
 | POST | `/kaapana-backend/client/get-dags` | Import dialog: importable dags (`kind_of_dags="import"`) | scoped |
 | POST | `/kaapana-backend/client/get-ui-form-schemas` | Import dialog: per-dag vjsf form schemas | scoped |
@@ -72,7 +72,7 @@ the project store** — `DataUpload.vue` dispatches `getSelectedProject()` itsel
 shell no longer does).
 
 > **Note — FilePond bypasses `httpClient`.** FilePond issues its own XHR, so the
-> axios interceptor never sees the upload requests; `Upload.vue` applies the
+> axios interceptor never sees the upload requests; `FileUpload.vue` applies the
 > `/project/<short_id>` document prefix itself via `getProjectBase()` to its
 > `UPLOAD_URL` (same pattern as extensions-ui). Asserted in `tests/e2e/upload.spec.ts` (exact
 > `pathname` `/project/admin/kaapana-backend/client/file`).

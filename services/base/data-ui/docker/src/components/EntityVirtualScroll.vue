@@ -382,13 +382,12 @@
           <template #default="{ item: rowIndex }">
             <template v-if="typeof rowIndex === 'number' && rowIndex < rowCount">
               <div
-                v-for="row in [getRowCells(rowIndex)]"
                 :key="`row-${rowIndex}`"
                 class="entity-row"
                 :style="rowGridTemplateStyle"
                 v-intersect="createRowObserver(rowIndex)"
               >
-                <div v-for="cell in row.cells" :key="cell.id" class="entity-cell">
+                <div v-for="cell in getRowCells(rowIndex).cells" :key="cell.id" class="entity-cell">
                   <EntityCard
                     v-if="cell.card"
                     :item="cell.card"

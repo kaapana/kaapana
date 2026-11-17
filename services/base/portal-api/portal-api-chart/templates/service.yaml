@@ -16,6 +16,7 @@ metadata:
   namespace: "{{ .Values.global.services_namespace }}"
   # deliberately no kaapana.ai/ui.* annotations: the discovery API itself is not a menu entry
   annotations:
+    kubernetes.io/ingress.class: kaapana
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-strip-prefix-portal-api@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"

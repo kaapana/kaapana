@@ -118,6 +118,7 @@ traefik ``IngressRoute`` next to its regular ``Ingress``:
      name: my-service-project-ingressroute
      namespace: "{{ .Values.global.services_namespace }}"
    spec:
+     ingressClassName: kaapana
      entryPoints:
        - websecure
      routes:

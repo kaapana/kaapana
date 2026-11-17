@@ -30,7 +30,7 @@ async def get_users(project_id: str, access_service):
     try:
         users = await access_service.fetch_user_ids(project_id)
     except Exception:
-        raise HTTPException(502, "Upsream AII request failed")
+        raise HTTPException(502, "Upstream AII request failed")
     if users is None:
         raise HTTPException(404, f"Project {project_id} not found")
     if not users:

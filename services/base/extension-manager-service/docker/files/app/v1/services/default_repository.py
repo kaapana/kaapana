@@ -33,8 +33,7 @@ async def ensure_default_repository(
 ) -> Optional[RegisteredRepository]:
     """Create the default repository, or update its URL and credentials.
 
-    The repository is identified by its reserved name. The database has no migrations that could add a flag
-    column to existing tables. Nothing happens when no URL is given.
+    The repository is identified by its reserved name. Nothing happens when no URL is given.
     """
     if not url:
         logger.info("No default extension repository is configured.")

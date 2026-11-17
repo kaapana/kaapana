@@ -19,3 +19,7 @@ class InstalledExtension(BaseModel):
     manifest: ExtensionManifest
     status: str
     contents: list[InstalledContent]
+
+
+class UploadLimits(BaseModel):
+    max_bytes: int

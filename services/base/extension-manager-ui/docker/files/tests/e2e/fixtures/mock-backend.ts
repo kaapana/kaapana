@@ -1,12 +1,14 @@
 import type { Page, Route } from '@playwright/test'
 
 export const VIEW_PATH = '/extension-manager-ui/'
+export const UPLOAD_MAX_BYTES = 100 * 1024 * 1024
 
 export interface RepositoryMock {
   id: string
   name: string
   description: string
   repository_url: string
+  built_in?: boolean
 }
 
 export interface ManifestMock {
@@ -40,6 +42,7 @@ export interface InstalledExtensionMock {
 }
 
 export interface MockData {
+  uploadMaxBytes?: number
   repositories: RepositoryMock[]
   manifests: Record<string, ManifestResponseMock[]>
   extensions: InstalledExtensionMock[]
@@ -57,6 +60,14 @@ export const LAB_REPO: RepositoryMock = {
   name: 'lab-internal',
   description: '',
   repository_url: 'https://registry.lab.example.org/team/extensions',
+}
+
+export const UPLOAD_REPO: RepositoryMock = {
+  id: '8f49216f-786c-42ba-9413-0722e781ea28',
+  name: 'Upload',
+  description: 'Extensions uploaded from a file.',
+  repository_url: 'http://extension-registry.services.svc:5000/uploads',
+  built_in: true,
 }
 
 export function manifest(
@@ -93,6 +104,11 @@ export const TOTALSEG = manifest(
   'bbbbbbbb-0000-0000-0000-000000000002',
 )
 export const RADIOMICS = manifest('radiomics', '0.3.0', 'cccccccc-0000-0000-0000-000000000003')
+export const HELLO_UPLOAD = manifest(
+  'hello-upload',
+  '1.0.0',
+  'ffffffff-0000-0000-0000-000000000004',
+)
 
 export function installation(
   repository: RepositoryMock,
@@ -223,6 +239,29 @@ export async function installMockBackend(
       )
       data.extensions.push(created)
       return route.fulfill(json(created, 201))
+    }
+
+    if (path === '/extensions/upload/limits' && method === 'GET')
+      return route.fulfill(json({ max_bytes: data.uploadMaxBytes ?? UPLOAD_MAX_BYTES }))
+    if (path === '/extensions/upload' && method === 'POST') {
+      const uploaded = manifestResponse(UPLOAD_REPO, HELLO_UPLOAD)
+      data.manifests[UPLOAD_REPO.id] = [
+        ...(data.manifests[UPLOAD_REPO.id] ?? []).filter((entry) => entry.tag !== uploaded.tag),
+        uploaded,
+      ]
+      return route.fulfill(json(uploaded, 201))
+    }
+
+    const removeUpload = path.match(/^\/extensions\/uploads\/([^/]+)$/)
+    if (removeUpload && method === 'DELETE') {
+      const tag = decodeURIComponent(removeUpload[1]!)
+      const uploads = data.manifests[UPLOAD_REPO.id] ?? []
+      if (!uploads.some((entry) => entry.tag === tag))
+        return route.fulfill(
+          json({ detail: `The extension with tag ${tag} was not uploaded.` }, 404),
+        )
+      data.manifests[UPLOAD_REPO.id] = uploads.filter((entry) => entry.tag !== tag)
+      return route.fulfill({ status: 204 })
     }
 
     const uninstall = path.match(/^\/extensions\/([^/]+)\/uninstall$/)

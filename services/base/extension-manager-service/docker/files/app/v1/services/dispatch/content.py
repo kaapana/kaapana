@@ -36,3 +36,6 @@ class ContentInstaller(ABC):
     @abstractmethod
     async def uninstall(self, content: Content) -> None:
         pass
+
+    def validate(self, content: Content) -> None:
+        pass

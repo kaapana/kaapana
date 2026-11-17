@@ -19,8 +19,8 @@ Set them there before running ``kaapanactl.sh deploy``, e.g.:
 
 .. code-block:: bash
 
-   STORAGE_PROVIDER="default"
    RESTRICTED_RBAC=true
+   EXTERNAL_INGRESS="nginx"
 
 
 Target cluster
@@ -74,6 +74,22 @@ Settings overview
      - ``false``
      - ``true`` if you have no cluster-wide permissions (only namespace-scoped rights, e.g. as a
        Rancher project member). See :ref:`existing_cluster_restricted_rbac`.
+   * - ``EXTERNAL_INGRESS`` /
+       ``global.external_ingress``
+     - ``""``
+     - Ingress class of the cluster's ingress controller (e.g. ``traefik``, ``nginx``) if the
+       cluster already has one in front of Kaapana. See :ref:`existing_cluster_external_ingress`.
+   * - ``EXTERNAL_INGRESS_NAMESPACE`` /
+       ``global.external_ingress_namespace``
+     - ``kube-system``
+     - Namespace of that ingress controller. Only it may connect to oauth2-proxy; ``""`` for no
+       restriction (e.g. if the controller runs in the host network).
+   * - ``EXTERNAL_INGRESS_ANNOTATIONS`` /
+       ``global.external_ingress_annotations``
+     - ``{}``
+     - JSON object of annotations for the ingress and service of oauth2-proxy, merged over the
+       defaults for ``traefik`` and ``nginx``. Required for other controllers, see
+       :ref:`existing_cluster_external_ingress`.
    * - ``STORAGE_PROVIDER`` / ``STORAGE_CLASS``
      - ``hostpath`` / ``""``
      - ``STORAGE_PROVIDER="default"`` uses an existing storage class of the cluster for all volumes:
@@ -183,3 +199,45 @@ you confirm that the namespace exists, the script grants Kaapana access to it, c
 makes the project's applications reachable. After you have checked the project under *Projects* in
 the UI, it prints the namespace to add to ``EXTRA_MANAGED_NAMESPACES`` in ``kaapanactl.sh``, so the
 next deployment keeps the project's access rights.
+
+
+.. _existing_cluster_external_ingress:
+
+External ingress controller
+===========================
+
+If the cluster already has an ingress controller that terminates the external traffic, set
+``EXTERNAL_INGRESS`` to its ingress class. Kaapana configures ``traefik`` and ``nginx``; for other
+controllers, ``EXTERNAL_INGRESS_ANNOTATIONS`` has to tell the controller to connect to oauth2-proxy
+via HTTPS (service port ``https-port``), otherwise the deployment fails. Examples with
+``EXTERNAL_INGRESS`` set to the controller's ingress class (untested):
+
+.. code-block:: bash
+
+   # HAProxy (haproxytech)
+   EXTERNAL_INGRESS_ANNOTATIONS='{"haproxy.org/server-ssl": "true"}'
+   # AWS ALB
+   EXTERNAL_INGRESS_ANNOTATIONS='{"alb.ingress.kubernetes.io/backend-protocol": "HTTPS"}'
+   # Azure AGIC
+   EXTERNAL_INGRESS_ANNOTATIONS='{"appgw.ingress.kubernetes.io/backend-protocol": "https"}'
+   # Contour
+   EXTERNAL_INGRESS_ANNOTATIONS='{"projectcontour.io/upstream-protocol.tls": "https-port"}'
+   # GKE
+   EXTERNAL_INGRESS_ANNOTATIONS='{"cloud.google.com/app-protocols": "{\"https-port\": \"HTTPS\"}"}'
+
+Then:
+
+* Kaapana creates one ingress with this class for ``HOSTNAME``: ``/`` to oauth2-proxy. All requests,
+  including the login pages of Keycloak (``/auth``), reach Kaapana's own Traefik through oauth2-proxy.
+* TLS is terminated by the cluster's ingress controller with its certificate, e.g. the wildcard
+  certificate of the platform provider (``*.<domain>``) as its default certificate. The hostname
+  has to be covered by that certificate.
+* The controller connects to oauth2-proxy via HTTPS. Traefik accepts only Kaapana's certificate
+  (``ca.crt`` of the ``certificate`` secret); nginx doesn't verify it; other controllers as
+  configured by their annotations. Behind oauth2-proxy, Kaapana's Traefik reaches most services via
+  plain HTTP, as on a single server. To encrypt all traffic between the nodes, the cluster network
+  itself has to be encrypted (e.g. WireGuard in the CNI).
+* A network policy allows only the controller's namespace (``EXTERNAL_INGRESS_NAMESPACE``) to
+  connect to oauth2-proxy.
+* Traefik and oauth2-proxy are ``ClusterIP`` services instead of ``NodePort`` services on ports
+  80/443; Traefik's HTTPS entrypoint listens on port 9000.

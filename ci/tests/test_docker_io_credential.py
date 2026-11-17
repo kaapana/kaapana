@@ -72,7 +72,9 @@ def select(selector, hub, monkeypatch, capsys, tmp_path):
 
     def run(config, environment=None):
         monkeypatch.setattr("sys.argv", ["select_docker_io_credential.py"])
-        monkeypatch.setenv("DOCKER_IO_CONFIG", config if isinstance(config, str) else json.dumps(config))
+        config_file = tmp_path / "DOCKER_IO_CONFIG"
+        config_file.write_text(config if isinstance(config, str) else json.dumps(config))
+        monkeypatch.setenv("DOCKER_IO_CONFIG", str(config_file))
         assert selector.main() == 0
         captured = capsys.readouterr()
         script = (
@@ -147,7 +149,7 @@ def test_old_project_variables_are_dropped_without_a_usable_account(hub, select)
     assert (user, password) == ("", "")
 
 
-@pytest.mark.parametrize("config", ["", "not json", "{}", '["dckr_pat_secret"]', '{"someone": ""}'])
+@pytest.mark.parametrize("config", ["", "\n", "not json", "{}", '["dckr_pat_secret"]', '{"someone": ""}'])
 def test_an_empty_or_malformed_config_means_anonymous_pulls(select, config):
     user, _, report = select(config, {"DOCKER_IO_USER": "legacy"})
     assert user == ""
@@ -160,3 +162,13 @@ def test_tokens_with_shell_characters_are_read_as_data(hub, select):
     hub.update(someone={"token": token, "remaining": 5})
     user, password, _ = select({"someone": token})
     assert (user, password) == ("someone", token)
+
+
+@pytest.mark.parametrize("value", ["", "/nonexistent/DOCKER_IO_CONFIG"])
+def test_an_unset_or_missing_config_file_means_anonymous_pulls(selector, monkeypatch, capsys, value):
+    monkeypatch.setattr("sys.argv", ["select_docker_io_credential.py"])
+    monkeypatch.setenv("DOCKER_IO_CONFIG", value)
+    assert selector.main() == 0
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "anonymously" in captured.err

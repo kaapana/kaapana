@@ -65,7 +65,8 @@ Beyond emptiness it catches:
 - `CI_REGISTRY_USER` equal to `gitlab-ci-token` — the project variable was
   deleted and jobs silently got GitLab's predefined value
 - a `DOCKER_AUTH_CONFIG` with no entry for the `CI_REGISTRY_URL` host
-- a `DOCKER_IO_CONFIG` that is not valid JSON
+- a `DOCKER_IO_CONFIG` that is not a File-type variable, or whose file is not
+  valid JSON
 - a release tag pipeline without the `RELEASE_REGISTRY_*` triple
 - `DEPLOYMENT_INSTANCE_FQDN` over 57 characters — `dcmsend` rejects longer
   peerhosts, and `prepare_deployment` would only notice after the build
@@ -333,9 +334,9 @@ instance that owns that registry.
 
 ### docker.io accounts
 
-`DOCKER_IO_CONFIG` holds one or more docker.io accounts. Write it without
-spaces and keep "Expand variable reference" off, otherwise GitLab cannot mask
-it:
+`DOCKER_IO_CONFIG` is a File-type variable with one or more docker.io
+accounts. The JSON stays in its file, so it never appears in the job
+environment:
 
 ```json
 {"<user-1>":"<token-1>","<user-2>":"<token-2>"}
@@ -351,10 +352,9 @@ token from its output as data. It:
 3. exports the account with the most pulls left as `DOCKER_IO_USER` and
    `DOCKER_IO_PASSWORD`. An account without a pull limit wins at once.
 
-- Without a usable account both stay unset and the job pulls anonymously, it
+- Without a usable account both stay empty and the job pulls anonymously, it
   does not fail.
 - The job log names the accounts and their remaining pulls, never a token.
-  Masking replaces only the whole JSON, not a single token printed on its own.
 - To rotate, add the new account to the JSON and remove the old one.
 
 ## The DKFZ proxy
@@ -576,7 +576,7 @@ All are project variables (Settings > CI/CD > Variables), masked, unless noted.
 | `CI_REGISTRY_TOKEN` | `build_packages`, `build_ci_image`, deploy, security scan (as `REGISTRY_TOKEN`) | Registry push/pull token. Scoped by `REGISTRY_ENV`. See [Registries](#registries) |
 | `RELEASE_REGISTRY_TOKEN` | `build_packages` on release tags (as `REGISTRY_TOKEN`) | Release registry token. Protected, release tag pipelines only |
 | `DOCKER_AUTH_CONFIG` | runners, for pulling job images | Docker auth JSON with a `read_registry` deploy token per registry host. See [`DOCKER_AUTH_CONFIG`](#docker_auth_config) |
-| `DOCKER_IO_CONFIG` | `build_packages`, server installation | docker.io accounts as `{"<user>": "<token>", ...}`, avoids pull rate limits. Optional, masked and hidden, see [docker.io accounts](#dockerio-accounts) |
+| `DOCKER_IO_CONFIG` | `build_packages`, server installation | File-type. docker.io accounts as `{"<user>": "<token>", ...}`, avoids pull rate limits. Optional, see [docker.io accounts](#dockerio-accounts) |
 | `GITLAB_API_TOKEN` | `if_ci_failing` (issues, Slack links), runner management ([ci-fleet-setup.md](ci-fleet-setup.md)) | GitLab API token. **Currently not its own variable:** `.gitlab-ci.yml` aliases it to `CI_REGISTRY_TOKEN`. A same-named project variable overrides the alias |
 | `GITLAB_READ_API_TOKEN` | `sweep_deployment_vms` | Project access token, scope `read_api`, role Reporter |
 | `AI_REVIEW_GITLAB_TOKEN` | `mr_review`, `mr_review_rerun` | Project access token `AI Review`, scope `api`, role Reporter, expires 2027-09-25. See [review](#review) |

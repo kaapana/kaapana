@@ -130,15 +130,31 @@ def test_the_predefined_registry_user_is_rejected(script, env):
     assert "gitlab-ci-token" in result.stdout
 
 
-def test_a_docker_io_config_with_two_accounts_passes(script, env):
-    env["DOCKER_IO_CONFIG"] = '{"first":"dckr_pat_first","second":"dckr_pat_second"}'
+def docker_io_config(tmp_path, content):
+    path = tmp_path / "DOCKER_IO_CONFIG"
+    path.write_text(content)
+    return str(path)
+
+
+@pytest.mark.parametrize("content", ['{"first":"dckr_pat_first","second":"dckr_pat_second"}', ""])
+def test_a_valid_or_empty_docker_io_config_file_passes(script, env, tmp_path, content):
+    """An empty file is what GitLab hands over when the File variable was never filled in."""
+    env["DOCKER_IO_CONFIG"] = docker_io_config(tmp_path, content)
     result = run(script, env)
     assert result.returncode == 0, result.stdout
 
 
+def test_docker_io_config_must_be_a_file_variable(script, env):
+    env["DOCKER_IO_CONFIG"] = '{"someone":"dckr_pat_secret"}'
+    result = run(script, env)
+    assert result.returncode == 1
+    assert "File-type" in result.stdout
+    assert "dckr_pat_secret" not in result.stdout + result.stderr
+
+
 @pytest.mark.parametrize("config", ["not json", '{"someone":"dckr_pat_secret",}'])
-def test_invalid_docker_io_json_is_rejected_without_its_value(script, env, config):
-    env["DOCKER_IO_CONFIG"] = config
+def test_invalid_docker_io_json_is_rejected_without_its_value(script, env, tmp_path, config):
+    env["DOCKER_IO_CONFIG"] = docker_io_config(tmp_path, config)
     result = run(script, env)
     assert result.returncode == 1
     assert "DOCKER_IO_CONFIG" in result.stdout

@@ -83,8 +83,10 @@ preflight_variables:
         require REGISTRY_USER
         require REGISTRY_TOKEN
       fi
-      if [ -n "${DOCKER_IO_CONFIG:-}" ] && ! python3 -c 'import json, os; json.loads(os.environ["DOCKER_IO_CONFIG"])' 2>/dev/null; then
-        fail "DOCKER_IO_CONFIG is not valid JSON — leave it empty to skip the docker.io login."
+      if [ -n "${DOCKER_IO_CONFIG:-}" ] && [ ! -f "$DOCKER_IO_CONFIG" ]; then
+        fail "DOCKER_IO_CONFIG must be a File-type variable."
+      elif [ -s "${DOCKER_IO_CONFIG:-}" ] && ! python3 -c 'import json, os; json.load(open(os.environ["DOCKER_IO_CONFIG"]))' 2>/dev/null; then
+        fail "DOCKER_IO_CONFIG(File) is not valid JSON — leave it empty to skip the docker.io login."
       fi
 
       # release tag (e.g. "0.7.1"): publishes to the release registry instead

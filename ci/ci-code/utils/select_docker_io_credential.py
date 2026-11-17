@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Pick the docker.io account from DOCKER_IO_CONFIG with the most pulls left.
 
-DOCKER_IO_CONFIG is a JSON object of docker.io users to tokens. Prints the
-chosen user on the first line and its token on the second, or nothing when no
-account is usable. The caller reads both lines as data:
+DOCKER_IO_CONFIG is a File-type variable, its file holds a JSON object of
+docker.io users to tokens. Prints the chosen user on the first line and its
+token on the second, or nothing when no account is usable. The caller reads
+both lines as data:
 
     mapfile -t docker_io < <(python3 select_docker_io_credential.py)
     export DOCKER_IO_USER="${docker_io[0]:-}" DOCKER_IO_PASSWORD="${docker_io[1]:-}"
@@ -18,6 +19,7 @@ import json
 import os
 import sys
 import urllib.request
+from pathlib import Path
 
 AUTH_URL = "https://auth.docker.io/token?service=registry.docker.io&scope=repository:ratelimitpreview/test:pull"
 RATELIMIT_URL = "https://registry-1.docker.io/v2/ratelimitpreview/test/manifests/latest"
@@ -26,6 +28,16 @@ TIMEOUT_SECONDS = 20
 
 def report(message: str) -> None:
     print(f"docker.io: {message}", file=sys.stderr)
+
+
+def read_config(path: str) -> str:
+    if not path:
+        return ""
+    try:
+        return Path(path).read_text().strip()
+    except OSError:
+        report("WARNING: the DOCKER_IO_CONFIG file cannot be read.")
+        return ""
 
 
 def parse_config(raw: str) -> dict[str, str]:
@@ -86,7 +98,7 @@ def chosen_account(raw_config: str) -> tuple[str, str] | None:
 
 def main() -> int:
     argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter).parse_args()
-    chosen = chosen_account(os.environ.get("DOCKER_IO_CONFIG", ""))
+    chosen = chosen_account(read_config(os.environ.get("DOCKER_IO_CONFIG", "")))
     if chosen is not None:
         print("\n".join(chosen))
     return 0

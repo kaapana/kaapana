@@ -156,7 +156,7 @@ variables:
   # --- docker.io pull credentials (avoids anonymous pull rate limits).
   # {"<user>": "<token>", ...}, the account with the most pulls left is used.
   # Empty → build_packages and the server installation pull anonymously.
-  DOCKER_IO_CONFIG: $DOCKER_IO_CONFIG # secret — project variable (masked and hidden)
+  DOCKER_IO_CONFIG: $DOCKER_IO_CONFIG # secret — File-type project variable
 
   # --- CI job image, one for all jobs. Runners pull "if-not-present", so bump
   # CI_IMAGES_TAG in the same MR that changes ci/images/** — re-pushing an

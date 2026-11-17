@@ -44,7 +44,7 @@ class NotificationService:
             )
             if response.status_code in (404, 422):
                 logger.warning(
-                    f"Notification not sent: no non-system users in {project_id=} ({response.status_code}: {response.text})"
+                    f"Notification not sent: no receivers in {project_id=} ({response.status_code}: {response.text})"
                 )
                 return
             response.raise_for_status()

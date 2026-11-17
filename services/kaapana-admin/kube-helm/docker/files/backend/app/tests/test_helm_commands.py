@@ -135,8 +135,20 @@ def test_helm_set_arguments_keep_each_value_inside_its_key():
     assert arguments == [
         r"--set-string=global.text=x\\\,global.injected=yes",
         r"--set=global.list={a\}\,global.injected=yes\,global.m=\{b}",
-        r"--set-string=global.object=\{'k':'1\}\,global.injected=yes'\}",
+        r'--set-string=global.object=\{"k":"1\}\,global.injected=yes"\}',
     ]
+
+
+def test_helm_set_arguments_pass_dictionaries_as_json():
+    query = {"bool": {"must": [{"match": {"modality": "CT"}}]}, "strict": True}
+
+    arguments = helm_helper.helm_set_arguments({"global.query": query})
+
+    assert arguments == [
+        r'--set-string=global.query=\{"bool":\{"must":[\{"match":\{"modality":"CT"\}\}]\}\,"strict":true\}'
+    ]
+    unescaped = arguments[0].split("=", 2)[2].replace(r"\,", ",").replace(r"\{", "{").replace(r"\}", "}")
+    assert json.loads(unescaped) == query
 
 
 def test_install_command_passes_each_value_as_one_argument(fake_cli, marker):

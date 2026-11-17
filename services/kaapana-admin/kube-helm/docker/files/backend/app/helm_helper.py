@@ -66,8 +66,9 @@ def helm_set_arguments(sets: Dict) -> List[str]:
     arguments = []
     for key, value in sets.items():
         if isinstance(value, dict):
-            # Helm would read the braces of the text as a list, so a dictionary is passed as a string.
-            value = str(value)
+            # Helm would read the braces as a list, so a dictionary is passed as a string.
+            # JSON lets the application parse this string again.
+            value = json.dumps(value)
         if isinstance(value, str):
             arguments.append(f"--set-string={key}={escape_set_value(value.replace(' ', ''))}")
         elif isinstance(value, list):

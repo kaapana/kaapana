@@ -46,7 +46,7 @@ global_extensions_release_names: Set[str] = set()
 
 def helm_get_values(release_name, helm_namespace=settings.helm_namespace):
     logger.debug(f"in function: helm_get_values {release_name=}, {helm_namespace=}")
-    success, stdout = execute_shell_command(
+    success, stdout = run_command(
         [settings.helm_path, "-n", helm_namespace, "get", "values", "--all", "-o", "json", "--", release_name]
     )
     if success and stdout != b"null\n":
@@ -89,10 +89,8 @@ def ensure_argument_list(command) -> None:
         raise TypeError("Commands must be lists of arguments, not strings")
 
 
-async def exec_shell_cmd_async(
-    command: List[str], timeout: int = timeouts.shell_cmd_default_timeout
-) -> Tuple[bool, str]:
-    """Runs given command via asyncio.create_subprocess_exec() without a shell
+async def run_command_async(command: List[str], timeout: int = timeouts.shell_cmd_default_timeout) -> Tuple[bool, str]:
+    """Runs a command without a shell, using asyncio.create_subprocess_exec()
 
     Args:
         command (List[str]): The program and its arguments.
@@ -132,12 +130,12 @@ async def exec_shell_cmd_async(
         return False, str(e)
 
 
-def execute_shell_command(
+def run_command(
     command: List[str],
     blocking=True,
     timeout=timeouts.shell_cmd_default_timeout,
 ) -> Tuple[bool, str]:
-    """Runs given command via subprocess.run or subprocess.Popen without a shell
+    """Runs a command without a shell, using subprocess.run or subprocess.Popen
 
     Args:
         command (List[str]): The program and its arguments.
@@ -616,7 +614,7 @@ def collect_all_tgz_charts(keywords_filter: List, name_filter: str = "") -> Dict
             logger.info(f"Chart {basename(chart_tgz_file)} has been modified -> reading tgz!")
 
             helm_command = [settings.helm_path, "show", "chart", "--", chart_tgz_file]
-            success, stdout = execute_shell_command(helm_command)
+            success, stdout = run_command(helm_command)
             if success:
                 current_hash[chart_tgz_file] = chart_hash
 
@@ -718,7 +716,7 @@ def collect_helm_deployments(
         "-o",
         "json",
     ]
-    success, stdout = execute_shell_command(cmd)
+    success, stdout = run_command(cmd)
     if success:
         logger.debug("Success - got deployments.")
         namespace_deployments = json.loads(stdout)
@@ -770,9 +768,7 @@ def get_kube_objects(
             logger.error(f"Unknown kind: {kind}. Must be one of ['job', 'app'].")
             raise ValueError(f"Unknown kind: {kind}. Must be one of ['job', 'app'].")
 
-        success, stdout = execute_shell_command(
-            [settings.kubectl_path, "-n", namespace, "get", "pod", f"-l={pod_label}={name}"]
-        )
+        success, stdout = run_command([settings.kubectl_path, "-n", namespace, "get", "pod", f"-l={pod_label}={name}"])
         if success:
             states = schemas.KubeInfo(name=[], ready=[], status=[], restarts=[], age=[], annotations={})
 
@@ -810,9 +806,7 @@ def get_kube_objects(
         return states
 
     logger.debug(f"get_kube_objects for ({release_name=}, {helm_namespace=})")
-    success, stdout = execute_shell_command(
-        [settings.helm_path, "-n", helm_namespace, "get", "manifest", "--", release_name]
-    )
+    success, stdout = run_command([settings.helm_path, "-n", helm_namespace, "get", "manifest", "--", release_name])
     paths = []
     concatenated_states = schemas.KubeInfo(name=[], ready=[], status=[], restarts=[], age=[], annotations={})
     if success:
@@ -898,7 +892,7 @@ def helm_show_values(name, version, platforms=False) -> Dict:
     except validation.InvalidValueError as e:
         logger.warning(f"Not showing values of chart {name!r} {version!r}: {e}")
         return {}
-    success, stdout = execute_shell_command([settings.helm_path, "show", "values", "--", chart_path])
+    success, stdout = run_command([settings.helm_path, "show", "values", "--", chart_path])
     if success:
         return list(yaml.load_all(stdout, yaml.FullLoader))[0]
     else:
@@ -929,7 +923,7 @@ def helm_show_chart(name=None, version=None, package=None, platforms=False) -> D
             return {}
         helm_command.append(chart_path)
 
-    success, stdout = execute_shell_command(helm_command)
+    success, stdout = run_command(helm_command)
 
     if success:
         yaml_dict = list(yaml.load_all(stdout, yaml.FullLoader))[0]

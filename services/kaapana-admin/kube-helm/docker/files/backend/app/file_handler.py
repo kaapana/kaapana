@@ -216,7 +216,7 @@ def check_file_namespace(filename: str) -> bool:
     logger.debug(f"{helm_sets=}")
 
     cmd = [settings.helm_path, "install", *helm_sets, "-o", "json", "--dry-run", "--", chart["name"], str(fpath)]
-    success, stdout = helm_helper.execute_shell_command(cmd, blocking=True, timeout=60)
+    success, stdout = helm_helper.run_command(cmd, blocking=True, timeout=60)
     if not success:
         err = "Failed to check chart namespace"
         logger.error(f"{err} {stdout=}")
@@ -271,7 +271,7 @@ def add_file(file: UploadFile, content: bytes, overwrite: bool = True, platforms
     try:
         with open(fpath, "wb") as f:
             f.write(content)
-        success, stdout = helm_helper.execute_shell_command([settings.helm_path, "show", "chart", "--", fpath])
+        success, stdout = helm_helper.run_command([settings.helm_path, "show", "chart", "--", fpath])
         if not success:
             raise Exception(stdout)
         if "kaapanamultiinstallable" in stdout:
@@ -461,7 +461,7 @@ async def run_containerd_import(fname: str, platforms: bool = False) -> Tuple[bo
         fpath,
     ]
     logger.debug(f"{cmd=}")
-    res, stdout = await helm_helper.exec_shell_cmd_async(cmd, timeout=180)
+    res, stdout = await helm_helper.run_command_async(cmd, timeout=180)
 
     if not res:
         logger.error(f"microk8s import failed: {stdout}")

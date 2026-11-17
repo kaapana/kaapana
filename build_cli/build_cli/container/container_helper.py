@@ -1,3 +1,4 @@
+import ipaddress
 import os
 import tempfile
 from dataclasses import dataclass
@@ -33,6 +34,7 @@ class ContainerHelper:
 
     _build_config: BuildConfig = None  # type: ignore
     _build_state: BuildState = None  # type: ignore
+    _RESOLV_CONF_PATHS = (Path("/etc/resolv.conf"), Path("/run/systemd/resolve/resolv.conf"))
 
     @classmethod
     def init(cls, build_config: BuildConfig, build_state: BuildState):
@@ -91,7 +93,21 @@ class ContainerHelper:
             quiet=True,
         )
 
-        if inspect_result.returncode != 0:
+        builder_exists = inspect_result.returncode == 0
+
+        if builder_exists and cls._build_config.plain_http:
+            # A builder keeps the BuildKit config of its creation, and buildx can neither show nor change it.
+            logger.info(f"-> Recreating buildx builder {BUILDX_BUILDER_NAME} to apply the plain-http registry setting")
+            CommandUtils.run(
+                ["docker", "buildx", "rm", BUILDX_BUILDER_NAME],
+                logger=logger,
+                timeout=30,
+                context="buildx-rm",
+                exit_on_error=cls._build_config.exit_on_error,
+            )
+            builder_exists = False
+
+        if not builder_exists:
             with tempfile.TemporaryDirectory() as tmp_dir:
                 create_command = [
                     "docker",
@@ -105,7 +121,7 @@ class ContainerHelper:
                     "network=host",
                 ]
                 create_command.extend(cls._buildx_proxy_driver_opts())
-                create_command.extend(cls._buildx_dns_config_opts(Path(tmp_dir)))
+                create_command.extend(cls._buildx_buildkitd_config_opts(Path(tmp_dir)))
 
                 CommandUtils.run(
                     create_command,
@@ -171,39 +187,94 @@ class ContainerHelper:
 
         return driver_opts
 
+    @staticmethod
+    def _registry_host(registry: str) -> str:
+        """
+        Return the host and port of a registry name, without the repository path.
+        """
+        return registry.split("/")[0]
+
     @classmethod
-    def _buildx_dns_config_opts(cls, tmp_dir: Path) -> list:
+    def _buildx_buildkitd_config_opts(cls, tmp_dir: Path) -> list:
         """
-        Work around DNS failures inside the isolated docker-container builder.
+        Write the buildkitd config of the docker-container builder and return
+        the --buildkitd-config flag that points at it (or [] if the config
+        would be empty).
 
-        The docker-container buildx builder runs as its own
-        separate container and does not reliably pick up the host's DNS
-        setup. If the host resolves via a local stub (e.g.
-        systemd-resolved), that address doesn't work inside the builder, so
-        RUN steps (apk/apt, etc.) fail with "DNS: transient
-        error (try again later)".
+        The builder runs as its own container. It ignores the registry
+        settings of the Docker daemon, so it needs its own settings for the
+        following two cases.
 
-        This method generates a buildkitd config that pins the builder to real,
-        externally-reachable nameservers, and returns the --buildkitd-config
-        flag pointing at it (or [] if none could be determined).
+        DNS: The builder does not reliably pick up the DNS setup of the host.
+        If the host resolves via a local stub (e.g. systemd-resolved), that
+        address does not work inside the builder, so RUN steps (apk/apt, etc.)
+        fail with "DNS: transient error (try again later)". The config pins
+        the builder to real, externally-reachable nameservers.
+
+        Plain HTTP: BuildKit pushes and pulls over HTTPS, unless the registry
+        is on a loopback address. With --plain-http the config allows HTTP
+        for the default registry.
         """
-        try:
-            resolv_conf = Path("/etc/resolv.conf").read_text()
-        except OSError:
-            return []
+        sections = []
 
-        nameservers = []
-        for line in resolv_conf.splitlines():
-            parts = line.split()
-            if len(parts) == 2 and parts[0] == "nameserver" and not parts[1].startswith("127."):
-                nameservers.append(parts[1])
-        if not nameservers:
+        nameservers = cls._host_nameservers()
+        if nameservers:
+            servers = ", ".join(f'"{ns}"' for ns in nameservers)
+            sections.append(f"[dns]\n  nameservers = [{servers}]\n")
+
+        if cls._build_config.plain_http:
+            registry = cls._registry_host(cls._build_config.default_registry)
+            sections.append(f'[registry."{registry}"]\n  http = true\n  insecure = true\n')
+
+        if not sections:
             return []
 
         config_path = tmp_dir / "buildkitd.toml"
-        servers = ", ".join(f'"{ns}"' for ns in nameservers)
-        config_path.write_text(f"[dns]\n  nameservers = [{servers}]\n")
+        config_path.write_text("\n".join(sections))
         return ["--buildkitd-config", str(config_path)]
+
+    @classmethod
+    def _host_nameservers(cls) -> list:
+        """
+        Return the nameservers of the host, without loopback addresses.
+
+        With systemd-resolved, /etc/resolv.conf lists only the local stub
+        resolver. The second file lists the servers that systemd-resolved
+        itself uses, so it is read when the first file has no usable entry.
+        """
+        for resolv_conf_path in cls._RESOLV_CONF_PATHS:
+            try:
+                resolv_conf = resolv_conf_path.read_text()
+            except OSError:
+                continue
+
+            nameservers = []
+            for line in resolv_conf.splitlines():
+                parts = line.split()
+                if len(parts) == 2 and parts[0] == "nameserver" and not cls._is_loopback(parts[1]):
+                    nameservers.append(parts[1])
+            if nameservers:
+                return nameservers
+
+        # Without nameservers, BuildKit uses public DNS servers, which some networks block.
+        logger.warning(
+            "No nameserver outside of loopback found in "
+            f"{', '.join(str(path) for path in cls._RESOLV_CONF_PATHS)}. "
+            f"RUN steps in the buildx builder {BUILDX_BUILDER_NAME} use public DNS servers "
+            "and fail if the network blocks them."
+        )
+        return []
+
+    @staticmethod
+    def _is_loopback(address: str) -> bool:
+        """
+        Return whether a nameserver address is on loopback. An entry that is
+        not an IP address is kept, as before.
+        """
+        try:
+            return ipaddress.ip_address(address).is_loopback
+        except ValueError:
+            return False
 
     @classmethod
     def container_registry_login(cls, registry: str, username: str, password: str):
@@ -244,7 +315,28 @@ class ContainerHelper:
             timeout=10,
             context="registry-login",
             exit_on_error=cls._build_config.exit_on_error,
+            hints=cls._insecure_registry_hints(registry),
         )
+
+    @classmethod
+    def _insecure_registry_hints(cls, registry: str) -> list:
+        """
+        Explain the insecure registry setting of the container engine.
+
+        The login fails with the message "server gave HTTP response to HTTPS
+        client", which does not name the cause. The engine must list the
+        registry as insecure. This tool cannot set it, because it needs root
+        rights and a restart of the engine.
+        """
+        if not cls._build_config.plain_http:
+            return []
+
+        return [
+            f'With --plain-http, the engine must list "{cls._registry_host(registry)}" as an insecure registry.',
+            'Docker Engine: add it to "insecure-registries" in /etc/docker/daemon.json and restart Docker.',
+            "Snap, rootless and Docker Desktop use another place. Podman uses /etc/containers/registries.conf.",
+            'See the section "Using a plain HTTP registry" in the build documentation.',
+        ]
 
     @classmethod
     def login_cache_registries(cls):

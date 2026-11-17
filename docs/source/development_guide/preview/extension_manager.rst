@@ -13,6 +13,41 @@ This guide walks through registering a repository, browsing the catalog, and
 managing installations.
 
 
+The Default Repository
+----------------------
+
+Every online platform registers the repository ``kaapana-default`` when the
+Extension Manager starts. It points to ``https://<registry>/extensions``, where
+``<registry>`` is the registry the platform was deployed from. The Extension
+Manager uses the registry credentials of the deployment to access it.
+
+- The repository is created again on the next start of the Extension Manager
+  if it is missing. Its URL and credentials are reset to the deployment values.
+  Changes to the URL or the credentials in the **Repositories** tab are
+  therefore lost on the next start.
+- The name ``kaapana-default`` is reserved. A repository that you add with
+  this name is changed into the default repository on the next start.
+- Do not rename the repository. On the next start, a second repository with
+  the same URL is created.
+- Do not delete the repository while extensions from it are installed. The
+  Extension Manager forgets these extensions, but their workflows stay
+  installed. After the next start, the repository exists again, but these
+  extensions cannot be installed again, because their workflows already exist.
+- The URL uses HTTPS. If the platform was deployed with
+  ``kaapanactl.sh --plain-http``, it uses HTTP.
+- The default repository does not work if the registry is called ``localhost``
+  or ``127.0.0.1``, for example ``localhost:5000``. Inside the pod of the
+  Extension Manager, ``localhost`` is the pod itself and not the server. Build
+  the platform with ``--default-registry "<node-ip>:5000"``, where ``<node-ip>``
+  is the IP address of the server. A hostname that the cluster resolves to the
+  server works as well.
+- A local Docker registry on the same server as the cluster must run on the
+  host network (``docker run --network host``). On a MicroK8s server, pods could
+  not reach a registry that Docker published with ``-p 5000:5000`` on the IP
+  address of the server. See :ref:`Build With Local Registry <build>`.
+- In offline mode, no default repository is registered.
+
+
 Adding a Repository
 --------------------
 

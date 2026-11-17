@@ -77,11 +77,8 @@ Scope
 - **CI** checks the whole repository. The job log lists every finding. The
   Code Quality widget shows only the findings that are new or resolved
   compared with the target branch.
-- A failing :code:`format: [ruff]`, :code:`validate: [ruff]`,
-  :code:`validate: [ui]`, :code:`validate: [hadolint]` or
-  :code:`validate: [helm]` job fails the pipeline.
-  :code:`format: [prettier]` is allowed to fail until the existing
-  findings are fixed, so it only warns. :code:`lint` jobs never fail.
+- A failing :code:`format` or :code:`validate` job fails the pipeline.
+  :code:`lint` jobs never fail.
 
 Ruff
 ----

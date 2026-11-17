@@ -73,9 +73,7 @@ stage, each a matrix over `LINTER`, all gated by `exec_lint`:
 | `lint`     | `ruff`, `ui`, `hadolint`, `helm` | nothing, publishes `gl-code-quality-report.json` to the MR Code Quality widget |
 
 Each entry runs `ci/ci-code/lint/<linter>_lint.sh <job>`, which installs its own tool.
-`validate: [helm]` publishes JUnit reports from `helm-reports/` to the MR test tab. `format: [prettier]` and
-`validate: [helm]` are `allow_failure: true` until the existing findings are
-fixed.
+`validate: [helm]` publishes JUnit reports from `helm-reports/` to the MR test tab.
 
 Tool versions: `RUFF_VERSION` and `HADOLINT_VERSION` (set in `lint.yml`) must
 match their hooks' `rev` in `.pre-commit-config.yaml` (the scripts check).

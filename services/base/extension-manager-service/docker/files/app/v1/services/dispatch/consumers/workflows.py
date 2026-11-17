@@ -107,6 +107,9 @@ class WorkflowInstaller(ContentInstaller):
             response = await client.delete(
                 f"{WorkflowInstaller.workflow_api_url}{content.location}",
             )
+        if response.status_code == httpx.codes.NOT_FOUND:
+            logger.warning(f"Workflow at {content.location} does not exist anymore, treating it as uninstalled")
+            return
         try:
             response.raise_for_status()
         except httpx.HTTPStatusError as e:

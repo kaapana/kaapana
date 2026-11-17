@@ -83,8 +83,8 @@ preflight_variables:
         require REGISTRY_USER
         require REGISTRY_TOKEN
       fi
-      if [ -n "${DOCKER_IO_USER:-}" ] && [ -z "${DOCKER_IO_PASSWORD:-}" ]; then
-        fail "DOCKER_IO_USER is set but DOCKER_IO_PASSWORD is empty — leave both empty to skip the docker.io login."
+      if [ -n "${DOCKER_IO_CONFIG:-}" ] && ! python3 -c 'import json, os; json.loads(os.environ["DOCKER_IO_CONFIG"])' 2>/dev/null; then
+        fail "DOCKER_IO_CONFIG is not valid JSON — leave it empty to skip the docker.io login."
       fi
 
       # release tag (e.g. "0.7.1"): publishes to the release registry instead

@@ -31,6 +31,7 @@ metadata:
   name: workflow-list-ui-ingress
   namespace: "{{ .Values.global.services_namespace }}"
   annotations:
+    kubernetes.io/ingress.class: kaapana
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.global.services_namespace }}-strip-prefix-workflow-list-ui@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
@@ -65,6 +66,7 @@ metadata:
   name: workflow-list-ui-project-ingressroute
   namespace: "{{ .Values.global.services_namespace }}"
 spec:
+  ingressClassName: kaapana
   entryPoints:
     - websecure
   routes:

@@ -2538,6 +2538,9 @@ function deploy_chart {
         HELM_INSTALL_CMD="$HELM_INSTALL_CMD --plain-http"
     fi
 
+    # Helm does not update existing CRDs
+    $HELM_EXECUTABLE show crds "$CHART_PATH" | $KUBECTL_EXECUTABLE apply --server-side --force-conflicts -f -
+
     $HELM_INSTALL_CMD $CHART_PATH \
     --set-string global.base_namespace="base" \
     --set-string global.credentials_registry_username="$CONTAINER_REGISTRY_USERNAME" \

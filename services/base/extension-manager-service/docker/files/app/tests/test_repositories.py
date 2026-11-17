@@ -123,6 +123,7 @@ async def test_post_repository_get_repository(client: AsyncClient):
         "name": repo_payload["name"],
         "description": repo_payload["description"],
         "repository_url": repo_payload["repository_url"],
+        "built_in": False,
     }
 
 

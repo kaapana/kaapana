@@ -3,6 +3,7 @@ export interface Repository {
   description: string
   repository_url: string
   id: string
+  built_in: boolean
 }
 
 export interface CreateRepositoryRequest {
@@ -63,6 +64,10 @@ export interface ExtensionManifestResponse {
   repository_id: string
   tag: string
   manifest: ExtensionManifest
+}
+
+export interface UploadLimits {
+  max_bytes: number
 }
 
 export interface InstalledContent {

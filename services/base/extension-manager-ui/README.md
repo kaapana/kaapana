@@ -19,7 +19,7 @@ The whole app lives under `docker/files/`:
 | `src/router/router.ts` | The three sections `/catalog`, `/extensions`, `/repositories`; `/` and unknown paths go to the catalog. |
 | `src/views/` | One view per section: `Catalog.vue`, `Extensions.vue`, `Repositories.vue`. |
 | `src/features/catalog/` | Filter bar, the catalog entry dialog, grouping/filtering and the install-availability rules. |
-| `src/features/extensions/` | The installed-extension dialog (status, contents, uninstall) and its API calls. |
+| `src/features/extensions/` | The installed-extension dialog (status, contents, uninstall), the upload dialog and their API calls. |
 | `src/features/repositories/` | The repository form dialog (create/edit, validation, unsaved-changes protection), form adapter and API calls. |
 | `src/shared/components/` | Card grid, detail dialog, status indicator, manifest and source details used by more than one section. |
 | `src/shared/utils/status.ts` | User-facing labels and tones for every extension and content status of the service. |
@@ -56,6 +56,14 @@ Everything in `src/shared/` stays local to this view; nothing is moved to
   version and status in user terms (*Downloading*, *Installation failed*, …),
   carried by an icon and a label. The list is polled every 5 s while an
   operation is in progress and not at all otherwise.
+- **Upload extension** — on the Catalog page. Accepts a `.tar.gz` built
+  with `extensionctl build`, shows the upload progress and cannot be closed
+  while uploading. The extension is added to the built-in *Upload*
+  repository and its catalog entry opens, ready to install. Nothing is
+  installed by the upload.
+- **Remove upload** — in the catalog entry of an uploaded extension, after a
+  confirmation. It only removes the extension from the catalog. An installed
+  extension stays installed.
 - **Uninstall** — from the extension's dialog, after a confirmation that names
   the version, the repository and the installed items. Unavailable, with an
   explanation, while an operation runs; hidden for uninstalled extensions.
@@ -63,7 +71,8 @@ Everything in `src/shared/` stays local to this view; nothing is moved to
   validated with messages that say how to fix the value. When editing, the
   stored credentials are kept unless both username and password are entered.
   Closing an edited form asks before discarding, and an edited form reports
-  the view as dirty to the shell. Removing a repository is confirmed and says
+  the view as dirty to the shell. The built-in *Upload* repository is shown
+  without Edit and Remove. Removing a repository is confirmed and says
   when the extension manager stops tracking extensions installed from it.
 - **Empty and failure states** — each section distinguishes "nothing yet"
   (with the next step), "nothing matches" (catalog: clear filters) and "could

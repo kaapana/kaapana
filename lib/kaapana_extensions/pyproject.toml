@@ -32,6 +32,9 @@ extensionctl = "kaapana_extensions.cli:app"
 [tool.setuptools.packages.find]
 where = ["."]
 
+[tool.setuptools.package-data]
+kaapana_extensions = ["schemas/*.json"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 markers = [

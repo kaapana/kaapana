@@ -1,9 +1,12 @@
 fastapi==0.136.1
 uvicorn==0.47.0
 sqlalchemy==2.0.49
+alembic==1.16.4
 psycopg2-binary==2.9.12
 asyncpg==0.31.0
 httpx==0.28.1
+python-multipart==0.0.33
+jsonschema==4.26.0
 cryptography==48.0.0
 kaapana-containers
 kaapana-extensions

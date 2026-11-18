@@ -130,8 +130,8 @@ server_installation:
     VM_USER: "$DEPLOYMENT_INSTANCE_USER"
   script:
     - |
-      mapfile -t docker_io < <(python3 "$CI_PROJECT_DIR/ci/ci-code/utils/select_docker_io_credential.py")
-      export DOCKER_IO_USER="${docker_io[0]:-}" DOCKER_IO_PASSWORD="${docker_io[1]:-}"
+      read -r DOCKER_IO_USER DOCKER_IO_PASSWORD < <(python3 "$CI_PROJECT_DIR/ci/ci-code/utils/select_docker_io_credential.py")
+      export DOCKER_IO_USER DOCKER_IO_PASSWORD
     - |
       ansible-playbook "$CI_PROJECT_DIR/ci/ci-code/deploy/server_installation.yaml" \
         -i "$VM_FQDN," \

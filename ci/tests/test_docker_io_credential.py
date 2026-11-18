@@ -78,13 +78,14 @@ def select(selector, hub, monkeypatch, capsys, tmp_path):
         assert selector.main() == 0
         captured = capsys.readouterr()
         script = (
-            'mapfile -t docker_io <<<"$OUTPUT"\n'
-            'export DOCKER_IO_USER="${docker_io[0]:-}" DOCKER_IO_PASSWORD="${docker_io[1]:-}"\n'
+            "set -e\n"
+            'read -r DOCKER_IO_USER DOCKER_IO_PASSWORD < <(printf "%s" "$OUTPUT")\n'
+            "export DOCKER_IO_USER DOCKER_IO_PASSWORD\n"
             'printf "%s\\n%s" "$DOCKER_IO_USER" "$DOCKER_IO_PASSWORD"'
         )
         result = subprocess.run(
             ["bash", "-c", script],
-            env={"PATH": "/usr/bin:/bin", "OUTPUT": captured.out.rstrip("\n"), **(environment or {})},
+            env={"PATH": "/usr/bin:/bin", "OUTPUT": captured.out, **(environment or {})},
             cwd=tmp_path,
             capture_output=True,
             text=True,
@@ -149,7 +150,10 @@ def test_old_project_variables_are_dropped_without_a_usable_account(hub, select)
     assert (user, password) == ("", "")
 
 
-@pytest.mark.parametrize("config", ["", "\n", "not json", "{}", '["dckr_pat_secret"]', '{"someone": ""}'])
+@pytest.mark.parametrize(
+    "config",
+    ["", "\n", "not json", "{}", '["dckr_pat_secret"]', '{"someone": ""}', '{"some one": "dckr_pat_secret"}'],
+)
 def test_an_empty_or_malformed_config_means_anonymous_pulls(select, config):
     user, _, report = select(config, {"DOCKER_IO_USER": "legacy"})
     assert user == ""
@@ -158,7 +162,7 @@ def test_an_empty_or_malformed_config_means_anonymous_pulls(select, config):
 
 
 def test_tokens_with_shell_characters_are_read_as_data(hub, select):
-    token = "dckr_pat_'$(touch pwned)\"`;\\"
+    token = "dckr_pat_'$(touch${IFS}pwned)\"`;\\"
     hub.update(someone={"token": token, "remaining": 5})
     user, password, _ = select({"someone": token})
     assert (user, password) == ("someone", token)
@@ -170,5 +174,5 @@ def test_an_unset_or_missing_config_file_means_anonymous_pulls(selector, monkeyp
     monkeypatch.setenv("DOCKER_IO_CONFIG", value)
     assert selector.main() == 0
     captured = capsys.readouterr()
-    assert captured.out == ""
+    assert captured.out == "\n"
     assert "anonymously" in captured.err

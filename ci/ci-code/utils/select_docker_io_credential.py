@@ -2,12 +2,11 @@
 """Pick the docker.io account from DOCKER_IO_CONFIG with the most pulls left.
 
 DOCKER_IO_CONFIG is a File-type variable, its file holds a JSON object of
-docker.io users to tokens. Prints the chosen user on the first line and its
-token on the second, or nothing when no account is usable. The caller reads
-both lines as data:
+docker.io users to tokens. Prints one line with the chosen user and its token,
+or an empty line when no account is usable. The caller reads it as data:
 
-    mapfile -t docker_io < <(python3 select_docker_io_credential.py)
-    export DOCKER_IO_USER="${docker_io[0]:-}" DOCKER_IO_PASSWORD="${docker_io[1]:-}"
+    read -r DOCKER_IO_USER DOCKER_IO_PASSWORD < <(python3 select_docker_io_credential.py)
+    export DOCKER_IO_USER DOCKER_IO_PASSWORD
 
 The report goes to stderr and never contains a token. The exit code is always 0,
 so a Docker Hub outage falls back to anonymous pulls instead of failing the job.
@@ -46,8 +45,8 @@ def parse_config(raw: str) -> dict[str, str]:
         raise ValueError("not a non-empty JSON object")
     if not all(user and isinstance(token, str) and token for user, token in config.items()):
         raise ValueError("every user needs a non-empty token")
-    if any("\n" in user + token for user, token in config.items()):
-        raise ValueError("users and tokens must be single lines")
+    if any(len((user + token).split()) != 1 for user, token in config.items()):
+        raise ValueError("users and tokens must not contain whitespace")
     return config
 
 
@@ -99,8 +98,7 @@ def chosen_account(raw_config: str) -> tuple[str, str] | None:
 def main() -> int:
     argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter).parse_args()
     chosen = chosen_account(read_config(os.environ.get("DOCKER_IO_CONFIG", "")))
-    if chosen is not None:
-        print("\n".join(chosen))
+    print(" ".join(chosen or ()))
     return 0
 
 

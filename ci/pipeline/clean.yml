@@ -10,7 +10,8 @@ spec:
 # Stage: clean — VM teardown + failure notification
 # In:  deployment.env dotenv (VM_FQDN); job statuses via needs;
 #      HARVESTER_KUBECONFIG (File-type CI variable)
-# Out: VM + PVCs deleted; on develop failures a GitLab issue + Slack message
+# Out: VM + PVCs deleted; on develop, release branch and release tag failures
+#      a GitLab issue + Slack message
 #      (after a failing run the kept VM is left to the sweep, see maintenance.yml)
 # #############################################
 # ############## CLEAN ########################
@@ -78,6 +79,6 @@ if_ci_failing:
     - python3 create_ticket_if_ci_failed.py
     - python3 notify_slack.py
   rules:
-    - if: $CI_COMMIT_BRANCH == "develop" && $DEPLOYMENT_INSTANCE_FQDN == ""
+    - if: ($CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH =~ /^release\// || $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/) && $DEPLOYMENT_INSTANCE_FQDN == ""
       when: on_failure
 

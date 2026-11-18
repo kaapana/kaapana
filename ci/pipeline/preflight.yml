@@ -137,8 +137,9 @@ preflight_variables:
         fi
       fi
 
-      # failures on develop create a GitLab issue and a Slack message
-      if [ "$CI_COMMIT_BRANCH" = "develop" ]; then
+      # failures on develop, release branches and release tags create a GitLab issue and a Slack message
+      if [ "${CI_COMMIT_BRANCH:-}" = "develop" ] || [[ "${CI_COMMIT_BRANCH:-}" == release/* ]] \
+          || [[ "${CI_COMMIT_TAG:-}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
         require GITLAB_API_TOKEN
         require SLACK_BOT_TOKEN
         require SLACK_CHANNEL_ID

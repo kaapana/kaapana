@@ -26,19 +26,20 @@ logging.basicConfig(
 logger = logging.getLogger(__file__)
 
 
-def create_title(project: gitlab.v4.objects.Project, commit_sha: str) -> str:
+def create_title(project: gitlab.v4.objects.Project, commit_sha: str, ref: str) -> str:
     """
     Creates a title string for the issue.
 
     Args:
         project (gitlab.v4.objects.Project): The Gitlab project object.
         commit_sha (str): The SHA hash of the commit.
+        ref (str): The branch or tag the pipeline ran for.
 
     Returns:
-        str: A title string consisting of short commit hash and count of how many days since the issue was created.
+        str: A title string consisting of the ref, short commit hash and count of how many days since the issue was created.
     """
     days_since_commit = get_days_since_commit(project, commit_sha)
-    return f"CI failed for commit {commit_sha} - Issue happening since {days_since_commit} Days"
+    return f"CI failed on {ref} for commit {commit_sha} - Issue happening since {days_since_commit} Days"
 
 
 def get_days_since_commit(project: gitlab.v4.objects.Project, commit_sha: str) -> int:
@@ -358,6 +359,7 @@ def create_issue_for_commit(
     ci_pipeline_url: str,
     ci_pipeline_id: int,
     commit_sha: str,
+    ref: str,
     artifacts_dir: Path,
 ) -> gitlab.v4.objects.ProjectIssue:
     """Creates a new issue for a commit when a CI pipeline fails.
@@ -372,7 +374,7 @@ def create_issue_for_commit(
         None
     """
 
-    issue_title = create_title(project, commit_sha)
+    issue_title = create_title(project, commit_sha, ref)
     issue_description = create_description(
         project=project,
         blablador_token=blablador_token,
@@ -394,6 +396,7 @@ def update_issue_title(
     project: gitlab.v4.objects.Project,
     issue: gitlab.v4.objects.ProjectIssue,
     commit_sha: str,
+    ref: str,
 ) -> gitlab.v4.objects.ProjectIssue:
     """Updates the title of an existing issue based on the commit's timestamp.
 
@@ -406,7 +409,7 @@ def update_issue_title(
     Returns:
         None
     """
-    issue.title = create_title(project, commit_sha)
+    issue.title = create_title(project, commit_sha, ref)
     return issue
 
 
@@ -417,6 +420,7 @@ def main():
     ci_pipeline_url = os.getenv("CI_PIPELINE_URL")
     ci_pipeline_id = os.getenv("CI_PIPELINE_ID")
     commit_sha = os.getenv("CI_COMMIT_SHORT_SHA")
+    ref = os.getenv("CI_COMMIT_REF_NAME")
     artifacts_dir = Path(os.getenv("ARTIFACTS_DIR"))
 
     gl = gitlab.Gitlab(
@@ -436,11 +440,12 @@ def main():
             ci_pipeline_url=ci_pipeline_url,
             ci_pipeline_id=ci_pipeline_id,
             commit_sha=commit_sha,
+            ref=ref,
             blablador_token=blablador_token,
             artifacts_dir=artifacts_dir,
         )
     else:
-        issue = update_issue_title(project_kaapana, existing_issues[0], commit_sha)
+        issue = update_issue_title(project_kaapana, existing_issues[0], commit_sha, ref)
     issue.save()
 
 

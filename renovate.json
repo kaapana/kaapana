@@ -46,10 +46,7 @@
     "managerFilePatterns": ["/^ci/pipeline/[^/]+\\.ya?ml$/"]
   },
   "pip_requirements": {
-    "managerFilePatterns": [
-      "/^constraints/[^/]+\\.txt$/",
-      "/(^|/)constraints-[^/]+\\.txt$/"
-    ]
+    "managerFilePatterns": ["/^constraints/[^/]+\\.txt$/"]
   },
   "pre-commit": {
     "enabled": true
@@ -102,12 +99,6 @@
         "kaapana-client",
         "kaapana-containers",
         "task-api"
-      ],
-      "enabled": false
-    },
-    {
-      "matchFileNames": [
-        "services/flow/airflow/docker/files/constraints-*.txt"
       ],
       "enabled": false
     },

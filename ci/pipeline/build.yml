@@ -83,7 +83,10 @@ build_packages:
       export REGISTRY_PW="$REGISTRY_TOKEN"
 
     # Helm charts are linted in the unittest stage
-    - kaapana-build --no-linting --default-registry "$REGISTRY_URL" $CI_EXEC_BUILD_ARGUMENTS
+    - >-
+      kaapana-build --no-linting --default-registry "$REGISTRY_URL"
+      --docker-io-mirror mirror.gcr.io --docker-io-mirror public.ecr.aws/docker
+      $CI_EXEC_BUILD_ARGUMENTS
 
   # No docker logout needed: login state dies with the job container.
 

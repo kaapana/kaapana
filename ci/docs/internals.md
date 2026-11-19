@@ -110,6 +110,9 @@ fail.
 The docker CLI talks to the **host** daemon through a socket mount on the build
 runner, which is what keeps the layer cache warm across pipelines.
 
+`--docker-io-mirror` makes the builder pull docker.io images from
+`mirror.gcr.io` and `public.ecr.aws/docker` first, and from docker.io last.
+
 ### security
 
 `security_scan` runs `kaapana-build --scan-only`, so the scan, the consolidation

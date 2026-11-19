@@ -21,6 +21,7 @@ class BuildConfig(BaseModel):
     registry_password: str
     no_login: bool = False
     plain_http: bool = False
+    docker_io_mirrors: list[str] = Field(default_factory=list)
 
     # Executables
     helm_executable: str = "helm"

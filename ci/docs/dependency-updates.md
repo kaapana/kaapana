@@ -17,12 +17,11 @@ box. Nothing is merged automatically. See [Rollout phases](#rollout-phases).
 
 1. Open the Dependency Dashboard and tick the updates you want.
 2. On the next run, Renovate opens the MR and the full pipeline runs.
-3. Read the MR description. It says which tests cover each changed file.
-4. If the coverage is `none`, test the component manually and note the
+3. If no test covers the changed component, test it manually and note the
    result in the MR.
-5. If the MR changes the `ci-base` image, bump `CI_IMAGES_TAG` in
+4. If the MR changes the `ci-base` image, bump `CI_IMAGES_TAG` in
    `.gitlab-ci.yml` on the same branch. The MR description reminds you.
-6. Review and merge, or close the MR to skip that version.
+5. Review and merge, or close the MR to skip that version.
 
 ## What Renovate updates
 
@@ -104,8 +103,8 @@ MRs of the current one are manageable.
 | --- | --- | --- |
 | 0 · Dry run | runner input `dry_run` = `full`, read-only token | nothing, the run only logs |
 | **1 · Dashboard only (current)** | `dependencyDashboardApproval: true` at the top level and in `vulnerabilityAlerts` | the dashboard. An MR only after someone ticks its box. |
-| 2 · Security and tested components | remove both approvals, add `dependencyDashboardApproval: true` to the `Coverage: none` rule | security MRs and MRs for tested components. Untested ones wait for approval. |
-| 3 · Target state | remove the approval from the `Coverage: none` rule, optionally add a `schedule` such as `["before 6am on monday"]` | the table below |
+| 2 · Security fixes | remove the approval in `vulnerabilityAlerts` | security MRs right away, everything else on the dashboard |
+| 3 · Target state | remove the top-level approval, optionally add a `schedule` such as `["before 6am on monday"]` | the table below |
 
 Target state:
 
@@ -113,7 +112,6 @@ Target state:
 | --- | --- | --- |
 | Security fix | Opens an MR right away, ignoring the schedule and the limits | Green pipeline, including trivy, and one review |
 | Patch or minor | Opens grouped MRs | Green pipeline and one review |
-| Patch or minor, coverage `none` | Same as above | Also a manual test, noted in the MR |
 | Major | Waits on the dashboard for approval, in every phase | Same as above, plus a look at the changelog |
 
 ## Grouping and pace
@@ -154,57 +152,6 @@ MR.
 Rules in `packageRules` apply from top to bottom, and a later `groupName`
 wins. That is why "UI npm dependencies" comes after "other npm dependencies".
 
-## Test coverage
-
-Every MR gets one `Coverage: …` label per level it touches, and one note per
-changed file in its description.
-
-| Label | Meaning | Components |
-| --- | --- | --- |
-| `Coverage: unit` | Unit tests run in the `unittest` stage | `lib/task_api`, `lib/kaapana_containers`, `lib/kaapana_extensions`, `lib/kaapana_client`, `workflow-api`, `portal-api`, `kaapana-backend`, `extension-manager-service`, `notification-service`, `auth-backend`, `keycloak-setup`, `kube-helm`, `dicom-web-filter`, `access-information-interface`, `collabora-wopi` |
-| `Coverage: e2e` | Playwright tests against a mocked backend in `ui_e2e_tests` | `base-ui` and the UIs in the `ui_e2e_tests` matrix |
-| `Coverage: integration` | The workflow runs in `run_workflows`. The job may fail, so check it. | processing pipelines with a `ci-config/` directory |
-| `Coverage: pipeline` | The MR pipeline uses the dependency itself | `ci/`, `.gitlab-ci.yml`, `.pre-commit-config.yaml`, `tests/`, the root `package.json` |
-| `Coverage: none` | Only the build and the deployment | everything else |
-
-When a component gets tests, add its path to the matching rule in
-`renovate.json`. Once phase 2 adds a `Coverage: none` rule, also add the path
-with a `!` there, so that each file gets exactly one level.
-
-### Automerge for well-tested components
-
-Not set up yet. A `Coverage: …` label only says that tests exist, not how good
-they are. Before an update merges without review, two things must hold:
-
-- **The tests install the updated package.** Line coverage measures Kaapana
-  code, not the dependency. `portal-api` has 99% coverage, but its tests
-  replace `kubernetes` with a fake module and never start `uvicorn`. A
-  `kubernetes` update would pass without being tested.
-- **CI enforces a coverage floor**, so that the rule stays valid when tests
-  shrink. Add `--cov-fail-under=<percent>` to the component's pytest job in
-  `ci/pipeline/unit-tests.yml`. A failed pipeline then stops the automerge.
-
-For each component that meets both, add a rule after the `Coverage` rules:
-
-```jsonc
-{
-  "matchFileNames": ["services/base/portal-api/**"],
-  "matchPackageNames": ["fastapi", "pydantic", "pydantic-settings", "httpx"],
-  "matchUpdateTypes": ["patch"],
-  "groupName": "portal-api tested dependencies",
-  "dependencyDashboardApproval": false,
-  "automerge": true
-}
-```
-
-- List only packages from the component's `tests/requirements.txt`.
-- Use a separate `groupName`, so that the MR only touches this component. The
-  shared `Python dependencies` group spans the whole repository.
-- Start with `patch`. Add `minor` after a few clean automerges.
-- Renovate hands the merge to GitLab ("merge when pipeline succeeds"). Enable
-  **Pipelines must succeed** in the project settings, so that GitLab never
-  merges an MR whose pipeline failed or did not run.
-
 ## Where to change what
 
 `renovate.json` accepts `//` comments, and its `packageRules` are split into
@@ -215,7 +162,6 @@ commented sections.
 | stop tracking a package or file | the `Ignore` section (`enabled: false`), or `ignorePaths` for a whole directory |
 | change what needs approval | `dependencyDashboardApproval` at the top, in `vulnerabilityAlerts`, or in the `Approval` section |
 | bundle or split MRs | the `Groups` section |
-| mark a component as tested | the `Coverage` section, see [Test coverage](#test-coverage) |
 | track a version Renovate cannot find | a `# renovate:` annotation, see below |
 
 ## Annotating a version

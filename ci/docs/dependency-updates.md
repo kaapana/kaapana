@@ -63,6 +63,7 @@ both the entry in `enabledManagers` and `"pre-commit": { "enabled": true }`.
 | Helm chart dependencies and images | All chart dependencies are local (`file://`, `0.0.0`). Image names without a tag in `values.yaml` are Kaapana images and are turned off. |
 | `docker-compose` files | The manager is not enabled. They are only used for local development. |
 | `templates_and_examples/`, `docs/Pipfile`, `utils/`, `rabbitmq-3.8` | In `ignorePaths`: templates, a dead Python 2 file, helper scripts and an unused image. |
+| `constraints/0.3.0.txt`, `constraints/0.4.0.txt` | In `ignorePaths`: lower bounds of old releases, each still used by one image. They only showed CVEs of old versions on the dashboard. The current file is `constraints/0.7.0.txt`. |
 | Versions in download URLs, `git clone --branch` and `pip install x==y` in Dockerfiles | Renovate cannot find them, unless they have a [`# renovate:` annotation](#annotating-a-version). This includes Airflow itself. |
 
 `ignorePaths` replaces Renovate's default list, it does not extend it. That is

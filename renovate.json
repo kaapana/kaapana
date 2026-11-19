@@ -9,9 +9,11 @@
   "prConcurrentLimit": 5,
   "prHourlyLimit": 2,
   "labels": ["Dependencies"],
-  "dependencyDashboardTitle": "Dependency Dashboard (Renovate)",
-  "dependencyDashboardLabels": ["Dependencies", "Pending"],
-  "dependencyDashboardOSVVulnerabilitySummary": "unresolved",
+  "dependencyDashboard": {
+    "title": "Dependency Dashboard (Renovate)",
+    "labels": ["Dependencies", "Pending"],
+    "osvVulnerabilitySummary": "unresolved"
+  },
   "commitMessageExtra": "from {{{currentValue}}} to {{#if isPinDigest}}{{{newDigestShort}}}{{else}}{{#if isSingleVersion}}{{prettyNewVersion}}{{else}}{{#if newValue}}{{{newValue}}}{{else}}{{{newDigestShort}}}{{/if}}{{/if}}{{/if}}",
   "enabledManagers": [
     "dockerfile",

@@ -119,7 +119,8 @@ Target state:
 
 ## Grouping and pace
 
-- A release must be at least **3 days** old.
+- An npm or PyPI release must be at least **3 days** old. Other sources
+  often have no release date, so Renovate does not wait for them.
 - At most **5** MRs are open at a time, and at most **2** are created per
   hour. Security MRs do not count.
 - There is no `schedule`, so a ticked box takes effect on the next hourly run.

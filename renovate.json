@@ -3,7 +3,6 @@
   "extends": ["config:recommended"],
   "semanticCommits": "enabled",
   "timezone": "Europe/Berlin",
-  "minimumReleaseAge": "3 days",
   "minimumReleaseAgeBehaviour": "timestamp-optional",
   "dependencyDashboardApproval": true,
   "prConcurrentLimit": 5,
@@ -116,6 +115,10 @@
       "matchManagers": ["helm-values"],
       "matchJsonata": ["$not($exists(currentValue))"],
       "enabled": false
+    },
+    {
+      "matchDatasources": ["npm", "pypi"],
+      "minimumReleaseAge": "3 days"
     },
     // Approval: major updates wait for a Dependency Dashboard checkbox.
     {

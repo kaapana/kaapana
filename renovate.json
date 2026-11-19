@@ -38,7 +38,9 @@
     "services/kaapana-admin/rabbitmq/rabbitmq-3.8/**",
     "constraints/0.3.0.txt",
     "constraints/0.4.0.txt",
-    "services/flow/airflow/docker/files/constraints-3.12.txt"
+    "services/flow/airflow/docker/files/constraints-3.12.txt",
+    "data-processing/workflows/**",
+    "data-processing/processing-pipelines/**"
   ],
   "gitlabci": {
     "managerFilePatterns": ["/^ci/pipeline/[^/]+\\.ya?ml$/"]

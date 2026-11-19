@@ -29,6 +29,8 @@ with the platform. The Extension Manager registers it on every start and
 resets its URL and credentials. It is not registered in offline mode. See
 :ref:`extension_manager` for the rules that apply to this repository.
 
+Installing a newer version of an installed extension from the same repository updates it in place. Its workflows keep their IDs, revisions and runs. Older versions cannot be installed over a newer one. For an uploaded extension, upload the newer version and install it from the Upload repository.
+
 Installing without internet
 ***************************
 

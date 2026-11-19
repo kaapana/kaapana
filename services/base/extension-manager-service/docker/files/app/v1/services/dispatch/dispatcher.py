@@ -16,6 +16,10 @@ class Dispatcher:
     def validate_content(self, content: Content) -> None:
         self.find_installer(content).validate(content)
 
+    async def update_content(self, content: Content):
+        content_installer = self.find_installer(content)
+        return await content_installer.update(content)
+
     async def uninstall_content(self, content: Content):
         content_installer = self.find_installer(content)
         if not content.location:

@@ -161,6 +161,7 @@ This ensures eventual consistency even if inline updates fail.
 - Any PATCH to a versioned field appends a new revision and bumps `increment`. A title-only PATCH updates the workflow row in place.
 - `WorkflowRun` pins to the `WorkflowRevision` it was submitted under, so in-flight runs are immune to subsequent PATCHes.
 - Soft-deleted workflows free their title (partial unique index `WHERE removed = false`); re-POSTing the same title mints a fresh workflow.
+- The revisions of a soft-deleted workflow stay readable through `GET /v1/workflows/{id}/revisions` and `GET /v1/workflows/{id}/revisions/{n}`, so the definition and labels a run used can still be looked up. The workflow itself, its tasks, restore and new runs stay unavailable.
 
 ### POST conflicts
 `POST /v1/workflows` returns **409** when the title already exists with `detail.existing_workflow.id` in the body. Clients decide whether to PATCH the existing workflow or treat it as a no-op.

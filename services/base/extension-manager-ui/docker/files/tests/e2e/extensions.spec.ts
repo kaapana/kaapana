@@ -2,6 +2,8 @@ import { test, expect } from '@playwright/test'
 import {
   defaultMockData,
   installation,
+  manifest,
+  manifestResponse,
   NNUNET_V1,
   PUBLIC_REPO,
   LAB_REPO,
@@ -42,6 +44,41 @@ test('the detail dialog shows the state of each installed item', async ({ page }
   const details = dialog(page)
   await expect(details.getByTestId('status').first()).toContainText('Installation failed')
   await expect(details.getByRole('button', { name: /radiomics-workflow/ })).toContainText(
+    'Installation failed',
+  )
+})
+
+test('a failed update also shows the items of its target that did not install', async ({
+  page,
+}) => {
+  const data = defaultMockData()
+  const nnunet = installation(
+    PUBLIC_REPO,
+    NNUNET_V1,
+    'update_failed',
+    'eeeeeeee-0000-0000-0000-000000000010',
+    'installed',
+  )
+  nnunet.pending_update = manifestResponse(
+    PUBLIC_REPO,
+    manifest('nnunet', '1.1.0', NNUNET_V1.id, ['nnunet-workflow', 'nnunet-report']),
+  )
+  nnunet.contents[0]!.applied_version = '1.1.0'
+  nnunet.contents.push({
+    name: 'nnunet-report',
+    content_type: 'workflow-v1',
+    status: 'installation_failed',
+  })
+  data.extensions.push(nnunet)
+  await openView(page, 'extensions', data)
+  await card(page, 'nnunet').click()
+
+  const details = dialog(page)
+  await expect(details.getByTestId('pending-update')).toContainText(
+    'The update to version 1.1.0 failed.',
+  )
+  await expect(details.getByRole('button', { name: /nnunet-workflow/ })).toContainText('Installed')
+  await expect(details.getByRole('button', { name: /nnunet-report/ })).toContainText(
     'Installation failed',
   )
 })

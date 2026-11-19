@@ -209,6 +209,30 @@ async def test_an_upload_cannot_be_changed_while_it_is_pulled(client: AsyncClien
 
 
 @pytest.mark.asyncio
+async def test_an_upload_cannot_be_changed_while_an_update_pulls_it(client: AsyncClient, session):
+    manifest = _manifest()
+    newer = {**manifest, "version": "1.1.0"}
+    await _upload(client, _archive(newer))
+    db_extension = await crud.create_extension(
+        session, repository_id=upload.UPLOAD_REPOSITORY_ID, tag=_tag(manifest), manifest=manifest
+    )
+    db_extension.status = "updating"
+    db_extension.pending_update = {
+        "repository_id": str(upload.UPLOAD_REPOSITORY_ID),
+        "tag": _tag(newer),
+        "manifest": newer,
+    }
+    await session.commit()
+
+    response = await client.delete(f"/extensions/uploads/{_tag(newer)}")
+    assert response.status_code == 409
+    assert "is being updated" in response.json()["detail"]
+    response = await _upload(client, _archive(newer))
+    assert response.status_code == 409
+    assert await _catalog(client) == [_tag(newer)]
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("data", "filename", "detail"),
     [
@@ -367,6 +391,26 @@ async def test_uploading_the_same_extension_again_replaces_it(client: AsyncClien
     assert response.status_code == 201
     assert await _catalog(client) == [_tag(manifest)]
     assert len((await client.get("/extensions")).json()) == 1
+
+
+@pytest.mark.asyncio
+async def test_a_newer_upload_is_installed_as_an_update(client: AsyncClient, mocked_installer):
+    manifest = _manifest()
+    await _upload(client, _archive(manifest))
+    extension_id = (await _install(client, _tag(manifest))).json()["id"]
+
+    newer = {**manifest, "version": "1.1.0"}
+    assert (await _upload(client, _archive(newer))).status_code == 201
+    assert (await client.get(f"/extensions/{extension_id}")).json()["tag"] == _tag(manifest)
+
+    response = await _install(client, _tag(newer))
+    assert response.status_code == 202
+    assert response.headers["Location"] == f"/extensions/{extension_id}"
+
+    extension = (await client.get(f"/extensions/{extension_id}")).json()
+    assert extension["status"] == "installed"
+    assert extension["tag"] == _tag(newer)
+    assert sorted(await _catalog(client)) == sorted([_tag(manifest), _tag(newer)])
 
 
 @pytest.mark.asyncio

@@ -41,26 +41,33 @@ Everything in `src/shared/` stays local to this view; nothing is moved to
 
 ## Features
 
-- **Catalog** — one card per extension and repository, with the number of
-  versions, the latest version and the installation state of the newest
-  installed version. Search (name, version, repository name or URL) and a
+- **Catalog** — one card per extension (manifest `id`) and repository, with
+  the number of versions, the latest version and the installed version with
+  its state. Search (name, version, repository name or URL) and a
   repository filter. A card opens a dialog with a version selector, the
   repository and tag, the manifest contents and dependencies, and the raw
   manifest.
 - **Install** — installs the selected version. The button says why it is
   unavailable when the version is installed, being installed or uninstalled,
   or when a failed uninstall blocks it; after a failed installation it offers
-  *Retry installation*. Progress is shown on the button, it cannot be
+  *Retry installation*. For a newer version from the repository the extension
+  was installed from it offers *Update to X*, after a failed update
+  *Retry update*. A version below a failed update target is only updated
+  after a confirmation that names the items set back to it. Older versions, versions from another repository and a
+  running update stay unavailable with the reason. Progress is shown on the button, it cannot be
   submitted twice, and the outcome is a transient notification.
 - **Extensions** — every extension with platform state: repository, tag,
   version and status in user terms (*Downloading*, *Installation failed*, …),
-  carried by an icon and a label. The list is polled every 5 s while an
+  carried by an icon and a label. The dialog names the target of a running or
+  failed update and shows the installed version of each content, also of
+  contents that a failed update added. The list is polled every 5 s while an
   operation is in progress and not at all otherwise.
 - **Upload extension** — on the Catalog page. Accepts a `.tar.gz` built
   with `extensionctl build`, shows the upload progress and cannot be closed
   while uploading. The extension is added to the built-in *Upload*
   repository and its catalog entry opens, ready to install. Nothing is
-  installed by the upload.
+  installed by the upload. A newer upload of an installed extension is
+  offered there as *Update to X*.
 - **Remove upload** — in the catalog entry of an uploaded extension, after a
   confirmation. It only removes the extension from the catalog. An installed
   extension stays installed.
@@ -96,7 +103,7 @@ All calls go to `extension-manager-service` through the
 | DELETE | `/extensions-api/repositories/<id>` | Remove a repository. |
 | GET | `/extensions-api/repositories/<id>/extensionManifests` | Tags and manifests of the extensions published in a repository (30 s timeout, one call per repository). |
 | GET | `/extensions-api/extensions` | Extensions with platform state (polled while one is in progress). |
-| POST | `/extensions-api/extensions/install?repository_id=<id>&tag=<tag>` | Start an installation. |
+| POST | `/extensions-api/extensions/install?repository_id=<id>&tag=<tag>` | Start an installation, or an update when a newer version of an installed extension is chosen (202). |
 | POST | `/extensions-api/extensions/<id>/uninstall` | Start an uninstall. |
 
 **Legacy APIs:** none. The app calls no `kaapana-backend`, `kube-helm-api`,

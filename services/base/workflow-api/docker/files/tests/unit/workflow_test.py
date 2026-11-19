@@ -961,6 +961,44 @@ async def test_get_revision_not_found(session: AsyncSession, client: AsyncClient
     assert response.status_code == 404
 
 
+@pytest.mark.get_workflow_revisions
+@pytest.mark.asyncio
+async def test_revisions_of_a_removed_workflow_stay_readable(session: AsyncSession, client: AsyncClient):
+    """Runs pin a revision, so its definition stays readable after the workflow is removed; the workflow stays hidden."""
+    _r = await client.post(
+        "/v1/workflows",
+        json={
+            "title": "rev-removed",
+            "definition": "v1",
+            "workflow_engine": "dummy",
+            "workflow_parameters": [],
+            "labels": [{"key": "kaapana.immutable.extension.version", "value": "1.0.0"}],
+        },
+    )
+    assert _r.status_code == 201, _r.text
+    wf = _r.json()
+    _r = await client.patch(f"/v1/workflows/{wf['id']}", json={"definition": "v2"})
+    assert _r.status_code == 200, _r.text
+    _r = await client.delete(f"/v1/workflows/{wf['id']}")
+    assert _r.status_code == 204
+
+    response = await client.get(f"/v1/workflows/{wf['id']}/revisions")
+    assert response.status_code == 200
+    assert [r["definition"] for r in response.json()] == ["v1", "v2"]
+
+    response = await client.get(f"/v1/workflows/{wf['id']}/revisions/1")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["definition"] == "v1"
+    assert {"key": "kaapana.immutable.extension.version", "value": "1.0.0"} in [
+        {"key": label["key"], "value": label["value"]} for label in data["labels"]
+    ]
+
+    assert (await client.get(f"/v1/workflows/{wf['id']}")).status_code == 404
+    assert (await client.get("/v1/workflows", params={"title": "rev-removed"})).json() == []
+    assert (await client.post(f"/v1/workflows/{wf['id']}/revisions/1/restore")).status_code == 404
+
+
 @pytest.mark.restore_workflow_revision
 @pytest.mark.asyncio
 async def test_restore_revision_creates_new_increment_with_old_content(session: AsyncSession, client: AsyncClient):

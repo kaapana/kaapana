@@ -33,7 +33,7 @@ managers listed in `enabledManagers` run.
 | --- | --- | --- |
 | `dockerfile` | every `Dockerfile` | `FROM nginxinc/nginx-unprivileged:1.31-alpine`, `FROM quay.io/keycloak/keycloak:26.6.4` |
 | `gitlabci` | `.gitlab-ci.yml`, `ci/pipeline/*.yml` | `image: python:3.12`, the `docker:*-dind` services |
-| `pip_requirements`, `pep621` | `requirements*.txt`, `pyproject.toml`, `constraints/*.txt`, the Airflow `constraints-*.txt` | exact `==` pins in services, `lib/*` packages |
+| `pip_requirements`, `pep621` | `requirements*.txt`, `pyproject.toml`, `constraints/*.txt` | exact `==` pins in services, `lib/*` packages |
 | `npm` | `package.json` + `package-lock.json` | the Vue apps in `services/`, the root lint setup, `tests/ui` |
 | `maven` | `pom.xml` | the Keycloak extensions |
 | `pre-commit` | `.pre-commit-config.yaml` | ruff |
@@ -48,10 +48,6 @@ both the entry in `enabledManagers` and `"pre-commit": { "enabled": true }`.
 - `constraints/*.txt` holds lower bounds such as `cryptography>=46.0.5`. They
   never block an upgrade. Renovate raises a bound only when a known
   vulnerability lies below it.
-- The Airflow `constraints-*.txt` is Airflow's own tested set of exact pins.
-  A rule turns off its normal updates, and `vulnerabilityAlerts` turns
-  security fixes back on. Other updates come with the next Airflow version,
-  when the whole file is replaced.
 
 ### Not updated
 
@@ -63,6 +59,7 @@ both the entry in `enabledManagers` and `"pre-commit": { "enabled": true }`.
 | Helm chart dependencies and images | All chart dependencies are local (`file://`, `0.0.0`). Image names without a tag in `values.yaml` are Kaapana images and are turned off. |
 | `docker-compose` files | The manager is not enabled. They are only used for local development. |
 | `templates_and_examples/`, `docs/Pipfile`, `utils/`, `rabbitmq-3.8` | In `ignorePaths`: templates, a dead Python 2 file, helper scripts and an unused image. |
+| Airflow `constraints-3.12.txt` | In `ignorePaths`: Airflow's own tested set of exact pins for every provider, most of them not installed in the image. It is replaced as a whole with the next Airflow version, not line by line. The trivy scan covers what the image installs. |
 | `constraints/0.3.0.txt`, `constraints/0.4.0.txt` | In `ignorePaths`: lower bounds of old releases, each still used by one image. They only showed CVEs of old versions on the dashboard. The current file is `constraints/0.7.0.txt`. |
 | Versions in download URLs, `git clone --branch` and `pip install x==y` in Dockerfiles | Renovate cannot find them, unless they have a [`# renovate:` annotation](#annotating-a-version). This includes Airflow itself. |
 

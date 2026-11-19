@@ -52,6 +52,12 @@
   "ansible": {
     "managerFilePatterns": ["/^ci/ci-code/deploy/[^/]+\\.ya?ml$/"]
   },
+  "hostRules": [
+    {
+      "matchHost": "registry.npmjs.org",
+      "timeout": 180000
+    }
+  ],
   "osvVulnerabilityAlerts": true,
   "vulnerabilityAlerts": {
     "addLabels": ["Security"],

@@ -309,6 +309,15 @@ def build(
             "The container engine needs its own insecure registry setting."
         ),
     ),
+    docker_io_mirrors: list[str] = typer.Option(
+        [],
+        "--docker-io-mirror",
+        envvar="DOCKER_IO_MIRRORS",
+        help=(
+            "Mirror for docker.io images in the buildx builder, e.g. mirror.gcr.io. Repeat for more mirrors, "
+            "they are tried in order and docker.io last."
+        ),
+    ),
     helm_executable: str = typer.Option(
         "helm",
         "--helm-executable",
@@ -445,6 +454,7 @@ def build(
         include_model_weights=include_model_weights,
         http_proxy=http_proxy,
         plain_http=plain_http,
+        docker_io_mirrors=docker_io_mirrors,
         helm_executable=helm_executable,
         container_engine=container_engine,
         cache_from=cache_from,

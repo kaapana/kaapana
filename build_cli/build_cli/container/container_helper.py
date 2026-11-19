@@ -95,9 +95,10 @@ class ContainerHelper:
 
         builder_exists = inspect_result.returncode == 0
 
-        if builder_exists and cls._build_config.plain_http:
+        registry_flags = cls._buildx_registry_flags()
+        if builder_exists and registry_flags:
             # A builder keeps the BuildKit config of its creation, and buildx can neither show nor change it.
-            logger.info(f"-> Recreating buildx builder {BUILDX_BUILDER_NAME} to apply the plain-http registry setting")
+            logger.info(f"-> Recreating buildx builder {BUILDX_BUILDER_NAME} to apply {', '.join(registry_flags)}")
             CommandUtils.run(
                 ["docker", "buildx", "rm", BUILDX_BUILDER_NAME],
                 logger=logger,
@@ -214,17 +215,23 @@ class ContainerHelper:
         Plain HTTP: BuildKit pushes and pulls over HTTPS, unless the registry
         is on a loopback address. With --plain-http the config allows HTTP
         for the default registry.
+
+        Mirrors: with --docker-io-mirror the builder pulls docker.io images
+        from these mirrors first and from docker.io last.
         """
         sections = []
 
         nameservers = cls._host_nameservers()
         if nameservers:
-            servers = ", ".join(f'"{ns}"' for ns in nameservers)
-            sections.append(f"[dns]\n  nameservers = [{servers}]\n")
+            sections.append(f"[dns]\n  nameservers = {cls._toml_list(nameservers)}\n")
 
         if cls._build_config.plain_http:
             registry = cls._registry_host(cls._build_config.default_registry)
             sections.append(f'[registry."{registry}"]\n  http = true\n  insecure = true\n')
+
+        if cls._build_config.docker_io_mirrors:
+            mirrors = cls._toml_list(cls._build_config.docker_io_mirrors)
+            sections.append(f'[registry."docker.io"]\n  mirrors = {mirrors}\n')
 
         if not sections:
             return []
@@ -232,6 +239,21 @@ class ContainerHelper:
         config_path = tmp_dir / "buildkitd.toml"
         config_path.write_text("\n".join(sections))
         return ["--buildkitd-config", str(config_path)]
+
+    @classmethod
+    def _buildx_registry_flags(cls) -> list[str]:
+        """Return the flags that are set and need a registry section in the buildkitd config."""
+        flags = []
+        if cls._build_config.plain_http:
+            flags.append("--plain-http")
+        if cls._build_config.docker_io_mirrors:
+            flags.append("--docker-io-mirror")
+        return flags
+
+    @staticmethod
+    def _toml_list(values: list) -> str:
+        """Return the values as a TOML list of strings."""
+        return "[" + ", ".join(f'"{value}"' for value in values) + "]"
 
     @classmethod
     def _host_nameservers(cls) -> list:

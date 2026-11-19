@@ -45,3 +45,19 @@ def test_plain_http_with_nameservers_keeps_dns():
 def test_plain_http_strips_repository_path():
     config = read_config(make_config(plain_http=True, default_registry="10.0.0.5:5000/kaapana"), [])
     assert list(config["registry"]) == ["10.0.0.5:5000"]
+
+
+def test_docker_io_mirrors_in_order():
+    config = read_config(make_config(docker_io_mirrors=["mirror.gcr.io", "public.ecr.aws/docker"]), [])
+    assert config == {"registry": {"docker.io": {"mirrors": ["mirror.gcr.io", "public.ecr.aws/docker"]}}}
+
+
+def test_docker_io_mirrors_with_dns_and_plain_http():
+    config = read_config(make_config(plain_http=True, docker_io_mirrors=["mirror.gcr.io"]), ["10.0.0.1"])
+    assert config == {
+        "dns": {"nameservers": ["10.0.0.1"]},
+        "registry": {
+            "10.0.0.5:5000": {"http": True, "insecure": True},
+            "docker.io": {"mirrors": ["mirror.gcr.io"]},
+        },
+    }

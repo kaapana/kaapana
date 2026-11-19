@@ -35,7 +35,9 @@
     "templates_and_examples/**",
     "docs/Pipfile",
     "utils/**",
-    "services/kaapana-admin/rabbitmq/rabbitmq-3.8/**"
+    "services/kaapana-admin/rabbitmq/rabbitmq-3.8/**",
+    "constraints/0.3.0.txt",
+    "constraints/0.4.0.txt"
   ],
   "gitlabci": {
     "managerFilePatterns": ["/^ci/pipeline/[^/]+\\.ya?ml$/"]

@@ -75,6 +75,22 @@
           ansible.builtin.debug:
             msg: "cloud-init rc={{ cloud_init_wait.rc }}, system state={{ system_state.stdout | default('') }}"
 
+        - name: Update the kernel on AlmaLinux
+          become: yes
+          ansible.builtin.dnf:
+            name:
+              - kernel
+              - kernel-modules-extra
+            state: latest
+          register: kernel_update
+          when: ansible_facts['os_family'] == 'RedHat'
+
+        - name: Boot the updated kernel
+          become: yes
+          ansible.builtin.reboot:
+            reboot_timeout: 600
+          when: kernel_update is changed
+
         - name: Execute server installation script
           ansible.builtin.shell: |
             set -o pipefail

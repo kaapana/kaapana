@@ -19,7 +19,8 @@ class WorkflowInstaller(ContentInstaller):
     def can_install(self, content: Content) -> bool:
         return content.content_type == "workflow-v1"
 
-    async def install(self, content: Content) -> InstallationResult:
+    @staticmethod
+    def _read_workflow(content: Content) -> dict:
         if not content.path:
             raise ContentError("No path found for content!")
         try:
@@ -28,13 +29,27 @@ class WorkflowInstaller(ContentInstaller):
 
             with open(content.path / "workflow_definition.py", "r", encoding="utf-8") as f:
                 workflow_definition = f.read()
-                workflow["definition"] = workflow_definition
         except FileNotFoundError as e:
             raise ContentError(f"Required file not found for workflow content: {e.filename}") from e
         except json.JSONDecodeError as e:
             raise ContentError(f"Invalid JSON format in workflow.json: {e.msg}") from e
+        except UnicodeDecodeError as e:
+            raise ContentError(f"Workflow files must be UTF-8 text: {e}") from e
 
-        title = workflow.get("title", "<unknown>")
+        if not isinstance(workflow, dict):
+            raise ContentError("workflow.json must contain a JSON object.")
+        if not isinstance(workflow.get("title"), str) or not workflow["title"].strip():
+            raise ContentError("workflow.json must contain a non-empty title.")
+        if not workflow_definition.strip():
+            raise ContentError("workflow_definition.py is empty.")
+        workflow["definition"] = workflow_definition
+        return workflow
+
+    def validate(self, content: Content) -> None:
+        self._read_workflow(content)
+
+    def _workflow_payload(self, content: Content) -> dict:
+        workflow = self._read_workflow(content)
 
         # add extension identity labels to workflow
         labels = [
@@ -64,6 +79,11 @@ class WorkflowInstaller(ContentInstaller):
                 ]
             )
         workflow["labels"] = labels
+        return workflow
+
+    async def install(self, content: Content) -> InstallationResult:
+        workflow = self._workflow_payload(content)
+        title = workflow["title"]
 
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -84,12 +104,42 @@ class WorkflowInstaller(ContentInstaller):
             location=response.headers.get("Location"),
         )
 
+    async def update(self, content: Content) -> InstallationResult:
+        if not content.location:
+            raise ContentError(f"Workflow {content.name} does not have a location to update")
+        workflow = self._workflow_payload(content)
+        title = workflow["title"]
+        # The engine is fixed when a workflow is created, the update payload does not accept it
+        workflow.pop("workflow_engine", None)
+
+        async with httpx.AsyncClient() as client:
+            response = await client.patch(
+                f"{WorkflowInstaller.workflow_api_url}{content.location}",
+                json=workflow,
+            )
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            raise ConsumerError(
+                f"Failed to update workflow '{title}', API responded with "
+                f"status code {response.status_code}: {response.text}"
+            ) from e
+
+        return InstallationResult(
+            success=True,
+            message=f"Workflow '{title}' updated",
+            location=content.location,
+        )
+
     async def uninstall(self, content: Content) -> None:
         logger.info(f"Uninstalling workflow at {content.location}")
         async with httpx.AsyncClient() as client:
             response = await client.delete(
                 f"{WorkflowInstaller.workflow_api_url}{content.location}",
             )
+        if response.status_code == httpx.codes.NOT_FOUND:
+            logger.warning(f"Workflow at {content.location} does not exist anymore, treating it as uninstalled")
+            return
         try:
             response.raise_for_status()
         except httpx.HTTPStatusError as e:

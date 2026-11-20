@@ -1,23 +1,34 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { apiErrorInfo, kaapanaIcons } from '@kaapana/base-ui'
-import { installExtension, fetchExtensions } from '@/features/extensions/api'
+import {
+  installExtension,
+  fetchExtensions,
+  removeUploadedExtension,
+} from '@/features/extensions/api'
+import UploadExtensionDialog from '@/features/extensions/components/UploadExtensionDialog.vue'
 import { fetchRepositories, fetchRepositoryExtensionManifests } from '@/features/repositories/api'
 import CatalogEntryDialog from '@/features/catalog/components/CatalogEntryDialog.vue'
 import CatalogFilterBar from '@/features/catalog/components/CatalogFilterBar.vue'
 import type { CatalogEntry, CatalogEntryGroup, CatalogFilters } from '@/features/catalog/types'
 import {
   applyCatalogFilters,
+  catalogGroupKey,
   findInstallation,
   groupCatalogEntries,
   hasActiveFilters,
+  installAvailability,
 } from '@/features/catalog/utils'
 import BaseCardIterator from '@/shared/components/BaseCardIterator.vue'
 import DetailMetaLine from '@/shared/components/DetailMetaLine.vue'
 import StatusIndicator from '@/shared/components/StatusIndicator.vue'
 import { usePolling } from '@/shared/composables/usePolling'
 import { useFailureDetailsStore, type FailureDetails } from '@/shared/stores/failureDetails'
-import type { InstalledExtension, Repository } from '@/shared/types/apiSchemas'
+import type {
+  ExtensionManifestResponse,
+  InstalledExtension,
+  Repository,
+} from '@/shared/types/apiSchemas'
 import { notifyFailure, notifySuccess } from '@/shared/utils/notify'
 import { isChanging, plural, presentExtensionStatus } from '@/shared/utils/status'
 
@@ -40,6 +51,8 @@ const catalogFilters = ref<CatalogFilters>({})
 const selectedGroupKey = ref<string | null>(null)
 const selectedTag = ref<string | null>(null)
 const installing = ref(false)
+const removing = ref(false)
+const showUpload = ref(false)
 
 const catalogEntryGroups = computed(() =>
   groupCatalogEntries(applyCatalogFilters(entries.value, catalogFilters.value)),
@@ -53,6 +66,11 @@ const selectedEntry = computed(
 )
 const selectedInstallation = computed(() =>
   selectedEntry.value ? findInstallation(selectedEntry.value, installed.value) : undefined,
+)
+const selectedIsUpdate = computed(
+  () =>
+    selectedEntry.value !== null &&
+    installAvailability(selectedEntry.value, selectedInstallation.value).kind === 'update',
 )
 
 const emptyState = computed(() => {
@@ -74,16 +92,13 @@ const anyTransitional = computed(() =>
 usePolling(refreshInstalled, anyTransitional)
 
 function latestInstallation(group: CatalogEntryGroup) {
-  for (const entry of group.entries) {
-    const installation = findInstallation(entry, installed.value)
-    if (installation && installation.status !== 'uninstalled') {
-      return {
-        version: entry.manifest.version,
-        status: presentExtensionStatus(installation.status),
-      }
-    }
+  const entry = group.entries[0]
+  const installation = entry ? findInstallation(entry, installed.value) : undefined
+  if (!installation || installation.status === 'uninstalled') return null
+  return {
+    version: installation.manifest.version,
+    status: presentExtensionStatus(installation.status),
   }
-  return null
 }
 
 function selectGroup(group: CatalogEntryGroup) {
@@ -166,18 +181,54 @@ async function installSelectedEntry() {
   if (!entry || installing.value) return
 
   const label = `${entry.manifest.name} ${entry.manifest.version}`
+  const update = selectedIsUpdate.value
   installing.value = true
   try {
     await installExtension(entry.repository.id, entry.tag)
     notifySuccess(
-      'Installation started',
-      `${label} is being installed. Follow its progress on the Extensions page.`,
+      update ? 'Update started' : 'Installation started',
+      update
+        ? `${entry.manifest.name} is being updated to ${entry.manifest.version}. Follow its progress on the Extensions page.`
+        : `${label} is being installed. Follow its progress on the Extensions page.`,
     )
     await refreshInstalled()
   } catch (err) {
-    notifyFailure('Installation failed to start', `Could not start installing ${label}.`, err)
+    notifyFailure(
+      update ? 'Update failed to start' : 'Installation failed to start',
+      `Could not start ${update ? 'updating to' : 'installing'} ${label}.`,
+      err,
+    )
   } finally {
     installing.value = false
+  }
+}
+
+async function showUploadedEntry(uploaded: ExtensionManifestResponse) {
+  await loadCatalog()
+  const entry = entries.value.find(
+    (candidate) =>
+      candidate.repository.id === uploaded.repository_id && candidate.tag === uploaded.tag,
+  )
+  if (!entry) return
+  selectedGroupKey.value = catalogGroupKey(entry)
+  selectedTag.value = entry.tag
+}
+
+async function removeSelectedUpload() {
+  const entry = selectedEntry.value
+  if (!entry || removing.value) return
+
+  const label = `${entry.manifest.name} ${entry.manifest.version}`
+  removing.value = true
+  try {
+    await removeUploadedExtension(entry.tag)
+    notifySuccess('Upload removed', `${label} is no longer in the catalog.`)
+    clearSelection()
+    await loadCatalog()
+  } catch (err) {
+    notifyFailure('Upload not removed', `Could not remove the upload of ${label}.`, err)
+  } finally {
+    removing.value = false
   }
 }
 
@@ -194,16 +245,27 @@ onMounted(loadCatalog)
           plural(entries.length, 'extension version'),
         ]"
       />
-      <v-btn
-        variant="text"
-        color="primary"
-        :prepend-icon="kaapanaIcons.refresh"
-        :loading="loading"
-        :disabled="loading"
-        @click="loadCatalog"
-      >
-        Refresh
-      </v-btn>
+      <div class="d-flex flex-wrap ga-2">
+        <v-btn
+          variant="text"
+          color="primary"
+          :prepend-icon="kaapanaIcons.refresh"
+          :loading="loading"
+          :disabled="loading"
+          @click="loadCatalog"
+        >
+          Refresh
+        </v-btn>
+        <v-btn
+          color="primary"
+          variant="flat"
+          :prepend-icon="kaapanaIcons.upload"
+          data-testid="upload-extension"
+          @click="showUpload = true"
+        >
+          Upload extension
+        </v-btn>
+      </div>
     </div>
 
     <v-alert
@@ -308,7 +370,7 @@ onMounted(loadCatalog)
             v-else
             size="56"
             title="No extensions published yet"
-            text="None of the registered repositories contains an extension. Publish one with extensionctl, then refresh the catalog."
+            text="None of the registered repositories contains an extension. Publish one with extensionctl or upload an archive, then refresh the catalog."
           >
             <template #actions>
               <v-btn
@@ -318,6 +380,9 @@ onMounted(loadCatalog)
                 @click="loadCatalog"
               >
                 Refresh
+              </v-btn>
+              <v-btn color="primary" variant="text" @click="showUpload = true">
+                Upload extension
               </v-btn>
             </template>
           </v-empty-state>
@@ -330,9 +395,13 @@ onMounted(loadCatalog)
       :entry="selectedEntry"
       :installation="selectedInstallation"
       :installing="installing"
+      :removing="removing"
       @close="clearSelection"
       @update:entry="selectedTag = $event.tag"
       @install="installSelectedEntry"
+      @remove="removeSelectedUpload"
     />
+
+    <UploadExtensionDialog v-model="showUpload" @uploaded="showUploadedEntry" />
   </div>
 </template>

@@ -294,7 +294,7 @@ async def delete_workflow(db: AsyncSession, workflow_id: uuid.UUID):
 
 async def get_workflow_revisions(db: AsyncSession, workflow_id: uuid.UUID) -> List[schemas.WorkflowRevision]:
     """List every revision of a workflow in increment order."""
-    db_workflow = await crud.get_workflow(db, filters={"id": workflow_id})
+    db_workflow = await crud.get_workflow(db, filters={"id": workflow_id}, include_removed=True)
     if not db_workflow:
         raise NotFoundError("Workflow not found")
     return [_revision_to_schema(r) for r in db_workflow.revisions]
@@ -303,7 +303,7 @@ async def get_workflow_revisions(db: AsyncSession, workflow_id: uuid.UUID) -> Li
 async def get_workflow_revision(db: AsyncSession, workflow_id: uuid.UUID, increment: int) -> schemas.WorkflowRevision:
     """Get a single revision of a workflow."""
     rev = await crud.get_workflow_revision(db, workflow_id, increment)
-    if rev is None or rev.workflow.removed:
+    if rev is None:
         raise NotFoundError("Workflow revision not found")
     return _revision_to_schema(rev)
 

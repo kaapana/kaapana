@@ -1,7 +1,8 @@
 import uuid
 from typing import Optional
 
-from pydantic import BaseModel, Field, SecretStr
+from pydantic import BaseModel, Field, SecretStr, computed_field
+from v1.services import upload
 from v1.services.oci.models import ExtensionManifest
 
 
@@ -53,6 +54,11 @@ class Repository(BaseModel):
     )
 
     id: uuid.UUID = Field(..., description="The unique identifier of the registry entry.")
+
+    @computed_field(description="True for the built-in Upload repository, which cannot be changed or removed.")
+    @property
+    def built_in(self) -> bool:
+        return upload.is_upload_repository(self.id)
 
 
 ############ Extensions ###############

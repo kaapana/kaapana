@@ -224,7 +224,8 @@ Without `VM_SWEEP_APPLY=true` the run only reports, in the job log and in the
 Reporter), because the job token may not read pipelines and `read_api` is all
 the sweep needs. If GitLab does not answer, the run ends
 on one ERROR line and touches nothing. A failed teardown turns the job red, and
-on `develop` `if_ci_failing` attaches `vm_sweep.log` to its issue.
+on `develop`, release branches and release tags `if_ci_failing` attaches
+`vm_sweep.log` to its issue.
 
 For unattended runs, a schedule on `develop` sets `exec_vm_sweep`,
 `VM_SWEEP_APPLY=true`, and `exec_unit_tests`, `exec_lint`, `exec_build`,
@@ -252,7 +253,8 @@ shapes stay valid. Its rules, in order: never when the target came from
 otherwise always. A failing run skips the delayed job, because a job it needs
 failed, and leaves the VM to [the sweep](#maintenance).
 
-`if_ci_failing` runs on `develop` failures only (never for FQDN targets). It
+`if_ci_failing` runs on failures of `develop`, `release/*` branches and release
+tags `X.Y.Z` only (never for FQDN targets). It
 needs *every* job in the pipeline, because `when: on_failure` watches only the
 jobs it needs. `artifacts: true` marks the jobs whose logs are attached to the
 ticket it opens — never set that on a job whose artifacts contain secrets. It
@@ -339,6 +341,12 @@ both from `build_packages`'s tag rule: `rules:variables` swaps the registry
 credentials to the protected `RELEASE_REGISTRY_*` triple, and the build is forced
 cold (`docker system prune --all --volumes`). Images and charts land in the
 release registry tagged `X.Y.Z`.
+
+A push to `develop` or to a `release/*` branch starts a full pipeline, and a
+failure on either, or on a release tag, opens an issue and posts to Slack.
+
+When a new release branch is cut, point the release nightly schedule at the new
+branch, never at a tag.
 
 **Never create `REGISTRY_URL`, `REGISTRY_USER` or `REGISTRY_TOKEN` as project
 variables.** A project variable outranks `rules:variables`, so their mere

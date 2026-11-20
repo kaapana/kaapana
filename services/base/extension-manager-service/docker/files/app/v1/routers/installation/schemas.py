@@ -10,6 +10,13 @@ class InstalledContent(BaseModel):
     content_type: str
     status: str
     location: Optional[str] = None
+    applied_version: Optional[str] = None
+
+
+class PendingUpdate(BaseModel):
+    repository_id: UUID
+    tag: str
+    manifest: ExtensionManifest
 
 
 class InstalledExtension(BaseModel):
@@ -17,5 +24,10 @@ class InstalledExtension(BaseModel):
     repository_id: UUID
     tag: str
     manifest: ExtensionManifest
+    pending_update: Optional[PendingUpdate] = None
     status: str
     contents: list[InstalledContent]
+
+
+class UploadLimits(BaseModel):
+    max_bytes: int

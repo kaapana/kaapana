@@ -47,6 +47,7 @@ export const kaapanaIcons = {
   stop: 'mdi-stop-circle-outline',
   success: 'mdi-check-circle',
   task: 'mdi-checkbox-multiple-blank-outline',
+  upload: 'mdi-upload',
   // Not `error` (mdi-alert-circle): a warning must not look like an error.
   warning: 'mdi-alert',
   workflow: 'mdi-sitemap-outline',

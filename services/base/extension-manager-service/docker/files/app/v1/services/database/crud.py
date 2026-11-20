@@ -154,6 +154,7 @@ async def list_extensions(
     repository_id: Optional[UUID] = None,
     tag: Optional[str] = None,
     status: Optional[ExtensionStatus] = None,
+    manifest_id: Optional[UUID] = None,
 ) -> List[Extension]:
     stmt = select(Extension).options(selectinload(Extension.contents))
     filters = []
@@ -163,6 +164,8 @@ async def list_extensions(
         filters.append(Extension.tag == tag)
     if status is not None:
         filters.append(Extension.status == status)
+    if manifest_id is not None:
+        filters.append(Extension.manifest["id"].as_string() == str(manifest_id))
     if filters:
         stmt = stmt.where(and_(*filters))
     stmt = stmt.offset(skip).limit(limit)
@@ -174,6 +177,7 @@ async def update_extension(
     session: AsyncSession,
     extension_id: UUID,
     status: ExtensionStatus,
+    pending_update: Optional[dict] = None,
 ) -> Extension:
     try:
         selection = await session.execute(
@@ -188,6 +192,8 @@ async def update_extension(
             raise NotSupportedExtensionStateTransition(is_state=db_extension.status, soll_state=status)
 
         db_extension.status = status
+        if pending_update is not None:
+            db_extension.pending_update = pending_update
         await session.commit()
         await session.refresh(db_extension)
         return db_extension
@@ -198,6 +204,46 @@ async def update_extension(
             raise LockedExtensionException(extension_id=extension_id)
         else:
             raise e
+
+
+async def complete_extension_update(session: AsyncSession, extension_id: UUID) -> Extension:
+    selection = await session.execute(
+        select(Extension).where(Extension.id == extension_id).options(selectinload(Extension.contents))
+    )
+    db_extension = selection.scalar_one()
+    if ExtensionStatus.INSTALLED not in ALLOWED_EXTENSION_STATUS_TRANSITIONS[db_extension.status]:
+        raise NotSupportedExtensionStateTransition(is_state=db_extension.status, soll_state=ExtensionStatus.INSTALLED)
+    pending_update = db_extension.pending_update
+    assert pending_update is not None
+    db_extension.repository_id = UUID(pending_update["repository_id"])
+    db_extension.tag = pending_update["tag"]
+    db_extension.manifest = pending_update["manifest"]
+    db_extension.pending_update = None
+    db_extension.status = ExtensionStatus.INSTALLED
+    await session.commit()
+    await session.refresh(db_extension)
+    return db_extension
+
+
+_INTERRUPTED_CONTENT_STATUS = {
+    ContentStatus.UPDATING: ContentStatus.UPDATE_FAILED,
+    ContentStatus.INSTALLING: ContentStatus.INSTALLATION_FAILED,
+    ContentStatus.UNINSTALLING: ContentStatus.UNINSTALLATION_FAILED,
+}
+
+
+async def fail_interrupted_updates(session: AsyncSession) -> list[UUID]:
+    """Skips the transition check, so it must only run while no update job can run."""
+    selection = await session.execute(
+        select(Extension).where(Extension.status == ExtensionStatus.UPDATING).options(selectinload(Extension.contents))
+    )
+    db_extensions = list(selection.scalars().all())
+    for db_extension in db_extensions:
+        db_extension.status = ExtensionStatus.UPDATE_FAILED
+        for db_content in db_extension.contents:
+            db_content.status = _INTERRUPTED_CONTENT_STATUS.get(db_content.status, db_content.status)
+    await session.commit()
+    return [db_extension.id for db_extension in db_extensions]
 
 
 async def delete_extension(session: AsyncSession, extension_id: UUID) -> None:
@@ -233,11 +279,17 @@ async def get_content(session: AsyncSession, content_id: UUID) -> Optional[Conte
     return result.scalar_one_or_none()
 
 
+async def delete_content(session: AsyncSession, content_id: UUID) -> None:
+    await session.execute(delete(Content).where(Content.id == content_id))
+    await session.commit()
+
+
 async def update_content(
     session: AsyncSession,
     content_id: UUID,
     location: Optional[str] = None,
     status: Optional[ContentStatus] = None,
+    applied_version: Optional[str] = None,
 ) -> Content:
 
     try:
@@ -251,6 +303,8 @@ async def update_content(
             db_content.status = status
         if location and location != db_content.location:
             db_content.location = location
+        if applied_version:
+            db_content.applied_version = applied_version
         await session.commit()
         await session.refresh(db_content)
         return db_content

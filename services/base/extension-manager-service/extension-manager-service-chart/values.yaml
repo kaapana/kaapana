@@ -24,3 +24,6 @@ kaapana_database:
   postgres_password: "postgres"
   postgres_db: "postgres"
   appName: "extension-manager"
+
+extension_upload:
+  max_bytes: 104857600

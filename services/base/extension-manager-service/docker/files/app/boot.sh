@@ -3,7 +3,11 @@ set -e  # Exit immediately if a command exits with a non-zero status
 
 export PYTHONPATH="$PWD" 
 
-# Create the tables and the default extension repository once.
+python3 alembic/migrate.py
+# No update job can run yet: jobs run in the workers, and the Recreate deployment never has a second pod
+python3 -m v1.services.database.recovery
+
+# Create the default extension repository once.
 # Several workers would otherwise write the same rows at the same time.
 python3 startup.py
 

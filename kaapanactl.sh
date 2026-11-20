@@ -976,7 +976,11 @@ function install_no_proxy_environment {
 
 function install_packages_almalinux {
     echo "${YELLOW}Check packages...${NC}"
-    sudo dnf install -y kernel-modules-extra-$(uname -r)
+    if ! sudo dnf install -y kernel-modules-extra-$(uname -r); then
+        echo -e "${RED}kernel-modules-extra is not available for the running kernel $(uname -r).${NC}"
+        echo -e "${YELLOW}Update the kernel with 'sudo dnf upgrade -y kernel kernel-modules-extra', reboot and restart this script.${NC}"
+        exit 1
+    fi
     if [ -x "$(command -v snap)" ] && [ -x "$(command -v jq)" ]; then
         echo "${GREEN}Snap installed.${NC}"
     else
@@ -1508,8 +1512,6 @@ function load_kaapana_config {
 
     # dev-mode -> containers will always be re-downloaded after pod-restart
     DEV_MODE=true
-    # on platform boot, PATCH existing workflows when the title already exists with different content
-    PATCH_WORKFLOWS_IF_CONFLICT=true
     GPU_SUPPORT=false
     # Adjust enable nvidia command if using GPU Operator below v25.10.0+
     GPU_OPERATOR_VERSION="v25.10.0"
@@ -2585,7 +2587,6 @@ function deploy_chart {
     --set-string global.login_institution_name="$LOGIN_INSTITUTION_NAME" \
     --set-string global.login_institution_logo="$LOGIN_INSTITUTION_LOGO" \
     --set global.dev_mode=$DEV_MODE \
-    --set global.patch_workflows_if_conflict=$PATCH_WORKFLOWS_IF_CONFLICT \
     --set-string global.kaapana_init_password="$KAAPANA_INIT_PASSWORD" \
     --set-string global.pacs_memory_limit="$PACS_MEMORY_LIMIT" \
     --set-string global.pacs_patient_issuer_policy="$PACS_PATIENT_ISSUER_POLICY" \

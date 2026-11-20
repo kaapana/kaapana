@@ -1,0 +1,4 @@
+vulnerabilities:
+  - id: CVE-2026-111497
+    statement: brotli-libs in nginxinc/nginx-unprivileged 1.31-alpine and 1.31.2-alpine, fixed in 1.2.1-r0, waiting for the upstream rebuild
+    expired_at: 2026-12-04

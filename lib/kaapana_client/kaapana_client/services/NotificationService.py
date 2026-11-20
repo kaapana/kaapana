@@ -42,12 +42,14 @@ class NotificationService:
                 f"{NOTIFICATION_SERVICE_URL}/v2/{project_id}",
                 json=data,
             )
-            if response.status_code in (404, 422):
-                logger.warning(
-                    f"Notification not sent: no receivers in {project_id=} ({response.status_code}: {response.text})"
-                )
+            if response.status_code == 422:
+                logger.warning(f"Notification not sent: no non-system users in {project_id=}")
+                return
+            elif response.status_code == 404:
+                logger.error(f"Notification not sent: project {project_id=} not found")
                 return
             response.raise_for_status()
+
         else:
             failed_for_users = []
             for user_id in user_ids:

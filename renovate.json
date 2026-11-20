@@ -39,7 +39,10 @@
     "constraints/0.4.0.txt",
     "services/flow/airflow/docker/files/constraints-3.12.txt",
     "data-processing/workflows/**",
-    "data-processing/processing-pipelines/**"
+    "data-processing/processing-pipelines/**",
+    "services/base/kaapana-backend/**",
+    "services/kaapana-admin/kube-helm/**",
+    "services/meta/**"
   ],
   "gitlabci": {
     "managerFilePatterns": ["/^ci/pipeline/[^/]+\\.ya?ml$/"]

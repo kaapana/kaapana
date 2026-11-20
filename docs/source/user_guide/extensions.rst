@@ -343,7 +343,11 @@ MITK Flow
 
 Task API workflows
 -------------------
-| **register-dicoms**
+| The Task API workflows are packaged as OCI extensions. They are not installed by default.
+| To install a workflow, its images must be in the registry of the platform in the platform version, and its extension must be published to a repository of the experimental :ref:`Extension Manager <experimental_extension_manager>` (see :ref:`extension_packaging`). Then install the extension from the **Catalog**.
+
+| **registration-workflow**
+| Extension: ``registration-workflow-extension``
 | 1) Download dataset with the target image
 | 2) Download dataset with the moving images that will be registerd to the target image
 | 3) Convert dicom images to nrrd
@@ -352,7 +356,8 @@ Task API workflows
 | 6) Send registered images to the internal CTP server
 
 
-| **test-task-operator:**
+| **dummy-workflow**
+| Extension: ``dummy-workflow-extension``
 | Minimal workflow to test the Task API and the KaapanaTaskOperator
 
 .. _extensions_classification:

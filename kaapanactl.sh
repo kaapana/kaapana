@@ -2780,6 +2780,7 @@ function deploy_chart {
     --set global.internalCidrs="{$INTERNAL_CIDR}" \
     --set-string squid-proxy.upstreamHttpProxy="$http_proxy" \
     --set-string squid-proxy.upstreamHttpsProxy="$https_proxy" \
+    --set-string squid-proxy.upstreamNoProxy="${EXTERNAL_INGRESS:+$DOMAIN}" \
     --set-string global.http_proxy="$DEFAULT_PROXY" \
     --set-string global.https_proxy="$DEFAULT_PROXY" \
     --set global.offline_mode=$OFFLINE_MODE \
@@ -2922,7 +2923,21 @@ function install_certs {
         exit 1
     fi
 
-    # update cert and restart pods in a namespace
+    # trusted by OpenSearch, OpenSearch Dashboards and dicom-web-filter instead of tls.crt
+    local ca_bundle_secret="ca-bundle"
+    local ca_bundle_key="ca-bundle.pem"
+    local ca_bundle_file
+    ca_bundle_file=$(mktemp)
+    cat ./tls.crt > "$ca_bundle_file"
+    echo >> "$ca_bundle_file"
+    for system_ca_bundle in /etc/ssl/certs/ca-certificates.crt /etc/ssl/cert.pem /etc/pki/tls/certs/ca-bundle.crt; do
+        if [ -f "$system_ca_bundle" ]; then
+            cat "$system_ca_bundle" >> "$ca_bundle_file"
+            break
+        fi
+    done
+
+    # update cert and CA bundle and restart the pods using them in a namespace
     update_namespace() {
         local ns=$1
         echo -e "\nUpdating certificate in namespace: ${ns}"
@@ -2932,10 +2947,19 @@ function install_certs {
         $KUBE create secret generic certificate --type=kubernetes.io/tls --namespace "$ns" \
             --from-file=tls.key=./tls.key --from-file=tls.crt=./tls.crt --from-file=ca.crt=./tls.crt
 
+        # replace instead of apply: the last-applied annotation would exceed the 256 KiB annotation limit
+        local ca_bundle_manifest
+        ca_bundle_manifest=$($KUBE create secret generic "$ca_bundle_secret" --namespace "$ns" \
+            --from-file="${ca_bundle_key}=${ca_bundle_file}" --dry-run=client -o yaml)
+        if ! echo "$ca_bundle_manifest" | $KUBE replace -f - >/dev/null 2>&1; then
+            echo "$ca_bundle_manifest" | $KUBE create -f - >/dev/null
+        fi
+        echo "secret/$ca_bundle_secret updated"
+
         # restart via the Deployment, so its update strategy applies
         local pods_json deployments="" other_pods rs
         pods_json=$($KUBE get pods -n "$ns" -o json | \
-            jq '[.items[] | select(any(.spec.volumes[]?; .secret?.secretName == "certificate"))]')
+            jq --arg ca "$ca_bundle_secret" '[.items[] | select(any(.spec.volumes[]?; .secret?.secretName == "certificate" or .secret?.secretName == $ca))]')
         for rs in $(echo "$pods_json" | jq -r '.[].metadata.ownerReferences[]? | select(.kind == "ReplicaSet") | .name' | sort -u); do
             deployments="$deployments $($KUBE -n "$ns" get rs "$rs" -o jsonpath='{.metadata.ownerReferences[?(@.kind=="Deployment")].name}' 2>/dev/null)"
         done
@@ -2943,7 +2967,7 @@ function install_certs {
         other_pods=$(echo "$pods_json" | jq -r '.[] | select(all(.metadata.ownerReferences[]?; .kind != "ReplicaSet")) | .metadata.name')
 
         if [ -n "$deployments" ] || [ -n "$other_pods" ]; then
-            echo -e "Restarting pods using certificate:"
+            echo -e "Restarting pods using the certificate or CA bundle:"
             for deployment in $deployments; do
                 echo -e "  - deployment/$deployment"
                 if ! $KUBE -n "$ns" rollout restart deployment "$deployment" >/dev/null; then
@@ -2963,6 +2987,7 @@ function install_certs {
 
     update_namespace "$ADMIN_NAMESPACE"
     update_namespace "$SERVICES_NAMESPACE"
+    rm -f "$ca_bundle_file"
 
     # copy certificates
     if [ -n "$FAST_DATA_DIR" ]; then

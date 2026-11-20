@@ -136,10 +136,11 @@
       "groupName": "other npm dependencies"
     },
     {
-      "matchManagers": ["npm"],
       "matchFileNames": ["services/**"],
-      "matchUpdateTypes": ["minor", "patch"],
-      "groupName": "UI npm dependencies"
+      "matchManagers": ["pip_requirements", "pep621", "npm", "maven"],
+      "groupName": "dependencies",
+      "additionalBranchPrefix": "{{{replace '^services/[^/]+/([^/]+).*$' '$1-' packageFileDir}}}",
+      "semanticCommitScope": "{{{replace '^services/[^/]+/([^/]+).*$' '$1' packageFileDir}}}"
     },
     {
       "matchFileNames": ["data-processing/base-images/**"],
@@ -184,7 +185,9 @@
     },
     {
       "matchPackageNames": ["playwright", "@playwright/test"],
-      "groupName": "playwright"
+      "groupName": "playwright",
+      "additionalBranchPrefix": "",
+      "semanticCommitScope": "deps"
     },
     // CI image: remind to bump CI_IMAGES_TAG when the ci-base image changes.
     {

@@ -123,12 +123,23 @@ Target state:
   hour. Security MRs do not count.
 - There is no `schedule`, so a ticked box takes effect on the next hourly run.
 
-Patch and minor updates are grouped, one MR per group:
+Each service in `services/<area>/<service>/` gets its own MRs, so a service
+can be updated, tested and kept back on its own:
+
+| Branch | MR title | Contains |
+| --- | --- | --- |
+| `renovate/portal-api-dependencies` | `chore(portal-api): update dependencies` | all patch and minor updates of portal-api |
+| `renovate/portal-api-major-dependencies` | `chore(portal-api): update dependencies (major)` | all major updates of portal-api |
+| `renovate/portal-api-pypi-requests-vulnerability` | `fix(portal-api): update dependency requests … [SECURITY]` | one security fix of portal-api |
+
+This covers Python, npm and Maven files. Base images, Helm values and the
+groups below stay shared by all services.
+
+Outside `services/`, patch and minor updates are grouped, one MR per group:
 
 | Group | Contains |
 | --- | --- |
-| UI npm dependencies | npm in `services/**` |
-| other npm dependencies | npm elsewhere that no other group catches |
+| other npm dependencies | npm outside `services/`, e.g. `tests/ui` |
 | base image Python dependencies | Python in `data-processing/base-images/**` |
 | Python dependencies | all other Python |
 | container base images | Dockerfile, Ansible and Helm images |
@@ -142,16 +153,17 @@ updates:
 | `docker engine` | the docker CLI in `ci-base` and the `docker:*-dind` images |
 | `ruff` | the pre-commit hook and `RUFF_VERSION` |
 | `opa` | the opa image and both opa binaries |
-| `playwright` | the npm and Python packages |
+| `playwright` | the npm and Python packages, also in the UIs, and the Chromium of `ci-base` |
 
 Packages released together from one repository, e.g. `vue` with `@vue/*`,
 stay in one MR through Renovate's default monorepo groups.
 
-Major updates are otherwise not grouped. Security fixes always get their own
-MR.
+Outside `services/`, major updates are not grouped. Security fixes always get
+their own MR, in `services/` one per service.
 
 Rules in `packageRules` apply from top to bottom, and a later `groupName`
-wins. That is why "UI npm dependencies" comes after "other npm dependencies".
+wins. That is why the services rule comes after "Python dependencies" and
+"other npm dependencies", and `playwright` clears the service prefix again.
 
 ## Where to change what
 

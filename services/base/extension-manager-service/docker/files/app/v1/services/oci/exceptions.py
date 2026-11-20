@@ -20,3 +20,7 @@ class ExtensionPullError(Exception):
     """Raised when there is an error while pulling an extension from the OCI registry."""
 
     pass
+
+
+class ManifestMismatchError(Exception):
+    pass

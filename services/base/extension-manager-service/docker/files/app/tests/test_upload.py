@@ -1,5 +1,6 @@
 import io
 import json
+import re
 import tarfile
 from pathlib import Path
 from unittest.mock import AsyncMock
@@ -12,6 +13,7 @@ from httpx import AsyncClient
 from v1.services import upload
 from v1.services.database import crud
 from v1.services.database.models import RegisteredRepository
+from v1.services.oci.exceptions import ManifestMismatchError
 
 MOCK_EXTENSION_DIR = Path(__file__).resolve().parents[1] / "v1" / "mock_data" / "extension-v1"
 
@@ -147,6 +149,39 @@ async def test_an_uploaded_extension_is_installed_from_the_upload_repository(cli
     installed = mocked_installer.install_content.await_args.args[0]
     assert installed.name == "mock-workflow"
     assert str(installed.extension_id) == manifest["id"]
+
+
+@pytest.mark.asyncio
+async def test_an_extension_with_an_extra_manifest_key_is_installed(client: AsyncClient, mocked_installer):
+    manifest = _manifest(description="Segments the lungs")
+    await _upload(client, _archive(manifest))
+
+    response = await _install(client, _tag(manifest))
+    assert response.status_code == 201
+    assert (await client.get(response.headers["Location"])).json()["status"] == "installed"
+
+
+@pytest.mark.asyncio
+async def test_an_install_fails_when_the_manifest_changes_after_the_request(
+    client: AsyncClient, mocked_installer, upload_registry, monkeypatch
+):
+    manifest = _manifest()
+    tag = _tag(manifest)
+    await _upload(client, _archive(manifest))
+    pull_extension = upload_registry.pull_extension
+
+    async def pull_a_changed_manifest(tag: str) -> Path:
+        path = await pull_extension(tag)
+        (path / upload.MANIFEST_FILE).write_text(json.dumps({**manifest, "name": "changed"}))
+        return path
+
+    monkeypatch.setattr(upload_registry, "pull_extension", pull_a_changed_manifest)
+    with pytest.raises(ManifestMismatchError, match=re.escape(f"The manifest of '{tag}' changed")):
+        await _install(client, tag)
+
+    [extension] = (await client.get("/extensions")).json()
+    assert extension["status"] == "installing_failed"
+    mocked_installer.install_content.assert_not_awaited()
 
 
 @pytest.mark.asyncio

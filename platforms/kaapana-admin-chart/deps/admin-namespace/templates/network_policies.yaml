@@ -13,3 +13,18 @@ spec:
       - ipBlock:
           cidr: {{ . | quote }}
     {{- end }}
+{{- if eq (toString .Values.global.is_microk8s) "false" }}
+    # the internal CIDRs don't necessarily cover the cluster DNS outside microk8s
+    - to:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: kube-system
+        podSelector:
+          matchLabels:
+            k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+{{- end }}

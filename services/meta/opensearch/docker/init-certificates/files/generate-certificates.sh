@@ -27,15 +27,17 @@ openssl req -new -key client-key.pem -subj "/C=CA/ST=ONTARIO/L=TORONTO/O=ORG/OU=
 echo 'subjectAltName=DNS:client.dns.a-record' > client.ext
 openssl x509 -req -in client.csr -CA internal-ca.pem -CAkey internal-ca-key.pem -CAcreateserial -sha256 -out client.pem -days 730 -extfile client.ext
 
-# Generate Truststore: platform certificate and internal CA
+# Generate Truststore: CA bundle and internal CA, one entry per certificate
 KEYSTORE_PASSWORD="keystorepassword"
-for alias in root-ca internal-ca; do
-  keytool -importcert -noprompt -alias "$alias" \
+awk '/BEGIN CERTIFICATE/ {n++} n {print > ("truststore-" n ".pem")}' root-ca.pem internal-ca.pem
+for cert in truststore-*.pem; do
+  keytool -importcert -noprompt -alias "${cert%.pem}" \
     -keystore truststore.jks \
-    -file "$alias.pem" \
+    -file "$cert" \
     -storepass "${KEYSTORE_PASSWORD}" \
-    -trustcacerts -deststoretype pkcs12
+    -trustcacerts -deststoretype pkcs12 >/dev/null 2>&1 || echo "Skipped $cert"
 done
+rm truststore-*.pem
 
 # Cleanup
 rm admin-key-temp.pem

@@ -93,6 +93,11 @@ Since the Kaapana platform runs in Kubernetes, we will create a Kubernetes deplo
 * Now replace ``<docker-registry><docker-repo>/hello-world:<version-tag>`` with your docker registry and the version tag you used, e.g. ``0.1.0``.
 
 Repeat the same procedure with the ``service.yaml``, you will not need to fill in your registry here.
+
+.. note::
+
+   Kaapana's Traefik only serves Ingresses and IngressRoutes of the class ``kaapana``: Ingresses with the annotation ``kubernetes.io/ingress.class: kaapana``, as in the ``service.yaml`` of the example, IngressRoutes with ``spec.ingressClassName: kaapana``.
+   Without it the application is not reachable through the platform.
 Now you should be able to deploy the platform. Go to the server directory containing the ``hello-world-chart`` folder and execute:
 
 ::

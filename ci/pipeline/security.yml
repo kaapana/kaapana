@@ -68,3 +68,27 @@ security_scan:
       - "$CI_PROJECT_DIR/reports/consolidated_misconfiguration_check*.json"      
     reports:
       container_scanning: "$CI_PROJECT_DIR/reports/gl-container-scanning-report.json"
+
+base_image_scan:
+  stage: security
+  tags:
+    - $[[ inputs.runner_tag ]]
+  image: $CI_BASE_IMAGE
+  needs: []
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: on_success
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" || ($CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop")
+      changes:
+        - "**/Dockerfile"
+        - .trivyignore.yaml
+        - ci/ci-code/security/**/*
+        - ci/pipeline/security.yml
+      when: on_success
+    - when: never
+  cache:
+    key: trivy-db
+    paths:
+      - "$CI_PROJECT_DIR/security-reports/.trivy_cache/"
+  script:
+    - python3 ci/ci-code/security/base_image_scan.py --cache-dir "$CI_PROJECT_DIR/security-reports/.trivy_cache"

@@ -82,7 +82,9 @@ why `**/node_modules/**` is listed again, and why `tests/` is scanned.
   `fix(deps): … [SECURITY] [HIGH]`, with the severity from the advisory. The
   label turns on the trivy `security_scan` job in the MR pipeline. Vulnerability data comes from
   [osv.dev](https://osv.dev) and covers PyPI, npm and Maven packages. Container
-  images and GitHub releases get no security alerts, only normal updates.
+  images and GitHub releases get no security alerts, only normal updates. The
+  `base_image_scan` job covers the base images instead, see
+  [internals](internals.md#security).
 
 ### Failed pipelines and unwanted updates
 

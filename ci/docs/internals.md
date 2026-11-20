@@ -142,6 +142,23 @@ GET /api/v4/projects/:id/jobs/artifacts/:ref_name/raw/reports/consolidated_vulne
 Coverage is container images plus the offline installer's bundled snap packages,
 which is why `ci-base` carries snapd and squashfs-tools.
 
+**`base_image_scan`** keeps the base images at 0 fixable criticals. It needs no
+build and runs on its own:
+
+- **Images:** the `FROM` images of `data-processing/base-images/`, plus the
+  `node` and `nginx` images of `services/`. `services/applications/` and the
+  deprecated services are left out. `--list` prints them.
+- **Check:** `trivy image --severity CRITICAL --ignore-unfixed` on each image,
+  straight from the registry. The job fails if any image has a CRITICAL
+  vulnerability with a fix, or cannot be scanned.
+- **When:** in every scheduled pipeline, and in MR and `develop` pipelines
+  that change a `Dockerfile`, `.trivyignore.yaml` or the job itself.
+- **Exceptions:** a fixed CRITICAL that cannot be taken yet goes into
+  `.trivyignore.yaml` with a `statement` and an `expired_at` date. The job
+  turns red again when the date passes.
+- **Locally:** `python3 ci/ci-code/security/base_image_scan.py`, with `trivy`
+  on `PATH`.
+
 ### deploy
 
 Three jobs, all extending `.remote_execution_template` (`ci-base`, ansible

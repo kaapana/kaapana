@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from v1.routers.installation import endpoints
 from v1.services.database import crud
 from v1.services.database.models import ContentStatus, ExtensionStatus
+from v1.services.oci.exceptions import ManifestMismatchError
 from v1.services.oci.mock_service import ociService as MockOciService
 
 MOCK_EXTENSION_DIR = Path(__file__).resolve().parents[1] / "v1" / "mock_data" / "extension-v1"
@@ -147,6 +148,30 @@ async def test_a_failed_update_shows_its_target_and_a_retry_only_touches_old_con
     assert extension["manifest"]["version"] == "1.1.0"
     mocked_installer.update_content.assert_awaited_once()
     mocked_installer.install_content.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_an_update_fails_when_the_manifest_changes_after_the_request(
+    client: AsyncClient, mocked_installer, monkeypatch
+):
+    repository_id = await _create_repository(client)
+    location = (await _install(client, repository_id, "extension-v1")).headers["Location"]
+    pull_extension = MockOciService.pull_extension
+
+    async def pull_a_changed_manifest(self, tag: str) -> Path:
+        path = await pull_extension(self, tag)
+        manifest = json.loads((path / "extension_manifest.json").read_text())
+        (path / "extension_manifest.json").write_text(json.dumps({**manifest, "name": "changed"}))
+        return path
+
+    monkeypatch.setattr(MockOciService, "pull_extension", pull_a_changed_manifest)
+    with pytest.raises(ManifestMismatchError, match="The manifest of 'extension-v2' changed"):
+        await _install(client, repository_id, "extension-v2")
+
+    extension = (await client.get(location)).json()
+    assert extension["status"] == "update_failed"
+    assert extension["manifest"]["version"] == "1.0.0"
+    mocked_installer.update_content.assert_not_awaited()
 
 
 @pytest.mark.asyncio

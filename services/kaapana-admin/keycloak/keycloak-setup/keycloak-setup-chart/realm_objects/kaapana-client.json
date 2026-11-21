@@ -44,6 +44,7 @@
     {
       "claim.name": "access_information_point_rights",
       "id.token.claim": "true",
+      "id.token.claim.keys": "policy,opensearch",
       "access.token.claim": "true",
       "userinfo.token.claim": "true"
     }
@@ -56,7 +57,7 @@
     "config": 
     {
       "claim.name": "access_information_point_projects",
-      "id.token.claim": "true",
+      "id.token.claim": "false",
       "access.token.claim": "true",
       "userinfo.token.claim": "true"
     }

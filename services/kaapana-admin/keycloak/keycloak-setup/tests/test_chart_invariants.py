@@ -286,3 +286,28 @@ def test_runtime_templates_drop_admin_password(template):
     assert (
         "kaapana-service-password" in text
     ), f"{template.name} must mount the kaapana-service-password secret."
+
+
+# --- The kaapana client's ID token stays small ---------------------------------
+# MinIO's console copies all ID-token claims into one browser cookie (at most 4 KB) and
+# OpenSearch Dashboards keeps the ID token in its cookie; they read only the policy and
+# opensearch rights. Every right and the project list stay in the access token.
+
+RIGHTS_MAPPER = (
+    ROOT
+    / "services/kaapana-admin/keycloak/docker/rights-token-mapper/src/main/java"
+    / "kaapana/keycloak/tokenmapper/AccessInformationPointRightsMapper.java"
+)
+
+
+def test_kaapana_client_id_token_carries_only_the_claims_logins_read():
+    client = json.loads(_read(SETUP_CHART / "realm_objects/kaapana-client.json"))
+    mappers = {m["name"]: m["config"] for m in client["protocolMappers"]}
+    rights = mappers["access-information-point-rights-mapper"]
+    projects = mappers["access-information-point-projects-mapper"]
+    assert set(rights["id.token.claim.keys"].split(",")) == {"policy", "opensearch"}
+    assert projects["id.token.claim"] == "false"
+    assert rights["access.token.claim"] == projects["access.token.claim"] == "true"
+    assert '"id.token.claim.keys"' in _read(
+        RIGHTS_MAPPER
+    ), "the rights mapper must read the config key the client sets"

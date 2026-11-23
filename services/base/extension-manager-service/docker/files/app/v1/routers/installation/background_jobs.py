@@ -64,7 +64,7 @@ async def install_extension_background_task(
                     extension_manifest = ExtensionManifest(**json.load(f)).model_dump(mode="json")
                 if extension_manifest != db_extension.manifest:
                     raise ManifestMismatchError(
-                        f"The manifest of '{db_extension.tag}' changed in the registry after the install was requested"
+                        f"Manifest mismatch for '{db_extension.tag}': the pulled manifest differs from the stored manifest"
                     )
 
                 content_exceptions = []
@@ -177,7 +177,7 @@ async def update_extension_background_task(
                 pulled_manifest = ExtensionManifest(**json.load(f)).model_dump(mode="json")
             if pulled_manifest != pending_update["manifest"]:
                 raise ManifestMismatchError(
-                    f"The manifest of '{pending_update['tag']}' changed in the registry after the update was requested"
+                    f"Manifest mismatch for '{pending_update['tag']}': the pulled manifest differs from the stored manifest"
                 )
             await apply_content_changes(db, db_extension, target, extension_path)
         except Exception as e:

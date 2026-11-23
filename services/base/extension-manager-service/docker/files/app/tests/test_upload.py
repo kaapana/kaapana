@@ -176,7 +176,7 @@ async def test_an_install_fails_when_the_manifest_changes_after_the_request(
         return path
 
     monkeypatch.setattr(upload_registry, "pull_extension", pull_a_changed_manifest)
-    with pytest.raises(ManifestMismatchError, match=re.escape(f"The manifest of '{tag}' changed")):
+    with pytest.raises(ManifestMismatchError, match=re.escape(f"Manifest mismatch for '{tag}'")):
         await _install(client, tag)
 
     [extension] = (await client.get("/extensions")).json()

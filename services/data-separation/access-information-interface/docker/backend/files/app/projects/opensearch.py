@@ -325,7 +325,10 @@ def get_payload_for_claim_and_index(claim_value: str, index):
         "cluster_permissions": cluster_permissions.get(claim_value),
         "index_permissions": [
             {
-                "index_patterns": [index, ".opensearch_dashboards_1"],
+                # Every Dashboards upgrade that migrates saved objects moves the
+                # .opensearch_dashboards alias to the next _<n> index, and the
+                # security plugin checks the index behind the alias.
+                "index_patterns": [index, ".opensearch_dashboards_*"],
                 "dls": "",
                 "fls": [],
                 "masked_fields": [],

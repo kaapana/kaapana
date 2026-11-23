@@ -22,7 +22,11 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
 # Install code server and python extension
 RUN wget https://code-server.dev/install.sh
 RUN /bin/bash install.sh --version 4.127.0
-RUN code-server --install-extension ms-python.python
+# Only the per-platform builds of the Python extension carry its environment helper
+# (pet); without it every code-server window after the first falls back to the
+# system Python. The test fails the build when Open VSX serves a build without it.
+RUN code-server --install-extension ms-python.python && \
+    test -x /root/.local/share/code-server/extensions/ms-python.python-*/python-env-tools/bin/pet
 
 # Fix bundled code-server node_module CVEs
 # replace the following in all extension node_modules with patched versions

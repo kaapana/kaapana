@@ -2,7 +2,7 @@ apiVersion: v1
 data:
   user_settings.json: |-
     {
-        "workbench.colorTheme": "Default Dark+",
+        "workbench.colorTheme": "Dark+",
         "python.defaultInterpreterPath": "/opt/venv/bin/python",
         "chat.disableAIFeatures": true,
         "editor.aiStats.enabled": false,

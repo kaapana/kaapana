@@ -50,7 +50,7 @@ data:
         "security.workspace.trust.startupPrompt": "never",
         "security.workspace.trust.untrustedFiles": "open",
         "extensions.supportUntrustedWorkspaces": true,
-        "workbench.colorTheme": "Default Dark+",
+        "workbench.colorTheme": "Dark+",
         "chat.disableAIFeatures": true,
         "editor.aiStats.enabled": false,
         "chat.agent.enabled": false,

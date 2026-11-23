@@ -43,6 +43,7 @@ class Settings(BaseSettings):
 class TimeoutConfig(BaseSettings):
     shell_cmd_default_timeout: int = 20
     helm_pull_container_timeout: int = 7200
+    helm_pull_uninstall_delay: int = 10
     helm_install_timeout: int = 30
     helm_deletion_timeout: int = 40
     helm_release_status_check_count: int = 3

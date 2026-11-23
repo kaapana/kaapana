@@ -1,8 +1,8 @@
-"""NotificationService.send must not fail when there is nobody to notify.
+"""NotificationService.send must never fail the calling task (issue #2233).
 
-The notification-service answers 422 for a project that has only system users
-and 404 for an unknown project or user. Those are expected outcomes, so
-``send`` logs a warning and returns. Every other error is still raised.
+Notifications are a non-critical side effect: any error (e.g. 422 for a project
+that has only system users, 404, server or connection errors) is logged as a
+warning and ``send`` returns normally.
 """
 
 import pytest
@@ -26,30 +26,23 @@ def make_response(status_code: int) -> requests.Response:
 
 @pytest.fixture
 def server(monkeypatch):
-    """Fake notification-service: map URL -> status code, record every call."""
-    routes: dict[str, int] = {}
+    """Fake notification-service.
+
+    ``routes`` maps URL -> status code, or -> an exception the request raises.
+    Every call is recorded.
+    """
+    routes: dict[str, int | Exception] = {}
     calls: list[dict] = []
 
     def fake_post(url, json):
         calls.append({"url": url, "json": dict(json)})
-        return make_response(routes[url])
+        answer = routes[url]
+        if isinstance(answer, Exception):
+            raise answer
+        return make_response(answer)
 
     monkeypatch.setattr(ns_module.requests, "post", fake_post)
     return routes, calls
-
-
-# --- project-wide path (no user_ids) ---------------------------------------
-
-
-@pytest.mark.parametrize("status", [404, 422])
-def test_project_without_receivers_does_not_raise(server, status, caplog):
-    routes, calls = server
-    routes[f"{BASE}/v2/{PROJECT_ID}"] = status
-
-    NotificationService.send(NOTIFICATION, project_id=PROJECT_ID)
-
-    assert len(calls) == 1
-    assert "Notification not sent" in caplog.text
 
 
 def test_project_success(server):
@@ -61,65 +54,39 @@ def test_project_success(server):
     assert [c["url"] for c in calls] == [f"{BASE}/v2/{PROJECT_ID}"]
 
 
-@pytest.mark.parametrize("status", [500, 502])
-def test_project_server_error_is_raised(server, status):
+@pytest.mark.parametrize(
+    "answer",
+    [404, 422, 500, requests.exceptions.ConnectionError("service down")],
+)
+def test_project_error_is_logged_not_raised(server, answer, caplog):
     routes, _ = server
-    routes[f"{BASE}/v2/{PROJECT_ID}"] = status
+    routes[f"{BASE}/v2/{PROJECT_ID}"] = answer
 
-    with pytest.raises(requests.exceptions.HTTPError):
-        NotificationService.send(NOTIFICATION, project_id=PROJECT_ID)
+    NotificationService.send(NOTIFICATION, project_id=PROJECT_ID)
 
-
-# --- per-user path ----------------------------------------------------------
+    assert "Failed to send notification" in caplog.text
 
 
-@pytest.mark.parametrize("status", [404, 422])
-def test_user_falls_back_to_send_without_project_context(server, status):
-    """A user that can't be reached in the project context still gets the notification."""
+def test_user_not_in_project_falls_back_to_send_without_project_context(server):
     routes, calls = server
-    routes[f"{BASE}/v2/{PROJECT_ID}/{USER_ID}"] = status
+    routes[f"{BASE}/v2/{PROJECT_ID}/{USER_ID}"] = 404
     routes[f"{BASE}/v2/"] = 200
 
     NotificationService.send(NOTIFICATION, project_id=PROJECT_ID, user_ids=[USER_ID])
 
-    assert [c["url"] for c in calls] == [
-        f"{BASE}/v2/{PROJECT_ID}/{USER_ID}",
-        f"{BASE}/v2/",
-    ]
+    assert [c["url"] for c in calls] == [f"{BASE}/v2/{PROJECT_ID}/{USER_ID}", f"{BASE}/v2/"]
     assert calls[1]["json"]["receivers"] == [USER_ID]
 
 
-def test_user_success_has_no_fallback(server):
-    routes, calls = server
-    routes[f"{BASE}/v2/{PROJECT_ID}/{USER_ID}"] = 200
+@pytest.mark.parametrize(
+    "user_answer, fallback_answer",
+    [(422, None), (500, None), (404, 404), (404, 500)],
+)
+def test_user_error_is_logged_not_raised(server, user_answer, fallback_answer, caplog):
+    routes, _ = server
+    routes[f"{BASE}/v2/{PROJECT_ID}/{USER_ID}"] = user_answer
+    routes[f"{BASE}/v2/"] = fallback_answer
 
     NotificationService.send(NOTIFICATION, project_id=PROJECT_ID, user_ids=[USER_ID])
 
-    assert len(calls) == 1
-
-
-def test_unknown_user_in_fallback_does_not_raise(server, caplog):
-    routes, _ = server
-    routes[f"{BASE}/v2/{PROJECT_ID}/{USER_ID}"] = 422
-    routes[f"{BASE}/v2/"] = 404
-
-    NotificationService.send(NOTIFICATION, project_id=PROJECT_ID, user_ids=[USER_ID])
-
-    assert "unknown receivers" in caplog.text
-
-
-def test_user_server_error_is_raised(server):
-    routes, _ = server
-    routes[f"{BASE}/v2/{PROJECT_ID}/{USER_ID}"] = 500
-
-    with pytest.raises(requests.exceptions.HTTPError):
-        NotificationService.send(NOTIFICATION, project_id=PROJECT_ID, user_ids=[USER_ID])
-
-
-def test_fallback_server_error_is_raised(server):
-    routes, _ = server
-    routes[f"{BASE}/v2/{PROJECT_ID}/{USER_ID}"] = 422
-    routes[f"{BASE}/v2/"] = 500
-
-    with pytest.raises(requests.exceptions.HTTPError):
-        NotificationService.send(NOTIFICATION, project_id=PROJECT_ID, user_ids=[USER_ID])
+    assert "Failed to send notification" in caplog.text

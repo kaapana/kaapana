@@ -573,19 +573,24 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
             con.setRequestProperty("Content-Type", "application/json");
             con.setRequestProperty("Accept", "application/json");
             con.setRequestMethod("POST");
+            byte[] body = content.toString().getBytes();
+            // Without streaming, the JDK resends a buffered POST once when the connection
+            // drops before the answer (sun.net.http.retryPost), and Airflow may then
+            // start the run twice.
+            con.setFixedLengthStreamingMode(body.length);
 
-            // getOutputStream() connects; the body is buffered and only sent by
-            // getResponseCode(). A failure here means Airflow got nothing, so a retry
-            // cannot start a second run; a later failure is thrown and quarantines.
+            // Only a failed connect is retried: Airflow got nothing then. A later
+            // failure is thrown and quarantines, since the run may exist already.
             try {
-                OutputStreamWriter wr = new OutputStreamWriter(con.getOutputStream());
-                wr.write(content.toString());
-                wr.flush();
+                con.connect();
             } catch (IOException e) {
                 logger.warn(name + ": Airflow not reachable: " + e);
                 logger.warn("Dicom Folder not send to airflow: " + dicomPath);
                 return TriggerResult.RETRY;
             }
+            OutputStream os = con.getOutputStream();
+            os.write(body);
+            os.close();
 
             // display what returns the POST request
 

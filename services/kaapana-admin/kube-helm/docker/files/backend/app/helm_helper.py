@@ -14,7 +14,7 @@ import yaml
 from distutils.version import LooseVersion
 from kaapanapy.logger import get_logger
 
-from . import schemas
+from . import schemas, validation
 from .config import settings, timeouts
 
 logger = get_logger(__name__)
@@ -46,8 +46,8 @@ global_extensions_release_names: Set[str] = set()
 
 def helm_get_values(release_name, helm_namespace=settings.helm_namespace):
     logger.debug(f"in function: helm_get_values {release_name=}, {helm_namespace=}")
-    success, stdout = execute_shell_command(
-        f"{settings.helm_path} -n {helm_namespace} get values --all -o json {release_name}"
+    success, stdout = run_command(
+        [settings.helm_path, "-n", helm_namespace, "get", "values", "--all", "-o", "json", "--", release_name]
     )
     if success and stdout != b"null\n":
         return json.loads(stdout)
@@ -55,31 +55,60 @@ def helm_get_values(release_name, helm_namespace=settings.helm_namespace):
         return dict()
 
 
-async def exec_shell_cmd_async(
-    command, shell=False, timeout: int = timeouts.shell_cmd_default_timeout
-) -> Tuple[bool, str]:
-    """Runs given command via asyncio.create_subprocess_shell()
+def escape_set_value(value: str) -> str:
+    # Helm reads a backslash as an escape character, a comma as the start of the next key and braces
+    # as a list. Without escaping, a value could set further keys. The backslash must come first.
+    return value.replace("\\", "\\\\").replace(",", r"\,").replace("{", r"\{").replace("}", r"\}")
+
+
+def helm_set_arguments(sets: Dict) -> List[str]:
+    """Returns one --set or --set-string argument for each value."""
+    arguments = []
+    for key, value in sets.items():
+        if isinstance(value, dict):
+            # Helm would read the braces as a list, so a dictionary is passed as a string.
+            # JSON lets the application parse this string again.
+            value = json.dumps(value)
+        if isinstance(value, str):
+            arguments.append(f"--set-string={key}={escape_set_value(value.replace(' ', ''))}")
+        elif isinstance(value, list):
+            items = ",".join(escape_set_value(str(item)) for item in value)
+            arguments.append(f"--set={key}={{{items}}}")
+        else:
+            arguments.append(f"--set={key}={value}")
+    return arguments
+
+
+def has_timeout_flag(command: List[str]) -> bool:
+    return any(arg == "--timeout" or arg.startswith("--timeout=") for arg in command)
+
+
+def ensure_argument_list(command) -> None:
+    # A string command needs a shell or a split on spaces.
+    # Both let a value from a request add arguments or whole commands.
+    if isinstance(command, (str, bytes)):
+        raise TypeError("Commands must be lists of arguments, not strings")
+
+
+async def run_command_async(command: List[str], timeout: int = timeouts.shell_cmd_default_timeout) -> Tuple[bool, str]:
+    """Runs a command without a shell, using asyncio.create_subprocess_exec()
 
     Args:
-        command (_type_): _description_
-        shell (bool, optional): _description_. Defaults to False.
+        command (List[str]): The program and its arguments.
         timeout (int, optional): _description_. Defaults to 5.
 
     Returns:
         success (bool)  : whether the command ran successfully
         stdout  (str)   : output of the command. If success=False it is the same as stderr
     """
-    logger.debug(f"executing ASYNC shell command: {command}")
-    logger.debug(f"{shell=} , {timeout=}")
+    ensure_argument_list(command)
+    logger.debug(f"executing ASYNC command: {command}")
+    logger.debug(f"{timeout=}")
     try:
-        if not shell and (type(command) is str):
-            command = [x for x in command.replace("  ", " ").split(" ") if x != ""]
-
-        command_result = await asyncio.create_subprocess_shell(
-            command,
+        command_result = await asyncio.create_subprocess_exec(
+            *command,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            shell=shell,
         )
 
         stdout, stderr = await asyncio.wait_for(command_result.communicate(), timeout=timeout)
@@ -102,18 +131,15 @@ async def exec_shell_cmd_async(
         return False, str(e)
 
 
-def execute_shell_command(
-    command,
-    shell=False,
+def run_command(
+    command: List[str],
     blocking=True,
     timeout=timeouts.shell_cmd_default_timeout,
-    skip_check=False,
 ) -> Tuple[bool, str]:
-    """Runs given command via subprocess.run or subprocess.Popen
+    """Runs a command without a shell, using subprocess.run or subprocess.Popen
 
     Args:
-        command (_type_): _description_
-        shell (bool, optional): _description_. Defaults to False.
+        command (List[str]): The program and its arguments.
         blocking (bool, optional): _description_. Defaults to True.
         timeout (int, optional): _description_. Defaults to 5.
 
@@ -121,32 +147,34 @@ def execute_shell_command(
         success (bool)  : whether the command ran successfully
         stdout  (str)   : output of the command. If success=False it is the same as stderr
     """
+    ensure_argument_list(command)
     if blocking is False:
-        logger.debug(f"running non-blocking {command=} via Popen, shell=True, timeout ignored")
-        p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        logger.debug(f"running non-blocking {command=} via Popen, timeout ignored")
+        try:
+            p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        except OSError as e:
+            logger.error(f"Could not start command {command}: {e}")
+            return False, str(e)
         logger.debug(f"{p.pid=}")
         # TODO: add to a process queue, run p.communicate() & fetch returncode
         return True, ""
 
-    # if (not skip_check) and ";" in command:
-    #     err = f"Detected ';' in blocking command {command} -> cancel request!"
-    #     logger.error(err)
-    #     return False, err
-    logger.debug(f"executing blocking shell command: {command}")
-    logger.debug(f"{shell=} , {timeout=}")
-    if "--timeout" in command:
+    logger.debug(f"executing blocking command: {command}")
+    logger.debug(f"{timeout=}")
+    if has_timeout_flag(command):
         logger.debug("--timeout found in command, not passing a separate timeout")
         timeout = None
-    if not shell:
-        command = [x for x in command.replace("  ", " ").split(" ") if x != ""]
-    command_result = subprocess.run(
-        command,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        shell=shell,
-        timeout=timeout,
-    )
+    try:
+        command_result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=timeout,
+        )
+    except OSError as e:
+        logger.error(f"Could not start command {command}: {e}")
+        return False, str(e)
 
     stdout = command_result.stdout.strip()
     stderr = command_result.stderr.strip()
@@ -162,7 +190,7 @@ def execute_shell_command(
         logger.debug(f"{stdout=}")
         logger.debug(f"{stderr=}")
         return success, stdout
-    elif command[3] == "status":
+    elif len(command) > 3 and command[3] == "status":
         logger.debug(f"Ignoring error, since we just wanted to check if chart is installed {command}")
         logger.debug(f"{return_code=}")
         logger.debug(f"{stdout=}")
@@ -586,8 +614,8 @@ def collect_all_tgz_charts(keywords_filter: List, name_filter: str = "") -> Dict
         if chart_tgz_file not in current_hash or chart_hash != current_hash[chart_tgz_file]:
             logger.info(f"Chart {basename(chart_tgz_file)} has been modified -> reading tgz!")
 
-            helm_command = f"{settings.helm_path} show chart {chart_tgz_file}"
-            success, stdout = execute_shell_command(helm_command)
+            helm_command = [settings.helm_path, "show", "chart", "--", chart_tgz_file]
+            success, stdout = run_command(helm_command)
             if success:
                 current_hash[chart_tgz_file] = chart_hash
 
@@ -674,13 +702,22 @@ def collect_helm_deployments(
 
     """
     deployed_charts_dict = {}
-    namespace_option = f"-n {helm_namespace}"
+    namespace_options = ["-n", helm_namespace]
     if platforms:
-        namespace_option = "-A"
-    cmd = (
-        f"{settings.helm_path} ls {namespace_option} --deployed --pending --failed --uninstalling --superseded -o json"
-    )
-    success, stdout = execute_shell_command(cmd)
+        namespace_options = ["-A"]
+    cmd = [
+        settings.helm_path,
+        "ls",
+        *namespace_options,
+        "--deployed",
+        "--pending",
+        "--failed",
+        "--uninstalling",
+        "--superseded",
+        "-o",
+        "json",
+    ]
+    success, stdout = run_command(cmd)
     if success:
         logger.debug("Success - got deployments.")
         namespace_deployments = json.loads(stdout)
@@ -732,7 +769,7 @@ def get_kube_objects(
             logger.error(f"Unknown kind: {kind}. Must be one of ['job', 'app'].")
             raise ValueError(f"Unknown kind: {kind}. Must be one of ['job', 'app'].")
 
-        success, stdout = execute_shell_command(f"{settings.kubectl_path} -n {namespace} get pod -l={pod_label}={name}")
+        success, stdout = run_command([settings.kubectl_path, "-n", namespace, "get", "pod", f"-l={pod_label}={name}"])
         if success:
             states = schemas.KubeInfo(name=[], ready=[], status=[], restarts=[], age=[], annotations={})
 
@@ -770,7 +807,7 @@ def get_kube_objects(
         return states
 
     logger.debug(f"get_kube_objects for ({release_name=}, {helm_namespace=})")
-    success, stdout = execute_shell_command(f"{settings.helm_path} -n {helm_namespace} get manifest {release_name}")
+    success, stdout = run_command([settings.helm_path, "-n", helm_namespace, "get", "manifest", "--", release_name])
     paths = []
     concatenated_states = schemas.KubeInfo(name=[], ready=[], status=[], restarts=[], age=[], annotations={})
     if success:
@@ -851,7 +888,12 @@ def helm_show_values(name, version, platforms=False) -> Dict:
         curr_fpath = f"{helm_cache_dir}/{name}-{version}.tgz"
         if not os.path.exists(curr_fpath):
             helm_cache_dir = settings.helm_extensions_cache
-    success, stdout = execute_shell_command(f"{settings.helm_path} show values {helm_cache_dir}/{name}-{version}.tgz")
+    try:
+        chart_path = validation.check_path_inside(f"{helm_cache_dir}/{name}-{version}.tgz", helm_cache_dir)
+    except validation.InvalidValueError as e:
+        logger.warning(f"Not showing values of chart {name!r} {version!r}: {e}")
+        return {}
+    success, stdout = run_command([settings.helm_path, "show", "values", "--", chart_path])
     if success:
         return list(yaml.load_all(stdout, yaml.FullLoader))[0]
     else:
@@ -862,10 +904,10 @@ def helm_show_chart(name=None, version=None, package=None, platforms=False) -> D
     """
     Returns result of 'helm show chart' for package, if it is availabe. Otherwise runs for the tgz file
     """
-    helm_command = f"{settings.helm_path} show chart"
+    helm_command = [settings.helm_path, "show", "chart", "--"]
 
     if package is not None:
-        helm_command = f"{helm_command} {package}"
+        helm_command.append(str(package))
     else:
         helm_cache_dir = settings.helm_extensions_cache
         if platforms:
@@ -875,9 +917,14 @@ def helm_show_chart(name=None, version=None, package=None, platforms=False) -> D
             curr_fpath = f"{helm_cache_dir}/{name}-{version}.tgz"
             if not os.path.exists(curr_fpath):
                 helm_cache_dir = settings.helm_extensions_cache
-        helm_command = f"{helm_command} {helm_cache_dir}/{name}-{version}.tgz"
+        try:
+            chart_path = validation.check_path_inside(f"{helm_cache_dir}/{name}-{version}.tgz", helm_cache_dir)
+        except validation.InvalidValueError as e:
+            logger.warning(f"Not showing chart {name!r} {version!r}: {e}")
+            return {}
+        helm_command.append(chart_path)
 
-    success, stdout = execute_shell_command(helm_command)
+    success, stdout = run_command(helm_command)
 
     if success:
         yaml_dict = list(yaml.load_all(stdout, yaml.FullLoader))[0]

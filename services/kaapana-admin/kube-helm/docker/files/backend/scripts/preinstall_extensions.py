@@ -45,7 +45,6 @@ for extension in preinstall_extensions:
 
         success, message, _, release_name, _ = supervised_helm_install(
             extension,
-            shell=True,
             update_state=False,
             blocking=True,
             platforms=is_platform,

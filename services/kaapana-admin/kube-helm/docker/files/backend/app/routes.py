@@ -1,5 +1,6 @@
 import base64
 import json
+import re
 import secrets
 import subprocess
 from os.path import dirname, join
@@ -11,7 +12,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from kaapanapy.logger import get_logger
 
-from . import file_handler, helm_helper, schemas, utils
+from . import file_handler, helm_helper, schemas, utils, validation
 from .auth_utils import is_admin_request
 from .config import settings
 from .ttl_cache import SingleValueTTLCache
@@ -63,6 +64,27 @@ async def _fetch_project_whitelist(project_id: str) -> Optional[list[str]]:
     except Exception:
         logger.warning("Failed to fetch project whitelist from AII for project %s", project_id)
         return None
+
+
+def _reject_admin_only_fields(payload: dict, fields) -> None:
+    present = [field for field in fields if field in payload]
+    if present:
+        raise HTTPException(status_code=403, detail=f"Only admins can set {', '.join(present)}.")
+
+
+def _reject_undeclared_extension_params(payload: dict) -> None:
+    # Each extension parameter becomes a global helm value, so other keys could change any platform setting.
+    extension_params = payload.get("extension_params", {})
+    if not isinstance(extension_params, dict):
+        raise HTTPException(status_code=400, detail="extension_params must be an object.")
+    values = helm_helper.helm_show_values(name=payload["name"], version=payload["version"])
+    declared = (values or {}).get("extension_params") or {}
+    undeclared = sorted(key for key in extension_params if key not in declared)
+    if undeclared:
+        raise HTTPException(
+            status_code=403,
+            detail=f"The chart does not declare these extension parameters: {', '.join(undeclared)}.",
+        )
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -216,7 +238,7 @@ async def import_container(filename: str, platforms: Optional[bool] = False):
             return Response(f"Container import failed {msg}", 500)
         logger.info(f"Successfully imported {filename}")
         return Response(msg, 200)
-    except AssertionError as e:
+    except (AssertionError, validation.InvalidValueError) as e:
         logger.error(f"/import-container failed: {e}", exc_info=True)
         raise HTTPException(400, f"Container import failed, bad request {str(e)}")
     except Exception as e:
@@ -246,14 +268,14 @@ async def helm_delete_chart(request: Request):
         logger.info(f"/helm-delete-chart called with {payload=}")
         assert "release_name" in payload, "Required key 'release_name' not found in payload"
         release_version = None
-        helm_command_addons = ""
+        helm_command_addons = []
         helm_namespace = settings.helm_namespace
         multiinstallable = False
         platforms = False
         if "release_version" in payload:
             release_version = payload["release_version"]
         if "helm_command_addons" in payload:
-            helm_command_addons = payload["helm_command_addons"]
+            helm_command_addons = validation.check_delete_addons(payload["helm_command_addons"])
         if "helm_namespace" in payload:
             helm_namespace = payload["helm_namespace"]
         if ("multiinstallable" in payload) and payload["multiinstallable"].lower() in [
@@ -266,28 +288,31 @@ async def helm_delete_chart(request: Request):
 
         project_header = request.headers.get("Project")
         if project_header and not is_admin_request(request):
+            # Project members may only remove whitelisted applications from the namespace that kube-helm manages.
+            _reject_admin_only_fields(payload, ("helm_namespace", "platforms"))
             try:
                 project_form = json.loads(project_header)
             except json.JSONDecodeError:
                 raise HTTPException(status_code=400, detail="Invalid Project header")
             project_id = project_form.get("id")
-            if project_id:
-                whitelist = await _fetch_project_whitelist(project_id)
-                if whitelist is None:
-                    raise HTTPException(
-                        status_code=503,
-                        detail="Could not verify application whitelist. Please try again later.",
-                    )
-                release = payload["release_name"]
-                is_whitelisted = any(release == e or release.startswith(e + "-") for e in whitelist)
-                if whitelist and not is_whitelisted:
-                    raise HTTPException(
-                        status_code=403,
-                        detail=(
-                            f"'{release}' is not whitelisted for this project. "
-                            f"Only admins can uninstall non-whitelisted applications."
-                        ),
-                    )
+            if not project_id:
+                raise HTTPException(status_code=400, detail="Invalid Project header")
+            whitelist = await _fetch_project_whitelist(project_id)
+            if whitelist is None:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Could not verify application whitelist. Please try again later.",
+                )
+            release = payload["release_name"]
+            is_whitelisted = any(release == e or release.startswith(e + "-") for e in whitelist)
+            if whitelist and not is_whitelisted:
+                raise HTTPException(
+                    status_code=403,
+                    detail=(
+                        f"'{release}' is not whitelisted for this project. "
+                        f"Only admins can uninstall non-whitelisted applications."
+                    ),
+                )
         success, stdout = utils.helm_delete(
             release_name=payload["release_name"],
             release_version=release_version,
@@ -300,9 +325,11 @@ async def helm_delete_chart(request: Request):
             return Response(f"Started uninstalling {payload['release_name']}", 200)
         else:
             return Response(f"Chart uninstall command failed{stdout}", 400)
-    except AssertionError as e:
+    except (AssertionError, validation.InvalidValueError) as e:
         logger.error(f"/helm-delete-chart failed: {str(e)}", exc_info=True)
         return Response(f"Chart uninstall failed, bad request {str(e)}", 400)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"/helm-delete-chart failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Chart uninstall failed {str(e)}")
@@ -315,29 +342,41 @@ async def helm_install_chart(request: Request):
         logger.debug(f"/helm-install-chart called with {payload=}")
         assert "name" in payload, "Required key 'name' not found in payload"
         assert "version" in payload, "Required key 'version' not found in payload"
+        project_header = request.headers.get("Project")
+        # Project members may launch whitelisted applications. The server decides how and where they run.
+        project_member_request = bool(project_header) and not is_admin_request(request)
+        if project_member_request:
+            _reject_admin_only_fields(payload, ("release_name", "sets", "platforms"))
         platforms = False
-        cmd_addons = ""
+        cmd_addons = []
         blocking = False
         if ("platforms" in payload) and (str(payload["platforms"]).lower() == "true"):
             platforms = True
-            cmd_addons = "--create-namespace"
+            cmd_addons = ["--create-namespace"]
         if ("blocking" in payload) and (str(payload["blocking"]).lower() == "true"):
             blocking = True
-        keywords = payload.get("keywords")
-        if not keywords:
-            chart = helm_helper.helm_show_chart(name=payload["name"], version=payload["version"], platforms=platforms)
-            keywords = chart.get("keywords", [])
-            payload["keywords"] = keywords
+        # The keywords control the whitelist check and the release labels, so only the chart may set them.
+        chart = helm_helper.helm_show_chart(name=payload["name"], version=payload["version"], platforms=platforms)
+        keywords = chart.get("keywords", [])
+        payload["keywords"] = keywords
+        if project_member_request and "kaapanamultiinstallable" not in keywords:
+            raise HTTPException(
+                status_code=403,
+                detail=f"'{payload['name']}' is not a multi-installable application. Only admins can install it.",
+            )
+        if project_member_request:
+            _reject_undeclared_extension_params(payload)
 
         if "kaapanamultiinstallable" in keywords:
-            project_header = request.headers.get("Project")
             if project_header:
                 try:
                     project_form = json.loads(project_header)
                 except json.JSONDecodeError:
                     raise HTTPException(status_code=400, detail="Invalid Project header")
                 project_id = project_form.get("id")
-                if project_id and not is_admin_request(request):
+                if project_member_request:
+                    if not project_id:
+                        raise HTTPException(status_code=400, detail="Invalid Project header")
                     app_name = payload["name"]
                     project_whitelist = await _fetch_project_whitelist(project_id)
                     if project_whitelist is None:
@@ -372,7 +411,6 @@ async def helm_install_chart(request: Request):
 
         should_install, message, keywords, release_name, cmd = utils.helm_install(
             payload,
-            shell=True,
             blocking=blocking,
             platforms=platforms,
             helm_command_addons=cmd_addons,
@@ -386,7 +424,7 @@ async def helm_install_chart(request: Request):
             return Response(f"Successfully installed: {release_name}", 200)
         else:
             return Response(f"Chart install command failed for {release_name}", 500)
-    except AssertionError as e:
+    except (AssertionError, validation.InvalidValueError) as e:
         logger.error(f"/helm-install-chart failed: {str(e)}", exc_info=True)
         return Response(f"Chart install failed, bad request {str(e)}", 400)
     except HTTPException:
@@ -405,7 +443,12 @@ async def pull_docker_image(request: Request):
         payload = await request.json()
         logger.info(f"/pull-docker-image called {payload=}")
         release_name = f"pull-docker-chart-{secrets.token_hex(10)}"
-        utils.pull_docker_image(release_name, **payload)
+        utils.pull_docker_image(
+            release_name,
+            docker_image=payload["docker_image"],
+            docker_version=payload["docker_version"],
+            docker_registry_url=payload["docker_registry_url"],
+        )
         return Response(
             f"Trying to download the docker container {payload['docker_registry_url']}/{payload['docker_image']}:{payload['docker_version']}",
             202,
@@ -431,8 +474,15 @@ async def complete_active_application(request: Request):
         release_name = payload.get("release_name")
         if not release_name:
             return Response("Payload does not have mandatory key: 'release_name'", status_code=400)
+        if not validation.is_release_name(release_name):
+            return Response("Payload contains an invalid 'release_name'", status_code=400)
         # check if the deployed release contains label: kaapanaint
-        if not utils.helm_ls(release_filter=release_name, label_filter="kaapana.ai/kaapanaint=True"):
+        # helm reads the filter as an unanchored regular expression, which also matches longer release names.
+        releases = utils.helm_ls(
+            release_filter=f"^{re.escape(release_name)}$",
+            label_filter="kaapana.ai/kaapanaint=True",
+        )
+        if not any(release.get("name") == release_name for release in releases):
             logger.error(f"No deployed releases found with name: {release_name} and label: kaapana.ai/kaapanaint=True")
             raise HTTPException(
                 status_code=500,

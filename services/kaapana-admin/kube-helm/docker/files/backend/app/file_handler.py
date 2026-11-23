@@ -12,7 +12,7 @@ import yaml
 from fastapi import Form, Request, UploadFile, WebSocket, WebSocketDisconnect
 from kaapanapy.logger import get_logger
 
-from . import helm_helper, schemas
+from . import helm_helper, schemas, validation
 from .config import settings
 
 logger = get_logger(__name__)
@@ -212,28 +212,11 @@ def check_file_namespace(filename: str) -> bool:
     default_sets.pop("global.kaapana_collections", None)
     logger.debug(f"{default_sets=}")
 
-    helm_sets = ""
-    for key, value in default_sets.items():
-        if type(value) is str:
-            value = (
-                str(value)
-                .replace(",", r"\,")
-                .replace("'", r"'\"'")
-                .replace(" ", r"")
-                .replace(" ", r"")
-                .replace("{", r"\{")
-                .replace("}", r"\}")
-            )
-            helm_sets = helm_sets + f" --set-string {key}='{value}'"
-        elif isinstance(value, list):
-            val = "{" + ",".join(value) + "}"
-            helm_sets = helm_sets + f" --set '{key}={val}'"
-        else:
-            helm_sets = helm_sets + f" --set {key}='{value}'"
+    helm_sets = helm_helper.helm_set_arguments(default_sets)
     logger.debug(f"{helm_sets=}")
 
-    cmd = f"{settings.helm_path} install {chart['name']} {helm_sets} {str(fpath)} -o json --dry-run "
-    success, stdout = helm_helper.execute_shell_command(cmd, shell=True, blocking=True, timeout=60)
+    cmd = [settings.helm_path, "install", *helm_sets, "-o", "json", "--dry-run", "--", chart["name"], str(fpath)]
+    success, stdout = helm_helper.run_command(cmd, blocking=True, timeout=60)
     if not success:
         err = "Failed to check chart namespace"
         logger.error(f"{err} {stdout=}")
@@ -288,7 +271,7 @@ def add_file(file: UploadFile, content: bytes, overwrite: bool = True, platforms
     try:
         with open(fpath, "wb") as f:
             f.write(content)
-        success, stdout = helm_helper.execute_shell_command(f"{settings.helm_path} show chart {fpath}")
+        success, stdout = helm_helper.run_command([settings.helm_path, "show", "chart", "--", fpath])
         if not success:
             raise Exception(stdout)
         if "kaapanamultiinstallable" in stdout:
@@ -461,14 +444,24 @@ async def ws_add_file_chunks(ws: WebSocket, fname: str, fsize: int, chunk_size: 
 
 async def run_containerd_import(fname: str, platforms: bool = False) -> Tuple[bool, str]:
     logger.debug(f"in function: run_containerd_import, {fname=}")
+    validation.check_file_name(fname)
     fpath = make_fpath(fname, platforms=platforms)
 
     if not os.path.exists(fpath):
         return False, f"file {fname} can not be found"
 
-    cmd = f"ctr --namespace k8s.io -address='{settings.containerd_sock}' image import --digests {fpath}"
+    cmd = [
+        "ctr",
+        "--namespace",
+        "k8s.io",
+        f"--address={settings.containerd_sock}",
+        "image",
+        "import",
+        "--digests",
+        fpath,
+    ]
     logger.debug(f"{cmd=}")
-    res, stdout = await helm_helper.exec_shell_cmd_async(cmd, shell=True, timeout=180)
+    res, stdout = await helm_helper.run_command_async(cmd, timeout=180)
 
     if not res:
         logger.error(f"microk8s import failed: {stdout}")

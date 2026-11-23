@@ -637,33 +637,14 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         """
         url = f"{KaapanaBaseOperator.HELM_API}/helm-install-chart"
 
-        workflow_form = {}
-        if (
-            context["dag_run"].conf is not None
-            and "workflow_form" in context["dag_run"].conf
-            and context["dag_run"].conf["workflow_form"] is not None
-        ):
-            workflow_form = context["dag_run"].conf["workflow_form"]
-            print(f"{workflow_form=}")
         env_vars_sets = {}
         for idx, (k, v) in enumerate({"WORKSPACE": "/kaapana", **self.env_vars}.items()):
-            if k.lower() in workflow_form:
-                ### Values in workflow_form are converted with str() before storing them in self.env_vars
-                ### In order to load them with json.loads later, we use the original value and convert it to a stringified json.
-                v = json.dumps(workflow_form[k.lower()])
-            try:
-                ### Json objects should be send as json-object, not stringified json. Especially needed, when environment variables represent lists, e.g. RUNNER_INSTANCES=["<ip-address>"]
-                json_decoded_value = json.loads(v)
-            except json.decoder.JSONDecodeError:
-                json_decoded_value = v
-            if type(json_decoded_value) is dict:
-                ### kube-helm will use --set-string instead of --set to install the chart when the value is a string
-                ### As helm interpretes {} as array/list, we want to use --set-string for enviroment variables that are dictionaries.
-                json_decoded_value = str(json_decoded_value)
+            # The values are passed unchanged, so the dev server gets the same values as the pod of
+            # a normal run. The code under development then reads them in the same way.
             env_vars_sets.update(
                 {
                     f"global.envVars[{idx}].name": f"{k}",
-                    f"global.envVars[{idx}].value": json_decoded_value,
+                    f"global.envVars[{idx}].value": v,
                 }
             )
 

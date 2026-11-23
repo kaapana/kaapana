@@ -1,4 +1,10 @@
-# test_ttl_cache.py is pure-python (stdlib + pytest) and is the only file here
-# the kube_helm_tests CI job runs; the four siblings are integration tests that
-# need a live kube-helm server on localhost:5000 and a cluster.
+# The unit tests run without a cluster: test_ttl_cache.py, test_executors.py,
+# test_helm_commands.py, test_routes.py and test_validation.py. Except for
+# test_ttl_cache.py, they also need the app requirements from
+# docker/files/requirements.txt. The four other test files are integration
+# tests that need a live kube-helm server on localhost:5000 and a cluster.
 pytest==8.3.3
+# Python 3.12 provides distutils, which helm_helper imports, only through setuptools.
+setuptools>=70.0.0
+# FastAPI's TestClient is built on httpx.
+httpx>=0.26.0

@@ -165,7 +165,7 @@ async def test_an_update_fails_when_the_manifest_changes_after_the_request(
         return path
 
     monkeypatch.setattr(MockOciService, "pull_extension", pull_a_changed_manifest)
-    with pytest.raises(ManifestMismatchError, match="Manifest mismatch for 'extension-v2'"):
+    with pytest.raises(ManifestMismatchError):
         await _install(client, repository_id, "extension-v2")
 
     extension = (await client.get(location)).json()

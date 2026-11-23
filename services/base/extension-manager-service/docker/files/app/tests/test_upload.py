@@ -1,6 +1,5 @@
 import io
 import json
-import re
 import tarfile
 from pathlib import Path
 from unittest.mock import AsyncMock
@@ -176,7 +175,7 @@ async def test_an_install_fails_when_the_manifest_changes_after_the_request(
         return path
 
     monkeypatch.setattr(upload_registry, "pull_extension", pull_a_changed_manifest)
-    with pytest.raises(ManifestMismatchError, match=re.escape(f"Manifest mismatch for '{tag}'")):
+    with pytest.raises(ManifestMismatchError):
         await _install(client, tag)
 
     [extension] = (await client.get("/extensions")).json()

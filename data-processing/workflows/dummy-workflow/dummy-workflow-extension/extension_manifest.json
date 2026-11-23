@@ -1,7 +1,7 @@
 {
   "name": "dummy-workflow-extension",
   "id": "ed091c23-8582-4592-be5f-6c514ea52395",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "contents": [
     {
       "name": "dummy-workflow",

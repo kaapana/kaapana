@@ -13,6 +13,7 @@ from typing import Dict, List, Tuple
 import yaml
 from kaapanapy.logger import get_logger
 from kubernetes import client, config
+from kubernetes.client.rest import ApiException
 
 from . import helm_helper, schemas
 from .config import settings, timeouts
@@ -41,6 +42,13 @@ HELM_TRANSITIONAL_STATUSES = {
 
 charts_cached = None
 charts_hashes = {}
+
+
+def ensure_k8s_config():
+    try:
+        config.load_incluster_config()
+    except config.ConfigException:
+        config.load_kube_config()
 
 
 def all_successful(status):
@@ -951,6 +959,48 @@ def helm_delete(
     return success, stdout
 
 
+class NamespaceDeleteRefused(Exception):
+    pass
+
+
+class NamespaceDeleteForbidden(Exception):
+    pass
+
+
+def delete_namespace(namespace: str) -> str:
+    """
+    Start deleting the namespace and everything in it, without waiting for it to be
+    gone. A namespace that does not exist or is already being deleted counts as
+    deleted. Returns a short message saying which case applied.
+    """
+    if (
+        not isinstance(namespace, str)
+        or not namespace
+        or namespace in (settings.helm_namespace, "default")
+        or namespace.startswith("kube-")
+    ):
+        raise NamespaceDeleteRefused(f"Refusing to delete namespace {namespace!r}")
+
+    ensure_k8s_config()
+    try:
+        client.CoreV1Api().delete_namespace(namespace)
+    except ApiException as e:
+        if e.status == 404:
+            logger.info(f"Namespace {namespace} does not exist, nothing to delete")
+            return f"Namespace {namespace} is already gone"
+        if e.status == 409:
+            # Kubernetes answers a repeated delete of a terminating namespace with 409.
+            logger.info(f"Namespace {namespace} is already being deleted")
+            return f"Namespace {namespace} is already being deleted"
+        if e.status == 403:
+            raise NamespaceDeleteForbidden(
+                f"Not allowed to delete namespace {namespace}: {e.reason}"
+            ) from e
+        raise
+    logger.info(f"Started deleting namespace {namespace}")
+    return f"Started deleting namespace {namespace}"
+
+
 def helm_ls(helm_namespace=settings.helm_namespace, release_filter="", label_filter=""):
     """
     Returns all charts under namespace (in all states) after applying the filter
@@ -1104,12 +1154,7 @@ def get_active_apps_from_ingresses(
             return match.group(1)
         return ""
 
-    # load kube config and get client
-    try:
-        config.load_incluster_config()
-    except:
-        config.load_kube_config()
-
+    ensure_k8s_config()
     networking_v1 = client.NetworkingV1Api()
 
     res: List[schemas.ActiveApplication] = []

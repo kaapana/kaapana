@@ -1,9 +1,12 @@
+import logging
 import os
 import re
 
 import requests
 
 from .schemas import Project
+
+logger = logging.getLogger(__name__)
 
 kube_helm_api = "http://kube-helm-service.admin.svc:5000/kube-helm-api"
 
@@ -58,8 +61,9 @@ def is_valid_kubernetes_namespace(name: str) -> bool:
 
 def uninstall_project_helm_chart(project: Project):
     """
-    Uninstall the project-namespace helm chart for the given project,
-    removing the namespace, secrets, and associated Keycloak job.
+    Start uninstalling the project-namespace helm chart for the given project.
+    The chart keeps the namespace (resource-policy keep), so undeploying the
+    platform does not delete project data; delete_project_namespace removes it.
     """
     payload = {
         "release_name": project.kubernetes_namespace,  # project-<short_id>
@@ -68,3 +72,23 @@ def uninstall_project_helm_chart(project: Project):
     }
     response = requests.post(f"{kube_helm_api}/helm-delete-chart", json=payload)
     response.raise_for_status()
+
+
+def delete_project_namespace(project: Project):
+    """
+    Start deleting the project's namespace with everything in it, including its
+    persistent volumes. A failure is only logged, so a project can still be
+    deleted when its namespace cannot be.
+    """
+    namespace = project.kubernetes_namespace
+    try:
+        response = requests.post(
+            f"{kube_helm_api}/delete-namespace",
+            json={"namespace": namespace},
+            timeout=30,
+        )
+        response.raise_for_status()
+    except requests.RequestException as e:
+        logger.warning(f"Could not delete namespace {namespace}: {e}")
+        return
+    logger.info(f"Deleting namespace {namespace}: {response.text}")

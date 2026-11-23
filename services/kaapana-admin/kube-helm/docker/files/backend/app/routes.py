@@ -321,6 +321,24 @@ async def helm_delete_chart(request: Request):
         raise HTTPException(status_code=500, detail=f"Chart uninstall failed {str(e)}")
 
 
+@router.post("/delete-namespace")
+async def delete_namespace(request: Request):
+    try:
+        payload = await request.json()
+        logger.info(f"/delete-namespace called with {payload=}")
+        assert "namespace" in payload, "Required key 'namespace' not found in payload"
+        return Response(utils.delete_namespace(payload["namespace"]), 200)
+    except (AssertionError, utils.NamespaceDeleteRefused) as e:
+        logger.error(f"/delete-namespace failed: {e}")
+        return Response(f"Namespace delete failed, bad request {e}", 400)
+    except utils.NamespaceDeleteForbidden as e:
+        logger.error(f"/delete-namespace failed: {e}")
+        return Response(str(e), 403)
+    except Exception as e:
+        logger.error(f"/delete-namespace failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Namespace delete failed {e}")
+
+
 @router.post("/helm-install-chart")
 async def helm_install_chart(request: Request):
     try:

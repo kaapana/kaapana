@@ -334,7 +334,7 @@ async def delete_project(
     minio_helper: minio.MinioHelper = Depends(minio.get_minio_helper),
 ):
     """
-    Delete a Kaapana project: drops the S3 bucket, OpenSearch index, roles, helm chart and dicom series held only by this project (and admin).
+    Delete a Kaapana project: drops the S3 bucket, OpenSearch index, roles, helm chart, the project's Kubernetes namespace with its persistent volumes, and dicom series held only by this project (and admin).
 
 
     """
@@ -345,7 +345,11 @@ async def delete_project(
     project = existing[0]
 
     admin_project = await crud.get_admin_project(session)
-    if admin_project and admin_project.id == project_id:
+    # get_admin_project picks one of possibly several default projects, so the name
+    # check also guards the admin project's namespace, the platform's default one.
+    if project.short_id == "admin" or (
+        admin_project and admin_project.id == project_id
+    ):
         raise HTTPException(status_code=403, detail="Cannot delete the admin project")
 
     # Delete series held only by this project (and admin) from the platform.
@@ -367,6 +371,9 @@ async def delete_project(
     await minio_helper.teardown_project(project=project, session=session)
     kubehelm.uninstall_project_helm_chart(project)
     await crud.delete_project(session, project_id)
+    # Last, because its volumes cannot be restored: if the database delete fails,
+    # the project stays and keeps its data.
+    kubehelm.delete_project_namespace(project)
 
     return Response(status_code=204)
 

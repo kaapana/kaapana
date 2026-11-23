@@ -14,7 +14,20 @@ services/meta/os-dashboards/
 services/kaapana-admin/maintenance-page/
 # Helm templates are Go templates, not plain YAML
 **/templates/**
-services/kaapana-admin/keycloak/keycloak-setup/keycloak-setup-chart/realm_objects/kaapana-realm.json
+services/kaapana-admin/keycloak/keycloak-setup/keycloak-setup-chart/realm_objects/
 **/package-lock.json
 services/kaapana-admin/traefik/traefik-chart/crds/
 services/monitoring/grafana/grafana-chart/files/*.json
+services/store/ohif-viewer/docker/files/manifest.json
+lib/task_api/task_api/processing_container/*.schema.json
+services/flow/airflow/docker/files/scripts/dicom_tag_dict.json
+data-processing/processing-pipelines/total-segmentator-v2/processing-containers/total-segmentator/files/seg_info_lookup.json
+data-processing/processing-pipelines/total-segmentator-v2/processing-containers/models/files/model_lookup.json
+data-processing/processing-pipelines/nnunet/extension/docker/files/nnunet/nnunet_tasks.json
+data-processing/processing-pipelines/nnunet/processing-containers/nnunet/files/prediction_tasks.json
+data-processing/processing-pipelines/nnunet/processing-containers/nnunet/files/seg_info.json
+data-processing/kaapana-plugin/processing-containers/dcmqi/files/*.json
+data-processing/kaapana-plugin/extension/docker/files/plugin/kaapana/operators/anonymize-tags.json
+docs/source/image_urls.json
+ci/ci-code/integration_tests/data/
+services/base/extension-manager-service/docker/files/app/v1/mock_data/

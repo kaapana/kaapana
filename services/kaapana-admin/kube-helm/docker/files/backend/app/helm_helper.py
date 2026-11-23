@@ -112,7 +112,7 @@ def execute_shell_command(
     command,
     shell=False,
     blocking=True,
-    timeout=timeouts.shell_cmd_default_timeout,
+    timeout=None,
     skip_check=False,
 ) -> Tuple[bool, str]:
     """Runs given command via subprocess.run or subprocess.Popen
@@ -121,7 +121,9 @@ def execute_shell_command(
         command (_type_): _description_
         shell (bool, optional): _description_. Defaults to False.
         blocking (bool, optional): _description_. Defaults to True.
-        timeout (int, optional): _description_. Defaults to 5.
+        timeout (int, optional): Seconds until a blocking command is killed. Defaults
+            to timeouts.shell_cmd_default_timeout, or to no limit when the command
+            carries helm's own --timeout.
 
     Returns:
         success (bool)  : whether the command ran successfully
@@ -144,9 +146,11 @@ def execute_shell_command(
     #     return False, err
     logger.debug(f"executing blocking shell command: {command}")
     logger.debug(f"{shell=} , {timeout=}")
-    if "--timeout" in command:
-        logger.debug("--timeout found in command, not passing a separate timeout")
-        timeout = None
+    if timeout is None:
+        if "--timeout" in command:
+            logger.debug("--timeout found in command, not passing a separate timeout")
+        else:
+            timeout = timeouts.shell_cmd_default_timeout
     if shell == False:
         command = [x for x in command.replace("  ", " ").split(" ") if x != ""]
     command_result = subprocess.run(

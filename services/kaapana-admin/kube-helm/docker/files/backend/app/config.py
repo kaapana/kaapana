@@ -56,6 +56,9 @@ class TimeoutConfig(BaseSettings):
     helm_deletion_timeout: int = 40
     helm_release_status_check_count: int = 3
     helm_release_status_check_interval: int = 5
+    # helm gets kube-helm's limit as its own --timeout and is killed only this many
+    # times later, as hung; helm applies --timeout to each hook separately.
+    helm_kill_factor: int = 10
 
     # old: helm_install_platform_timeout: int = 45
     @computed_field

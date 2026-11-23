@@ -697,6 +697,23 @@ def pull_docker_image(
     return success, helm_result_dict
 
 
+def add_helm_timeout(helm_command, subcommand, timeout):
+    """Gives helm the limit as its own --timeout instead of killing it there.
+
+    Killed, an install stays "pending-install" for good, where helm marks it failed
+    itself; an uninstall stays "uninstalling", which helm avoids only for a late
+    post-delete hook. Returns the command and the seconds after which helm counts
+    as hung, or None when the command already carries a --timeout.
+    """
+    if "--timeout" in helm_command:
+        return helm_command, None
+    # right after the subcommand, so a shell suffix ("; helm delete ...") cannot get it
+    helm_command = helm_command.replace(
+        f" {subcommand} ", f" {subcommand} --timeout {timeout}s ", 1
+    )
+    return helm_command, timeout * timeouts.helm_kill_factor
+
+
 def helm_install(
     payload,
     helm_namespace=settings.helm_namespace,
@@ -766,8 +783,9 @@ def helm_install(
         )  # plaforms usually take longer due to multiple sub-charts involved
     else:
         timeout = timeouts.helm_install_timeout
+    helm_command, kill_timeout = add_helm_timeout(helm_command, "install", timeout)
     success, stdout = helm_helper.execute_shell_command(
-        helm_command, shell=shell, blocking=blocking, timeout=timeout
+        helm_command, shell=shell, blocking=blocking, timeout=kill_timeout
     )
 
     helm_result_dict = {}
@@ -886,7 +904,11 @@ def helm_delete(
 
     # run blocking if deleting a platform
     if platforms:
-        timeout = timeouts.helm_deletion_platform_timeout
+        # only this blocking delete can be killed; a non-blocking one keeps helm's
+        # default limit
+        helm_command, timeout = add_helm_timeout(
+            helm_command, "uninstall", timeouts.helm_deletion_platform_timeout
+        )
     else:
         timeout = timeouts.helm_deletion_timeout
     success, stdout = helm_helper.execute_shell_command(

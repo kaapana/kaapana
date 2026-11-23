@@ -12,13 +12,25 @@ from airflow.exceptions import AirflowSkipException
 from .utils import PLUGIN_DIR, mock_modules
 
 sys.path.insert(0, str(PLUGIN_DIR))
+_before = dict(sys.modules)
 mock_modules()
+_stubs = {name for name, mod in sys.modules.items() if _before.get(name) is not mod}
 _globals = sys.modules["kaapana.blueprints.kaapana_global_variables"]
 _globals.PLATFORM_PREFIX = "kaapana"
 _globals.SERVICES_NAMESPACE = "services"
 
 from kaapana.operators import CleanUpExpiredWorkflowDataOperator as module  # noqa: E402
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator  # noqa: E402
+
+# Undo the stubs and forget the kaapana modules imported against them: left in
+# sys.modules, they break test modules collected after this one. Airflow modules
+# stay, since importing those twice redefines their database tables.
+for _name in list(sys.modules):
+    if _name in _stubs or (_name.startswith("kaapana") and _name not in _before):
+        if _name in _before:
+            sys.modules[_name] = _before[_name]
+        else:
+            del sys.modules[_name]
 
 PROJECTS = [
     {"kubernetes_namespace": "kaapana-project-admin"},

@@ -12,7 +12,14 @@ from fastapi.templating import Jinja2Templates
 from kaapanapy.logger import get_logger
 
 from . import file_handler, helm_helper, schemas, utils
-from .auth_utils import is_admin_request
+from .auth_utils import (
+    has_access_token,
+    is_admin_request,
+    may_complete_app,
+    may_see_app,
+    public_values,
+    valid_release_name,
+)
 from .config import settings
 
 # TODO: add endpoint for /helm-delete-file
@@ -456,9 +463,31 @@ async def complete_active_application(request: Request):
             return Response(
                 "Payload does not have mandatory key: 'release_name'", status_code=400
             )
-        # check if the deployed release contains label: kaapanaint
-        if not utils.helm_ls(
+        # The name reaches a shell command and helm's regex filter.
+        if not valid_release_name(release_name):
+            return Response("Invalid release name", status_code=400)
+        if has_access_token(request) and not is_admin_request(request):
+            workflow_apps = [
+                app
+                for app in utils.get_active_apps_from_ingresses(
+                    [{"kaapana.ai/type": "triggered"}]
+                )
+                if app["release_name"] == release_name
+            ]
+            if not workflow_apps or not all(
+                may_complete_app(request, app) for app in workflow_apps
+            ):
+                return Response(
+                    f"Not allowed to complete active application: {release_name}",
+                    status_code=403,
+                )
+        # check if the deployed release contains label: kaapanaint;
+        # helm's --filter is an unanchored regex, so only an exact name counts
+        deployed_releases = utils.helm_ls(
             release_filter=release_name, label_filter="kaapana.ai/kaapanaint=True"
+        )
+        if not any(
+            release.get("name") == release_name for release in deployed_releases
         ):
             logger.error(
                 f"No deployed releases found with name: {release_name} and label: kaapana.ai/kaapanaint=True"
@@ -487,10 +516,15 @@ async def complete_active_application(request: Request):
 
 
 @router.get("/active-applications", response_model=List[schemas.ActiveApplication])
-async def get_active_applications() -> List[schemas.ActiveApplication]:
+async def get_active_applications(
+    request: Request,
+) -> List[schemas.ActiveApplication]:
     """
     Returns a list of all active applications (i.e. applications that have an ingress) that match the annotation filter:
         `'kaapana.ai/type' == 'application'` OR `'kaapana.ai/type' == 'triggered'`
+    Admins and in-cluster callers without a token get every app; other users only
+    the apps of the projects in their token's `projects` claim.
+    `values` holds only the app's `extension_params`.
     """
     try:
         ingress_annotation_filters = [
@@ -498,7 +532,11 @@ async def get_active_applications() -> List[schemas.ActiveApplication]:
             {"kaapana.ai/type": "triggered"},
         ]
         # get all ingress objects
-        active_apps = utils.get_active_apps_from_ingresses(ingress_annotation_filters)
+        active_apps = [
+            app
+            for app in utils.get_active_apps_from_ingresses(ingress_annotation_filters)
+            if may_see_app(request, app["project"])
+        ]
         logger.info(
             f"Found {active_apps=} ingresses with filter {ingress_annotation_filters}"
         )
@@ -529,7 +567,8 @@ async def get_active_applications() -> List[schemas.ActiveApplication]:
             ]
 
             try:
-                values = helm_helper.helm_get_values(release_name)
+                # every release carries the platform's global values, secrets included
+                values = public_values(helm_helper.helm_get_values(release_name))
                 if values:
                     active_app["values"] = values
             except Exception as values_error:

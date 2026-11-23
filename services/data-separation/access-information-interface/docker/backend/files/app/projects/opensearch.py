@@ -316,9 +316,12 @@ def get_payload_for_claim_and_index(claim_value: str, index):
             "indices:admin/mappings/get",
         ],
     }
+    # Every Dashboards page lists the data connections, and the page throws
+    # "Forbidden" in the browser when the role may not read them.
+    datasources_read = "cluster:admin/opensearch/ql/datasources/read"
     cluster_permissions = {
-        "read_project": ["cluster_composite_ops_ro"],
-        "admin_project": ["cluster_composite_ops"],
+        "read_project": ["cluster_composite_ops_ro", datasources_read],
+        "admin_project": ["cluster_composite_ops", datasources_read],
     }
     assert claim_value in allowed_actions.keys()
     return {

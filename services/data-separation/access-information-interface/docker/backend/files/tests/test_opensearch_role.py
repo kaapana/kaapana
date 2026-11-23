@@ -1,5 +1,6 @@
 """A project role keeps access to the Dashboards saved objects after Dashboards has
-migrated them to a new .opensearch_dashboards_<n> index (kaapana#2502)."""
+migrated them to a new .opensearch_dashboards_<n> index, and may read the data
+connections every Dashboards page lists (kaapana#2502)."""
 
 import os
 import sys
@@ -40,3 +41,12 @@ def test_project_role_reaches_every_migrated_dashboards_index(
     patterns = payload["index_permissions"][0]["index_patterns"]
     assert any(fnmatch(dashboards_index, pattern) for pattern in patterns)
     assert "project_study" in patterns
+
+
+@pytest.mark.parametrize("claim_value", ["read_project", "admin_project"])
+def test_project_role_reads_the_data_connections(claim_value):
+    payload = get_payload_for_claim_and_index(claim_value, "project_study")
+    assert (
+        "cluster:admin/opensearch/ql/datasources/read"
+        in payload["cluster_permissions"]
+    )

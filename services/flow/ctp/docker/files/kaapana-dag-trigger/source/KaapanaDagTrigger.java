@@ -33,6 +33,12 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
     int callingAETTag = 0;
     int connectionIPTag = 0;
     int unchangedCounter = 2;
+    // Optional attributes triggerAttempts and triggerRetryDelaySeconds: how often a
+    // trigger that Airflow may accept later (5xx, 409, no connection) is sent before
+    // the series goes to quarantine, and the pause before the first retry (doubled
+    // for each further retry).
+    int triggerAttempts = 5;
+    int triggerRetryDelaySeconds = 10;
     String callingAET;
     String calledAET;
     String connectionIP;
@@ -72,6 +78,12 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
         String unChangedString = element.getAttribute("unchangedCounter");
         if (!unChangedString.isEmpty())
             unchangedCounter = Integer.parseInt(unChangedString.trim());
+        String triggerAttemptsString = element.getAttribute("triggerAttempts");
+        if (!triggerAttemptsString.isEmpty())
+            triggerAttempts = Integer.parseInt(triggerAttemptsString.trim());
+        String triggerRetryDelayString = element.getAttribute("triggerRetryDelaySeconds");
+        if (!triggerRetryDelayString.isEmpty())
+            triggerRetryDelaySeconds = Integer.parseInt(triggerRetryDelayString.trim());
         syncObject = new Object();
         handleOldDicomStorageDir();
         logger.info("Kaapana Dag Trigger ready!");
@@ -308,6 +320,10 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
         return fo;
     }
 
+    enum TriggerResult {
+        SUCCESS, RETRY, FAIL
+    }
+
     /**
      *
      */
@@ -419,7 +435,7 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                     logger.info("Dicom Folder send to airflow: " + dicomPath);
                     renameFolder();
                 }
-                triggerAirflow(postData, dag_id);
+                triggerAirflowWithRetries();
             } catch (Exception e) {
                 logger.error(name + ": Unable to trigger Airflow for: " + dicomPath);
                 logger.error(e);
@@ -509,6 +525,29 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
         }
 
         /**
+         * Triggers the DAG and retries a trigger Airflow may accept later; quarantines
+         * the folder when the trigger fails for good.
+         */
+        private void triggerAirflowWithRetries() throws Exception {
+            long delayMillis = triggerRetryDelaySeconds * 1000L;
+            for (int attempt = 1;; attempt++) {
+                TriggerResult result = triggerAirflow(postData, dag_id);
+                if (result == TriggerResult.RETRY && attempt < triggerAttempts) {
+                    logger.warn(name + ": Retrying the trigger in " + delayMillis / 1000 + " s (attempt "
+                            + (attempt + 1) + " of " + triggerAttempts + "): " + dicomPath);
+                    Thread.sleep(delayMillis);
+                    delayMillis *= 2;
+                    continue;
+                }
+                if (result != TriggerResult.SUCCESS) {
+                    logger.error(name + ": Unable to trigger Airflow for: " + dicomPath);
+                    folderFilesToQuarantine(storedFileParentDir);
+                }
+                return;
+            }
+        }
+
+        /**
          *
          */
         private void renameFolder() {
@@ -525,7 +564,7 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
          * @return
          * @throws Exception
          */
-        private boolean triggerAirflow(JSONObject content, String dag_id) throws Exception {
+        private TriggerResult triggerAirflow(JSONObject content, String dag_id) throws Exception {
             String url = trigger_url + "/" + dag_id;
             URL object = new URL(url);
             HttpURLConnection con = (HttpURLConnection) object.openConnection();
@@ -535,9 +574,18 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
             con.setRequestProperty("Accept", "application/json");
             con.setRequestMethod("POST");
 
-            OutputStreamWriter wr = new OutputStreamWriter(con.getOutputStream());
-            wr.write(content.toString());
-            wr.flush();
+            // getOutputStream() connects; the body is buffered and only sent by
+            // getResponseCode(). A failure here means Airflow got nothing, so a retry
+            // cannot start a second run; a later failure is thrown and quarantines.
+            try {
+                OutputStreamWriter wr = new OutputStreamWriter(con.getOutputStream());
+                wr.write(content.toString());
+                wr.flush();
+            } catch (IOException e) {
+                logger.warn(name + ": Airflow not reachable: " + e);
+                logger.warn("Dicom Folder not send to airflow: " + dicomPath);
+                return TriggerResult.RETRY;
+            }
 
             // display what returns the POST request
 
@@ -558,9 +606,13 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                 logger.warn(name + ": URL: " + url);
                 logger.warn("Response message: ");
                 logger.warn(con.getResponseMessage());
-                folderFilesToQuarantine(storedFileParentDir);
+                con.disconnect();
+                // 409: the endpoint's own retries all collided with parallel triggers.
+                if (HttpResult >= 500 || HttpResult == HttpURLConnection.HTTP_CONFLICT)
+                    return TriggerResult.RETRY;
+                return TriggerResult.FAIL;
             }
-            return true;
+            return TriggerResult.SUCCESS;
         }
     }
 }

@@ -1,4 +1,6 @@
 import json
+import random
+import time
 from http import HTTPStatus
 
 from airflow import settings
@@ -6,7 +8,7 @@ from airflow.api.common.trigger_dag import trigger_dag as trigger
 from airflow.api.common.experimental.mark_tasks import (
     set_dag_run_state_to_failed as set_dag_run_failed,
 )
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, DagRunAlreadyExists
 from airflow.models import DagRun, DagModel, DagBag
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.state import State, TaskInstanceState, DagRunState
@@ -18,6 +20,7 @@ from flask import Blueprint, request, jsonify, Response
 from flask import current_app as app
 
 from sqlalchemy import and_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
 from kaapana.blueprints.kaapana_utils import (
@@ -27,6 +30,7 @@ from kaapana.blueprints.kaapana_utils import (
 
 _log = LoggingMixin().log
 parallel_processes = 1
+TRIGGER_ATTEMPTS = 5
 """
 Represents a blueprint kaapanaApi
 """
@@ -50,19 +54,43 @@ def trigger_dag(dag_id):
     else:
         tmp_conf["x_auth_token"] = request.headers.get("X-Auth-Token")
 
-    run_id = generate_run_id(dag_id)
-
     print(json.dumps(tmp_conf, indent=2))
 
+    # Parallel callers (e.g. one CTP trigger per incoming series, served by several
+    # webserver workers) can get the same timestamp-based run id or execution date.
+    # Airflow keeps both unique per DAG, so a suffix on the run id alone would not
+    # help: each attempt takes a fresh run id and a fresh execution date.
     execution_date = None
-    try:
-        dr = trigger(
-            dag_id, run_id, tmp_conf, execution_date, replace_microseconds=False
+    for attempt in range(1, TRIGGER_ATTEMPTS + 1):
+        run_id = generate_run_id(dag_id)
+        try:
+            dr = trigger(
+                dag_id, run_id, tmp_conf, execution_date, replace_microseconds=False
+            )
+            break
+        except (DagRunAlreadyExists, IntegrityError) as err:
+            # err.orig is the database's one-line message; the IntegrityError text
+            # adds the whole INSERT with all its parameters.
+            _log.warning(
+                "Trigger of %s collided with an existing run (attempt %d/%d): %s",
+                dag_id,
+                attempt,
+                TRIGGER_ATTEMPTS,
+                getattr(err, "orig", err),
+            )
+            if attempt < TRIGGER_ATTEMPTS:
+                time.sleep(random.uniform(0.01, 0.1))
+        except AirflowException as err:
+            _log.error(err)
+            response = jsonify(error="{}".format(err))
+            response.status_code = err.status_code
+            return response
+    else:
+        response = jsonify(
+            error="Could not trigger {}: run id or execution date already taken "
+            "in {} attempts".format(dag_id, TRIGGER_ATTEMPTS)
         )
-    except AirflowException as err:
-        _log.error(err)
-        response = jsonify(error="{}".format(err))
-        response.status_code = err.status_code
+        response.status_code = HTTPStatus.CONFLICT
         return response
 
     message = ["{} created!".format(dr.dag_id)]

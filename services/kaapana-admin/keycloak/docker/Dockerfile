@@ -75,6 +75,7 @@ ENV KC_METRICS_ENABLED=true
 ENV KC_HEALTH_ENABLED=true
 ENV KC_HTTP_RELATIVE_PATH=/auth
 ENV KC_HTTP_MANAGEMENT_RELATIVE_PATH=/
+ENV JAVA_OPTS_APPEND="-XX:-UseBASE64Intrinsics"
 
 RUN /opt/keycloak/bin/kc.sh build \
     --db=postgres \

@@ -289,12 +289,29 @@ class WorkflowWithKaapanaInstance(Workflow):
     # involved_kaapana_instances: list = []
 
 
+def dataset_name_object(value):
+    """data_form.dataset_name as an object ({name, username, access_level}).
+
+    Jobs stored before private user datasets (#1643), e.g. those of a platform
+    migrated from 0.6.x, hold the dataset's plain name; such a dataset is a project
+    dataset.
+    """
+    if isinstance(value, str):
+        return {"name": value, "access_level": AccessLevel.project.value}
+    return value
+
+
 class WorkflowListItem(WorkflowWithKaapanaInstance):
     # Compact workflow-list metadata. Large service workflows can contain
     # thousands of jobs, so the list endpoint must return counts instead of jobs.
     workflow_jobs: List[str] = Field(default_factory=list)
     workflow_job_counts: Dict[str, int] = Field(default_factory=dict)
     dataset_name: Optional[dict] = None
+
+    @field_validator("dataset_name", mode="before")
+    @classmethod
+    def legacy_dataset_name(cls, value):
+        return dataset_name_object(value)
 
 
 class KaapanaInstanceWithWorkflows(KaapanaInstance):
@@ -333,7 +350,7 @@ class WorkflowWithKaapanaInstanceWithJobs(WorkflowWithKaapanaInstance):
                     if "dataset_name" in job.conf_data["data_form"]
                     else None
                 )
-                self.dataset_name = dataset_name
+                self.dataset_name = dataset_name_object(dataset_name)
                 # after getting the dataset_name from a workflow_job, break the for loop
                 break
         return self

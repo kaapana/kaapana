@@ -1457,7 +1457,9 @@ def queue_generate_jobs_and_add_to_workflow(
             identifiers = []
             if "data_form" in conf_data and "dataset_name" in conf_data["data_form"]:
                 project: dict = conf_data["project_form"]
-                dataset: dict = conf_data["data_form"]["dataset_name"]
+                dataset: dict = schemas.dataset_name_object(
+                    conf_data["data_form"]["dataset_name"]
+                )
                 if not db_kaapana_instance.remote:
                     db_dataset = get_dataset(
                         db,

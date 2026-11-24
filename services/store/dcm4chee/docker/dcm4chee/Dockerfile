@@ -4,3 +4,5 @@ LABEL VERSION="5.33.1"
 LABEL BUILD_IGNORE="False"
 
 RUN apt update && apt upgrade -y binutils binutils-common binutils-x86-64-linux-gnu curl libbinutils libc-bin libc6 libctf-nobfd0 libctf0 libcurl4 libgnutls30 libpam-modules libpam-modules-bin libpam-runtime libpam0g libsqlite3-0 libssh-4 libssh-gcrypt-4 locales tar
+
+ENV JAVA_TOOL_OPTIONS="-XX:-UseBASE64Intrinsics"

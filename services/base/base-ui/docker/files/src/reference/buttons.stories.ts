@@ -1,6 +1,14 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { defineComponent, h } from 'vue'
-import { VBtn, VCard, VCardActions, VCardText, VCardTitle, VSpacer, VTooltip } from 'vuetify/components'
+import {
+  VBtn,
+  VCard,
+  VCardActions,
+  VCardText,
+  VCardTitle,
+  VSpacer,
+  VTooltip,
+} from 'vuetify/components'
 import { note } from './storyNote'
 
 // The four levels of the action hierarchy, shown twice: standing alone, and
@@ -19,10 +27,14 @@ const level = (label: string, props: Record<string, unknown>) => h(VBtn, props, 
 // has to be the element around it. The label below is a placeholder on purpose;
 // the real string names the specific condition, not the fact of being disabled.
 const unavailable = () =>
-  h(VTooltip, { location: 'top', text: 'Select a project before running a workflow.' }, {
-    activator: ({ props }: { props: Record<string, unknown> }) =>
-      h('span', props, [h(VBtn, { disabled: true }, () => 'Unavailable')]),
-  })
+  h(
+    VTooltip,
+    { location: 'top', text: 'Select a project before running a workflow.' },
+    {
+      activator: ({ props }: { props: Record<string, unknown> }) =>
+        h('span', props, [h(VBtn, { disabled: true }, () => 'Unavailable')]),
+    },
+  )
 
 const hierarchy = () => [
   level('Run workflow', { color: 'primary' }),

@@ -2,8 +2,8 @@
 global:
   dev_files: false
   dynamicVolumes:
-  - name: data-api-artifacts
-    storage: 200Gi
+    - name: data-api-artifacts
+      storage: 200Gi
 
 kaapana_database:
   admin: false

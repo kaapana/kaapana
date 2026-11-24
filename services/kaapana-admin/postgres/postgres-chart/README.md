@@ -2,7 +2,7 @@
 
 This chart packages a postgres deployment.
 
-## Usage 
+## Usage
 
 Add the following lines to the `requirements.yaml` file of the parent chart:
 
@@ -25,10 +25,12 @@ kaapana_database:
 ```
 
 Note, that the Kubernetes service for the postgres database matches to pods with these two labels:
+
 ```yaml
 spec:
   selector:
-    app.kubernetes.io/name: {{ .Values.appName | default .Chart.Name }}
+    app.kubernetes.io/name: { { .Values.appName | default .Chart.Name } }
     app.kubernetes.io/component: database
 ```
+
 Hence, Pods and Services in the parent chart should also use these both labels to match Pod and Service together.

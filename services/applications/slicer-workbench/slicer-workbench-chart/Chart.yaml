@@ -4,9 +4,9 @@ description: Launches a Slicer instance to explore files in Minio
 name: slicer-workbench-chart
 version: "0.0.0"
 keywords:
-- kaapanaapplication
-- kaapanaint
-- kaapanamultiinstallable
+  - kaapanaapplication
+  - kaapanaint
+  - kaapanamultiinstallable
 annotations:
   documentation: "user_guide/extensions.html#slicer-workbench"
   ui-visible-name: "Slicer Workbench"

@@ -4,7 +4,7 @@ description: Browser-based Linux Desktop with basic tools to demonstrate tool-st
 name: desktop-container-chart
 version: "0.0.0"
 keywords:
-- kaapanaapplication
-- kaapanamultiinstallable
+  - kaapanaapplication
+  - kaapanamultiinstallable
 annotations:
   ui-visible-name: "Desktop Demo"

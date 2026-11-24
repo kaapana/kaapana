@@ -221,19 +221,27 @@ function forwardDeleteMetadata(payload: { id: string; key: string }) {
         <v-tabs v-model="activeTab" class="mt-6 dialog-tabs" color="primary" grow>
           <v-tab value="metadata" prepend-icon="mdi-file-document-outline">
             Metadata
-            <v-chip size="x-small" class="ml-2" color="primary" variant="tonal">{{ entityStats.metadata }}</v-chip>
+            <v-chip size="x-small" class="ml-2" color="primary" variant="tonal">{{
+              entityStats.metadata
+            }}</v-chip>
           </v-tab>
           <v-tab value="storage" prepend-icon="mdi-database">
             Storage
-            <v-chip size="x-small" class="ml-2" color="primary" variant="tonal">{{ entityStats.storage }}</v-chip>
+            <v-chip size="x-small" class="ml-2" color="primary" variant="tonal">{{
+              entityStats.storage
+            }}</v-chip>
           </v-tab>
           <v-tab value="hierarchy" prepend-icon="mdi-file-tree">
             Hierarchy
-            <v-chip size="x-small" class="ml-2" color="primary" variant="tonal">{{ entity.child_ids?.length ?? 0 }}</v-chip>
+            <v-chip size="x-small" class="ml-2" color="primary" variant="tonal">{{
+              entity.child_ids?.length ?? 0
+            }}</v-chip>
           </v-tab>
           <v-tab value="artifacts" prepend-icon="mdi-paperclip">
             Artifacts
-            <v-chip size="x-small" class="ml-2" color="primary" variant="tonal">{{ entityStats.artifacts }}</v-chip>
+            <v-chip size="x-small" class="ml-2" color="primary" variant="tonal">{{
+              entityStats.artifacts
+            }}</v-chip>
           </v-tab>
         </v-tabs>
 
@@ -257,7 +265,10 @@ function forwardDeleteMetadata(payload: { id: string; key: string }) {
           </v-window-item>
 
           <v-window-item value="artifacts">
-            <ArtifactsTab :artifact-items="artifactItems" :format-artifact-size="formatArtifactSize" />
+            <ArtifactsTab
+              :artifact-items="artifactItems"
+              :format-artifact-size="formatArtifactSize"
+            />
           </v-window-item>
         </v-window>
       </v-card-text>

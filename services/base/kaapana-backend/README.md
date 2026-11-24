@@ -14,12 +14,11 @@ When the backend is running a swager frontend is accessable under `https://YOUR-
 
 ## How to develop
 
-1. Set absolute path to `docker/files` for the `dev_files` variable in  `kaapana-backend-chart/values.yaml`
+1. Set absolute path to `docker/files` for the `dev_files` variable in `kaapana-backend-chart/values.yaml`
 
 Your backend pod will have the code directly mounted via a volume. Since fastapi is able to detect changes, it will reload every time you edit a file in the backend folder. To have continious logging use `kubectl logs <pod name> -n services -f`.
 
 **Note:** Dev mode opens a NodePort for the backend on port 5000 for direct access. Authentification is disabled here.
-
 
 ## Integrating new endpoints
 
@@ -31,4 +30,5 @@ Your backend pod will have the code directly mounted via a volume. Since fastapi
 6. Data Types of your enpoints should be defined as Pydantic object in the schemas object.
 
 ## Best practices:
+
 `https://betterprogramming.pub/fastapi-best-practices-1f0deeba4fce`

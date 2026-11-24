@@ -58,9 +58,7 @@ watch(
 )
 
 const isDirty = computed(
-  () =>
-    props.modelValue &&
-    JSON.stringify(values.value) !== JSON.stringify(initialValues.value),
+  () => props.modelValue && JSON.stringify(values.value) !== JSON.stringify(initialValues.value),
 )
 
 watch(isDirty, (dirty) => emit('update:dirty', dirty), { immediate: true })
@@ -153,7 +151,10 @@ async function submit() {
       <v-card-text>
         <v-form ref="form" @submit.prevent="submit">
           <template v-for="{ key, param } in entries" :key="key">
-            <div v-if="param.type === 'group_name'" class="text-subtitle-1 font-weight-medium mt-4 mb-2">
+            <div
+              v-if="param.type === 'group_name'"
+              class="text-subtitle-1 font-weight-medium mt-4 mb-2"
+            >
               {{ param.default }}
             </div>
 

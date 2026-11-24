@@ -46,7 +46,8 @@ test('tag bar chips are colored and action buttons show tooltips', async ({ page
   for (const tag of ['review', 'favorite']) {
     await expect(chip(tag)).toHaveCSS('color', /^rgb\((0, 0, 0|255, 255, 255)\)$/)
   }
-  const background = (tag: string) => chip(tag).evaluate((el) => getComputedStyle(el).backgroundColor)
+  const background = (tag: string) =>
+    chip(tag).evaluate((el) => getComputedStyle(el).backgroundColor)
   await expect
     .poll(async () => new Set([await background('review'), await background('favorite')]).size, {
       message: 'the two tags share one background',
@@ -83,27 +84,31 @@ test('workflow dialog: a workflow_form with an empty oneOf renders instead of bl
   const DAG = 'nnunet-predict'
   const jsonRoute = (body: unknown) => (r: import('@playwright/test').Route) =>
     r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
-  await page.route('**/kaapana-backend/client/get-kaapana-instances', jsonRoute([
-    { instance_name: 'local', remote: false, allowed_dags: [DAG] },
-  ]))
+  await page.route(
+    '**/kaapana-backend/client/get-kaapana-instances',
+    jsonRoute([{ instance_name: 'local', remote: false, allowed_dags: [DAG] }]),
+  )
   await page.route('**/kaapana-backend/client/get-dags', jsonRoute([DAG]))
-  await page.route('**/kaapana-backend/client/get-ui-form-schemas', jsonRoute({
-    [DAG]: {
-      workflow_form: {
-        type: 'object',
-        properties: {
-          tasks: {
-            title: 'No tasks are available in this project!',
-            description: 'You first have to install a task with nnunet-install-model.',
-            oneOf: [],
-            type: 'string',
-            readOnly: false,
-            required: true,
+  await page.route(
+    '**/kaapana-backend/client/get-ui-form-schemas',
+    jsonRoute({
+      [DAG]: {
+        workflow_form: {
+          type: 'object',
+          properties: {
+            tasks: {
+              title: 'No tasks are available in this project!',
+              description: 'You first have to install a task with nnunet-install-model.',
+              oneOf: [],
+              type: 'string',
+              readOnly: false,
+              required: true,
+            },
           },
         },
       },
-    },
-  }))
+    }),
+  )
 
   const consoleErrors: string[] = []
   page.on('console', (m) => {
@@ -136,7 +141,9 @@ test('series loading shows the skeleton animation', async ({ page }) => {
 
 // ConfirmationDialog took `:show` one-way, so an ESC/outside-click dismiss left
 // the parent flag stuck at true and the dialog could never reopen.
-test('a dismissed confirmation dialog can be reopened (v-model stays in sync)', async ({ page }) => {
+test('a dismissed confirmation dialog can be reopened (v-model stays in sync)', async ({
+  page,
+}) => {
   await openGallery(page)
 
   await page.locator('.mdi-folder-edit-outline').click()
@@ -165,7 +172,9 @@ test('a dismissed confirmation dialog can be reopened (v-model stays in sync)', 
 
 // route.query is already decoded by vue-router; a second decodeURIComponent
 // threw URIError on a literal '%' in a deep link and the search never ran.
-test('a deep-link query string with a literal % is applied, not double-decoded', async ({ page }) => {
+test('a deep-link query string with a literal % is applied, not double-decoded', async ({
+  page,
+}) => {
   const data = makeDefaultMockData()
   await installMockBackend(page, data)
   await seedShellState(page, data)
@@ -190,7 +199,9 @@ test('a deep-link query string with a literal % is applied, not double-decoded',
 
 // updateData fired its requests with no sequencing, so a slow earlier search
 // could resolve last and overwrite a newer one; only the latest may commit.
-test('a slow earlier search does not overwrite a newer one (request sequencing)', async ({ page }) => {
+test('a slow earlier search does not overwrite a newer one (request sequencing)', async ({
+  page,
+}) => {
   const data = makeDefaultMockData()
   await installMockBackend(page, data)
   await seedShellState(page, data)
@@ -206,12 +217,24 @@ test('a slow earlier search does not overwrite a newer one (request sequencing)'
     }
     if (q.includes('stale')) {
       await new Promise((res) => setTimeout(res, 2000))
-      return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(['1.2.3']) })
+      return r.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(['1.2.3']),
+      })
     }
     if (q.includes('fresh')) {
-      return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(['4.5.6']) })
+      return r.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(['4.5.6']),
+      })
     }
-    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(data.seriesUids) })
+    return r.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(data.seriesUids),
+    })
   })
 
   await page.goto(VIEW_PATH)
@@ -242,7 +265,9 @@ test('a slow earlier search does not overwrite a newer one (request sequencing)'
 
 // reloadDataset() dropped the access-level argument, so a PRIVATE dataset
 // re-looked-up as 'project' returned undefined and later searches showed ALL series.
-test('removing series from a private dataset reloads it with access_level=private', async ({ page }) => {
+test('removing series from a private dataset reloads it with access_level=private', async ({
+  page,
+}) => {
   await openGallery(page)
 
   // Select the private dataset; wait for its scoped lookup to fire.

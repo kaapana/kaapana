@@ -7,9 +7,9 @@ import { KAAPANA_THEME_DARK, KAAPANA_THEME_LIGHT } from '../utils/vuetifyTheme'
 // darkMode switches the Vuetify theme in place; any other change bumps viewKey
 // so the caller can remount its view tree. Must run inside a component setup()
 // with Vuetify installed.
-export function useShellSettings(
-  options: { lightTheme?: string; darkTheme?: string } = {},
-): { viewKey: Ref<number> } {
+export function useShellSettings(options: { lightTheme?: string; darkTheme?: string } = {}): {
+  viewKey: Ref<number>
+} {
   const { lightTheme = KAAPANA_THEME_LIGHT, darkTheme = KAAPANA_THEME_DARK } = options
   const theme = useTheme()
   const viewKey = ref(0)
@@ -23,7 +23,10 @@ export function useShellSettings(
     }
   }
 
-  function settingsChangedBeyondDarkMode(oldValue: string | null, newValue: string | null): boolean {
+  function settingsChangedBeyondDarkMode(
+    oldValue: string | null,
+    newValue: string | null,
+  ): boolean {
     const strip = (raw: string | null) => {
       try {
         const settings = JSON.parse(raw || '{}')

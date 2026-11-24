@@ -5,8 +5,14 @@
         <h5>Workflow Execution</h5>
         <v-tooltip location="bottom">
           <template v-slot:activator="{ props }">
-            <v-btn v-bind="props" @click="getKaapanaInstances()" size="small" icon variant="text"
-              aria-label="Reload the runner instances">
+            <v-btn
+              v-bind="props"
+              @click="getKaapanaInstances()"
+              size="small"
+              icon
+              variant="text"
+              aria-label="Reload the runner instances"
+            >
               <v-icon color="primary">
                 {{ kaapanaIcons.refresh }}
               </v-icon>
@@ -23,8 +29,13 @@
           </v-row>
           <v-row v-if="available_kaapana_instance_names.length > 1">
             <v-col cols="12">
-              <v-select v-model="selected_kaapana_instance_names" :items="available_kaapana_instance_names"
-                label="Runner instances" multiple chips>
+              <v-select
+                v-model="selected_kaapana_instance_names"
+                :items="available_kaapana_instance_names"
+                label="Runner instances"
+                multiple
+                chips
+              >
                 <template #append>
                   <HelpIcon text="On which instances do you want to execute the workflow?" />
                 </template>
@@ -34,8 +45,14 @@
           <!-- DAG: select dag -->
           <v-row>
             <v-col cols="12" v-if="available_dags.length">
-              <v-autocomplete v-if="selected_kaapana_instance_names.length" v-model="dag_id" :items="available_dags"
-                label="Workflow" :rules="dagRules()" required>
+              <v-autocomplete
+                v-if="selected_kaapana_instance_names.length"
+                v-model="dag_id"
+                :items="available_dags"
+                label="Workflow"
+                :rules="dagRules()"
+                required
+              >
                 <template #append>
                   <HelpIcon text="Workflow to execute" />
                 </template>
@@ -48,8 +65,12 @@
           <!-- Workflow name -->
           <v-row v-if="dag_id">
             <v-col cols="12">
-              <v-text-field label="Workflow name" v-model="workflow_name" :rules="workflownameRules()"
-                required>
+              <v-text-field
+                label="Workflow name"
+                v-model="workflow_name"
+                :rules="workflownameRules()"
+                required
+              >
                 <template #append>
                   <HelpIcon text="Name used to identify this workflow run." />
                 </template>
@@ -59,15 +80,30 @@
           <!-- Data- and Workflow forms -->
           <v-row v-if="datasets_available" :key="dag_id || ''">
             <v-col v-for="(schema, name) in schemas" cols="12" :key="name">
-              <a v-if="name === 'documentation_form'" :href="getHref('/docs/' + schema.path)"
-                target="_blank">
+              <a
+                v-if="name === 'documentation_form'"
+                :href="getHref('/docs/' + schema.path)"
+                target="_blank"
+              >
                 <span> Link to the documentation </span>
               </a>
-              <v-alert v-for="field in unavailableFields[name] ?? []" :key="field.key" type="warning"
-                variant="tonal" density="comfortable" class="mb-4" :title="field.title"
-                :text="field.description"></v-alert>
-              <Vjsf v-if="name != 'documentation_form'" v-model="formData[name]" :schema="compatSchemas[name]" :options="vjsfOptions"
-                @update:state="onVjsfState(name, $event)">
+              <v-alert
+                v-for="field in unavailableFields[name] ?? []"
+                :key="field.key"
+                type="warning"
+                variant="tonal"
+                density="comfortable"
+                class="mb-4"
+                :title="field.title"
+                :text="field.description"
+              ></v-alert>
+              <Vjsf
+                v-if="name != 'documentation_form'"
+                v-model="formData[name]"
+                :schema="compatSchemas[name]"
+                :options="vjsfOptions"
+                @update:state="onVjsfState(name, $event)"
+              >
                 <template #fieldHelp="{ text }"><HelpIcon :text="text" /></template>
               </Vjsf>
             </v-col>
@@ -75,53 +111,67 @@
                  one node per oneOf branch, so hundreds of datasets blow the
                  render call stack; the autocomplete virtualizes its menu. -->
             <v-col cols="12" v-if="showDatasetPicker" :key="'__dataset_picker__'">
-              <v-autocomplete v-model="selectedDataset" :items="datasetItems" item-title="title"
-                item-value="value" label="Dataset name (size)" clearable
+              <v-autocomplete
+                v-model="selectedDataset"
+                :items="datasetItems"
+                item-title="title"
+                item-value="value"
+                label="Dataset name (size)"
+                clearable
                 no-data-text="No datasets available in this project"
-                :rules="datasetRequired ? [(v: any) => !!v || 'Dataset name is required'] : []">
+                :rules="datasetRequired ? [(v: any) => !!v || 'Dataset name is required'] : []"
+              >
                 <template #append>
-                  <HelpIcon text="Dataset the workflow runs on; the number in parentheses is its case count." />
+                  <HelpIcon
+                    text="Dataset the workflow runs on; the number in parentheses is its case count."
+                  />
                 </template>
               </v-autocomplete>
             </v-col>
             <v-col cols="12" v-if="showDatasetLimit" :key="'__dataset_limit__'">
               <div class="d-flex align-center ga-4">
-                <v-switch v-model="datasetLimitWhole" label="Process whole dataset"
-                  hide-details></v-switch>
-                <v-number-input v-if="!datasetLimitWhole" v-model="datasetLimit" :min="1"
-                  label="Limit dataset size" hide-details></v-number-input>
+                <v-switch
+                  v-model="datasetLimitWhole"
+                  label="Process whole dataset"
+                  hide-details
+                ></v-switch>
+                <v-number-input
+                  v-if="!datasetLimitWhole"
+                  v-model="datasetLimit"
+                  :min="1"
+                  label="Limit dataset size"
+                  hide-details
+                ></v-number-input>
                 <HelpIcon v-if="datasetLimitHelp" :text="datasetLimitHelp" />
               </div>
             </v-col>
             <div v-if="hasBackendField">
               <v-row>
-                  <v-card>
+                <v-card>
                   <v-treeview
-                      v-model:selected="selectedItems"
-                      :items="treeItems"
-                      item-value="path"
-                      item-title="name"
-                      selectable
-                      select-strategy="classic"
-                      activatable
-                      open-on-click
-                      :load-children="fetchChildren"
+                    v-model:selected="selectedItems"
+                    :items="treeItems"
+                    item-value="path"
+                    item-title="name"
+                    selectable
+                    select-strategy="classic"
+                    activatable
+                    open-on-click
+                    :load-children="fetchChildren"
                   >
-                      <template v-slot:prepend="{ item, isOpen }">
+                    <template v-slot:prepend="{ item, isOpen }">
                       <v-icon v-if="!(item as TreeItem).file">
-                          {{ isOpen ? "mdi-folder-open" : "mdi-folder" }}
+                        {{ isOpen ? 'mdi-folder-open' : 'mdi-folder' }}
                       </v-icon>
-                      <v-icon v-else>
-                          mdi-file-document-outline
-                        </v-icon>
-                      </template>
-                      <template v-slot:title="{ item }">
+                      <v-icon v-else> mdi-file-document-outline </v-icon>
+                    </template>
+                    <template v-slot:title="{ item }">
                       <span class="text-wrap">{{ (item as TreeItem).name }}</span>
-                      </template>
+                    </template>
                   </v-treeview>
-                  </v-card>
+                </v-card>
               </v-row>
-          </div>
+            </div>
           </v-row>
           <!-- Select remote instance for remote workflow -->
           <v-row v-show="remote_instances_w_external_dag_available.length">
@@ -129,17 +179,26 @@
               <h3>Remote Workflow</h3>
             </v-col>
             <v-col cols="12">
-              <v-select v-model="selected_remote_instances_w_external_dag_available"
-                :items="remote_instances_w_external_dag_available" label="External Instance names" multiple chips
-                hint="On which (remote) nodes do you want to execute the workflow"></v-select>
+              <v-select
+                v-model="selected_remote_instances_w_external_dag_available"
+                :items="remote_instances_w_external_dag_available"
+                label="External Instance names"
+                multiple
+                chips
+                hint="On which (remote) nodes do you want to execute the workflow"
+              ></v-select>
             </v-col>
           </v-row>
           <!-- Forms of external workflows -->
           <v-row v-if="Object.keys(external_schemas).length">
             <v-col v-for="(schema, name) in external_schemas" cols="12" :key="name">
               <p>{{ name }}</p>
-              <Vjsf v-model="formData['external_schema_' + name]" :schema="compatExternalSchemas[name]" :options="vjsfOptions"
-                @update:state="onVjsfState('external_schema_' + name, $event)">
+              <Vjsf
+                v-model="formData['external_schema_' + name]"
+                :schema="compatExternalSchemas[name]"
+                :options="vjsfOptions"
+                @update:state="onVjsfState('external_schema_' + name, $event)"
+              >
                 <template #fieldHelp="{ text }"><HelpIcon :text="text" /></template>
               </Vjsf>
             </v-col>
@@ -149,7 +208,12 @@
             <v-col cols="12">
               <v-tooltip v-model="showConfData" location="top">
                 <template v-slot:activator="{ props }">
-                  <v-btn icon variant="text" v-bind="props" aria-label="Show the configuration of this workflow">
+                  <v-btn
+                    icon
+                    variant="text"
+                    v-bind="props"
+                    aria-label="Show the configuration of this workflow"
+                  >
                     <v-icon color="secondary">{{ kaapanaIcons.info }}</v-icon>
                   </v-btn>
                 </template>
@@ -159,9 +223,7 @@
             Instance name: {{ selected_kaapana_instance_names }}
           </pre>
                 <pre class="text-left">
-            External instance name: {{
-              selected_remote_instances_w_external_dag_available
-            }}
+            External instance name: {{ selected_remote_instances_w_external_dag_available }}
           </pre>
                 <pre class="text-left">{{ formDataFormatted }}</pre>
               </v-tooltip>
@@ -176,9 +238,13 @@
             <!-- A disabled button emits no pointer events, so the surrounding
                  span has to be the tooltip's activator. -->
             <span v-bind="props" class="d-inline-block">
-              <v-btn color="primary" variant="elevated"
+              <v-btn
+                color="primary"
+                variant="elevated"
                 :disabled="!!submitBlockedReason || submitting"
-                :loading="submitting" @click="submissionValidator()">
+                :loading="submitting"
+                @click="submissionValidator()"
+              >
                 Start Workflow
               </v-btn>
             </span>
@@ -186,7 +252,7 @@
           <span>{{ submitBlockedReason }}</span>
         </v-tooltip>
         <v-btn variant="elevated" @click="isDialog ? cancel() : clearForm()">
-          {{ isDialog ? "Cancel" : "Clear" }}
+          {{ isDialog ? 'Cancel' : 'Clear' }}
         </v-btn>
       </v-card-actions>
     </v-form>
@@ -194,101 +260,118 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, toRefs, computed, watch, onMounted, ref } from "vue";
-import { notify } from "@kyvg/vue3-notification";
+import { reactive, toRefs, computed, watch, onMounted, ref } from 'vue'
+import { notify } from '@kyvg/vue3-notification'
 // Explicit Vuetify imports: this component ships pre-compiled, so the host
 // app's auto-import/global registration cannot resolve components for it.
 // Vuetify stays a peer, so these bind to the consumer's copy.
 import {
-  VAlert, VCard, VForm, VCardTitle, VCardText, VCardActions, VContainer, VRow, VCol,
-  VIcon, VBtn, VTooltip, VSelect, VAutocomplete, VTextField, VProgressCircular,
-  VSwitch, VNumberInput, VTreeview, VSpacer,
-} from "vuetify/components";
-import { HelpIcon } from "./HelpIcon";
-import { kaapanaIcons } from "../utils/icons";
-import { postViewDirty } from "../utils/viewDirty";
-import kaapanaApiService from "../utils/kaapanaApiService";
-import Vjsf from "@koumoul/vjsf";
-import { v2compat } from "@koumoul/vjsf/compat/v2";
-import "@koumoul/vjsf/styles/vjsf.css";
+  VAlert,
+  VCard,
+  VForm,
+  VCardTitle,
+  VCardText,
+  VCardActions,
+  VContainer,
+  VRow,
+  VCol,
+  VIcon,
+  VBtn,
+  VTooltip,
+  VSelect,
+  VAutocomplete,
+  VTextField,
+  VProgressCircular,
+  VSwitch,
+  VNumberInput,
+  VTreeview,
+  VSpacer,
+} from 'vuetify/components'
+import { HelpIcon } from './HelpIcon'
+import { kaapanaIcons } from '../utils/icons'
+import { postViewDirty } from '../utils/viewDirty'
+import kaapanaApiService from '../utils/kaapanaApiService'
+import Vjsf from '@koumoul/vjsf'
+import { v2compat } from '@koumoul/vjsf/compat/v2'
+import '@koumoul/vjsf/styles/vjsf.css'
 
 // A field the backend offers no choices for yet, lifted out of the form (see
 // liftUnavailableFields).
 interface UnavailableField {
-  key: string;
-  title: string;
-  description: string;
+  key: string
+  title: string
+  description: string
 }
 
 interface TreeItem {
-  name: string;
-  path: string;
-  file?: boolean;
-  children?: TreeItem[];
+  name: string
+  path: string
+  file?: boolean
+  children?: TreeItem[]
 }
 
 interface State {
-  valid: boolean | null;
-  localKaapanaInstance: string | Record<string, never>;
-  available_kaapana_instance_names: string[];
-  selected_kaapana_instance_names: string[];
-  selected_remote_instances_w_external_dag_available: string[];
-  remote_instances_w_external_dag_available: string[];
-  dag_id: string | null;
-  available_dags: string[];
-  external_dag_id: string | null;
-  formData: Record<string, any>;
-  schemas: Record<string, any>;
-  schemas_dict: Record<string, any>;
-  external_schemas: Record<string, any>;
-  workflow_name: string | null;
-  submitting: boolean;
-  showConfData: boolean;
-  datasets_available: boolean;
-  workflowsSettings: Record<string, any>;
-  hasBackendField: boolean;
-  backendRoute: string | null;
-  treeItems: TreeItem[];
-  selectedItems: string[];
-  datasetItems: { title: string; value: string }[];
-  datasetRequired: boolean;
-  showDatasetPicker: boolean;
-  unavailableFields: Record<string, UnavailableField[]>;
-  selectedDataset: string | null;
-  showDatasetLimit: boolean;
-  datasetLimitWhole: boolean;
-  datasetLimit: number;
-  datasetLimitHelp: string;
+  valid: boolean | null
+  localKaapanaInstance: string | Record<string, never>
+  available_kaapana_instance_names: string[]
+  selected_kaapana_instance_names: string[]
+  selected_remote_instances_w_external_dag_available: string[]
+  remote_instances_w_external_dag_available: string[]
+  dag_id: string | null
+  available_dags: string[]
+  external_dag_id: string | null
+  formData: Record<string, any>
+  schemas: Record<string, any>
+  schemas_dict: Record<string, any>
+  external_schemas: Record<string, any>
+  workflow_name: string | null
+  submitting: boolean
+  showConfData: boolean
+  datasets_available: boolean
+  workflowsSettings: Record<string, any>
+  hasBackendField: boolean
+  backendRoute: string | null
+  treeItems: TreeItem[]
+  selectedItems: string[]
+  datasetItems: { title: string; value: string }[]
+  datasetRequired: boolean
+  showDatasetPicker: boolean
+  unavailableFields: Record<string, UnavailableField[]>
+  selectedDataset: string | null
+  showDatasetLimit: boolean
+  datasetLimitWhole: boolean
+  datasetLimit: number
+  datasetLimitHelp: string
 }
 
 const props = withDefaults(
   defineProps<{
-    isDialog?: boolean;
-    identifiers?: unknown[];
-    onlyLocal?: boolean;
-    kind_of_dags?: string;
-    validDags?: string[];
-    reportViewDirty?: boolean;
+    isDialog?: boolean
+    identifiers?: unknown[]
+    onlyLocal?: boolean
+    kind_of_dags?: string
+    validDags?: string[]
+    reportViewDirty?: boolean
   }>(),
   {
     isDialog: false,
     identifiers: () => [],
     onlyLocal: false,
-    kind_of_dags: "all",
+    kind_of_dags: 'all',
     validDags: () => [],
     // undefined (not false): Vue casts an absent Boolean prop to false, which
     // would defeat the `?? !isDialog` fallback in reportDirty.
     reportViewDirty: undefined,
-  }
-);
+  },
+)
 
 const emit = defineEmits<{
-  cancel: [];
-  successful: [];
-}>();
+  cancel: []
+  successful: []
+}>()
 
 // Default: the standalone view reports dirty state to the shell, dialog embeds don't.
-const reportDirty = computed(() => props.reportViewDirty ?? !props.isDialog);
+const reportDirty = computed(() => props.reportViewDirty ?? !props.isDialog)
 
 function initialState(): State {
   return {
@@ -322,11 +405,11 @@ function initialState(): State {
     showDatasetLimit: false,
     datasetLimitWhole: true,
     datasetLimit: 1,
-    datasetLimitHelp: "",
-  };
+    datasetLimitHelp: '',
+  }
 }
 
-const state = reactive<State>(initialState());
+const state = reactive<State>(initialState())
 const {
   valid,
   localKaapanaInstance,
@@ -357,72 +440,76 @@ const {
   datasetLimitWhole,
   datasetLimit,
   datasetLimitHelp,
-} = toRefs(state);
+} = toRefs(state)
 
 // Outside initialState() so it survives reset(); set fresh on every dag change.
-const form_requiredFields = ref<string[]>([]);
+const form_requiredFields = ref<string[]>([])
 
 // View-dirty reporting: the shell warns before a project switch reloads this
 // iframe. Dirty must reflect user input only: the workflow choice is not input
 // (a reload offers it again, a single-dag project even re-selects it), and
 // vjsf fills formData with schema defaults asynchronously, so the baseline
 // tracks the form until the user first interacts, then freezes.
-const userTouchedForm = ref(false);
-const formBaseline = ref("{}");
+const userTouchedForm = ref(false)
+const formBaseline = ref('{}')
 
 function stableStringify(value: unknown): string {
   return JSON.stringify(value, (_key, val) =>
-    val && typeof val === "object" && !Array.isArray(val)
+    val && typeof val === 'object' && !Array.isArray(val)
       ? Object.keys(val as object)
           .sort()
           .reduce(
-            (acc: Record<string, unknown>, k) => ((acc[k] = (val as Record<string, unknown>)[k]), acc),
-            {}
+            (acc: Record<string, unknown>, k) => (
+              (acc[k] = (val as Record<string, unknown>)[k]),
+              acc
+            ),
+            {},
           )
-      : val
-  );
+      : val,
+  )
 }
 
 function markFormTouched() {
-  userTouchedForm.value = true;
+  userTouchedForm.value = true
 }
 
-const formSnapshot = () => stableStringify([state.formData, state.workflow_name, state.selectedItems]);
+const formSnapshot = () =>
+  stableStringify([state.formData, state.workflow_name, state.selectedItems])
 
 watch(
   formSnapshot,
   (snapshot) => {
-    if (!userTouchedForm.value) formBaseline.value = snapshot;
+    if (!userTouchedForm.value) formBaseline.value = snapshot
   },
-  { immediate: true }
-);
+  { immediate: true },
+)
 
 const viewDirty = computed(() => {
   // The schema fields need the touched baseline, because vjsf fills them with
   // defaults on its own. The two native controls start empty, so their value
   // alone says whether the user changed something.
-  const formDirty = userTouchedForm.value && formSnapshot() !== formBaseline.value;
-  const nativeDirty = state.selectedDataset !== null || state.datasetLimitWhole === false;
-  return formDirty || nativeDirty;
-});
+  const formDirty = userTouchedForm.value && formSnapshot() !== formBaseline.value
+  const nativeDirty = state.selectedDataset !== null || state.datasetLimitWhole === false
+  return formDirty || nativeDirty
+})
 
 watch(viewDirty, (dirty) => {
-  if (reportDirty.value) postViewDirty(dirty);
-});
+  if (reportDirty.value) postViewDirty(dirty)
+})
 
-const executeWorkflow = ref<VForm | null>(null);
+const executeWorkflow = ref<VForm | null>(null)
 
 // Labels of the vjsf fields whose value ajv rejects, per form, refreshed by
 // each <Vjsf> on every state change. vjsf tells the surrounding v-form only
 // valid / invalid, never which field, and keeps an error hidden until the
 // field was touched, so its state tree is the only place that knows.
-const invalidVjsfFields = ref<Record<string, string[]>>({});
+const invalidVjsfFields = ref<Record<string, string[]>>({})
 function invalidLabels(node: any): string[] {
-  const own = node.error && node.layout?.label ? [node.layout.label] : [];
-  return own.concat(...(node.children ?? []).map(invalidLabels));
+  const own = node.error && node.layout?.label ? [node.layout.label] : []
+  return own.concat(...(node.children ?? []).map(invalidLabels))
 }
 function onVjsfState(form: string, s: any) {
-  invalidVjsfFields.value[form] = invalidLabels(s.stateTree.root);
+  invalidVjsfFields.value[form] = invalidLabels(s.stateTree.root)
 }
 
 // Kaapana DAG schemas use vjsf-2-era conventions that vjsf 3 / ajv either
@@ -431,55 +518,60 @@ function onVjsfState(form: string, s: any) {
 // - value-discriminated `dependencies` -> `allOf` if/then (json-layout gates
 //   `dependencies` only on "key is defined", never on its value)
 function normalizeV2Schema(fragment: any): any {
-  if (!fragment || typeof fragment !== "object" || Array.isArray(fragment)) {
-    return fragment;
+  if (!fragment || typeof fragment !== 'object' || Array.isArray(fragment)) {
+    return fragment
   }
-  if (fragment.readOnly === true && typeof fragment.type === "string") {
-    const text = fragment.description?.trim();
-    const sentence = text && !/[.!?]$/.test(text) ? `${text}.` : text;
-    fragment.description = sentence ? `${sentence} Fixed by this workflow.` : "Fixed by this workflow.";
+  if (fragment.readOnly === true && typeof fragment.type === 'string') {
+    const text = fragment.description?.trim()
+    const sentence = text && !/[.!?]$/.test(text) ? `${text}.` : text
+    fragment.description = sentence
+      ? `${sentence} Fixed by this workflow.`
+      : 'Fixed by this workflow.'
   }
   // ajv rejects empty `enum`/`oneOf` and crashes the whole form; real DAGs emit
   // them for "nothing to pick yet" fields. Drop the constraint, mark readOnly.
   if (Array.isArray(fragment.enum) && fragment.enum.length === 0) {
-    delete fragment.enum;
-    fragment.readOnly = true;
+    delete fragment.enum
+    fragment.readOnly = true
   }
   if (Array.isArray(fragment.oneOf) && fragment.oneOf.length === 0) {
-    delete fragment.oneOf;
-    fragment.readOnly = true;
+    delete fragment.oneOf
+    fragment.readOnly = true
   }
-  if (fragment.properties && typeof fragment.properties === "object") {
-    const requiredNames: string[] = [];
+  if (fragment.properties && typeof fragment.properties === 'object') {
+    const requiredNames: string[] = []
     for (const [key, prop] of Object.entries<any>(fragment.properties)) {
-      if (prop && typeof prop === "object" && typeof prop.required === "boolean") {
-        if (prop.required) requiredNames.push(key);
-        delete prop.required;
+      if (prop && typeof prop === 'object' && typeof prop.required === 'boolean') {
+        if (prop.required) requiredNames.push(key)
+        delete prop.required
       }
     }
     if (requiredNames.length) {
-      const existing = Array.isArray(fragment.required) ? fragment.required : [];
-      fragment.required = [...new Set([...existing, ...requiredNames])];
+      const existing = Array.isArray(fragment.required) ? fragment.required : []
+      fragment.required = [...new Set([...existing, ...requiredNames])]
     }
   }
   // vjsf 2 ignored `type` mismatching object-valued oneOf consts; vjsf 3's ajv
   // enforces both, leaving the field stuck in error. Reconcile `type` to the
   // consts' type, and keep the compact select look by moving `title` to
   // `oneOfLayout.label` (an object-typed node would render as a sub-form).
-  if (typeof fragment.type === "string" && Array.isArray(fragment.oneOf) &&
-      fragment.oneOf.every((b: any) => b && "const" in b)) {
-    const jsType = (v: any) => (Array.isArray(v) ? "array" : v === null ? "null" : typeof v);
-    const constTypes = new Set(fragment.oneOf.map((b: any) => jsType(b.const)));
+  if (
+    typeof fragment.type === 'string' &&
+    Array.isArray(fragment.oneOf) &&
+    fragment.oneOf.every((b: any) => b && 'const' in b)
+  ) {
+    const jsType = (v: any) => (Array.isArray(v) ? 'array' : v === null ? 'null' : typeof v)
+    const constTypes = new Set(fragment.oneOf.map((b: any) => jsType(b.const)))
     if (constTypes.size === 1) {
-      const t = [...constTypes][0];
+      const t = [...constTypes][0]
       const matches =
         fragment.type === t ||
-        (t === "number" && (fragment.type === "integer" || fragment.type === "number"));
+        (t === 'number' && (fragment.type === 'integer' || fragment.type === 'number'))
       if (!matches) {
-        fragment.type = t;
+        fragment.type = t
         if (fragment.title) {
-          fragment.oneOfLayout = { label: fragment.title };
-          delete fragment.title;
+          fragment.oneOfLayout = { label: fragment.title }
+          delete fragment.title
         }
       }
     }
@@ -487,53 +579,65 @@ function normalizeV2Schema(fragment: any): any {
   if (fragment.dependencies) {
     for (const [key, dep] of Object.entries<any>(fragment.dependencies)) {
       const isConstDiscriminated =
-        dep && typeof dep === "object" && !Array.isArray(dep) && Array.isArray(dep.oneOf) &&
-        dep.oneOf.every((b: any) => b && b.properties && b.properties[key] && "const" in b.properties[key]);
-      if (!isConstDiscriminated) continue;
+        dep &&
+        typeof dep === 'object' &&
+        !Array.isArray(dep) &&
+        Array.isArray(dep.oneOf) &&
+        dep.oneOf.every(
+          (b: any) => b && b.properties && b.properties[key] && 'const' in b.properties[key],
+        )
+      if (!isConstDiscriminated) continue
       for (const branch of dep.oneOf) {
-        const { [key]: trigger, ...extras } = branch.properties;
-        if (Object.keys(extras).length === 0) continue;
-        const thenSchema: any = { ...branch, properties: extras };
+        const { [key]: trigger, ...extras } = branch.properties
+        if (Object.keys(extras).length === 0) continue
+        const thenSchema: any = { ...branch, properties: extras }
         if (Array.isArray(thenSchema.required)) {
-          thenSchema.required = thenSchema.required.filter((k: string) => k !== key);
-          if (!thenSchema.required.length) delete thenSchema.required;
+          thenSchema.required = thenSchema.required.filter((k: string) => k !== key)
+          if (!thenSchema.required.length) delete thenSchema.required
         }
-        fragment.allOf = fragment.allOf ?? [];
+        fragment.allOf = fragment.allOf ?? []
         fragment.allOf.push({
           if: { required: [key], properties: { [key]: { const: trigger.const } } },
           then: thenSchema,
-        });
+        })
       }
-      delete fragment.dependencies[key];
+      delete fragment.dependencies[key]
     }
-    if (Object.keys(fragment.dependencies).length === 0) delete fragment.dependencies;
+    if (Object.keys(fragment.dependencies).length === 0) delete fragment.dependencies
   }
-  for (const child of Object.values(fragment.properties ?? {})) normalizeV2Schema(child);
+  for (const child of Object.values(fragment.properties ?? {})) normalizeV2Schema(child)
   if (fragment.items) {
-    if (Array.isArray(fragment.items)) fragment.items.forEach(normalizeV2Schema);
-    else normalizeV2Schema(fragment.items);
+    if (Array.isArray(fragment.items)) fragment.items.forEach(normalizeV2Schema)
+    else normalizeV2Schema(fragment.items)
   }
-  for (const kw of ["allOf", "oneOf", "anyOf"]) {
-    if (Array.isArray(fragment[kw])) fragment[kw].forEach(normalizeV2Schema);
+  for (const kw of ['allOf', 'oneOf', 'anyOf']) {
+    if (Array.isArray(fragment[kw])) fragment[kw].forEach(normalizeV2Schema)
   }
-  for (const dep of Object.values(fragment.dependencies ?? {})) normalizeV2Schema(dep);
-  if (fragment.then) normalizeV2Schema(fragment.then);
-  if (fragment.else) normalizeV2Schema(fragment.else);
-  return fragment;
+  for (const dep of Object.values(fragment.dependencies ?? {})) normalizeV2Schema(dep)
+  if (fragment.then) normalizeV2Schema(fragment.then)
+  if (fragment.else) normalizeV2Schema(fragment.else)
+  return fragment
 }
 
 // Draw each field's description with the platform's HelpIcon in the input's
 // append slot (the fieldHelp slot on <Vjsf>), like the native fields, instead
 // of vjsf's own toggle.
 function addFieldHelp(fragment: any): any {
-  if (!fragment || typeof fragment !== "object") return fragment;
-  if (typeof fragment.description === "string" && !fragment.properties) {
-    const layout = typeof fragment.layout === "string" ? { comp: fragment.layout } : fragment.layout ?? {};
-    fragment.layout = { ...layout, slots: { ...layout.slots, append: { name: "fieldHelp", props: { text: fragment.description } } } };
+  if (!fragment || typeof fragment !== 'object') return fragment
+  if (typeof fragment.description === 'string' && !fragment.properties) {
+    const layout =
+      typeof fragment.layout === 'string' ? { comp: fragment.layout } : (fragment.layout ?? {})
+    fragment.layout = {
+      ...layout,
+      slots: {
+        ...layout.slots,
+        append: { name: 'fieldHelp', props: { text: fragment.description } },
+      },
+    }
   }
   for (const [key, value] of Object.entries(fragment))
-    if (!["default", "const", "enum", "examples", "layout"].includes(key)) addFieldHelp(value);
-  return fragment;
+    if (!['default', 'const', 'enum', 'examples', 'layout'].includes(key)) addFieldHelp(value)
+  return fragment
 }
 
 // Adapt to vjsf 3 at render time only: the dag_id watcher and
@@ -541,10 +645,10 @@ function addFieldHelp(fragment: any): any {
 // (findRequiredFields relies on the boolean `required` convention).
 function toVjsfSchema(schema: any) {
   try {
-    return addFieldHelp(v2compat(normalizeV2Schema(JSON.parse(JSON.stringify(schema)))));
+    return addFieldHelp(v2compat(normalizeV2Schema(JSON.parse(JSON.stringify(schema)))))
   } catch (e) {
-    console.warn("vjsf v2compat conversion failed; using raw schema", e);
-    return schema;
+    console.warn('vjsf v2compat conversion failed; using raw schema', e)
+    return schema
   }
 }
 
@@ -552,121 +656,119 @@ function toVjsfSchema(schema: any) {
 // by addFieldHelp, so vjsf's own help channel stays empty and it draws no
 // toggle of its own.
 const vjsfOptions = {
-  useDescription: ["subtitle"] as ("hint" | "subtitle" | "help")[],
-};
+  useDescription: ['subtitle'] as ('hint' | 'subtitle' | 'help')[],
+}
 
 const compatSchemas = computed<Record<string, any>>(() => {
-  const out: Record<string, any> = {};
+  const out: Record<string, any> = {}
   for (const [name, schema] of Object.entries(state.schemas)) {
-    if (name === "documentation_form") continue;
-    out[name] = toVjsfSchema(schema);
+    if (name === 'documentation_form') continue
+    out[name] = toVjsfSchema(schema)
   }
-  return out;
-});
+  return out
+})
 
 const compatExternalSchemas = computed<Record<string, any>>(() => {
-  const out: Record<string, any> = {};
+  const out: Record<string, any> = {}
   for (const [name, schema] of Object.entries(state.external_schemas)) {
-    out[name] = toVjsfSchema(schema);
+    out[name] = toVjsfSchema(schema)
   }
-  return out;
-});
+  return out
+})
 
-const formDataFormatted = computed(() => formatFormData(state.formData));
+const formDataFormatted = computed(() => formatFormData(state.formData))
 
 function getHref(link: string) {
-  return link.match(/^:(\d+)(.*)/)
-    ? "http://" + window.location.hostname + link
-    : link;
+  return link.match(/^:(\d+)(.*)/) ? 'http://' + window.location.hostname + link : link
 }
 function reset() {
-  Object.assign(state, initialState());
-  refreshClient();
-  loadWorkflowSettings();
+  Object.assign(state, initialState())
+  refreshClient()
+  loadWorkflowSettings()
 }
 function refreshClient() {
-  getKaapanaInstances();
+  getKaapanaInstances()
 }
 function loadWorkflowSettings() {
   // The shell seeds localStorage["settings"]; guarded so a view opened outside
   // the shell doesn't throw on JSON.parse(undefined) in onMounted.
-  const raw = localStorage["settings"];
-  if (!raw) return;
-  let settings;
+  const raw = localStorage['settings']
+  if (!raw) return
+  let settings
   try {
-    settings = JSON.parse(raw);
+    settings = JSON.parse(raw)
   } catch {
-    return;
+    return
   }
-  if (settings && settings.hasOwnProperty("workflows")) {
-    state.workflowsSettings = settings["workflows"];
+  if (settings && settings.hasOwnProperty('workflows')) {
+    state.workflowsSettings = settings['workflows']
   }
 }
 function clearForm() {
-  state.dag_id = null;
+  state.dag_id = null
 }
 function cancel() {
-  emit("cancel");
-  reset();
+  emit('cancel')
+  reset()
 }
 function formatFormData(formData: Record<string, any>) {
   // Only necessary because vjsf does not allow to have same keys in selection form with dependencies
-  let formDataFormatted: Record<string, any> = {};
+  let formDataFormatted: Record<string, any> = {}
   Object.entries(formData).forEach(([form_key, form_value]) => {
-    if (form_key == "workflow_form") {
-      formDataFormatted[form_key] = {};
+    if (form_key == 'workflow_form') {
+      formDataFormatted[form_key] = {}
       Object.entries(form_value).forEach(([key, value]) => {
-        formDataFormatted[form_key][key.split("#")[0]] = value;
-      });
+        formDataFormatted[form_key][key.split('#')[0]] = value
+      })
     } else {
-      formDataFormatted[form_key] = form_value;
+      formDataFormatted[form_key] = form_value
     }
-  });
-  return formDataFormatted;
+  })
+  return formDataFormatted
 }
 // The loaders below are fire-and-forget (watchers, tree callbacks), so the
 // error has to be reported here — nobody up the stack can.
 function notifyLoadError(title: string, error: any) {
   notify({
-    type: "error",
+    type: 'error',
     title,
     text: error?.response?.data?.detail ?? error?.message,
-  });
+  })
 }
 async function getBackendRootItems() {
   try {
-    state.selectedItems = [];
-    state.treeItems = [];
+    state.selectedItems = []
+    state.treeItems = []
     if (!state.backendRoute) {
-      console.error("Backend route is not set. Cannot fetch root items.");
-      state.treeItems = [];
-      return;
+      console.error('Backend route is not set. Cannot fetch root items.')
+      state.treeItems = []
+      return
     }
-    const response: any = await kaapanaApiService.kaapanaApiGet(state.backendRoute);
+    const response: any = await kaapanaApiService.kaapanaApiGet(state.backendRoute)
     if (response && response.data) {
-      state.treeItems = response.data;
+      state.treeItems = response.data
     } else {
-      console.error("Unexpected response format:", response);
-      state.treeItems = [];
+      console.error('Unexpected response format:', response)
+      state.treeItems = []
     }
   } catch (err) {
-    notifyLoadError("Failed to load the file browser", err);
+    notifyLoadError('Failed to load the file browser', err)
   }
 }
 async function fetchChildren(item: any) {
   if (item.file || (item.children && item.children.length > 0)) {
-    return;
+    return
   }
 
   try {
     const response: any = await kaapanaApiService.kaapanaApiGet(state.backendRoute, {
       prefix: item.path,
-    });
-    item.children = response.data;
+    })
+    item.children = response.data
   } catch (error) {
-    notifyLoadError("Failed to load folder contents", error);
+    notifyLoadError('Failed to load folder contents', error)
     // Set empty children to avoid repeated failed requests
-    item.children = [];
+    item.children = []
   }
 }
 /**
@@ -688,65 +790,65 @@ async function fetchChildren(item: any) {
  */
 function processDefaultsFromSettings(schema: Record<string, any>) {
   if (!state.workflow_name) {
-    return;
+    return
   }
 
-  var workflowName = toCamelCase(state.workflow_name);
+  var workflowName = toCamelCase(state.workflow_name)
   if (!state.workflowsSettings.hasOwnProperty(workflowName)) {
-    return;
+    return
   }
 
-  var parsedSchema = JSON.parse(JSON.stringify(schema));
-  if (parsedSchema.hasOwnProperty("workflow_form")) {
-    const props = parsedSchema["workflow_form"]["properties"];
-    const wfOptions = state.workflowsSettings[workflowName];
-    const defaults = wfOptions["properties"];
+  var parsedSchema = JSON.parse(JSON.stringify(schema))
+  if (parsedSchema.hasOwnProperty('workflow_form')) {
+    const props = parsedSchema['workflow_form']['properties']
+    const wfOptions = state.workflowsSettings[workflowName]
+    const defaults = wfOptions['properties']
 
     for (const [key, value] of Object.entries(props)) {
       if (defaults.hasOwnProperty(key)) {
-        props[key]["default"] = defaults[key];
+        props[key]['default'] = defaults[key]
         // v2compat maps x-display "hidden" to layout "none": not rendered,
         // but the default still reaches the submitted model.
         if (wfOptions.hideOnUI.includes(key)) {
-          props[key]["x-display"] = "hidden";
+          props[key]['x-display'] = 'hidden'
         }
       }
     }
 
-    state.schemas["workflow_form"]["properties"] = props;
+    state.schemas['workflow_form']['properties'] = props
   }
 }
 function dagRules() {
-  return [(v: any) => !!v || "Workflow is required"];
+  return [(v: any) => !!v || 'Workflow is required']
 }
 function workflownameRules() {
-  return [(v: any) => !!v || "Workflow name is required"];
+  return [(v: any) => !!v || 'Workflow name is required']
 }
-function findRequiredFields(obj: any, result: string[] = [], prefix = ""): string[] {
+function findRequiredFields(obj: any, result: string[] = [], prefix = ''): string[] {
   for (const key in obj) {
-    const value = obj[key];
-    const fullKey = prefix ? `${prefix}.${key}` : key;
-    if (key === "oneOf") {
-      continue;
+    const value = obj[key]
+    const fullKey = prefix ? `${prefix}.${key}` : key
+    if (key === 'oneOf') {
+      continue
     }
     // The standard JSON Schema form: a `required` array naming sibling
     // properties. Each name becomes a path of its own, so the tooltip can name
     // the field instead of reporting a nameless invalid form.
-    if (key === "required" && Array.isArray(value)) {
+    if (key === 'required' && Array.isArray(value)) {
       for (const name of value) {
-        if (typeof name === "string") result.push(`${fullKey}.${name}`);
+        if (typeof name === 'string') result.push(`${fullKey}.${name}`)
       }
-      continue;
+      continue
     }
-    if (value && typeof value === "object") {
-      findRequiredFields(value, result, fullKey);
-    } else if (key === "required" && value === true) {
+    if (value && typeof value === 'object') {
+      findRequiredFields(value, result, fullKey)
+    } else if (key === 'required' && value === true) {
       // Several dags write `required: false` on an optional field. Only the
       // value says whether the field is required, never the key alone.
-      result.push(fullKey);
+      result.push(fullKey)
     }
   }
-  return result;
+  return result
 }
 
 // A property whose `enum` or `oneOf` came back empty offers nothing to choose:
@@ -756,33 +858,41 @@ function findRequiredFields(obj: any, result: string[] = [], prefix = ""): strin
 // them as inline alerts instead. Runs after findRequiredFields, so a lifted
 // field that was required still blocks the submit.
 function liftUnavailableFields(schemas: any): Record<string, UnavailableField[]> {
-  const lifted: Record<string, UnavailableField[]> = {};
+  const lifted: Record<string, UnavailableField[]> = {}
   for (const [formName, form] of Object.entries<any>(schemas)) {
-    const properties = form?.properties;
-    if (!properties || typeof properties !== "object") continue;
+    const properties = form?.properties
+    if (!properties || typeof properties !== 'object') continue
     for (const [key, prop] of Object.entries<any>(properties)) {
       const empty =
         (Array.isArray(prop?.enum) && prop.enum.length === 0) ||
-        (Array.isArray(prop?.oneOf) && prop.oneOf.length === 0);
-      if (!empty) continue;
-      (lifted[formName] ??= []).push({
+        (Array.isArray(prop?.oneOf) && prop.oneOf.length === 0)
+      if (!empty) continue
+      ;(lifted[formName] ??= []).push({
         key,
         title: prop.title ?? key,
-        description: prop.description ?? "",
-      });
-      delete properties[key];
+        description: prop.description ?? '',
+      })
+      delete properties[key]
       if (Array.isArray(form.required)) {
-        form.required = form.required.filter((name: string) => name !== key);
-        if (!form.required.length) delete form.required;
+        form.required = form.required.filter((name: string) => name !== key)
+        if (!form.required.length) delete form.required
       }
     }
   }
-  return lifted;
+  return lifted
 }
 
 // Schema-structure keywords that show up in a findRequiredFields() path but
 // are never part of the submitted form data itself.
-const SCHEMA_STRUCTURE_KEYS = new Set(["properties", "items", "allOf", "anyOf", "then", "else", "dependencies"]);
+const SCHEMA_STRUCTURE_KEYS = new Set([
+  'properties',
+  'items',
+  'allOf',
+  'anyOf',
+  'then',
+  'else',
+  'dependencies',
+])
 
 // A required-field path looks like "form.properties.prop.properties.nested.required"
 // (schema keywords interleaved with the actual property names). Drop the
@@ -790,8 +900,11 @@ const SCHEMA_STRUCTURE_KEYS = new Set(["properties", "items", "allOf", "anyOf", 
 // name and the real, nested property path within it.
 function requiredFieldPath(fullKey: string): string[] {
   return fullKey
-    .split(".")
-    .filter((segment) => segment !== "required" && !SCHEMA_STRUCTURE_KEYS.has(segment) && !/^\d+$/.test(segment));
+    .split('.')
+    .filter(
+      (segment) =>
+        segment !== 'required' && !SCHEMA_STRUCTURE_KEYS.has(segment) && !/^\d+$/.test(segment),
+    )
 }
 
 // Whether a single required-field path (as collected by findRequiredFields) is
@@ -799,26 +912,26 @@ function requiredFieldPath(fullKey: string): string[] {
 // has at least one non-empty entry; every other type just needs a non-empty
 // value (0 and false are valid values, not missing ones).
 function evaluateRequiredField(reqField: string): { name: string; satisfied: boolean } {
-  const path = requiredFieldPath(reqField);
-  const form_name = path[0];
-  const nestedPath = path.slice(1);
-  const req_prop_name = nestedPath[nestedPath.length - 1];
-  let target: any = state.formData[form_name];
+  const path = requiredFieldPath(reqField)
+  const form_name = path[0]
+  const nestedPath = path.slice(1)
+  const req_prop_name = nestedPath[nestedPath.length - 1]
+  let target: any = state.formData[form_name]
   for (const segment of nestedPath.slice(0, -1)) {
-    target = target?.[segment];
+    target = target?.[segment]
   }
-  if (!target || typeof target !== "object" || !target.hasOwnProperty(req_prop_name)) {
-    return { name: req_prop_name, satisfied: false };
+  if (!target || typeof target !== 'object' || !target.hasOwnProperty(req_prop_name)) {
+    return { name: req_prop_name, satisfied: false }
   }
-  const fieldValue = target[req_prop_name];
+  const fieldValue = target[req_prop_name]
   // An array entry can be of any type, so only a string can be blank. Trimming
   // every entry would throw on a required array of numbers.
   const filledEntry = (val: any) =>
-    typeof val === "string" ? val.trim() !== "" : val !== null && val !== undefined;
+    typeof val === 'string' ? val.trim() !== '' : val !== null && val !== undefined
   const satisfied = Array.isArray(fieldValue)
     ? fieldValue.some(filledEntry)
-    : fieldValue !== null && fieldValue !== undefined && fieldValue !== "";
-  return { name: req_prop_name, satisfied };
+    : fieldValue !== null && fieldValue !== undefined && fieldValue !== ''
+  return { name: req_prop_name, satisfied }
 }
 
 // Why Start Workflow cannot be clicked, or null when it can. The button used to
@@ -826,237 +939,235 @@ function evaluateRequiredField(reqField: string): { name: string; satisfied: boo
 // missing; the checks below are the same ones submissionValidator() applies
 // after a click, in the order it applies them.
 const submitBlockedReason = computed<string | null>(() => {
-  if (!state.dag_id) return "Select a workflow first.";
-  if (!state.workflow_name) return "Enter a name for this workflow run.";
+  if (!state.dag_id) return 'Select a workflow first.'
+  if (!state.workflow_name) return 'Enter a name for this workflow run.'
   if (state.datasets_available !== true) {
-    return "The selected runner instances have no common allowed datasets.";
+    return 'The selected runner instances have no common allowed datasets.'
   }
   const missing = form_requiredFields.value
     .map((reqField) => evaluateRequiredField(reqField))
     .filter((field) => !field.satisfied)
-    .map((field) => field.name);
+    .map((field) => field.name)
   if (missing.length > 0) {
-    return `Fill in the required ${missing.length === 1 ? "field" : "fields"}: ${missing.join(", ")}.`;
+    return `Fill in the required ${missing.length === 1 ? 'field' : 'fields'}: ${missing.join(', ')}.`
   }
   if (!state.valid) {
-    const invalid = Object.values(invalidVjsfFields.value).flat();
+    const invalid = Object.values(invalidVjsfFields.value).flat()
     return invalid.length
-      ? `Fix the invalid ${invalid.length === 1 ? "field" : "fields"}: ${invalid.join(", ")}.`
-      : "Some fields still hold an invalid value.";
+      ? `Fix the invalid ${invalid.length === 1 ? 'field' : 'fields'}: ${invalid.join(', ')}.`
+      : 'Some fields still hold an invalid value.'
   }
-  return null;
-});
-
+  return null
+})
 
 function validConfirmation() {
-  const formatted = formatFormData(state.formData);
-  const failedConfirmations: string[] = [];
+  const formatted = formatFormData(state.formData)
+  const failedConfirmations: string[] = []
   Object.entries(formatted).forEach(([formName, formValue]) => {
     if (
-      formValue && typeof formValue === "object"
-      && Object.prototype.hasOwnProperty.call(formValue, "confirmation")
+      formValue &&
+      typeof formValue === 'object' &&
+      Object.prototype.hasOwnProperty.call(formValue, 'confirmation')
     ) {
-      const value = formValue.confirmation;
+      const value = formValue.confirmation
       if (value !== true) {
-        failedConfirmations.push(formName);
+        failedConfirmations.push(formName)
       }
     }
-  });
+  })
 
-  return failedConfirmations;
+  return failedConfirmations
 }
 async function submissionValidator() {
   // A double-click can reach this handler twice before the button turns
   // disabled.
   if (state.submitting) {
-    return false;
+    return false
   }
-  let valid_check = [];
-  let invalid_fields = [];
+  let valid_check = []
+  let invalid_fields = []
   if (state.datasets_available !== true) {
-    const message = "The selected runner instances have no common allowed datasets!";
+    const message = 'The selected runner instances have no common allowed datasets!'
     notify({
-      type: "error",
+      type: 'error',
       title: message,
-    });
-    return false;
+    })
+    return false
   }
   // The button is disabled whenever any check below would fail, so the failure
   // paths from here on are a backstop rather than the normal route.
   // vuetify field rules first
-  const validation = await executeWorkflow.value!.validate();
+  const validation = await executeWorkflow.value!.validate()
   if (validation.valid) {
     // then the schema's required fields, which vjsf does not enforce itself
     for (let i = 0; i < form_requiredFields.value.length; i++) {
-      const { name, satisfied } = evaluateRequiredField(form_requiredFields.value[i]);
+      const { name, satisfied } = evaluateRequiredField(form_requiredFields.value[i])
       if (satisfied) {
-        valid_check.push(true);
+        valid_check.push(true)
       } else {
-        valid_check.push(false);
-        invalid_fields.push(name);
+        valid_check.push(false)
+        invalid_fields.push(name)
       }
     }
     if (valid_check.every((value) => value === true)) {
       // confirmations last, only once everything else is OK
-      const failedConfirmations = validConfirmation();
+      const failedConfirmations = validConfirmation()
       if (failedConfirmations.length > 0) {
         notify({
-          type: "error",
-          title: "Please accept all required confirmations before starting the workflow.",
-          text: `Missing confirmation in: ${failedConfirmations.join(", ")}`,
-        });
-        return false;
+          type: 'error',
+          title: 'Please accept all required confirmations before starting the workflow.',
+          text: `Missing confirmation in: ${failedConfirmations.join(', ')}`,
+        })
+        return false
       }
-      submitWorkflow();
-      return true;
+      submitWorkflow()
+      return true
     } else {
       const message = `Validation of form input values failed! Please set required values for ${invalid_fields.join(
-        ", "
-      )}!`;
+        ', ',
+      )}!`
       notify({
-        type: "error",
+        type: 'error',
         title: message,
-      });
-      return false;
+      })
+      return false
     }
   } else {
-    const message = `Validation of form input values failed! Please set all required values!`;
+    const message = `Validation of form input values failed! Please set all required values!`
     notify({
-      type: "error",
+      type: 'error',
       title: message,
-    });
-    return false;
+    })
+    return false
   }
 }
 function getKaapanaInstances() {
   kaapanaApiService
-    .federatedClientApiPost("/get-kaapana-instances")
+    .federatedClientApiPost('/get-kaapana-instances')
     .then((response: any) => {
       state.available_kaapana_instance_names = response.data
         .filter((instance: any) => {
           if (props.onlyLocal) {
-            return !instance.remote;
+            return !instance.remote
           }
-          return instance.allowed_dags.length !== 0 || !instance.remote;
+          return instance.allowed_dags.length !== 0 || !instance.remote
         })
-        .map(({ instance_name }: any) => instance_name);
+        .map(({ instance_name }: any) => instance_name)
 
       state.localKaapanaInstance = response.data
         .filter((instance: any) => {
-          return !instance.remote;
+          return !instance.remote
         })
-        .map(({ instance_name }: any) => instance_name)[0];
+        .map(({ instance_name }: any) => instance_name)[0]
     })
     .catch((err) => {
-      notifyLoadError("Failed to load runner instances", err);
-    });
+      notifyLoadError('Failed to load runner instances', err)
+    })
 }
 function getKaapanaInstancesWithExternalDagAvailable() {
   kaapanaApiService
-    .federatedClientApiPost("/get-kaapana-instances", {
+    .federatedClientApiPost('/get-kaapana-instances', {
       dag_id: state.external_dag_id,
     })
     .then((response: any) => {
       state.remote_instances_w_external_dag_available = response.data.map(
-        ({ instance_name }: any) => instance_name
-      );
+        ({ instance_name }: any) => instance_name,
+      )
       if (state.remote_instances_w_external_dag_available.length === 0) {
         notify({
           title: `No registered remote instance with ${state.external_dag_id} as allowed DAG.`,
-          type: "error",
-        });
+          type: 'error',
+        })
       }
     })
     .catch((err) => {
-      notifyLoadError("Failed to load remote runner instances", err);
-    });
+      notifyLoadError('Failed to load remote runner instances', err)
+    })
 }
 function getDags() {
   kaapanaApiService
-    .federatedClientApiPost("/get-dags", {
+    .federatedClientApiPost('/get-dags', {
       instance_names: state.selected_kaapana_instance_names,
       kind_of_dags: props.kind_of_dags,
     })
     .then((response: any) => {
-      state.available_dags = response.data;
+      state.available_dags = response.data
       if (props.validDags.length > 0) {
-        state.available_dags = response.data.filter((item: any) =>
-          props.validDags.includes(item)
-        );
+        state.available_dags = response.data.filter((item: any) => props.validDags.includes(item))
       }
     })
     .catch((err) => {
-      notifyLoadError("Failed to load workflows", err);
-    });
+      notifyLoadError('Failed to load workflows', err)
+    })
 }
 function getUiFormSchemas() {
   kaapanaApiService
-    .federatedClientApiPost("/get-ui-form-schemas", {
+    .federatedClientApiPost('/get-ui-form-schemas', {
       workflow_name: state.workflow_name,
       instance_names: state.selected_kaapana_instance_names,
     })
     .then((response: any) => {
-      state.schemas_dict = response.data;
+      state.schemas_dict = response.data
     })
     .catch((err) => {
-      notifyLoadError("Failed to load the workflow form", err);
-    });
+      notifyLoadError('Failed to load the workflow form', err)
+    })
 }
 function getExternalUiFormSchemas() {
   kaapanaApiService
-    .federatedClientApiPost("/get-ui-form-schemas", {
+    .federatedClientApiPost('/get-ui-form-schemas', {
       workflow_name: state.workflow_name,
       dag_id: state.external_dag_id,
       instance_names: state.selected_remote_instances_w_external_dag_available,
     })
     .then((response: any) => {
-      state.external_schemas = response.data[state.external_dag_id as string];
+      state.external_schemas = response.data[state.external_dag_id as string]
     })
     .catch((err) => {
-      notifyLoadError("Failed to load the remote workflow form", err);
-    });
+      notifyLoadError('Failed to load the remote workflow form', err)
+    })
 }
 function submitWorkflow() {
-  let federated_data = false;
+  let federated_data = false
   if (state.selected_remote_instances_w_external_dag_available.length) {
-    state.formData["external_schema_instance_names"] =
-      state.selected_remote_instances_w_external_dag_available;
-    federated_data = true;
+    state.formData['external_schema_instance_names'] =
+      state.selected_remote_instances_w_external_dag_available
+    federated_data = true
   }
 
   if (props.identifiers.length > 0) {
-    state.formData["data_form"] = {
+    state.formData['data_form'] = {
       identifiers: props.identifiers,
-    };
+    }
   }
   if (state.hasBackendField) {
-    state.formData["backend_form"] = {
+    state.formData['backend_form'] = {
       selectedFilesAndFolders: state.selectedItems,
-    };
+    }
   }
   // A failed POST leaves merged keys in data_form; clear them so a retry
   // doesn't carry a stale dataset_name / dataset_limit.
-  if (state.formData["data_form"]) {
-    delete state.formData["data_form"].dataset_name;
-    delete state.formData["data_form"].dataset_limit;
+  if (state.formData['data_form']) {
+    delete state.formData['data_form'].dataset_name
+    delete state.formData['data_form'].dataset_limit
   }
   // merge the native dataset picker / limit inputs back into data_form
   if (state.showDatasetPicker && state.selectedDataset) {
-    state.formData["data_form"] = {
-      ...(state.formData["data_form"] ?? {}),
+    state.formData['data_form'] = {
+      ...(state.formData['data_form'] ?? {}),
       dataset_name: JSON.parse(state.selectedDataset),
-    };
+    }
   }
   if (state.showDatasetLimit && !state.datasetLimitWhole) {
     // Omit dataset_limit for "whole dataset" — the backend treats missing as no limit.
-    state.formData["data_form"] = {
-      ...(state.formData["data_form"] ?? {}),
+    state.formData['data_form'] = {
+      ...(state.formData['data_form'] ?? {}),
       dataset_limit: state.datasetLimit ?? 1,
-    };
+    }
   }
-  state.submitting = true;
+  state.submitting = true
   kaapanaApiService
-    .federatedClientApiPost("/workflow", {
+    .federatedClientApiPost('/workflow', {
       workflow_name: state.workflow_name,
       dag_id: state.dag_id,
       instance_names: state.selected_kaapana_instance_names,
@@ -1066,203 +1177,195 @@ function submitWorkflow() {
     })
     .then((response: any) => {
       notify({
-        type: "success",
-        title: "Workflow successfully created!",
-      });
+        type: 'success',
+        title: 'Workflow successfully created!',
+      })
       // reset() re-initializes state, submitting included.
-      reset();
+      reset()
       // Navigation on success is the consumer's job (via @successful).
-      emit("successful");
+      emit('successful')
     })
     .catch((err) => {
-      state.submitting = false;
-      notifyLoadError("An error occurred during the workflow creation!", err);
-    });
+      state.submitting = false
+      notifyLoadError('An error occurred during the workflow creation!', err)
+    })
 }
 function toCamelCase(target: string) {
   return target.replace(/(-|_)([a-z])/g, function (g) {
-    return g[1].toUpperCase();
-  });
+    return g[1].toUpperCase()
+  })
 }
 
 watch(
   () => state.available_kaapana_instance_names,
   (value) => {
-    state.selected_kaapana_instance_names = [value[0]];
-  }
-);
+    state.selected_kaapana_instance_names = [value[0]]
+  },
+)
 watch(
   () => state.selected_kaapana_instance_names,
   (value) => {
     if (value.length === 0) {
-      state.selected_kaapana_instance_names = [
-        state.available_kaapana_instance_names[0],
-      ];
+      state.selected_kaapana_instance_names = [state.available_kaapana_instance_names[0]]
     }
-    getUiFormSchemas();
-    getDags();
-    state.dag_id = null;
-    state.external_dag_id = null;
-  }
-);
+    getUiFormSchemas()
+    getDags()
+    state.dag_id = null
+    state.external_dag_id = null
+  },
+)
 watch(
   () => state.selected_remote_instances_w_external_dag_available,
   () => {
     if (state.selected_remote_instances_w_external_dag_available.length) {
-      getExternalUiFormSchemas();
+      getExternalUiFormSchemas()
     }
-  }
-);
+  },
+)
 watch(
   () => state.available_dags,
   (dagsList) => {
     if (dagsList.length == 1 && state.schemas_dict.hasOwnProperty(dagsList[0])) {
-      state.dag_id = dagsList[0];
+      state.dag_id = dagsList[0]
     }
-  }
-);
+  },
+)
 watch(
   () => state.schemas_dict,
   (newDict) => {
-    if (
-      state.available_dags.length == 1 &&
-      newDict.hasOwnProperty(state.available_dags[0])
-    ) {
-      state.dag_id = state.available_dags[0];
+    if (state.available_dags.length == 1 && newDict.hasOwnProperty(state.available_dags[0])) {
+      state.dag_id = state.available_dags[0]
     }
-  }
-);
+  },
+)
 watch(
   () => state.dag_id,
   (value) => {
-    state.formData = {};
-    invalidVjsfFields.value = {};
+    state.formData = {}
+    invalidVjsfFields.value = {}
     // Re-arm the dirty baseline for the new dag's form (defaults repopulate async).
-    userTouchedForm.value = false;
-    state.selectedDataset = null;
-    state.showDatasetPicker = false;
-    state.unavailableFields = {};
-    state.datasetItems = [];
-    state.datasetRequired = false;
-    state.showDatasetLimit = false;
-    state.datasetLimitWhole = true;
-    state.datasetLimit = 1;
-    state.datasetLimitHelp = "";
+    userTouchedForm.value = false
+    state.selectedDataset = null
+    state.showDatasetPicker = false
+    state.unavailableFields = {}
+    state.datasetItems = []
+    state.datasetRequired = false
+    state.showDatasetLimit = false
+    state.datasetLimitWhole = true
+    state.datasetLimit = 1
+    state.datasetLimitHelp = ''
     // A dag can be selected before its schema arrived; JSON.parse(undefined)
     // would throw here and leave the form permanently blank.
-    const rawSchema = value !== null ? state.schemas_dict[value] : null;
+    const rawSchema = value !== null ? state.schemas_dict[value] : null
     if (value !== null && rawSchema) {
-      state.workflow_name = value;
+      state.workflow_name = value
       // deep copy so the original schemas_dict entry stays unmodified
-      let schemas = JSON.parse(JSON.stringify(rawSchema));
+      let schemas = JSON.parse(JSON.stringify(rawSchema))
       if (props.identifiers.length > 0) {
-        delete schemas["data_form"];
+        delete schemas['data_form']
       }
-      if (schemas["backend_form"]) {
-        if (!schemas.backend_form["include-dataset"]) {
-          delete schemas.data_form;
+      if (schemas['backend_form']) {
+        if (!schemas.backend_form['include-dataset']) {
+          delete schemas.data_form
         }
-        state.hasBackendField = true;
-        state.backendRoute = schemas.backend_form["backend-route"];
-        getBackendRootItems();
+        state.hasBackendField = true
+        state.backendRoute = schemas.backend_form['backend-route']
+        getBackendRootItems()
       } else {
-        state.hasBackendField = false;
+        state.hasBackendField = false
       }
 
       // Lift dataset_name out of the schema into the native autocomplete (see
       // template), before findRequiredFields / state.schemas so vjsf never sees
       // the field; submitWorkflow restores the selection into data_form.
-      const dataForm: any = schemas["data_form"];
-      const datasetProp: any = dataForm?.properties?.dataset_name;
+      const dataForm: any = schemas['data_form']
+      const datasetProp: any = dataForm?.properties?.dataset_name
       if (datasetProp) {
         state.datasetItems = (datasetProp.oneOf ?? []).map((b: any) => ({
-          title: b.title ?? "",
+          title: b.title ?? '',
           value: JSON.stringify(b.const),
-        }));
-        state.datasetRequired = datasetProp.required === true;
-        state.showDatasetPicker = true;
-        delete dataForm.properties.dataset_name;
+        }))
+        state.datasetRequired = datasetProp.required === true
+        state.showDatasetPicker = true
+        delete dataForm.properties.dataset_name
       }
 
       // Same lift for dataset_limit (native toggle + number input).
-      const limitProp: any = dataForm?.properties?.dataset_limit;
+      const limitProp: any = dataForm?.properties?.dataset_limit
       if (limitProp) {
-        state.datasetLimitHelp = limitProp.description ?? "";
-        state.showDatasetLimit = true;
-        delete dataForm.properties.dataset_limit;
+        state.datasetLimitHelp = limitProp.description ?? ''
+        state.showDatasetLimit = true
+        delete dataForm.properties.dataset_limit
       }
 
-      form_requiredFields.value = findRequiredFields(schemas);
-      state.unavailableFields = liftUnavailableFields(schemas);
-      if ("external_schemas" in schemas) {
-        state.external_dag_id = schemas["external_schemas"];
-        delete schemas.external_schemas;
+      form_requiredFields.value = findRequiredFields(schemas)
+      state.unavailableFields = liftUnavailableFields(schemas)
+      if ('external_schemas' in schemas) {
+        state.external_dag_id = schemas['external_schemas']
+        delete schemas.external_schemas
       } else {
-        state.external_dag_id = null;
+        state.external_dag_id = null
       }
-      state.schemas = JSON.parse(JSON.stringify(schemas));
+      state.schemas = JSON.parse(JSON.stringify(schemas))
     } else {
-      state.schemas = {};
-      state.external_dag_id = null;
+      state.schemas = {}
+      state.external_dag_id = null
     }
-    state.datasets_available = true;
-    processDefaultsFromSettings(state.schemas);
+    state.datasets_available = true
+    processDefaultsFromSettings(state.schemas)
 
-    if (state.schemas["data_form"] !== null && state.schemas["data_form"] !== undefined) {
-      Object.entries(state.schemas["data_form"]).forEach(([key, value]) => {
-        if (key.startsWith("__empty__")) {
-          state.datasets_available = false;
+    if (state.schemas['data_form'] !== null && state.schemas['data_form'] !== undefined) {
+      Object.entries(state.schemas['data_form']).forEach(([key, value]) => {
+        if (key.startsWith('__empty__')) {
+          state.datasets_available = false
           notify({
-            type: "error",
-            title: "The selected runner instances have no common allowed datasets!",
-          });
+            type: 'error',
+            title: 'The selected runner instances have no common allowed datasets!',
+          })
         }
-      });
+      })
     }
-  }
-);
+  },
+)
 watch(
   () => state.external_dag_id,
   () => {
-    state.external_schemas = {};
-    invalidVjsfFields.value = {};
+    state.external_schemas = {}
+    invalidVjsfFields.value = {}
     if (state.external_dag_id != null) {
-      getKaapanaInstancesWithExternalDagAvailable();
+      getKaapanaInstancesWithExternalDagAvailable()
     } else {
-      state.remote_instances_w_external_dag_available = [];
+      state.remote_instances_w_external_dag_available = []
     }
     Object.entries(state.formData).forEach(([key, value]) => {
-      if (
-        key.startsWith("external_schema_") &&
-        key != "external_schema_federated_form"
-      ) {
-        console.log(`Deleting ${key}: ${value}`);
-        delete state.formData[key];
+      if (key.startsWith('external_schema_') && key != 'external_schema_federated_form') {
+        console.log(`Deleting ${key}: ${value}`)
+        delete state.formData[key]
       }
-    });
-  }
-);
+    })
+  },
+)
 watch(
   () => props.validDags,
   (dags, olddags) => {
     if (dags.length != olddags.length) {
-      getDags();
+      getDags()
     }
-  }
-);
+  },
+)
 
 onMounted(() => {
-  refreshClient();
-  loadWorkflowSettings();
+  refreshClient()
+  loadWorkflowSettings()
   // These events fire only for real user input — vjsf's default population does
   // not. Capture phase so a field's own stopPropagation can't hide them.
-  const formEl = executeWorkflow.value?.$el as HTMLElement | undefined;
+  const formEl = executeWorkflow.value?.$el as HTMLElement | undefined
   if (formEl) {
-    (["pointerdown", "keydown", "input", "change"] as const).forEach((evt) =>
+    ;(['pointerdown', 'keydown', 'input', 'change'] as const).forEach((evt) =>
       formEl.addEventListener(evt, markFormTouched, true),
-    );
+    )
   }
-});
+})
 </script>
 
 <style scoped>

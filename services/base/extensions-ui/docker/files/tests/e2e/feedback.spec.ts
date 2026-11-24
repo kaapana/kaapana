@@ -65,7 +65,8 @@ test.describe('failed actions', () => {
         await confirmAction(p, 'Uninstall extension')
       },
       // The extension is still deployed, so the row must keep offering Uninstall.
-      after: (p) => expect(row(p, 'MITK Workbench').getByRole('button', { name: 'Uninstall' })).toBeVisible(),
+      after: (p) =>
+        expect(row(p, 'MITK Workbench').getByRole('button', { name: 'Uninstall' })).toBeVisible(),
     },
     {
       title: 'Installation failed',
@@ -74,7 +75,8 @@ test.describe('failed actions', () => {
       status: 409,
       arrange: (p) => failRoute(p, HELM.install, 'release name jupyterlab already exists', 409),
       act: (p) => row(p, 'JupyterLab').getByRole('button', { name: 'Launch' }).click(),
-      after: (p) => expect(row(p, 'JupyterLab').getByRole('button', { name: 'Launch' })).toBeVisible(),
+      after: (p) =>
+        expect(row(p, 'JupyterLab').getByRole('button', { name: 'Launch' })).toBeVisible(),
     },
     {
       title: 'Download failed',
@@ -148,7 +150,9 @@ test.describe('failed actions', () => {
 
     const details = await openFailureDetails(page, 'Installation failed')
     await expect(details.getByText('409 Conflict')).toBeVisible()
-    await expect(details.getByText(/POST \/project\/admin\/kube-helm-api\/helm-install-chart/)).toBeVisible()
+    await expect(
+      details.getByText(/POST \/project\/admin\/kube-helm-api\/helm-install-chart/),
+    ).toBeVisible()
     await expect(details.getByRole('button', { name: 'Copy details' })).toBeVisible()
     await expect(details.getByRole('button', { name: 'Close' })).toBeFocused()
     // The labels sit beside their values: base-ui's component styles reached the view.

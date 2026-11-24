@@ -56,7 +56,9 @@ test('a free-text query reports the view dirty; clearing it reports clean', asyn
 
 // The download runs inside the view, so leaving it drops the download: the shell
 // must ask while it runs, and stop asking once it is done.
-test('a running download reports the view dirty; a finished one reports clean', async ({ page }) => {
+test('a running download reports the view dirty; a finished one reports clean', async ({
+  page,
+}) => {
   await trackDirty(page)
   await openGallery(page)
   await delayRoute(page, /\/kaapana-backend\/dataset\/download\?/, 1_500)

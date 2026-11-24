@@ -5,6 +5,6 @@ global:
   kaapana_build_version: ""
   pull_policy_images: "Always"
   dynamicVolumes:
-  - name: extension-registry
-    storage_class: slow
-    storage: 10Gi
+    - name: extension-registry
+      storage_class: slow
+      storage: 10Gi

@@ -4,9 +4,9 @@ description: A Coding environment for development based on code-server
 name: dev-code-server-chart
 version: "0.0.0"
 keywords:
-- kaapanaapplication
-- kaapanaint
-- kaapanamultiinstallable
+  - kaapanaapplication
+  - kaapanaint
+  - kaapanamultiinstallable
 annotations:
   documentation: "user_guide/extensions.html#code-server-for-development"
   ui-visible-name: "Code Server for Development"

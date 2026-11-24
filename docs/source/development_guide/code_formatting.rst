@@ -77,11 +77,8 @@ Scope
 - **CI** checks the whole repository. The job log lists every finding. The
   Code Quality widget shows only the findings that are new or resolved
   compared with the target branch.
-- A failing :code:`format: [ruff]`, :code:`validate: [ruff]`,
-  :code:`validate: [ui]`, :code:`validate: [hadolint]` or
-  :code:`validate: [helm]` job fails the pipeline.
-  :code:`format: [prettier]` is allowed to fail until the existing
-  findings are fixed, so it only warns. :code:`lint` jobs never fail.
+- A failing :code:`format` or :code:`validate` job fails the pipeline.
+  :code:`lint` jobs never fail.
 
 Ruff
 ----
@@ -247,9 +244,7 @@ Rule reference: `Prettier options <https://prettier.io/docs/options>`_.
 Scope
 ^^^^^
 
-- Pre-commit (hook :code:`prettier`): staged files of these types. The hook is
-  manual until the repository is formatted once:
-  :code:`pre-commit run --hook-stage manual prettier`.
+- Pre-commit (hook :code:`prettier`): staged files of these types.
 - CI (:code:`format: [prettier]`): all tracked files of these types.
 - Excluded: Helm :code:`templates/` directories and the Helm-templated
   :code:`kaapana-realm.json`, which are Go templates, and

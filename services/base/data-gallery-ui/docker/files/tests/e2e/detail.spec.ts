@@ -35,14 +35,20 @@ test('the OHIF viewer is embedded under the document project prefix', async ({ p
 const METADATA = (uid: string) => new RegExp(`/dataset/series/${uid.replace(/\./g, '\\.')}$`)
 const pane = (page: Page) => page.getByTestId('series-detail')
 const openDetails = (page: Page, index: number) =>
-  page.locator('.seriesCard').nth(index).getByRole('button', { name: 'Show series details' }).click()
+  page
+    .locator('.seriesCard')
+    .nth(index)
+    .getByRole('button', { name: 'Show series details' })
+    .click()
 
 test('a failed metadata load is one inline message with Retry and Details, not a toast', async ({
   page,
 }) => {
   await openGallery(page)
   let failing = true
-  await page.route(METADATA('1.2.3'), (r) => (failing ? r.fulfill(serverError('Boom')) : r.fallback()))
+  await page.route(METADATA('1.2.3'), (r) =>
+    failing ? r.fulfill(serverError('Boom')) : r.fallback(),
+  )
   await openDetails(page, 0)
 
   const alert = pane(page).getByTestId('metadata-alert')
@@ -93,7 +99,9 @@ test('switching series quickly shows the series picked last, not the slower answ
 
 // The detail pane is narrow; fixed cols="1" title-bar columns (~31px) squeezed
 // the 48px icon buttons into ovals. Guards the cols="auto" layout.
-test('detail pane close and open-in-new buttons stay round in the narrow pane', async ({ page }) => {
+test('detail pane close and open-in-new buttons stay round in the narrow pane', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 1280, height: 800 })
   await openGallery(page)
   await page.locator('.seriesCard').first().locator('.mdi-eye').click()

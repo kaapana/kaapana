@@ -1,4 +1,4 @@
 ---
 global:
-    image: "dag-mitk-flow"
-    action: "copy"
+  image: "dag-mitk-flow"
+  action: "copy"

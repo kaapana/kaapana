@@ -1,162 +1,221 @@
 <template>
   <v-container fluid>
-      <v-dialog
-        v-model="dialogConfData"
-        width="900px"
-      >
-        <v-card>
-          <v-card-title class="text-h5 lighten-2">Conf object</v-card-title>
-          <v-card-text class="text-left">
-            <pre>{{ prettyConfData }}</pre>
-          </v-card-text>
-          <v-divider></v-divider>
-          <v-card-actions>
-            <v-spacer></v-spacer>
-            <v-btn color="primary" variant="text" @click="dialogConfData = false">Close</v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-dialog>
+    <v-dialog v-model="dialogConfData" width="900px">
+      <v-card>
+        <v-card-title class="text-h5 lighten-2">Conf object</v-card-title>
+        <v-card-text class="text-left">
+          <pre>{{ prettyConfData }}</pre>
+        </v-card-text>
+        <v-divider></v-divider>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="primary" variant="text" @click="dialogConfData = false">Close</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
-      <ConfirmDialog
-        v-model="deleteDialogOpen"
-        :title='`Delete job ${jobPendingDelete?.id}?`'
-        text="This permanently removes the job and its logs."
-        confirm-text="Delete job"
-        color="error"
-        @confirm="onDeleteConfirmed"
-        @cancel="onDeleteCancelled"
-      ></ConfirmDialog>
+    <ConfirmDialog
+      v-model="deleteDialogOpen"
+      :title="`Delete job ${jobPendingDelete?.id}?`"
+      text="This permanently removes the job and its logs."
+      confirm-text="Delete job"
+      color="error"
+      @confirm="onDeleteConfirmed"
+      @cancel="onDeleteCancelled"
+    ></ConfirmDialog>
 
-      <v-data-table
-        :headers="headers"
-        :items="filteredJobs"
-        :search="search"
-        :sort-by="[{ key: 'time_updated', order: 'desc' }]"
-        :items-per-page="itemsPerPage"
-      >
-        <template #no-data>
-          <div v-if="statusFilter">
-            No job of this workflow is in state "{{ statusFilter }}".
-          </div>
-          <div v-else>This workflow has no jobs yet.</div>
-        </template>
+    <v-data-table
+      :headers="headers"
+      :items="filteredJobs"
+      :search="search"
+      :sort-by="[{ key: 'time_updated', order: 'desc' }]"
+      :items-per-page="itemsPerPage"
+    >
+      <template #no-data>
+        <div v-if="statusFilter">No job of this workflow is in state "{{ statusFilter }}".</div>
+        <div v-else>This workflow has no jobs yet.</div>
+      </template>
       <template v-slot:item.time_updated="{ item }">
         {{ new Date(item.time_updated).toLocaleString() }}
       </template>
       <template v-slot:item.time_created="{ item }">
         {{ new Date(item.time_created).toLocaleString() }}
       </template>
-        <template v-slot:item.conf_data="{ item }">
-          <v-btn @click="openConfData(item.conf_data)" size="small" icon variant="text"
-            aria-label="Show the configuration of this job">
-            <v-icon color="secondary">{{ kaapanaIcons.info }}</v-icon>
-          </v-btn>
-        </template>
-        <template v-slot:item.status="{ item }">
+      <template v-slot:item.conf_data="{ item }">
+        <v-btn
+          @click="openConfData(item.conf_data)"
+          size="small"
+          icon
+          variant="text"
+          aria-label="Show the configuration of this job"
+        >
+          <v-icon color="secondary">{{ kaapanaIcons.info }}</v-icon>
+        </v-btn>
+      </template>
+      <template v-slot:item.status="{ item }">
+        <v-tooltip location="bottom">
+          <template #activator="{ props }">
+            <v-btn
+              v-bind="props"
+              :color="jobStatusColor[item.status]"
+              rounded
+              variant="outlined"
+              size="small"
+            >
+              {{ item.status }}
+            </v-btn>
+          </template>
+          <pre class="custom-tooltip-content">{{ formatJson(item.description) }}</pre>
+        </v-tooltip>
+      </template>
+      <template v-slot:item.airflow="{ item }">
+        <v-tooltip
+          v-if="
+            item.kaapana_instance.instance_name == item.owner_kaapana_instance_name ||
+            item.external_job_id
+          "
+          location="bottom"
+        >
+          <template #activator="{ props }">
+            <v-btn
+              v-bind="props"
+              @click="direct_airflow_grid_details(item)"
+              size="small"
+              icon
+              variant="text"
+              aria-label="Open the Airflow run details"
+            >
+              <v-icon color="secondary">{{ kaapanaIcons.externalLink }}</v-icon>
+            </v-btn>
+          </template>
+          <span>airflow's dag_run details</span>
+        </v-tooltip>
+        <v-tooltip
+          v-if="
+            item.kaapana_instance.instance_name == item.owner_kaapana_instance_name ||
+            item.external_job_id
+          "
+          location="bottom"
+        >
+          <template #activator="{ props }">
+            <v-btn
+              v-if="item.status == 'failed'"
+              v-bind="props"
+              @click="direct_airflow_operator_logs(item)"
+              size="small"
+              icon
+              variant="text"
+              aria-label="Airflow logs of the failed operator"
+            >
+              <v-icon color="secondary">{{ kaapanaIcons.error }}</v-icon>
+            </v-btn>
+          </template>
+          <span>airflow logs of failed operator</span>
+        </v-tooltip>
+        <v-tooltip
+          v-if="
+            item.kaapana_instance.instance_name != item.owner_kaapana_instance_name &&
+            !item.external_job_id
+          "
+          location="bottom"
+        >
+          <template #activator="{ props }">
+            <v-icon color="secondary" v-bind="props"> mdi-cloud-braces </v-icon>
+          </template>
+          <span>remote job's logs only accessible on runner instance</span>
+        </v-tooltip>
+      </template>
+      <template v-slot:item.actions="{ item }">
+        <v-col v-if="item.kaapana_instance.instance_name == item.owner_kaapana_instance_name">
+          <v-tooltip v-if="item.service_job" location="bottom">
+            <template #activator="{ props }">
+              <v-icon v-bind="props" color="secondary">mdi-account-hard-hat-outline</v-icon>
+            </template>
+            <span>This is an auto triggered service job</span>
+          </v-tooltip>
+          <v-tooltip location="bottom">
+            <template #activator="{ props }">
+              <!-- A disabled button emits no pointer events, so the tooltip
+                     needs the surrounding span as its activator. -->
+              <span v-bind="props" class="d-inline-block">
+                <v-btn
+                  @click="abortJob(item)"
+                  :disabled="isJobTerminal(item)"
+                  size="small"
+                  icon
+                  variant="text"
+                  aria-label="Abort job"
+                >
+                  <v-icon color="secondary">{{ kaapanaIcons.stop }}</v-icon>
+                </v-btn>
+              </span>
+            </template>
+            <span>{{
+              isJobTerminal(item) ? 'job already finished; nothing to abort' : 'abort single job'
+            }}</span>
+          </v-tooltip>
           <v-tooltip location="bottom">
             <template #activator="{ props }">
               <v-btn
-               v-bind="props"
-               :color="jobStatusColor[item.status]"
-               rounded
-               variant="outlined"
-               size="small"
+                v-bind="props"
+                @click="restartJob(item)"
+                size="small"
+                icon
+                variant="text"
+                aria-label="Restart job"
               >
-                {{ item.status }}
+                <v-icon color="secondary">{{ kaapanaIcons.restart }}</v-icon>
               </v-btn>
             </template>
-            <pre class="custom-tooltip-content">{{ formatJson(item.description) }}</pre>
+            <span>restart single job</span>
           </v-tooltip>
-        </template>
-        <template v-slot:item.airflow="{ item }">
-          <v-tooltip v-if="item.kaapana_instance.instance_name == item.owner_kaapana_instance_name || item.external_job_id" location="bottom">
+          <v-tooltip location="bottom">
             <template #activator="{ props }">
-              <v-btn v-bind="props" @click='direct_airflow_grid_details(item)' size="small" icon variant="text" aria-label="Open the Airflow run details">
-                <v-icon color="secondary">{{ kaapanaIcons.externalLink }}</v-icon>
+              <v-btn
+                v-bind="props"
+                @click="confirmDeleteJob(item)"
+                size="small"
+                icon
+                variant="text"
+                aria-label="Delete job"
+              >
+                <v-icon color="secondary">{{ kaapanaIcons.delete }}</v-icon>
               </v-btn>
             </template>
-            <span>airflow's dag_run details</span>
+            <span>delete single job</span>
           </v-tooltip>
-          <v-tooltip v-if="item.kaapana_instance.instance_name == item.owner_kaapana_instance_name || item.external_job_id" location="bottom">
+        </v-col>
+        <div v-else-if="item.external_job_id">
+          <v-tooltip location="bottom">
             <template #activator="{ props }">
-              <v-btn v-if="item.status == 'failed'" v-bind="props" @click='direct_airflow_operator_logs(item)' size="small" icon variant="text" aria-label="Airflow logs of the failed operator">
-                <v-icon color="secondary">{{ kaapanaIcons.error }}</v-icon>
-              </v-btn>
+              <span v-bind="props" class="d-inline-block">
+                <v-btn
+                  @click="abortJob(item)"
+                  :disabled="isJobTerminal(item)"
+                  size="small"
+                  icon
+                  variant="text"
+                  aria-label="Abort job"
+                >
+                  <v-icon color="secondary">{{ kaapanaIcons.stop }}</v-icon>
+                </v-btn>
+              </span>
             </template>
-            <span>airflow logs of failed operator</span>
+            <span>{{
+              isJobTerminal(item) ? 'job already finished; nothing to abort' : 'abort single job'
+            }}</span>
           </v-tooltip>
-          <v-tooltip v-if="item.kaapana_instance.instance_name != item.owner_kaapana_instance_name && !item.external_job_id" location="bottom">
-              <template #activator="{ props }">
-                <v-icon color="secondary" v-bind="props">
-                  mdi-cloud-braces
-                </v-icon>
-              </template>
-              <span>remote job's logs only accessible on runner instance</span>
-            </v-tooltip>
-        </template>
-        <template v-slot:item.actions="{ item }">
-          <v-col v-if="item.kaapana_instance.instance_name == item.owner_kaapana_instance_name" >
-            <v-tooltip v-if="item.service_job" location="bottom">
-              <template #activator="{ props }">
-                <v-icon v-bind="props" color="secondary">mdi-account-hard-hat-outline</v-icon>
-              </template>
-              <span>This is an auto triggered service job</span>
-            </v-tooltip>
-            <v-tooltip location="bottom">
-              <template #activator="{ props }">
-                <!-- A disabled button emits no pointer events, so the tooltip
-                     needs the surrounding span as its activator. -->
-                <span v-bind="props" class="d-inline-block">
-                  <v-btn @click='abortJob(item)' :disabled="isJobTerminal(item)" size="small" icon variant="text" aria-label="Abort job">
-                    <v-icon color="secondary">{{ kaapanaIcons.stop }}</v-icon>
-                  </v-btn>
-                </span>
-              </template>
-              <span>{{ isJobTerminal(item) ? 'job already finished; nothing to abort' : 'abort single job' }}</span>
-            </v-tooltip>
-            <v-tooltip location="bottom">
-              <template #activator="{ props }">
-                <v-btn v-bind="props" @click='restartJob(item)' size="small" icon variant="text" aria-label="Restart job">
-                  <v-icon color="secondary">{{ kaapanaIcons.restart }}</v-icon>
-                </v-btn>
-              </template>
-              <span>restart single job</span>
-            </v-tooltip>
-            <v-tooltip location="bottom">
-              <template #activator="{ props }">
-                <v-btn v-bind="props" @click='confirmDeleteJob(item)' size="small" icon variant="text" aria-label="Delete job">
-                  <v-icon color="secondary">{{ kaapanaIcons.delete }}</v-icon>
-                </v-btn>
-              </template>
-              <span>delete single job</span>
-            </v-tooltip>
-          </v-col>
-          <div v-else-if="item.external_job_id">
-            <v-tooltip location="bottom">
-              <template #activator="{ props }">
-                <span v-bind="props" class="d-inline-block">
-                  <v-btn @click='abortJob(item)' :disabled="isJobTerminal(item)" size="small" icon variant="text" aria-label="Abort job">
-                    <v-icon color="secondary">{{ kaapanaIcons.stop }}</v-icon>
-                  </v-btn>
-                </span>
-              </template>
-              <span>{{ isJobTerminal(item) ? 'job already finished; nothing to abort' : 'abort single job' }}</span>
-            </v-tooltip>
-          </div>
-          <div v-else>
-            <v-tooltip location="bottom">
-              <template #activator="{ props }">
-                <v-icon color="secondary" v-bind="props">
-                  mdi-cloud-braces
-                </v-icon>
-              </template>
-              <span>no actions for remote job</span>
-            </v-tooltip>
-          </div>
-        </template>
-
-      </v-data-table>
-
+        </div>
+        <div v-else>
+          <v-tooltip location="bottom">
+            <template #activator="{ props }">
+              <v-icon color="secondary" v-bind="props"> mdi-cloud-braces </v-icon>
+            </template>
+            <span>no actions for remote job</span>
+          </v-tooltip>
+        </div>
+      </template>
+    </v-data-table>
   </v-container>
 </template>
 
@@ -290,7 +349,8 @@ function deleteJob(item: Job) {
   deleteJobAPI(item.id)
 }
 function direct_airflow_grid_details(item: Job) {
-  const airflow_url = window.location.origin + '/flow/dags/' + item.dag_id + '/grid?root=&dag_run_id=' + item.run_id
+  const airflow_url =
+    window.location.origin + '/flow/dags/' + item.dag_id + '/grid?root=&dag_run_id=' + item.run_id
   window.open(airflow_url, '_blank', 'noreferrer')
 }
 async function direct_airflow_operator_logs(item: Job) {

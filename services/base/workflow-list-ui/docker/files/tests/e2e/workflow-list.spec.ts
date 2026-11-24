@@ -13,7 +13,9 @@ test('renders the workflow list with a mix of states', async ({ page }) => {
   await expect(page.getByText('ct-scans(public)')).toBeVisible()
 })
 
-test('status column shows named per-state job counts, only for present states', async ({ page }) => {
+test('status column shows named per-state job counts, only for present states', async ({
+  page,
+}) => {
   await installMockBackend(page)
   await page.goto(VIEW_PATH)
 
@@ -21,20 +23,30 @@ test('status column shows named per-state job counts, only for present states', 
   // names its state next to the count (meaning must not rest on colour alone)
   // and draws it in the state's theme role; absent states get no chip.
   const runningRow = page.getByRole('row').filter({ hasText: 'running-wf' })
-  await expect(runningRow.getByRole('button', { name: '2 running', exact: true })).toHaveClass(/text-info/)
-  await expect(runningRow.getByRole('button', { name: '1 finished', exact: true })).toHaveClass(/text-success/)
+  await expect(runningRow.getByRole('button', { name: '2 running', exact: true })).toHaveClass(
+    /text-info/,
+  )
+  await expect(runningRow.getByRole('button', { name: '1 finished', exact: true })).toHaveClass(
+    /text-success/,
+  )
   await expect(runningRow.locator('.my-chip')).toHaveCount(2)
 
   // failed-wf: ['failed','finished']
   const failedRow = page.getByRole('row').filter({ hasText: 'failed-wf' })
-  await expect(failedRow.getByRole('button', { name: '1 failed', exact: true })).toHaveClass(/text-error/)
+  await expect(failedRow.getByRole('button', { name: '1 failed', exact: true })).toHaveClass(
+    /text-error/,
+  )
 
   // queued-wf: ['queued','scheduled','pending']. Waiting states are neutral:
   // they keep the surface's text colour, which no theme role reaches 3:1
   // against in dark mode.
   const queuedRow = page.getByRole('row').filter({ hasText: 'queued-wf' })
-  await expect(queuedRow.getByRole('button', { name: '1 queued', exact: true })).not.toHaveClass(/text-(secondary|info|success|warning|error)/)
-  await expect(queuedRow.getByRole('button', { name: '1 pending', exact: true })).toHaveClass(/text-warning/)
+  await expect(queuedRow.getByRole('button', { name: '1 queued', exact: true })).not.toHaveClass(
+    /text-(secondary|info|success|warning|error)/,
+  )
+  await expect(queuedRow.getByRole('button', { name: '1 pending', exact: true })).toHaveClass(
+    /text-warning/,
+  )
 })
 
 // Regression: a stray pa-6 pushed the toolbar icons ~10px below the square
@@ -100,7 +112,9 @@ test('auth check failure still mounts the view', async ({ page }) => {
   await installMockBackend(page)
   // Fail both auth endpoints so it holds in dev (token file) and preview (oauth2 proxy).
   await page.route('**/oauth2/userinfo', (r) => r.fulfill({ status: 500, body: '' }))
-  await page.route('**/jsons/testingAuthenticationToken.json', (r) => r.fulfill({ status: 500, body: '' }))
+  await page.route('**/jsons/testingAuthenticationToken.json', (r) =>
+    r.fulfill({ status: 500, body: '' }),
+  )
   await page.goto(VIEW_PATH)
   await expect(page.getByText('Workflow List', { exact: true })).toBeVisible()
 })

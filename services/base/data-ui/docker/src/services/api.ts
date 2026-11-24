@@ -44,7 +44,11 @@ export async function fetchEntity(entityId: string): Promise<DataEntity> {
   return data
 }
 
-export function buildArtifactUrl(entityId: string, metadataKey: string, artifactId: string): string {
+export function buildArtifactUrl(
+  entityId: string,
+  metadataKey: string,
+  artifactId: string,
+): string {
   const path = `/v1/entities/${encodeURIComponent(entityId)}/metadata/${encodeURIComponent(metadataKey)}/artifacts/${encodeURIComponent(artifactId)}`
   return buildAbsoluteUrl(path)
 }
@@ -66,7 +70,10 @@ export async function deleteMetadata(entityId: string, key: string): Promise<Dat
 }
 
 export async function saveMetadata(entityId: string, entry: MetadataEntry): Promise<DataEntity> {
-  const { data } = await api.post<DataEntity>(`/v1/entities/${encodeURIComponent(entityId)}/metadata`, entry)
+  const { data } = await api.post<DataEntity>(
+    `/v1/entities/${encodeURIComponent(entityId)}/metadata`,
+    entry,
+  )
   return data
 }
 
@@ -114,11 +121,16 @@ export async function listMetadataSchemas(): Promise<string[]> {
 }
 
 export async function fetchMetadataSchemaRecord(key: string): Promise<MetadataSchemaRecord> {
-  const { data } = await api.get<MetadataSchemaRecord>(`/v1/metadata/keys/${encodeURIComponent(key)}`)
+  const { data } = await api.get<MetadataSchemaRecord>(
+    `/v1/metadata/keys/${encodeURIComponent(key)}`,
+  )
   return data
 }
 
-export async function saveMetadataSchema(key: string, schema: Record<string, unknown>): Promise<void> {
+export async function saveMetadataSchema(
+  key: string,
+  schema: Record<string, unknown>,
+): Promise<void> {
   await api.post(`/v1/metadata/keys/${encodeURIComponent(key)}`, schema)
 }
 
@@ -127,11 +139,16 @@ export async function deleteMetadataSchema(key: string): Promise<void> {
 }
 
 export async function listMetadataFields(key: string): Promise<MetadataFieldListResponse> {
-  const { data } = await api.get<MetadataFieldListResponse>(`/v1/metadata/keys/${encodeURIComponent(key)}/fields`)
+  const { data } = await api.get<MetadataFieldListResponse>(
+    `/v1/metadata/keys/${encodeURIComponent(key)}/fields`,
+  )
   return data
 }
 
-export async function fetchMetadataFieldValues(key: string, path: string): Promise<MetadataFieldValuesResponse> {
+export async function fetchMetadataFieldValues(
+  key: string,
+  path: string,
+): Promise<MetadataFieldValuesResponse> {
   const { data } = await api.get<MetadataFieldValuesResponse>(
     `/v1/metadata/keys/${encodeURIComponent(key)}/field-values`,
     {

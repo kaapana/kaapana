@@ -1,6 +1,14 @@
 import { test, expect, type Page } from '@playwright/test'
 import { installMockBackend, VIEW_PATH, type ExtensionMock } from './fixtures/mock-backend'
-import { catalogue, confirmAction, deployed, extension, HELM, openView, row } from './fixtures/helpers'
+import {
+  catalogue,
+  confirmAction,
+  deployed,
+  extension,
+  HELM,
+  openView,
+  row,
+} from './fixtures/helpers'
 
 // The list is re-fetched every 5 s. `page.clock` drives the interval so a
 // cycle costs nothing to wait for.
@@ -12,7 +20,9 @@ function codeServer(state: 'pending' | 'ready'): ExtensionMock {
     name: 'code-server',
     display_name: 'Code Server',
     description: 'VS Code in the browser',
-    available_versions: { '1.0.0': state === 'ready' ? deployed('code-server-1') : { deployments: [] } },
+    available_versions: {
+      '1.0.0': state === 'ready' ? deployed('code-server-1') : { deployments: [] },
+    },
     successful: state === 'ready' ? 'yes' : 'pending',
     installed: state === 'ready' ? 'yes' : 'no',
   })
@@ -94,12 +104,19 @@ test.describe('embedded in the shell', () => {
     const twoVersions: ExtensionMock = {
       ...codeServer('ready'),
       versions: ['1.0.0', '2.0.0'],
-      available_versions: { ...codeServer('ready').available_versions, '2.0.0': { deployments: [] } },
+      available_versions: {
+        ...codeServer('ready').available_versions,
+        '2.0.0': { deployments: [] },
+      },
     }
     const view = await openEmbedded(page, [[twoVersions]])
     await expect(view.getByRole('button', { name: 'Uninstall' })).toBeVisible()
 
-    await view.getByRole('row', { name: /Code Server/ }).getByRole('combobox').first().click()
+    await view
+      .getByRole('row', { name: /Code Server/ })
+      .getByRole('combobox')
+      .first()
+      .click()
     await view.getByRole('option', { name: '2.0.0' }).click()
 
     await page.clock.runFor(10_000)
@@ -112,10 +129,20 @@ test.describe('embedded in the shell', () => {
   }) => {
     // Two instances sharing one deployments list, as kube-helm serves them.
     const instances = (secondReady: boolean): ExtensionMock[] => {
-      const base = { ...codeServer('ready'), name: 'jupyterlab', chart_name: 'jupyterlab', multiinstallable: 'yes' as const }
+      const base = {
+        ...codeServer('ready'),
+        name: 'jupyterlab',
+        chart_name: 'jupyterlab',
+        multiinstallable: 'yes' as const,
+      }
       return [
         { ...base, releaseName: 'jupyterlab-a', display_name: 'jupyterlab-a', successful: 'yes' },
-        { ...base, releaseName: 'jupyterlab-b', display_name: 'jupyterlab-b', successful: secondReady ? 'yes' : 'pending' },
+        {
+          ...base,
+          releaseName: 'jupyterlab-b',
+          display_name: 'jupyterlab-b',
+          successful: secondReady ? 'yes' : 'pending',
+        },
       ]
     }
     const view = await openEmbedded(page, [instances(false), instances(true)])

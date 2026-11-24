@@ -47,10 +47,10 @@ the same project.
 All paths are relative to the document, so they resolve under
 `/project/<short_id>/collabora-wopi/`. See `../README.md` for the WOPI side.
 
-| Method | Endpoint | Purpose |
-| --- | --- | --- |
-| `GET` | `documents/` | List the project's documents with the Collabora URL that opens each one; `503` until Collabora was discovered |
-| WebSocket | `ws` | `{"type": "update"}` after a document of the project was saved |
+| Method    | Endpoint     | Purpose                                                                                                       |
+| --------- | ------------ | ------------------------------------------------------------------------------------------------------------- |
+| `GET`     | `documents/` | List the project's documents with the Collabora URL that opens each one; `503` until Collabora was discovered |
+| WebSocket | `ws`         | `{"type": "update"}` after a document of the project was saved                                                |
 
 ## What comes from `@kaapana/base-ui`
 
@@ -99,9 +99,9 @@ The suite runs on port 4313 against a `vite preview` of the production build,
 locally and in CI, where the `ui_e2e_tests` job
 runs it.
 
-| Spec | Covers |
-| --- | --- |
-| `boot.spec.ts` | Fresh-profile boot, dark mode from the shell |
-| `list.spec.ts` | One request on open, folders and breadcrumbs, sorting, search, links, empty and loading states |
-| `feedback.spec.ts` | Failures, retry, refresh progress, live updates, reconnect |
-| `guidelines.spec.ts` | Typeface, content width, action hierarchy, icon map |
+| Spec                 | Covers                                                                                         |
+| -------------------- | ---------------------------------------------------------------------------------------------- |
+| `boot.spec.ts`       | Fresh-profile boot, dark mode from the shell                                                   |
+| `list.spec.ts`       | One request on open, folders and breadcrumbs, sorting, search, links, empty and loading states |
+| `feedback.spec.ts`   | Failures, retry, refresh progress, live updates, reconnect                                     |
+| `guidelines.spec.ts` | Typeface, content width, action hierarchy, icon map                                            |

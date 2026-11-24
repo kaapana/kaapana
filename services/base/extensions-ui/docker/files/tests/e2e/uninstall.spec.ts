@@ -32,7 +32,9 @@ test.describe('uninstall', () => {
     })
   })
 
-  test('dismissing the confirmation sends nothing and keeps the row as it was', async ({ page }) => {
+  test('dismissing the confirmation sends nothing and keeps the row as it was', async ({
+    page,
+  }) => {
     const uninstalls = countRequests(page, HELM.uninstall)
     const control = row(page, 'MITK Workbench').getByRole('button', { name: 'Uninstall' })
     await control.click()
@@ -99,11 +101,16 @@ test('a multi-installable instance is deleted, not uninstalled, and the prompt s
 
   await row(page, 'JupyterLab Instance').getByRole('button', { name: 'Delete' }).click()
   await expect(dialog(page)).toContainText('Delete "JupyterLab Instance"?')
-  await expect(dialog(page)).toContainText('This instance (version 3.2.0) is removed from the platform')
+  await expect(dialog(page)).toContainText(
+    'This instance (version 3.2.0) is removed from the platform',
+  )
   await expect(dialog(page)).toContainText('Containers running for this instance are stopped')
 
   const posted = nextPost(page, HELM.uninstall)
   await confirmAction(page, 'Delete instance')
 
-  expect(await posted).toMatchObject({ release_name: 'jupyterlab-inst-1', release_version: '3.2.0' })
+  expect(await posted).toMatchObject({
+    release_name: 'jupyterlab-inst-1',
+    release_version: '3.2.0',
+  })
 })

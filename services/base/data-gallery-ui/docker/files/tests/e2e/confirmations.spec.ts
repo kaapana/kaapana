@@ -32,7 +32,8 @@ const cases: Case[] = [
     title: 'Remove series from dataset?',
     confirm: 'Remove',
     color: 'error',
-    names: /2 series are removed from the dataset “nsclc” \(project\)\. The series themselves stay in the project/,
+    names:
+      /2 series are removed from the dataset “nsclc” \(project\)\. The series themselves stay in the project/,
     open: async (page) => {
       await selectDataset(page, 'nsclc (project)')
       await expect(page.getByText('2 selected')).toBeVisible()
@@ -53,7 +54,8 @@ const cases: Case[] = [
     title: 'Download series?',
     confirm: 'Download',
     color: 'primary',
-    names: /3 series .*Downloads have a size limit; for larger amounts, use the "download-selected-files" workflow\. .*network bandwidth and local storage.*cancels it/,
+    names:
+      /3 series .*Downloads have a size limit; for larger amounts, use the "download-selected-files" workflow\. .*network bandwidth and local storage.*cancels it/,
     open: async (page) => {
       await downloadButton(page).click()
     },
@@ -80,7 +82,9 @@ for (const c of cases) {
     await expect(confirmation).toContainText(c.names)
     const confirm = confirmation.getByRole('button', { name: c.confirm, exact: true })
     await expect(confirm).toHaveClass(new RegExp(`text-${c.color}`))
-    await expect(confirm).not.toHaveClass(new RegExp(`${c.color === 'error' ? 'primary' : 'error'}`))
+    await expect(confirm).not.toHaveClass(
+      new RegExp(`${c.color === 'error' ? 'primary' : 'error'}`),
+    )
   })
 }
 
@@ -138,7 +142,9 @@ test.describe('while the confirmed action runs', () => {
     expect(updates()).toBe(1)
   })
 
-  test('deleting shows progress on the row, keeps the dialog open and runs once', async ({ page }) => {
+  test('deleting shows progress on the row, keeps the dialog open and runs once', async ({
+    page,
+  }) => {
     await openGallery(page)
     await page.getByRole('button', { name: 'Manage datasets' }).click()
     await delayRoute(page, DATASET, 3_000, 'DELETE')

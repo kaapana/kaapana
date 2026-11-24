@@ -7,7 +7,10 @@ const AuthServiceDemo = defineComponent({
   name: 'AuthServiceDemo',
   setup() {
     return () =>
-      h('ul', Object.keys(AuthService).map((name) => h('li', h('code', `AuthService.${name}()`))))
+      h(
+        'ul',
+        Object.keys(AuthService).map((name) => h('li', h('code', `AuthService.${name}()`))),
+      )
   },
 })
 

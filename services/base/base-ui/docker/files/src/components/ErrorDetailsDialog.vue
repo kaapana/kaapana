@@ -41,7 +41,15 @@
 // and request identifier, readable and copyable. Stays open until the user
 // closes it.
 import { computed, nextTick, ref, watch } from 'vue'
-import { VBtn, VCard, VCardActions, VCardText, VCardTitle, VDialog, VSpacer } from 'vuetify/components'
+import {
+  VBtn,
+  VCard,
+  VCardActions,
+  VCardText,
+  VCardTitle,
+  VDialog,
+  VSpacer,
+} from 'vuetify/components'
 import { formatApiErrorInfo, type ApiErrorInfo } from '../utils/apiErrors'
 import { kaapanaIcons } from '../utils/icons'
 
@@ -65,7 +73,10 @@ const rows = computed(() => {
   if (!info) return []
   const out: { label: string; value: string }[] = []
   if (info.status !== null) {
-    out.push({ label: 'Status', value: `${info.status}${info.statusText ? ` ${info.statusText}` : ''}` })
+    out.push({
+      label: 'Status',
+      value: `${info.status}${info.statusText ? ` ${info.statusText}` : ''}`,
+    })
   }
   if (info.method || info.url) {
     out.push({ label: 'Request', value: [info.method, info.url].filter(Boolean).join(' ') })

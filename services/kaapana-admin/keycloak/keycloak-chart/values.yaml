@@ -3,7 +3,7 @@ global:
   pull_policy_images: "IfNotPresent"
   namespace: "{{ .Values.global.admin_namespace }}"
   dynamicVolumes:
-  - name: keycloak
+    - name: keycloak
 
 kaapana_database:
   admin: true

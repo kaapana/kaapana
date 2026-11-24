@@ -5,7 +5,7 @@ description: "Collect metada from DICOM Segmentation objects and store the resul
 name: advanced-collect-metadata-workflow
 version: "0.0.0"
 keywords:
-- kaapanaworkflow
-- kaapanaexperimental
+  - kaapanaworkflow
+  - kaapanaexperimental
 annotations:
   ui-visible-name: "Advanced Collect Metadata"

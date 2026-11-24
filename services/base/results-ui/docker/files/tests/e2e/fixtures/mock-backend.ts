@@ -146,7 +146,9 @@ export async function seedShellState(page: Page) {
 export async function installMockBackend(page: Page, data: MockData = defaultMockData) {
   // Auth: prod build asks the oauth2 proxy, dev server a static token file.
   await page.route('**/oauth2/userinfo', (r) => r.fulfill(json(data.userinfo)))
-  await page.route('**/jsons/testingAuthenticationToken.json', (r) => r.fulfill(json(data.userinfo)))
+  await page.route('**/jsons/testingAuthenticationToken.json', (r) =>
+    r.fulfill(json(data.userinfo)),
+  )
 
   // The single data endpoint. Route on prefix/continuation_token query params.
   await page.route('**/kaapana-backend/get-static-website-results-tree**', (r) => {

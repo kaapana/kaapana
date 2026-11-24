@@ -1,30 +1,30 @@
 export type ProjectItem = {
-    id: string
-    short_id: string
-    external_id?: string | null
-    name: string
-    description?: string
-    multiinstallable_whitelist?: string[]
-    is_archived: boolean
+  id: string
+  short_id: string
+  external_id?: string | null
+  name: string
+  description?: string
+  multiinstallable_whitelist?: string[]
+  is_archived: boolean
 }
 
 export type UserItem = {
-    id: string,
-    username: string,
-    first_name: string,
-    last_name: string,
-    email: string,
-    email_verified: boolean,
-    groups?: string[],
-    realm_roles?: string[],
+  id: string
+  username: string
+  first_name: string
+  last_name: string
+  email: string
+  email_verified: boolean
+  groups?: string[]
+  realm_roles?: string[]
 }
 
 export type UserRole = {
-    id: number,
-    description: string,
-    name: string,
+  id: number
+  description: string
+  name: string
 }
 
 export type Software = {
-    software_uuid: string
+  software_uuid: string
 }

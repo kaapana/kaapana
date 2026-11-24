@@ -102,6 +102,7 @@ extensionctl build ./my-extension --push --overwrite
 ```
 
 The `#ref:subdir` fragment mirrors the Docker build URL syntax:
+
 - `ref` — branch name, tag, or commit SHA (empty = default branch)
 - `subdir` — path inside the repo (empty = repo root)
 

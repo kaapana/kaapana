@@ -4,8 +4,8 @@ description: A development environment for building containers and charts for ne
 name: edk
 version: "0.0.0"
 keywords:
-- kaapanaapplication
-- kaapanaint
+  - kaapanaapplication
+  - kaapanaint
 annotations:
   documentation: "user_guide/extensions.html#extension-development-kit-edk"
   ui-visible-name: "Extension Development Kit"

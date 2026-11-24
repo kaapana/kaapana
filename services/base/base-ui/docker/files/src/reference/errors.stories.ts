@@ -55,33 +55,42 @@ const Errors = defineComponent({
             }),
           ],
         }),
-        h(VCard, { class: 'mt-4' }, {
-          default: () => [
-            h(VCardTitle, null, { default: () => 'Technical detail on demand' }),
-            h(VCardText, null, {
-              default: () => [
-                h(
-                  VAlert,
-                  { type: 'error', variant: 'tonal' },
-                  {
-                    default: () => 'Could not delete the workflow. It is still running — abort it first.',
-                    append: () =>
-                      h(VBtn, { variant: 'text', size: 'small', onClick: () => (open.value = true) }, {
-                        default: () => 'Details',
-                      }),
-                  },
-                ),
-                h(ErrorDetailsDialog, {
-                  modelValue: open.value,
-                  'onUpdate:modelValue': (value: boolean) => (open.value = value),
-                  title: 'Workflow not deleted',
-                  text: 'Could not delete the workflow. It is still running — abort it first.',
-                  error: detail,
-                }),
-              ],
-            }),
-          ],
-        }),
+        h(
+          VCard,
+          { class: 'mt-4' },
+          {
+            default: () => [
+              h(VCardTitle, null, { default: () => 'Technical detail on demand' }),
+              h(VCardText, null, {
+                default: () => [
+                  h(
+                    VAlert,
+                    { type: 'error', variant: 'tonal' },
+                    {
+                      default: () =>
+                        'Could not delete the workflow. It is still running — abort it first.',
+                      append: () =>
+                        h(
+                          VBtn,
+                          { variant: 'text', size: 'small', onClick: () => (open.value = true) },
+                          {
+                            default: () => 'Details',
+                          },
+                        ),
+                    },
+                  ),
+                  h(ErrorDetailsDialog, {
+                    modelValue: open.value,
+                    'onUpdate:modelValue': (value: boolean) => (open.value = value),
+                    title: 'Workflow not deleted',
+                    text: 'Could not delete the workflow. It is still running — abort it first.',
+                    error: detail,
+                  }),
+                ],
+              }),
+            ],
+          },
+        ),
       ])
   },
 })

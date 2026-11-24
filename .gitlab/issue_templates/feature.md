@@ -1,13 +1,14 @@
 /label ~"New Feature"
 
 ## Rational
+
 <!--
 Provide one sentence why this new functionality is required, or why Kaapana would benfit having such feature.
 -->
 
 ## User Story
 
-<!-- 
+<!--
 Use the format:
 "As a [type of user], I want to [goal] so that [reason]."
 
@@ -20,15 +21,17 @@ Example:
 
 ## Acceptance Criteria
 
-<!-- 
+<!--
 List clear conditions that must be met for this feature to be considered complete.
 Use bullet points or checkboxes.
 -->
 
-## Notes 
+## Notes
+
 <!-- OPTIONAL -->
 <!-- Include any implementation ideas, technical suggestions or technical background that might help developers. -->
 
 ## Related Issues / Dependencies (Optional)
+
 <!-- OPTIONAL -->
 <!-- Link any related issues, blockers, or dependencies. -->

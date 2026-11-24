@@ -1,5 +1,10 @@
 import { test, expect } from '@playwright/test'
-import { defaultMockData, installMockBackend, seedShellState, VIEW_PATH } from './fixtures/mock-backend'
+import {
+  defaultMockData,
+  installMockBackend,
+  seedShellState,
+  VIEW_PATH,
+} from './fixtures/mock-backend'
 
 // A failure must not read as "there are no results"; it stays on screen, next to
 // the tree it replaces, with the way to try again.
@@ -8,7 +13,11 @@ test('reports an error inline when the results endpoint errors', async ({ page }
   await installMockBackend(page)
   // Later route wins: fail every tree request with a 500.
   await page.route('**/kaapana-backend/get-static-website-results-tree**', (r) =>
-    r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'boom' }) }),
+    r.fulfill({
+      status: 500,
+      contentType: 'application/json',
+      body: JSON.stringify({ detail: 'boom' }),
+    }),
   )
   await page.goto(VIEW_PATH)
 
@@ -27,7 +36,11 @@ test('retrying after a failed load shows the results', async ({ page }) => {
   await page.route('**/kaapana-backend/get-static-website-results-tree**', (r) => {
     if (failNext) {
       failNext = false
-      return r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'boom' }) })
+      return r.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'boom' }),
+      })
     }
     return r.fallback()
   })
@@ -40,13 +53,19 @@ test('retrying after a failed load shows the results', async ({ page }) => {
   await expect(page.getByText('Could not load the results')).toBeHidden()
 })
 
-test('a failed folder expansion reports the error and leaves the folder without children', async ({ page }) => {
+test('a failed folder expansion reports the error and leaves the folder without children', async ({
+  page,
+}) => {
   await seedShellState(page)
   await installMockBackend(page)
   // Fail only prefixed (child) requests; defer the root request to the mock.
   await page.route('**/kaapana-backend/get-static-website-results-tree**', (r) => {
     if (new URL(r.request().url()).searchParams.get('prefix')) {
-      return r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'boom' }) })
+      return r.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'boom' }),
+      })
     }
     return r.fallback()
   })
@@ -63,7 +82,9 @@ test('a failed folder expansion reports the error and leaves the folder without 
   await expect(page.getByText('report.html')).toHaveCount(0)
 })
 
-test('a failed "Load more root results" reports the error and keeps the loaded rows', async ({ page }) => {
+test('a failed "Load more root results" reports the error and keeps the loaded rows', async ({
+  page,
+}) => {
   const data = structuredClone(defaultMockData)
   data.root.nextContinuationToken = 'root-page-2'
   const pageErrors: Error[] = []
@@ -73,7 +94,11 @@ test('a failed "Load more root results" reports the error and keeps the loaded r
   // Later route wins: fail only the continuation request.
   await page.route('**/kaapana-backend/get-static-website-results-tree**', (r) => {
     if (new URL(r.request().url()).searchParams.get('continuation_token')) {
-      return r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'boom' }) })
+      return r.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'boom' }),
+      })
     }
     return r.fallback()
   })
@@ -89,7 +114,9 @@ test('a failed "Load more root results" reports the error and keeps the loaded r
   expect(pageErrors).toEqual([])
 })
 
-test('a failed per-folder "Load more" reports the error and keeps the loaded children', async ({ page }) => {
+test('a failed per-folder "Load more" reports the error and keeps the loaded children', async ({
+  page,
+}) => {
   const data = structuredClone(defaultMockData)
   data.children['nnunet-training-230101/'].nextContinuationToken = 'nnunet-page-2'
   await seedShellState(page)
@@ -97,7 +124,11 @@ test('a failed per-folder "Load more" reports the error and keeps the loaded chi
   // Later route wins: fail only the continuation request.
   await page.route('**/kaapana-backend/get-static-website-results-tree**', (r) => {
     if (new URL(r.request().url()).searchParams.get('continuation_token')) {
-      return r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'boom' }) })
+      return r.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'boom' }),
+      })
     }
     return r.fallback()
   })

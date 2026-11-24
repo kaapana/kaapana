@@ -4,8 +4,8 @@ description: Launches a MITK instance to explore files in Minio
 name: mitk-workbench-chart
 version: "0.0.0"
 keywords:
-- kaapanaapplication
-- kaapanamultiinstallable
+  - kaapanaapplication
+  - kaapanamultiinstallable
 annotations:
   documentation: "user_guide/extensions.html#mitk-workbench"
   ui-visible-name: "MITK Workbench"

@@ -7,7 +7,7 @@ conf_data:
     input: "SEG"
     single_execution: false
   data_form:
-    dataset_name: 
+    dataset_name:
       name: test-SEG
       username: "kaapana"
       access_level: project

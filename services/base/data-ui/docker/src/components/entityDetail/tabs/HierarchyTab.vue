@@ -32,7 +32,11 @@ defineProps<{
         No child entities are linked.
       </v-alert>
       <v-list v-else density="compact">
-        <v-list-item v-for="childId in entity.child_ids" :key="`hierarchy-${childId}`" :title="childId">
+        <v-list-item
+          v-for="childId in entity.child_ids"
+          :key="`hierarchy-${childId}`"
+          :title="childId"
+        >
           <template #prepend>
             <v-icon color="primary" class="mr-2">mdi-subdirectory-arrow-right</v-icon>
           </template>

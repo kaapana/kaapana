@@ -4,7 +4,6 @@
 on GitLab from the CommandLine.
 See CI configurations: [README.md](../README.md#Configuration-reference).
 
-
 ```bash
 glab ci run -b my-branch \
   -i 'exec_unit_tests:bool(false)' \
@@ -12,25 +11,34 @@ glab ci run -b my-branch \
   --variables DEPLOYMENT_INSTANCE_FQDN:my-host.dkfz-heidelberg.de
 ```
 
-| Flag | Passes |
-|---|---|
-| `-i key:value` | one input, repeatable. Booleans need the cast: `-i 'exec_build:bool(false)'` |
-| `--variables KEY:VALUE` | one variable, repeatable |
-| `--variables-file KEY:path` | a File-type variable (an SSH key, a kubeconfig) |
-| `-f, --variables-from file.json` | many variables, and the only way to pass a value containing a comma |
-| `-b` | the branch or tag; defaults to the checked-out branch |
-| `-w` | open the pipeline in a browser |
+| Flag                             | Passes                                                                       |
+| -------------------------------- | ---------------------------------------------------------------------------- |
+| `-i key:value`                   | one input, repeatable. Booleans need the cast: `-i 'exec_build:bool(false)'` |
+| `--variables KEY:VALUE`          | one variable, repeatable                                                     |
+| `--variables-file KEY:path`      | a File-type variable (an SSH key, a kubeconfig)                              |
+| `-f, --variables-from file.json` | many variables, and the only way to pass a value containing a comma          |
+| `-b`                             | the branch or tag; defaults to the checked-out branch                        |
+| `-w`                             | open the pipeline in a browser                                               |
 
 `--variables-from` takes a JSON list:
 
 ```json
 [
-  { "key": "DEPLOYMENT_INSTANCE_FQDN", "value": "e230-pc11.inet.dkfz-heidelberg.de", "variable_type": "env_var" },
-  { "key": "DEPLOYMENT_INSTANCE_USER", "value": "ubuntu", "variable_type": "env_var" }
+  {
+    "key": "DEPLOYMENT_INSTANCE_FQDN",
+    "value": "e230-pc11.inet.dkfz-heidelberg.de",
+    "variable_type": "env_var"
+  },
+  {
+    "key": "DEPLOYMENT_INSTANCE_USER",
+    "value": "ubuntu",
+    "variable_type": "env_var"
+  }
 ]
 ```
 
 Watching and inspecting a run:
+
 ```bash
 glab ci status -b my-branch --live               # watch it
 glab ci retry <JOB_ID>                           # one job, not the pipeline

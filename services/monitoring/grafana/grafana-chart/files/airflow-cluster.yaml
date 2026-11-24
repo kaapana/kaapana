@@ -1,11 +1,11 @@
 ---
 apiVersion: 1
 providers:
-- name: 'airflow-cluster'
-  orgId: null
-  folder: ''
-  type: file
-  disableDeletion: false
-  editable: true
-  options:
-    path: /etc/grafana/dashboards/airflow-cluster/
+  - name: "airflow-cluster"
+    orgId: null
+    folder: ""
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/dashboards/airflow-cluster/

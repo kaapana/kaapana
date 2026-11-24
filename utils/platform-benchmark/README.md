@@ -3,12 +3,12 @@
 Benchmarks a **running Kaapana instance** and reports the numbers as JSON plus
 OpenMetrics. Four suites:
 
-| suite | what it measures | needs |
-|---|---|---|
-| `ingest` | timing of the ingestion DAG for the scenarios of the dataset | platform HTTPS APIs + dcmtk (`dcmsend`, `dcmdump`) |
-| `internet` | ping / download / upload from inside the cluster (speedtest pod running `speedtest-cli` on `python:3.12-alpine`) | kubectl access |
-| `gpu` | gpu_burn throughput + per-GPU health (`chrstnhntschl/gpu_burn` image) | kubectl access |
-| `helm` | how fast the machine deploys increasingly big helm charts (the kaapana-platform-chart timeout problem) | helm + kubectl access |
+| suite      | what it measures                                                                                                 | needs                                              |
+| ---------- | ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| `ingest`   | timing of the ingestion DAG for the scenarios of the dataset                                                     | platform HTTPS APIs + dcmtk (`dcmsend`, `dcmdump`) |
+| `internet` | ping / download / upload from inside the cluster (speedtest pod running `speedtest-cli` on `python:3.12-alpine`) | kubectl access                                     |
+| `gpu`      | gpu_burn throughput + per-GPU health (`chrstnhntschl/gpu_burn` image)                                            | kubectl access                                     |
+| `helm`     | how fast the machine deploys increasingly big helm charts (the kaapana-platform-chart timeout problem)           | helm + kubectl access                              |
 
 ## Install
 
@@ -45,7 +45,11 @@ relative to `--data-dir/root_path`:
 {
   "root_path": "image_modalities",
   "scenarios": {
-    "minimal": ["NSCLC/CT/LUNG1-001", "NSCLC/SEG/LUNG1-001", "NSCLC/RTSTRUCT/LUNG1-001"],
+    "minimal": [
+      "NSCLC/CT/LUNG1-001",
+      "NSCLC/SEG/LUNG1-001",
+      "NSCLC/RTSTRUCT/LUNG1-001"
+    ],
     "ct-seg": ["NSCLC/CT", "NSCLC/SEG"],
     "max": ["NSCLC/CT", "NSCLC/SEG", "NSCLC/RTSTRUCT", "CDDP-EAGLE/SM"]
   }

@@ -13,18 +13,18 @@ with `/project/<short_id>/`.
 
 The whole app lives under `docker/files/`:
 
-| Path | Purpose |
-| --- | --- |
-| `src/App.vue` | Page title, the section tabs, notifications, the one failure-details dialog, shell settings. |
-| `src/router/router.ts` | The three sections `/catalog`, `/extensions`, `/repositories`; `/` and unknown paths go to the catalog. |
-| `src/views/` | One view per section: `Catalog.vue`, `Extensions.vue`, `Repositories.vue`. |
-| `src/features/catalog/` | Filter bar, the catalog entry dialog, grouping/filtering and the install-availability rules. |
-| `src/features/extensions/` | The installed-extension dialog (status, contents, uninstall), the upload dialog and their API calls. |
-| `src/features/repositories/` | The repository form dialog (create/edit, validation, unsaved-changes protection), form adapter and API calls. |
-| `src/shared/components/` | Card grid, detail dialog, status indicator, manifest and source details used by more than one section. |
-| `src/shared/utils/status.ts` | User-facing labels and tones for every extension and content status of the service. |
-| `src/shared/utils/notify.ts` | Transient success and failure notifications; a failure carries its details. |
-| `src/shared/composables/usePolling.ts` | Interval polling that runs only while an operation is in progress. |
+| Path                                   | Purpose                                                                                                       |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `src/App.vue`                          | Page title, the section tabs, notifications, the one failure-details dialog, shell settings.                  |
+| `src/router/router.ts`                 | The three sections `/catalog`, `/extensions`, `/repositories`; `/` and unknown paths go to the catalog.       |
+| `src/views/`                           | One view per section: `Catalog.vue`, `Extensions.vue`, `Repositories.vue`.                                    |
+| `src/features/catalog/`                | Filter bar, the catalog entry dialog, grouping/filtering and the install-availability rules.                  |
+| `src/features/extensions/`             | The installed-extension dialog (status, contents, uninstall), the upload dialog and their API calls.          |
+| `src/features/repositories/`           | The repository form dialog (create/edit, validation, unsaved-changes protection), form adapter and API calls. |
+| `src/shared/components/`               | Card grid, detail dialog, status indicator, manifest and source details used by more than one section.        |
+| `src/shared/utils/status.ts`           | User-facing labels and tones for every extension and content status of the service.                           |
+| `src/shared/utils/notify.ts`           | Transient success and failure notifications; a failure carries its details.                                   |
+| `src/shared/composables/usePolling.ts` | Interval polling that runs only while an operation is in progress.                                            |
 
 ## `@kaapana/base-ui`
 
@@ -50,24 +50,24 @@ Everything in `src/shared/` stays local to this view; nothing is moved to
 - **Install** — installs the selected version. The button says why it is
   unavailable when the version is installed, being installed or uninstalled,
   or when a failed uninstall blocks it; after a failed installation it offers
-  *Retry installation*. For a newer version from the repository the extension
-  was installed from it offers *Update to X*, after a failed update
-  *Retry update*. A version below a failed update target is only updated
+  _Retry installation_. For a newer version from the repository the extension
+  was installed from it offers _Update to X_, after a failed update
+  _Retry update_. A version below a failed update target is only updated
   after a confirmation that names the items set back to it. Older versions, versions from another repository and a
   running update stay unavailable with the reason. Progress is shown on the button, it cannot be
   submitted twice, and the outcome is a transient notification.
 - **Extensions** — every extension with platform state: repository, tag,
-  version and status in user terms (*Downloading*, *Installation failed*, …),
+  version and status in user terms (_Downloading_, _Installation failed_, …),
   carried by an icon and a label. The dialog names the target of a running or
   failed update and shows the installed version of each content, also of
   contents that a failed update added. The list is polled every 5 s while an
   operation is in progress and not at all otherwise.
 - **Upload extension** — on the Catalog page. Accepts a `.tar.gz` built
   with `extensionctl build`, shows the upload progress and cannot be closed
-  while uploading. The extension is added to the built-in *Upload*
+  while uploading. The extension is added to the built-in _Upload_
   repository and its catalog entry opens, ready to install. Nothing is
   installed by the upload. A newer upload of an installed extension is
-  offered there as *Update to X*.
+  offered there as _Update to X_.
 - **Remove upload** — in the catalog entry of an uploaded extension, after a
   confirmation. It only removes the extension from the catalog. An installed
   extension stays installed.
@@ -78,7 +78,7 @@ Everything in `src/shared/` stays local to this view; nothing is moved to
   validated with messages that say how to fix the value. When editing, the
   stored credentials are kept unless both username and password are entered.
   Closing an edited form asks before discarding, and an edited form reports
-  the view as dirty to the shell. The built-in *Upload* repository is shown
+  the view as dirty to the shell. The built-in _Upload_ repository is shown
   without Edit and Remove. Removing a repository is confirmed and says
   when the extension manager stops tracking extensions installed from it.
 - **Empty and failure states** — each section distinguishes "nothing yet"
@@ -87,7 +87,7 @@ Everything in `src/shared/` stays local to this view; nothing is moved to
   inline warning; a repository whose manifests cannot be loaded is named in a
   warning while the others stay visible.
 - **Feedback** — action outcomes are transient notifications. Selecting a
-  failure notification, or *Details* on an alert, opens the failure-details
+  failure notification, or _Details_ on an alert, opens the failure-details
   dialog with status code, request line, backend message and a copy button.
 
 ## Backend endpoints
@@ -95,16 +95,16 @@ Everything in `src/shared/` stays local to this view; nothing is moved to
 All calls go to `extension-manager-service` through the
 `/extensions-api` Ingress (traefik strips the prefix). None is project-scoped.
 
-| Method | Endpoint | Purpose |
-| --- | --- | --- |
-| GET | `/extensions-api/repositories` | List repositories (all three sections). |
-| POST | `/extensions-api/repositories` | Register a repository (`name`, `description`, `repository_url`, `username`, `password`). |
-| PUT | `/extensions-api/repositories/<id>` | Update a repository; `username`/`password` only when both are replaced. |
-| DELETE | `/extensions-api/repositories/<id>` | Remove a repository. |
-| GET | `/extensions-api/repositories/<id>/extensionManifests` | Tags and manifests of the extensions published in a repository (30 s timeout, one call per repository). |
-| GET | `/extensions-api/extensions` | Extensions with platform state (polled while one is in progress). |
-| POST | `/extensions-api/extensions/install?repository_id=<id>&tag=<tag>` | Start an installation, or an update when a newer version of an installed extension is chosen (202). |
-| POST | `/extensions-api/extensions/<id>/uninstall` | Start an uninstall. |
+| Method | Endpoint                                                          | Purpose                                                                                                 |
+| ------ | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| GET    | `/extensions-api/repositories`                                    | List repositories (all three sections).                                                                 |
+| POST   | `/extensions-api/repositories`                                    | Register a repository (`name`, `description`, `repository_url`, `username`, `password`).                |
+| PUT    | `/extensions-api/repositories/<id>`                               | Update a repository; `username`/`password` only when both are replaced.                                 |
+| DELETE | `/extensions-api/repositories/<id>`                               | Remove a repository.                                                                                    |
+| GET    | `/extensions-api/repositories/<id>/extensionManifests`            | Tags and manifests of the extensions published in a repository (30 s timeout, one call per repository). |
+| GET    | `/extensions-api/extensions`                                      | Extensions with platform state (polled while one is in progress).                                       |
+| POST   | `/extensions-api/extensions/install?repository_id=<id>&tag=<tag>` | Start an installation, or an update when a newer version of an installed extension is chosen (202).     |
+| POST   | `/extensions-api/extensions/<id>/uninstall`                       | Start an uninstall.                                                                                     |
 
 **Legacy APIs:** none. The app calls no `kaapana-backend`, `kube-helm-api`,
 `/aii` or `/oauth2` endpoint; authentication is enforced by the gateway in
@@ -120,7 +120,7 @@ When an uninstall finishes, the record moves to `uninstalled`, which has no
 allowed transition, and the background task deletes it after `sleep(30)`. A
 reinstall of the same repository and tag in that window answers `409`
 (`uq_repository_id_tag`). The UI keeps polling while a record is
-`uninstalled`, disables *Install* with "It can be installed again in a
+`uninstalled`, disables _Install_ with "It can be installed again in a
 moment", and enables it once the record is gone.
 
 Allowing `UNINSTALLED → PENDING` (and `UNINSTALLED → INSTALLING` for the
@@ -132,11 +132,11 @@ between the two lets the cleanup delete a record whose installation is
 running; its contents could then be installed in the target service with no
 record left to uninstall them.
 
-| Option | Change | Effect |
-| --- | --- | --- |
-| **A. Leave it** | None. | 30 s wait, handled by the UI. |
-| **B. Reinstall + drop the cleanup** | Allow the two transitions; remove `sleep(30)` and `delete_extension`. | Immediate reinstall; `uninstalled` records stay and are reused. The *Extensions* page then shows them (or filters them). |
-| **C. Reinstall + atomic cleanup** | Allow the two transitions; make the cleanup a single `DELETE … WHERE id = :id AND status = 'uninstalled'`. | Immediate reinstall inside the window; the record still disappears after 30 s when nobody reinstalled it. |
+| Option                              | Change                                                                                                     | Effect                                                                                                                   |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| **A. Leave it**                     | None.                                                                                                      | 30 s wait, handled by the UI.                                                                                            |
+| **B. Reinstall + drop the cleanup** | Allow the two transitions; remove `sleep(30)` and `delete_extension`.                                      | Immediate reinstall; `uninstalled` records stay and are reused. The _Extensions_ page then shows them (or filters them). |
+| **C. Reinstall + atomic cleanup**   | Allow the two transitions; make the cleanup a single `DELETE … WHERE id = :id AND status = 'uninstalled'`. | Immediate reinstall inside the window; the record still disappears after 30 s when nobody reinstalled it.                |
 
 Recommendation: **A** for now; **C** if the wait matters. Do not allow the
 transitions without changing the cleanup.
@@ -176,7 +176,7 @@ with hot module reload on port `5173`.
 Mock-backed Playwright e2e under `docker/files/tests/e2e` — no backend or
 cluster needed. `fixtures/mock-backend.ts` serves every `/extensions-api` call
 from an in-memory state that the actions change (an install adds a record, an
-uninstall moves it to *Uninstalling*), with shapes taken from the service's
+uninstall moves it to _Uninstalling_), with shapes taken from the service's
 pydantic schemas. `fixtures/helpers.ts` holds the shared vocabulary:
 `openView()`, `card()`, `dialog()`, `nextRequest()`, `countRequests()`,
 `failRoute()`, `confirmAction()`, `pressEscapeUntil()`,
@@ -190,14 +190,14 @@ npx playwright test    # fixed port 4311
 Locally the suite runs against the dev server; in CI (`ui_e2e_tests`) it
 previews the production build.
 
-| Spec | Covers |
-| --- | --- |
-| `boot` | fresh-profile boot, the shell's dark-mode setting, no own app bar/theme toggle, routing and the section tabs |
-| `catalog` | grouping, detail dialog, keyboard access, search and repository filter, the empty states, load failure, one failing repository |
-| `install` | install payload for the selected version, unavailable/retry states, no double submit, polling to the settled state, a rejected install |
-| `extensions` | status labels, per-item status, uninstall confirmation and payload, dismissal, unavailable/hidden uninstall, polling start and stop, failures, empty and stale states |
-| `repositories` | create payload, validation messages, rejected create, edit payload and credential rules, unsaved-changes protection, `kaapana:view-dirty`, removal and its consequences |
-| `guidelines` | cross-cutting rules: confirmations, focus return, theme and typeface, readable width, one primary action per page, status not by colour alone, accessible names, dialog widths |
+| Spec           | Covers                                                                                                                                                                         |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `boot`         | fresh-profile boot, the shell's dark-mode setting, no own app bar/theme toggle, routing and the section tabs                                                                   |
+| `catalog`      | grouping, detail dialog, keyboard access, search and repository filter, the empty states, load failure, one failing repository                                                 |
+| `install`      | install payload for the selected version, unavailable/retry states, no double submit, polling to the settled state, a rejected install                                         |
+| `extensions`   | status labels, per-item status, uninstall confirmation and payload, dismissal, unavailable/hidden uninstall, polling start and stop, failures, empty and stale states          |
+| `repositories` | create payload, validation messages, rejected create, edit payload and credential rules, unsaved-changes protection, `kaapana:view-dirty`, removal and its consequences        |
+| `guidelines`   | cross-cutting rules: confirmations, focus return, theme and typeface, readable width, one primary action per page, status not by colour alone, accessible names, dialog widths |
 
 ## Leaving the Experimental section (proposal)
 

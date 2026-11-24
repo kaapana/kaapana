@@ -22,9 +22,7 @@ test('paging forward requests the next offset', async ({ page }) => {
   await page.goto(VIEW_PATH)
   await expect(page.getByText('running-wf', { exact: true })).toBeVisible()
 
-  const reqP = page.waitForRequest(
-    (r) => WORKFLOWS.test(r.url()) && r.url().includes('offset=10'),
-  )
+  const reqP = page.waitForRequest((r) => WORKFLOWS.test(r.url()) && r.url().includes('offset=10'))
   await page.getByLabel('Next page').click()
   const req = await reqP
   expect(req.url()).toContain('offset=10')

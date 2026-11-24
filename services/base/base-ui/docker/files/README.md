@@ -56,9 +56,9 @@ deliberately only small, stable pieces.
 ## Styles a consuming view must import
 
 ```ts
-import 'vuetify/styles'
-import '@mdi/font/css/materialdesignicons.css'
-import '@kaapana/base-ui/style.css'
+import "vuetify/styles";
+import "@mdi/font/css/materialdesignicons.css";
+import "@kaapana/base-ui/style.css";
 ```
 
 That is the whole list for every view; a view that renders `WorkflowExecution`
@@ -76,7 +76,7 @@ substitutes — Arial on Windows, DejaVu on Linux. Expecting each view to rememb
 an import did not work: none of the nine new view containers had one. The
 stylesheets are imported here with `?inline` and injected as a single `<style>`
 element, which costs ~174 kB of base64 inside `index.js` and buys zero font
-requests and nothing for a view to remember. `@mdi/font` is deliberately *not*
+requests and nothing for a view to remember. `@mdi/font` is deliberately _not_
 handled this way — its webfont would add ~2 MB of base64.
 
 Roboto is SIL OFL-1.1, which asks every copy of the font to carry the copyright

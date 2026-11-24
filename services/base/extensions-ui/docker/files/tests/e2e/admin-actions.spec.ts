@@ -72,7 +72,8 @@ test('a partial grant shows only the control it covers', async ({ page }) => {
 test('an unloaded policy hides the admin-only controls (fail closed)', async ({ page }) => {
   // The policy endpoint fails, so the store keeps its empty default.
   await openView(page, defaultMockData, {
-    routes: (p) => p.route('**/kaapana-backend/open-policy-data', (r) => r.fulfill({ status: 503 })),
+    routes: (p) =>
+      p.route('**/kaapana-backend/open-policy-data', (r) => r.fulfill({ status: 503 })),
   })
 
   await expect(updateControl(page)).toHaveCount(0)

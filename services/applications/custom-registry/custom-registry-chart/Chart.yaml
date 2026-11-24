@@ -5,9 +5,9 @@ description: Chart for adding new registry secrets to platform
 name: custom-registry-chart
 version: "0.0.0"
 keywords:
-- kaapanaapplication
-- kaapanaexperimental
-- kaapanamultiinstallable
+  - kaapanaapplication
+  - kaapanaexperimental
+  - kaapanamultiinstallable
 annotations:
   documentation: "user_guide/extensions.html#new-registry"
   ui-visible-name: "New Registry"

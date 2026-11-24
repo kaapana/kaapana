@@ -22,11 +22,18 @@ const ShellSettingsDemo = defineComponent({
 
     return () =>
       h('div', { style: 'display: flex; flex-direction: column; gap: 8px; max-width: 320px' }, [
-        h(VBtn, { onClick: () => write({ darkMode: theme.global.name.value !== 'dark' }) }, () =>
-          'Toggle darkMode (live)',
+        h(
+          VBtn,
+          { onClick: () => write({ darkMode: theme.global.name.value !== 'dark' }) },
+          () => 'Toggle darkMode (live)',
         ),
-        h(VBtn, { onClick: () => write({ darkMode: theme.global.name.value === 'dark', tick: Date.now() }) }, () =>
-          'Change other setting (remounts view)',
+        h(
+          VBtn,
+          {
+            onClick: () =>
+              write({ darkMode: theme.global.name.value === 'dark', tick: Date.now() }),
+          },
+          () => 'Change other setting (remounts view)',
         ),
         h('code', `theme: ${theme.global.name.value} | viewKey: ${viewKey.value}`),
       ])

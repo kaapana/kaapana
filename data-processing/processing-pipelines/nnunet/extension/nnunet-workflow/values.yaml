@@ -1,6 +1,6 @@
 ---
 global:
-    image: "dag-nnunet"
-    action: "copy"
+  image: "dag-nnunet"
+  action: "copy"
 # nnunetv1 used to provide here pre-trained models to install
 # nnunetv2 does not provide pre-trained weights anymore

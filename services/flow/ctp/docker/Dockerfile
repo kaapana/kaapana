@@ -46,6 +46,8 @@ RUN cd ./build/kaapana-dag-trigger \
 
 FROM local-only/base-python-cpu:latest
 
+ENV JAVA_TOOL_OPTIONS="-XX:-UseBASE64Intrinsics"
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
   default-jre \
   && rm -rf /var/lib/apt/lists/*

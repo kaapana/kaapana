@@ -43,9 +43,9 @@ def hub(selector, monkeypatch):
                 self.send_response(401)
                 self.end_headers()
                 return
-            body = json.dumps({"token": f"bearer-{user}"}).encode()
+            body = accounts[user].get("auth_body", json.dumps({"token": f"bearer-{user}"}).encode())
             self.send_response(200)
-            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Content-Length", str(len(body) + accounts[user].get("missing_bytes", 0)))
             self.end_headers()
             self.wfile.write(body)
 
@@ -131,6 +131,28 @@ def test_an_unreachable_docker_hub_means_anonymous_pulls(selector, select, monke
     assert "no account in DOCKER_IO_CONFIG is usable" in report
 
 
+def test_a_broken_docker_hub_response_skips_the_account(hub, select):
+    hub.update(
+        cut_off={"token": "dckr_pat_cut_off", "remaining": 200, "missing_bytes": 10},
+        working={"token": "dckr_pat_working", "remaining": 3},
+    )
+    user, password, report = select({"cut_off": "dckr_pat_cut_off", "working": "dckr_pat_working"})
+    assert (user, password) == ("working", "dckr_pat_working")
+    assert "'cut_off' was rejected" in report
+
+
+@pytest.mark.parametrize("auth_body", [b"[]", b'"dckr_pat_secret"', b"null"])
+def test_an_unexpected_docker_hub_answer_skips_the_account(hub, select, auth_body):
+    hub.update(
+        odd={"token": "dckr_pat_odd", "remaining": 200, "auth_body": auth_body},
+        working={"token": "dckr_pat_working", "remaining": 3},
+    )
+    user, password, report = select({"odd": "dckr_pat_odd", "working": "dckr_pat_working"})
+    assert (user, password) == ("working", "dckr_pat_working")
+    assert "'odd' was rejected" in report
+    assert "dckr_pat_secret" not in report
+
+
 def test_an_account_without_a_pull_limit_wins(hub, select):
     hub.update(
         free={"token": "dckr_pat_free", "remaining": 199},
@@ -172,6 +194,17 @@ def test_tokens_with_shell_characters_are_read_as_data(hub, select):
 def test_an_unset_or_missing_config_file_means_anonymous_pulls(selector, monkeypatch, capsys, value):
     monkeypatch.setattr("sys.argv", ["select_docker_io_credential.py"])
     monkeypatch.setenv("DOCKER_IO_CONFIG", value)
+    assert selector.main() == 0
+    captured = capsys.readouterr()
+    assert captured.out == "\n"
+    assert "anonymously" in captured.err
+
+
+def test_a_config_file_that_is_not_utf8_means_anonymous_pulls(selector, monkeypatch, capsys, tmp_path):
+    config_file = tmp_path / "DOCKER_IO_CONFIG"
+    config_file.write_bytes(b'{"someone": "dckr_pat_\xff"}')
+    monkeypatch.setattr("sys.argv", ["select_docker_io_credential.py"])
+    monkeypatch.setenv("DOCKER_IO_CONFIG", str(config_file))
     assert selector.main() == 0
     captured = capsys.readouterr()
     assert captured.out == "\n"

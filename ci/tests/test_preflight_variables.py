@@ -6,6 +6,7 @@ code and the message a developer would read in the job log.
 """
 
 import subprocess
+from pathlib import Path
 
 import pytest
 from conftest import DEPLOY_INPUTS, jobs, merged_config
@@ -32,6 +33,7 @@ def env(tmp_path):
     key.write_text("not a real key\n")
     return {
         "PATH": "/usr/bin:/bin",
+        "CI_PROJECT_DIR": str(Path(__file__).resolve().parents[2]),
         "CI_REGISTRY_URL": "reg.example/kaapana",
         "CI_IMAGES_TAG": "v7",
         "CI_REGISTRY_USER": "ci",
@@ -152,8 +154,19 @@ def test_docker_io_config_must_be_a_file_variable(script, env):
     assert "dckr_pat_secret" not in result.stdout + result.stderr
 
 
-@pytest.mark.parametrize("config", ["not json", '{"someone":"dckr_pat_secret",}'])
-def test_invalid_docker_io_json_is_rejected_without_its_value(script, env, tmp_path, config):
+@pytest.mark.parametrize(
+    "config",
+    [
+        "not json",
+        '{"someone":"dckr_pat_secret",}',
+        "{}",
+        '["dckr_pat_secret"]',
+        '{"someone":""}',
+        '{"some one":"dckr_pat_secret"}',
+        '{"someone":"dckr_pat_secret with space"}',
+    ],
+)
+def test_invalid_docker_io_config_is_rejected_without_its_value(script, env, tmp_path, config):
     env["DOCKER_IO_CONFIG"] = docker_io_config(tmp_path, config)
     result = run(script, env)
     assert result.returncode == 1

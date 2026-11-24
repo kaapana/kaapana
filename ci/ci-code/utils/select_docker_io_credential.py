@@ -9,7 +9,11 @@ or an empty line when no account is usable. The caller reads it as data:
     export DOCKER_IO_USER DOCKER_IO_PASSWORD
 
 The report goes to stderr and never contains a token. The exit code is always 0,
-so a Docker Hub outage falls back to anonymous pulls instead of failing the job.
+so a Docker Hub outage or any other error falls back to anonymous pulls instead
+of failing the job.
+
+With --check it only checks that the file is empty or a valid config, exits 1
+if not, and prints nothing. Preflight uses this.
 """
 
 import argparse
@@ -66,7 +70,7 @@ def select(accounts: dict[str, str]) -> tuple[str, str] | None:
     for user, token in accounts.items():
         try:
             remaining = remaining_pulls(user, token)
-        except (OSError, ValueError, KeyError):
+        except Exception:
             report(f"'{user}' was rejected or Docker Hub is unreachable, skipped.")
             continue
         if remaining is None:
@@ -95,9 +99,27 @@ def chosen_account(raw_config: str) -> tuple[str, str] | None:
     return chosen
 
 
+def config_is_valid(path: str) -> bool:
+    try:
+        raw = Path(path).read_text().strip() if path else ""
+        if raw:
+            parse_config(raw)
+    except Exception:
+        return False
+    return True
+
+
 def main() -> int:
-    argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter).parse_args()
-    chosen = chosen_account(read_config(os.environ.get("DOCKER_IO_CONFIG", "")))
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--check", action="store_true", help="only check DOCKER_IO_CONFIG, exit 1 if it is invalid")
+    path = os.environ.get("DOCKER_IO_CONFIG", "")
+    if parser.parse_args().check:
+        return 0 if config_is_valid(path) else 1
+    try:
+        chosen = chosen_account(read_config(path))
+    except Exception:
+        report("WARNING: unexpected error, pulling anonymously.")
+        chosen = None
     print(" ".join(chosen or ()))
     return 0
 

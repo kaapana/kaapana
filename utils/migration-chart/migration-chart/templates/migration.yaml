@@ -11,6 +11,18 @@ spec:
       name: migration
     spec:
       restartPolicy: Never
+      # The PostgreSQL images the 0.6.x -> 0.7.x migration starts its dump and restore pods from.
+      # Named as images here so that the build ships them with the platform, and pulled here so
+      # that the job does not touch a database before the node has both.
+      initContainers:
+      - name: pull-postgres-17
+        image: "{{ .Values.global.registry_url }}/migration-postgres-17:{{ .Values.global.kaapana_build_version }}"
+        imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
+        command: ["true"]
+      - name: pull-postgres-18
+        image: "{{ .Values.global.registry_url }}/postgres-18.4-alpine:{{ .Values.global.kaapana_build_version }}"
+        imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
+        command: ["true"]
       containers:
       - name: migration
         image: "{{ .Values.global.registry_url }}/migration:{{ .Values.global.kaapana_build_version }}"
@@ -42,6 +54,10 @@ spec:
           value: "{{ .Values.global.volume_slow_data }}"
         - name: MIGRATION_IMAGE
           value: "{{ .Values.global.registry_url }}/migration:{{ .Values.global.kaapana_build_version }}"
+        - name: PG17_IMAGE
+          value: "{{ .Values.global.registry_url }}/migration-postgres-17:{{ .Values.global.kaapana_build_version }}"
+        - name: PG18_IMAGE
+          value: "{{ .Values.global.registry_url }}/postgres-18.4-alpine:{{ .Values.global.kaapana_build_version }}"
         volumeMounts:
         - name: fastdir
           mountPath: "{{ .Values.global.fast_data_dir }}"

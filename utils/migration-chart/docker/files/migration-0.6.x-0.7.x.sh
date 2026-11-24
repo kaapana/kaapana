@@ -162,8 +162,10 @@ delete_dummy_pods() {
 # the PG17 cluster is preserved as <cluster>_pg17_bak
 # dump uses a temporary trust-auth pg_hba (no plaintext passwords, pg_dumpall carries role password hashes)
 # ============================================================================
-PG17_IMAGE="docker.io/postgres:17-alpine"
-PG18_IMAGE="docker.io/postgres:18-alpine"
+# Both from the platform's registry, as the chart names them: a server without access to Docker Hub
+# can pull nothing else. The job's init containers have them on the node before this script runs.
+PG17_IMAGE="${PG17_IMAGE}"
+PG18_IMAGE="${PG18_IMAGE}"
 FAST_PVC="fast-data-dir-pvc"
 MY_NAMESPACE="$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace 2>/dev/null || echo migration)"
 # Verbose per-pod output (PG server logs, dump/restore chatter) goes here instead of stdout.
@@ -188,6 +190,7 @@ kind: Pod
 metadata: {name: $name, namespace: $MY_NAMESPACE}
 spec:
   restartPolicy: Never
+  imagePullSecrets: [{name: registry-secret}]
   containers:
   - name: c
     image: $image

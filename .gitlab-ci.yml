@@ -153,10 +153,8 @@ variables:
   REGISTRY_USER: $CI_REGISTRY_USER
   REGISTRY_TOKEN: $CI_REGISTRY_TOKEN # secret — project variable (masked)
 
-  # --- docker.io pull credentials (avoids anonymous pull rate limits).
-  # Empty → the docker.io login in build_packages is skipped.
-  DOCKER_IO_USER: $DOCKER_IO_USER # project variable, paired with the password
-  DOCKER_IO_PASSWORD: $DOCKER_IO_PASSWORD # secret — project variable (masked)
+  # --- docker.io pull credentials (avoids anonymous pull rate limits):
+  # DOCKER_IO_CONFIG, a File-type project variable, see ci/docs/internals.md.
 
   # --- CI job image, one for all jobs. Runners pull "if-not-present", so bump
   # CI_IMAGES_TAG in the same MR that changes ci/images/** — re-pushing an

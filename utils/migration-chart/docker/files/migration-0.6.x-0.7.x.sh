@@ -160,6 +160,7 @@ delete_dummy_pods() {
 # PG refuses to start on a data dir written by an older major, so each persisted PG17 cluster must be dumped and reloaded into a fresh PG18 cluster
 # The platform is down, so this runs via helper pods that mount the fast-data-dir PVC and operate on the on-disk clusters directly
 # the PG17 cluster is preserved as <cluster>_pg17_bak
+# <cluster>_pg18_pending exists from that move until the restore is done: PG_VERSION no longer shows such a cluster, so the next run finds it by this file and restores it again
 # dump uses a temporary trust-auth pg_hba (no plaintext passwords, pg_dumpall carries role password hashes)
 # ============================================================================
 PG17_IMAGE="docker.io/postgres:17-alpine"
@@ -170,10 +171,13 @@ MY_NAMESPACE="$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace 2>/d
 PG_LOGFILE="${FAST_DATA_DIR:-/tmp}/migration_0.6_to_0.7_pg.log"
 
 wait_pod_done() { # namespace pod
-    local ns=$1 pod=$2 ph
-    for _ in $(seq 1 300); do
+    local ns=$1 pod=$2 ph waited=0
+    # Only the start is limited (20 min, e.g. an image that cannot be pulled): a dump or a restore
+    # runs as long as its database is big.
+    while [[ $waited -lt 300 ]]; do
         ph=$(kubectl get pod -n "$ns" "$pod" -o jsonpath='{.status.phase}' 2>/dev/null || echo "")
         if [[ "$ph" == "Succeeded" || "$ph" == "Failed" ]]; then echo "$ph"; return 0; fi
+        [[ "$ph" == "Running" ]] || waited=$((waited + 1))
         sleep 4
     done
     echo "Timeout"
@@ -221,6 +225,7 @@ upgrade_one_cluster() { # rel target-subdir
     # Superuser is auto-detected under trust auth (pg_dumpall carries password hashes).
     run_pg_pod "pg17dump-$tag" "$PG17_IMAGE" "
 D=/pv/$rel
+mkdir -p \"\$D\"
 if [ -f \"\$D/../dumpall.sql\" ] && [ -d \"\$D/../${leaf}_pg17_bak\" ]; then echo already-dumped; echo DUMP_DONE; exit 0; fi
 [ -f \"\$D/PG_VERSION\" ] || { echo no-cluster; exit 3; }
 [ \"\$(cat \$D/PG_VERSION)\" = 17 ] || { echo not-17; exit 4; }
@@ -241,6 +246,7 @@ echo \"superuser: \$SU\"
 \$G pg_dumpall -h 127.0.0.1 -U \"\$SU\" > \"\$D/../dumpall.sql\"
 \$G pg_ctl -D \"\$D\" -w stop
 echo \"dump lines: \$(wc -l < \$D/../dumpall.sql)\"
+touch \"\$D/../${leaf}_pg18_pending\"
 mv \"\$D\" \"\$D/../${leaf}_pg17_bak\"
 mkdir \"\$D\"; chown 70:70 \"\$D\"; chmod 700 \"\$D\"
 echo DUMP_DONE
@@ -261,6 +267,7 @@ ERR=\$(grep -c 'ERROR:' /tmp/restore.log || true); echo \"restore ERROR lines: \
 grep 'ERROR:' /tmp/restore.log | grep -v 'already exists' | head -20 || true
 [ -f \"\$BAK/pg_hba.conf\" ] && { cp \"\$BAK/pg_hba.conf\" \"\$PGDATA/pg_hba.conf\"; chown 70:70 \"\$PGDATA/pg_hba.conf\"; echo restored-pg_hba; }
 \$G pg_ctl -D \"\$PGDATA\" -w stop
+rm -f \"\$D/../${leaf}_pg18_pending\"
 echo RESTORE_DONE
 " || { echo "  RESTORE FAILED for $rel"; return 1; }
 
@@ -276,9 +283,14 @@ upgrade_postgres_clusters() {
     local pgv cluster ver bn tgt rel found=0 pg_failures=""
     while IFS= read -r pgv; do
         [ -n "$pgv" ] || continue
-        cluster=$(dirname "$pgv")
-        ver=$(cat "$pgv" 2>/dev/null | tr -d '[:space:]')
-        [ "$ver" = "17" ] || { echo "skip (PG${ver:-?}): $cluster"; continue; }
+        if [[ "$pgv" == *_pg18_pending ]]; then
+            [ -f "$pgv" ] || continue   # finished a moment ago, through its PG_VERSION
+            cluster="${pgv%_pg18_pending}"
+        else
+            cluster=$(dirname "$pgv")
+            ver=$(cat "$pgv" 2>/dev/null | tr -d '[:space:]')
+            [ "$ver" = "17" ] || { echo "skip (PG${ver:-?}): $cluster"; continue; }
+        fi
         bn=$(basename "$cluster")
         case "$bn" in
             data)             tgt="18/docker" ;;
@@ -293,6 +305,7 @@ upgrade_postgres_clusters() {
         fi
     done <<EOF
 $(find "$FAST_DATA_DIR" -maxdepth 3 -type f -name PG_VERSION -not -path '*_pg17_bak*' 2>/dev/null)
+$(find "$FAST_DATA_DIR" -maxdepth 2 -type f -name '*_pg18_pending' 2>/dev/null)
 EOF
     [ "$found" = 1 ] || echo "No PG17 clusters found under $FAST_DATA_DIR (nothing to upgrade)."
     if [ -n "$pg_failures" ]; then

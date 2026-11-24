@@ -1892,9 +1892,15 @@ function run_migration_chart() {
        fi
 
         sleep "$INTERVAL"
-        ELAPSED=$((ELAPSED + INTERVAL))
+        # The limit is for a job that does not start (an image that cannot be pulled): a running
+        # migration takes as long as the databases are big.
+        if [[ -n "$(microk8s.kubectl get pods -n "$NAMESPACE" -l job-name="$JOB_NAME" --field-selector=status.phase=Running -o name)" ]]; then
+            ELAPSED=0
+        else
+            ELAPSED=$((ELAPSED + INTERVAL))
+        fi
         if [[ $ELAPSED -ge $TIMEOUT ]]; then
-            echo -e "${RED}Migration job did not complete within ${TIMEOUT}s${NC}"
+            echo -e "${RED}Migration job did not start within ${TIMEOUT}s${NC}"
             exit 1
         fi
     done

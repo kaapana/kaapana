@@ -11,6 +11,7 @@ from v1.services.content_update import apply_content_changes
 from v1.services.database import crud, database, models
 from v1.services.database.exceptions import NotSupportedExtensionStateTransition
 from v1.services.logger import get_logger
+from v1.services.oci.exceptions import ManifestMismatchError
 from v1.services.oci.models import ExtensionManifest
 
 logger = get_logger(__name__)
@@ -60,8 +61,11 @@ async def install_extension_background_task(
             )
             try:
                 with open(extension_path / "extension_manifest.json") as f:
-                    extension_manifest = json.load(f)
-                    assert extension_manifest == db_extension.manifest
+                    extension_manifest = ExtensionManifest(**json.load(f)).model_dump(mode="json")
+                if extension_manifest != db_extension.manifest:
+                    raise ManifestMismatchError(
+                        f"Manifest mismatch for '{db_extension.tag}': the pulled manifest differs from the stored manifest"
+                    )
 
                 content_exceptions = []
 
@@ -170,7 +174,11 @@ async def update_extension_background_task(
 
         try:
             with open(extension_path / "extension_manifest.json") as f:
-                assert ExtensionManifest(**json.load(f)).model_dump(mode="json") == pending_update["manifest"]
+                pulled_manifest = ExtensionManifest(**json.load(f)).model_dump(mode="json")
+            if pulled_manifest != pending_update["manifest"]:
+                raise ManifestMismatchError(
+                    f"Manifest mismatch for '{pending_update['tag']}': the pulled manifest differs from the stored manifest"
+                )
             await apply_content_changes(db, db_extension, target, extension_path)
         except Exception as e:
             logger.error("Failed to update extension '%s': %s", pending_update["tag"], e, exc_info=True)

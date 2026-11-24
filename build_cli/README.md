@@ -48,45 +48,47 @@ kaapana-build --help
 The package lives at `build_cli/build_cli/`. `cli.py` is the entry point
 (`kaapana-build` → `build_cli.cli:main`).
 
-├── **init**.py
-├── **main**.py (enables `python -m build_cli`)
-├── cli.py (entry point: Typer app + main())
+```text
+├── __init__.py
+├── __main__.py        (enables `python -m build_cli`)
+├── cli.py             (entry point: Typer app + main())
 ├── build
-│ ├── **init**.py
-│ ├── build_config.py
-│ ├── build_helper.py
-│ ├── build_state.py
-│ ├── issue_tracker.py
-│ ├── offline_installer_helper.py
-│ └── security_scanner.py
+│   ├── __init__.py
+│   ├── build_config.py
+│   ├── build_helper.py
+│   ├── build_state.py
+│   ├── issue_tracker.py
+│   ├── offline_installer_helper.py
+│   └── security_scanner.py
 ├── ui
-│ ├── **init**.py
-│ ├── progress.py
-│ └── selector.py
+│   ├── __init__.py
+│   ├── progress.py
+│   └── selector.py
 ├── configs
-│ ├── .trivyignore.yaml
-│ ├── fake-values.yaml
-│ └── microk8s_images.json
+│   ├── .trivyignore.yaml
+│   ├── fake-values.yaml
+│   └── microk8s_images.json
 ├── container
-│ ├── **init**.py
-│ ├── container.py
-│ ├── container_helper.py
-│ ├── coordinator.py
-│ └── worker.py
+│   ├── __init__.py
+│   ├── container.py
+│   ├── container_helper.py
+│   ├── coordinator.py
+│   └── worker.py
 ├── extension
-│ ├── **init**.py
-│ ├── extension.py
-│ └── extension_helper.py
+│   ├── __init__.py
+│   ├── extension.py
+│   └── extension_helper.py
 ├── helm
-│ ├── **init**.py
-│ ├── helm_chart.py
-│ └── helm_chart_helper.py
+│   ├── __init__.py
+│   ├── helm_chart.py
+│   └── helm_chart_helper.py
 └── utils
-├── **init**.py
-├── command_utils.py
-├── git_utils.py
-├── logger.py
-└── path_ignore.py
+    ├── __init__.py
+    ├── command_utils.py
+    ├── git_utils.py
+    ├── logger.py
+    └── path_ignore.py
+```
 
 ## Build
 
@@ -235,66 +237,64 @@ Pure singleton class -> classes that are never initialized and have only class a
    4. Changes to the HelmChart are propagates similar to point 3 from Collect containers seen above
    5. Platform charts (should be only 1) have additionally collections and parse deployment_config.yaml file
 
-3a. Collect extensions
+4. Collect extensions
+   1. Parse `data-processing/workflows` for `extension_manifest.json` files (except git-ignored files and build_ignore_patterns) and validate them. An invalid manifest is an error issue and the extension is skipped.
+   2. Images in the DAG files with the version `{KAAPANA_BUILD_VERSION}` are resolved into Containers. Images with a fixed version are not built (warning). With `--lint-only`, no containers are collected, so this step is skipped.
 
-1.  Parse `data-processing/workflows` for `extension_manifest.json` files (except git-ignored files and build_ignore_patterns) and validate them. An invalid manifest is an error issue and the extension is skipped.
-2.  Images in the DAG files with the version `{KAAPANA_BUILD_VERSION}` are resolved into Containers. Images with a fixed version are not built (warning). With `--lint-only`, no containers are collected, so this step is skipped.
+5. Determine build targets
+   1. platform_chart = BuildHelper.get_platform_chart()
+   2. BuildHelper.generate_build_graph(platform_chart)
+      1. Extensions are nodes below the platform chart. Their containers and the whole chain of local base images are nodes below the extension.
+   3. BuildHelper.generate_build_tree(platform_chart)
 
-3.  Determine build targets
-    1.  platform_chart = BuildHelper.get_platform_chart()
-    2.  BuildHelper.generate_build_graph(platform_chart)
-        1. Extensions are nodes below the platform chart. Their containers and the whole chain of local base images are nodes below the extension.
-    3.  BuildHelper.generate_build_tree(platform_chart)
+6. Build ALL helm charts
+   1. As helm charts are fast to build, we always build all charts.
+   2. Building a chart means:
+      1. Copy chart directory to the build directory where it belongs
+         1. In case of collection-extension chart, it needs its container, that copies ready chart to be build in specific cwd. So for the chart.chart_containers[0].build_dir we set to the directory where charts/*.tgz of collection charts could be find.
+      2. Lint chart if enabled
+      3. Create .tgz file
+         1. Only kaapana-admin-chart and dependencies of collection-extension chart are build (make_package)
+      4. pushed to the registry - Only kaapana-admin-chart
+   3. Charts are build in a specific order:
+      1. Platform-chart
+      2. Dependencies of platform-chart - recursively
+      3. Collection of platform-chart - recursively
+   4. Note: kaapana-platform-chart IS NOT a platform chart by definition, and never was. Removed deployment_config.yaml as it was never used and kaapana-type. If in the future there is a concept to use it as such, it can be changed.
 
-4.  Build ALL helm charts
-    1.  As helm charts are fast to build, we always build all charts.
-    2.  Building a chart means:
-        1. Copy chart directory to the build directory where it belongs
-           1. In case of collection-extension chart, it needs its container, that copies ready chart to be build in specific cwd. So for the chart.chart_containers[0].build_dir we set to the directory where charts/*.tgz of collection charts could be find.
-        2. Lint chart if enabled
-        3. Create .tgz file
-           1. Only kaapana-admin-chart and dependencies of collection-extension chart are build (make_package)
-        4. pushed to the registry - Only kaapana-admin-chart
-    3.  Charts are build in a specific order:
-        1. Platform-chart
-        2. Dependencies of platform-chart - recursively
-        3. Collection of platform-chart - recursively
-    4.  Note: kaapana-platform-chart IS NOT a platform chart by definition, and never was. Removed deployment_config.yaml as it was never used and kaapana-type. If in the future there is a concept to use it as such, it can be changed.
+7. Determine containers to build
+   1. Select containers either: interactively or by using CLI
+      1. If nothing is selected containers used by platform-chart and down the line are used
+   2. Select containers either: by specifying charts, or container names directly.
+      1. In case of charts directly used containers and containers used as a dependency are used.
+      2. In case of container names only those are built
+   3. Base images for selected containers also need to be in the selected containers. (utomatic expand is happening)
+   4. An extension is selected when all its images are selected containers. An extension without images is only selected when no containers or charts were selected explicitly. So a build never selects an extension whose images it did not try to build.
 
-5.  Determine containers to build
-    1.  Select containers either: interactively or by using CLI
-        1. If nothing is selected containers used by platform-chart and down the line are used
-    2.  Select containers either: by specifying charts, or container names directly.
-        1. In case of charts directly used containers and containers used as a dependency are used.
-        2. In case of container names only those are built
-    3.  Base images for selected containers also need to be in the selected containers. (utomatic expand is happening)
-    4.  An extension is selected when all its images are selected containers. An extension without images is only selected when no containers or charts were selected explicitly. So a build never selects an extension whose images it did not try to build.
+8. Build and push containers
+9. Process:
+   1. Container without any local base images are transfered from waiting to the ready_queue.
+   2. Thread picks task from ready_queue.
+   3. When the tasks is finished it updates status of the Container is processed and check if any of the Container of the waiting queue have all their dependency ready (Failed, Built, etc.)
+   4. Finishes when all tasks are finished.
+   5. Every container is built using `docker build`; by default it is pushed afterwards with a separate `docker push`. With `--cache-from`/`--cache-to` (registry build cache, docker only) build and push happen together via `docker buildx build --push --builder kaapana-buildx`, and local-only base images are pushed to the registry too so the isolated builder can pull them back in. Every build also mounts the repo's `constraints/` dir as a build-context for pinning pip installs.
 
-6.  Build and push containers
-7.  Process:
-    1.  Container without any local base images are transfered from waiting to the ready_queue.
-    2.  Thread picks task from ready_queue.
-    3.  When the tasks is finished it updates status of the Container is processed and check if any of the Container of the waiting queue have all their dependency ready (Failed, Built, etc.)
-    4.  Finishes when all tasks are finished.
-    5.  Every container is built using `docker build`; by default it is pushed afterwards with a separate `docker push`. With `--cache-from`/`--cache-to` (registry build cache, docker only) build and push happen together via `docker buildx build --push --builder kaapana-buildx`, and local-only base images are pushed to the registry too so the isolated builder can pull them back in. Every build also mounts the repo's `constraints/` dir as a build-context for pinning pip installs.
+10. Package and push extensions
+    1. Runs after the container build. After an `--exit-on-error` abort, the containers that were never processed stay NOT_BUILT, so their extensions are not published.
+    2. An extension is only packaged if all its images ended as PUSHED or NOTHING_CHANGED (with `--build-only` also BUILT or BUILT_ONLY). Otherwise it is an error issue.
+    3. The archive is written to `<build-dir>/extensions/`.
+    4. With `--build-only` or `--push-to-microk8s`, nothing is pushed. Otherwise the archive is pushed to `<default-registry>/extensions` with the library behind `extensionctl`, with `REGISTRY_USER` and `REGISTRY_PW`. `--plain-http` selects HTTP.
+    5. If the tag `<id>-v<version>` already exists, the manifest and the file digests are compared. The same content is skipped. Other content is an error issue, because the build never changes a published version.
+    6. Without credentials, a push that the registry rejects is only a warning, which shows the command for a manual push.
 
-8.  Package and push extensions
-    1.  Runs after the container build. After an `--exit-on-error` abort, the containers that were never processed stay NOT_BUILT, so their extensions are not published.
-    2.  An extension is only packaged if all its images ended as PUSHED or NOTHING_CHANGED (with `--build-only` also BUILT or BUILT_ONLY). Otherwise it is an error issue.
-    3.  The archive is written to `<build-dir>/extensions/`.
-    4.  With `--build-only` or `--push-to-microk8s`, nothing is pushed. Otherwise the archive is pushed to `<default-registry>/extensions` with the library behind `extensionctl`, with `REGISTRY_USER` and `REGISTRY_PW`. `--plain-http` selects HTTP.
-    5.  If the tag `<id>-v<version>` already exists, the manifest and the file digests are compared. The same content is skipped. Other content is an error issue, because the build never changes a published version.
-    6.  Without credentials, a push that the registry rejects is only a warning, which shows the command for a manual push.
+11. OfflineInstaller
+    - Just adapted, downloads snap, helm and containers into .tgz and .tar.
 
-9.  OfflineInstaller
-
-- Just adapted, downloads snap, helm and containers into .tgz and .tar.
-
-11. Stop build time, generate report about used images, charts, etc.
-12. Run Security Reporting if flag enabled. I adapted the code but didn't included multi-threading as it was too complicated:
-    1.  Configuration Check
-    2.  sboms
-    3.  Vulnerability Check
+12. Stop build time, generate report about used images, charts, etc.
+13. Run Security Reporting if flag enabled. I adapted the code but didn't included multi-threading as it was too complicated:
+    1. Configuration Check
+    2. sboms
+    3. Vulnerability Check
 
 # Improvements
 

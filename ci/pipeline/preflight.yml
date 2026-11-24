@@ -33,7 +33,6 @@ preflight_variables:
     name: $REGISTRY_ENV
     action: access
   variables:
-    GIT_STRATEGY: none # no checkout needed
     CI_EXEC_BENCHMARK: "$[[ inputs.exec_benchmark ]]"
   rules:
     - when: always
@@ -83,8 +82,10 @@ preflight_variables:
         require REGISTRY_USER
         require REGISTRY_TOKEN
       fi
-      if [ -n "${DOCKER_IO_USER:-}" ] && [ -z "${DOCKER_IO_PASSWORD:-}" ]; then
-        fail "DOCKER_IO_USER is set but DOCKER_IO_PASSWORD is empty — leave both empty to skip the docker.io login."
+      if [ -n "${DOCKER_IO_CONFIG:-}" ] && [ ! -f "$DOCKER_IO_CONFIG" ]; then
+        fail "DOCKER_IO_CONFIG must be a File-type variable."
+      elif ! python3 "$CI_PROJECT_DIR/ci/ci-code/utils/select_docker_io_credential.py" --check; then
+        fail "DOCKER_IO_CONFIG(File) is not a JSON object of docker.io users to tokens — leave it empty to skip the docker.io login."
       fi
 
       # release tag (e.g. "0.7.1"): publishes to the release registry instead

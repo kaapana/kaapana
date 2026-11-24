@@ -77,6 +77,8 @@ build_packages:
     - |
       set +x
       echo "$REGISTRY_TOKEN" | docker login "$REGISTRY_URL" -u "$REGISTRY_USER" --password-stdin
+      read -r DOCKER_IO_USER DOCKER_IO_PASSWORD < <(python3 "$CI_PROJECT_DIR/ci/ci-code/utils/select_docker_io_credential.py")
+      export DOCKER_IO_USER DOCKER_IO_PASSWORD
       if [[ -n "$DOCKER_IO_USER" ]]; then
         echo "$DOCKER_IO_PASSWORD" | docker login docker.io -u "$DOCKER_IO_USER" --password-stdin
       fi

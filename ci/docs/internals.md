@@ -57,16 +57,17 @@ out. An MR that adds a dependency between stages extends that header.
 
 ### preflight
 
-`preflight_variables` runs on every pipeline, needs no checkout
-(`GIT_STRATEGY: none`) and fails in seconds naming what is missing. It checks
-only what the *enabled* stages need, and prints variable names, never values.
+`preflight_variables` runs on every pipeline and fails in seconds naming what
+is missing. It checks only what the *enabled* stages need, and prints variable
+names, never values.
 Beyond emptiness it catches:
 
 - `CI_REGISTRY_USER` equal to `gitlab-ci-token` — the project variable was
   deleted and jobs silently got GitLab's predefined value
 - a `DOCKER_AUTH_CONFIG` with no entry for the `CI_REGISTRY_URL` host
 - a `DOCKER_IO_CONFIG` that is not a File-type variable, or whose file is not
-  valid JSON
+  a JSON object of users to tokens. The check is
+  `select_docker_io_credential.py --check`, the same rules the jobs use
 - a release tag pipeline without the `RELEASE_REGISTRY_*` triple
 - `DEPLOYMENT_INSTANCE_FQDN` over 57 characters — `dcmsend` rejects longer
   peerhosts, and `prepare_deployment` would only notice after the build
@@ -355,6 +356,9 @@ token from its output as data. It:
 - Without a usable account both stay empty and the job pulls anonymously, it
   does not fail.
 - The job log names the accounts and their remaining pulls, never a token.
+- GitLab does not mask the tokens. It can only mask a whole variable value, not
+  a token inside the JSON. So never print `DOCKER_IO_PASSWORD` or the file, and
+  do not use `set -x` in these jobs.
 - To rotate, add the new account to the JSON and remove the old one.
 
 ## The DKFZ proxy

@@ -9,6 +9,7 @@ RUN dnf upgrade curl-minimal libcurl-minimal ncurses-base ncurses-libs openssl-l
 
 COPY /files/start.sh .
 COPY /files/init-security.sh .
+COPY --chown=opensearch:opensearch /files/disable-base64-intrinsics.options /usr/share/opensearch/config/jvm.options.d/
 
 RUN chmod 777 init-security.sh
 

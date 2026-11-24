@@ -267,11 +267,11 @@ kube_helm_tests:
     - pip install -r $KAAPANA_DIR/services/kaapana-admin/kube-helm/docker/files/requirements.txt
     - pip install -r $KAAPANA_DIR/services/kaapana-admin/kube-helm/docker/files/backend/app/tests/requirements.txt
     - pytest $KAAPANA_DIR/services/kaapana-admin/kube-helm/docker/files/backend/app/tests/test_ttl_cache.py
-        $KAAPANA_DIR/services/kaapana-admin/kube-helm/docker/files/backend/app/tests/test_executors.py
-        $KAAPANA_DIR/services/kaapana-admin/kube-helm/docker/files/backend/app/tests/test_helm_commands.py
-        $KAAPANA_DIR/services/kaapana-admin/kube-helm/docker/files/backend/app/tests/test_routes.py
-        $KAAPANA_DIR/services/kaapana-admin/kube-helm/docker/files/backend/app/tests/test_validation.py
-        --junitxml=kube_helm_report.xml
+      $KAAPANA_DIR/services/kaapana-admin/kube-helm/docker/files/backend/app/tests/test_executors.py
+      $KAAPANA_DIR/services/kaapana-admin/kube-helm/docker/files/backend/app/tests/test_helm_commands.py
+      $KAAPANA_DIR/services/kaapana-admin/kube-helm/docker/files/backend/app/tests/test_routes.py
+      $KAAPANA_DIR/services/kaapana-admin/kube-helm/docker/files/backend/app/tests/test_validation.py
+      --junitxml=kube_helm_report.xml
   artifacts:
     reports:
       junit:

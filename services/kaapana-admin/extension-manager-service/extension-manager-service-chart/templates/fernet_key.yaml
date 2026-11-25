@@ -1,5 +1,5 @@
 {{- $secretName := "extension-manager-fernet-key" }}
-{{- $namespace := .Values.global.services_namespace }}
+{{- $namespace := .Values.global.admin_namespace }}
 {{- $existingSecret := lookup "v1" "Secret" $namespace $secretName }}
 {{- $fernetKey := "" }}
 {{- if $existingSecret }}

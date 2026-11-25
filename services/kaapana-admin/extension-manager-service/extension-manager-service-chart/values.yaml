@@ -1,5 +1,8 @@
+admin: true
 global:
+  admin_namespace: "admin"
   services_namespace: "services"
+  namespace: "{{ .Values.global.admin_namespace }}"
   registry_url: ""
   credentials_registry_username: ""
   credentials_registry_password: ""
@@ -11,15 +14,15 @@ global:
   pull_policy_images: "Always"
   storage_node: "storage"
   dynamicVolumes:
-    - name: extensions
+    - name: extension-manager-extensions
       storage_class: slow
       storage: 10Gi
-    - name: extensions-tmp
+    - name: extension-manager-tmp
       storage_class: slow
       storage: 10Gi
 
 kaapana_database:
-  admin: false
+  admin: true
   postgres_user: "postgres"
   postgres_password: "postgres"
   postgres_db: "postgres"

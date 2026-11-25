@@ -231,9 +231,9 @@ extensions_api_tests:
   script:
     - pip install -e "$KAAPANA_DIR/lib/kaapana_containers"
     - pip install -e "$KAAPANA_DIR/lib/kaapana_extensions"
-    - pip install -r  $KAAPANA_DIR/services/base/extension-manager-service/docker/files/app/tests/requirements.txt
-    - pytest  $KAAPANA_DIR/services/base/extension-manager-service/docker/files/app --junitxml=extensions_api_report.xml
-      --cov=services/base/extension-manager-service/docker/files/app
+    - pip install -r  $KAAPANA_DIR/services/kaapana-admin/extension-manager-service/docker/files/app/tests/requirements.txt
+    - pytest  $KAAPANA_DIR/services/kaapana-admin/extension-manager-service/docker/files/app --junitxml=extensions_api_report.xml
+      --cov=services/kaapana-admin/extension-manager-service/docker/files/app
       --cov-report=term --cov-report=xml:coverage.xml
   artifacts:
     reports:

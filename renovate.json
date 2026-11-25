@@ -199,7 +199,7 @@
         "services/base/workflow-api/**",
         "services/base/portal-api/**",
         "services/base/kaapana-backend/**",
-        "services/base/extension-manager-service/**",
+        "services/kaapana-admin/extension-manager-service/**",
         "services/base/notification-service/**",
         "services/kaapana-admin/auth-backend/**",
         "services/kaapana-admin/keycloak/keycloak-setup/**",

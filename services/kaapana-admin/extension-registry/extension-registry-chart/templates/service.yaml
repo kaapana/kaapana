@@ -3,7 +3,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: extension-registry
-  namespace: "{{ .Values.global.services_namespace }}"
+  namespace: "{{ .Values.global.admin_namespace }}"
 spec:
   selector:
     app.kubernetes.io/name: extension-registry

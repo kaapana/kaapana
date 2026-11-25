@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: extension-manager
-  namespace: "{{ .Values.global.services_namespace }}"
+  namespace: "{{ .Values.global.admin_namespace }}"
 spec:
   replicas: 1
   selector:
@@ -44,9 +44,9 @@ spec:
           - name: SERVICES_NAMESPACE
             value: "{{ .Values.global.services_namespace }}"
           - name: DATABASE_URL
-            value: "postgresql+asyncpg://{{ .Values.kaapana_database.postgres_user}}:{{ .Values.kaapana_database.postgres_password}}@{{ .Values.kaapana_database.appName | default .Chart.Name }}-database-service.{{ .Values.global.services_namespace }}.svc:5432"
+            value: "postgresql+asyncpg://{{ .Values.kaapana_database.postgres_user}}:{{ .Values.kaapana_database.postgres_password}}@{{ .Values.kaapana_database.appName | default .Chart.Name }}-database-service.{{ .Values.global.admin_namespace }}.svc:5432"
           - name: UPLOAD_REGISTRY_URL
-            value: "http://extension-registry.{{ .Values.global.services_namespace }}.svc:5000/uploads"
+            value: "http://extension-registry.{{ .Values.global.admin_namespace }}.svc:5000/uploads"
           - name: EXTENSION_UPLOAD_MAX_BYTES
             value: "{{ int .Values.extension_upload.max_bytes }}"
           - name: CREDENTIAL_ENCRYPTION_KEY
@@ -95,10 +95,10 @@ spec:
       volumes:
       - name: extensions
         persistentVolumeClaim:
-          claimName: extensions-pv-claim
+          claimName: extension-manager-extensions-pv-claim
       - name: extensions-tmp
         persistentVolumeClaim:
-          claimName: extensions-tmp-pv-claim
+          claimName: extension-manager-tmp-pv-claim
 {{- if .Values.global.dev_files }}
       - name: extension-manager-dev
         persistentVolumeClaim:

@@ -23,8 +23,8 @@ data-processing/processing-pipelines/total-segmentator-v2/processing-containers/
 docs/build/
 docs/source/image_urls.json
 lib/task_api/task_api/processing_container/*.schema.json
-services/base/extension-manager-service/docker/files/app/v1/mock_data/
 services/flow/airflow/docker/files/scripts/dicom_tag_dict.json
+services/kaapana-admin/extension-manager-service/docker/files/app/v1/mock_data/
 services/kaapana-admin/keycloak/keycloak-setup/keycloak-setup-chart/realm_objects/
 services/kaapana-admin/maintenance-page/
 services/kaapana-admin/traefik/traefik-chart/crds/

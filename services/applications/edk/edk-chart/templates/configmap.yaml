@@ -3,6 +3,7 @@ data:
   user_settings.json: |-
     {
         "workbench.colorTheme": "Dark+",
+        "remote.autoForwardPortsSource": "hybrid",
         "python.defaultInterpreterPath": "/opt/venv/bin/python",
         "chat.disableAIFeatures": true,
         "editor.aiStats.enabled": false,

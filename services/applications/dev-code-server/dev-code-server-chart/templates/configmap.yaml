@@ -51,6 +51,7 @@ data:
         "security.workspace.trust.untrustedFiles": "open",
         "extensions.supportUntrustedWorkspaces": true,
         "workbench.colorTheme": "Dark+",
+        "remote.autoForwardPortsSource": "hybrid",
         "chat.disableAIFeatures": true,
         "editor.aiStats.enabled": false,
         "chat.agent.enabled": false,

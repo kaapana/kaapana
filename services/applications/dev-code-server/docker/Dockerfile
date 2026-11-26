@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     libxml2-dev \
     libcurl4-openssl-dev \
+    libuv1-dev \
     software-properties-common \
     gdebi-core \
     && rm -rf /var/lib/apt/lists/*

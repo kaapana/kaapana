@@ -49,6 +49,7 @@ data:
         "security.workspace.trust.enabled": false,
         "security.workspace.trust.startupPrompt": "never",
         "workbench.colorTheme": "Dark+",
+        "remote.autoForwardPortsSource": "hybrid",
         "python.defaultInterpreterPath": "/opt/venv/bin/python",
         "chat.disableAIFeatures": true,
         "editor.aiStats.enabled": false,

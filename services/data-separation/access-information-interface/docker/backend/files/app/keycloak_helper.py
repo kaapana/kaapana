@@ -76,7 +76,9 @@ class KeycloakHelper:
             "grant_type": "client_credentials",
         }
         url = f"{protocol}://{host}:{port}/auth/realms/{realm}/protocol/openid-connect/token"
-        r = requests.post(url, verify=ssl_check, data=payload)
+        # Bounded, so a Keycloak that accepts the connection but never answers cannot
+        # hold up the caller, e.g. a project delete, indefinitely.
+        r = requests.post(url, verify=ssl_check, data=payload, timeout=30)
         r.raise_for_status()
         return r.json()["access_token"]
 
@@ -199,6 +201,18 @@ class KeycloakHelper:
         user_data["groups"] = self.get_user_groups(user_data["id"])
         user_data["realm_roles"] = self.get_user_realm_roles(user_data["id"])
         return user_data
+
+    def delete_user(self, user_id: str):
+        """
+        Delete a keycloak user by id; a user that is already gone counts as deleted
+        """
+        url = self.auth_url + f"kaapana/users/{user_id}"
+        try:
+            self.make_authorized_request(url, requests.delete)
+        except requests.HTTPError as e:
+            if e.response is None or e.response.status_code != 404:
+                raise
+            logger.info(f"Keycloak user {user_id} was already deleted")
 
     def get_user_by_id(self, userid: str):
         """

@@ -9,6 +9,7 @@ from app.keycloak_helper import KeycloakHelper, get_keycloak_helper
 from app.projects import crud, dicom_data, kubehelm, minio, opensearch, schemas
 from app.schemas import KeycloakUser
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
 from requests.exceptions import HTTPError
 from sqlalchemy.exc import IntegrityError
@@ -324,6 +325,36 @@ async def unarchive_project(
     return await crud.set_project_archived(session, project_id, archived=False)
 
 
+def project_system_user_name(project: schemas.Project) -> str:
+    # Must match the name the project-namespace chart gives the user
+    # (project-namespace-chart/templates/project-user-secret.yaml).
+    return f"{project.kubernetes_namespace}-system-user"
+
+
+async def delete_project_system_user(
+    session: AsyncSession, project: schemas.Project
+) -> None:
+    """
+    Delete the project's Keycloak system user and its roles in every project.
+    Errors are only logged, so Keycloak never blocks a project delete.
+    """
+    username = project_system_user_name(project)
+    try:
+        kc_client = await run_in_threadpool(KeycloakHelper)
+        user = await run_in_threadpool(kc_client.get_user_by_name, username)
+        if user is None:
+            # Warning: a missing user can mean the name no longer matches the chart,
+            # which would leave the real user behind.
+            logger.warning(f"Keycloak user {username} not found, nothing to delete")
+            return
+        # Roles first: if the Keycloak delete fails, what is left is a user that can
+        # still be found by name, not role rows pointing at a deleted login.
+        await crud.delete_user_roles_in_all_projects(session, user["id"])
+        await run_in_threadpool(kc_client.delete_user, user["id"])
+    except Exception as e:
+        logger.warning(f"Could not delete Keycloak user {username}: {e}")
+
+
 @router.delete("/{project_id}", tags=["Projects"])
 async def delete_project(
     project_id: UUID,
@@ -334,7 +365,10 @@ async def delete_project(
     minio_helper: minio.MinioHelper = Depends(minio.get_minio_helper),
 ):
     """
-    Delete a Kaapana project: drops the S3 bucket, OpenSearch index, roles, helm chart, the project's Kubernetes namespace with its persistent volumes, and dicom series held only by this project (and admin).
+    Delete a Kaapana project: drops the S3 bucket, OpenSearch index, roles, helm
+    chart, the project's Keycloak system user with its roles in all projects, the
+    project's Kubernetes namespace with its persistent volumes, and dicom series held
+    only by this project (and admin).
 
 
     """
@@ -371,6 +405,8 @@ async def delete_project(
     await minio_helper.teardown_project(project=project, session=session)
     kubehelm.uninstall_project_helm_chart(project)
     await crud.delete_project(session, project_id)
+    # After the database delete: while the project exists, its workflows need the user.
+    await delete_project_system_user(session, project)
     # Last, because its volumes cannot be restored: if the database delete fails,
     # the project stays and keeps its data.
     kubehelm.delete_project_namespace(project)

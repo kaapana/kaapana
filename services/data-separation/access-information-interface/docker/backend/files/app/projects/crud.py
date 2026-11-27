@@ -233,6 +233,14 @@ async def delete_users_projects_roles_mapping(
     return True
 
 
+async def delete_user_roles_in_all_projects(session: AsyncSession, keycloak_id: str):
+    await session.execute(
+        delete(UsersProjectsRoles).where(UsersProjectsRoles.keycloak_id == keycloak_id)
+    )
+    await session.commit()
+    return True
+
+
 async def get_project_users_roles_mapping(
     session: AsyncSession,
     project_id: UUID,

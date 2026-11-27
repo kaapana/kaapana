@@ -11,7 +11,7 @@ Project names follow DICOM AE-title rules -- up to 16 characters -- since a proj
 Users with the keycloak role *project-manager* or *admin* see all existing projects.
 They can add, edit, archive and delete projects, add users to existing projects or change the project role of a user.
 Archived projects are read-only, their data is preserved and these projects can be unarchived if needed at any time.
-Deleting a project tears down its resources -- MinIO bucket, OpenSearch index, roles, and its Kubernetes namespace with its volumes (workflow data, models, TensorBoard logs and the storage of applications started in the project) -- along with any DICOM series held only by that project.
+Deleting a project tears down its resources -- MinIO bucket, OpenSearch index, roles, its system user in Keycloak, and its Kubernetes namespace with its volumes (workflow data, models, TensorBoard logs and the storage of applications started in the project) -- along with any DICOM series held only by that project.
 Workflows and applications still running in the project are stopped.
 On Longhorn storage, application storage of the *slow* storage class stays on disk after the delete.
 This cannot be undone; to keep a project's data, archive the project instead.
